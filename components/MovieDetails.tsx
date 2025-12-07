@@ -202,7 +202,7 @@ export const MovieModal: React.FC<MovieModalProps> = ({
                 ) : (
                     <div className="flex flex-col overflow-y-auto custom-scrollbar bg-[#0a0a0a]">
                         {/* Hero Header */}
-                        <div className="relative h-64 md:h-[500px] w-full shrink-0">
+                        <div className="relative h-[60vh] md:h-[500px] w-full shrink-0">
                              <div className="absolute inset-0">
                                 <img src={displayData.backdrop_path ? `${TMDB_BACKDROP_BASE}${displayData.backdrop_path}` : displayData.poster_path ? `${TMDB_IMAGE_BASE}${displayData.poster_path}` : "https://placehold.co/1200x600"} alt={title} className="w-full h-full object-cover" />
                                 <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0a] via-[#0a0a0a]/50 to-transparent"></div>
