@@ -59,6 +59,8 @@ export default function App() {
   const [listModalMovie, setListModalMovie] = useState<Movie | null>(null);
   const [selectedPersonId, setSelectedPersonId] = useState<number | null>(null);
   const [isAIModalOpen, setIsAIModalOpen] = useState(false);
+  
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     const savedWatchlist = localStorage.getItem('movieverse_watchlist');
@@ -134,6 +136,19 @@ export default function App() {
     }
   };
 
+  // Helper for retries
+  const fetchWithRetry = async (url: string, retries = 3, delay = 1000): Promise<Response> => {
+      try {
+          const res = await fetch(url);
+          if (!res.ok && res.status !== 404) throw new Error(`HTTP ${res.status}`);
+          return res;
+      } catch (err) {
+          if (retries <= 0) throw err;
+          await new Promise(r => setTimeout(r, delay));
+          return fetchWithRetry(url, retries - 1, delay * 2);
+      }
+  };
+
   const fetchMovies = useCallback(async (pageNum: number = 1, isLoadMore = false) => {
     if (!apiKey) return;
     
@@ -148,6 +163,12 @@ export default function App() {
         setHasMore(false); 
         return; 
     }
+
+    if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+    }
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
 
     if (pageNum === 1) {
         setMovies([]); // Clear to show skeletons immediately
@@ -177,11 +198,12 @@ export default function App() {
                      const recs = await generateSmartRecommendations(geminiKey, searchQuery);
                      
                      if (recs && recs.movies && recs.movies.length > 0) {
+                          if (controller.signal.aborted) return;
                           setAiContextReason(recs.reason);
 
                           // 2. Fetch details for each identified movie
                           const searches = recs.movies.map(title => 
-                             fetch(`${TMDB_BASE_URL}/search/movie?api_key=${apiKey}&query=${encodeURIComponent(title)}`)
+                             fetchWithRetry(`${TMDB_BASE_URL}/search/movie?api_key=${apiKey}&query=${encodeURIComponent(title)}`)
                              .then(r => { if(!r.ok) throw new Error("Fetch failed"); return r.json(); })
                              .then(d => d.results?.[0]) // Take best match
                              .catch(e => null)
@@ -193,6 +215,7 @@ export default function App() {
                           const uniqueMovies = Array.from(new Map(foundMovies.map((m:any) => [m.id, m])).values());
                           
                           if (uniqueMovies.length > 0) {
+                              if (controller.signal.aborted) return;
                               const normalized = uniqueMovies.map((m: any) => ({
                                   ...m,
                                   media_type: 'movie'
@@ -255,12 +278,16 @@ export default function App() {
 
         let res;
         try {
-            res = await fetch(`${TMDB_BASE_URL}${endpoint}?${params.toString()}`);
-        } catch (netErr) {
-            console.warn("Network request failed", netErr);
-            setLoading(false);
+            res = await fetchWithRetry(`${TMDB_BASE_URL}${endpoint}?${params.toString()}`);
+        } catch (netErr: any) {
+            if (netErr.name !== 'AbortError') {
+                 console.warn("Network request failed", netErr);
+            }
+            if (!controller.signal.aborted) setLoading(false);
             return;
         }
+
+        if (controller.signal.aborted) return;
 
         if (!res.ok) {
              console.warn("API Error", res.status, res.statusText);
@@ -294,7 +321,7 @@ export default function App() {
     } catch (error) {
         console.error("Fetch Logic Error:", error);
     } finally {
-        setLoading(false);
+        if (!controller.signal.aborted) setLoading(false);
     }
   }, [apiKey, searchQuery, selectedCategory, sortOption, appRegion, watchlist, favorites, geminiKey, currentCollection, filterPeriod, selectedLanguage, selectedRegion, userProfile]);
 
@@ -517,17 +544,17 @@ export default function App() {
 
                    <div className="px-4 md:px-12 py-8 space-y-8 relative z-10 -mt-10">
                        {/* Control Bar */}
-                       <div className="sticky top-20 z-20">
-                            <div className="glass-panel p-2 rounded-2xl flex flex-wrap md:flex-nowrap gap-4 md:items-center justify-between mb-8 z-30 relative">
+                       <div className="sticky top-20 z-50">
+                            <div className="glass-panel p-2 rounded-2xl flex flex-wrap md:flex-nowrap gap-4 md:items-center justify-between mb-8 z-30 relative overflow-visible">
                                 <div className="flex items-center gap-2 px-2 shrink-0 w-full md:w-auto overflow-hidden">
                                      <h2 className="text-xl font-bold text-white whitespace-nowrap truncate">{currentCollection ? "Collection Items" : selectedCategory === "All" && !searchQuery ? "Trending Now" : searchQuery ? `Results: ${searchQuery}` : selectedCategory}</h2>
                                      <span className="text-xs font-medium text-white/40 bg-white/5 px-2 py-0.5 rounded-md border border-white/5 shrink-0">{movies.length}</span>
                                 </div>
-                                <div className="flex items-center gap-2 shrink-0 overflow-x-auto md:overflow-visible hide-scrollbar pb-1 md:pb-0 w-full md:w-auto flex-wrap md:flex-nowrap">
+                                <div className="flex items-center gap-2 shrink-0 overflow-visible pb-1 md:pb-0 w-full md:w-auto flex-wrap md:flex-nowrap">
                                     <div className="h-8 w-px bg-white/10 mx-1 hidden md:block"></div>
                                     <div className="relative group shrink-0 z-50">
                                          <button className="flex items-center gap-2 bg-white/5 hover:bg-white/10 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors border border-white/5"><Filter size={14} /> Sort <ChevronDown size={12}/></button>
-                                         <div className="absolute right-0 top-full pt-2 w-40 hidden group-hover:block z-50">
+                                         <div className="absolute right-0 top-full pt-2 w-40 hidden group-hover:block z-[60]">
                                              <div className="glass-panel p-1 rounded-lg">
                                                  {[
                                                      { l: "Popular", v: "popularity.desc" }, 
@@ -543,7 +570,7 @@ export default function App() {
 
                                     <div className="relative group shrink-0 z-50">
                                          <button className="flex items-center gap-2 bg-white/5 hover:bg-white/10 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors border border-white/5"><Globe size={14} /> {selectedRegion === 'IN' ? 'India' : 'Global'} <ChevronDown size={12}/></button>
-                                         <div className="absolute right-0 top-full pt-2 w-32 hidden group-hover:block z-50">
+                                         <div className="absolute right-0 top-full pt-2 w-32 hidden group-hover:block z-[60]">
                                              <div className="glass-panel p-1 rounded-lg">
                                                  <button onClick={() => setSelectedRegion("Global")} className="w-full text-left px-3 py-2 text-xs rounded-md text-gray-400 hover:bg-white/10 hover:text-white">Global</button>
                                                  <button onClick={() => setSelectedRegion("IN")} className="w-full text-left px-3 py-2 text-xs rounded-md text-red-400 hover:bg-white/10">India</button>
@@ -553,7 +580,7 @@ export default function App() {
 
                                     <div className="relative group shrink-0 z-50">
                                          <button className="flex items-center gap-2 bg-white/5 hover:bg-white/10 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors border border-white/5"><Languages size={14} /> {INDIAN_LANGUAGES.find(l => l.code === selectedLanguage)?.name.split(' ')[0] || 'All'} <ChevronDown size={12}/></button>
-                                         <div className="absolute right-0 top-full pt-2 w-48 hidden group-hover:block z-50">
+                                         <div className="absolute right-0 top-full pt-2 w-48 hidden group-hover:block z-[60]">
                                              <div className="glass-panel p-1 rounded-lg max-h-60 overflow-y-auto custom-scrollbar">
                                                  <button onClick={() => setSelectedLanguage("All")} className="w-full text-left px-3 py-2 text-xs rounded-md text-gray-400 hover:bg-white/10 hover:text-white">All Languages</button>
                                                  {INDIAN_LANGUAGES.map(lang => ( <button key={lang.code} onClick={() => setSelectedLanguage(lang.code)} className="w-full text-left px-3 py-2 text-xs rounded-md text-gray-400 hover:bg-white/10 hover:text-white">{lang.name}</button> ))}
