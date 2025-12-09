@@ -1,3 +1,4 @@
+
 export interface Movie {
   id: number;
   title: string;
@@ -126,6 +127,7 @@ export interface CrewMember {
   job: string;
   department: string;
   profile_path: string | null;
+  popularity: number;
 }
 
 export interface VideoResult {
@@ -181,10 +183,12 @@ export interface PersonDetails {
   place_of_birth: string;
   profile_path: string | null;
   known_for_department: string;
-  movie_credits: {
+  combined_credits: {
     cast: Movie[];
   };
 }
+
+export type MaturityRating = "G" | "PG" | "PG-13" | "R" | "NC-17";
 
 export const INDIAN_LANGUAGES = [
   { code: "hi", name: "Hindi (Bollywood)" },

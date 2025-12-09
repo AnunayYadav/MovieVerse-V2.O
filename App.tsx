@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Search, Film, Menu, TrendingUp, Tv, Ghost, Calendar, Star, X, Sparkles, Settings, Globe, BarChart3, Bookmark, Heart, Folder, MapPin, Languages, Filter, ChevronDown, Info, Plus, LogOut, ArrowRight } from 'lucide-react';
-import { Movie, UserProfile, GENRES_MAP, GENRES_LIST, INDIAN_LANGUAGES } from './types';
+import { Search, Film, Menu, TrendingUp, Tv, Ghost, Calendar, Star, X, Sparkles, Settings, Globe, BarChart3, Bookmark, Heart, Folder, MapPin, Languages, Filter, ChevronDown, Info, Plus, LogOut, ArrowRight, Bell } from 'lucide-react';
+import { Movie, UserProfile, GENRES_MAP, GENRES_LIST, INDIAN_LANGUAGES, MaturityRating } from './types';
 import { LogoLoader, MovieSkeleton, MovieCard, PosterMarquee, TMDB_BASE_URL, TMDB_BACKDROP_BASE } from './components/Shared';
 import { MovieModal } from './components/MovieDetails';
 import { AnalyticsDashboard } from './components/Analytics';
-import { ProfileModal, ListSelectionModal, PersonModal, AIRecommendationModal, SettingsModal } from './components/Modals';
+import { ProfileModal, ListSelectionModal, PersonModal, AIRecommendationModal, SettingsModal, NotificationModal } from './components/Modals';
 import { generateSmartRecommendations, getSearchSuggestions } from './services/gemini';
 
 const DEFAULT_TMDB_KEY = "fe42b660a036f4d6a2bfeb4d0f523ce9";
@@ -45,6 +45,7 @@ export default function App() {
   const [filterPeriod, setFilterPeriod] = useState("all");
   const [selectedRegion, setSelectedRegion] = useState("Global");
   const [selectedLanguage, setSelectedLanguage] = useState("All");
+  const [maturityRating, setMaturityRating] = useState<MaturityRating>('NC-17');
 
   // Local Storage State
   const [watchlist, setWatchlist] = useState<Movie[]>([]);
@@ -59,6 +60,7 @@ export default function App() {
   const [listModalMovie, setListModalMovie] = useState<Movie | null>(null);
   const [selectedPersonId, setSelectedPersonId] = useState<number | null>(null);
   const [isAIModalOpen, setIsAIModalOpen] = useState(false);
+  const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   
   const abortControllerRef = useRef<AbortController | null>(null);
 
@@ -183,7 +185,9 @@ export default function App() {
             page: pageNum.toString(),
             language: "en-US",
             region: appRegion,
-            include_adult: "false"
+            include_adult: "false",
+            certification_country: "US", // Filter by US rating standard for simplicity
+            "certification.lte": maturityRating
         });
 
         // ----------------------------------------------------
@@ -323,7 +327,7 @@ export default function App() {
     } finally {
         if (!controller.signal.aborted) setLoading(false);
     }
-  }, [apiKey, searchQuery, selectedCategory, sortOption, appRegion, watchlist, favorites, geminiKey, currentCollection, filterPeriod, selectedLanguage, selectedRegion, userProfile]);
+  }, [apiKey, searchQuery, selectedCategory, sortOption, appRegion, watchlist, favorites, geminiKey, currentCollection, filterPeriod, selectedLanguage, selectedRegion, userProfile, maturityRating]);
 
   // Debounced Search (Auto-trigger fetchMovies)
   useEffect(() => {
@@ -331,7 +335,7 @@ export default function App() {
          fetchMovies(1, false);
      }, searchQuery ? 1000 : 300); // 1s delay for search to allow typing to finish and avoid quota spam
      return () => clearTimeout(timeout);
-  }, [searchQuery, selectedCategory, sortOption, appRegion, currentCollection, filterPeriod, selectedLanguage, selectedRegion]);
+  }, [searchQuery, selectedCategory, sortOption, appRegion, currentCollection, filterPeriod, selectedLanguage, selectedRegion, maturityRating]);
 
   // Suggestion Fetching
   useEffect(() => {
@@ -372,7 +376,7 @@ export default function App() {
       // The debounce effect will pick this up and trigger the search
   };
   
-  const observer = useRef<IntersectionObserver>();
+  const observer = useRef<IntersectionObserver | null>(null);
   const lastMovieElementRef = useCallback((node: HTMLDivElement) => {
     if (loading) return;
     if (observer.current) observer.current.disconnect();
@@ -436,7 +440,10 @@ export default function App() {
         </div>
         
         <div className="flex items-center gap-2 md:gap-4">
-             <button onClick={() => setIsAIModalOpen(true)} className="hidden md:flex items-center gap-2 text-xs font-bold bg-white/5 hover:bg-white/10 border border-white/10 px-4 py-2 rounded-full transition-all text-red-300 hover:text-red-200"><Sparkles size={14} /> AI Finder</button>
+             <button onClick={() => setIsNotificationOpen(true)} className="relative text-gray-400 hover:text-white transition-colors">
+                 <Bell size={20}/>
+                 <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-600 rounded-full animate-pulse"></span>
+             </button>
              <button onClick={() => setIsProfileOpen(true)} className="w-8 h-8 rounded-full bg-gradient-to-br from-red-600 to-red-900 flex items-center justify-center text-xs font-bold text-white shadow-lg shadow-red-900/40 hover:scale-105 transition-transform">{userProfile.name.charAt(0)}</button>
              <button onClick={() => setIsSettingsOpen(true)} className="text-gray-400 hover:text-white transition-colors"><Settings size={20} /></button>
         </div>
@@ -460,6 +467,16 @@ export default function App() {
                </div>
 
                <div className="space-y-6">
+                   {/* Discover Section */}
+                   <div className="space-y-1">
+                        <p className="text-xs font-bold text-white/40 uppercase tracking-wider mb-2 px-2">Discover</p>
+                        <button onClick={() => { setSelectedCategory("All"); setFilterPeriod("all"); setCurrentCollection(null); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${selectedCategory === "All" && filterPeriod === "all" ? 'bg-red-600/20 text-red-400' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}><TrendingUp size={18}/> Trending Now</button>
+                        <button onClick={() => { setSelectedCategory("TV Shows"); setCurrentCollection(null); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${selectedCategory === "TV Shows" ? 'bg-red-600/20 text-red-400' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}><Tv size={18}/> TV Shows</button>
+                        <button onClick={() => { setSelectedCategory("Anime"); setCurrentCollection(null); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${selectedCategory === "Anime" ? 'bg-red-600/20 text-red-400' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}><Ghost size={18}/> Anime</button>
+                        <button onClick={() => { setSortOption("vote_average.desc"); setSelectedCategory("All"); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${sortOption === "vote_average.desc" && selectedCategory === "All" ? 'bg-red-600/20 text-red-400' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}><Star size={18}/> Top Rated</button>
+                        <button onClick={() => { setFilterPeriod("future"); setSelectedCategory("All"); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${filterPeriod === "future" ? 'bg-red-600/20 text-red-400' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}><Calendar size={18}/> Coming Soon</button>
+                   </div>
+
                    <div className="space-y-1">
                        <p className="text-xs font-bold text-white/40 uppercase tracking-wider mb-2 px-2">Library</p>
                        <button onClick={() => { setSelectedCategory("Watchlist"); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${selectedCategory === "Watchlist" ? 'bg-red-600/20 text-red-400' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}><Bookmark size={18}/> Watchlist <span className="ml-auto text-xs opacity-50">{watchlist.length}</span></button>
@@ -467,19 +484,35 @@ export default function App() {
                        <button onClick={() => { setSelectedCategory("CineAnalytics"); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${selectedCategory === "CineAnalytics" ? 'bg-red-600/20 text-red-400' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}><BarChart3 size={18}/> Analytics</button>
                    </div>
                    
-                   <div className="space-y-1">
-                       <p className="text-xs font-bold text-white/40 uppercase tracking-wider mb-2 px-2">Collections</p>
-                       {Object.keys(customLists).map(listName => ( 
-                            <button key={listName} onClick={() => { setSelectedCategory(`Custom:${listName}`); setCurrentCollection(null); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${selectedCategory === `Custom:${listName}` ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}><Folder size={18} /> {listName} <span className="ml-auto text-xs opacity-50">{customLists[listName].length}</span></button> 
-                        ))}
-                       <button onClick={() => { setFilterPeriod("future"); setSelectedCategory("All"); setIsSidebarOpen(false); }} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-gray-400 hover:text-white hover:bg-white/5"><Calendar size={18}/> Coming Soon</button>
-                   </div>
+                   {Object.keys(customLists).length > 0 && (
+                       <div className="space-y-1">
+                           <p className="text-xs font-bold text-white/40 uppercase tracking-wider mb-2 px-2">My Lists</p>
+                           {Object.keys(customLists).map(listName => ( 
+                                <button key={listName} onClick={() => { setSelectedCategory(`Custom:${listName}`); setCurrentCollection(null); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${selectedCategory === `Custom:${listName}` ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}><Folder size={18} /> {listName} <span className="ml-auto text-xs opacity-50">{customLists[listName].length}</span></button> 
+                            ))}
+                       </div>
+                   )}
 
                    <div className="space-y-2">
                        <p className="text-xs font-bold text-white/40 uppercase tracking-wider mb-2 px-2">Curated</p>
                        {Object.entries(DEFAULT_COLLECTIONS).map(([key, col]: any) => ( 
                            <button key={key} onClick={() => handleCollectionClick(key)} className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium transition-all ${currentCollection === key ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}><span>{col.icon}</span> {col.title}</button>
                        ))}
+                   </div>
+                   
+                   <div className="space-y-2">
+                        <p className="text-xs font-bold text-white/40 uppercase tracking-wider mb-2 px-2">Genres</p>
+                        <div className="flex flex-wrap gap-2 px-2">
+                            {GENRES_LIST.map(genre => (
+                                <button 
+                                    key={genre}
+                                    onClick={() => { setSelectedCategory(genre); setFilterPeriod("all"); setCurrentCollection(null); setIsSidebarOpen(false); }}
+                                    className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${selectedCategory === genre ? 'bg-red-600 text-white border-red-600' : 'bg-white/5 border-white/5 text-gray-400 hover:text-white hover:border-white/20'}`}
+                                >
+                                    {genre}
+                                </button>
+                            ))}
+                        </div>
                    </div>
                </div>
                
@@ -554,7 +587,7 @@ export default function App() {
                                     <div className="h-8 w-px bg-white/10 mx-1 hidden md:block"></div>
                                     <div className="relative group shrink-0 z-50">
                                          <button className="flex items-center gap-2 bg-white/5 hover:bg-white/10 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors border border-white/5"><Filter size={14} /> Sort <ChevronDown size={12}/></button>
-                                         <div className="absolute right-0 top-full pt-2 w-40 hidden group-hover:block z-[60]">
+                                         <div className="absolute left-0 top-full pt-2 w-40 hidden group-hover:block z-[60]">
                                              <div className="glass-panel p-1 rounded-lg">
                                                  {[
                                                      { l: "Popular", v: "popularity.desc" }, 
@@ -586,11 +619,6 @@ export default function App() {
                                                  {INDIAN_LANGUAGES.map(lang => ( <button key={lang.code} onClick={() => setSelectedLanguage(lang.code)} className="w-full text-left px-3 py-2 text-xs rounded-md text-gray-400 hover:bg-white/10 hover:text-white">{lang.name}</button> ))}
                                              </div>
                                          </div>
-                                    </div>
-                                    
-                                    <div className="flex bg-white/5 rounded-lg p-1 border border-white/5 shrink-0">
-                                        <button onClick={() => setFilterPeriod("all")} className={`px-2 py-1 rounded-md text-[10px] font-bold transition-all ${filterPeriod === "all" ? 'bg-white/10 text-white shadow-sm' : 'text-gray-500'}`}>ALL</button>
-                                        <button onClick={() => setFilterPeriod("thisYear")} className={`px-2 py-1 rounded-md text-[10px] font-bold transition-all ${filterPeriod === "thisYear" ? 'bg-white/10 text-white shadow-sm' : 'text-gray-500'}`}>2024</button>
                                     </div>
                                 </div>
                             </div>
@@ -708,7 +736,12 @@ export default function App() {
         setApiKey={(k) => saveSettings(k, geminiKey)} 
         geminiKey={geminiKey} 
         setGeminiKey={(k) => saveSettings(apiKey, k)} 
+        maturityRating={maturityRating}
+        setMaturityRating={setMaturityRating}
+        profile={userProfile}
       />
+      
+      <NotificationModal isOpen={isNotificationOpen} onClose={() => setIsNotificationOpen(false)} />
       
       {!apiKey && loading && <div className="fixed inset-0 z-[100] bg-black"><LogoLoader /></div>}
     </div>
