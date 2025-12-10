@@ -162,6 +162,7 @@ export interface UserProfile {
   name: string;
   age: string;
   genres: string[];
+  avatar?: string;
 }
 
 export interface AIAnalysisResult {

@@ -109,13 +109,27 @@ export default function App() {
                 setIsCloudSync(true);
                 // Fetch Cloud Data
                 const cloudData = await fetchUserData();
+                let profileToSet = { name: "Guest", age: "", genres: [] } as UserProfile;
+
                 if (cloudData) {
                     setWatchlist(cloudData.watchlist);
                     setFavorites(cloudData.favorites);
                     setWatched(cloudData.watched);
                     setCustomLists(cloudData.customLists);
-                    if (cloudData.profile) setUserProfile(cloudData.profile);
+                    if (cloudData.profile) profileToSet = cloudData.profile;
                 }
+                
+                // Extract metadata from Google if profile is generic or empty
+                const meta = session.user.user_metadata;
+                if (meta) {
+                    if (profileToSet.name === "Guest" || !profileToSet.name) {
+                        profileToSet.name = meta.full_name || meta.name || profileToSet.name;
+                    }
+                    if (!profileToSet.avatar) {
+                        profileToSet.avatar = meta.avatar_url || meta.picture;
+                    }
+                }
+                setUserProfile(profileToSet);
             }
             
             // Listen for auth changes
@@ -125,13 +139,28 @@ export default function App() {
                     setIsCloudSync(true);
                     // Reload data on sign in
                     const data = await fetchUserData();
+                    let profileToSet = { name: "Guest", age: "", genres: [] } as UserProfile;
+
                     if(data) {
                         setWatchlist(data.watchlist);
                         setFavorites(data.favorites);
                         setWatched(data.watched);
                         setCustomLists(data.customLists);
-                        setUserProfile(data.profile);
+                        if (data.profile) profileToSet = data.profile;
                     }
+
+                    // Extract metadata from Google
+                    const meta = session.user.user_metadata;
+                    if (meta) {
+                        if (profileToSet.name === "Guest" || !profileToSet.name) {
+                            profileToSet.name = meta.full_name || meta.name || profileToSet.name;
+                        }
+                        if (!profileToSet.avatar) {
+                            profileToSet.avatar = meta.avatar_url || meta.picture;
+                        }
+                    }
+                    setUserProfile(profileToSet);
+
                 } else if (event === 'SIGNED_OUT') {
                     // CRITICAL FIX: Only call reset, DO NOT call signOut() here
                     resetAuthState();
@@ -616,7 +645,13 @@ export default function App() {
                  <Bell size={20}/>
                  <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-600 rounded-full animate-pulse"></span>
              </button>
-             <button onClick={() => setIsProfileOpen(true)} className="w-8 h-8 rounded-full bg-gradient-to-br from-red-600 to-red-900 flex items-center justify-center text-xs font-bold text-white shadow-lg shadow-red-900/40 hover:scale-105 transition-transform">{userProfile.name.charAt(0)}</button>
+             <button onClick={() => setIsProfileOpen(true)} className="w-8 h-8 rounded-full bg-gradient-to-br from-red-600 to-red-900 flex items-center justify-center text-xs font-bold text-white shadow-lg shadow-red-900/40 hover:scale-105 transition-transform overflow-hidden">
+                 {userProfile.avatar ? (
+                    <img src={userProfile.avatar} alt={userProfile.name} className="w-full h-full object-cover" />
+                 ) : (
+                    userProfile.name.charAt(0).toUpperCase()
+                 )}
+             </button>
              <button onClick={() => setIsSettingsOpen(true)} className="text-gray-400 hover:text-white transition-colors"><Settings size={20} /></button>
         </div>
       </nav>

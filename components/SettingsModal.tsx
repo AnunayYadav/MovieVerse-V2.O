@@ -148,8 +148,8 @@ create policy "Owner only" on public.user_data for all using (auth.uid() = id);`
                           <div className="space-y-6 animate-in fade-in slide-in-from-right-4">
                               <h3 className="text-lg font-bold text-white mb-4">My Account</h3>
                               <div className="flex items-center gap-4 p-4 bg-white/5 rounded-xl border border-white/5">
-                                  <div className="w-12 h-12 md:w-16 md:h-16 rounded-full bg-gradient-to-br from-red-600 to-red-900 flex items-center justify-center text-lg md:text-xl font-bold text-white shrink-0">
-                                      {profile.name.charAt(0).toUpperCase()}
+                                  <div className="w-12 h-12 md:w-16 md:h-16 rounded-full bg-gradient-to-br from-red-600 to-red-900 flex items-center justify-center text-lg md:text-xl font-bold text-white shrink-0 overflow-hidden">
+                                      {profile.avatar ? <img src={profile.avatar} alt={profile.name} className="w-full h-full object-cover" /> : profile.name.charAt(0).toUpperCase()}
                                   </div>
                                   <div>
                                       <p className="text-white font-bold text-lg">{profile.name}</p>
