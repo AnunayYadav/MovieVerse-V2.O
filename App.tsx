@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Search, Film, Menu, TrendingUp, Tv, Ghost, Calendar, Star, X, Sparkles, Settings, Globe, BarChart3, Bookmark, Heart, Folder, MapPin, Languages, Filter, ChevronDown, Info, Plus, LogOut, ArrowRight, Bell } from 'lucide-react';
+import { Search, Film, Menu, TrendingUp, Tv, Ghost, Calendar, Star, X, Sparkles, Settings, Globe, BarChart3, Bookmark, Heart, Folder, MapPin, Languages, Filter, ChevronDown, Info, Plus, LogOut, ArrowRight, Bell, History, Clock, Trash2, Cloud, CloudOff } from 'lucide-react';
 import { Movie, UserProfile, GENRES_MAP, GENRES_LIST, INDIAN_LANGUAGES, MaturityRating } from './types';
 import { LogoLoader, MovieSkeleton, MovieCard, PosterMarquee, TMDB_BASE_URL, TMDB_BACKDROP_BASE } from './components/Shared';
 import { MovieModal } from './components/MovieDetails';
 import { AnalyticsDashboard } from './components/Analytics';
 import { ProfileModal, ListSelectionModal, PersonModal, AIRecommendationModal, SettingsModal, NotificationModal } from './components/Modals';
 import { generateSmartRecommendations, getSearchSuggestions } from './services/gemini';
+import { LoginPage } from './components/LoginPage';
+import { getSupabase, syncUserData, fetchUserData, signOut } from './services/supabase';
 
 const DEFAULT_TMDB_KEY = "fe42b660a036f4d6a2bfeb4d0f523ce9";
 const DEFAULT_GEMINI_KEY = "AIzaSyBGy80BBep7qmkqc0Wqt9dr-gMYs8X2mzo"; 
@@ -22,10 +24,16 @@ export default function App() {
   const [apiKey, setApiKey] = useState(DEFAULT_TMDB_KEY);
   const [geminiKey, setGeminiKey] = useState(DEFAULT_GEMINI_KEY);
   
+  // Auth State
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [authChecking, setAuthChecking] = useState(true);
+  const [isCloudSync, setIsCloudSync] = useState(false);
+
   const [movies, setMovies] = useState<Movie[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchSuggestions, setSearchSuggestions] = useState<string[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [searchHistory, setSearchHistory] = useState<string[]>([]);
   
   const [loading, setLoading] = useState(false);
   const [selectedMovie, setSelectedMovie] = useState<Movie | null>(null);
@@ -64,36 +72,133 @@ export default function App() {
   
   const abortControllerRef = useRef<AbortController | null>(null);
 
+  // --- AUTH & INITIALIZATION ---
   useEffect(() => {
-    const savedWatchlist = localStorage.getItem('movieverse_watchlist');
-    if (savedWatchlist) setWatchlist(JSON.parse(savedWatchlist));
-    const savedFavs = localStorage.getItem('movieverse_favorites');
-    if (savedFavs) setFavorites(JSON.parse(savedFavs));
-    const savedWatched = localStorage.getItem('movieverse_watched');
-    if (savedWatched) setWatched(JSON.parse(savedWatched));
-    const savedLists = localStorage.getItem('movieverse_customlists');
-    if (savedLists) setCustomLists(JSON.parse(savedLists));
-    const savedProfile = localStorage.getItem('movieverse_profile');
-    if (savedProfile) setUserProfile(JSON.parse(savedProfile));
-    
-    // Check keys
-    const savedGemini = localStorage.getItem('movieverse_gemini_key');
-    if (savedGemini) setGeminiKey(savedGemini);
-    const savedTmdb = localStorage.getItem('movieverse_tmdb_key');
-    if (savedTmdb) setApiKey(savedTmdb);
+    const initApp = async () => {
+        // 1. Keys
+        const savedGemini = localStorage.getItem('movieverse_gemini_key');
+        if (savedGemini) setGeminiKey(savedGemini);
+        const savedTmdb = localStorage.getItem('movieverse_tmdb_key');
+        if (savedTmdb) setApiKey(savedTmdb);
 
-    const params = new URLSearchParams(window.location.search);
-    const movieId = params.get('movie');
-    if (movieId && apiKey) {
-        fetch(`${TMDB_BASE_URL}/movie/${movieId}?api_key=${apiKey}`)
-        .then(res => {
-            if (!res.ok) throw new Error("Failed to load initial movie");
-            return res.json();
-        })
-        .then(data => { if(data.id) setSelectedMovie(data); })
-        .catch(err => console.error("Error loading initial movie:", err));
-    }
+        // 2. Search History
+        const savedHistory = localStorage.getItem('movieverse_search_history');
+        if (savedHistory) setSearchHistory(JSON.parse(savedHistory));
+
+        // 3. Supabase Auth Check
+        const supabase = getSupabase();
+        let sessionUser = null;
+        
+        if (supabase) {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session?.user) {
+                sessionUser = session.user;
+                setIsCloudSync(true);
+                // Fetch Cloud Data
+                const cloudData = await fetchUserData();
+                if (cloudData) {
+                    setWatchlist(cloudData.watchlist);
+                    setFavorites(cloudData.favorites);
+                    setWatched(cloudData.watched);
+                    setCustomLists(cloudData.customLists);
+                    if (cloudData.profile) setUserProfile(cloudData.profile);
+                } else {
+                    // Initialize empty or merge? defaulting to empty for now
+                    console.log("No cloud data found for user.");
+                }
+            }
+            
+            // Listen for auth changes
+            supabase.auth.onAuthStateChange(async (event, session) => {
+                if (event === 'SIGNED_IN' && session) {
+                    setIsAuthenticated(true);
+                    setIsCloudSync(true);
+                    // Reload data on sign in
+                    const data = await fetchUserData();
+                    if(data) {
+                        setWatchlist(data.watchlist);
+                        setFavorites(data.favorites);
+                        setWatched(data.watched);
+                        setCustomLists(data.customLists);
+                        setUserProfile(data.profile);
+                    }
+                } else if (event === 'SIGNED_OUT') {
+                    handleLogout();
+                }
+            });
+        }
+
+        // 4. Fallback to LocalStorage if no Cloud Session
+        if (!sessionUser) {
+            const auth = localStorage.getItem('movieverse_auth');
+            if (auth) {
+                setIsAuthenticated(true);
+                const savedWatchlist = localStorage.getItem('movieverse_watchlist');
+                if (savedWatchlist) setWatchlist(JSON.parse(savedWatchlist));
+                const savedFavs = localStorage.getItem('movieverse_favorites');
+                if (savedFavs) setFavorites(JSON.parse(savedFavs));
+                const savedWatched = localStorage.getItem('movieverse_watched');
+                if (savedWatched) setWatched(JSON.parse(savedWatched));
+                const savedLists = localStorage.getItem('movieverse_customlists');
+                if (savedLists) setCustomLists(JSON.parse(savedLists));
+                const savedProfile = localStorage.getItem('movieverse_profile');
+                if (savedProfile) setUserProfile(JSON.parse(savedProfile));
+            }
+        } else {
+            setIsAuthenticated(true);
+        }
+
+        // 5. Deep Link
+        const params = new URLSearchParams(window.location.search);
+        const movieId = params.get('movie');
+        if (movieId && apiKey) {
+            fetch(`${TMDB_BASE_URL}/movie/${movieId}?api_key=${apiKey}`)
+            .then(res => res.ok ? res.json() : null)
+            .then(data => { if(data?.id) setSelectedMovie(data); });
+        }
+        
+        setAuthChecking(false);
+    };
+
+    initApp();
   }, []);
+
+  // --- SYNC HELPER ---
+  // We use a debounce or just direct sync. For simplicity, direct sync on state change.
+  // Ideally, useEffect on [watchlist, favorites, etc] to sync would be cleaner.
+  useEffect(() => {
+      if (isCloudSync && isAuthenticated) {
+          syncUserData({
+              watchlist,
+              favorites,
+              watched,
+              customLists,
+              profile: userProfile
+          });
+      }
+  }, [watchlist, favorites, watched, customLists, userProfile, isCloudSync, isAuthenticated]);
+
+
+  const handleLogin = (profileData?: UserProfile) => {
+    localStorage.setItem('movieverse_auth', 'true');
+    if (profileData) {
+        setUserProfile(profileData);
+        localStorage.setItem('movieverse_profile', JSON.stringify(profileData));
+    }
+    setIsAuthenticated(true);
+  };
+
+  const handleLogout = async () => {
+    await signOut();
+    localStorage.removeItem('movieverse_auth');
+    setIsAuthenticated(false);
+    setIsCloudSync(false);
+    setIsSettingsOpen(false);
+    // Clear state
+    setWatchlist([]);
+    setFavorites([]);
+    setWatched([]);
+  };
 
   const saveSettings = (newTmdb: string, newGemini: string) => {
     setApiKey(newTmdb);
@@ -102,10 +207,25 @@ export default function App() {
     localStorage.setItem('movieverse_gemini_key', newGemini);
   };
 
+  const addToSearchHistory = (query: string) => {
+      if (!query.trim()) return;
+      const newHistory = [query, ...searchHistory.filter(h => h !== query)].slice(0, 10);
+      setSearchHistory(newHistory);
+      localStorage.setItem('movieverse_search_history', JSON.stringify(newHistory));
+  };
+
+  const removeFromSearchHistory = (e: React.MouseEvent, query: string) => {
+      e.stopPropagation();
+      const newHistory = searchHistory.filter(h => h !== query);
+      setSearchHistory(newHistory);
+      localStorage.setItem('movieverse_search_history', JSON.stringify(newHistory));
+  };
+
   const toggleList = (list: Movie[], setList: (l: Movie[]) => void, key: string, movie: Movie) => {
       const exists = list.some(m => m.id === movie.id);
       const newList = exists ? list.filter(m => m.id !== movie.id) : [...list, movie];
       setList(newList);
+      // LocalStorage backup always
       localStorage.setItem(key, JSON.stringify(newList));
   };
 
@@ -157,6 +277,7 @@ export default function App() {
     // Internal lists logic
     if (selectedCategory === "Watchlist") { setMovies(sortMovies(watchlist, sortOption)); setFeaturedMovie(watchlist[0]); setHasMore(false); return; }
     if (selectedCategory === "Favorites") { setMovies(sortMovies(favorites, sortOption)); setFeaturedMovie(null); setHasMore(false); return; }
+    if (selectedCategory === "History") { setMovies(sortMovies(watched, sortOption)); setFeaturedMovie(null); setHasMore(false); return; }
     if (selectedCategory === "CineAnalytics") return;
     if (selectedCategory.startsWith("Custom:")) { 
         const listName = selectedCategory.replace("Custom:", ""); 
@@ -191,52 +312,51 @@ export default function App() {
         });
 
         // ----------------------------------------------------
-        // SEARCH PATH (GEMINI DEFAULT)
+        // SEARCH PATH (HYBRID STRATEGY: STANDARD + AI)
         // ----------------------------------------------------
         if (searchQuery) {
-            // Priority: Gemini Semantic Search for ALL queries if Key is present
-            // We only do the expensive AI search on page 1 load.
+            // Hybrid Search Logic
             if (geminiKey && pageNum === 1) {
                  try {
-                     // 1. Get List of Relevant Titles from Gemini based on analysis
-                     const recs = await generateSmartRecommendations(geminiKey, searchQuery);
+                     const [stdRes, aiRecs] = await Promise.all([
+                         fetch(`${TMDB_BASE_URL}/search/movie?api_key=${apiKey}&query=${encodeURIComponent(searchQuery)}&include_adult=false`),
+                         generateSmartRecommendations(geminiKey, searchQuery)
+                     ]);
                      
-                     if (recs && recs.movies && recs.movies.length > 0) {
-                          if (controller.signal.aborted) return;
-                          setAiContextReason(recs.reason);
+                     if (controller.signal.aborted) return;
 
-                          // 2. Fetch details for each identified movie
-                          const searches = recs.movies.map(title => 
+                     const stdData = await stdRes.json();
+                     const stdMovies = (stdData.results || []).filter((m: any) => m.poster_path);
+
+                     if (aiRecs && aiRecs.movies && aiRecs.movies.length > 0) {
+                          setAiContextReason(aiRecs.reason);
+                          
+                          const aiMoviePromises = aiRecs.movies.map(title => 
                              fetchWithRetry(`${TMDB_BASE_URL}/search/movie?api_key=${apiKey}&query=${encodeURIComponent(title)}`)
-                             .then(r => { if(!r.ok) throw new Error("Fetch failed"); return r.json(); })
-                             .then(d => d.results?.[0]) // Take best match
+                             .then(r => r.ok ? r.json() : {})
+                             .then((d: any) => d.results?.[0]) 
                              .catch(e => null)
                           );
                           
-                          const foundMovies = (await Promise.all(searches)).filter(Boolean);
+                          const aiMoviesRaw = await Promise.all(aiMoviePromises);
+                          const aiMovies = aiMoviesRaw.filter((m: any) => m && m.poster_path);
                           
-                          // Deduplicate by ID
-                          const uniqueMovies = Array.from(new Map(foundMovies.map((m:any) => [m.id, m])).values());
+                          const topStd = stdMovies.slice(0, 3);
+                          const aiFiltered = aiMovies.filter((aim: any) => !topStd.some((std: any) => std.id === aim.id));
+                          const combined = [...topStd, ...aiFiltered];
+                          const uniqueMovies = Array.from(new Map(combined.map((m: any) => [m.id, m])).values()) as Movie[];
+
+                          const normalized = uniqueMovies.map((m: any) => ({ ...m, media_type: 'movie' }));
                           
-                          if (uniqueMovies.length > 0) {
-                              if (controller.signal.aborted) return;
-                              const normalized = uniqueMovies.map((m: any) => ({
-                                  ...m,
-                                  media_type: 'movie'
-                              })) as Movie[];
-                              
-                              setMovies(normalized);
-                              setLoading(false);
-                              setHasMore(false); // AI search results are usually finite/limited batch
-                              return; // EXIT HERE on success
-                          }
+                          setMovies(normalized);
+                          setLoading(false);
+                          setHasMore(false);
+                          return; 
                      }
                  } catch (e) { 
-                     console.error("AI Search failed, falling back", e); 
+                     console.error("Hybrid Search failed, falling back to standard", e); 
                  }
             }
-
-            // Fallback: Standard TMDB Text Search (if AI failed, returned 0 results, or no Key)
             endpoint = "/search/movie";
             params.set("query", searchQuery);
         }
@@ -327,13 +447,13 @@ export default function App() {
     } finally {
         if (!controller.signal.aborted) setLoading(false);
     }
-  }, [apiKey, searchQuery, selectedCategory, sortOption, appRegion, watchlist, favorites, geminiKey, currentCollection, filterPeriod, selectedLanguage, selectedRegion, userProfile, maturityRating]);
+  }, [apiKey, searchQuery, selectedCategory, sortOption, appRegion, watchlist, favorites, watched, geminiKey, currentCollection, filterPeriod, selectedLanguage, selectedRegion, userProfile, maturityRating]);
 
-  // Debounced Search (Auto-trigger fetchMovies)
+  // Debounced Search
   useEffect(() => {
      const timeout = setTimeout(() => {
          fetchMovies(1, false);
-     }, searchQuery ? 1000 : 300); // 1s delay for search to allow typing to finish and avoid quota spam
+     }, searchQuery ? 1000 : 300);
      return () => clearTimeout(timeout);
   }, [searchQuery, selectedCategory, sortOption, appRegion, currentCollection, filterPeriod, selectedLanguage, selectedRegion, maturityRating]);
 
@@ -347,7 +467,7 @@ export default function App() {
                   setShowSuggestions(true);
               } catch (e) { console.error(e); }
           } else {
-              setShowSuggestions(false);
+            if(searchQuery.length === 0) setShowSuggestions(true);
           }
       };
       const timeout = setTimeout(fetchSuggestions, 500);
@@ -370,10 +490,14 @@ export default function App() {
       setIsSidebarOpen(false);
   };
 
-  const handleSuggestionClick = (suggestion: string) => {
-      setSearchQuery(suggestion);
+  const handleSearchSubmit = (query: string) => {
+      setSearchQuery(query);
+      addToSearchHistory(query);
       setShowSuggestions(false);
-      // The debounce effect will pick this up and trigger the search
+  };
+
+  const handleSuggestionClick = (suggestion: string) => {
+      handleSearchSubmit(suggestion);
   };
   
   const observer = useRef<IntersectionObserver | null>(null);
@@ -387,6 +511,14 @@ export default function App() {
     });
     if (node) observer.current.observe(node);
   }, [loading, hasMore]);
+
+  if (authChecking) {
+      return <div className="fixed inset-0 bg-black flex items-center justify-center"><LogoLoader /></div>;
+  }
+
+  if (!isAuthenticated) {
+      return <LoginPage onLogin={handleLogin} />;
+  }
 
   return (
     <div className="min-h-screen bg-[#030303] text-white font-sans selection:bg-red-500/30 selection:text-white">
@@ -423,10 +555,33 @@ export default function App() {
               onChange={(e) => setSearchQuery(e.target.value)}
               onFocus={() => setShowSuggestions(true)}
               onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+              onKeyDown={(e) => { if(e.key === 'Enter') handleSearchSubmit(searchQuery); }}
            />
-           {showSuggestions && searchSuggestions.length > 0 && (
+           {showSuggestions && (searchSuggestions.length > 0 || (searchHistory.length > 0 && !searchQuery)) && (
                <div className="absolute top-full left-0 right-0 mt-2 bg-[#0f0f0f]/95 border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-[100] backdrop-blur-xl">
-                   {searchSuggestions.map((s, i) => (
+                   {/* Search History Section */}
+                   {!searchQuery && searchHistory.length > 0 && (
+                       <div className="border-b border-white/5 pb-1">
+                           <p className="px-4 py-2 text-[10px] text-white/40 font-bold uppercase tracking-wider">Recent Searches</p>
+                           {searchHistory.map((s, i) => (
+                               <div key={`hist-${i}`} className="flex items-center justify-between px-4 py-3 text-sm hover:bg-white/10 text-gray-300 hover:text-white transition-colors cursor-pointer group/item" onMouseDown={(e) => { e.preventDefault(); handleSearchSubmit(s); }}>
+                                   <div className="flex items-center gap-3">
+                                       <Clock size={14} className="text-white/30 group-hover/item:text-white/50"/>
+                                       {s}
+                                   </div>
+                                   <button 
+                                      onMouseDown={(e) => removeFromSearchHistory(e, s)}
+                                      className="p-1 hover:bg-white/20 rounded-full text-white/20 hover:text-red-400 transition-colors"
+                                   >
+                                       <X size={14}/>
+                                   </button>
+                               </div>
+                           ))}
+                       </div>
+                   )}
+                   
+                   {/* AI Suggestions */}
+                   {searchQuery && searchSuggestions.map((s, i) => (
                        <button 
                          key={i} 
                          onMouseDown={(e) => { e.preventDefault(); handleSuggestionClick(s); }}
@@ -440,6 +595,16 @@ export default function App() {
         </div>
         
         <div className="flex items-center gap-2 md:gap-4">
+             {isCloudSync && (
+                 <div className="hidden md:flex items-center text-green-500 text-xs gap-1" title="Cloud Sync Active">
+                     <Cloud size={14}/>
+                 </div>
+             )}
+             {!isCloudSync && isAuthenticated && (
+                 <div className="hidden md:flex items-center text-gray-600 text-xs gap-1" title="Local Storage Only">
+                     <CloudOff size={14}/>
+                 </div>
+             )}
              <button onClick={() => setIsNotificationOpen(true)} className="relative text-gray-400 hover:text-white transition-colors">
                  <Bell size={20}/>
                  <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-600 rounded-full animate-pulse"></span>
@@ -462,7 +627,7 @@ export default function App() {
                <div className="mb-6 md:hidden">
                     <div className="relative">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40" size={16} />
-                        <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search..." className="w-full bg-white/5 border border-white/10 rounded-xl py-3 pl-10 text-sm text-white focus:outline-none focus:border-red-600 transition-colors" />
+                        <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} onKeyDown={(e) => { if(e.key === 'Enter') handleSearchSubmit(searchQuery); }} placeholder="Search..." className="w-full bg-white/5 border border-white/10 rounded-xl py-3 pl-10 text-sm text-white focus:outline-none focus:border-red-600 transition-colors" />
                     </div>
                </div>
 
@@ -480,6 +645,7 @@ export default function App() {
                    <div className="space-y-1">
                        <p className="text-xs font-bold text-white/40 uppercase tracking-wider mb-2 px-2">Library</p>
                        <button onClick={() => { setSelectedCategory("Watchlist"); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${selectedCategory === "Watchlist" ? 'bg-red-600/20 text-red-400' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}><Bookmark size={18}/> Watchlist <span className="ml-auto text-xs opacity-50">{watchlist.length}</span></button>
+                       <button onClick={() => { setSelectedCategory("History"); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${selectedCategory === "History" ? 'bg-red-600/20 text-red-400' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}><History size={18}/> History <span className="ml-auto text-xs opacity-50">{watched.length}</span></button>
                        <button onClick={() => { setSelectedCategory("Favorites"); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${selectedCategory === "Favorites" ? 'bg-red-600/20 text-red-400' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}><Heart size={18}/> Favorites <span className="ml-auto text-xs opacity-50">{favorites.length}</span></button>
                        <button onClick={() => { setSelectedCategory("CineAnalytics"); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${selectedCategory === "CineAnalytics" ? 'bg-red-600/20 text-red-400' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}><BarChart3 size={18}/> Analytics</button>
                    </div>
@@ -524,7 +690,7 @@ export default function App() {
                    </div>
                </div>
            </div>
-           {/* Overlay to close - FIXED: Only visible and interactive when sidebar is open */}
+           {/* Overlay to close */}
            <div 
              className={`absolute top-0 left-full w-screen h-full bg-black/50 backdrop-blur-sm transition-opacity duration-300 ${isSidebarOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`} 
              onClick={() => setIsSidebarOpen(false)}
@@ -739,6 +905,7 @@ export default function App() {
         maturityRating={maturityRating}
         setMaturityRating={setMaturityRating}
         profile={userProfile}
+        onLogout={handleLogout}
       />
       
       <NotificationModal isOpen={isNotificationOpen} onClose={() => setIsNotificationOpen(false)} />

@@ -362,10 +362,11 @@ interface SettingsModalProps {
     maturityRating: MaturityRating;
     setMaturityRating: (r: MaturityRating) => void;
     profile: UserProfile;
+    onLogout?: () => void;
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({ 
-    isOpen, onClose, apiKey, setApiKey, geminiKey, setGeminiKey, maturityRating, setMaturityRating, profile 
+    isOpen, onClose, apiKey, setApiKey, geminiKey, setGeminiKey, maturityRating, setMaturityRating, profile, onLogout 
 }) => {
     const [inputKey, setInputKey] = useState(apiKey || "");
     const [inputGemini, setInputGemini] = useState(geminiKey || "");
@@ -421,7 +422,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                           ))}
                       </div>
                       <div className="hidden md:block mt-auto pt-4 border-t border-white/5">
-                          <button className="flex items-center gap-2 text-xs text-red-400 hover:text-red-300 px-2 py-2 w-full text-left">
+                          <button onClick={() => { onClose(); onLogout?.(); }} className="flex items-center gap-2 text-xs text-red-400 hover:text-red-300 px-2 py-2 w-full text-left">
                               <LogOut size={14}/> Sign Out
                           </button>
                       </div>
@@ -454,7 +455,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                   </div>
                               </div>
                               <div className="md:hidden pt-4 border-t border-white/5 mt-auto">
-                                  <button className="flex items-center gap-2 text-sm text-red-400 hover:text-red-300 w-full justify-center p-3 rounded-lg bg-red-900/10">
+                                  <button onClick={() => { onClose(); onLogout?.(); }} className="flex items-center gap-2 text-sm text-red-400 hover:text-red-300 w-full justify-center p-3 rounded-lg bg-red-900/10">
                                       <LogOut size={16}/> Sign Out
                                   </button>
                               </div>

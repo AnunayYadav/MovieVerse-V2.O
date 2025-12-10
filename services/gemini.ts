@@ -86,14 +86,14 @@ export const generateTrivia = async (apiKey: string, movieTitle: string, year: s
 export const generateSmartRecommendations = async (apiKey: string, query: string): Promise<{ movies: string[], reason: string }> => {
   try {
       const ai = new GoogleGenAI({ apiKey });
-      // Expanded prompt to prioritize quality and relevance
+      // Expanded prompt to prioritize quality, relevance, AND exact matches
       const prompt = `
         Act as a premium movie recommendation engine. The user searched for: "${query}".
         
-        1.  **Analyze Intent**: Is it a genre (e.g., "90s action"), a mood (e.g., "sad movies"), a specific plot (e.g., "trapped on mars"), or an actor/director?
-        2.  **Select Best Fits**: Identify 15-20 specific, distinct, and popular movie titles that best match this query. 
-        3.  **Prioritize Popularity**: Prefer well-known or critically acclaimed movies over obscure ones unless the query is specific.
-        4.  **Correction**: If the user misspelled a title, infer the correct movie.
+        1.  **Analyze Intent**: Is it a specific movie title, a genre (e.g., "90s action"), a mood (e.g., "sad movies"), or a plot?
+        2.  **Exact Match Priority**: IF the query looks like a specific movie name (e.g. "Inception", "The Godfather"), your FIRST recommendation MUST be that exact movie.
+        3.  **Select Best Fits**: Identify 15-20 specific, distinct, and popular movie titles that best match this query. 
+        4.  **Prioritize Popularity**: Prefer well-known or critically acclaimed movies.
         5.  **Context**: Provide a very brief, fun one-sentence reason for this selection.
 
         Return valid JSON with:
