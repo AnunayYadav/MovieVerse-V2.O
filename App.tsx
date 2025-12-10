@@ -227,13 +227,13 @@ export default function App() {
   };
 
   const handleLogout = async () => {
-    // 1. Trigger the sign out. 
-    // This will fire the 'SIGNED_OUT' event which calls resetAuthState()
-    await signOut();
-    
-    // 2. Call reset manually as fallback for Guest mode or if event doesn't fire
-    // (Idempotent: calling it twice is fine)
-    resetAuthState();
+    try {
+        await signOut();
+    } catch (e) {
+        console.error("Sign out error", e);
+    } finally {
+        resetAuthState();
+    }
   };
 
   const saveSettings = (newTmdb: string, newGemini: string) => {

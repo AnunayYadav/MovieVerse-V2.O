@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Film, Eye, EyeOff, Mail, Loader2, User, Calendar, Tag, ArrowRight, ChevronLeft, Check, Database, AlertTriangle } from 'lucide-react';
+import { Film, Eye, EyeOff, Mail, Loader2, User, Calendar, ArrowRight, ChevronLeft, Check, AlertTriangle } from 'lucide-react';
 import { TMDB_IMAGE_BASE } from './Shared';
 import { GENRES_LIST, UserProfile } from '../types';
 import { signInWithGoogle, signInWithEmail, signUpWithEmail, getSupabase } from '../services/supabase';
@@ -78,8 +78,14 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
 
       if (supabase) {
           try {
+             // 1. Sign Up
+             // We assume 'Enable Email Confirmation' is DISABLED in Supabase dashboard
+             // so this returns a valid session immediately.
              await signUpWithEmail(email, password, { profile });
+             
+             // 2. Immediate Login
              onLogin(profile);
+             
           } catch (e: any) {
              setErrorMsg(e.message || "Signup failed");
              setLoading(false);
@@ -87,7 +93,6 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
       } else {
           // Local Storage Fallback
           setTimeout(() => {
-              setLoading(false);
               onLogin(profile);
           }, 1000);
       }
@@ -167,10 +172,10 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
                     <AlertTriangle size={16}/> {errorMsg}
                 </div>
             )}
-
+            
             {/* Back Button for Signup Step 2 */}
-            {!isLogin && signupStep === 2 && (
-                <button onClick={() => setSignupStep(1)} className="absolute top-6 left-6 text-gray-400 hover:text-white transition-colors">
+            {!isLogin && signupStep > 1 && (
+                <button onClick={() => setSignupStep(signupStep - 1)} className="absolute top-6 left-6 text-gray-400 hover:text-white transition-colors">
                     <ChevronLeft size={24} />
                 </button>
             )}
@@ -334,7 +339,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
                       disabled={loading || selectedGenres.length < 3}
                       className="w-full bg-red-600 hover:bg-red-700 disabled:bg-gray-800 disabled:text-gray-500 text-white font-bold py-3.5 rounded-full shadow-lg shadow-red-900/30 transition-all active:scale-[0.98] mt-2 flex items-center justify-center gap-2"
                     >
-                      {loading ? <Loader2 className="animate-spin" size={20}/> : "Complete Setup"}
+                      {loading ? <Loader2 className="animate-spin" size={20}/> : "Create Account"}
                     </button>
                 </form>
             )}
