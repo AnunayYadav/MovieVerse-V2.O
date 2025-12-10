@@ -86,7 +86,6 @@ export const generateTrivia = async (apiKey: string, movieTitle: string, year: s
 export const generateSmartRecommendations = async (apiKey: string, query: string): Promise<{ movies: string[], reason: string }> => {
   try {
       const ai = new GoogleGenAI({ apiKey });
-      // Expanded prompt to prioritize quality, relevance, AND exact matches
       const prompt = `
         Act as a premium movie recommendation engine. The user searched for: "${query}".
         
@@ -95,17 +94,24 @@ export const generateSmartRecommendations = async (apiKey: string, query: string
         3.  **Select Best Fits**: Identify 15-20 specific, distinct, and popular movie titles that best match this query. 
         4.  **Prioritize Popularity**: Prefer well-known or critically acclaimed movies.
         5.  **Context**: Provide a very brief, fun one-sentence reason for this selection.
-
-        Return valid JSON with:
-        - 'movies': array of exact, correct movie titles (strings).
-        - 'reason': string explanation of how you interpreted the search.
       `;
 
       const response = await ai.models.generateContent({
         model: 'gemini-2.5-flash',
         contents: prompt,
         config: {
-            responseMimeType: 'application/json'
+            responseMimeType: 'application/json',
+            responseSchema: {
+                type: Type.OBJECT,
+                properties: {
+                    movies: { 
+                        type: Type.ARRAY,
+                        items: { type: Type.STRING }
+                    },
+                    reason: { type: Type.STRING }
+                },
+                required: ["movies", "reason"]
+            }
         }
       });
 
@@ -121,12 +127,18 @@ export const generateSmartRecommendations = async (apiKey: string, query: string
 export const getSimilarMoviesAI = async (apiKey: string, title: string, year: string): Promise<string[]> => {
     try {
         const ai = new GoogleGenAI({ apiKey });
-        const prompt = `Recommend 5 movies similar to "${title}" (${year}). Focus on genre, director style, and tone. Return ONLY a JSON array of strings: ["Movie 1", "Movie 2", ...].`;
+        const prompt = `Recommend 5 movies similar to "${title}" (${year}). Focus on genre, director style, and tone. Return a list of strings.`;
         
         const response = await ai.models.generateContent({
             model: 'gemini-2.5-flash',
             contents: prompt,
-            config: { responseMimeType: 'application/json' }
+            config: { 
+                responseMimeType: 'application/json',
+                responseSchema: {
+                    type: Type.ARRAY,
+                    items: { type: Type.STRING }
+                }
+            }
         });
 
         if(response.text) {
@@ -146,13 +158,18 @@ export const getSearchSuggestions = async (apiKey: string, query: string): Promi
         The user is typing in a movie search bar: "${query}".
         Suggest 5 concise, relevant auto-complete options.
         These should be high-quality search terms (e.g. "Christopher Nolan best movies", "Romantic comedies from the 2000s", "Inception").
-        Return valid JSON array of strings.
       `;
       
       const response = await ai.models.generateContent({
           model: 'gemini-2.5-flash',
           contents: prompt,
-          config: { responseMimeType: 'application/json' }
+          config: { 
+              responseMimeType: 'application/json',
+              responseSchema: {
+                  type: Type.ARRAY,
+                  items: { type: Type.STRING }
+              }
+          }
       });
 
       if(response.text) {

@@ -228,11 +228,17 @@ export default function App() {
 
   const handleLogout = async () => {
     try {
-        await signOut();
+        // Add a timeout to avoid hanging if the network is slow or Supabase is unresponsive
+        const logoutPromise = signOut();
+        const timeoutPromise = new Promise((resolve) => setTimeout(resolve, 2000));
+        await Promise.race([logoutPromise, timeoutPromise]);
     } catch (e) {
         console.error("Sign out error", e);
     } finally {
         resetAuthState();
+        // Force a page reload to clear any lingering state or memory.
+        // Using reload() instead of href=origin to prevent 404s in some hosting environments.
+        window.location.reload();
     }
   };
 
