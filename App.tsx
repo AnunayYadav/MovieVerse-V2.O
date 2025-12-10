@@ -72,6 +72,19 @@ export default function App() {
   
   const abortControllerRef = useRef<AbortController | null>(null);
 
+  // Define Reset Logic (Decoupled from SignOut trigger to avoid loop)
+  const resetAuthState = useCallback(() => {
+    localStorage.removeItem('movieverse_auth');
+    setIsAuthenticated(false);
+    setIsCloudSync(false);
+    setIsSettingsOpen(false);
+    setWatchlist([]);
+    setFavorites([]);
+    setWatched([]);
+    setCustomLists({});
+    setUserProfile({ name: "Guest", age: "", genres: [] });
+  }, []);
+
   // --- AUTH & INITIALIZATION ---
   useEffect(() => {
     const initApp = async () => {
@@ -102,9 +115,6 @@ export default function App() {
                     setWatched(cloudData.watched);
                     setCustomLists(cloudData.customLists);
                     if (cloudData.profile) setUserProfile(cloudData.profile);
-                } else {
-                    // Initialize empty or merge? defaulting to empty for now
-                    console.log("No cloud data found for user.");
                 }
             }
             
@@ -123,7 +133,8 @@ export default function App() {
                         setUserProfile(data.profile);
                     }
                 } else if (event === 'SIGNED_OUT') {
-                    handleLogout();
+                    // CRITICAL FIX: Only call reset, DO NOT call signOut() here
+                    resetAuthState();
                 }
             });
         }
@@ -161,11 +172,9 @@ export default function App() {
     };
 
     initApp();
-  }, []);
+  }, [resetAuthState]);
 
   // --- SYNC HELPER ---
-  // We use a debounce or just direct sync. For simplicity, direct sync on state change.
-  // Ideally, useEffect on [watchlist, favorites, etc] to sync would be cleaner.
   useEffect(() => {
       if (isCloudSync && isAuthenticated) {
           syncUserData({
@@ -189,15 +198,13 @@ export default function App() {
   };
 
   const handleLogout = async () => {
+    // 1. Trigger the sign out. 
+    // This will fire the 'SIGNED_OUT' event which calls resetAuthState()
     await signOut();
-    localStorage.removeItem('movieverse_auth');
-    setIsAuthenticated(false);
-    setIsCloudSync(false);
-    setIsSettingsOpen(false);
-    // Clear state
-    setWatchlist([]);
-    setFavorites([]);
-    setWatched([]);
+    
+    // 2. Call reset manually as fallback for Guest mode or if event doesn't fire
+    // (Idempotent: calling it twice is fine)
+    resetAuthState();
   };
 
   const saveSettings = (newTmdb: string, newGemini: string) => {

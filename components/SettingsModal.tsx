@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { UserCircle, X, Check, Film, BrainCircuit, Search, Star, Settings, ShieldCheck, RefreshCcw, Bell, HelpCircle, Shield, FileText, Lock, ChevronRight, LogOut, MessageSquare, Send, Database, Cloud, Copy, ExternalLink, ChevronDown, ChevronUp, Users } from 'lucide-react';
+import { UserCircle, X, Check, Film, BrainCircuit, Search, Star, Settings, ShieldCheck, RefreshCcw, Bell, HelpCircle, Shield, FileText, Lock, ChevronRight, LogOut, MessageSquare, Send, Database, Cloud, Copy, ExternalLink, ChevronDown, ChevronUp, Users, AlertTriangle, ArrowRight } from 'lucide-react';
 import { UserProfile, MaturityRating } from '../types';
 import { getSupabase } from '../services/supabase';
 
@@ -33,6 +33,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     const [supabaseUrl, setSupabaseUrl] = useState(localStorage.getItem('movieverse_supabase_url') || DEFAULT_SUPABASE_URL);
     const [supabaseKey, setSupabaseKey] = useState(localStorage.getItem('movieverse_supabase_key') || DEFAULT_SUPABASE_KEY);
     const [sqlCopied, setSqlCopied] = useState(false);
+    const [urlCopied, setUrlCopied] = useState(false);
     const [showGuide, setShowGuide] = useState(true);
     
     const [activeTab, setActiveTab] = useState("account"); // account, general, cloud, restrictions, help, legal
@@ -88,6 +89,15 @@ create policy "Owner only" on public.user_data for all using (auth.uid() = id);`
         }
     };
     const projectRef = getProjectRef(supabaseUrl);
+    
+    // Dynamic Origin Detection
+    const currentOrigin = typeof window !== 'undefined' ? window.location.origin : '';
+    
+    const handleCopyUrl = () => {
+        navigator.clipboard.writeText(currentOrigin);
+        setUrlCopied(true);
+        setTimeout(() => setUrlCopied(false), 2000);
+    };
 
     if (!isOpen) return null;
 
@@ -252,6 +262,21 @@ create policy "Owner only" on public.user_data for all using (auth.uid() = id);`
                                   
                                   {showGuide && (
                                     <div className="p-4 pt-0 space-y-4 text-xs text-gray-300 leading-relaxed border-t border-white/5 mt-2">
+                                        <div className="bg-red-500/10 border border-red-500/20 p-3 rounded-xl mb-4">
+                                            <p className="text-red-300 font-bold mb-1 flex items-center gap-2"><AlertTriangle size={14}/> Fixing "Localhost Refused" Error</p>
+                                            <div className="space-y-2 mt-2">
+                                                <div className="flex gap-2 items-center">
+                                                    <div className="bg-black/40 p-2 rounded flex-1 border border-white/10 font-mono text-green-400 truncate">{currentOrigin}</div>
+                                                    <button onClick={handleCopyUrl} className="p-2 bg-white/10 hover:bg-white/20 rounded text-white flex gap-1 items-center shrink-0">{urlCopied ? <Check size={14}/> : <Copy size={14}/>} Copy App URL</button>
+                                                </div>
+                                                <div className="space-y-1 text-gray-400 pl-1">
+                                                    <p>1. Go to <a href={`https://supabase.com/dashboard/project/${projectRef}/auth/url-configuration`} target="_blank" className="text-blue-400 underline hover:text-blue-300">Supabase {'>'} Auth {'>'} URL Config</a></p>
+                                                    <p>2. Paste the URL above into <strong>Site URL</strong>.</p>
+                                                    <p>3. Also add it to <strong>Redirect URLs</strong> (add <code>/**</code> at the end).</p>
+                                                </div>
+                                            </div>
+                                        </div>
+
                                         <div className="flex gap-3">
                                             <span className="font-bold text-white bg-blue-500/20 w-5 h-5 flex items-center justify-center rounded-full text-[10px] shrink-0">1</span>
                                             <div>
@@ -299,15 +324,13 @@ create policy "Owner only" on public.user_data for all using (auth.uid() = id);`
                                         <div className="flex gap-3">
                                             <span className="font-bold text-white bg-red-500/20 w-5 h-5 flex items-center justify-center rounded-full text-[10px] shrink-0">6</span>
                                             <div>
-                                                <p className="mb-1"><strong className="text-red-400">Fix "403 Access Denied" Error:</strong></p>
-                                                <p className="mb-1">This means your Google App is in "Testing" mode.</p>
-                                                <div className="flex flex-col gap-2 mt-2">
-                                                    <a href="https://console.cloud.google.com/apis/credentials/consent" target="_blank" className="text-[10px] bg-white/10 hover:bg-white/20 text-white py-2 px-3 rounded-lg flex items-center gap-2 w-fit"><ExternalLink size={10}/> Open Consent Screen Settings</a>
+                                                <p className="mb-2"><strong className="text-red-400">Other Issues:</strong></p>
+                                                <div className="bg-white/5 p-2 rounded-lg border border-white/5">
+                                                    <p className="mb-1 text-white font-bold">Problem: "403 Access Denied"</p>
+                                                    <p className="mb-1 text-gray-400">Your Google App is in "Testing" mode.</p>
+                                                    <a href="https://console.cloud.google.com/apis/credentials/consent" target="_blank" className="text-blue-400 hover:underline mb-1 block">Open Google Console</a>
+                                                    <p className="text-gray-500">Solution: Click <strong>PUBLISH APP</strong> on the Consent Screen.</p>
                                                 </div>
-                                                <ul className="list-disc pl-4 mt-2 space-y-1 text-[10px] text-gray-400">
-                                                    <li><strong>Option A (Recommended):</strong> Click the <strong>PUBLISH APP</strong> button under "Publishing Status". This makes it public (no verification needed for personal use) and fixes the error instantly.</li>
-                                                    <li><strong>Option B:</strong> If you don't see "Publish App", look for "Test Users" section and add your email there.</li>
-                                                </ul>
                                             </div>
                                         </div>
                                     </div>
