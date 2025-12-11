@@ -1,8 +1,7 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { AIAnalysisResult } from "../types";
 
-// NOTE: We instantiate a new client per call to support the "Bring Your Own Key" feature
-// which stores the key in local storage/state, rather than just process.env.
+// NOTE: Using process.env.API_KEY as per Google GenAI SDK guidelines.
 
 const cleanJson = (text: string): string => {
   if (!text) return "{}";
@@ -12,13 +11,12 @@ const cleanJson = (text: string): string => {
 };
 
 export const generateMovieAnalysis = async (
-  apiKey: string,
   watchedTitles: string,
   favTitles: string,
   watchlistTitles: string
 ): Promise<AIAnalysisResult> => {
   try {
-      const ai = new GoogleGenAI({ apiKey });
+      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
       
       const prompt = `
           My Movie Data:
@@ -66,9 +64,9 @@ export const generateMovieAnalysis = async (
   }
 };
 
-export const generateTrivia = async (apiKey: string, movieTitle: string, year: string): Promise<string> => {
+export const generateTrivia = async (movieTitle: string, year: string): Promise<string> => {
   try {
-      const ai = new GoogleGenAI({ apiKey });
+      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
       const prompt = `Tell me one short, fascinating, and lesser-known behind-the-scenes trivia fact about the movie "${movieTitle}" (${year}). Keep it under 30 words.`;
       
       const response = await ai.models.generateContent({
@@ -83,9 +81,9 @@ export const generateTrivia = async (apiKey: string, movieTitle: string, year: s
   }
 };
 
-export const generateSmartRecommendations = async (apiKey: string, query: string): Promise<{ movies: string[], reason: string }> => {
+export const generateSmartRecommendations = async (query: string): Promise<{ movies: string[], reason: string }> => {
   try {
-      const ai = new GoogleGenAI({ apiKey });
+      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
       const prompt = `
         Act as a premium movie recommendation engine. The user searched for: "${query}".
         
@@ -124,9 +122,9 @@ export const generateSmartRecommendations = async (apiKey: string, query: string
   return { movies: [], reason: "Could not generate recommendations." };
 };
 
-export const getSimilarMoviesAI = async (apiKey: string, title: string, year: string): Promise<string[]> => {
+export const getSimilarMoviesAI = async (title: string, year: string): Promise<string[]> => {
     try {
-        const ai = new GoogleGenAI({ apiKey });
+        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
         const prompt = `Recommend 5 movies similar to "${title}" (${year}). Focus on genre, director style, and tone. Return a list of strings.`;
         
         const response = await ai.models.generateContent({
@@ -151,9 +149,9 @@ export const getSimilarMoviesAI = async (apiKey: string, title: string, year: st
     return [];
 }
 
-export const getSearchSuggestions = async (apiKey: string, query: string): Promise<string[]> => {
+export const getSearchSuggestions = async (query: string): Promise<string[]> => {
   try {
-      const ai = new GoogleGenAI({ apiKey });
+      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
       const prompt = `
         The user is typing in a movie search bar: "${query}".
         Suggest 5 concise, relevant auto-complete options.

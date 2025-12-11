@@ -8,12 +8,11 @@ interface AnalyticsProps {
     watchedMovies: Movie[];
     watchlist: Movie[];
     favorites: Movie[];
-    geminiKey: string;
     apiKey: string;
     onMovieClick: (m: Movie) => void;
 }
 
-export const AnalyticsDashboard: React.FC<AnalyticsProps> = ({ watchedMovies, watchlist, favorites, geminiKey, apiKey, onMovieClick }) => {
+export const AnalyticsDashboard: React.FC<AnalyticsProps> = ({ watchedMovies, watchlist, favorites, apiKey, onMovieClick }) => {
     const [aiAnalysis, setAiAnalysis] = useState<AIAnalysisResult | null>(null);
     const [loadingAi, setLoadingAi] = useState(false);
   
@@ -37,7 +36,6 @@ export const AnalyticsDashboard: React.FC<AnalyticsProps> = ({ watchedMovies, wa
     const topGenre = sortedGenres.length > 0 ? sortedGenres[0][0] : "Undetermined";
   
     const handleAiAnalysis = async () => {
-        if (!geminiKey) return;
         setLoadingAi(true);
         
         const watchedTitles = watchedMovies.map(m => m.title).slice(0, 20).join(", "); 
@@ -45,7 +43,7 @@ export const AnalyticsDashboard: React.FC<AnalyticsProps> = ({ watchedMovies, wa
         const watchlistTitles = watchlist.map(m => m.title).slice(0, 15).join(", ");
   
         try {
-            const result = await generateMovieAnalysis(geminiKey, watchedTitles, favTitles, watchlistTitles);
+            const result = await generateMovieAnalysis(watchedTitles, favTitles, watchlistTitles);
             
             // Hydrate Recommendations
             if (result.recommendations) {
@@ -131,13 +129,12 @@ export const AnalyticsDashboard: React.FC<AnalyticsProps> = ({ watchedMovies, wa
                             <p className="text-gray-400 text-sm mb-4">Unlock deep insights into your viewing psychology.</p>
                             <button 
                               onClick={handleAiAnalysis} 
-                              disabled={loadingAi || !geminiKey}
+                              disabled={loadingAi}
                               className="bg-red-600 text-white font-bold py-3 px-8 rounded-full hover:bg-red-700 transition-colors disabled:opacity-50 flex items-center gap-2 mx-auto"
                             >
                                 {loadingAi ? <Loader2 className="animate-spin"/> : <Sparkles size={16}/>}
                                 {loadingAi ? "Analyzing History..." : "Generate Full Report"}
                             </button>
-                            {!geminiKey && <p className="text-xs text-red-400 mt-3">Requires Gemini API Key in Settings</p>}
                         </div>
                     ) : (
                         <div className="space-y-5 animate-in fade-in">

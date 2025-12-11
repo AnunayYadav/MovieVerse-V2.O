@@ -10,7 +10,6 @@ import { LoginPage } from './components/LoginPage';
 import { getSupabase, syncUserData, fetchUserData, signOut } from './services/supabase';
 
 const DEFAULT_TMDB_KEY = "fe42b660a036f4d6a2bfeb4d0f523ce9";
-const DEFAULT_GEMINI_KEY = "AIzaSyBGy80BBep7qmkqc0Wqt9dr-gMYs8X2mzo"; 
 
 const DEFAULT_COLLECTIONS: any = {
   "srk": { title: "King Khan", params: { with_cast: "35742", sort_by: "popularity.desc" }, icon: "👑", backdrop: "https://images.unsplash.com/photo-1562821680-894c1395f725?q=80&w=2000&auto=format&fit=crop", description: "The Badshah of Bollywood. Romance, Action, and Charm." },
@@ -22,7 +21,6 @@ const DEFAULT_COLLECTIONS: any = {
 
 export default function App() {
   const [apiKey, setApiKey] = useState(DEFAULT_TMDB_KEY);
-  const [geminiKey, setGeminiKey] = useState(DEFAULT_GEMINI_KEY);
   
   // Auth State
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -89,8 +87,6 @@ export default function App() {
   useEffect(() => {
     const initApp = async () => {
         // 1. Keys
-        const savedGemini = localStorage.getItem('movieverse_gemini_key');
-        if (savedGemini) setGeminiKey(savedGemini);
         const savedTmdb = localStorage.getItem('movieverse_tmdb_key');
         if (savedTmdb) setApiKey(savedTmdb);
 
@@ -242,11 +238,9 @@ export default function App() {
     }
   };
 
-  const saveSettings = (newTmdb: string, newGemini: string) => {
+  const saveSettings = (newTmdb: string) => {
     setApiKey(newTmdb);
     localStorage.setItem('movieverse_tmdb_key', newTmdb);
-    setGeminiKey(newGemini);
-    localStorage.setItem('movieverse_gemini_key', newGemini);
   };
 
   const addToSearchHistory = (query: string) => {
@@ -358,11 +352,11 @@ export default function App() {
         // ----------------------------------------------------
         if (searchQuery) {
             // Hybrid Search Logic
-            if (geminiKey && pageNum === 1) {
+            if (pageNum === 1) {
                  try {
                      const [stdRes, aiRecs] = await Promise.all([
                          fetch(`${TMDB_BASE_URL}/search/movie?api_key=${apiKey}&query=${encodeURIComponent(searchQuery)}&include_adult=false`),
-                         generateSmartRecommendations(geminiKey, searchQuery)
+                         generateSmartRecommendations(searchQuery)
                      ]);
                      
                      if (controller.signal.aborted) return;
@@ -489,7 +483,7 @@ export default function App() {
     } finally {
         if (!controller.signal.aborted) setLoading(false);
     }
-  }, [apiKey, searchQuery, selectedCategory, sortOption, appRegion, watchlist, favorites, watched, geminiKey, currentCollection, filterPeriod, selectedLanguage, selectedRegion, userProfile, maturityRating]);
+  }, [apiKey, searchQuery, selectedCategory, sortOption, appRegion, watchlist, favorites, watched, currentCollection, filterPeriod, selectedLanguage, selectedRegion, userProfile, maturityRating]);
 
   // Debounced Search
   useEffect(() => {
@@ -502,9 +496,9 @@ export default function App() {
   // Suggestion Fetching
   useEffect(() => {
       const fetchSuggestions = async () => {
-          if (searchQuery.length > 3 && geminiKey) {
+          if (searchQuery.length > 3) {
               try {
-                  const sugs = await getSearchSuggestions(geminiKey, searchQuery);
+                  const sugs = await getSearchSuggestions(searchQuery);
                   setSearchSuggestions(sugs);
                   setShowSuggestions(true);
               } catch (e) { console.error(e); }
@@ -514,7 +508,7 @@ export default function App() {
       };
       const timeout = setTimeout(fetchSuggestions, 500);
       return () => clearTimeout(timeout);
-  }, [searchQuery, geminiKey]);
+  }, [searchQuery]);
 
   const handleLoadMore = () => {
       const nextPage = page + 1;
@@ -591,7 +585,7 @@ export default function App() {
            <Search className={`absolute left-4 top-1/2 -translate-y-1/2 transition-colors ${loading && searchQuery ? "text-red-400 animate-pulse" : "text-white/50"}`} size={16} />
            <input 
               type="text" 
-              placeholder={geminiKey ? "Ask AI... (e.g., 'Movies like Interstellar')" : "Search titles..."}
+              placeholder="Ask AI... (e.g., 'Movies like Interstellar')"
               className={`w-full bg-black/40 border backdrop-blur-md rounded-full py-2.5 pl-11 pr-10 text-sm focus:outline-none transition-all text-white placeholder-white/30 ${loading && searchQuery ? "border-red-500/50" : "border-white/10 focus:border-white/30 focus:bg-white/5"}`} 
               value={searchQuery} 
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -748,7 +742,7 @@ export default function App() {
         {/* Main Content */}
         <main className="flex-1 min-h-[calc(100vh-4rem)] w-full">
            {selectedCategory === "CineAnalytics" ? (
-               <AnalyticsDashboard watchedMovies={watched} watchlist={watchlist} favorites={favorites} geminiKey={geminiKey} apiKey={apiKey} onMovieClick={setSelectedMovie} />
+               <AnalyticsDashboard watchedMovies={watched} watchlist={watchlist} favorites={favorites} apiKey={apiKey} onMovieClick={setSelectedMovie} />
            ) : (
                <>
                    {/* HERO SECTION */}
@@ -899,7 +893,6 @@ export default function App() {
             movie={selectedMovie} 
             onClose={() => setSelectedMovie(null)} 
             apiKey={apiKey} 
-            geminiKey={geminiKey}
             onPersonClick={setSelectedPersonId}
             onToggleWatchlist={(m) => toggleList(watchlist, setWatchlist, 'movieverse_watchlist', m)}
             isWatchlisted={watchlist.some(m => m.id === selectedMovie.id)}
@@ -940,16 +933,13 @@ export default function App() {
         isOpen={isAIModalOpen} 
         onClose={() => setIsAIModalOpen(false)} 
         apiKey={apiKey} 
-        geminiKey={geminiKey} 
       />
 
       <SettingsModal 
         isOpen={isSettingsOpen} 
         onClose={() => setIsSettingsOpen(false)} 
         apiKey={apiKey} 
-        setApiKey={(k) => saveSettings(k, geminiKey)} 
-        geminiKey={geminiKey} 
-        setGeminiKey={(k) => saveSettings(apiKey, k)} 
+        setApiKey={(k) => saveSettings(k)} 
         maturityRating={maturityRating}
         setMaturityRating={setMaturityRating}
         profile={userProfile}

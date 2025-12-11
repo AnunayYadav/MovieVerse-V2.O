@@ -9,7 +9,6 @@ interface MovieModalProps {
     movie: Movie;
     onClose: () => void;
     apiKey: string;
-    geminiKey: string;
     onPersonClick: (id: number) => void;
     onToggleWatchlist: (m: Movie) => void;
     isWatchlisted: boolean;
@@ -23,7 +22,7 @@ interface MovieModalProps {
 }
 
 export const MovieModal: React.FC<MovieModalProps> = ({ 
-    movie, onClose, apiKey, geminiKey, onPersonClick, onToggleWatchlist, isWatchlisted, 
+    movie, onClose, apiKey, onPersonClick, onToggleWatchlist, isWatchlisted, 
     onSwitchMovie, onOpenListModal, onToggleFavorite, isFavorite, appRegion, isWatched, onToggleWatched 
 }) => {
     const [details, setDetails] = useState<MovieDetails | null>(null);
@@ -69,10 +68,10 @@ export const MovieModal: React.FC<MovieModalProps> = ({
     }, [movie.id, apiKey, movie.media_type]);
 
     useEffect(() => {
-        if (geminiKey && movie && apiKey) {
+        if (movie && apiKey) {
             setLoadingAiSimilar(true);
             const year = (movie.release_date || movie.first_air_date || "").split('-')[0];
-            getSimilarMoviesAI(geminiKey, movie.title, year).then(titles => {
+            getSimilarMoviesAI(movie.title, year).then(titles => {
                 Promise.all(titles.map(t => fetch(`${TMDB_BASE_URL}/search/movie?api_key=${apiKey}&query=${encodeURIComponent(t)}`).then(r => r.ok ? r.json() : {}).catch(e => ({})))).then((results: any[]) => {
                     const found = results.map(r => r.results?.[0]).filter(Boolean);
                     setAiSimilar(found);
@@ -83,7 +82,7 @@ export const MovieModal: React.FC<MovieModalProps> = ({
                 setLoadingAiSimilar(false);
             });
         }
-    }, [movie, geminiKey, apiKey]);
+    }, [movie, apiKey]);
 
     // Fetch Season logic
     useEffect(() => {
@@ -103,11 +102,10 @@ export const MovieModal: React.FC<MovieModalProps> = ({
     }, [movie.id, apiKey, selectedSeason, movie.media_type]);
 
     const handleGenerateTrivia = async () => {
-        if (!geminiKey) return;
         setLoadingTrivia(true);
         const year = (movie.release_date || movie.first_air_date || "").split('-')[0];
         try {
-            const fact = await generateTrivia(geminiKey, movie.title, year);
+            const fact = await generateTrivia(movie.title, year);
             setTrivia(fact);
         } catch (e) {
             console.error(e);
@@ -291,7 +289,7 @@ export const MovieModal: React.FC<MovieModalProps> = ({
                                         {/* AI Trivia */}
                                         <div className="relative overflow-hidden rounded-2xl border border-red-500/20 bg-gradient-to-r from-red-900/10 to-transparent p-1">
                                             {!trivia ? (
-                                                <button onClick={handleGenerateTrivia} disabled={loadingTrivia || !geminiKey} className="w-full h-full p-4 flex items-center justify-between group hover:bg-white/5 transition-colors rounded-xl">
+                                                <button onClick={handleGenerateTrivia} disabled={loadingTrivia} className="w-full h-full p-4 flex items-center justify-between group hover:bg-white/5 transition-colors rounded-xl">
                                                     <div className="flex items-center gap-3">
                                                         <div className="p-2 bg-red-500/20 rounded-lg text-red-300 group-hover:text-white transition-colors">{loadingTrivia ? <Loader2 size={18} className="animate-spin"/> : <Sparkles size={18}/>}</div>
                                                         <div className="text-left">
@@ -349,7 +347,7 @@ export const MovieModal: React.FC<MovieModalProps> = ({
                             {/* Similar AI Recommendations */}
                             {(similarMovies.length > 0 || loadingAiSimilar) && (
                                 <div className="border-t border-white/5 pt-8">
-                                    <div className="flex items-center justify-between mb-4"><h4 className="text-white font-bold text-sm flex items-center gap-2">{geminiKey ? <Sparkles size={14} className="text-red-400"/> : null} {geminiKey ? "AI Recommendations" : "You Might Also Like"}</h4></div>
+                                    <div className="flex items-center justify-between mb-4"><h4 className="text-white font-bold text-sm flex items-center gap-2"><Sparkles size={14} className="text-red-400"/> AI Recommendations</h4></div>
                                     <div className="grid grid-cols-3 md:grid-cols-5 gap-3">
                                         {similarMovies.map(m => (
                                             <div key={m.id} className="cursor-pointer group relative aspect-[2/3] rounded-lg overflow-hidden" onClick={() => onSwitchMovie(m)}>

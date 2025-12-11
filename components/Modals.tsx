@@ -195,10 +195,9 @@ interface AIRecommendationModalProps {
     isOpen: boolean;
     onClose: () => void;
     apiKey: string;
-    geminiKey: string;
 }
 
-export const AIRecommendationModal: React.FC<AIRecommendationModalProps> = ({ isOpen, onClose, apiKey, geminiKey }) => {
+export const AIRecommendationModal: React.FC<AIRecommendationModalProps> = ({ isOpen, onClose, apiKey }) => {
     const [query, setQuery] = useState("");
     const [results, setResults] = useState<any>(null);
     const [loading, setLoading] = useState(false);
@@ -211,23 +210,19 @@ export const AIRecommendationModal: React.FC<AIRecommendationModalProps> = ({ is
       setAiContext("");
       
       try {
-          if (geminiKey) {
-             const geminiResponse = await generateSmartRecommendations(geminiKey, query);
-             if (geminiResponse && geminiResponse.movies) {
-                  setAiContext(geminiResponse.reason);
-                  const searches = geminiResponse.movies.map(title => 
-                    fetch(`${TMDB_BASE_URL}/search/movie?api_key=${apiKey}&query=${encodeURIComponent(title)}&include_adult=false`)
-                    .then(r => { if(!r.ok) throw new Error("Fetch failed"); return r.json(); })
-                    .then(d => d.results?.[0])
-                    .catch(() => null)
-                  );
-                  const fetchedMovies = (await Promise.all(searches)).filter(Boolean);
-                  if (fetchedMovies.length > 0) { setResults(fetchedMovies); } 
-                  else { setResults(null); setAiContext("Gemini tried its best but couldn't find it in the DB."); }
-             }
-          } else {
-             setAiContext("Gemini Key required for Smart Recommendations");
-          }
+         const geminiResponse = await generateSmartRecommendations(query);
+         if (geminiResponse && geminiResponse.movies) {
+              setAiContext(geminiResponse.reason);
+              const searches = geminiResponse.movies.map(title => 
+                fetch(`${TMDB_BASE_URL}/search/movie?api_key=${apiKey}&query=${encodeURIComponent(title)}&include_adult=false`)
+                .then(r => { if(!r.ok) throw new Error("Fetch failed"); return r.json(); })
+                .then(d => d.results?.[0])
+                .catch(() => null)
+              );
+              const fetchedMovies = (await Promise.all(searches)).filter(Boolean);
+              if (fetchedMovies.length > 0) { setResults(fetchedMovies); } 
+              else { setResults(null); setAiContext("Gemini tried its best but couldn't find it in the DB."); }
+         }
       } catch(e) { console.error(e); }
       setLoading(false);
     };
@@ -358,8 +353,6 @@ interface SettingsModalProps {
     onClose: () => void;
     apiKey: string;
     setApiKey: (key: string) => void;
-    geminiKey: string;
-    setGeminiKey: (key: string) => void;
     maturityRating: MaturityRating;
     setMaturityRating: (r: MaturityRating) => void;
     profile: UserProfile;
@@ -367,13 +360,11 @@ interface SettingsModalProps {
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({ 
-    isOpen, onClose, apiKey, setApiKey, geminiKey, setGeminiKey, maturityRating, setMaturityRating, profile, onLogout 
+    isOpen, onClose, apiKey, setApiKey, maturityRating, setMaturityRating, profile, onLogout 
 }) => {
     const DEFAULT_TMDB_KEY = "fe42b660a036f4d6a2bfeb4d0f523ce9";
-    const DEFAULT_GEMINI_KEY = "AIzaSyBGy80BBep7qmkqc0Wqt9dr-gMYs8X2mzo";
 
     const [inputKey, setInputKey] = useState(apiKey || "");
-    const [inputGemini, setInputGemini] = useState(geminiKey || "");
     const [activeTab, setActiveTab] = useState("account");
     
     // Enhanced Account State
@@ -385,7 +376,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     useEffect(() => {
         if (isOpen) {
             setInputKey(apiKey || "");
-            setInputGemini(geminiKey || "");
             
             // Fetch real user data
             const fetchUser = async () => {
@@ -413,22 +403,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             };
             fetchUser();
         }
-    }, [isOpen, apiKey, geminiKey]);
+    }, [isOpen, apiKey]);
 
     const handleSave = () => {
         setApiKey(inputKey);
-        setGeminiKey(inputGemini);
         onClose();
     };
 
     const copyToClipboard = (text: string) => {
         navigator.clipboard.writeText(text);
         // Could add toast here, but for now simple action
-    };
-
-    const handleSignOut = () => {
-        onClose();
-        if (onLogout) onLogout();
     };
 
     if (!isOpen) return null;
@@ -465,7 +449,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                           ))}
                       </div>
                       <div className="hidden md:block mt-auto pt-4 border-t border-white/5">
-                          <button onClick={handleSignOut} className="flex items-center gap-3 text-sm text-red-400 hover:text-red-300 px-4 py-3 w-full text-left hover:bg-red-900/10 rounded-xl transition-colors">
+                          <button onClick={() => { onClose(); onLogout?.(); }} className="flex items-center gap-3 text-sm text-red-400 hover:text-red-300 px-4 py-3 w-full text-left hover:bg-red-900/10 rounded-xl transition-colors">
                               <LogOut size={18}/> Sign Out
                           </button>
                       </div>
@@ -552,7 +536,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                               </div>
 
                               <div className="md:hidden pt-4 border-t border-white/5 mt-auto">
-                                  <button onClick={handleSignOut} className="flex items-center gap-2 text-sm text-white font-bold w-full justify-center p-4 rounded-xl bg-red-600 shadow-lg shadow-red-900/20 active:scale-95 transition-all">
+                                  <button onClick={() => { onClose(); onLogout?.(); }} className="flex items-center gap-2 text-sm text-white font-bold w-full justify-center p-4 rounded-xl bg-red-600 shadow-lg shadow-red-900/20 active:scale-95 transition-all">
                                       <LogOut size={18}/> Sign Out
                                   </button>
                               </div>
@@ -573,15 +557,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                         </div>
                                         <button onClick={() => setInputKey(DEFAULT_TMDB_KEY)} className="bg-white/5 hover:bg-white/10 border border-white/10 p-4 rounded-xl text-gray-400 hover:text-white transition-colors" title="Reset to Default"><RefreshCcw size={20}/></button>
                                     </div>
-                                  </div>
-
-                                  <div className="space-y-2">
-                                    <label className="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">Gemini API Key <BrainCircuit size={12} className="text-blue-400"/></label>
-                                    <div className="flex gap-2">
-                                        <input type="password" value={inputGemini} onChange={(e) => setInputGemini(e.target.value)} className="flex-1 bg-white/5 border border-white/10 rounded-xl p-4 text-white focus:border-blue-500 focus:bg-white/10 focus:outline-none transition-all text-sm font-mono" placeholder="Enter Gemini Key"/>
-                                        <button onClick={() => setInputGemini(DEFAULT_GEMINI_KEY)} className="bg-white/5 hover:bg-white/10 border border-white/10 p-4 rounded-xl text-gray-400 hover:text-white transition-colors" title="Reset to Default"><RefreshCcw size={20}/></button>
-                                    </div>
-                                    <p className="text-[10px] text-gray-500">Required for Smart Recommendations and Analytics.</p>
                                   </div>
                               </div>
                               
