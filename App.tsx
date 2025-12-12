@@ -8,7 +8,7 @@ import { ProfileModal, ListSelectionModal, PersonModal, AIRecommendationModal, N
 import { SettingsModal } from './components/SettingsModal';
 import { generateSmartRecommendations, getSearchSuggestions } from './services/gemini';
 import { LoginPage } from './components/LoginPage';
-import { getSupabase, syncUserData, fetchUserData, signOut, getNotifications, triggerSystemNotification } from './services/supabase';
+import { getSupabase, syncUserData, fetchUserData, signOut, getNotifications } from './services/supabase';
 
 const DEFAULT_COLLECTIONS: any = {
   "srk": { title: "King Khan", params: { with_cast: "35742", sort_by: "popularity.desc" }, icon: "👑", backdrop: "https://images.unsplash.com/photo-1562821680-894c1395f725?q=80&w=2000&auto=format&fit=crop", description: "The Badshah of Bollywood. Romance, Action, and Charm." },
@@ -61,7 +61,6 @@ export default function App() {
   const [customLists, setCustomLists] = useState<Record<string, Movie[]>>({});
   const [userProfile, setUserProfile] = useState<UserProfile>({ name: "Guest", age: "", genres: [] });
   const [hasUnread, setHasUnread] = useState(false);
-  const [lastNotificationId, setLastNotificationId] = useState<string | null>(null);
 
   // Modals
   const [isProfileOpen, setIsProfileOpen] = useState(false);
@@ -84,7 +83,6 @@ export default function App() {
     setWatched([]);
     setCustomLists({});
     setHasUnread(false);
-    setLastNotificationId(null);
     setUserProfile({ name: "Guest", age: "", genres: [] });
   }, []);
 
@@ -237,18 +235,6 @@ export default function App() {
       try {
           const notifs = await getNotifications();
           setHasUnread(notifs.some(n => !n.read));
-          
-          // Check for new arrival to trigger push automatically
-          const latest = notifs[0];
-          if (latest && !latest.read) {
-              if (lastNotificationId && latest.id !== lastNotificationId) {
-                  // New notification arrived since last check
-                  triggerSystemNotification(latest.title, latest.message);
-              }
-              if (lastNotificationId !== latest.id) {
-                  setLastNotificationId(latest.id);
-              }
-          }
       } catch (e) {
           console.error("Failed to check notifications", e);
       }
@@ -256,12 +242,11 @@ export default function App() {
 
   useEffect(() => {
       if (isAuthenticated) {
-          // Polling every 60 seconds
           checkUnreadNotifications();
           const interval = setInterval(checkUnreadNotifications, 60000);
           return () => clearInterval(interval);
       }
-  }, [isAuthenticated, lastNotificationId]); // Depend on last ID to ensure state updates
+  }, [isAuthenticated]);
 
 
   const handleLogin = (profileData?: UserProfile) => {

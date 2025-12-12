@@ -130,41 +130,7 @@ export const fetchUserData = async (): Promise<UserData | null> => {
     };
 };
 
-// --- BROWSER NOTIFICATIONS ---
-
-export const requestNotificationPermission = async (): Promise<boolean> => {
-    if (!('Notification' in window)) {
-        console.warn("This browser does not support desktop notification");
-        return false;
-    }
-    
-    if (Notification.permission === 'granted') return true;
-    
-    const permission = await Notification.requestPermission();
-    return permission === 'granted';
-};
-
-export const triggerSystemNotification = (title: string, body: string) => {
-    if ('Notification' in window && Notification.permission === 'granted') {
-        try {
-            const notification = new Notification(title, {
-                body: body,
-                icon: 'https://cdn-icons-png.flaticon.com/512/2503/2503508.png', // Generic movie icon
-                badge: 'https://cdn-icons-png.flaticon.com/512/2503/2503508.png',
-                silent: false,
-            });
-            
-            notification.onclick = () => {
-                window.focus();
-                notification.close();
-            };
-        } catch (e) {
-            console.error("Notification trigger error", e);
-        }
-    }
-};
-
-// --- APP NOTIFICATIONS ---
+// --- NOTIFICATIONS ---
 
 // Fallback Mock Data
 const MOCK_NOTIFICATIONS: AppNotification[] = [
@@ -191,6 +157,7 @@ export const getNotifications = async (): Promise<AppNotification[]> => {
             .order('created_at', { ascending: false });
 
         if (error) {
+            console.warn("Could not fetch real notifications (DB not setup?), using mocks.", error.message);
             return MOCK_NOTIFICATIONS;
         }
 
@@ -228,10 +195,6 @@ export const markNotificationsRead = async () => {
 };
 
 export const sendNotification = async (title: string, message: string) => {
-    // 1. Trigger Browser Notification immediately
-    triggerSystemNotification(title, message);
-
-    // 2. Persist to DB if possible
     const supabase = getSupabase();
     if (!supabase) return null;
 
@@ -270,6 +233,9 @@ export const submitSupportTicket = async (subject: string, message: string, cont
     try {
         const { data: { user } } = await supabase.auth.getUser();
         
+        // Attempt to insert into a 'support_tickets' table
+        // Ensure this table exists in your Supabase project:
+        // create table support_tickets (id uuid default gen_random_uuid() primary key, user_id uuid, email text, subject text, message text, created_at timestamptz default now());
         const { error } = await supabase
             .from('support_tickets')
             .insert({
@@ -280,7 +246,8 @@ export const submitSupportTicket = async (subject: string, message: string, cont
             });
 
         if (error) {
-            console.warn("Supabase insert failed. Logging to console instead.", error);
+            console.warn("Supabase insert failed (Table 'support_tickets' might be missing). Logging to console instead.", error);
+            // Fallback for demo: just return true so user sees success
             return true;
         }
         return true;

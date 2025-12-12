@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { UserCircle, X, ListPlus, Plus, Check, Loader2, Film, AlertCircle, BrainCircuit, Search, Star, RefreshCcw, Bell, CheckCheck, Inbox, Heart, PaintBucket, Radio, Smartphone } from 'lucide-react';
+import { UserCircle, X, ListPlus, Plus, Check, Loader2, Film, AlertCircle, BrainCircuit, Search, Star, RefreshCcw, Bell, CheckCheck, Inbox, Heart, PaintBucket } from 'lucide-react';
 import { UserProfile, Movie, GENRES_LIST, PersonDetails, AppNotification } from '../types';
 import { TMDB_BASE_URL, TMDB_IMAGE_BASE } from './Shared';
 import { generateSmartRecommendations } from '../services/gemini';
-import { getNotifications, markNotificationsRead, requestNotificationPermission, triggerSystemNotification, sendNotification } from '../services/supabase';
+import { getNotifications, markNotificationsRead } from '../services/supabase';
 
 // PROFILE MODAL
 interface ProfileModalProps {
@@ -448,12 +448,8 @@ interface NotificationModalProps {
 export const NotificationModal: React.FC<NotificationModalProps> = ({ isOpen, onClose, onUpdate }) => {
     const [notifications, setNotifications] = useState<AppNotification[]>([]);
     const [loading, setLoading] = useState(false);
-    const [permissionStatus, setPermissionStatus] = useState<NotificationPermission>('default');
 
     useEffect(() => {
-        if ('Notification' in window) {
-            setPermissionStatus(Notification.permission);
-        }
         if (isOpen) {
             loadNotifications();
         }
@@ -471,29 +467,6 @@ export const NotificationModal: React.FC<NotificationModalProps> = ({ isOpen, on
         setNotifications(prev => prev.map(n => ({ ...n, read: true })));
         await markNotificationsRead();
         onUpdate?.();
-    };
-    
-    const enableSystemNotifications = async () => {
-        const granted = await requestNotificationPermission();
-        if (granted) {
-            setPermissionStatus('granted');
-            triggerSystemNotification("Notifications Enabled", "You will now receive alerts for new releases.");
-        } else {
-            setPermissionStatus('denied');
-        }
-    };
-    
-    const sendTestNotification = async () => {
-        // 1. Trigger System Notification via Browser API
-        triggerSystemNotification("Test Notification", "This is how updates will appear on your device.");
-        
-        // 2. Also test DB persistence so polling picks it up
-        try {
-            await sendNotification("Database Connection", "If you see this, Supabase write permissions are correct!");
-            onUpdate?.(); // Refresh list immediately
-        } catch(e) {
-            console.error("DB Test Failed", e);
-        }
     };
 
     if (!isOpen) return null;
@@ -515,30 +488,6 @@ export const NotificationModal: React.FC<NotificationModalProps> = ({ isOpen, on
                         <button onClick={onClose} className="text-gray-400 hover:text-white transition-colors hover:scale-110 active:scale-95"><X size={16}/></button>
                     </div>
                 </div>
-                
-                {/* System Notification Permission Banner */}
-                {permissionStatus === 'default' && (
-                    <div className="bg-red-900/10 p-3 flex flex-col gap-2 border-b border-white/5">
-                        <div className="flex items-center gap-2 text-red-200">
-                            <Smartphone size={14} className="animate-pulse"/>
-                            <span className="text-xs font-bold">Enable System Push?</span>
-                        </div>
-                        <p className="text-[10px] text-gray-400">Get updates even when the app is closed.</p>
-                        <button 
-                          onClick={enableSystemNotifications}
-                          className="w-full bg-red-600/80 hover:bg-red-600 text-white text-xs font-bold py-1.5 rounded-lg transition-all active:scale-95 shadow-md shadow-red-900/20"
-                        >
-                            Turn On
-                        </button>
-                    </div>
-                )}
-                
-                {permissionStatus === 'granted' && (
-                    <div className="bg-green-500/10 p-2 flex justify-between items-center border-b border-white/5 px-4">
-                        <span className="text-[10px] text-green-400 font-bold flex items-center gap-1"><Check size={10}/> Push Active</span>
-                        <button onClick={sendTestNotification} className="text-[10px] underline text-gray-400 hover:text-white">Test</button>
-                    </div>
-                )}
                 
                 <div className="max-h-80 overflow-y-auto custom-scrollbar min-h-[150px]">
                     {loading ? (
