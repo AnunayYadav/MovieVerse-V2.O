@@ -9,9 +9,23 @@ import { generateSmartRecommendations, getSearchSuggestions } from './services/g
 import { LoginPage } from './components/LoginPage';
 import { getSupabase, syncUserData, fetchUserData, signOut, getNotifications } from './services/supabase';
 
-// Secure defaults from Environment Variables (checking multiple formats for compatibility)
-const ENV_TMDB_KEY = process.env.TMDB_API_KEY || process.env.REACT_APP_TMDB_API_KEY || "";
-const ENV_GEMINI_KEY = process.env.API_KEY || process.env.GEMINI_API_KEY || process.env.REACT_APP_GEMINI_API_KEY || "";
+// Helper to safely access env vars in various environments (Vite, CRA, Browser)
+const safeEnv = (key: string) => {
+  try {
+    // @ts-ignore
+    if (typeof process !== 'undefined' && process.env) return process.env[key];
+    // @ts-ignore
+    if (typeof import.meta !== 'undefined' && import.meta.env) return import.meta.env[key];
+  } catch(e) {}
+  return "";
+};
+
+const HARDCODED_TMDB = "fe42b660a036f4d6a2bfeb4d0f523ce9";
+const HARDCODED_GEMINI = "AIzaSyBGy80BBep7qmkqc0Wqt9dr-gMYs8X2mzo";
+
+// Initialize Keys with Fallbacks
+const ENV_TMDB_KEY = safeEnv('TMDB_API_KEY') || safeEnv('REACT_APP_TMDB_API_KEY') || HARDCODED_TMDB;
+const ENV_GEMINI_KEY = safeEnv('API_KEY') || safeEnv('GEMINI_API_KEY') || safeEnv('REACT_APP_GEMINI_API_KEY') || HARDCODED_GEMINI;
 
 const DEFAULT_COLLECTIONS: any = {
   "srk": { title: "King Khan", params: { with_cast: "35742", sort_by: "popularity.desc" }, icon: "👑", backdrop: "https://images.unsplash.com/photo-1562821680-894c1395f725?q=80&w=2000&auto=format&fit=crop", description: "The Badshah of Bollywood. Romance, Action, and Charm." },
