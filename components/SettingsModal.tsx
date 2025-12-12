@@ -19,8 +19,8 @@ interface SettingsModalProps {
 export const SettingsModal: React.FC<SettingsModalProps> = ({ 
     isOpen, onClose, apiKey, setApiKey, geminiKey, setGeminiKey, maturityRating, setMaturityRating, profile, onLogout 
 }) => {
-    const DEFAULT_TMDB_KEY = "fe42b660a036f4d6a2bfeb4d0f523ce9";
-    const DEFAULT_GEMINI_KEY = "AIzaSyBGy80BBep7qmkqc0Wqt9dr-gMYs8X2mzo";
+    const DEFAULT_TMDB_KEY = process.env.TMDB_API_KEY || "";
+    const DEFAULT_GEMINI_KEY = process.env.GEMINI_API_KEY || "";
 
     const [inputKey, setInputKey] = useState(apiKey || "");
     const [inputGemini, setInputGemini] = useState(geminiKey || "");
