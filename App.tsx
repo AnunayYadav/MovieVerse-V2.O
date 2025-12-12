@@ -7,7 +7,7 @@ import { AnalyticsDashboard } from './components/Analytics';
 import { ProfileModal, ListSelectionModal, PersonModal, AIRecommendationModal, SettingsModal, NotificationModal } from './components/Modals';
 import { generateSmartRecommendations, getSearchSuggestions } from './services/gemini';
 import { LoginPage } from './components/LoginPage';
-import { getSupabase, syncUserData, fetchUserData, signOut } from './services/supabase';
+import { getSupabase, syncUserData, fetchUserData, signOut, getNotifications } from './services/supabase';
 
 const DEFAULT_TMDB_KEY = "fe42b660a036f4d6a2bfeb4d0f523ce9";
 
@@ -59,6 +59,7 @@ export default function App() {
   const [watched, setWatched] = useState<Movie[]>([]);
   const [customLists, setCustomLists] = useState<Record<string, Movie[]>>({});
   const [userProfile, setUserProfile] = useState<UserProfile>({ name: "Guest", age: "", genres: [] });
+  const [hasUnread, setHasUnread] = useState(false);
 
   // Modals
   const [isProfileOpen, setIsProfileOpen] = useState(false);
@@ -80,6 +81,7 @@ export default function App() {
     setFavorites([]);
     setWatched([]);
     setCustomLists({});
+    setHasUnread(false);
     setUserProfile({ name: "Guest", age: "", genres: [] });
   }, []);
 
@@ -211,6 +213,24 @@ export default function App() {
           });
       }
   }, [watchlist, favorites, watched, customLists, userProfile, isCloudSync, isAuthenticated]);
+
+  const checkUnreadNotifications = async () => {
+      try {
+          const notifs = await getNotifications();
+          setHasUnread(notifs.some(n => !n.read));
+      } catch (e) {
+          console.error("Failed to check notifications", e);
+      }
+  };
+
+  useEffect(() => {
+      if (isAuthenticated) {
+          checkUnreadNotifications();
+          // Optional: Poll every few minutes
+          const interval = setInterval(checkUnreadNotifications, 60000);
+          return () => clearInterval(interval);
+      }
+  }, [isAuthenticated]);
 
 
   const handleLogin = (profileData?: UserProfile) => {
@@ -643,9 +663,11 @@ export default function App() {
              )}
              <button onClick={() => setIsNotificationOpen(true)} className="relative text-gray-400 hover:text-white transition-colors">
                  <Bell size={20}/>
-                 <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-600 rounded-full animate-pulse"></span>
+                 {hasUnread && (
+                    <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-600 rounded-full animate-pulse shadow-[0_0_8px_rgba(220,38,38,0.8)]"></span>
+                 )}
              </button>
-             <button onClick={() => setIsProfileOpen(true)} className="w-8 h-8 rounded-full bg-gradient-to-br from-red-600 to-red-900 flex items-center justify-center text-xs font-bold text-white shadow-lg shadow-red-900/40 hover:scale-105 transition-transform overflow-hidden">
+             <button onClick={() => setIsProfileOpen(true)} className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white shadow-lg shadow-red-900/40 hover:scale-105 transition-transform overflow-hidden ${userProfile.avatarBackground || 'bg-gradient-to-br from-red-600 to-red-900'}`}>
                  {userProfile.avatar ? (
                     <img src={userProfile.avatar} alt={userProfile.name} className="w-full h-full object-cover" />
                  ) : (
@@ -946,7 +968,11 @@ export default function App() {
         onLogout={handleLogout}
       />
       
-      <NotificationModal isOpen={isNotificationOpen} onClose={() => setIsNotificationOpen(false)} />
+      <NotificationModal 
+        isOpen={isNotificationOpen} 
+        onClose={() => setIsNotificationOpen(false)} 
+        onUpdate={checkUnreadNotifications}
+      />
       
       {!apiKey && loading && <div className="fixed inset-0 z-[100] bg-black"><LogoLoader /></div>}
     </div>

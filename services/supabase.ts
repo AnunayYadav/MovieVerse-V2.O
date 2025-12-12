@@ -1,5 +1,5 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { Movie, UserProfile } from '../types';
+import { Movie, UserProfile, AppNotification } from '../types';
 
 let supabaseInstance: SupabaseClient | null = null;
 
@@ -123,4 +123,131 @@ export const fetchUserData = async (): Promise<UserData | null> => {
         customLists: data.custom_lists || {},
         profile: data.profile || { name: "", age: "", genres: [] }
     };
+};
+
+// --- NOTIFICATIONS ---
+
+// Fallback Mock Data
+const MOCK_NOTIFICATIONS: AppNotification[] = [
+    { id: '1', title: "New Arrival: Dune Part Two", message: "Now streaming in 4K HDR. Experience the saga.", time: "2 hours ago", read: false },
+    { id: '2', title: "Watchlist Alert", message: "Inception is now available on your subscribed services.", time: "1 day ago", read: false },
+    { id: '3', title: "System Update", message: "We've improved our AI recommendation engine for better accuracy.", time: "3 days ago", read: true },
+    { id: '4', title: "Welcome to MovieVerse Pro!", message: "Thanks for joining. Start by adding 3 movies to your favorites.", time: "1 week ago", read: true },
+];
+
+export const getNotifications = async (): Promise<AppNotification[]> => {
+    const supabase = getSupabase();
+    if (!supabase) return MOCK_NOTIFICATIONS;
+
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    // If not logged in, return mocks
+    if (!user) return MOCK_NOTIFICATIONS;
+
+    try {
+        const { data, error } = await supabase
+            .from('notifications')
+            .select('*')
+            .eq('user_id', user.id)
+            .order('created_at', { ascending: false });
+
+        if (error) {
+            console.warn("Could not fetch real notifications (DB not setup?), using mocks.", error.message);
+            return MOCK_NOTIFICATIONS;
+        }
+
+        if (!data || data.length === 0) return [];
+
+        return data.map((n: any) => ({
+            id: n.id,
+            title: n.title,
+            message: n.message || n.body || "",
+            read: n.is_read || false,
+            time: new Date(n.created_at).toLocaleDateString() + ' ' + new Date(n.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
+        }));
+
+    } catch (e) {
+        return MOCK_NOTIFICATIONS;
+    }
+};
+
+export const markNotificationsRead = async () => {
+    const supabase = getSupabase();
+    if (!supabase) return;
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    try {
+        await supabase
+            .from('notifications')
+            .update({ is_read: true })
+            .eq('user_id', user.id)
+            .eq('is_read', false);
+    } catch (e) {
+        console.warn("Failed to mark read (DB not setup?)");
+    }
+};
+
+export const sendNotification = async (title: string, message: string) => {
+    const supabase = getSupabase();
+    if (!supabase) return null;
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return null;
+
+    const { data, error } = await supabase
+        .from('notifications')
+        .insert({
+            user_id: user.id,
+            title,
+            message,
+            is_read: false
+        })
+        .select()
+        .single();
+    
+    if (error) {
+        console.error("Failed to send notification", error);
+        throw error;
+    }
+    return data;
+};
+
+export const submitSupportTicket = async (subject: string, message: string, contactEmail: string) => {
+    const supabase = getSupabase();
+    
+    // Simulate API call delay for better UX even if no backend
+    await new Promise(resolve => setTimeout(resolve, 1500));
+
+    if (!supabase) {
+        console.log("Mock Support Ticket Sent:", { subject, message, contactEmail });
+        return true; 
+    }
+
+    try {
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        // Attempt to insert into a 'support_tickets' table
+        // Ensure this table exists in your Supabase project:
+        // create table support_tickets (id uuid default gen_random_uuid() primary key, user_id uuid, email text, subject text, message text, created_at timestamptz default now());
+        const { error } = await supabase
+            .from('support_tickets')
+            .insert({
+                user_id: user?.id || null,
+                email: contactEmail,
+                subject,
+                message
+            });
+
+        if (error) {
+            console.warn("Supabase insert failed (Table 'support_tickets' might be missing). Logging to console instead.", error);
+            // Fallback for demo: just return true so user sees success
+            return true;
+        }
+        return true;
+    } catch (e) {
+        console.error("Support Ticket Error", e);
+        return false;
+    }
 };

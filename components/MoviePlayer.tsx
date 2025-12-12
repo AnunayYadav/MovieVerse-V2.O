@@ -25,6 +25,42 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     setEpisode(initialEpisode);
   }, [initialSeason, initialEpisode]);
 
+  // Screen Wake Lock to prevent sleep during playback
+  useEffect(() => {
+    let wakeLock: any = null;
+
+    const requestWakeLock = async () => {
+      try {
+        const nav = navigator as any;
+        if ('wakeLock' in nav) {
+          wakeLock = await nav.wakeLock.request('screen');
+          console.log('Wake Lock active: Screen will not sleep.');
+        }
+      } catch (err) {
+        console.warn('Wake Lock request failed:', err);
+      }
+    };
+
+    requestWakeLock();
+
+    // Re-acquire lock if visibility changes (e.g., user switches tabs and comes back)
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        requestWakeLock();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      if (wakeLock) {
+        wakeLock.release().catch((e: any) => console.error('Wake Lock release failed:', e));
+        wakeLock = null;
+      }
+    };
+  }, []);
+
   const getEmbedUrl = () => {
     // Vidsrc.cc is a popular embed source for demos
     if (isAnime) {

@@ -163,6 +163,7 @@ export interface UserProfile {
   age: string;
   genres: string[];
   avatar?: string;
+  avatarBackground?: string;
 }
 
 export interface AIAnalysisResult {
@@ -187,6 +188,14 @@ export interface PersonDetails {
   combined_credits: {
     cast: Movie[];
   };
+}
+
+export interface AppNotification {
+  id: string;
+  title: string;
+  message: string;
+  time: string;
+  read: boolean;
 }
 
 export type MaturityRating = "G" | "PG" | "PG-13" | "R" | "NC-17";
