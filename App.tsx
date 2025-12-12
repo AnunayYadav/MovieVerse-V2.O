@@ -606,34 +606,34 @@ export default function App() {
   return (
     <div className="min-h-screen bg-[#030303] text-white font-sans selection:bg-red-500/30 selection:text-white">
       {/* Liquid Glass Navbar */}
-      <nav className="fixed top-0 left-0 right-0 z-[60] bg-black/60 backdrop-blur-xl border-b border-white/5 h-16 flex items-center justify-between px-4 md:px-6 transition-all">
+      <nav className="fixed top-0 left-0 right-0 z-[60] bg-black/60 backdrop-blur-xl border-b border-white/5 h-16 flex items-center justify-between px-4 md:px-6 transition-all duration-300">
         <div className="flex items-center gap-4 md:gap-6">
-           <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="md:hidden p-2 hover:bg-white/10 rounded-full transition-colors"><Menu size={20} /></button>
+           <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="md:hidden p-2 hover:bg-white/10 rounded-full transition-colors active:scale-95"><Menu size={20} /></button>
            <div className="flex items-center gap-2 cursor-pointer group" onClick={() => {setSearchQuery(""); setSelectedCategory("All"); setCurrentCollection(null);}}>
                 <div className="relative">
-                     <Film size={24} className="text-red-600 relative z-10" />
-                     <div className="absolute inset-0 bg-red-600 blur-lg opacity-50 group-hover:opacity-80 transition-opacity"></div>
+                     <Film size={24} className="text-red-600 relative z-10 transition-transform duration-500 group-hover:rotate-12" />
+                     <div className="absolute inset-0 bg-red-600 blur-lg opacity-50 group-hover:opacity-80 transition-opacity duration-500"></div>
                 </div>
                 <span className="text-lg font-bold tracking-tight text-white hidden sm:block">Movie<span className="text-red-600">Verse</span></span>
            </div>
            
            {/* Desktop Nav Links */}
            <div className="hidden md:flex items-center gap-1">
-               <button onClick={() => { setSelectedCategory("All"); setCurrentCollection(null); }} className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${selectedCategory === "All" ? "bg-white text-black font-bold" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>Home</button>
-               <button onClick={() => { setSelectedCategory("TV Shows"); setCurrentCollection(null); }} className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${selectedCategory === "TV Shows" ? "bg-white text-black font-bold" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>TV Shows</button>
-               <button onClick={() => { setSelectedCategory("Anime"); setCurrentCollection(null); }} className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${selectedCategory === "Anime" ? "bg-white text-black font-bold" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>Anime</button>
-               <button onClick={() => { setSelectedCategory("ForYou"); setCurrentCollection(null); }} className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${selectedCategory === "ForYou" ? "bg-gradient-to-r from-red-600 to-red-900 text-white font-bold" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>For You</button>
+               <button onClick={() => { setSelectedCategory("All"); setCurrentCollection(null); }} className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-300 hover:scale-105 active:scale-95 ${selectedCategory === "All" ? "bg-white text-black font-bold" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>Home</button>
+               <button onClick={() => { setSelectedCategory("TV Shows"); setCurrentCollection(null); }} className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-300 hover:scale-105 active:scale-95 ${selectedCategory === "TV Shows" ? "bg-white text-black font-bold" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>TV Shows</button>
+               <button onClick={() => { setSelectedCategory("Anime"); setCurrentCollection(null); }} className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-300 hover:scale-105 active:scale-95 ${selectedCategory === "Anime" ? "bg-white text-black font-bold" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>Anime</button>
+               <button onClick={() => { setSelectedCategory("ForYou"); setCurrentCollection(null); }} className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-300 hover:scale-105 active:scale-95 ${selectedCategory === "ForYou" ? "bg-gradient-to-r from-red-600 to-red-900 text-white font-bold shadow-lg shadow-red-900/40" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>For You</button>
            </div>
         </div>
         
         {/* Search Bar */}
         <div className="flex-1 max-w-lg mx-4 relative hidden md:block group z-[70]">
            <div className="absolute inset-0 bg-gradient-to-r from-red-500/20 to-gray-500/20 rounded-full blur-md opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-           <Search className={`absolute left-4 top-1/2 -translate-y-1/2 transition-colors ${loading && searchQuery ? "text-red-400 animate-pulse" : "text-white/50"}`} size={16} />
+           <Search className={`absolute left-4 top-1/2 -translate-y-1/2 transition-colors duration-300 ${loading && searchQuery ? "text-red-400 animate-pulse" : "text-white/50 group-focus-within:text-white"}`} size={16} />
            <input 
               type="text" 
               placeholder="Ask AI... (e.g., 'Movies like Interstellar')"
-              className={`w-full bg-black/40 border backdrop-blur-md rounded-full py-2.5 pl-11 pr-10 text-sm focus:outline-none transition-all text-white placeholder-white/30 ${loading && searchQuery ? "border-red-500/50" : "border-white/10 focus:border-white/30 focus:bg-white/5"}`} 
+              className={`w-full bg-black/40 border backdrop-blur-md rounded-full py-2.5 pl-11 pr-10 text-sm focus:outline-none transition-all duration-300 text-white placeholder-white/30 ${loading && searchQuery ? "border-red-500/50" : "border-white/10 focus:border-white/30 focus:bg-white/5 focus:shadow-[0_0_15px_rgba(255,255,255,0.1)]"}`} 
               value={searchQuery} 
               onChange={(e) => setSearchQuery(e.target.value)}
               onFocus={() => setShowSuggestions(true)}
@@ -641,7 +641,7 @@ export default function App() {
               onKeyDown={(e) => { if(e.key === 'Enter') handleSearchSubmit(searchQuery); }}
            />
            {showSuggestions && (searchSuggestions.length > 0 || (searchHistory.length > 0 && !searchQuery)) && (
-               <div className="absolute top-full left-0 right-0 mt-2 bg-[#0f0f0f]/95 border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-[100] backdrop-blur-xl">
+               <div className="absolute top-full left-0 right-0 mt-2 bg-[#0f0f0f]/95 border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-[100] backdrop-blur-xl animate-in fade-in slide-in-from-top-2 duration-200">
                    {/* Search History Section */}
                    {!searchQuery && searchHistory.length > 0 && (
                        <div className="border-b border-white/5 pb-1">
@@ -679,29 +679,29 @@ export default function App() {
         
         <div className="flex items-center gap-2 md:gap-4">
              {isCloudSync && (
-                 <div className="hidden md:flex items-center text-green-500 text-xs gap-1" title="Cloud Sync Active">
+                 <div className="hidden md:flex items-center text-green-500 text-xs gap-1 animate-in fade-in" title="Cloud Sync Active">
                      <Cloud size={14}/>
                  </div>
              )}
              {!isCloudSync && isAuthenticated && (
-                 <div className="hidden md:flex items-center text-gray-600 text-xs gap-1" title="Local Storage Only">
+                 <div className="hidden md:flex items-center text-gray-600 text-xs gap-1 animate-in fade-in" title="Local Storage Only">
                      <CloudOff size={14}/>
                  </div>
              )}
-             <button onClick={() => setIsNotificationOpen(true)} className="relative text-gray-400 hover:text-white transition-colors">
+             <button onClick={() => setIsNotificationOpen(true)} className="relative text-gray-400 hover:text-white transition-colors hover:scale-110 active:scale-95 duration-300">
                  <Bell size={20}/>
                  {hasUnread && (
                     <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-600 rounded-full animate-pulse shadow-[0_0_8px_rgba(220,38,38,0.8)]"></span>
                  )}
              </button>
-             <button onClick={() => setIsProfileOpen(true)} className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white shadow-lg shadow-red-900/40 hover:scale-105 transition-transform overflow-hidden ${userProfile.avatarBackground || 'bg-gradient-to-br from-red-600 to-red-900'}`}>
+             <button onClick={() => setIsProfileOpen(true)} className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white shadow-lg shadow-red-900/40 hover:scale-105 transition-transform overflow-hidden duration-300 ${userProfile.avatarBackground || 'bg-gradient-to-br from-red-600 to-red-900'}`}>
                  {userProfile.avatar ? (
                     <img src={userProfile.avatar} alt={userProfile.name} className="w-full h-full object-cover" />
                  ) : (
                     userProfile.name.charAt(0).toUpperCase()
                  )}
              </button>
-             <button onClick={() => setIsSettingsOpen(true)} className="text-gray-400 hover:text-white transition-colors"><Settings size={20} /></button>
+             <button onClick={() => setIsSettingsOpen(true)} className="text-gray-400 hover:text-white transition-all hover:rotate-90 duration-500"><Settings size={20} /></button>
         </div>
       </nav>
 
@@ -711,7 +711,7 @@ export default function App() {
            <div className="p-6 h-full overflow-y-auto custom-scrollbar">
                <div className="flex justify-between items-center mb-8">
                    <div className="flex items-center gap-2"><Film size={24} className="text-red-600" /><span className="text-xl font-bold">Menu</span></div>
-                   <button onClick={() => setIsSidebarOpen(false)} className="p-2 hover:bg-white/10 rounded-full"><X size={20}/></button>
+                   <button onClick={() => setIsSidebarOpen(false)} className="p-2 hover:bg-white/10 rounded-full transition-colors active:scale-95"><X size={20}/></button>
                </div>
                
                {/* Mobile Search Input */}
@@ -726,26 +726,26 @@ export default function App() {
                    {/* Discover Section */}
                    <div className="space-y-1">
                         <p className="text-xs font-bold text-white/40 uppercase tracking-wider mb-2 px-2">Discover</p>
-                        <button onClick={() => { setSelectedCategory("All"); setFilterPeriod("all"); setCurrentCollection(null); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${selectedCategory === "All" && filterPeriod === "all" ? 'bg-red-600/20 text-red-400' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}><TrendingUp size={18}/> Trending Now</button>
-                        <button onClick={() => { setSelectedCategory("TV Shows"); setCurrentCollection(null); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${selectedCategory === "TV Shows" ? 'bg-red-600/20 text-red-400' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}><Tv size={18}/> TV Shows</button>
-                        <button onClick={() => { setSelectedCategory("Anime"); setCurrentCollection(null); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${selectedCategory === "Anime" ? 'bg-red-600/20 text-red-400' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}><Ghost size={18}/> Anime</button>
-                        <button onClick={() => { setSortOption("vote_average.desc"); setSelectedCategory("All"); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${sortOption === "vote_average.desc" && selectedCategory === "All" ? 'bg-red-600/20 text-red-400' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}><Star size={18}/> Top Rated</button>
-                        <button onClick={() => { setFilterPeriod("future"); setSelectedCategory("All"); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${filterPeriod === "future" ? 'bg-red-600/20 text-red-400' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}><Calendar size={18}/> Coming Soon</button>
+                        <button onClick={() => { setSelectedCategory("All"); setFilterPeriod("all"); setCurrentCollection(null); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 hover:translate-x-1 ${selectedCategory === "All" && filterPeriod === "all" ? 'bg-red-600/20 text-red-400' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}><TrendingUp size={18}/> Trending Now</button>
+                        <button onClick={() => { setSelectedCategory("TV Shows"); setCurrentCollection(null); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 hover:translate-x-1 ${selectedCategory === "TV Shows" ? 'bg-red-600/20 text-red-400' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}><Tv size={18}/> TV Shows</button>
+                        <button onClick={() => { setSelectedCategory("Anime"); setCurrentCollection(null); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 hover:translate-x-1 ${selectedCategory === "Anime" ? 'bg-red-600/20 text-red-400' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}><Ghost size={18}/> Anime</button>
+                        <button onClick={() => { setSortOption("vote_average.desc"); setSelectedCategory("All"); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 hover:translate-x-1 ${sortOption === "vote_average.desc" && selectedCategory === "All" ? 'bg-red-600/20 text-red-400' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}><Star size={18}/> Top Rated</button>
+                        <button onClick={() => { setFilterPeriod("future"); setSelectedCategory("All"); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 hover:translate-x-1 ${filterPeriod === "future" ? 'bg-red-600/20 text-red-400' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}><Calendar size={18}/> Coming Soon</button>
                    </div>
 
                    <div className="space-y-1">
                        <p className="text-xs font-bold text-white/40 uppercase tracking-wider mb-2 px-2">Library</p>
-                       <button onClick={() => { setSelectedCategory("Watchlist"); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${selectedCategory === "Watchlist" ? 'bg-red-600/20 text-red-400' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}><Bookmark size={18}/> Watchlist <span className="ml-auto text-xs opacity-50">{watchlist.length}</span></button>
-                       <button onClick={() => { setSelectedCategory("History"); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${selectedCategory === "History" ? 'bg-red-600/20 text-red-400' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}><History size={18}/> History <span className="ml-auto text-xs opacity-50">{watched.length}</span></button>
-                       <button onClick={() => { setSelectedCategory("Favorites"); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${selectedCategory === "Favorites" ? 'bg-red-600/20 text-red-400' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}><Heart size={18}/> Favorites <span className="ml-auto text-xs opacity-50">{favorites.length}</span></button>
-                       <button onClick={() => { setSelectedCategory("CineAnalytics"); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${selectedCategory === "CineAnalytics" ? 'bg-red-600/20 text-red-400' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}><BarChart3 size={18}/> Analytics</button>
+                       <button onClick={() => { setSelectedCategory("Watchlist"); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 hover:translate-x-1 ${selectedCategory === "Watchlist" ? 'bg-red-600/20 text-red-400' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}><Bookmark size={18}/> Watchlist <span className="ml-auto text-xs opacity-50">{watchlist.length}</span></button>
+                       <button onClick={() => { setSelectedCategory("History"); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 hover:translate-x-1 ${selectedCategory === "History" ? 'bg-red-600/20 text-red-400' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}><History size={18}/> History <span className="ml-auto text-xs opacity-50">{watched.length}</span></button>
+                       <button onClick={() => { setSelectedCategory("Favorites"); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 hover:translate-x-1 ${selectedCategory === "Favorites" ? 'bg-red-600/20 text-red-400' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}><Heart size={18}/> Favorites <span className="ml-auto text-xs opacity-50">{favorites.length}</span></button>
+                       <button onClick={() => { setSelectedCategory("CineAnalytics"); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 hover:translate-x-1 ${selectedCategory === "CineAnalytics" ? 'bg-red-600/20 text-red-400' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}><BarChart3 size={18}/> Analytics</button>
                    </div>
                    
                    {Object.keys(customLists).length > 0 && (
                        <div className="space-y-1">
                            <p className="text-xs font-bold text-white/40 uppercase tracking-wider mb-2 px-2">My Lists</p>
                            {Object.keys(customLists).map(listName => ( 
-                                <button key={listName} onClick={() => { setSelectedCategory(`Custom:${listName}`); setCurrentCollection(null); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${selectedCategory === `Custom:${listName}` ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}><Folder size={18} /> {listName} <span className="ml-auto text-xs opacity-50">{customLists[listName].length}</span></button> 
+                                <button key={listName} onClick={() => { setSelectedCategory(`Custom:${listName}`); setCurrentCollection(null); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 hover:translate-x-1 ${selectedCategory === `Custom:${listName}` ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}><Folder size={18} /> {listName} <span className="ml-auto text-xs opacity-50">{customLists[listName].length}</span></button> 
                             ))}
                        </div>
                    )}
@@ -753,7 +753,7 @@ export default function App() {
                    <div className="space-y-2">
                        <p className="text-xs font-bold text-white/40 uppercase tracking-wider mb-2 px-2">Curated</p>
                        {Object.entries(DEFAULT_COLLECTIONS).map(([key, col]: any) => ( 
-                           <button key={key} onClick={() => handleCollectionClick(key)} className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium transition-all ${currentCollection === key ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}><span>{col.icon}</span> {col.title}</button>
+                           <button key={key} onClick={() => handleCollectionClick(key)} className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium transition-all duration-300 hover:translate-x-1 ${currentCollection === key ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}><span>{col.icon}</span> {col.title}</button>
                        ))}
                    </div>
                    
@@ -764,7 +764,7 @@ export default function App() {
                                 <button 
                                     key={genre}
                                     onClick={() => { setSelectedCategory(genre); setFilterPeriod("all"); setCurrentCollection(null); setIsSidebarOpen(false); }}
-                                    className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${selectedCategory === genre ? 'bg-red-600 text-white border-red-600' : 'bg-white/5 border-white/5 text-gray-400 hover:text-white hover:border-white/20'}`}
+                                    className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all duration-300 hover:scale-105 active:scale-95 ${selectedCategory === genre ? 'bg-red-600 text-white border-red-600 shadow-md shadow-red-900/40' : 'bg-white/5 border-white/5 text-gray-400 hover:text-white hover:border-white/20'}`}
                                 >
                                     {genre}
                                 </button>
@@ -774,16 +774,16 @@ export default function App() {
                </div>
                
                <div className="mt-8 pt-6 border-t border-white/10">
-                   <button onClick={() => setIsSettingsOpen(true)} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-gray-400 hover:text-white hover:bg-white/5"><Settings size={18}/> Settings</button>
+                   <button onClick={() => setIsSettingsOpen(true)} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-gray-400 hover:text-white hover:bg-white/5 transition-all active:scale-95"><Settings size={18}/> Settings</button>
                    <div className="mt-4 px-3 flex gap-2">
-                       <button onClick={() => setAppRegion('US')} className={`flex-1 py-1.5 text-xs font-bold rounded-lg border ${appRegion === 'US' ? 'bg-white text-black border-white' : 'border-white/20 text-gray-500'}`}>US</button>
-                       <button onClick={() => setAppRegion('IN')} className={`flex-1 py-1.5 text-xs font-bold rounded-lg border ${appRegion === 'IN' ? 'bg-white text-black border-white' : 'border-white/20 text-gray-500'}`}>India</button>
+                       <button onClick={() => setAppRegion('US')} className={`flex-1 py-1.5 text-xs font-bold rounded-lg border transition-all active:scale-95 ${appRegion === 'US' ? 'bg-white text-black border-white' : 'border-white/20 text-gray-500 hover:text-white hover:border-white/50'}`}>US</button>
+                       <button onClick={() => setAppRegion('IN')} className={`flex-1 py-1.5 text-xs font-bold rounded-lg border transition-all active:scale-95 ${appRegion === 'IN' ? 'bg-white text-black border-white' : 'border-white/20 text-gray-500 hover:text-white hover:border-white/50'}`}>India</button>
                    </div>
                </div>
            </div>
            {/* Overlay to close */}
            <div 
-             className={`absolute top-0 left-full w-screen h-full bg-black/50 backdrop-blur-sm transition-opacity duration-300 ${isSidebarOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`} 
+             className={`absolute top-0 left-full w-screen h-full bg-black/50 backdrop-blur-sm transition-opacity duration-500 ${isSidebarOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`} 
              onClick={() => setIsSidebarOpen(false)}
            ></div>
         </aside>
@@ -798,11 +798,11 @@ export default function App() {
                    {!searchQuery && selectedCategory === "All" && !currentCollection && filterPeriod === "all" && featuredMovie && !loading && page === 1 && ( 
                        <div className="relative w-full h-[60vh] min-h-[500px] md:h-[80vh] group overflow-hidden">
                            <div className="absolute inset-0 bg-black">
-                               <img src={featuredMovie.backdrop_path ? `${TMDB_BACKDROP_BASE}${featuredMovie.backdrop_path}` : "https://placehold.co/1200x600/111/333"} alt="Featured" className="w-full h-full object-cover opacity-80 transition-transform duration-[10s] group-hover:scale-110" />
+                               <img src={featuredMovie.backdrop_path ? `${TMDB_BACKDROP_BASE}${featuredMovie.backdrop_path}` : "https://placehold.co/1200x600/111/333"} alt="Featured" className="w-full h-full object-cover opacity-80 transition-transform duration-[15s] ease-out group-hover:scale-110" />
                                <div className="absolute inset-0 bg-gradient-to-t from-[#030303] via-[#030303]/20 to-transparent"></div>
                                <div className="absolute inset-0 bg-gradient-to-r from-[#030303] via-[#030303]/40 to-transparent"></div>
                            </div>
-                           <div className="absolute bottom-0 left-0 p-6 md:p-12 w-full md:w-2/3 flex flex-col gap-4 md:gap-6 z-10">
+                           <div className="absolute bottom-0 left-0 p-6 md:p-12 w-full md:w-2/3 flex flex-col gap-4 md:gap-6 z-10 animate-in slide-in-from-bottom-10 duration-1000 ease-out">
                                <span className="w-fit bg-red-600 text-white text-[10px] md:text-xs font-bold px-3 py-1 rounded-full shadow-[0_0_20px_rgba(220,38,38,0.6)] animate-pulse">#1 FEATURED</span>
                                <h1 className="text-4xl md:text-7xl font-black text-white leading-none drop-shadow-2xl tracking-tight">{featuredMovie.title || featuredMovie.original_title}</h1>
                                <div className="flex items-center gap-3 text-sm font-medium text-white/80">
@@ -812,8 +812,8 @@ export default function App() {
                                </div>
                                <p className="text-gray-300 text-sm md:text-lg line-clamp-3 md:line-clamp-3 max-w-2xl leading-relaxed">{featuredMovie.overview}</p>
                                <div className="flex flex-wrap gap-4 mt-2">
-                                   <button onClick={() => setSelectedMovie(featuredMovie)} className="bg-white text-black hover:bg-gray-200 font-bold py-3 px-8 rounded-xl flex items-center gap-2 transition-all active:scale-95"><Info size={20}/> More Info</button>
-                                   <button onClick={() => toggleList(watchlist, setWatchlist, 'movieverse_watchlist', featuredMovie)} className="bg-white/20 backdrop-blur-md hover:bg-white/30 text-white font-bold py-3 px-6 rounded-xl flex items-center gap-2 transition-all border border-white/10"><Plus size={20}/> My List</button>
+                                   <button onClick={() => setSelectedMovie(featuredMovie)} className="bg-white text-black hover:bg-gray-200 font-bold py-3 px-8 rounded-xl flex items-center gap-2 transition-all active:scale-95 hover:scale-105"><Info size={20}/> More Info</button>
+                                   <button onClick={() => toggleList(watchlist, setWatchlist, 'movieverse_watchlist', featuredMovie)} className="bg-white/20 backdrop-blur-md hover:bg-white/30 text-white font-bold py-3 px-6 rounded-xl flex items-center gap-2 transition-all border border-white/10 active:scale-95 hover:scale-105"><Plus size={20}/> My List</button>
                                </div>
                            </div>
                        </div> 
@@ -822,9 +822,9 @@ export default function App() {
                    {/* Collection Hero */}
                    {currentCollection && DEFAULT_COLLECTIONS[currentCollection] && (
                       <div className="relative w-full h-[40vh] md:h-[50vh] overflow-hidden">
-                          <img src={DEFAULT_COLLECTIONS[currentCollection].backdrop} className="w-full h-full object-cover" />
+                          <img src={DEFAULT_COLLECTIONS[currentCollection].backdrop} className="w-full h-full object-cover animate-in fade-in duration-700" />
                           <div className="absolute inset-0 bg-gradient-to-t from-[#030303] via-[#030303]/80 to-transparent"></div>
-                          <div className="absolute bottom-0 left-0 p-8 md:p-12">
+                          <div className="absolute bottom-0 left-0 p-8 md:p-12 animate-in slide-in-from-bottom-5 duration-700">
                               <div className="flex items-center gap-2 text-yellow-400 font-bold tracking-widest uppercase text-sm mb-2"><span className="text-2xl">{DEFAULT_COLLECTIONS[currentCollection].icon}</span> Collection</div>
                               <h1 className="text-4xl md:text-6xl font-black text-white mb-4">{DEFAULT_COLLECTIONS[currentCollection].title}</h1>
                               <p className="text-white/70 max-w-xl text-lg">{DEFAULT_COLLECTIONS[currentCollection].description}</p>
@@ -835,7 +835,7 @@ export default function App() {
                    <div className="px-4 md:px-12 py-8 space-y-8 relative z-10 -mt-10">
                        {/* Control Bar */}
                        <div className="sticky top-20 z-50">
-                            <div className="glass-panel p-2 rounded-2xl flex flex-wrap md:flex-nowrap gap-4 md:items-center justify-between mb-8 z-30 relative overflow-visible">
+                            <div className="glass-panel p-2 rounded-2xl flex flex-wrap md:flex-nowrap gap-4 md:items-center justify-between mb-8 z-30 relative overflow-visible shadow-2xl animate-in slide-in-from-top-5 duration-500">
                                 <div className="flex items-center gap-2 px-2 shrink-0 w-full md:w-auto overflow-hidden">
                                      <h2 className="text-xl font-bold text-white whitespace-nowrap truncate">{currentCollection ? "Collection Items" : selectedCategory === "All" && !searchQuery ? "Trending Now" : searchQuery ? `Results: ${searchQuery}` : selectedCategory}</h2>
                                      <span className="text-xs font-medium text-white/40 bg-white/5 px-2 py-0.5 rounded-md border border-white/5 shrink-0">{movies.length}</span>
@@ -843,8 +843,8 @@ export default function App() {
                                 <div className="flex items-center gap-2 shrink-0 overflow-visible pb-1 md:pb-0 w-full md:w-auto flex-wrap md:flex-nowrap">
                                     <div className="h-8 w-px bg-white/10 mx-1 hidden md:block"></div>
                                     <div className="relative group shrink-0 z-50">
-                                         <button className="flex items-center gap-2 bg-white/5 hover:bg-white/10 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors border border-white/5"><Filter size={14} /> Sort <ChevronDown size={12}/></button>
-                                         <div className="absolute left-0 top-full pt-2 w-40 hidden group-hover:block z-[60]">
+                                         <button className="flex items-center gap-2 bg-white/5 hover:bg-white/10 px-3 py-1.5 rounded-lg text-xs font-medium transition-all active:scale-95 border border-white/5"><Filter size={14} /> Sort <ChevronDown size={12} className="group-hover:rotate-180 transition-transform duration-300"/></button>
+                                         <div className="absolute left-0 top-full pt-2 w-40 hidden group-hover:block z-[60] animate-in slide-in-from-top-2 duration-200">
                                              <div className="glass-panel p-1 rounded-lg">
                                                  {[
                                                      { l: "Popular", v: "popularity.desc" }, 
@@ -852,28 +852,28 @@ export default function App() {
                                                      { l: "Newest", v: "primary_release_date.desc" }, 
                                                      { l: "Oldest", v: "primary_release_date.asc" }
                                                  ].map(opt => (
-                                                     <button key={opt.v} onClick={() => setSortOption(opt.v)} className={`w-full text-left px-3 py-2 text-xs rounded-md hover:bg-white/10 ${sortOption === opt.v ? 'text-red-400' : 'text-gray-400'}`}>{opt.l}</button>
+                                                     <button key={opt.v} onClick={() => setSortOption(opt.v)} className={`w-full text-left px-3 py-2 text-xs rounded-md hover:bg-white/10 transition-colors ${sortOption === opt.v ? 'text-red-400' : 'text-gray-400'}`}>{opt.l}</button>
                                                  ))}
                                              </div>
                                          </div>
                                     </div>
 
                                     <div className="relative group shrink-0 z-50">
-                                         <button className="flex items-center gap-2 bg-white/5 hover:bg-white/10 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors border border-white/5"><Globe size={14} /> {selectedRegion === 'IN' ? 'India' : 'Global'} <ChevronDown size={12}/></button>
-                                         <div className="absolute right-0 top-full pt-2 w-32 hidden group-hover:block z-[60]">
+                                         <button className="flex items-center gap-2 bg-white/5 hover:bg-white/10 px-3 py-1.5 rounded-lg text-xs font-medium transition-all active:scale-95 border border-white/5"><Globe size={14} /> {selectedRegion === 'IN' ? 'India' : 'Global'} <ChevronDown size={12} className="group-hover:rotate-180 transition-transform duration-300"/></button>
+                                         <div className="absolute right-0 top-full pt-2 w-32 hidden group-hover:block z-[60] animate-in slide-in-from-top-2 duration-200">
                                              <div className="glass-panel p-1 rounded-lg">
-                                                 <button onClick={() => setSelectedRegion("Global")} className="w-full text-left px-3 py-2 text-xs rounded-md text-gray-400 hover:bg-white/10 hover:text-white">Global</button>
-                                                 <button onClick={() => setSelectedRegion("IN")} className="w-full text-left px-3 py-2 text-xs rounded-md text-red-400 hover:bg-white/10">India</button>
+                                                 <button onClick={() => setSelectedRegion("Global")} className="w-full text-left px-3 py-2 text-xs rounded-md text-gray-400 hover:bg-white/10 hover:text-white transition-colors">Global</button>
+                                                 <button onClick={() => setSelectedRegion("IN")} className="w-full text-left px-3 py-2 text-xs rounded-md text-red-400 hover:bg-white/10 transition-colors">India</button>
                                              </div>
                                          </div>
                                     </div>
 
                                     <div className="relative group shrink-0 z-50">
-                                         <button className="flex items-center gap-2 bg-white/5 hover:bg-white/10 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors border border-white/5"><Languages size={14} /> {INDIAN_LANGUAGES.find(l => l.code === selectedLanguage)?.name.split(' ')[0] || 'All'} <ChevronDown size={12}/></button>
-                                         <div className="absolute right-0 top-full pt-2 w-48 hidden group-hover:block z-[60]">
+                                         <button className="flex items-center gap-2 bg-white/5 hover:bg-white/10 px-3 py-1.5 rounded-lg text-xs font-medium transition-all active:scale-95 border border-white/5"><Languages size={14} /> {INDIAN_LANGUAGES.find(l => l.code === selectedLanguage)?.name.split(' ')[0] || 'All'} <ChevronDown size={12} className="group-hover:rotate-180 transition-transform duration-300"/></button>
+                                         <div className="absolute right-0 top-full pt-2 w-48 hidden group-hover:block z-[60] animate-in slide-in-from-top-2 duration-200">
                                              <div className="glass-panel p-1 rounded-lg max-h-60 overflow-y-auto custom-scrollbar">
-                                                 <button onClick={() => setSelectedLanguage("All")} className="w-full text-left px-3 py-2 text-xs rounded-md text-gray-400 hover:bg-white/10 hover:text-white">All Languages</button>
-                                                 {INDIAN_LANGUAGES.map(lang => ( <button key={lang.code} onClick={() => setSelectedLanguage(lang.code)} className="w-full text-left px-3 py-2 text-xs rounded-md text-gray-400 hover:bg-white/10 hover:text-white">{lang.name}</button> ))}
+                                                 <button onClick={() => setSelectedLanguage("All")} className="w-full text-left px-3 py-2 text-xs rounded-md text-gray-400 hover:bg-white/10 hover:text-white transition-colors">All Languages</button>
+                                                 {INDIAN_LANGUAGES.map(lang => ( <button key={lang.code} onClick={() => setSelectedLanguage(lang.code)} className="w-full text-left px-3 py-2 text-xs rounded-md text-gray-400 hover:bg-white/10 hover:text-white transition-colors">{lang.name}</button> ))}
                                              </div>
                                          </div>
                                     </div>
@@ -883,8 +883,8 @@ export default function App() {
                        
                        {/* AI Context Reason - Shows if the results are from AI */}
                        {aiContextReason && searchQuery && (
-                           <div className="flex items-center gap-3 bg-red-900/10 border border-red-500/20 p-4 rounded-xl backdrop-blur-md animate-in fade-in slide-in-from-top-2">
-                               <div className="bg-red-500/10 p-2 rounded-lg text-red-400"><Sparkles size={18}/></div>
+                           <div className="flex items-center gap-3 bg-red-900/10 border border-red-500/20 p-4 rounded-xl backdrop-blur-md animate-in fade-in slide-in-from-top-2 duration-500">
+                               <div className="bg-red-500/10 p-2 rounded-lg text-red-400 animate-pulse"><Sparkles size={18}/></div>
                                <div>
                                    <p className="text-xs font-bold text-red-400 uppercase tracking-wider mb-0.5">AI Search Analysis</p>
                                    <p className="text-sm text-gray-200 italic">"{aiContextReason}"</p>
@@ -896,9 +896,9 @@ export default function App() {
                        {!searchQuery && selectedCategory === "All" && !currentCollection && movies.length > 0 && <PosterMarquee movies={movies} onMovieClick={setSelectedMovie} />}
 
                        {/* Movie Grid */}
-                       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-x-4 gap-y-8">
+                       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-x-4 gap-y-8 animate-in fade-in duration-700">
                            {movies.map((movie, idx) => (
-                               <div key={`${movie.id}-${idx}`} ref={idx === movies.length - 1 ? lastMovieElementRef : null}>
+                               <div key={`${movie.id}-${idx}`} ref={idx === movies.length - 1 ? lastMovieElementRef : null} className="animate-in fade-in zoom-in-95 duration-500" style={{ animationDelay: `${idx * 50}ms` }}>
                                     <MovieCard 
                                         movie={movie} 
                                         onClick={setSelectedMovie} 
@@ -911,7 +911,7 @@ export default function App() {
                        </div>
 
                        {!loading && movies.length === 0 && (
-                           <div className="text-center py-20 opacity-50 flex flex-col items-center">
+                           <div className="text-center py-20 opacity-50 flex flex-col items-center animate-in fade-in zoom-in">
                                <Ghost size={48} className="mb-4 text-white/20"/>
                                <p>No movies found. Try adjusting filters.</p>
                            </div>
@@ -919,7 +919,7 @@ export default function App() {
 
                        {/* Demo Mode Banner */}
                        {!apiKey && !loading && (
-                           <div className="mt-12 bg-gradient-to-r from-red-900/20 to-gray-900/20 border border-white/10 rounded-2xl p-6 flex items-center justify-between backdrop-blur-md">
+                           <div className="mt-12 bg-gradient-to-r from-red-900/20 to-gray-900/20 border border-white/10 rounded-2xl p-6 flex items-center justify-between backdrop-blur-md animate-in slide-in-from-bottom-5">
                                <div className="flex items-center gap-4">
                                    <div className="p-3 bg-red-500/10 rounded-full text-red-500"><Info size={24}/></div>
                                    <div>
@@ -927,7 +927,7 @@ export default function App() {
                                        <p className="text-sm text-gray-400">Add your TMDB API Key in settings to unlock full access.</p>
                                    </div>
                                </div>
-                               <button onClick={() => setIsSettingsOpen(true)} className="px-6 py-2 bg-white text-black font-bold rounded-lg hover:bg-gray-200 transition-colors">Add Key</button>
+                               <button onClick={() => setIsSettingsOpen(true)} className="px-6 py-2 bg-white text-black font-bold rounded-lg hover:bg-gray-200 transition-all active:scale-95">Add Key</button>
                            </div>
                        )}
                    </div>

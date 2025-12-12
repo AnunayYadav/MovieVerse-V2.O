@@ -84,20 +84,20 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, pro
     if (!isOpen) return null;
   
     return (
-      <div className="fixed inset-0 z-[90] flex items-center justify-center p-4 bg-black/80 backdrop-blur-xl animate-in fade-in duration-200">
-         <div className="glass-panel w-full max-w-3xl rounded-3xl p-0 shadow-2xl relative overflow-hidden flex flex-col max-h-[90vh]">
+      <div className="fixed inset-0 z-[90] flex items-center justify-center p-4 bg-black/80 backdrop-blur-xl animate-in fade-in duration-300">
+         <div className="glass-panel w-full max-w-3xl rounded-3xl p-0 shadow-2xl relative overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 slide-in-from-bottom-5 duration-300 ease-out">
              {/* Header */}
              <div className="p-6 border-b border-white/5 flex justify-between items-center bg-white/5">
                  <div>
                     <h2 className="text-xl font-bold text-white flex items-center gap-2">Edit Profile</h2>
                     <p className="text-xs text-gray-400">Update your persona and viewing preferences.</p>
                  </div>
-                 <button onClick={onClose} className="text-gray-400 hover:text-white transition-colors bg-white/5 p-2 rounded-full hover:bg-white/10"><X size={20}/></button>
+                 <button onClick={onClose} className="text-gray-400 hover:text-white transition-colors bg-white/5 p-2 rounded-full hover:bg-white/10 hover:scale-105 active:scale-95"><X size={20}/></button>
              </div>
              
              <div className="flex-1 overflow-y-auto custom-scrollbar p-6 md:p-8">
                 {error && (
-                    <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-xl flex items-center gap-3 text-red-200 text-sm font-medium animate-in slide-in-from-top-2">
+                    <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-xl flex items-center gap-3 text-red-200 text-sm font-medium animate-in slide-in-from-top-2 duration-300">
                         <div className="bg-red-500/20 p-1.5 rounded-full"><AlertCircle size={16}/></div>
                         {error}
                     </div>
@@ -113,9 +113,9 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, pro
                             <div className="flex justify-center md:justify-start">
                                 <div className="relative group">
                                     <div className={`w-28 h-28 rounded-full flex items-center justify-center text-4xl font-bold text-white shadow-2xl overflow-hidden border-2 border-white/10 transition-colors duration-500 ${avatarBg}`}>
-                                        {avatar ? <img src={avatar} className="w-full h-full object-cover" alt="avatar"/> : name.charAt(0).toUpperCase()}
+                                        {avatar ? <img src={avatar} className="w-full h-full object-cover animate-in fade-in duration-500" alt="avatar"/> : name.charAt(0).toUpperCase()}
                                     </div>
-                                    <div className="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer border-2 border-white/30" onClick={() => setAvatar("")}>
+                                    <div className="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer border-2 border-white/30 duration-300" onClick={() => setAvatar("")}>
                                         <RefreshCcw size={24} className="text-white"/>
                                     </div>
                                 </div>
@@ -129,7 +129,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, pro
                                         <button 
                                             key={bg.id}
                                             onClick={() => setAvatarBg(bg.class)}
-                                            className={`w-6 h-6 rounded-full ${bg.class} border-2 transition-all ${avatarBg === bg.class ? 'border-white scale-110 shadow-lg' : 'border-transparent hover:border-white/50'}`}
+                                            className={`w-6 h-6 rounded-full ${bg.class} border-2 transition-all duration-300 ${avatarBg === bg.class ? 'border-white scale-110 shadow-lg' : 'border-transparent hover:border-white/50 hover:scale-105'}`}
                                             title={bg.name}
                                         />
                                     ))}
@@ -142,12 +142,12 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, pro
                                     <button 
                                         key={av.seed}
                                         onClick={() => selectAvatar(av.seed)}
-                                        className={`flex flex-col items-center gap-1 group`}
+                                        className={`flex flex-col items-center gap-1 group transition-transform active:scale-95`}
                                     >
-                                        <div className={`w-10 h-10 rounded-full overflow-hidden border-2 transition-all bg-black/40 ${avatar.includes(av.seed) ? 'border-red-500 scale-110' : 'border-transparent group-hover:border-white/30'}`}>
+                                        <div className={`w-10 h-10 rounded-full overflow-hidden border-2 transition-all duration-300 bg-black/40 ${avatar.includes(av.seed) ? 'border-red-500 scale-110' : 'border-transparent group-hover:border-white/30 group-hover:scale-105'}`}>
                                              <img src={`https://api.dicebear.com/9.x/avataaars/svg?seed=${av.seed}`} alt={av.name} />
                                         </div>
-                                        <span className={`text-[9px] font-bold uppercase tracking-wide ${avatar.includes(av.seed) ? 'text-white' : 'text-gray-600'}`}>{av.name}</span>
+                                        <span className={`text-[9px] font-bold uppercase tracking-wide transition-colors ${avatar.includes(av.seed) ? 'text-white' : 'text-gray-600'}`}>{av.name}</span>
                                     </button>
                                 ))}
                             </div>
@@ -156,21 +156,21 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, pro
                         <div className="space-y-4 pt-4 border-t border-white/5">
                             <div className="space-y-1.5">
                                 <label className="text-xs font-bold text-gray-400 uppercase tracking-wider ml-1">Display Name</label>
-                                <div className="relative">
-                                    <UserCircle size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30"/>
+                                <div className="relative group">
+                                    <UserCircle size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30 group-focus-within:text-white transition-colors duration-300"/>
                                     <input 
                                     type="text" 
                                     value={name} 
                                     onChange={(e) => setName(e.target.value)} 
-                                    className="w-full bg-white/5 border border-white/10 rounded-xl py-3 pl-10 pr-4 text-white focus:border-red-500 focus:bg-white/10 focus:outline-none transition-all text-sm"
+                                    className="w-full bg-white/5 border border-white/10 rounded-xl py-3 pl-10 pr-4 text-white focus:border-red-500 focus:bg-white/10 focus:outline-none transition-all duration-300 text-sm hover:border-white/20"
                                     placeholder="Your Name"
                                     />
                                 </div>
                             </div>
                             <div className="space-y-1.5">
                                 <label className="text-xs font-bold text-gray-400 uppercase tracking-wider ml-1">Age</label>
-                                <div className="relative">
-                                    <UserCircle size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30"/>
+                                <div className="relative group">
+                                    <UserCircle size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30 group-focus-within:text-white transition-colors duration-300"/>
                                     <input 
                                     type="number" 
                                     value={age} 
@@ -182,7 +182,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, pro
                                             setAge(e.target.value);
                                         }
                                     }}
-                                    className="w-full bg-white/5 border border-white/10 rounded-xl py-3 pl-10 pr-4 text-white focus:border-red-500 focus:bg-white/10 focus:outline-none transition-all text-sm"
+                                    className="w-full bg-white/5 border border-white/10 rounded-xl py-3 pl-10 pr-4 text-white focus:border-red-500 focus:bg-white/10 focus:outline-none transition-all duration-300 text-sm hover:border-white/20"
                                     placeholder="10-120"
                                     />
                                 </div>
@@ -196,7 +196,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, pro
                         <div className="bg-white/5 rounded-2xl p-6 border border-white/5 h-full">
                             <div className="flex justify-between items-center mb-4">
                                 <h3 className="text-sm font-bold text-white flex items-center gap-2"><Heart size={16} className="text-red-500"/> Content Interests</h3>
-                                <span className={`text-xs font-bold px-2 py-0.5 rounded-md ${selectedGenres.length >= 3 ? 'bg-green-500/20 text-green-400' : 'bg-yellow-500/20 text-yellow-400'}`}>
+                                <span className={`text-xs font-bold px-2 py-0.5 rounded-md transition-colors duration-300 ${selectedGenres.length >= 3 ? 'bg-green-500/20 text-green-400' : 'bg-yellow-500/20 text-yellow-400'}`}>
                                     {selectedGenres.length} Selected
                                 </span>
                             </div>
@@ -207,10 +207,10 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, pro
                                     <button 
                                     key={genre}
                                     onClick={() => toggleGenre(genre)}
-                                    className={`px-3 py-2 rounded-lg text-xs font-bold transition-all border flex items-center gap-2 ${selectedGenres.includes(genre) ? 'bg-red-600 border-red-600 text-white shadow-lg shadow-red-900/30' : 'bg-black/40 border-white/10 text-gray-400 hover:border-white/30 hover:text-white'}`}
+                                    className={`px-3 py-2 rounded-lg text-xs font-bold transition-all duration-300 border flex items-center gap-2 active:scale-95 ${selectedGenres.includes(genre) ? 'bg-red-600 border-red-600 text-white shadow-lg shadow-red-900/30' : 'bg-black/40 border-white/10 text-gray-400 hover:border-white/30 hover:text-white hover:bg-white/5'}`}
                                     >
                                         {genre}
-                                        {selectedGenres.includes(genre) && <Check size={12}/>}
+                                        {selectedGenres.includes(genre) && <Check size={12} className="animate-in zoom-in duration-200"/>}
                                     </button>
                                 ))}
                             </div>
@@ -221,8 +221,8 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, pro
              
              {/* Footer */}
              <div className="p-6 border-t border-white/5 bg-black/20 flex justify-end gap-3">
-                 <button onClick={onClose} className="px-6 py-3 rounded-xl text-sm font-bold text-gray-400 hover:text-white hover:bg-white/5 transition-all">Cancel</button>
-                 <button onClick={handleSave} className="px-8 py-3 bg-white text-black font-bold rounded-xl hover:bg-gray-200 transition-all active:scale-[0.98] shadow-lg">
+                 <button onClick={onClose} className="px-6 py-3 rounded-xl text-sm font-bold text-gray-400 hover:text-white hover:bg-white/5 transition-all duration-300">Cancel</button>
+                 <button onClick={handleSave} className="px-8 py-3 bg-white text-black font-bold rounded-xl hover:bg-gray-200 transition-all duration-300 active:scale-[0.98] shadow-lg hover:shadow-white/20">
                      Save Changes
                  </button>
              </div>
@@ -246,13 +246,13 @@ export const ListSelectionModal: React.FC<ListModalProps> = ({ isOpen, onClose, 
     if (!isOpen || !movie) return null;
     const handleCreate = () => { if (newListName.trim()) { onCreateList(newListName, movie); setNewListName(""); onClose(); }};
     return (
-      <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/80 backdrop-blur-xl animate-in fade-in duration-200">
-        <div className="glass-panel w-full max-w-sm rounded-2xl p-6 shadow-2xl">
-          <div className="flex justify-between items-center mb-6"><h3 className="text-lg font-bold text-white flex items-center gap-2"><ListPlus size={20} className="text-red-500"/> Add to List</h3><button onClick={onClose} className="text-gray-400 hover:text-white"><X size={20}/></button></div>
+      <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/80 backdrop-blur-xl animate-in fade-in duration-300">
+        <div className="glass-panel w-full max-w-sm rounded-2xl p-6 shadow-2xl animate-in zoom-in-95 slide-in-from-bottom-5 duration-300 ease-out">
+          <div className="flex justify-between items-center mb-6"><h3 className="text-lg font-bold text-white flex items-center gap-2"><ListPlus size={20} className="text-red-500"/> Add to List</h3><button onClick={onClose} className="text-gray-400 hover:text-white hover:bg-white/10 p-1.5 rounded-full transition-colors active:scale-95"><X size={20}/></button></div>
           <div className="space-y-4">
-            <div className="flex gap-2"><input type="text" value={newListName} onChange={(e) => setNewListName(e.target.value)} placeholder="New List Name..." className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-sm text-white focus:border-red-500 focus:outline-none"/><button onClick={handleCreate} className="bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded-xl transition-colors"><Plus size={18}/></button></div>
+            <div className="flex gap-2"><input type="text" value={newListName} onChange={(e) => setNewListName(e.target.value)} placeholder="New List Name..." className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-sm text-white focus:border-red-500 focus:outline-none transition-all"/><button onClick={handleCreate} className="bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded-xl transition-all active:scale-95"><Plus size={18}/></button></div>
             <div className="max-h-60 overflow-y-auto space-y-2 custom-scrollbar">
-               {Object.keys(customLists).length === 0 ? <p className="text-xs text-gray-500 text-center py-6 border border-dashed border-white/10 rounded-xl">No custom lists yet.</p> : Object.keys(customLists).map(listName => { const isPresent = customLists[listName].some(m => m.id === movie.id); return (<button key={listName} onClick={() => { onAddToList(listName, movie); onClose(); }} className="w-full flex items-center justify-between bg-white/5 hover:bg-white/10 p-3 rounded-xl text-sm transition-colors border border-transparent hover:border-white/10"><span className="text-gray-200 font-medium">{listName}</span>{isPresent ? <Check size={16} className="text-green-500"/> : <Plus size={16} className="text-gray-500"/>}</button>) })}
+               {Object.keys(customLists).length === 0 ? <p className="text-xs text-gray-500 text-center py-6 border border-dashed border-white/10 rounded-xl">No custom lists yet.</p> : Object.keys(customLists).map(listName => { const isPresent = customLists[listName].some(m => m.id === movie.id); return (<button key={listName} onClick={() => { onAddToList(listName, movie); onClose(); }} className="w-full flex items-center justify-between bg-white/5 hover:bg-white/10 p-3 rounded-xl text-sm transition-all border border-transparent hover:border-white/10 active:scale-[0.98]"><span className="text-gray-200 font-medium">{listName}</span>{isPresent ? <Check size={16} className="text-green-500"/> : <Plus size={16} className="text-gray-500"/>}</button>) })}
             </div>
           </div>
         </div>
@@ -284,9 +284,9 @@ export const PersonModal: React.FC<PersonModalProps> = ({ personId, onClose, api
     if (!personId) return null;
   
     return (
-      <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/80 backdrop-blur-xl animate-in fade-in duration-200">
-        <div className="glass-panel w-full max-w-4xl rounded-2xl overflow-hidden shadow-2xl relative max-h-[85vh] flex flex-col">
-           <button onClick={onClose} className="absolute top-4 right-4 z-20 bg-black/50 hover:bg-white/20 p-2 rounded-full text-white transition-colors"><X size={20} /></button>
+      <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/80 backdrop-blur-xl animate-in fade-in duration-300">
+        <div className="glass-panel w-full max-w-4xl rounded-2xl overflow-hidden shadow-2xl relative max-h-[85vh] flex flex-col animate-in zoom-in-95 slide-in-from-bottom-5 duration-300 ease-out">
+           <button onClick={onClose} className="absolute top-4 right-4 z-20 bg-black/50 hover:bg-white/20 p-2 rounded-full text-white transition-colors hover:scale-105 active:scale-95"><X size={20} /></button>
           {loading ? (
              <div className="h-64 flex items-center justify-center"><Loader2 className="animate-spin text-red-500" size={32}/></div>
           ) : details ? (
@@ -295,11 +295,11 @@ export const PersonModal: React.FC<PersonModalProps> = ({ personId, onClose, api
                     <img 
                         src={details.profile_path ? `${TMDB_IMAGE_BASE}${details.profile_path}` : "https://placehold.co/300x450/333/FFF?text=No+Image"} 
                         alt={details.name} 
-                        className="w-48 md:w-full mx-auto rounded-xl shadow-lg border border-white/10 mb-4 object-cover aspect-[2/3]" 
+                        className="w-48 md:w-full mx-auto rounded-xl shadow-lg border border-white/10 mb-4 object-cover aspect-[2/3] animate-in fade-in zoom-in duration-500" 
                     />
                     <div className="space-y-3 text-center md:text-left">
-                      <div className="glass p-3 rounded-xl text-sm"><span className="text-white/40 block text-[10px] uppercase font-bold tracking-wider mb-1">Born</span><span className="text-white font-medium">{details.birthday || 'N/A'}</span></div>
-                      <div className="glass p-3 rounded-xl text-sm"><span className="text-white/40 block text-[10px] uppercase font-bold tracking-wider mb-1">Place</span><span className="text-white font-medium">{details.place_of_birth || 'N/A'}</span></div>
+                      <div className="glass p-3 rounded-xl text-sm transition-colors hover:bg-white/5"><span className="text-white/40 block text-[10px] uppercase font-bold tracking-wider mb-1">Born</span><span className="text-white font-medium">{details.birthday || 'N/A'}</span></div>
+                      <div className="glass p-3 rounded-xl text-sm transition-colors hover:bg-white/5"><span className="text-white/40 block text-[10px] uppercase font-bold tracking-wider mb-1">Place</span><span className="text-white font-medium">{details.place_of_birth || 'N/A'}</span></div>
                     </div>
                   </div>
                   <div className="flex-1 p-6 md:p-8 md:overflow-y-auto custom-scrollbar bg-[#0f0f0f]/50">
@@ -313,7 +313,7 @@ export const PersonModal: React.FC<PersonModalProps> = ({ personId, onClose, api
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                         {details.combined_credits?.cast?.sort((a: any,b: any) => b.popularity - a.popularity).slice(0, 9).map((movie: Movie) => (
                           <div key={movie.id} onClick={() => onMovieClick(movie)} className="cursor-pointer group">
-                            <div className="aspect-[2/3] rounded-lg overflow-hidden mb-2 relative border border-white/5"><img src={movie.poster_path ? `${TMDB_IMAGE_BASE}${movie.poster_path}` : "https://placehold.co/100x150"} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" alt={movie.title || movie.name} /></div>
+                            <div className="aspect-[2/3] rounded-lg overflow-hidden mb-2 relative border border-white/5"><img src={movie.poster_path ? `${TMDB_IMAGE_BASE}${movie.poster_path}` : "https://placehold.co/100x150"} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 ease-out" alt={movie.title || movie.name} /></div>
                             <p className="text-xs font-medium text-gray-300 truncate group-hover:text-white transition-colors">{movie.title || movie.name}</p>
                           </div>
                         ))}
@@ -366,11 +366,11 @@ export const AIRecommendationModal: React.FC<AIRecommendationModalProps> = ({ is
     if (!isOpen) return null;
 
     return (
-      <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/80 backdrop-blur-xl">
-         <div className="glass-panel w-full max-w-lg rounded-2xl p-6 shadow-2xl relative max-h-[80vh] flex flex-col border border-white/10">
-          <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-white"><X size={20}/></button>
+      <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/80 backdrop-blur-xl animate-in fade-in duration-300">
+         <div className="glass-panel w-full max-w-lg rounded-2xl p-6 shadow-2xl relative max-h-[80vh] flex flex-col border border-white/10 animate-in zoom-in-95 slide-in-from-bottom-5 duration-300 ease-out">
+          <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-white hover:scale-110 active:scale-95 transition-all"><X size={20}/></button>
           <div className="text-center mb-8 flex-shrink-0 mt-2">
-              <div className="w-16 h-16 bg-gradient-to-br from-red-600 to-red-900 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-red-900/40 rotate-3">
+              <div className="w-16 h-16 bg-gradient-to-br from-red-600 to-red-900 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-red-900/40 rotate-3 transition-transform duration-700 hover:rotate-6 hover:scale-105">
                   <BrainCircuit size={32} className="text-white" />
               </div>
               <h2 className="text-2xl font-bold mb-1 text-white tracking-tight">AI Movie Finder</h2>
@@ -380,7 +380,7 @@ export const AIRecommendationModal: React.FC<AIRecommendationModalProps> = ({ is
           {!results && !loading && ( 
               <div className="space-y-4 flex-shrink-0">
                   <div className="relative group">
-                      <div className="absolute inset-0 bg-gradient-to-r from-red-600 to-red-900 rounded-xl blur opacity-25 group-hover:opacity-40 transition-opacity"></div>
+                      <div className="absolute inset-0 bg-gradient-to-r from-red-600 to-red-900 rounded-xl blur opacity-25 group-hover:opacity-40 transition-opacity duration-500"></div>
                       <div className="relative flex items-center">
                         <input 
                             type="text" 
@@ -391,7 +391,7 @@ export const AIRecommendationModal: React.FC<AIRecommendationModalProps> = ({ is
                             onKeyDown={(e) => { if(e.key === 'Enter') { handleRecommend(); }}} 
                             autoFocus 
                         />
-                        <button onClick={handleRecommend} className="absolute right-2 p-2 bg-white/10 hover:bg-white/20 rounded-lg text-white transition-colors">
+                        <button onClick={handleRecommend} className="absolute right-2 p-2 bg-white/10 hover:bg-white/20 rounded-lg text-white transition-all active:scale-95">
                             <Search size={20} />
                         </button>
                       </div>
@@ -400,14 +400,14 @@ export const AIRecommendationModal: React.FC<AIRecommendationModalProps> = ({ is
           )}
           
           {loading && (
-              <div className="h-48 flex flex-col items-center justify-center space-y-4 flex-shrink-0">
+              <div className="h-48 flex flex-col items-center justify-center space-y-4 flex-shrink-0 animate-in fade-in">
                   <Loader2 size={40} className="animate-spin text-red-500"/>
                   <p className="text-red-300 text-sm font-medium animate-pulse">Analyzing cinematic universe...</p>
               </div>
           )}
           
           {results && ( 
-              <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 -mr-2">
+              <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 -mr-2 animate-in slide-in-from-bottom-2 duration-500">
                   {aiContext && (
                       <div className="bg-red-500/10 border border-red-500/20 p-3 rounded-xl mb-4">
                           <p className="text-xs text-red-200 italic leading-relaxed">AI: "{aiContext}"</p>
@@ -415,8 +415,8 @@ export const AIRecommendationModal: React.FC<AIRecommendationModalProps> = ({ is
                   )}
                   <div className="space-y-3">
                       {Array.isArray(results) ? results.map((res: Movie, idx) => (
-                          <div key={idx} className="glass p-3 rounded-xl flex gap-4 transition-all hover:bg-white/10 group">
-                              <img src={res.poster_path ? `${TMDB_IMAGE_BASE}${res.poster_path}` : "https://placehold.co/100x150"} className="w-14 h-20 object-cover rounded-lg shadow-lg shrink-0 group-hover:scale-105 transition-transform" alt="Result"/>
+                          <div key={idx} className="glass p-3 rounded-xl flex gap-4 transition-all hover:bg-white/10 group cursor-pointer" onClick={() => {}}>
+                              <img src={res.poster_path ? `${TMDB_IMAGE_BASE}${res.poster_path}` : "https://placehold.co/100x150"} className="w-14 h-20 object-cover rounded-lg shadow-lg shrink-0 group-hover:scale-105 transition-transform duration-300" alt="Result"/>
                               <div className="flex-1 min-w-0 py-1">
                                   <h3 className="text-sm font-bold mb-1 truncate text-white">{res.title || res.original_title}</h3>
                                   <div className="flex items-center gap-2 mb-1.5">
@@ -430,7 +430,7 @@ export const AIRecommendationModal: React.FC<AIRecommendationModalProps> = ({ is
                           <div className="text-center py-8 text-gray-400"><p>No valid results found.</p></div>
                       )}
                   </div>
-                  <button onClick={() => { setResults(null); setQuery(""); }} className="w-full mt-4 text-sm font-bold py-3 bg-white/5 hover:bg-white/10 text-white rounded-xl transition-colors">Search Again</button>
+                  <button onClick={() => { setResults(null); setQuery(""); }} className="w-full mt-4 text-sm font-bold py-3 bg-white/5 hover:bg-white/10 text-white rounded-xl transition-all active:scale-95">Search Again</button>
               </div> 
           )}
          </div>
@@ -472,7 +472,7 @@ export const NotificationModal: React.FC<NotificationModalProps> = ({ isOpen, on
     if (!isOpen) return null;
 
     return (
-        <div className="fixed top-16 right-4 md:right-20 z-[90] w-80 animate-in slide-in-from-top-2 fade-in duration-200">
+        <div className="fixed top-16 right-4 md:right-20 z-[90] w-80 animate-in slide-in-from-top-2 fade-in zoom-in-95 duration-200">
             <div className="glass-panel rounded-xl overflow-hidden shadow-2xl border border-white/10">
                 <div className="p-4 border-b border-white/5 flex justify-between items-center bg-black/40">
                     <h3 className="text-sm font-bold text-white flex items-center gap-2"><Bell size={14} className="text-red-500"/> Notifications</h3>
@@ -480,12 +480,12 @@ export const NotificationModal: React.FC<NotificationModalProps> = ({ isOpen, on
                          <button 
                             onClick={loadNotifications} 
                             disabled={loading}
-                            className={`text-gray-400 hover:text-white transition-colors ${loading ? 'animate-spin' : ''}`}
+                            className={`text-gray-400 hover:text-white transition-colors hover:rotate-180 duration-500 ${loading ? 'animate-spin' : ''}`}
                             title="Refresh"
                         >
                             <RefreshCcw size={14}/>
                         </button>
-                        <button onClick={onClose} className="text-gray-400 hover:text-white"><X size={16}/></button>
+                        <button onClick={onClose} className="text-gray-400 hover:text-white transition-colors hover:scale-110 active:scale-95"><X size={16}/></button>
                     </div>
                 </div>
                 
@@ -496,7 +496,7 @@ export const NotificationModal: React.FC<NotificationModalProps> = ({ isOpen, on
                             <p className="text-xs text-gray-500 font-medium">Checking updates...</p>
                          </div>
                     ) : notifications.length === 0 ? (
-                        <div className="h-40 flex flex-col items-center justify-center text-gray-500">
+                        <div className="h-40 flex flex-col items-center justify-center text-gray-500 animate-in fade-in">
                             <Inbox size={24} className="mb-2 opacity-50"/>
                             <p className="text-xs">All caught up!</p>
                         </div>
@@ -505,7 +505,7 @@ export const NotificationModal: React.FC<NotificationModalProps> = ({ isOpen, on
                             <div key={n.id} className={`p-4 border-b border-white/5 hover:bg-white/5 transition-colors ${!n.read ? 'bg-white/5' : ''}`}>
                                 <div className="flex justify-between items-start mb-1 gap-2">
                                     <p className={`text-sm leading-snug ${!n.read ? 'text-white font-bold' : 'text-gray-300'}`}>{n.title}</p>
-                                    {!n.read && <div className="w-2 h-2 rounded-full bg-red-500 mt-1.5 shrink-0"></div>}
+                                    {!n.read && <div className="w-2 h-2 rounded-full bg-red-500 mt-1.5 shrink-0 animate-pulse"></div>}
                                 </div>
                                 <p className="text-xs text-gray-400 mb-1 line-clamp-2">{n.message}</p>
                                 <p className="text-[10px] text-gray-600">{n.time}</p>
@@ -518,7 +518,7 @@ export const NotificationModal: React.FC<NotificationModalProps> = ({ isOpen, on
                     <div className="p-3 text-center bg-black/40 border-t border-white/5">
                         <button 
                             onClick={handleMarkAllRead}
-                            className="text-xs text-red-400 hover:text-red-300 transition-colors flex items-center justify-center gap-1 w-full"
+                            className="text-xs text-red-400 hover:text-red-300 transition-colors flex items-center justify-center gap-1 w-full hover:underline"
                         >
                             <CheckCheck size={12}/> Mark all as read
                         </button>
