@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { UserCircle, X, ListPlus, Plus, Check, Loader2, Film, AlertCircle, BrainCircuit, Search, Star, Settings, ShieldCheck, RefreshCcw, Bell, HelpCircle, Shield, FileText, Lock, ChevronRight, LogOut, MessageSquare, Send, Calendar, Mail, Hash, Copy, User, CheckCheck, Inbox, SendHorizontal, Heart, PaintBucket, ChevronDown, ExternalLink } from 'lucide-react';
+import { UserCircle, X, ListPlus, Plus, Check, Loader2, Film, AlertCircle, BrainCircuit, Search, Star, Settings, ShieldCheck, RefreshCcw, Bell, HelpCircle, Shield, FileText, Lock, ChevronRight, LogOut, MessageSquare, Send, Calendar, Mail, Hash, Copy, User, CheckCheck, Inbox, SendHorizontal, Heart, PaintBucket, ChevronDown, ExternalLink, Pencil } from 'lucide-react';
 import { UserProfile, Movie, GENRES_LIST, PersonDetails, MaturityRating, AppNotification } from '../types';
 import { TMDB_BASE_URL, TMDB_IMAGE_BASE } from './Shared';
 import { generateSmartRecommendations } from '../services/gemini';
@@ -537,6 +537,8 @@ interface SettingsModalProps {
     onClose: () => void;
     apiKey: string;
     setApiKey: (key: string) => void;
+    geminiKey?: string;
+    setGeminiKey?: (key: string) => void;
     maturityRating: MaturityRating;
     setMaturityRating: (r: MaturityRating) => void;
     profile: UserProfile;
@@ -544,19 +546,18 @@ interface SettingsModalProps {
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({ 
-    isOpen, onClose, apiKey, setApiKey, maturityRating, setMaturityRating, profile, onLogout 
+    isOpen, onClose, apiKey, setApiKey, geminiKey, setGeminiKey, maturityRating, setMaturityRating, profile, onLogout 
 }) => {
-    const DEFAULT_TMDB_KEY = "fe42b660a036f4d6a2bfeb4d0f523ce9";
+    // Check if custom keys are stored (effectively means we are NOT using the env defaults)
+    const hasCustomTmdb = !!localStorage.getItem('movieverse_tmdb_key');
+    const hasCustomGemini = !!localStorage.getItem('movieverse_gemini_key');
 
     const [inputKey, setInputKey] = useState(apiKey || "");
+    const [inputGemini, setInputGemini] = useState(geminiKey || "");
     const [activeTab, setActiveTab] = useState("account");
-    
-    // Help Form State
-    const [supportSubject, setSupportSubject] = useState("General Inquiry");
-    const [supportMessage, setSupportMessage] = useState("");
-    const [sending, setSending] = useState(false);
-    const [sentSuccess, setSentSuccess] = useState(false);
-    const [expandedFaq, setExpandedFaq] = useState<number | null>(null);
+
+    const [isEditingTmdb, setIsEditingTmdb] = useState(false);
+    const [isEditingGemini, setIsEditingGemini] = useState(false);
     
     // Enhanced Account State
     const [userEmail, setUserEmail] = useState("");
@@ -564,9 +565,19 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     const [userId, setUserId] = useState("");
     const [provider, setProvider] = useState("Guest");
 
+    // Help Form State
+    const [supportSubject, setSupportSubject] = useState("General Inquiry");
+    const [supportMessage, setSupportMessage] = useState("");
+    const [sending, setSending] = useState(false);
+    const [sentSuccess, setSentSuccess] = useState(false);
+    const [expandedFaq, setExpandedFaq] = useState<number | null>(null);
+
     useEffect(() => {
         if (isOpen) {
-            setInputKey(apiKey || "");
+            setInputKey(hasCustomTmdb ? apiKey : "");
+            setInputGemini(hasCustomGemini ? geminiKey : "");
+            setIsEditingTmdb(hasCustomTmdb);
+            setIsEditingGemini(hasCustomGemini);
             
             // Fetch real user data
             const fetchUser = async () => {
@@ -594,10 +605,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             };
             fetchUser();
         }
-    }, [isOpen, apiKey]);
+    }, [isOpen, apiKey, geminiKey, hasCustomTmdb, hasCustomGemini]);
 
     const handleSave = () => {
-        setApiKey(inputKey);
+        // If editing is disabled (meaning locked/default), pass empty string to signal revert to default
+        setApiKey(isEditingTmdb ? inputKey : ""); 
+        setGeminiKey?.(isEditingGemini ? inputGemini : "");
         onClose();
     };
 
@@ -759,15 +772,91 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                               <h3 className="text-2xl font-bold text-white mb-6">General Settings</h3>
                               
                               <div className="space-y-4">
+                                  {/* TMDB API KEY SECTION */}
                                   <div className="space-y-2">
-                                    <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">TMDB API Key</label>
+                                    <div className="flex justify-between items-center">
+                                        <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">TMDB API Key</label>
+                                        {!isEditingTmdb && <span className="text-[10px] text-green-400 font-bold bg-green-500/10 px-2 py-0.5 rounded-full border border-green-500/20 flex items-center gap-1"><ShieldCheck size={10}/> Default Active</span>}
+                                    </div>
                                     <div className="flex gap-2">
                                         <div className="relative flex-1 group">
-                                            <input type="password" value={inputKey} onChange={(e) => setInputKey(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-xl p-4 pr-10 text-white focus:border-red-500 focus:bg-white/10 focus:outline-none transition-all text-sm font-mono" placeholder="Enter TMDB Key"/>
-                                            {inputKey === DEFAULT_TMDB_KEY && <div className="absolute right-4 top-1/2 -translate-y-1/2 text-green-500" title="Default Key Active"><ShieldCheck size={18}/></div>}
+                                            <input 
+                                                type="password" 
+                                                value={isEditingTmdb ? inputKey : "Default Environment Key"} 
+                                                onChange={(e) => isEditingTmdb && setInputKey(e.target.value)} 
+                                                disabled={!isEditingTmdb}
+                                                className={`w-full border rounded-xl p-4 pr-10 focus:outline-none transition-all text-sm font-mono ${
+                                                    isEditingTmdb 
+                                                    ? "bg-white/5 border-white/10 text-white focus:border-red-500 focus:bg-white/10" 
+                                                    : "bg-white/5 border-transparent text-gray-500 cursor-not-allowed select-none"
+                                                }`} 
+                                                placeholder="Enter TMDB Key"
+                                            />
+                                            {!isEditingTmdb && <Lock size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-600"/>}
                                         </div>
-                                        <button onClick={() => setInputKey(DEFAULT_TMDB_KEY)} className="bg-white/5 hover:bg-white/10 border border-white/10 p-4 rounded-xl text-gray-400 hover:text-white transition-colors" title="Reset to Default"><RefreshCcw size={20}/></button>
+                                        
+                                        {isEditingTmdb ? (
+                                            <button 
+                                                onClick={() => { setIsEditingTmdb(false); setInputKey(""); }} 
+                                                className="bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 p-4 rounded-xl text-red-400 hover:text-red-300 transition-colors" 
+                                                title="Reset to Default"
+                                            >
+                                                <RefreshCcw size={20}/>
+                                            </button>
+                                        ) : (
+                                            <button 
+                                                onClick={() => { setIsEditingTmdb(true); setInputKey(""); }} 
+                                                className="bg-white/5 hover:bg-white/10 border border-white/10 p-4 rounded-xl text-gray-400 hover:text-white transition-colors" 
+                                                title="Edit Key"
+                                            >
+                                                <Pencil size={20}/>
+                                            </button>
+                                        )}
                                     </div>
+                                  </div>
+
+                                  {/* GEMINI API KEY SECTION */}
+                                  <div className="space-y-2">
+                                    <div className="flex justify-between items-center">
+                                        <label className="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">Gemini API Key <BrainCircuit size={12} className="text-blue-400"/></label>
+                                        {!isEditingGemini && <span className="text-[10px] text-blue-400 font-bold bg-blue-500/10 px-2 py-0.5 rounded-full border border-blue-500/20 flex items-center gap-1"><ShieldCheck size={10}/> Default Active</span>}
+                                    </div>
+                                    <div className="flex gap-2">
+                                        <div className="relative flex-1 group">
+                                            <input 
+                                                type="password" 
+                                                value={isEditingGemini ? inputGemini : "Default Environment Key"} 
+                                                onChange={(e) => isEditingGemini && setInputGemini(e.target.value)} 
+                                                disabled={!isEditingGemini}
+                                                className={`w-full border rounded-xl p-4 pr-10 focus:outline-none transition-all text-sm font-mono ${
+                                                    isEditingGemini 
+                                                    ? "bg-white/5 border-white/10 text-white focus:border-blue-500 focus:bg-white/10" 
+                                                    : "bg-white/5 border-transparent text-gray-500 cursor-not-allowed select-none"
+                                                }`} 
+                                                placeholder="Enter Gemini Key"
+                                            />
+                                            {!isEditingGemini && <Lock size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-600"/>}
+                                        </div>
+                                        
+                                        {isEditingGemini ? (
+                                            <button 
+                                                onClick={() => { setIsEditingGemini(false); setInputGemini(""); }} 
+                                                className="bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 p-4 rounded-xl text-red-400 hover:text-red-300 transition-colors" 
+                                                title="Reset to Default"
+                                            >
+                                                <RefreshCcw size={20}/>
+                                            </button>
+                                        ) : (
+                                            <button 
+                                                onClick={() => { setIsEditingGemini(true); setInputGemini(""); }} 
+                                                className="bg-white/5 hover:bg-white/10 border border-white/10 p-4 rounded-xl text-gray-400 hover:text-white transition-colors" 
+                                                title="Edit Key"
+                                            >
+                                                <Pencil size={20}/>
+                                            </button>
+                                        )}
+                                    </div>
+                                    <p className="text-[10px] text-gray-500">Required for Smart Recommendations and Analytics.</p>
                                   </div>
                               </div>
                               

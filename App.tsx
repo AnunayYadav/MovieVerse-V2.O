@@ -9,7 +9,9 @@ import { generateSmartRecommendations, getSearchSuggestions } from './services/g
 import { LoginPage } from './components/LoginPage';
 import { getSupabase, syncUserData, fetchUserData, signOut, getNotifications } from './services/supabase';
 
-const DEFAULT_TMDB_KEY = "fe42b660a036f4d6a2bfeb4d0f523ce9";
+// Secure defaults from Environment Variables
+const ENV_TMDB_KEY = process.env.TMDB_API_KEY || "";
+const ENV_GEMINI_KEY = process.env.GEMINI_API_KEY || "";
 
 const DEFAULT_COLLECTIONS: any = {
   "srk": { title: "King Khan", params: { with_cast: "35742", sort_by: "popularity.desc" }, icon: "👑", backdrop: "https://images.unsplash.com/photo-1562821680-894c1395f725?q=80&w=2000&auto=format&fit=crop", description: "The Badshah of Bollywood. Romance, Action, and Charm." },
@@ -20,7 +22,9 @@ const DEFAULT_COLLECTIONS: any = {
 };
 
 export default function App() {
-  const [apiKey, setApiKey] = useState(DEFAULT_TMDB_KEY);
+  // Initialize with LocalStorage override OR Env Var
+  const [apiKey, setApiKey] = useState(localStorage.getItem('movieverse_tmdb_key') || ENV_TMDB_KEY);
+  const [geminiKey, setGeminiKey] = useState(localStorage.getItem('movieverse_gemini_key') || ENV_GEMINI_KEY);
   
   // Auth State
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -88,9 +92,12 @@ export default function App() {
   // --- AUTH & INITIALIZATION ---
   useEffect(() => {
     const initApp = async () => {
-        // 1. Keys
+        // 1. Keys (Already initialized in state, but check if local storage changed)
         const savedTmdb = localStorage.getItem('movieverse_tmdb_key');
         if (savedTmdb) setApiKey(savedTmdb);
+        
+        const savedGemini = localStorage.getItem('movieverse_gemini_key');
+        if (savedGemini) setGeminiKey(savedGemini);
 
         // 2. Search History
         const savedHistory = localStorage.getItem('movieverse_search_history');
@@ -259,8 +266,25 @@ export default function App() {
   };
 
   const saveSettings = (newTmdb: string) => {
-    setApiKey(newTmdb);
-    localStorage.setItem('movieverse_tmdb_key', newTmdb);
+    if (!newTmdb || newTmdb === ENV_TMDB_KEY) {
+        // If empty or matches env, clear local storage and use env
+        localStorage.removeItem('movieverse_tmdb_key');
+        setApiKey(ENV_TMDB_KEY);
+    } else {
+        // Use custom key
+        setApiKey(newTmdb);
+        localStorage.setItem('movieverse_tmdb_key', newTmdb);
+    }
+  };
+
+  const saveGeminiKey = (newGemini: string) => {
+    if (!newGemini || newGemini === ENV_GEMINI_KEY) {
+        localStorage.removeItem('movieverse_gemini_key');
+        setGeminiKey(ENV_GEMINI_KEY);
+    } else {
+        setGeminiKey(newGemini);
+        localStorage.setItem('movieverse_gemini_key', newGemini);
+    }
   };
 
   const addToSearchHistory = (query: string) => {
@@ -962,6 +986,8 @@ export default function App() {
         onClose={() => setIsSettingsOpen(false)} 
         apiKey={apiKey} 
         setApiKey={(k) => saveSettings(k)} 
+        geminiKey={geminiKey}
+        setGeminiKey={(k) => saveGeminiKey(k)}
         maturityRating={maturityRating}
         setMaturityRating={setMaturityRating}
         profile={userProfile}
