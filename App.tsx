@@ -9,9 +9,9 @@ import { generateSmartRecommendations, getSearchSuggestions } from './services/g
 import { LoginPage } from './components/LoginPage';
 import { getSupabase, syncUserData, fetchUserData, signOut, getNotifications } from './services/supabase';
 
-// Secure defaults from Environment Variables
-const ENV_TMDB_KEY = process.env.TMDB_API_KEY || "";
-const ENV_GEMINI_KEY = process.env.GEMINI_API_KEY || "";
+// Secure defaults from Environment Variables (checking multiple formats for compatibility)
+const ENV_TMDB_KEY = process.env.TMDB_API_KEY || process.env.REACT_APP_TMDB_API_KEY || "";
+const ENV_GEMINI_KEY = process.env.API_KEY || process.env.GEMINI_API_KEY || process.env.REACT_APP_GEMINI_API_KEY || "";
 
 const DEFAULT_COLLECTIONS: any = {
   "srk": { title: "King Khan", params: { with_cast: "35742", sort_by: "popularity.desc" }, icon: "👑", backdrop: "https://images.unsplash.com/photo-1562821680-894c1395f725?q=80&w=2000&auto=format&fit=crop", description: "The Badshah of Bollywood. Romance, Action, and Charm." },
@@ -94,10 +94,18 @@ export default function App() {
     const initApp = async () => {
         // 1. Keys (Already initialized in state, but check if local storage changed)
         const savedTmdb = localStorage.getItem('movieverse_tmdb_key');
-        if (savedTmdb) setApiKey(savedTmdb);
+        if (savedTmdb) {
+          setApiKey(savedTmdb);
+        } else if (ENV_TMDB_KEY) {
+          setApiKey(ENV_TMDB_KEY);
+        }
         
         const savedGemini = localStorage.getItem('movieverse_gemini_key');
-        if (savedGemini) setGeminiKey(savedGemini);
+        if (savedGemini) {
+          setGeminiKey(savedGemini);
+        } else if (ENV_GEMINI_KEY) {
+          setGeminiKey(ENV_GEMINI_KEY);
+        }
 
         // 2. Search History
         const savedHistory = localStorage.getItem('movieverse_search_history');

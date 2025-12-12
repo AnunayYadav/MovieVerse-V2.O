@@ -2,10 +2,10 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { AIAnalysisResult } from "../types";
 
 // NOTE: Using process.env.API_KEY as per Google GenAI SDK guidelines, 
-// but allowing override via localStorage for user customization.
+// but allowing override via localStorage for user customization or legacy environment variables.
 
 const getGeminiKey = (): string => {
-  return localStorage.getItem('movieverse_gemini_key') || process.env.GEMINI_API_KEY || "";
+  return localStorage.getItem('movieverse_gemini_key') || process.env.API_KEY || process.env.GEMINI_API_KEY || process.env.REACT_APP_GEMINI_API_KEY || "";
 };
 
 const cleanJson = (text: string): string => {
