@@ -8,7 +8,7 @@ import { ProfileModal, ListSelectionModal, PersonModal, AIRecommendationModal, N
 import { SettingsModal } from './components/SettingsModal';
 import { generateSmartRecommendations, getSearchSuggestions } from './services/gemini';
 import { LoginPage } from './components/LoginPage';
-import { getSupabase, syncUserData, fetchUserData, signOut, getNotifications } from './services/supabase';
+import { getSupabase, syncUserData, fetchUserData, signOut, getNotifications, triggerSystemNotification } from './services/supabase';
 
 const DEFAULT_COLLECTIONS: any = {
   "srk": { title: "King Khan", params: { with_cast: "35742", sort_by: "popularity.desc" }, icon: "👑", backdrop: "https://images.unsplash.com/photo-1562821680-894c1395f725?q=80&w=2000&auto=format&fit=crop", description: "The Badshah of Bollywood. Romance, Action, and Charm." },
@@ -61,6 +61,7 @@ export default function App() {
   const [customLists, setCustomLists] = useState<Record<string, Movie[]>>({});
   const [userProfile, setUserProfile] = useState<UserProfile>({ name: "Guest", age: "", genres: [] });
   const [hasUnread, setHasUnread] = useState(false);
+  const [lastNotificationId, setLastNotificationId] = useState<string | null>(null);
 
   // Modals
   const [isProfileOpen, setIsProfileOpen] = useState(false);
@@ -83,14 +84,17 @@ export default function App() {
     setWatched([]);
     setCustomLists({});
     setHasUnread(false);
+    setLastNotificationId(null);
     setUserProfile({ name: "Guest", age: "", genres: [] });
   }, []);
 
   // --- AUTH & INITIALIZATION ---
   useEffect(() => {
+    let authListener: any = null;
+
     const initApp = async () => {
       try {
-        // Refresh keys if localStorage changed (e.g. settings update in other tab)
+        // 1. Load Keys
         setApiKey(getTmdbKey());
         setGeminiKey(getGeminiKey());
 
@@ -98,124 +102,127 @@ export default function App() {
         const savedHistory = localStorage.getItem('movieverse_search_history');
         if (savedHistory) setSearchHistory(JSON.parse(savedHistory));
 
-        // 3. Supabase Auth Check
-        const supabase = getSupabase();
-        let sessionUser = null;
-        
-        if (supabase) {
-            try {
-                // Add a small timeout race to prevent hanging if Supabase is down
-                const sessionPromise = supabase.auth.getSession();
-                const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Supabase timeout")), 3000));
-                
-                const { data: { session } } = await Promise.race([sessionPromise, timeoutPromise]) as any;
-                
-                if (session?.user) {
-                    sessionUser = session.user;
-                    setIsCloudSync(true);
-                    // Fetch Cloud Data
-                    const cloudData = await fetchUserData();
-                    let profileToSet = { name: "Guest", age: "", genres: [] } as UserProfile;
+        // 3. Helper to Load Local State
+        const loadLocalState = () => {
+             const savedWatchlist = localStorage.getItem('movieverse_watchlist');
+             if (savedWatchlist) setWatchlist(JSON.parse(savedWatchlist));
+             const savedFavs = localStorage.getItem('movieverse_favorites');
+             if (savedFavs) setFavorites(JSON.parse(savedFavs));
+             const savedWatched = localStorage.getItem('movieverse_watched');
+             if (savedWatched) setWatched(JSON.parse(savedWatched));
+             const savedLists = localStorage.getItem('movieverse_customlists');
+             if (savedLists) setCustomLists(JSON.parse(savedLists));
+             const savedProfile = localStorage.getItem('movieverse_profile');
+             if (savedProfile) setUserProfile(JSON.parse(savedProfile));
+        };
 
-                    if (cloudData) {
-                        setWatchlist(cloudData.watchlist);
-                        setFavorites(cloudData.favorites);
-                        setWatched(cloudData.watched);
-                        setCustomLists(cloudData.customLists);
-                        if (cloudData.profile) profileToSet = cloudData.profile;
-                    }
-                    
-                    // Extract metadata from Google if profile is generic or empty
-                    const meta = session.user.user_metadata;
-                    if (meta) {
-                        if (profileToSet.name === "Guest" || !profileToSet.name) {
-                            profileToSet.name = meta.full_name || meta.name || profileToSet.name;
-                        }
-                        if (!profileToSet.avatar) {
-                            profileToSet.avatar = meta.avatar_url || meta.picture;
-                        }
-                    }
-                    setUserProfile(profileToSet);
+        // 4. Helper to Handle Successful Login
+        const handleSessionFound = async (session: any) => {
+             setIsAuthenticated(true);
+             setIsCloudSync(true);
+             
+             // Fetch Cloud Data
+             try {
+                const cloudData = await fetchUserData();
+                let profileToSet = { name: "Guest", age: "", genres: [] } as UserProfile;
+
+                if (cloudData) {
+                    setWatchlist(cloudData.watchlist);
+                    setFavorites(cloudData.favorites);
+                    setWatched(cloudData.watched);
+                    setCustomLists(cloudData.customLists);
+                    if (cloudData.profile) profileToSet = cloudData.profile;
                 }
                 
-                // Listen for auth changes
-                supabase.auth.onAuthStateChange(async (event, session) => {
-                    if (event === 'SIGNED_IN' && session) {
-                        setIsAuthenticated(true);
-                        setIsCloudSync(true);
-                        // Reload data on sign in
-                        const data = await fetchUserData();
-                        let profileToSet = { name: "Guest", age: "", genres: [] } as UserProfile;
-
-                        if(data) {
-                            setWatchlist(data.watchlist);
-                            setFavorites(data.favorites);
-                            setWatched(data.watched);
-                            setCustomLists(data.customLists);
-                            if (data.profile) profileToSet = data.profile;
-                        }
-
-                        // Extract metadata from Google
-                        const meta = session.user.user_metadata;
-                        if (meta) {
-                            if (profileToSet.name === "Guest" || !profileToSet.name) {
-                                profileToSet.name = meta.full_name || meta.name || profileToSet.name;
-                            }
-                            if (!profileToSet.avatar) {
-                                profileToSet.avatar = meta.avatar_url || meta.picture;
-                            }
-                        }
-                        setUserProfile(profileToSet);
-
-                    } else if (event === 'SIGNED_OUT') {
-                        resetAuthState();
+                // Extract metadata from Google/Auth
+                const meta = session.user.user_metadata;
+                if (meta) {
+                    if (profileToSet.name === "Guest" || !profileToSet.name) {
+                        profileToSet.name = meta.full_name || meta.name || profileToSet.name;
                     }
-                });
-            } catch (supaError) {
-                console.warn("Supabase initialization failed or timed out, falling back to local mode.", supaError);
-            }
-        }
+                    if (!profileToSet.avatar) {
+                        profileToSet.avatar = meta.avatar_url || meta.picture;
+                    }
+                }
+                setUserProfile(profileToSet);
+             } catch (err) {
+                 console.error("Cloud fetch error", err);
+                 // Fallback to local if cloud fetch fails
+                 loadLocalState();
+             }
+             setAuthChecking(false);
+        };
 
-        // 4. Fallback to LocalStorage if no Cloud Session
-        if (!sessionUser) {
-            const auth = localStorage.getItem('movieverse_auth');
-            if (auth) {
-                setIsAuthenticated(true);
-                const savedWatchlist = localStorage.getItem('movieverse_watchlist');
-                if (savedWatchlist) setWatchlist(JSON.parse(savedWatchlist));
-                const savedFavs = localStorage.getItem('movieverse_favorites');
-                if (savedFavs) setFavorites(JSON.parse(savedFavs));
-                const savedWatched = localStorage.getItem('movieverse_watched');
-                if (savedWatched) setWatched(JSON.parse(savedWatched));
-                const savedLists = localStorage.getItem('movieverse_customlists');
-                if (savedLists) setCustomLists(JSON.parse(savedLists));
-                const savedProfile = localStorage.getItem('movieverse_profile');
-                if (savedProfile) setUserProfile(JSON.parse(savedProfile));
+        // 5. Supabase Auth Logic
+        const supabase = getSupabase();
+        
+        if (supabase) {
+            // A. Setup Listener FIRST to catch redirects
+            const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+                if (event === 'SIGNED_IN' && session) {
+                    handleSessionFound(session);
+                } else if (event === 'SIGNED_OUT') {
+                    resetAuthState();
+                    setAuthChecking(false);
+                }
+            });
+            authListener = subscription;
+
+            // B. Check Current Session (Persistence)
+            try {
+                const { data: { session } } = await supabase.auth.getSession();
+                if (session) {
+                    // If session exists, trigger handler (idempotent)
+                    handleSessionFound(session);
+                } else {
+                    // No Supabase session, check local storage auth flag
+                    const localAuth = localStorage.getItem('movieverse_auth');
+                    if (localAuth) {
+                        loadLocalState();
+                        setIsAuthenticated(true);
+                    }
+                    setAuthChecking(false);
+                }
+            } catch (supaError) {
+                console.warn("Supabase session check failed", supaError);
+                // Fallback to local
+                const localAuth = localStorage.getItem('movieverse_auth');
+                if (localAuth) {
+                    loadLocalState();
+                    setIsAuthenticated(true);
+                }
+                setAuthChecking(false);
             }
         } else {
-            setIsAuthenticated(true);
+            // No Supabase Configured -> Local Mode
+            const localAuth = localStorage.getItem('movieverse_auth');
+            if (localAuth) {
+                loadLocalState();
+                setIsAuthenticated(true);
+            }
+            setAuthChecking(false);
         }
 
-        // 5. Deep Link
-        try {
-            const params = new URLSearchParams(window.location.search);
-            const movieId = params.get('movie');
-            if (movieId && apiKey) {
-                fetch(`${TMDB_BASE_URL}/movie/${movieId}?api_key=${apiKey}`)
-                .then(res => res.ok ? res.json() : null)
-                .then(data => { if(data?.id) setSelectedMovie(data); });
-            }
-        } catch(e) { console.error("Deep link parsing error", e); }
+        // 6. Deep Link Handling
+        const params = new URLSearchParams(window.location.search);
+        const movieId = params.get('movie');
+        if (movieId && getTmdbKey()) {
+            fetch(`${TMDB_BASE_URL}/movie/${movieId}?api_key=${getTmdbKey()}`)
+            .then(res => res.ok ? res.json() : null)
+            .then(data => { if(data?.id) setSelectedMovie(data); });
+        }
 
       } catch (criticalError) {
-          console.error("Critical Application Initialization Error", criticalError);
-      } finally {
-          // ALWAYS turn off the loader
+          console.error("Critical Init Error", criticalError);
           setAuthChecking(false);
       }
     };
 
     initApp();
+
+    return () => {
+        if (authListener) authListener.unsubscribe();
+    };
   }, [resetAuthState]);
 
   // --- SYNC HELPER ---
@@ -235,6 +242,18 @@ export default function App() {
       try {
           const notifs = await getNotifications();
           setHasUnread(notifs.some(n => !n.read));
+          
+          // Check for new arrival to trigger push automatically
+          const latest = notifs[0];
+          if (latest && !latest.read) {
+              if (lastNotificationId && latest.id !== lastNotificationId) {
+                  // New notification arrived since last check
+                  triggerSystemNotification(latest.title, latest.message);
+              }
+              if (lastNotificationId !== latest.id) {
+                  setLastNotificationId(latest.id);
+              }
+          }
       } catch (e) {
           console.error("Failed to check notifications", e);
       }
@@ -242,11 +261,12 @@ export default function App() {
 
   useEffect(() => {
       if (isAuthenticated) {
+          // Polling every 60 seconds
           checkUnreadNotifications();
           const interval = setInterval(checkUnreadNotifications, 60000);
           return () => clearInterval(interval);
       }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, lastNotificationId]);
 
 
   const handleLogin = (profileData?: UserProfile) => {
@@ -600,7 +620,23 @@ export default function App() {
   }
 
   if (!isAuthenticated) {
-      return <LoginPage onLogin={handleLogin} />;
+      return (
+        <>
+          <LoginPage onLogin={handleLogin} onOpenSettings={() => setIsSettingsOpen(true)} />
+          <SettingsModal 
+            isOpen={isSettingsOpen} 
+            onClose={() => setIsSettingsOpen(false)} 
+            apiKey={apiKey} 
+            setApiKey={(k) => saveSettings(k)} 
+            geminiKey={geminiKey}
+            setGeminiKey={(k) => saveGeminiKey(k)}
+            maturityRating={maturityRating}
+            setMaturityRating={setMaturityRating}
+            profile={userProfile}
+            onLogout={handleLogout}
+          />
+        </>
+      );
   }
 
   return (

@@ -219,6 +219,20 @@ export const sendNotification = async (title: string, message: string) => {
     return data;
 };
 
+export const triggerSystemNotification = (title: string, body: string) => {
+    if (!("Notification" in window)) return;
+    
+    if (Notification.permission === "granted") {
+        new Notification(title, { body });
+    } else if (Notification.permission !== "denied") {
+        Notification.requestPermission().then(permission => {
+            if (permission === "granted") {
+                new Notification(title, { body });
+            }
+        });
+    }
+};
+
 export const submitSupportTicket = async (subject: string, message: string, contactEmail: string) => {
     const supabase = getSupabase();
     

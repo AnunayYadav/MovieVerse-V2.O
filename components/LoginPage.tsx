@@ -21,9 +21,10 @@ const BACKGROUND_POSTERS = [
 
 interface LoginPageProps {
   onLogin: (profile?: UserProfile) => void;
+  onOpenSettings: () => void;
 }
 
-export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
+export const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onOpenSettings }) => {
   const [isLogin, setIsLogin] = useState(true);
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -360,7 +361,11 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
                 <div className="pt-4 border-t border-white/5">
                    <p className="text-[10px] text-gray-500">
                      Guest login stores data in browser. 
-                     {!supabase && " Configure backend in settings to sync."}
+                     {!supabase && (
+                        <button onClick={onOpenSettings} className="ml-1 underline hover:text-white">
+                            Configure backend in settings to sync.
+                        </button>
+                     )}
                    </p>
                 </div>
             </div>
