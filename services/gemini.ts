@@ -1,22 +1,6 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { AIAnalysisResult } from "../types";
-
-// Helper to safely access env vars in various environments (Vite, CRA, Browser)
-const safeEnv = (key: string) => {
-  try {
-    // @ts-ignore
-    if (typeof process !== 'undefined' && process.env) return process.env[key];
-    // @ts-ignore
-    if (typeof import.meta !== 'undefined' && import.meta.env) return import.meta.env[key];
-  } catch(e) {}
-  return "";
-};
-
-const HARDCODED_GEMINI = "AIzaSyBGy80BBep7qmkqc0Wqt9dr-gMYs8X2mzo";
-
-const getGeminiKey = (): string => {
-  return localStorage.getItem('movieverse_gemini_key') || safeEnv('API_KEY') || safeEnv('GEMINI_API_KEY') || safeEnv('REACT_APP_GEMINI_API_KEY') || HARDCODED_GEMINI;
-};
+import { getGeminiKey } from "../components/Shared";
 
 const cleanJson = (text: string): string => {
   if (!text) return "{}";

@@ -1,31 +1,14 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Search, Film, Menu, TrendingUp, Tv, Ghost, Calendar, Star, X, Sparkles, Settings, Globe, BarChart3, Bookmark, Heart, Folder, MapPin, Languages, Filter, ChevronDown, Info, Plus, LogOut, ArrowRight, Bell, History, Clock, Trash2, Cloud, CloudOff } from 'lucide-react';
 import { Movie, UserProfile, GENRES_MAP, GENRES_LIST, INDIAN_LANGUAGES, MaturityRating } from './types';
-import { LogoLoader, MovieSkeleton, MovieCard, PosterMarquee, TMDB_BASE_URL, TMDB_BACKDROP_BASE } from './components/Shared';
+import { LogoLoader, MovieSkeleton, MovieCard, PosterMarquee, TMDB_BASE_URL, TMDB_BACKDROP_BASE, HARDCODED_TMDB_KEY, HARDCODED_GEMINI_KEY, getTmdbKey, getGeminiKey } from './components/Shared';
 import { MovieModal } from './components/MovieDetails';
 import { AnalyticsDashboard } from './components/Analytics';
-import { ProfileModal, ListSelectionModal, PersonModal, AIRecommendationModal, SettingsModal, NotificationModal } from './components/Modals';
+import { ProfileModal, ListSelectionModal, PersonModal, AIRecommendationModal, NotificationModal } from './components/Modals';
+import { SettingsModal } from './components/SettingsModal';
 import { generateSmartRecommendations, getSearchSuggestions } from './services/gemini';
 import { LoginPage } from './components/LoginPage';
 import { getSupabase, syncUserData, fetchUserData, signOut, getNotifications } from './services/supabase';
-
-// Helper to safely access env vars in various environments (Vite, CRA, Browser)
-const safeEnv = (key: string) => {
-  try {
-    // @ts-ignore
-    if (typeof process !== 'undefined' && process.env) return process.env[key];
-    // @ts-ignore
-    if (typeof import.meta !== 'undefined' && import.meta.env) return import.meta.env[key];
-  } catch(e) {}
-  return "";
-};
-
-const HARDCODED_TMDB = "fe42b660a036f4d6a2bfeb4d0f523ce9";
-const HARDCODED_GEMINI = "AIzaSyBGy80BBep7qmkqc0Wqt9dr-gMYs8X2mzo";
-
-// Initialize Keys with Fallbacks
-const ENV_TMDB_KEY = safeEnv('TMDB_API_KEY') || safeEnv('REACT_APP_TMDB_API_KEY') || HARDCODED_TMDB;
-const ENV_GEMINI_KEY = safeEnv('API_KEY') || safeEnv('GEMINI_API_KEY') || safeEnv('REACT_APP_GEMINI_API_KEY') || HARDCODED_GEMINI;
 
 const DEFAULT_COLLECTIONS: any = {
   "srk": { title: "King Khan", params: { with_cast: "35742", sort_by: "popularity.desc" }, icon: "👑", backdrop: "https://images.unsplash.com/photo-1562821680-894c1395f725?q=80&w=2000&auto=format&fit=crop", description: "The Badshah of Bollywood. Romance, Action, and Charm." },
@@ -36,9 +19,9 @@ const DEFAULT_COLLECTIONS: any = {
 };
 
 export default function App() {
-  // Initialize with LocalStorage override OR Env Var
-  const [apiKey, setApiKey] = useState(localStorage.getItem('movieverse_tmdb_key') || ENV_TMDB_KEY);
-  const [geminiKey, setGeminiKey] = useState(localStorage.getItem('movieverse_gemini_key') || ENV_GEMINI_KEY);
+  // Initialize with Helper from Shared
+  const [apiKey, setApiKey] = useState(getTmdbKey());
+  const [geminiKey, setGeminiKey] = useState(getGeminiKey());
   
   // Auth State
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -89,7 +72,7 @@ export default function App() {
   
   const abortControllerRef = useRef<AbortController | null>(null);
 
-  // Define Reset Logic (Decoupled from SignOut trigger to avoid loop)
+  // Define Reset Logic
   const resetAuthState = useCallback(() => {
     localStorage.removeItem('movieverse_auth');
     setIsAuthenticated(false);
@@ -106,20 +89,10 @@ export default function App() {
   // --- AUTH & INITIALIZATION ---
   useEffect(() => {
     const initApp = async () => {
-        // 1. Keys (Already initialized in state, but check if local storage changed)
-        const savedTmdb = localStorage.getItem('movieverse_tmdb_key');
-        if (savedTmdb) {
-          setApiKey(savedTmdb);
-        } else if (ENV_TMDB_KEY) {
-          setApiKey(ENV_TMDB_KEY);
-        }
-        
-        const savedGemini = localStorage.getItem('movieverse_gemini_key');
-        if (savedGemini) {
-          setGeminiKey(savedGemini);
-        } else if (ENV_GEMINI_KEY) {
-          setGeminiKey(ENV_GEMINI_KEY);
-        }
+      try {
+        // Refresh keys if localStorage changed (e.g. settings update in other tab)
+        setApiKey(getTmdbKey());
+        setGeminiKey(getGeminiKey());
 
         // 2. Search History
         const savedHistory = localStorage.getItem('movieverse_search_history');
@@ -130,53 +103,29 @@ export default function App() {
         let sessionUser = null;
         
         if (supabase) {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (session?.user) {
-                sessionUser = session.user;
-                setIsCloudSync(true);
-                // Fetch Cloud Data
-                const cloudData = await fetchUserData();
-                let profileToSet = { name: "Guest", age: "", genres: [] } as UserProfile;
-
-                if (cloudData) {
-                    setWatchlist(cloudData.watchlist);
-                    setFavorites(cloudData.favorites);
-                    setWatched(cloudData.watched);
-                    setCustomLists(cloudData.customLists);
-                    if (cloudData.profile) profileToSet = cloudData.profile;
-                }
+            try {
+                // Add a small timeout race to prevent hanging if Supabase is down
+                const sessionPromise = supabase.auth.getSession();
+                const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Supabase timeout")), 3000));
                 
-                // Extract metadata from Google if profile is generic or empty
-                const meta = session.user.user_metadata;
-                if (meta) {
-                    if (profileToSet.name === "Guest" || !profileToSet.name) {
-                        profileToSet.name = meta.full_name || meta.name || profileToSet.name;
-                    }
-                    if (!profileToSet.avatar) {
-                        profileToSet.avatar = meta.avatar_url || meta.picture;
-                    }
-                }
-                setUserProfile(profileToSet);
-            }
-            
-            // Listen for auth changes
-            supabase.auth.onAuthStateChange(async (event, session) => {
-                if (event === 'SIGNED_IN' && session) {
-                    setIsAuthenticated(true);
+                const { data: { session } } = await Promise.race([sessionPromise, timeoutPromise]) as any;
+                
+                if (session?.user) {
+                    sessionUser = session.user;
                     setIsCloudSync(true);
-                    // Reload data on sign in
-                    const data = await fetchUserData();
+                    // Fetch Cloud Data
+                    const cloudData = await fetchUserData();
                     let profileToSet = { name: "Guest", age: "", genres: [] } as UserProfile;
 
-                    if(data) {
-                        setWatchlist(data.watchlist);
-                        setFavorites(data.favorites);
-                        setWatched(data.watched);
-                        setCustomLists(data.customLists);
-                        if (data.profile) profileToSet = data.profile;
+                    if (cloudData) {
+                        setWatchlist(cloudData.watchlist);
+                        setFavorites(cloudData.favorites);
+                        setWatched(cloudData.watched);
+                        setCustomLists(cloudData.customLists);
+                        if (cloudData.profile) profileToSet = cloudData.profile;
                     }
-
-                    // Extract metadata from Google
+                    
+                    // Extract metadata from Google if profile is generic or empty
                     const meta = session.user.user_metadata;
                     if (meta) {
                         if (profileToSet.name === "Guest" || !profileToSet.name) {
@@ -187,12 +136,44 @@ export default function App() {
                         }
                     }
                     setUserProfile(profileToSet);
-
-                } else if (event === 'SIGNED_OUT') {
-                    // CRITICAL FIX: Only call reset, DO NOT call signOut() here
-                    resetAuthState();
                 }
-            });
+                
+                // Listen for auth changes
+                supabase.auth.onAuthStateChange(async (event, session) => {
+                    if (event === 'SIGNED_IN' && session) {
+                        setIsAuthenticated(true);
+                        setIsCloudSync(true);
+                        // Reload data on sign in
+                        const data = await fetchUserData();
+                        let profileToSet = { name: "Guest", age: "", genres: [] } as UserProfile;
+
+                        if(data) {
+                            setWatchlist(data.watchlist);
+                            setFavorites(data.favorites);
+                            setWatched(data.watched);
+                            setCustomLists(data.customLists);
+                            if (data.profile) profileToSet = data.profile;
+                        }
+
+                        // Extract metadata from Google
+                        const meta = session.user.user_metadata;
+                        if (meta) {
+                            if (profileToSet.name === "Guest" || !profileToSet.name) {
+                                profileToSet.name = meta.full_name || meta.name || profileToSet.name;
+                            }
+                            if (!profileToSet.avatar) {
+                                profileToSet.avatar = meta.avatar_url || meta.picture;
+                            }
+                        }
+                        setUserProfile(profileToSet);
+
+                    } else if (event === 'SIGNED_OUT') {
+                        resetAuthState();
+                    }
+                });
+            } catch (supaError) {
+                console.warn("Supabase initialization failed or timed out, falling back to local mode.", supaError);
+            }
         }
 
         // 4. Fallback to LocalStorage if no Cloud Session
@@ -216,15 +197,22 @@ export default function App() {
         }
 
         // 5. Deep Link
-        const params = new URLSearchParams(window.location.search);
-        const movieId = params.get('movie');
-        if (movieId && apiKey) {
-            fetch(`${TMDB_BASE_URL}/movie/${movieId}?api_key=${apiKey}`)
-            .then(res => res.ok ? res.json() : null)
-            .then(data => { if(data?.id) setSelectedMovie(data); });
-        }
-        
-        setAuthChecking(false);
+        try {
+            const params = new URLSearchParams(window.location.search);
+            const movieId = params.get('movie');
+            if (movieId && apiKey) {
+                fetch(`${TMDB_BASE_URL}/movie/${movieId}?api_key=${apiKey}`)
+                .then(res => res.ok ? res.json() : null)
+                .then(data => { if(data?.id) setSelectedMovie(data); });
+            }
+        } catch(e) { console.error("Deep link parsing error", e); }
+
+      } catch (criticalError) {
+          console.error("Critical Application Initialization Error", criticalError);
+      } finally {
+          // ALWAYS turn off the loader
+          setAuthChecking(false);
+      }
     };
 
     initApp();
@@ -255,7 +243,6 @@ export default function App() {
   useEffect(() => {
       if (isAuthenticated) {
           checkUnreadNotifications();
-          // Optional: Poll every few minutes
           const interval = setInterval(checkUnreadNotifications, 60000);
           return () => clearInterval(interval);
       }
@@ -273,7 +260,6 @@ export default function App() {
 
   const handleLogout = async () => {
     try {
-        // Add a timeout to avoid hanging if the network is slow or Supabase is unresponsive
         const logoutPromise = signOut();
         const timeoutPromise = new Promise((resolve) => setTimeout(resolve, 2000));
         await Promise.race([logoutPromise, timeoutPromise]);
@@ -281,28 +267,24 @@ export default function App() {
         console.error("Sign out error", e);
     } finally {
         resetAuthState();
-        // Force a page reload to clear any lingering state or memory.
-        // Using reload() instead of href=origin to prevent 404s in some hosting environments.
         window.location.reload();
     }
   };
 
   const saveSettings = (newTmdb: string) => {
-    if (!newTmdb || newTmdb === ENV_TMDB_KEY) {
-        // If empty or matches env, clear local storage and use env
+    if (!newTmdb || newTmdb === HARDCODED_TMDB_KEY) {
         localStorage.removeItem('movieverse_tmdb_key');
-        setApiKey(ENV_TMDB_KEY);
+        setApiKey(HARDCODED_TMDB_KEY);
     } else {
-        // Use custom key
         setApiKey(newTmdb);
         localStorage.setItem('movieverse_tmdb_key', newTmdb);
     }
   };
 
   const saveGeminiKey = (newGemini: string) => {
-    if (!newGemini || newGemini === ENV_GEMINI_KEY) {
+    if (!newGemini || newGemini === HARDCODED_GEMINI_KEY) {
         localStorage.removeItem('movieverse_gemini_key');
-        setGeminiKey(ENV_GEMINI_KEY);
+        setGeminiKey(HARDCODED_GEMINI_KEY);
     } else {
         setGeminiKey(newGemini);
         localStorage.setItem('movieverse_gemini_key', newGemini);
@@ -327,7 +309,6 @@ export default function App() {
       const exists = list.some(m => m.id === movie.id);
       const newList = exists ? list.filter(m => m.id !== movie.id) : [...list, movie];
       setList(newList);
-      // LocalStorage backup always
       localStorage.setItem(key, JSON.stringify(newList));
   };
 
@@ -815,7 +796,7 @@ export default function App() {
                <>
                    {/* HERO SECTION */}
                    {!searchQuery && selectedCategory === "All" && !currentCollection && filterPeriod === "all" && featuredMovie && !loading && page === 1 && ( 
-                       <div className="relative w-full h-[60vh] md:h-[80vh] group overflow-hidden">
+                       <div className="relative w-full h-[60vh] min-h-[500px] md:h-[80vh] group overflow-hidden">
                            <div className="absolute inset-0 bg-black">
                                <img src={featuredMovie.backdrop_path ? `${TMDB_BACKDROP_BASE}${featuredMovie.backdrop_path}` : "https://placehold.co/1200x600/111/333"} alt="Featured" className="w-full h-full object-cover opacity-80 transition-transform duration-[10s] group-hover:scale-110" />
                                <div className="absolute inset-0 bg-gradient-to-t from-[#030303] via-[#030303]/20 to-transparent"></div>

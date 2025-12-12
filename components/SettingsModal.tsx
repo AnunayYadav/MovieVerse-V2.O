@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { UserCircle, X, Check, Settings, ShieldCheck, RefreshCcw, HelpCircle, Shield, FileText, Lock, LogOut, MessageSquare, Send, Calendar, Mail, Hash, Copy, User, BrainCircuit } from 'lucide-react';
+import { UserCircle, X, Check, Settings, ShieldCheck, RefreshCcw, HelpCircle, Shield, FileText, Lock, LogOut, MessageSquare, Send, Calendar, Mail, Hash, Copy, User, BrainCircuit, Pencil, CheckCheck, Loader2, ChevronDown } from 'lucide-react';
 import { UserProfile, MaturityRating } from '../types';
-import { getSupabase } from '../services/supabase';
+import { getSupabase, submitSupportTicket } from '../services/supabase';
+import { HARDCODED_TMDB_KEY, HARDCODED_GEMINI_KEY } from './Shared';
 
 interface SettingsModalProps {
     isOpen: boolean;
@@ -19,12 +20,16 @@ interface SettingsModalProps {
 export const SettingsModal: React.FC<SettingsModalProps> = ({ 
     isOpen, onClose, apiKey, setApiKey, geminiKey, setGeminiKey, maturityRating, setMaturityRating, profile, onLogout 
 }) => {
-    const DEFAULT_TMDB_KEY = "fe42b660a036f4d6a2bfeb4d0f523ce9";
-    const DEFAULT_GEMINI_KEY = "AIzaSyBGy80BBep7qmkqc0Wqt9dr-gMYs8X2mzo";
+    // Check if custom keys are stored (effectively means we are NOT using the env defaults)
+    const hasCustomTmdb = !!localStorage.getItem('movieverse_tmdb_key');
+    const hasCustomGemini = !!localStorage.getItem('movieverse_gemini_key');
 
     const [inputKey, setInputKey] = useState(apiKey || "");
     const [inputGemini, setInputGemini] = useState(geminiKey || "");
     const [activeTab, setActiveTab] = useState("account");
+
+    const [isEditingTmdb, setIsEditingTmdb] = useState(false);
+    const [isEditingGemini, setIsEditingGemini] = useState(false);
     
     // Enhanced Account State
     const [userEmail, setUserEmail] = useState("");
@@ -32,10 +37,19 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     const [userId, setUserId] = useState("");
     const [provider, setProvider] = useState("Guest");
 
+    // Help Form State
+    const [supportSubject, setSupportSubject] = useState("General Inquiry");
+    const [supportMessage, setSupportMessage] = useState("");
+    const [sending, setSending] = useState(false);
+    const [sentSuccess, setSentSuccess] = useState(false);
+    const [expandedFaq, setExpandedFaq] = useState<number | null>(null);
+
     useEffect(() => {
         if (isOpen) {
-            setInputKey(apiKey || "");
-            setInputGemini(geminiKey || "");
+            setInputKey(hasCustomTmdb ? apiKey : "");
+            setInputGemini(hasCustomGemini ? geminiKey : "");
+            setIsEditingTmdb(hasCustomTmdb);
+            setIsEditingGemini(hasCustomGemini);
             
             // Fetch real user data
             const fetchUser = async () => {
@@ -63,18 +77,37 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             };
             fetchUser();
         }
-    }, [isOpen, apiKey, geminiKey]);
+    }, [isOpen, apiKey, geminiKey, hasCustomTmdb, hasCustomGemini]);
 
     const handleSave = () => {
-        setApiKey(inputKey);
-        setGeminiKey(inputGemini);
+        // If editing is disabled (meaning locked/default), pass empty string to signal revert to default logic in parent
+        setApiKey(isEditingTmdb ? inputKey : ""); 
+        setGeminiKey(isEditingGemini ? inputGemini : "");
         onClose();
     };
 
     const copyToClipboard = (text: string) => {
         navigator.clipboard.writeText(text);
-        // Could add toast here, but for now simple action
     };
+
+    const handleSendSupport = async () => {
+        setSending(true);
+        const success = await submitSupportTicket(supportSubject, supportMessage, userEmail);
+        
+        if (success) {
+            setSentSuccess(true);
+            setSupportMessage("");
+            setTimeout(() => setSentSuccess(false), 4000);
+        }
+        setSending(false);
+    };
+
+    const FAQs = [
+        { q: "How do I verify my email?", a: "Check your inbox for a confirmation link. If not found, check spam." },
+        { q: "Is this service free?", a: "Yes, this is a demonstration app using public APIs for educational purposes." },
+        { q: "Where does the data come from?", a: "We use the TMDB API for movie metadata and Google Gemini for AI features." },
+        { q: "Can I download movies?", a: "No, MovieVerse AI is a streaming discovery and tracking platform, not a download service." }
+    ];
 
     if (!isOpen) return null;
 
@@ -210,21 +243,86 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                               
                               <div className="space-y-4">
                                   <div className="space-y-2">
-                                    <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">TMDB API Key</label>
+                                    <div className="flex justify-between items-center">
+                                        <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">TMDB API Key</label>
+                                        {!isEditingTmdb && <span className="text-[10px] text-green-400 font-bold bg-green-500/10 px-2 py-0.5 rounded-full border border-green-500/20 flex items-center gap-1"><ShieldCheck size={10}/> Default Active</span>}
+                                    </div>
                                     <div className="flex gap-2">
                                         <div className="relative flex-1 group">
-                                            <input type="password" value={inputKey} onChange={(e) => setInputKey(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-xl p-4 pr-10 text-white focus:border-red-500 focus:bg-white/10 focus:outline-none transition-all text-sm font-mono" placeholder="Enter TMDB Key"/>
-                                            {inputKey === DEFAULT_TMDB_KEY && <div className="absolute right-4 top-1/2 -translate-y-1/2 text-green-500" title="Default Key Active"><ShieldCheck size={18}/></div>}
+                                            <input 
+                                                type="password" 
+                                                value={isEditingTmdb ? inputKey : "Default Environment Key"} 
+                                                onChange={(e) => isEditingTmdb && setInputKey(e.target.value)} 
+                                                disabled={!isEditingTmdb}
+                                                className={`w-full border rounded-xl p-4 pr-10 focus:outline-none transition-all text-sm font-mono ${
+                                                    isEditingTmdb 
+                                                    ? "bg-white/5 border-white/10 text-white focus:border-red-500 focus:bg-white/10" 
+                                                    : "bg-white/5 border-transparent text-gray-500 cursor-not-allowed select-none"
+                                                }`} 
+                                                placeholder="Enter TMDB Key"
+                                            />
+                                            {!isEditingTmdb && <Lock size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-600"/>}
                                         </div>
-                                        <button onClick={() => setInputKey(DEFAULT_TMDB_KEY)} className="bg-white/5 hover:bg-white/10 border border-white/10 p-4 rounded-xl text-gray-400 hover:text-white transition-colors" title="Reset to Default"><RefreshCcw size={20}/></button>
+                                        
+                                        {isEditingTmdb ? (
+                                            <button 
+                                                onClick={() => { setIsEditingTmdb(false); setInputKey(""); }} 
+                                                className="bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 p-4 rounded-xl text-red-400 hover:text-red-300 transition-colors" 
+                                                title="Reset to Default"
+                                            >
+                                                <RefreshCcw size={20}/>
+                                            </button>
+                                        ) : (
+                                            <button 
+                                                onClick={() => { setIsEditingTmdb(true); setInputKey(""); }} 
+                                                className="bg-white/5 hover:bg-white/10 border border-white/10 p-4 rounded-xl text-gray-400 hover:text-white transition-colors" 
+                                                title="Edit Key"
+                                            >
+                                                <Pencil size={20}/>
+                                            </button>
+                                        )}
                                     </div>
                                   </div>
 
                                   <div className="space-y-2">
-                                    <label className="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">Gemini API Key <BrainCircuit size={12} className="text-blue-400"/></label>
+                                    <div className="flex justify-between items-center">
+                                        <label className="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">Gemini API Key <BrainCircuit size={12} className="text-blue-400"/></label>
+                                        {!isEditingGemini && <span className="text-[10px] text-blue-400 font-bold bg-blue-500/10 px-2 py-0.5 rounded-full border border-blue-500/20 flex items-center gap-1"><ShieldCheck size={10}/> Default Active</span>}
+                                    </div>
                                     <div className="flex gap-2">
-                                        <input type="password" value={inputGemini} onChange={(e) => setInputGemini(e.target.value)} className="flex-1 bg-white/5 border border-white/10 rounded-xl p-4 text-white focus:border-blue-500 focus:bg-white/10 focus:outline-none transition-all text-sm font-mono" placeholder="Enter Gemini Key"/>
-                                        <button onClick={() => setInputGemini(DEFAULT_GEMINI_KEY)} className="bg-white/5 hover:bg-white/10 border border-white/10 p-4 rounded-xl text-gray-400 hover:text-white transition-colors" title="Reset to Default"><RefreshCcw size={20}/></button>
+                                        <div className="relative flex-1 group">
+                                            <input 
+                                                type="password" 
+                                                value={isEditingGemini ? inputGemini : "Default Environment Key"} 
+                                                onChange={(e) => isEditingGemini && setInputGemini(e.target.value)} 
+                                                disabled={!isEditingGemini}
+                                                className={`w-full border rounded-xl p-4 pr-10 focus:outline-none transition-all text-sm font-mono ${
+                                                    isEditingGemini 
+                                                    ? "bg-white/5 border-white/10 text-white focus:border-blue-500 focus:bg-white/10" 
+                                                    : "bg-white/5 border-transparent text-gray-500 cursor-not-allowed select-none"
+                                                }`} 
+                                                placeholder="Enter Gemini Key"
+                                            />
+                                            {!isEditingGemini && <Lock size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-600"/>}
+                                        </div>
+                                        
+                                        {isEditingGemini ? (
+                                            <button 
+                                                onClick={() => { setIsEditingGemini(false); setInputGemini(""); }} 
+                                                className="bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 p-4 rounded-xl text-red-400 hover:text-red-300 transition-colors" 
+                                                title="Reset to Default"
+                                            >
+                                                <RefreshCcw size={20}/>
+                                            </button>
+                                        ) : (
+                                            <button 
+                                                onClick={() => { setIsEditingGemini(true); setInputGemini(""); }} 
+                                                className="bg-white/5 hover:bg-white/10 border border-white/10 p-4 rounded-xl text-gray-400 hover:text-white transition-colors" 
+                                                title="Edit Key"
+                                            >
+                                                <Pencil size={20}/>
+                                            </button>
+                                        )}
                                     </div>
                                     <p className="text-[10px] text-gray-500">Required for Smart Recommendations and Analytics.</p>
                                   </div>
@@ -265,30 +363,70 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                           <div className="space-y-6 animate-in fade-in slide-in-from-right-4 h-full flex flex-col max-w-xl">
                               <h3 className="text-2xl font-bold text-white mb-6">Help Center</h3>
                               <div className="space-y-6">
-                                  <div className="bg-white/5 p-6 rounded-2xl border border-white/5">
-                                      <h4 className="font-bold text-white mb-4 flex items-center gap-2"><HelpCircle size={18} className="text-yellow-400"/> FAQ</h4>
-                                      <ul className="space-y-4 text-sm text-gray-300">
-                                          <li className="flex gap-3 items-start">
-                                              <div className="w-1.5 h-1.5 bg-red-500 rounded-full mt-2 shrink-0"></div>
-                                              <div>
-                                                  <span className="text-white font-medium block mb-1">How do I verify my email?</span>
-                                                  Check your inbox for a confirmation link. If not found, check spam.
+                                  <div className="bg-white/5 rounded-2xl border border-white/5 overflow-hidden">
+                                      <h4 className="font-bold text-white p-6 pb-4 flex items-center gap-2 border-b border-white/5"><HelpCircle size={18} className="text-yellow-400"/> Frequently Asked Questions</h4>
+                                      <div>
+                                          {FAQs.map((faq, i) => (
+                                              <div key={i} className="border-b border-white/5 last:border-0">
+                                                  <button 
+                                                    onClick={() => setExpandedFaq(expandedFaq === i ? null : i)}
+                                                    className="w-full flex justify-between items-center p-4 text-left hover:bg-white/5 transition-colors"
+                                                  >
+                                                      <span className="text-sm font-medium text-gray-200 pr-4">{faq.q}</span>
+                                                      <ChevronDown size={16} className={`text-gray-500 transition-transform duration-300 ${expandedFaq === i ? 'rotate-180' : ''}`}/>
+                                                  </button>
+                                                  <div className={`overflow-hidden transition-all duration-300 ${expandedFaq === i ? 'max-h-40 opacity-100' : 'max-h-0 opacity-0'}`}>
+                                                      <p className="p-4 pt-0 text-xs text-gray-400 leading-relaxed">{faq.a}</p>
+                                                  </div>
                                               </div>
-                                          </li>
-                                          <li className="flex gap-3 items-start">
-                                              <div className="w-1.5 h-1.5 bg-red-500 rounded-full mt-2 shrink-0"></div>
-                                              <div>
-                                                  <span className="text-white font-medium block mb-1">Is this service free?</span>
-                                                  Yes, this is a demonstration app using public APIs.
-                                              </div>
-                                          </li>
-                                      </ul>
+                                          ))}
+                                      </div>
                                   </div>
                                   
                                   <div className="bg-white/5 p-6 rounded-2xl border border-white/5">
                                       <h4 className="font-bold text-white text-sm mb-4 flex items-center gap-2"><MessageSquare size={16} className="text-blue-400"/> Contact Support</h4>
-                                      <textarea className="w-full bg-[#0a0a0a] border border-white/10 rounded-xl p-4 text-sm text-white focus:border-white/30 focus:outline-none mb-4 resize-none" rows={4} placeholder="Describe your issue..."></textarea>
-                                      <button className="w-full bg-white text-black font-bold py-3 rounded-xl transition-all hover:bg-gray-200 flex items-center justify-center gap-2"><Send size={16}/> Send Message</button>
+                                      <div className="space-y-4">
+                                          <div>
+                                              <label className="text-[10px] font-bold text-gray-500 uppercase mb-1.5 block">Subject</label>
+                                              <div className="relative">
+                                                  <select 
+                                                      value={supportSubject} 
+                                                      onChange={(e) => setSupportSubject(e.target.value)}
+                                                      className="w-full bg-[#0a0a0a] border border-white/10 rounded-xl px-4 py-3 text-sm text-gray-200 focus:border-red-600 focus:bg-white/5 focus:outline-none appearance-none transition-colors"
+                                                  >
+                                                      <option className="bg-[#0a0a0a] text-gray-200">General Inquiry</option>
+                                                      <option className="bg-[#0a0a0a] text-gray-200">Bug Report</option>
+                                                      <option className="bg-[#0a0a0a] text-gray-200">Feature Request</option>
+                                                      <option className="bg-[#0a0a0a] text-gray-200">Account Issue</option>
+                                                  </select>
+                                                  <ChevronDown size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none"/>
+                                              </div>
+                                          </div>
+                                          <div>
+                                              <label className="text-[10px] font-bold text-gray-500 uppercase mb-1.5 block">Message</label>
+                                              <textarea 
+                                                  value={supportMessage}
+                                                  onChange={(e) => setSupportMessage(e.target.value)}
+                                                  className="w-full bg-[#0a0a0a] border border-white/10 rounded-xl p-4 text-sm text-white focus:border-red-600 focus:bg-white/5 focus:outline-none mb-2 resize-none h-32 transition-colors placeholder-gray-600" 
+                                                  placeholder="Describe your issue in detail..."
+                                              ></textarea>
+                                          </div>
+                                          
+                                          {sentSuccess ? (
+                                              <div className="w-full bg-green-500/20 border border-green-500/30 text-green-400 font-bold py-3.5 rounded-xl flex items-center justify-center gap-2 animate-in fade-in">
+                                                  <CheckCheck size={18}/> Message Sent Successfully!
+                                              </div>
+                                          ) : (
+                                              <button 
+                                                  onClick={handleSendSupport} 
+                                                  disabled={sending || !supportMessage.trim()}
+                                                  className="w-full bg-white text-black font-bold py-3.5 rounded-xl transition-all hover:bg-gray-200 flex items-center justify-center gap-2 disabled:opacity-50 active:scale-[0.98]"
+                                              >
+                                                  {sending ? <Loader2 size={16} className="animate-spin"/> : <Send size={16}/>}
+                                                  {sending ? "Sending..." : "Submit Ticket"}
+                                              </button>
+                                          )}
+                                      </div>
                                   </div>
                               </div>
                           </div>

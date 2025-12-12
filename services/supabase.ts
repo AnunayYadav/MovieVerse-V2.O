@@ -1,16 +1,21 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { Movie, UserProfile, AppNotification } from '../types';
+import { safeEnv } from '../components/Shared';
 
 let supabaseInstance: SupabaseClient | null = null;
 
-const DEFAULT_SUPABASE_URL = "https://ieclcfngpqxknggeurpo.supabase.co";
-const DEFAULT_SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImllY2xjZm5ncHF4a25nZ2V1cnBvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUzNDMxMDgsImV4cCI6MjA4MDkxOTEwOH0.FNg_ToqN2ZvkmYhBoOYJhIxmcYEVOY0yvSPZcICivGs";
+// Hardcoded fallbacks REMOVED for production security.
+const DEFAULT_SUPABASE_URL = "";
+const DEFAULT_SUPABASE_KEY = "";
 
 export const getSupabase = (): SupabaseClient | null => {
     if (supabaseInstance) return supabaseInstance;
 
-    const url = localStorage.getItem('movieverse_supabase_url') || DEFAULT_SUPABASE_URL;
-    const key = localStorage.getItem('movieverse_supabase_key') || DEFAULT_SUPABASE_KEY;
+    const envUrl = safeEnv('VITE_SUPABASE_URL') || safeEnv('REACT_APP_SUPABASE_URL') || safeEnv('SUPABASE_URL');
+    const envKey = safeEnv('VITE_SUPABASE_KEY') || safeEnv('REACT_APP_SUPABASE_KEY') || safeEnv('SUPABASE_KEY');
+
+    const url = localStorage.getItem('movieverse_supabase_url') || envUrl || DEFAULT_SUPABASE_URL;
+    const key = localStorage.getItem('movieverse_supabase_key') || envKey || DEFAULT_SUPABASE_KEY;
 
     if (url && key) {
         try {

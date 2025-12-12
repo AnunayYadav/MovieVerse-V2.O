@@ -6,6 +6,43 @@ export const TMDB_BASE_URL = "https://api.themoviedb.org/3";
 export const TMDB_IMAGE_BASE = "https://image.tmdb.org/t/p/w500";
 export const TMDB_BACKDROP_BASE = "https://image.tmdb.org/t/p/original";
 
+// --- CENTRALIZED CONFIGURATION ---
+
+// Helper to safely access env vars in various environments (Vite, CRA, Browser)
+export const safeEnv = (key: string) => {
+  try {
+    // @ts-ignore
+    if (typeof process !== 'undefined' && process.env) return process.env[key];
+    // @ts-ignore
+    if (typeof import.meta !== 'undefined' && import.meta.env) return import.meta.env[key];
+  } catch(e) {}
+  return "";
+};
+
+// Hardcoded fallbacks REMOVED for production security.
+// The app will now strictly look for Environment Variables or User Input in Settings.
+export const HARDCODED_TMDB_KEY = "";
+export const HARDCODED_GEMINI_KEY = "";
+
+export const getTmdbKey = (): string => {
+  return localStorage.getItem('movieverse_tmdb_key') || 
+         safeEnv('VITE_TMDB_API_KEY') || 
+         safeEnv('REACT_APP_TMDB_API_KEY') || 
+         safeEnv('TMDB_API_KEY') || 
+         HARDCODED_TMDB_KEY;
+};
+
+export const getGeminiKey = (): string => {
+  return localStorage.getItem('movieverse_gemini_key') || 
+         safeEnv('VITE_GEMINI_API_KEY') || 
+         safeEnv('REACT_APP_GEMINI_API_KEY') || 
+         safeEnv('API_KEY') || 
+         safeEnv('GEMINI_API_KEY') || 
+         HARDCODED_GEMINI_KEY;
+};
+
+// --- UTILITIES ---
+
 export const formatCurrency = (value: number | undefined, region: string = 'US') => {
     if (!value || value === 0) return "N/A";
     
