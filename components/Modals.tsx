@@ -170,13 +170,14 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, pro
                                     ref={fileInputRef} 
                                     onChange={handleFileUpload} 
                                     accept="image/*" 
-                                    className="hidden" 
+                                    className="absolute opacity-0 w-0 h-0 pointer-events-none" 
                                 />
                                 <button 
+                                    type="button"
                                     onClick={() => fileInputRef.current?.click()}
-                                    className="w-full py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-xs font-bold text-gray-300 hover:text-white transition-all flex items-center justify-center gap-2 group active:scale-95"
+                                    className="w-full py-3 bg-white/10 hover:bg-white/20 border border-white/20 rounded-xl text-xs font-bold text-white transition-all flex items-center justify-center gap-2 group active:scale-95 shadow-lg"
                                 >
-                                    <Upload size={14} className="group-hover:-translate-y-0.5 transition-transform"/> Upload Custom Photo
+                                    <Upload size={16} className="group-hover:-translate-y-0.5 transition-transform"/> Upload Custom Photo
                                 </button>
                             </div>
 
