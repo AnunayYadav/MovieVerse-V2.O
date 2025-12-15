@@ -161,8 +161,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                 {/* Profile Card */}
                                 <div className="flex items-center gap-6 p-6 bg-gradient-to-br from-white/5 to-transparent rounded-2xl border border-white/5 mb-8">
                                     <div className="relative">
-                                        <div className="w-20 h-20 rounded-full bg-gradient-to-br from-red-600 to-red-900 flex items-center justify-center text-3xl font-bold text-white shrink-0 shadow-xl shadow-red-900/20 border-2 border-white/10">
-                                            {profile.avatar ? <img src={profile.avatar} className="w-full h-full object-cover rounded-full" alt="avatar"/> : profile.name.charAt(0).toUpperCase()}
+                                        <div className={`w-20 h-20 rounded-full flex items-center justify-center text-3xl font-bold text-white shrink-0 shadow-xl shadow-red-900/20 border-2 border-white/10 overflow-hidden ${profile.avatarBackground || "bg-gradient-to-br from-red-600 to-red-900"}`}>
+                                            {profile.avatar ? (
+                                                <img 
+                                                    key={profile.avatar} 
+                                                    src={profile.avatar} 
+                                                    className="w-full h-full object-cover" 
+                                                    alt="avatar"
+                                                />
+                                            ) : (
+                                                profile.name.charAt(0).toUpperCase()
+                                            )}
                                         </div>
                                         <div className="absolute -bottom-1 -right-1 bg-green-500 w-5 h-5 rounded-full border-4 border-[#0a0a0a]"></div>
                                     </div>
