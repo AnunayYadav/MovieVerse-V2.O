@@ -110,7 +110,16 @@ export const syncUserData = async (userData: UserData) => {
             updated_at: new Date().toISOString()
         });
 
-    if (error) console.error("Sync Error:", error);
+    if (error) {
+        console.error("Sync Error:", error);
+        // Alert developer/user if the table is missing
+        if (error.code === '42P01') { 
+            triggerSystemNotification(
+                "Database Setup Required",
+                "The 'user_data' table is missing in Supabase. Please run the SQL setup script."
+            );
+        }
+    }
 };
 
 export const fetchUserData = async (): Promise<UserData | null> => {
@@ -126,7 +135,33 @@ export const fetchUserData = async (): Promise<UserData | null> => {
         .eq('id', user.id)
         .single();
 
-    if (error || !data) return null;
+    if (error) {
+        // Code 42P01: Undefined Table (Table doesn't exist)
+        if (error.code === '42P01') {
+            console.error("Supabase Table Missing: user_data");
+            triggerSystemNotification("Database Error", "Missing 'user_data' table. Run SQL script.");
+            return null;
+        }
+        
+        // Code PGRST116: JSON object requested, multiple (or no) rows returned
+        // This usually means the user is Authenticated but has NO data row yet (New User).
+        // We should return a default object so the App treats them as a valid fresh user.
+        if (error.code === 'PGRST116') {
+             return {
+                watchlist: [],
+                favorites: [],
+                watched: [],
+                customLists: {},
+                profile: { name: "New User", age: "", genres: [] },
+                settings: {}
+             };
+        }
+        
+        console.warn("Fetch Error", error);
+        return null;
+    }
+
+    if (!data) return null;
 
     return {
         watchlist: data.watchlist || [],

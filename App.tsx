@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Search, Film, Menu, TrendingUp, Tv, Ghost, Calendar, Star, X, Sparkles, Settings, Globe, BarChart3, Bookmark, Heart, Folder, MapPin, Languages, Filter, ChevronDown, Info, Plus, LogOut, ArrowRight, Bell, History, Clock, Trash2, Cloud, CloudOff } from 'lucide-react';
+import { Search, Film, Menu, TrendingUp, Tv, Ghost, Calendar, Star, X, Sparkles, Settings, Globe, BarChart3, Bookmark, Heart, Folder, MapPin, Languages, Filter, ChevronDown, Info, Plus, LogOut, ArrowRight, Bell, History, Clock, Trash2, Cloud, CloudOff, Loader2 } from 'lucide-react';
 import { Movie, UserProfile, GENRES_MAP, GENRES_LIST, INDIAN_LANGUAGES, MaturityRating } from './types';
 import { LogoLoader, MovieSkeleton, MovieCard, PosterMarquee, TMDB_BASE_URL, TMDB_BACKDROP_BASE, HARDCODED_TMDB_KEY, HARDCODED_GEMINI_KEY, getTmdbKey, getGeminiKey } from './components/Shared';
 import { MovieModal } from './components/MovieDetails';
@@ -27,6 +27,7 @@ export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [authChecking, setAuthChecking] = useState(true);
   const [isCloudSync, setIsCloudSync] = useState(false);
+  const [dataLoaded, setDataLoaded] = useState(false); // Safety lock for syncing
 
   const [movies, setMovies] = useState<Movie[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
@@ -78,6 +79,7 @@ export default function App() {
     localStorage.removeItem('movieverse_auth');
     setIsAuthenticated(false);
     setIsCloudSync(false);
+    setDataLoaded(false);
     setIsSettingsOpen(false);
     setWatchlist([]);
     setFavorites([]);
@@ -114,6 +116,7 @@ export default function App() {
              if (savedLists) setCustomLists(JSON.parse(savedLists));
              const savedProfile = localStorage.getItem('movieverse_profile');
              if (savedProfile) setUserProfile(JSON.parse(savedProfile));
+             setDataLoaded(true); // Allow sync after local load
         };
 
         // 4. Helper to Handle Successful Login
@@ -126,6 +129,7 @@ export default function App() {
                 let profileToSet = { name: "Guest", age: "", genres: [] } as UserProfile;
 
                 if (cloudData) {
+                    // APPLY CLOUD DATA
                     setWatchlist(cloudData.watchlist);
                     setFavorites(cloudData.favorites);
                     setWatched(cloudData.watched);
@@ -143,27 +147,34 @@ export default function App() {
                             localStorage.setItem('movieverse_gemini_key', cloudData.settings.geminiKey);
                         }
                     }
+                    // Enable sync because we successfully fetched valid data (even if it's empty, it's from DB)
+                    setIsCloudSync(true);
+                } else {
+                    // No Cloud Data found (New User or DB Empty) - Initialize Default
+                    setIsCloudSync(true);
                 }
                 
-                // Extract metadata from Google/Auth
+                // Extract metadata from Google/Auth - BUT PRESERVE SAVED PROFILE
                 const meta = session.user.user_metadata;
                 if (meta) {
                     if (profileToSet.name === "Guest" || !profileToSet.name) {
                         profileToSet.name = meta.full_name || meta.name || profileToSet.name;
                     }
+                    // Only use Google Avatar if user hasn't set a custom one
                     if (!profileToSet.avatar) {
                         profileToSet.avatar = meta.avatar_url || meta.picture;
                     }
                 }
                 setUserProfile(profileToSet);
              } catch (err) {
-                 console.error("Cloud fetch error", err);
-                 // Fallback to local if cloud fetch fails
+                 console.error("Cloud fetch error - Sync Disabled to protect data", err);
+                 // Fallback to local if cloud fetch fails due to network
+                 // IMPORTANT: Do NOT enable cloud sync here to prevent overwriting cloud with empty local data
                  loadLocalState();
              }
              
-             // Important: Enable sync ONLY after initial load is complete to prevent overwriting cloud data with defaults
-             setIsCloudSync(true); 
+             // UNLOCK: Now that state is settled, allow updates to trigger sync
+             setDataLoaded(true);
              setAuthChecking(false);
         };
 
@@ -186,10 +197,8 @@ export default function App() {
             try {
                 const { data: { session } } = await supabase.auth.getSession();
                 if (session) {
-                    // If session exists, trigger handler (idempotent)
                     handleSessionFound(session);
                 } else {
-                    // No Supabase session, check local storage auth flag
                     const localAuth = localStorage.getItem('movieverse_auth');
                     if (localAuth) {
                         loadLocalState();
@@ -199,7 +208,6 @@ export default function App() {
                 }
             } catch (supaError) {
                 console.warn("Supabase session check failed", supaError);
-                // Fallback to local
                 const localAuth = localStorage.getItem('movieverse_auth');
                 if (localAuth) {
                     loadLocalState();
@@ -241,17 +249,22 @@ export default function App() {
 
   // --- SYNC HELPER ---
   useEffect(() => {
-      if (isCloudSync && isAuthenticated) {
-          syncUserData({
-              watchlist,
-              favorites,
-              watched,
-              customLists,
-              profile: userProfile,
-              settings: { tmdbKey: apiKey, geminiKey: geminiKey }
-          });
+      // SECURITY CHECK: Only sync if data has been initially loaded AND cloud sync is enabled.
+      // This prevents the default "Guest" state from overwriting Cloud Data during initialization race conditions.
+      if (isCloudSync && isAuthenticated && dataLoaded) {
+          const timeoutId = setTimeout(() => {
+              syncUserData({
+                  watchlist,
+                  favorites,
+                  watched,
+                  customLists,
+                  profile: userProfile,
+                  settings: { tmdbKey: apiKey, geminiKey: geminiKey }
+              });
+          }, 1000); // Debounce sync to reduce DB writes
+          return () => clearTimeout(timeoutId);
       }
-  }, [watchlist, favorites, watched, customLists, userProfile, isCloudSync, isAuthenticated, apiKey, geminiKey]);
+  }, [watchlist, favorites, watched, customLists, userProfile, isCloudSync, isAuthenticated, apiKey, geminiKey, dataLoaded]);
 
   const checkUnreadNotifications = async () => {
       try {
@@ -291,6 +304,7 @@ export default function App() {
         localStorage.setItem('movieverse_profile', JSON.stringify(profileData));
     }
     setIsAuthenticated(true);
+    // Note: dataLoaded/isCloudSync will be handled by the auth listener detecting the session
   };
 
   const handleLogout = async () => {
