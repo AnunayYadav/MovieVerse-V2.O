@@ -175,23 +175,16 @@ export const fetchUserData = async (): Promise<UserData | null> => {
 
 // --- NOTIFICATIONS ---
 
-// Fallback Mock Data
-const MOCK_NOTIFICATIONS: AppNotification[] = [
-    { id: '1', title: "New Arrival: Dune Part Two", message: "Now streaming in 4K HDR. Experience the saga.", time: "2 hours ago", read: false },
-    { id: '2', title: "Watchlist Alert", message: "Inception is now available on your subscribed services.", time: "1 day ago", read: false },
-    { id: '3', title: "System Update", message: "We've improved our AI recommendation engine for better accuracy.", time: "3 days ago", read: true },
-    { id: '4', title: "Welcome to MovieVerse Pro!", message: "Thanks for joining. Start by adding 3 movies to your favorites.", time: "1 week ago", read: true },
-];
-
 export const getNotifications = async (): Promise<AppNotification[]> => {
     const supabase = getSupabase();
-    if (!supabase) return MOCK_NOTIFICATIONS;
+    // Strictly return empty if no backend configured
+    if (!supabase) return [];
 
     try {
         const { data: { user } } = await supabase.auth.getUser();
         
-        // If not logged in (or session expired), return mocks for display purposes
-        if (!user) return MOCK_NOTIFICATIONS;
+        // If not logged in, return empty
+        if (!user) return [];
 
         const { data, error } = await supabase
             .from('notifications')
@@ -200,14 +193,13 @@ export const getNotifications = async (): Promise<AppNotification[]> => {
             .order('created_at', { ascending: false });
 
         if (error) {
-            console.warn("Could not fetch real notifications (DB not setup?), using mocks.", error.message);
-            return MOCK_NOTIFICATIONS;
+            console.warn("Failed to fetch notifications:", error.message);
+            // Return empty array on error instead of mocks
+            return [];
         }
 
-        // If authenticated but no notifications exist in DB, show Mocks as a demo welcome
-        if (!data || data.length === 0) return MOCK_NOTIFICATIONS;
-
-        return data.map((n: any) => ({
+        // Return actual data or empty array if null
+        return (data || []).map((n: any) => ({
             id: n.id,
             title: n.title,
             message: n.message || n.body || "",
@@ -216,8 +208,8 @@ export const getNotifications = async (): Promise<AppNotification[]> => {
         }));
 
     } catch (e) {
-        // Fallback for network errors or severe auth issues
-        return MOCK_NOTIFICATIONS;
+        console.error("Notification Fetch Exception", e);
+        return [];
     }
 };
 
@@ -235,7 +227,7 @@ export const markNotificationsRead = async () => {
             .eq('user_id', user.id)
             .eq('is_read', false);
     } catch (e) {
-        console.warn("Failed to mark read (likely using mocks or DB not setup)");
+        console.warn("Failed to mark read");
     }
 };
 
