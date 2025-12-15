@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { UserCircle, X, ListPlus, Plus, Check, Loader2, Film, AlertCircle, BrainCircuit, Search, Star, RefreshCcw, Bell, CheckCheck, Inbox, Heart, PaintBucket } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { UserCircle, X, ListPlus, Plus, Check, Loader2, Film, AlertCircle, BrainCircuit, Search, Star, RefreshCcw, Bell, CheckCheck, Inbox, Heart, PaintBucket, Upload } from 'lucide-react';
 import { UserProfile, Movie, GENRES_LIST, PersonDetails, AppNotification } from '../types';
 import { TMDB_BASE_URL, TMDB_IMAGE_BASE } from './Shared';
 import { generateSmartRecommendations } from '../services/gemini';
@@ -20,6 +20,8 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, pro
     const [avatar, setAvatar] = useState(profile.avatar || "");
     const [avatarBg, setAvatarBg] = useState(profile.avatarBackground || "bg-gradient-to-br from-red-600 to-red-900");
     const [error, setError] = useState("");
+    
+    const fileInputRef = useRef<HTMLInputElement>(null);
   
     useEffect(() => {
         if (isOpen) {
@@ -56,6 +58,31 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, pro
         setSelectedGenres(prev => 
             prev.includes(genre) ? prev.filter(g => g !== genre) : [...prev, genre]
         );
+    };
+
+    const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            if (file.size > 5 * 1024 * 1024) { // 5MB limit check
+                setError("Image too large. Max 5MB.");
+                return;
+            }
+            
+            // Simple validation
+            if (!file.type.startsWith('image/')) {
+                setError("Please upload a valid image file.");
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                if (e.target?.result) {
+                    setAvatar(e.target.result as string);
+                    setError("");
+                }
+            };
+            reader.readAsDataURL(file);
+        }
     };
   
     const handleSave = () => {
@@ -134,6 +161,23 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, pro
                                         />
                                     ))}
                                 </div>
+                            </div>
+
+                            {/* Custom Upload Button */}
+                            <div className="pt-2">
+                                <input 
+                                    type="file" 
+                                    ref={fileInputRef} 
+                                    onChange={handleFileUpload} 
+                                    accept="image/*" 
+                                    className="hidden" 
+                                />
+                                <button 
+                                    onClick={() => fileInputRef.current?.click()}
+                                    className="w-full py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-xs font-bold text-gray-300 hover:text-white transition-all flex items-center justify-center gap-2 group active:scale-95"
+                                >
+                                    <Upload size={14} className="group-hover:-translate-y-0.5 transition-transform"/> Upload Custom Photo
+                                </button>
                             </div>
 
                             {/* Avatar Selector */}
