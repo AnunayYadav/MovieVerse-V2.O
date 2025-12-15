@@ -74,12 +74,18 @@ export const signOut = async () => {
 
 // --- DATABASE SYNC ---
 
+export interface UserSettings {
+    tmdbKey?: string;
+    geminiKey?: string;
+}
+
 export interface UserData {
     watchlist: Movie[];
     favorites: Movie[];
     watched: Movie[];
     customLists: Record<string, Movie[]>;
     profile: UserProfile;
+    settings?: UserSettings;
 }
 
 export const syncUserData = async (userData: UserData) => {
@@ -100,6 +106,7 @@ export const syncUserData = async (userData: UserData) => {
             watched: userData.watched,
             custom_lists: userData.customLists,
             profile: userData.profile,
+            settings: userData.settings, // Sync API Keys/Settings
             updated_at: new Date().toISOString()
         });
 
@@ -126,7 +133,8 @@ export const fetchUserData = async (): Promise<UserData | null> => {
         favorites: data.favorites || [],
         watched: data.watched || [],
         customLists: data.custom_lists || {},
-        profile: data.profile || { name: "", age: "", genres: [] }
+        profile: data.profile || { name: "", age: "", genres: [] },
+        settings: data.settings || {}
     };
 };
 
@@ -144,12 +152,12 @@ export const getNotifications = async (): Promise<AppNotification[]> => {
     const supabase = getSupabase();
     if (!supabase) return MOCK_NOTIFICATIONS;
 
-    const { data: { user } } = await supabase.auth.getUser();
-    
-    // If not logged in, return mocks
-    if (!user) return MOCK_NOTIFICATIONS;
-
     try {
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        // If not logged in (or session expired), return mocks for display purposes
+        if (!user) return MOCK_NOTIFICATIONS;
+
         const { data, error } = await supabase
             .from('notifications')
             .select('*')
@@ -161,7 +169,8 @@ export const getNotifications = async (): Promise<AppNotification[]> => {
             return MOCK_NOTIFICATIONS;
         }
 
-        if (!data || data.length === 0) return [];
+        // If authenticated but no notifications exist in DB, show Mocks as a demo welcome
+        if (!data || data.length === 0) return MOCK_NOTIFICATIONS;
 
         return data.map((n: any) => ({
             id: n.id,
@@ -172,6 +181,7 @@ export const getNotifications = async (): Promise<AppNotification[]> => {
         }));
 
     } catch (e) {
+        // Fallback for network errors or severe auth issues
         return MOCK_NOTIFICATIONS;
     }
 };
@@ -180,17 +190,17 @@ export const markNotificationsRead = async () => {
     const supabase = getSupabase();
     if (!supabase) return;
 
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-
     try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
         await supabase
             .from('notifications')
             .update({ is_read: true })
             .eq('user_id', user.id)
             .eq('is_read', false);
     } catch (e) {
-        console.warn("Failed to mark read (DB not setup?)");
+        console.warn("Failed to mark read (likely using mocks or DB not setup)");
     }
 };
 

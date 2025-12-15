@@ -119,7 +119,6 @@ export default function App() {
         // 4. Helper to Handle Successful Login
         const handleSessionFound = async (session: any) => {
              setIsAuthenticated(true);
-             setIsCloudSync(true);
              
              // Fetch Cloud Data
              try {
@@ -132,6 +131,18 @@ export default function App() {
                     setWatched(cloudData.watched);
                     setCustomLists(cloudData.customLists);
                     if (cloudData.profile) profileToSet = cloudData.profile;
+                    
+                    // Restore API Keys if found in cloud settings
+                    if (cloudData.settings) {
+                        if (cloudData.settings.tmdbKey && !getTmdbKey()) {
+                            setApiKey(cloudData.settings.tmdbKey);
+                            localStorage.setItem('movieverse_tmdb_key', cloudData.settings.tmdbKey);
+                        }
+                        if (cloudData.settings.geminiKey && !getGeminiKey()) {
+                            setGeminiKey(cloudData.settings.geminiKey);
+                            localStorage.setItem('movieverse_gemini_key', cloudData.settings.geminiKey);
+                        }
+                    }
                 }
                 
                 // Extract metadata from Google/Auth
@@ -150,6 +161,9 @@ export default function App() {
                  // Fallback to local if cloud fetch fails
                  loadLocalState();
              }
+             
+             // Important: Enable sync ONLY after initial load is complete to prevent overwriting cloud data with defaults
+             setIsCloudSync(true); 
              setAuthChecking(false);
         };
 
@@ -233,10 +247,11 @@ export default function App() {
               favorites,
               watched,
               customLists,
-              profile: userProfile
+              profile: userProfile,
+              settings: { tmdbKey: apiKey, geminiKey: geminiKey }
           });
       }
-  }, [watchlist, favorites, watched, customLists, userProfile, isCloudSync, isAuthenticated]);
+  }, [watchlist, favorites, watched, customLists, userProfile, isCloudSync, isAuthenticated, apiKey, geminiKey]);
 
   const checkUnreadNotifications = async () => {
       try {
