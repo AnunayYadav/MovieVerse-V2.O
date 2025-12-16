@@ -623,6 +623,7 @@ export default function App() {
             maturityRating={maturityRating}
             setMaturityRating={setMaturityRating}
             profile={userProfile}
+            onUpdateProfile={setUserProfile}
             onLogout={handleLogout}
           />
         </>
@@ -1004,6 +1005,7 @@ export default function App() {
         maturityRating={maturityRating}
         setMaturityRating={setMaturityRating}
         profile={userProfile}
+        onUpdateProfile={setUserProfile}
         onLogout={handleLogout}
       />
       

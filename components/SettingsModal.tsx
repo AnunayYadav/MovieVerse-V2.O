@@ -14,11 +14,12 @@ interface SettingsModalProps {
     maturityRating: MaturityRating;
     setMaturityRating: (r: MaturityRating) => void;
     profile: UserProfile;
+    onUpdateProfile: (p: UserProfile) => void;
     onLogout?: () => void;
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({ 
-    isOpen, onClose, apiKey, setApiKey, geminiKey, setGeminiKey, maturityRating, setMaturityRating, profile, onLogout 
+    isOpen, onClose, apiKey, setApiKey, geminiKey, setGeminiKey, maturityRating, setMaturityRating, profile, onUpdateProfile, onLogout 
 }) => {
     // Check if custom keys are stored
     const hasCustomTmdb = !!localStorage.getItem('movieverse_tmdb_key');
@@ -104,18 +105,15 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         setApiKey(isEditingTmdb ? inputKey : ""); 
         setGeminiKey(isEditingGemini ? inputGemini : "");
         
-        // Save Player Settings to Profile via localStorage (App.tsx picks this up via prop updates usually, 
-        // but here we force update localStorage so App re-renders or next sync catches it)
+        // Save Player Settings to Profile
         const updatedProfile = { ...profile, playerSettings: localPlayerSettings };
+        
+        // 1. Save to Local Storage immediately
         localStorage.setItem('movieverse_profile', JSON.stringify(updatedProfile));
         
-        // We really need to trigger a profile update up the chain, 
-        // but since we don't have a direct 'updateProfile' prop here besides setMaturityRating,
-        // we rely on the fact that App.tsx reads from localStorage on mount or we reload.
-        // ideally onSave should bubble up properly. 
-        // *Correction*: We can reload page or better yet, assume App checks localStorage or we add a callback.
-        // For now, this is efficient enough as Settings often require a soft refresh context.
-        window.location.reload(); 
+        // 2. Update Parent State (App.tsx)
+        // This will trigger the useEffect in App.tsx that calls syncUserData(), saving to cloud.
+        onUpdateProfile(updatedProfile);
         
         onClose();
     };
