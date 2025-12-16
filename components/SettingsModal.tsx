@@ -45,6 +45,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     const [sentSuccess, setSentSuccess] = useState(false);
     const [expandedFaq, setExpandedFaq] = useState<number | null>(null);
 
+    const isPremium = profile.canWatch === true;
+
     useEffect(() => {
         if (isOpen) {
             setInputKey(hasCustomTmdb ? apiKey : "");
@@ -130,7 +132,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   <div className="w-full md:w-64 bg-black/40 border-b md:border-b-0 md:border-r border-white/5 p-4 flex flex-col shrink-0">
                       <div className="flex justify-between items-center mb-6">
                           <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                              <Settings className="text-red-500" size={24}/> <span>Settings</span>
+                              <Settings className={isPremium ? "text-amber-500" : "text-red-500"} size={24}/> <span>Settings</span>
                           </h2>
                           <button onClick={onClose} className="md:hidden text-gray-400 hover:text-white p-1"><X size={20}/></button>
                       </div>
@@ -140,14 +142,21 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                               <button 
                                 key={tab.id} 
                                 onClick={() => setActiveTab(tab.id)}
-                                className={`flex-shrink-0 w-auto md:w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${activeTab === tab.id ? 'bg-red-600 text-white shadow-lg shadow-red-900/20' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
+                                className={`flex-shrink-0 w-auto md:w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${
+                                    activeTab === tab.id 
+                                    ? (isPremium ? 'bg-gradient-to-r from-amber-600 to-amber-500 text-black shadow-lg shadow-amber-500/20' : 'bg-red-600 text-white shadow-lg shadow-red-900/20') 
+                                    : 'text-gray-400 hover:text-white hover:bg-white/5'
+                                }`}
                               >
                                   <tab.icon size={18} /> <span>{tab.label}</span>
                               </button>
                           ))}
                       </div>
                       <div className="hidden md:block mt-auto pt-4 border-t border-white/5">
-                          <button onClick={() => { onClose(); onLogout?.(); }} className="flex items-center gap-3 text-sm text-red-400 hover:text-red-300 px-4 py-3 w-full text-left hover:bg-red-900/10 rounded-xl transition-colors">
+                          <button 
+                            onClick={() => { onClose(); onLogout?.(); }} 
+                            className={`flex items-center gap-3 text-sm px-4 py-3 w-full text-left rounded-xl transition-colors ${isPremium ? 'text-amber-400 hover:text-amber-300 hover:bg-amber-900/20' : 'text-red-400 hover:text-red-300 hover:bg-red-900/10'}`}
+                          >
                               <LogOut size={18}/> Sign Out
                           </button>
                       </div>
@@ -162,9 +171,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                               <div>
                                 <h3 className="text-2xl font-bold text-white mb-6">My Profile</h3>
                                 {/* Profile Card Code */}
-                                <div className="flex items-center gap-6 p-6 bg-gradient-to-br from-white/5 to-transparent rounded-2xl border border-white/5 mb-8">
+                                <div className={`flex items-center gap-6 p-6 rounded-2xl border mb-8 ${isPremium ? 'bg-gradient-to-br from-amber-900/10 to-transparent border-amber-500/20' : 'bg-gradient-to-br from-white/5 to-transparent border-white/5'}`}>
                                     <div className="relative">
-                                        <div className={`w-20 h-20 rounded-full flex items-center justify-center text-3xl font-bold text-white shrink-0 shadow-xl shadow-red-900/20 border-2 border-white/10 overflow-hidden ${profile.avatarBackground || "bg-gradient-to-br from-red-600 to-red-900"}`}>
+                                        <div className={`w-20 h-20 rounded-full flex items-center justify-center text-3xl font-bold text-white shrink-0 shadow-xl overflow-hidden border-2 ${isPremium ? 'border-amber-500/50 shadow-amber-900/20' : 'border-white/10 shadow-red-900/20'} ${profile.avatarBackground || (isPremium ? "bg-gradient-to-br from-amber-500 to-yellow-900" : "bg-gradient-to-br from-red-600 to-red-900")}`}>
                                             {profile.avatar ? (
                                                 <img key={profile.avatar} src={profile.avatar} className="w-full h-full object-cover" alt="avatar"/>
                                             ) : (
@@ -183,7 +192,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                 </div>
                                 
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div className="p-4 bg-white/5 rounded-xl border border-white/5 hover:border-white/10 transition-colors group">
+                                    <div className={`p-4 rounded-xl border transition-colors group ${isPremium ? 'bg-amber-900/5 border-amber-500/10 hover:border-amber-500/30' : 'bg-white/5 border-white/5 hover:border-white/10'}`}>
                                         <div className="flex items-center gap-3 mb-2">
                                             <div className="p-2 bg-blue-500/10 rounded-lg text-blue-400"><Mail size={18}/></div>
                                             <span className="text-xs font-bold text-white/40 uppercase tracking-wider">Email</span>
@@ -191,7 +200,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                         <p className="text-white font-medium truncate text-sm" title={userEmail}>{userEmail}</p>
                                     </div>
                                     
-                                    <div className="p-4 bg-white/5 rounded-xl border border-white/5 hover:border-white/10 transition-colors group relative">
+                                    <div className={`p-4 rounded-xl border transition-colors group relative ${isPremium ? 'bg-amber-900/5 border-amber-500/10 hover:border-amber-500/30' : 'bg-white/5 border-white/5 hover:border-white/10'}`}>
                                         <div className="flex items-center gap-3 mb-2">
                                             <div className="p-2 bg-pink-500/10 rounded-lg text-pink-400"><Fingerprint size={18}/></div>
                                             <span className="text-xs font-bold text-white/40 uppercase tracking-wider">User ID</span>
@@ -204,7 +213,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                         </div>
                                     </div>
 
-                                    <div className="p-4 bg-white/5 rounded-xl border border-white/5 hover:border-white/10 transition-colors">
+                                    <div className={`p-4 rounded-xl border transition-colors ${isPremium ? 'bg-amber-900/5 border-amber-500/10 hover:border-amber-500/30' : 'bg-white/5 border-white/5 hover:border-white/10'}`}>
                                         <div className="flex items-center gap-3 mb-2">
                                             <div className="p-2 bg-purple-500/10 rounded-lg text-purple-400"><Calendar size={18}/></div>
                                             <span className="text-xs font-bold text-white/40 uppercase tracking-wider">Joined</span>
@@ -212,7 +221,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                         <p className="text-white font-medium text-sm">{joinDate}</p>
                                     </div>
                                     
-                                    <div className="p-4 bg-white/5 rounded-xl border border-white/5 hover:border-white/10 transition-colors">
+                                    <div className={`p-4 rounded-xl border transition-colors ${isPremium ? 'bg-amber-900/5 border-amber-500/10 hover:border-amber-500/30' : 'bg-white/5 border-white/5 hover:border-white/10'}`}>
                                         <div className="flex items-center gap-3 mb-2">
                                             <div className="p-2 bg-green-500/10 rounded-lg text-green-400"><User size={18}/></div>
                                             <span className="text-xs font-bold text-white/40 uppercase tracking-wider">Age</span>
@@ -225,12 +234,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                 <h4 className="text-sm font-bold text-white mb-3">Preferences</h4>
                                 <div className="flex flex-wrap gap-2">
                                     {profile.genres && profile.genres.length > 0 ? profile.genres.map(g => (
-                                        <span key={g} className="px-3 py-1.5 rounded-full bg-white/5 border border-white/5 text-xs text-gray-300">{g}</span>
+                                        <span key={g} className={`px-3 py-1.5 rounded-full bg-white/5 border text-xs ${isPremium ? 'border-amber-500/30 text-amber-100' : 'border-white/5 text-gray-300'}`}>{g}</span>
                                     )) : <span className="text-gray-500 text-sm italic">No genres selected</span>}
                                 </div>
                               </div>
                               <div className="md:hidden pt-4 border-t border-white/5 mt-auto">
-                                  <button onClick={() => { onClose(); onLogout?.(); }} className="flex items-center gap-2 text-sm text-white font-bold w-full justify-center p-4 rounded-xl bg-red-600 shadow-lg shadow-red-900/20 active:scale-95 transition-all">
+                                  <button onClick={() => { onClose(); onLogout?.(); }} className={`flex items-center gap-2 text-sm font-bold w-full justify-center p-4 rounded-xl shadow-lg active:scale-95 transition-all ${isPremium ? 'bg-gradient-to-r from-amber-600 to-amber-500 text-black shadow-amber-900/20' : 'bg-red-600 text-white shadow-red-900/20'}`}>
                                       <LogOut size={18}/> Sign Out
                                   </button>
                               </div>
@@ -256,7 +265,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                                 disabled={!isEditingTmdb}
                                                 className={`w-full border rounded-xl p-4 pr-10 focus:outline-none transition-all text-sm font-mono ${
                                                     isEditingTmdb 
-                                                    ? "bg-white/5 border-white/10 text-white focus:border-red-500 focus:bg-white/10" 
+                                                    ? `bg-white/5 border-white/10 text-white focus:bg-white/10 ${isPremium ? 'focus:border-amber-500' : 'focus:border-red-500'}`
                                                     : "bg-white/5 border-transparent text-gray-500 cursor-not-allowed select-none"
                                                 }`} 
                                                 placeholder="Enter TMDB Key"
@@ -267,7 +276,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                         {isEditingTmdb ? (
                                             <button 
                                                 onClick={() => { setIsEditingTmdb(false); setInputKey(""); }} 
-                                                className="bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 p-4 rounded-xl text-red-400 hover:text-red-300 transition-colors" 
+                                                className={`p-4 rounded-xl border transition-colors ${isPremium ? 'bg-amber-500/10 hover:bg-amber-500/20 border-amber-500/20 text-amber-400 hover:text-amber-300' : 'bg-red-500/10 hover:bg-red-500/20 border-red-500/20 text-red-400 hover:text-red-300'}`}
                                                 title="Reset to Default"
                                             >
                                                 <RefreshCcw size={20}/>
@@ -309,7 +318,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                         {isEditingGemini ? (
                                             <button 
                                                 onClick={() => { setIsEditingGemini(false); setInputGemini(""); }} 
-                                                className="bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 p-4 rounded-xl text-red-400 hover:text-red-300 transition-colors" 
+                                                className={`p-4 rounded-xl border transition-colors ${isPremium ? 'bg-amber-500/10 hover:bg-amber-500/20 border-amber-500/20 text-amber-400 hover:text-amber-300' : 'bg-red-500/10 hover:bg-red-500/20 border-red-500/20 text-red-400 hover:text-red-300'}`}
                                                 title="Reset to Default"
                                             >
                                                 <RefreshCcw size={20}/>
@@ -345,13 +354,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                       <button 
                                         key={rate} 
                                         onClick={() => setMaturityRating(rate as MaturityRating)}
-                                        className={`w-full flex items-center justify-between p-4 rounded-xl transition-all border ${maturityRating === rate ? 'bg-red-600/20 border-red-500/50 text-white' : 'bg-white/5 border-transparent text-gray-400 hover:text-white hover:bg-white/10'}`}
+                                        className={`w-full flex items-center justify-between p-4 rounded-xl transition-all border ${maturityRating === rate ? (isPremium ? 'bg-amber-600/20 border-amber-500/50 text-white' : 'bg-red-600/20 border-red-500/50 text-white') : 'bg-white/5 border-transparent text-gray-400 hover:text-white hover:bg-white/10'}`}
                                       >
                                           <div className="flex items-center gap-3">
-                                              <span className={`w-10 h-10 rounded-lg flex items-center justify-center text-xs font-bold ${maturityRating === rate ? 'bg-red-600 text-white' : 'bg-white/10 text-gray-500'}`}>{rate}</span>
+                                              <span className={`w-10 h-10 rounded-lg flex items-center justify-center text-xs font-bold ${maturityRating === rate ? (isPremium ? 'bg-amber-600 text-black' : 'bg-red-600 text-white') : 'bg-white/10 text-gray-500'}`}>{rate}</span>
                                               <span className="font-bold text-sm">Rated {rate}</span>
                                           </div>
-                                          {maturityRating === rate && <div className="bg-red-600 rounded-full p-1"><Check size={14} className="text-white"/></div>}
+                                          {maturityRating === rate && <div className={`rounded-full p-1 ${isPremium ? 'bg-amber-600 text-black' : 'bg-red-600 text-white'}`}><Check size={14}/></div>}
                                       </button>
                                   ))}
                               </div>
@@ -390,7 +399,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                                   <select 
                                                       value={supportSubject} 
                                                       onChange={(e) => setSupportSubject(e.target.value)}
-                                                      className="w-full bg-[#0a0a0a] border border-white/10 rounded-xl px-4 py-3 text-sm text-gray-200 focus:border-red-600 focus:bg-white/5 focus:outline-none appearance-none transition-colors"
+                                                      className={`w-full bg-[#0a0a0a] border border-white/10 rounded-xl px-4 py-3 text-sm text-gray-200 focus:bg-white/5 focus:outline-none appearance-none transition-colors ${isPremium ? 'focus:border-amber-500' : 'focus:border-red-600'}`}
                                                   >
                                                       <option className="bg-[#0a0a0a] text-gray-200">General Inquiry</option>
                                                       <option className="bg-[#0a0a0a] text-gray-200">Bug Report</option>
@@ -405,7 +414,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                               <textarea 
                                                   value={supportMessage}
                                                   onChange={(e) => setSupportMessage(e.target.value)}
-                                                  className="w-full bg-[#0a0a0a] border border-white/10 rounded-xl p-4 text-sm text-white focus:border-red-600 focus:bg-white/5 focus:outline-none mb-2 resize-none h-32 transition-colors placeholder-gray-600" 
+                                                  className={`w-full bg-[#0a0a0a] border border-white/10 rounded-xl p-4 text-sm text-white focus:bg-white/5 focus:outline-none mb-2 resize-none h-32 transition-colors placeholder-gray-600 ${isPremium ? 'focus:border-amber-500' : 'focus:border-red-600'}`}
                                                   placeholder="Describe your issue in detail..."
                                               ></textarea>
                                           </div>
@@ -431,8 +440,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
                       {activeTab === 'legal' && (
                           <div className="space-y-6 animate-in fade-in slide-in-from-right-4 h-full flex flex-col max-w-4xl">
-                              <h3 className="text-2xl font-bold text-white mb-4 flex items-center gap-2">
-                                  <ShieldCheck size={24} className="text-red-500"/> Legal Center
+                              <h3 className={`text-2xl font-bold text-white mb-4 flex items-center gap-2`}>
+                                  <ShieldCheck size={24} className={isPremium ? "text-amber-500" : "text-red-500"}/> Legal Center
                               </h3>
                               
                               <div className="flex-1 overflow-y-auto custom-scrollbar pr-6 space-y-10 text-sm text-gray-300 leading-relaxed pb-8">

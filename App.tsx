@@ -1178,6 +1178,7 @@ export default function App() {
         isOpen={isNotificationOpen} 
         onClose={() => setIsNotificationOpen(false)} 
         onUpdate={checkUnreadNotifications}
+        userProfile={userProfile}
       />
       
       {!apiKey && loading && <div className="fixed inset-0 z-[100] bg-black"><LogoLoader /></div>}
