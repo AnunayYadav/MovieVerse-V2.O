@@ -440,7 +440,15 @@ export default function App() {
 
         // 1. SEARCH PATH
         if (searchQuery) {
-            if (pageNum === 1) {
+            if (selectedCategory === "People") {
+                // Specific People Search Logic
+                endpoint = "/search/person";
+                // Cleanup params that aren't supported by search/person
+                params.delete("certification_country");
+                params.delete("certification.lte");
+                params.set("query", searchQuery);
+            } else if (pageNum === 1) {
+                // Hybrid Search for Movies
                  try {
                      const [stdRes, aiRecs] = await Promise.all([
                          fetch(`${TMDB_BASE_URL}/search/movie?api_key=${apiKey}&query=${encodeURIComponent(searchQuery)}&include_adult=false`, { signal: controller.signal }),
@@ -478,12 +486,19 @@ export default function App() {
                           setHasMore(false);
                           return; 
                      }
+                     // If AI fails/empty, fall through to standard search below (by setting endpoint)
+                     endpoint = "/search/movie";
+                     params.set("query", searchQuery);
                  } catch (e: any) { 
                      if (e.name !== 'AbortError') console.error("Hybrid Search failed", e); 
+                     endpoint = "/search/movie";
+                     params.set("query", searchQuery);
                  }
+            } else {
+                // Pagination for search (standard)
+                endpoint = "/search/movie";
+                params.set("query", searchQuery);
             }
-            endpoint = "/search/movie";
-            params.set("query", searchQuery);
         }
 
         // 2. TMDB COLLECTION PATH
@@ -747,6 +762,7 @@ export default function App() {
            <div className="hidden md:flex items-center gap-1">
                <button onClick={() => { resetFilters(); setSelectedCategory("All"); }} className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-300 hover:scale-105 active:scale-95 ${selectedCategory === "All" && !activeKeyword && !tmdbCollectionId ? "bg-white text-black font-bold" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>Home</button>
                <button onClick={() => { resetFilters(); setSelectedCategory("TV Shows"); }} className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-300 hover:scale-105 active:scale-95 ${selectedCategory === "TV Shows" ? "bg-white text-black font-bold" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>TV Shows</button>
+               <button onClick={() => { resetFilters(); setSelectedCategory("Anime"); }} className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-300 hover:scale-105 active:scale-95 ${selectedCategory === "Anime" ? "bg-white text-black font-bold" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>Anime</button>
                <button onClick={() => { resetFilters(); setSelectedCategory("People"); }} className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-300 hover:scale-105 active:scale-95 ${selectedCategory === "People" ? "bg-white text-black font-bold" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>People</button>
            </div>
         </div>

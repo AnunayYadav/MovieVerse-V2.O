@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Calendar, Clock, Star, Play, Bookmark, Heart, Share2, ListPlus, Tv, Clapperboard, User, Lightbulb, Sparkles, Loader2, Check, DollarSign, TrendingUp, Tag, Layers, MessageCircle, Scale, Globe, Facebook, Instagram, Twitter, Film, PlayCircle } from 'lucide-react';
+import { X, Calendar, Clock, Star, Play, Bookmark, Heart, Share2, ListPlus, Tv, Clapperboard, User, Lightbulb, Sparkles, Loader2, Check, DollarSign, TrendingUp, Tag, Layers, MessageCircle, Scale, Globe, Facebook, Instagram, Twitter, Film, PlayCircle, Minimize2 } from 'lucide-react';
 import { Movie, MovieDetails, Season, UserProfile, Keyword, Review } from '../types';
 import { TMDB_BASE_URL, TMDB_IMAGE_BASE, TMDB_BACKDROP_BASE, formatCurrency, ImageLightbox } from '../components/Shared';
 import { generateTrivia, getSimilarMoviesAI } from '../services/gemini';
@@ -43,6 +43,7 @@ export const MovieModal: React.FC<MovieModalProps> = ({
     const [loadingSeason, setLoadingSeason] = useState(false);
     const [viewingImage, setViewingImage] = useState<string | null>(null);
     const [showPlayer, setShowPlayer] = useState(false);
+    const [playParams, setPlayParams] = useState({ season: 1, episode: 1 });
 
     useEffect(() => {
         if (!apiKey || !movie.id) return;
@@ -70,6 +71,7 @@ export const MovieModal: React.FC<MovieModalProps> = ({
         setActiveTab("details");
         setSeasonData(null);
         setShowPlayer(false); // Reset player on new movie load
+        setPlayParams({ season: 1, episode: 1 });
 
     }, [movie.id, apiKey, movie.media_type]);
 
@@ -208,8 +210,8 @@ export const MovieModal: React.FC<MovieModalProps> = ({
                                         onClose={() => setShowPlayer(false)}
                                         mediaType={isTv ? 'tv' : 'movie'}
                                         isAnime={isAnime || false}
-                                        initialSeason={selectedSeason}
-                                        initialEpisode={1}
+                                        initialSeason={playParams.season}
+                                        initialEpisode={playParams.episode}
                                      />
                                  </div>
                              ) : (
@@ -239,7 +241,10 @@ export const MovieModal: React.FC<MovieModalProps> = ({
                                     <div className="flex flex-wrap gap-3 mt-2">
                                         {userProfile.canWatch && (
                                             <button 
-                                                onClick={() => setShowPlayer(true)} 
+                                                onClick={() => {
+                                                    setPlayParams({ season: selectedSeason, episode: 1 });
+                                                    setShowPlayer(true);
+                                                }} 
                                                 className="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-8 rounded-xl transition-all flex items-center gap-2 active:scale-95 shadow-lg shadow-red-900/40"
                                             >
                                                 <PlayCircle size={20} fill="currentColor" /> Watch Now
@@ -418,12 +423,28 @@ export const MovieModal: React.FC<MovieModalProps> = ({
                                         {loadingSeason ? <div className="py-12 flex justify-center"><Loader2 className="animate-spin text-red-500"/></div> : seasonData ? (
                                             <div className="space-y-3">
                                                 {seasonData.episodes?.map(ep => (
-                                                    <div key={ep.id} className="group flex gap-4 p-3 rounded-xl hover:bg-white/5 border border-transparent hover:border-white/5 transition-all">
-                                                        <div className="relative w-32 md:w-40 aspect-video shrink-0 rounded-lg overflow-hidden bg-white/5">
+                                                    <div 
+                                                        key={ep.id} 
+                                                        className={`group flex gap-4 p-3 rounded-xl border border-transparent transition-all relative ${userProfile.canWatch ? 'cursor-pointer hover:bg-white/10 hover:border-white/10' : 'hover:bg-white/5 hover:border-white/5'}`}
+                                                        onClick={() => {
+                                                            if (userProfile.canWatch) {
+                                                                setPlayParams({ season: ep.season_number, episode: ep.episode_number });
+                                                                setShowPlayer(true);
+                                                            }
+                                                        }}
+                                                    >
+                                                        <div className="relative w-32 md:w-40 aspect-video shrink-0 rounded-lg overflow-hidden bg-white/5 group-hover:shadow-lg transition-all">
                                                             <img src={ep.still_path ? `${TMDB_IMAGE_BASE}${ep.still_path}` : "https://placehold.co/300x170/111/333"} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 opacity-70 group-hover:opacity-100" alt={ep.name}/>
+                                                            {userProfile.canWatch && (
+                                                                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-black/40">
+                                                                    <div className="bg-red-600 rounded-full p-2 shadow-lg scale-75 group-hover:scale-100 transition-transform">
+                                                                        <Play size={16} fill="currentColor" className="text-white"/>
+                                                                    </div>
+                                                                </div>
+                                                            )}
                                                         </div>
                                                         <div className="flex-1 min-w-0 py-1">
-                                                            <div className="flex justify-between items-start mb-1"><h4 className="text-white font-bold text-sm truncate pr-2"><span className="text-red-500 mr-2">{ep.episode_number}.</span>{ep.name}</h4><span className="text-[10px] text-white/40">{ep.runtime || '?'}m</span></div>
+                                                            <div className="flex justify-between items-start mb-1"><h4 className="text-white font-bold text-sm truncate pr-2 group-hover:text-red-400 transition-colors"><span className="text-red-500 mr-2">{ep.episode_number}.</span>{ep.name}</h4><span className="text-[10px] text-white/40">{ep.runtime || '?'}m</span></div>
                                                             <p className="text-gray-400 text-xs line-clamp-2 leading-relaxed">{ep.overview || "No description available."}</p>
                                                         </div>
                                                     </div>
