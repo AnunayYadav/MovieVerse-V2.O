@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { UserCircle, X, Check, Settings, ShieldCheck, RefreshCcw, HelpCircle, Shield, FileText, Lock, LogOut, MessageSquare, Send, Calendar, Mail, Hash, Copy, User, BrainCircuit, Pencil, CheckCheck, Loader2, ChevronDown, PlayCircle, Palette, SkipForward, Globe } from 'lucide-react';
-import { UserProfile, MaturityRating, PlayerSettings } from '../types';
+import { UserCircle, X, Check, Settings, ShieldCheck, RefreshCcw, HelpCircle, Shield, FileText, Lock, LogOut, MessageSquare, Send, Calendar, Mail, User, BrainCircuit, Pencil, CheckCheck, Loader2, ChevronDown } from 'lucide-react';
+import { UserProfile, MaturityRating } from '../types';
 import { getSupabase, submitSupportTicket } from '../services/supabase';
-import { HARDCODED_TMDB_KEY, HARDCODED_GEMINI_KEY } from './Shared';
 
 interface SettingsModalProps {
     isOpen: boolean;
@@ -31,19 +30,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
     const [isEditingTmdb, setIsEditingTmdb] = useState(false);
     const [isEditingGemini, setIsEditingGemini] = useState(false);
-    
-    // Player Settings State
-    const [localPlayerSettings, setLocalPlayerSettings] = useState<PlayerSettings>({
-        autoplay: true,
-        skipIntro: true,
-        primaryColor: '#dc2626',
-        defaultAnimeType: 'sub'
-    });
 
     // Enhanced Account State
     const [userEmail, setUserEmail] = useState("");
     const [joinDate, setJoinDate] = useState("");
-    const [userId, setUserId] = useState("");
     const [provider, setProvider] = useState("Guest");
 
     // Help Form State
@@ -53,14 +43,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     const [sentSuccess, setSentSuccess] = useState(false);
     const [expandedFaq, setExpandedFaq] = useState<number | null>(null);
 
-    const PLAYER_COLORS = [
-        { name: 'Red', hex: '#dc2626' },
-        { name: 'Blue', hex: '#2563eb' },
-        { name: 'Purple', hex: '#9333ea' },
-        { name: 'Green', hex: '#16a34a' },
-        { name: 'Orange', hex: '#ea580c' },
-    ];
-
     useEffect(() => {
         if (isOpen) {
             setInputKey(hasCustomTmdb ? apiKey : "");
@@ -68,11 +50,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             setIsEditingTmdb(hasCustomTmdb);
             setIsEditingGemini(hasCustomGemini);
             
-            // Hydrate player settings if they exist, otherwise defaults
-            if (profile.playerSettings) {
-                setLocalPlayerSettings(profile.playerSettings);
-            }
-
             // Fetch real user data
             const fetchUser = async () => {
                 const supabase = getSupabase();
@@ -81,19 +58,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     if (user) {
                         setUserEmail(user.email || "No Email");
                         setJoinDate(new Date(user.created_at).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }));
-                        setUserId(user.id);
                         setProvider(user.app_metadata.provider || "Email");
                     } else {
                         // Guest Fallback
                         setUserEmail("guest@movieverse.ai");
                         setJoinDate("Just Now");
-                        setUserId(`guest-${Date.now()}`);
                         setProvider("Local Session");
                     }
                 } else {
                      setUserEmail("guest@movieverse.ai");
                      setJoinDate("Just Now");
-                     setUserId(`guest-${Date.now()}`);
                      setProvider("Local Session");
                 }
             };
@@ -104,22 +78,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     const handleSave = () => {
         setApiKey(isEditingTmdb ? inputKey : ""); 
         setGeminiKey(isEditingGemini ? inputGemini : "");
-        
-        // Save Player Settings to Profile
-        const updatedProfile = { ...profile, playerSettings: localPlayerSettings };
-        
-        // 1. Save to Local Storage immediately
-        localStorage.setItem('movieverse_profile', JSON.stringify(updatedProfile));
-        
-        // 2. Update Parent State (App.tsx)
-        // This will trigger the useEffect in App.tsx that calls syncUserData(), saving to cloud.
-        onUpdateProfile(updatedProfile);
-        
         onClose();
-    };
-
-    const copyToClipboard = (text: string) => {
-        navigator.clipboard.writeText(text);
     };
 
     const handleSendSupport = async () => {
@@ -145,7 +104,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
     const tabs = [
         { id: 'account', icon: UserCircle, label: 'Account' },
-        { id: 'player', icon: PlayCircle, label: 'Player' },
         { id: 'general', icon: Settings, label: 'General' },
         { id: 'restrictions', icon: Lock, label: 'Restrictions' },
         { id: 'help', icon: HelpCircle, label: 'Help' },
@@ -190,7 +148,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                           <div className="space-y-8 animate-in fade-in slide-in-from-right-4 max-w-2xl">
                               <div>
                                 <h3 className="text-2xl font-bold text-white mb-6">My Profile</h3>
-                                {/* Profile Card Code ... (Identical to previous) */}
+                                {/* Profile Card Code */}
                                 <div className="flex items-center gap-6 p-6 bg-gradient-to-br from-white/5 to-transparent rounded-2xl border border-white/5 mb-8">
                                     <div className="relative">
                                         <div className={`w-20 h-20 rounded-full flex items-center justify-center text-3xl font-bold text-white shrink-0 shadow-xl shadow-red-900/20 border-2 border-white/10 overflow-hidden ${profile.avatarBackground || "bg-gradient-to-br from-red-600 to-red-900"}`}>
@@ -239,99 +197,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                   <button onClick={() => { onClose(); onLogout?.(); }} className="flex items-center gap-2 text-sm text-white font-bold w-full justify-center p-4 rounded-xl bg-red-600 shadow-lg shadow-red-900/20 active:scale-95 transition-all">
                                       <LogOut size={18}/> Sign Out
                                   </button>
-                              </div>
-                          </div>
-                      )}
-
-                      {activeTab === 'player' && (
-                          <div className="space-y-8 animate-in fade-in slide-in-from-right-4 max-w-xl">
-                              <div>
-                                  <h3 className="text-2xl font-bold text-white mb-6">Player Preferences</h3>
-                                  <div className="space-y-4">
-                                      {/* Autoplay Toggle */}
-                                      <div className="flex items-center justify-between p-4 bg-white/5 rounded-xl border border-white/5">
-                                          <div className="flex items-center gap-4">
-                                              <div className="p-2 bg-green-500/20 rounded-lg text-green-400"><PlayCircle size={20}/></div>
-                                              <div>
-                                                  <p className="font-bold text-white text-sm">Autoplay Video</p>
-                                                  <p className="text-xs text-gray-400">Start playing immediately when loaded.</p>
-                                              </div>
-                                          </div>
-                                          <button 
-                                            onClick={() => setLocalPlayerSettings(p => ({...p, autoplay: !p.autoplay}))}
-                                            className={`w-12 h-6 rounded-full p-1 transition-colors duration-300 ${localPlayerSettings.autoplay ? 'bg-green-600' : 'bg-white/10'}`}
-                                          >
-                                              <div className={`w-4 h-4 bg-white rounded-full transition-transform duration-300 ${localPlayerSettings.autoplay ? 'translate-x-6' : 'translate-x-0'}`}></div>
-                                          </button>
-                                      </div>
-
-                                      {/* Skip Intro Toggle */}
-                                      <div className="flex items-center justify-between p-4 bg-white/5 rounded-xl border border-white/5">
-                                          <div className="flex items-center gap-4">
-                                              <div className="p-2 bg-purple-500/20 rounded-lg text-purple-400"><SkipForward size={20}/></div>
-                                              <div>
-                                                  <p className="font-bold text-white text-sm">Auto Skip Intro</p>
-                                                  <p className="text-xs text-gray-400">Skip anime openings automatically.</p>
-                                              </div>
-                                          </div>
-                                          <button 
-                                            onClick={() => setLocalPlayerSettings(p => ({...p, skipIntro: !p.skipIntro}))}
-                                            className={`w-12 h-6 rounded-full p-1 transition-colors duration-300 ${localPlayerSettings.skipIntro ? 'bg-purple-600' : 'bg-white/10'}`}
-                                          >
-                                              <div className={`w-4 h-4 bg-white rounded-full transition-transform duration-300 ${localPlayerSettings.skipIntro ? 'translate-x-6' : 'translate-x-0'}`}></div>
-                                          </button>
-                                      </div>
-
-                                      {/* Default Audio */}
-                                      <div className="flex items-center justify-between p-4 bg-white/5 rounded-xl border border-white/5">
-                                          <div className="flex items-center gap-4">
-                                              <div className="p-2 bg-blue-500/20 rounded-lg text-blue-400"><Globe size={20}/></div>
-                                              <div>
-                                                  <p className="font-bold text-white text-sm">Default Anime Audio</p>
-                                                  <p className="text-xs text-gray-400">Preferred language track.</p>
-                                              </div>
-                                          </div>
-                                          <div className="flex bg-black/40 rounded-lg p-1">
-                                               <button 
-                                                 onClick={() => setLocalPlayerSettings(p => ({...p, defaultAnimeType: 'sub'}))}
-                                                 className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${localPlayerSettings.defaultAnimeType === 'sub' ? 'bg-white text-black' : 'text-gray-400 hover:text-white'}`}
-                                               >
-                                                   Sub
-                                               </button>
-                                               <button 
-                                                 onClick={() => setLocalPlayerSettings(p => ({...p, defaultAnimeType: 'dub'}))}
-                                                 className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${localPlayerSettings.defaultAnimeType === 'dub' ? 'bg-white text-black' : 'text-gray-400 hover:text-white'}`}
-                                               >
-                                                   Dub
-                                               </button>
-                                          </div>
-                                      </div>
-
-                                      {/* Theme Color */}
-                                      <div className="p-4 bg-white/5 rounded-xl border border-white/5">
-                                          <div className="flex items-center gap-4 mb-4">
-                                              <div className="p-2 bg-pink-500/20 rounded-lg text-pink-400"><Palette size={20}/></div>
-                                              <div>
-                                                  <p className="font-bold text-white text-sm">Player Theme</p>
-                                                  <p className="text-xs text-gray-400">Accent color for controls and bars.</p>
-                                              </div>
-                                          </div>
-                                          <div className="flex gap-3">
-                                              {PLAYER_COLORS.map(c => (
-                                                  <button
-                                                    key={c.hex}
-                                                    onClick={() => setLocalPlayerSettings(p => ({...p, primaryColor: c.hex}))}
-                                                    className={`w-8 h-8 rounded-full border-2 transition-all ${localPlayerSettings.primaryColor === c.hex ? 'border-white scale-110' : 'border-transparent hover:border-white/50'}`}
-                                                    style={{ backgroundColor: c.hex }}
-                                                    title={c.name}
-                                                  />
-                                              ))}
-                                          </div>
-                                      </div>
-                                  </div>
-                              </div>
-                              <div className="pt-6">
-                                <button onClick={handleSave} className="w-full bg-white text-black font-bold py-4 rounded-xl transition-all hover:bg-gray-200 active:scale-[0.98]">Save Player Settings</button>
                               </div>
                           </div>
                       )}
@@ -433,7 +298,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                           </div>
                       )}
 
-                      {/* Restrictions, Help, Legal tabs remain similar... just ensuring context correctness */}
                       {activeTab === 'restrictions' && (
                           <div className="space-y-6 animate-in fade-in slide-in-from-right-4 max-w-xl">
                               <h3 className="text-2xl font-bold text-white mb-2">Content Restrictions</h3>

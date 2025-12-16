@@ -141,7 +141,6 @@ export const MovieModal: React.FC<MovieModalProps> = ({
                         initialSeason={isPlaying.season}
                         initialEpisode={isPlaying.episode}
                         onClose={() => setIsPlaying(false)} 
-                        settings={userProfile.playerSettings}
                     />
                 </div>
             </div>
