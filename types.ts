@@ -15,7 +15,7 @@ export interface Movie {
   popularity: number;
   genre_ids?: number[];
   genres?: Genre[];
-  media_type?: 'movie' | 'tv';
+  media_type?: 'movie' | 'tv' | 'person';
   runtime?: number;
   episode_run_time?: number[];
   adult?: boolean;
@@ -25,11 +25,29 @@ export interface Movie {
   rating?: number; // fallback
   certification?: string; // fallback
   ott?: any[]; // fallback
+  // Person specific
+  profile_path?: string | null;
+  known_for_department?: string;
+  known_for?: Movie[];
 }
 
 export interface Genre {
   id: number;
   name: string;
+}
+
+export interface Keyword {
+  id: number;
+  name: string;
+}
+
+export interface CollectionDetails {
+  id: number;
+  name: string;
+  overview: string;
+  poster_path: string;
+  backdrop_path: string;
+  parts: Movie[];
 }
 
 export interface MovieDetails extends Movie {
@@ -68,12 +86,27 @@ export interface MovieDetails extends Movie {
     results: Review[];
   };
   created_by?: Creator[];
+  keywords?: {
+    keywords?: Keyword[];
+    results?: Keyword[];
+  };
+  belongs_to_collection?: {
+    id: number;
+    name: string;
+    poster_path: string;
+    backdrop_path: string;
+  };
 }
 
 export interface Review {
   author: string;
   content: string;
   id: string;
+  created_at: string;
+  author_details?: {
+      rating?: number;
+      avatar_path?: string;
+  }
 }
 
 export interface Creator {

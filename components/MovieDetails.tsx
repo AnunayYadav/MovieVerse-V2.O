@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { X, Calendar, Clock, Star, Play, Bookmark, Heart, Share2, ListPlus, Tv, Clapperboard, User, Lightbulb, Sparkles, Loader2, Check, DollarSign, TrendingUp } from 'lucide-react';
-import { Movie, MovieDetails, Season, UserProfile } from '../types';
+import { X, Calendar, Clock, Star, Play, Bookmark, Heart, Share2, ListPlus, Tv, Clapperboard, User, Lightbulb, Sparkles, Loader2, Check, DollarSign, TrendingUp, Tag, Layers, MessageCircle } from 'lucide-react';
+import { Movie, MovieDetails, Season, UserProfile, Keyword, Review } from '../types';
 import { TMDB_BASE_URL, TMDB_IMAGE_BASE, TMDB_BACKDROP_BASE, formatCurrency, ImageLightbox } from '../components/Shared';
 import { generateTrivia, getSimilarMoviesAI } from '../services/gemini';
 
@@ -19,11 +19,14 @@ interface MovieModalProps {
     isWatched: boolean;
     onToggleWatched: (m: Movie) => void;
     userProfile: UserProfile;
+    onKeywordClick: (keyword: Keyword) => void;
+    onCollectionClick: (collectionId: number) => void;
 }
 
 export const MovieModal: React.FC<MovieModalProps> = ({ 
     movie, onClose, apiKey, onPersonClick, onToggleWatchlist, isWatchlisted, 
-    onSwitchMovie, onOpenListModal, onToggleFavorite, isFavorite, appRegion, isWatched, onToggleWatched, userProfile
+    onSwitchMovie, onOpenListModal, onToggleFavorite, isFavorite, appRegion, isWatched, onToggleWatched, userProfile,
+    onKeywordClick, onCollectionClick
 }) => {
     const [details, setDetails] = useState<MovieDetails | null>(null);
     const [loading, setLoading] = useState(false);
@@ -42,7 +45,8 @@ export const MovieModal: React.FC<MovieModalProps> = ({
         if (!apiKey || !movie.id) return;
         setLoading(true);
         const type = movie.media_type === 'tv' ? 'tv' : 'movie';
-        fetch(`${TMDB_BASE_URL}/${type}/${movie.id}?api_key=${apiKey}&append_to_response=credits,reviews,videos,release_dates,watch/providers,external_ids,similar,images,content_ratings,seasons`)
+        // Expanded to include keywords and updated reviews logic
+        fetch(`${TMDB_BASE_URL}/${type}/${movie.id}?api_key=${apiKey}&append_to_response=credits,reviews,videos,release_dates,watch/providers,external_ids,similar,images,content_ratings,seasons,keywords`)
             .then(res => { if (!res.ok) throw new Error("Fetch Error"); return res.json(); })
             .then(data => {
                 setDetails(data);
@@ -164,6 +168,9 @@ export const MovieModal: React.FC<MovieModalProps> = ({
     const mediaImages = displayData.images?.backdrops?.slice(0, 12) || [];
     const similarMovies = aiSimilar.length > 0 ? aiSimilar : (displayData.similar?.results?.slice(0, 5) || []);
 
+    // Keywords Logic (Unified for Movie and TV)
+    const keywords = displayData.keywords?.keywords || displayData.keywords?.results || [];
+
     return (
         <div className="fixed inset-0 z-[70] flex items-end md:items-center justify-center md:p-6 animate-in fade-in duration-300">
             {/* Backdrop with Blur */}
@@ -228,16 +235,56 @@ export const MovieModal: React.FC<MovieModalProps> = ({
                                 <p className="text-gray-300 leading-relaxed text-sm md:text-base">{displayData.overview}</p>
                             </div>
 
+                            {/* Collection Banner */}
+                            {displayData.belongs_to_collection && (
+                                <div 
+                                    className="relative rounded-2xl overflow-hidden cursor-pointer group border border-white/10 animate-in fade-in slide-in-from-right-4 duration-500 delay-300"
+                                    onClick={() => onCollectionClick(displayData.belongs_to_collection!.id)}
+                                >
+                                    <div className="absolute inset-0">
+                                        <img src={displayData.belongs_to_collection.backdrop_path ? `${TMDB_BACKDROP_BASE}${displayData.belongs_to_collection.backdrop_path}` : "https://placehold.co/1200x300/111/222"} className="w-full h-full object-cover opacity-50 group-hover:opacity-70 transition-opacity duration-500" alt="Collection" />
+                                        <div className="absolute inset-0 bg-gradient-to-r from-black/90 via-black/40 to-transparent"></div>
+                                    </div>
+                                    <div className="relative p-6 md:p-8 flex items-center justify-between">
+                                        <div>
+                                            <p className="text-red-400 font-bold text-xs uppercase tracking-widest mb-1 flex items-center gap-2"><Layers size={14}/> Franchise</p>
+                                            <h3 className="text-2xl md:text-3xl font-black text-white italic">Part of the {displayData.belongs_to_collection.name}</h3>
+                                            <button className="mt-4 px-5 py-2 bg-white/10 hover:bg-white text-white hover:text-black rounded-lg text-sm font-bold transition-all active:scale-95 flex items-center gap-2">
+                                                View Collection
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
                             {/* Tabs */}
                             <div className="animate-in fade-in slide-in-from-bottom-2 duration-500 delay-400">
-                                <div className="flex gap-8 border-b border-white/10 mb-6">
-                                    <button onClick={() => setActiveTab("details")} className={`pb-3 text-sm font-bold tracking-wide transition-all duration-300 ${activeTab === "details" ? "text-red-500 border-b-2 border-red-500" : "text-white/50 hover:text-white"}`}>DETAILS</button>
-                                    {(isTv || isAnime) && <button onClick={() => setActiveTab("episodes")} className={`pb-3 text-sm font-bold tracking-wide transition-all duration-300 ${activeTab === "episodes" ? "text-red-500 border-b-2 border-red-500" : "text-white/50 hover:text-white"}`}>EPISODES</button>}
-                                    <button onClick={() => setActiveTab("media")} className={`pb-3 text-sm font-bold tracking-wide transition-all duration-300 ${activeTab === "media" ? "text-red-500 border-b-2 border-red-500" : "text-white/50 hover:text-white"}`}>MEDIA</button>
+                                <div className="flex gap-8 border-b border-white/10 mb-6 overflow-x-auto hide-scrollbar">
+                                    <button onClick={() => setActiveTab("details")} className={`pb-3 text-sm font-bold tracking-wide transition-all duration-300 whitespace-nowrap ${activeTab === "details" ? "text-red-500 border-b-2 border-red-500" : "text-white/50 hover:text-white"}`}>DETAILS</button>
+                                    {(isTv || isAnime) && <button onClick={() => setActiveTab("episodes")} className={`pb-3 text-sm font-bold tracking-wide transition-all duration-300 whitespace-nowrap ${activeTab === "episodes" ? "text-red-500 border-b-2 border-red-500" : "text-white/50 hover:text-white"}`}>EPISODES</button>}
+                                    <button onClick={() => setActiveTab("media")} className={`pb-3 text-sm font-bold tracking-wide transition-all duration-300 whitespace-nowrap ${activeTab === "media" ? "text-red-500 border-b-2 border-red-500" : "text-white/50 hover:text-white"}`}>MEDIA</button>
+                                    {details?.reviews?.results && details.reviews.results.length > 0 && (
+                                        <button onClick={() => setActiveTab("reviews")} className={`pb-3 text-sm font-bold tracking-wide transition-all duration-300 whitespace-nowrap ${activeTab === "reviews" ? "text-red-500 border-b-2 border-red-500" : "text-white/50 hover:text-white"}`}>REVIEWS</button>
+                                    )}
                                 </div>
 
                                 {activeTab === "details" ? (
                                     <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+                                        {/* Keywords */}
+                                        {keywords.length > 0 && (
+                                            <div className="flex flex-wrap gap-2">
+                                                {keywords.map(kw => (
+                                                    <button 
+                                                        key={kw.id} 
+                                                        onClick={() => onKeywordClick(kw)}
+                                                        className="px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs text-gray-300 hover:text-white hover:border-red-500/50 hover:bg-red-500/10 transition-all flex items-center gap-1.5 active:scale-95"
+                                                    >
+                                                        <Tag size={12} className="opacity-50"/> {kw.name}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        )}
+
                                         {providers.length > 0 && (
                                             <div className="bg-gradient-to-br from-blue-900/10 to-transparent p-5 rounded-2xl border border-white/5">
                                                 <div className="flex justify-between items-center mb-4"><p className="text-blue-200/80 text-xs uppercase font-bold flex items-center gap-2"><Tv size={14} /> Available to Stream {regionLabel && `(${regionLabel})`}</p></div>
@@ -288,6 +335,32 @@ export const MovieModal: React.FC<MovieModalProps> = ({
                                                 </div>
                                             )}
                                         </div>
+                                    </div>
+                                ) : activeTab === "reviews" && details?.reviews?.results ? (
+                                    <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-300 max-h-[500px] overflow-y-auto custom-scrollbar pr-2">
+                                        {details.reviews.results.map(review => (
+                                            <div key={review.id} className="glass p-5 rounded-2xl">
+                                                <div className="flex justify-between items-start mb-3">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center font-bold text-white/50">
+                                                            {review.author_details?.avatar_path 
+                                                                ? <img src={review.author_details.avatar_path.startsWith('/http') ? review.author_details.avatar_path.substring(1) : `${TMDB_IMAGE_BASE}${review.author_details.avatar_path}`} className="w-full h-full object-cover rounded-full"/> 
+                                                                : review.author.charAt(0).toUpperCase()}
+                                                        </div>
+                                                        <div>
+                                                            <h4 className="text-white font-bold text-sm">{review.author}</h4>
+                                                            <p className="text-xs text-gray-500">{new Date(review.created_at).toLocaleDateString()}</p>
+                                                        </div>
+                                                    </div>
+                                                    {review.author_details?.rating && (
+                                                        <div className="px-2 py-1 bg-yellow-500/10 text-yellow-500 rounded-lg text-xs font-bold flex items-center gap-1">
+                                                            <Star size={10} fill="currentColor"/> {review.author_details.rating}/10
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                <p className="text-gray-300 text-sm leading-relaxed whitespace-pre-line line-clamp-6 hover:line-clamp-none transition-all">{review.content}</p>
+                                            </div>
+                                        ))}
                                     </div>
                                 ) : activeTab === "episodes" && (isTv || isAnime) ? (
                                     <div className="animate-in fade-in slide-in-from-right-4 duration-300 min-h-[300px]">

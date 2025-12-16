@@ -1,5 +1,5 @@
 import React from 'react';
-import { Film, Star, Check, Eye, Download, X } from 'lucide-react';
+import { Film, Star, Check, Eye, Download, X, User } from 'lucide-react';
 import { Movie } from '../types';
 
 export const TMDB_BASE_URL = "https://api.themoviedb.org/3";
@@ -243,5 +243,40 @@ export const MovieCard = React.forwardRef<HTMLDivElement, MovieCardProps>(({ mov
             </button>
         </div>
       </div>
+    );
+});
+
+interface PersonCardProps {
+    person: Movie; // Reusing Movie interface for person as it has profile_path and name
+    onClick: (p: any) => void;
+}
+
+export const PersonCard = React.forwardRef<HTMLDivElement, PersonCardProps>(({ person, onClick }, ref) => {
+    if (!person) return null;
+
+    const imageUrl = person.profile_path 
+      ? `${TMDB_IMAGE_BASE}${person.profile_path}`
+      : `https://placehold.co/500x750/111/444?text=${encodeURIComponent(person.name || "Person")}`;
+
+    return (
+        <div 
+            ref={ref}
+            className="group relative rounded-xl overflow-hidden cursor-pointer transition-all duration-500 hover:scale-105 hover:z-20 hover:shadow-xl hover:ring-1 hover:ring-white/20"
+            onClick={() => onClick(person.id)}
+        >
+            <div className="aspect-[2/3] overflow-hidden bg-white/5 relative">
+                <img 
+                    src={imageUrl} 
+                    alt={person.name} 
+                    loading="lazy"
+                    className="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-110"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-80" />
+                <div className="absolute bottom-0 left-0 w-full p-4">
+                     <h3 className="text-white font-bold text-lg leading-tight mb-1">{person.name}</h3>
+                     <p className="text-red-400 text-xs font-medium uppercase tracking-wider">{person.known_for_department || "Artist"}</p>
+                </div>
+            </div>
+        </div>
     );
 });

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Search, Film, Menu, TrendingUp, Tv, Ghost, Calendar, Star, X, Sparkles, Settings, Globe, BarChart3, Bookmark, Heart, Folder, Languages, Filter, ChevronDown, Info, Plus, Cloud, CloudOff, Clock, Bell, History } from 'lucide-react';
-import { Movie, UserProfile, GENRES_MAP, GENRES_LIST, INDIAN_LANGUAGES, MaturityRating } from './types';
-import { LogoLoader, MovieSkeleton, MovieCard, PosterMarquee, TMDB_BASE_URL, TMDB_BACKDROP_BASE, HARDCODED_TMDB_KEY, HARDCODED_GEMINI_KEY, getTmdbKey, getGeminiKey } from './components/Shared';
+import { Search, Film, Menu, TrendingUp, Tv, Ghost, Calendar, Star, X, Sparkles, Settings, Globe, BarChart3, Bookmark, Heart, Folder, Languages, Filter, ChevronDown, Info, Plus, Cloud, CloudOff, Clock, Bell, History, User, Users, Tag, Layers } from 'lucide-react';
+import { Movie, UserProfile, GENRES_MAP, GENRES_LIST, INDIAN_LANGUAGES, MaturityRating, Keyword } from './types';
+import { LogoLoader, MovieSkeleton, MovieCard, PersonCard, PosterMarquee, TMDB_BASE_URL, TMDB_BACKDROP_BASE, HARDCODED_TMDB_KEY, HARDCODED_GEMINI_KEY, getTmdbKey, getGeminiKey } from './components/Shared';
 import { MovieModal } from './components/MovieDetails';
 import { AnalyticsDashboard } from './components/Analytics';
 import { ProfileModal, ListSelectionModal, PersonModal, AIRecommendationModal, NotificationModal } from './components/Modals';
@@ -45,11 +45,16 @@ export default function App() {
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
 
-  // Filters
+  // Filters & View Modes
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [sortOption, setSortOption] = useState("popularity.desc");
   const [appRegion, setAppRegion] = useState("US");
-  const [currentCollection, setCurrentCollection] = useState<string | null>(null);
+  
+  // Advanced State for Deep Discovery
+  const [currentCollection, setCurrentCollection] = useState<string | null>(null); // For Preset Collections
+  const [tmdbCollectionId, setTmdbCollectionId] = useState<number | null>(null); // For TMDB Collection ID
+  const [activeKeyword, setActiveKeyword] = useState<Keyword | null>(null); // For Keyword Filtering
+  
   const [filterPeriod, setFilterPeriod] = useState("all");
   const [selectedRegion, setSelectedRegion] = useState("Global");
   const [selectedLanguage, setSelectedLanguage] = useState("All");
@@ -89,6 +94,13 @@ export default function App() {
     setLastNotificationId(null);
     setUserProfile({ name: "Guest", age: "", genres: [] });
   }, []);
+
+  const resetFilters = () => {
+      setSearchQuery("");
+      setCurrentCollection(null);
+      setTmdbCollectionId(null);
+      setActiveKeyword(null);
+  };
 
   // --- AUTH & INITIALIZATION ---
   useEffect(() => {
@@ -424,7 +436,7 @@ export default function App() {
             "certification.lte": maturityRating
         });
 
-        // SEARCH PATH
+        // 1. SEARCH PATH
         if (searchQuery) {
             if (pageNum === 1) {
                  try {
@@ -472,12 +484,42 @@ export default function App() {
             params.set("query", searchQuery);
         }
 
-        // STANDARD DISCOVERY PATH
+        // 2. TMDB COLLECTION PATH
+        else if (tmdbCollectionId) {
+            // Note: Collection endpoint doesn't support pagination directly like discover
+            const res = await fetchWithRetry(`${TMDB_BASE_URL}/collection/${tmdbCollectionId}?api_key=${apiKey}`, controller.signal);
+            const data = await res.json();
+            const parts = data.parts || [];
+            // Sort parts by release date usually makes sense for collections
+            const sortedParts = parts.sort((a: any, b: any) => new Date(a.release_date || "").getTime() - new Date(b.release_date || "").getTime());
+            
+            setMovies(sortedParts);
+            setLoading(false);
+            setHasMore(false); // Collections usually small enough for one page
+            return;
+        }
+
+        // 3. KEYWORD FILTER PATH
+        else if (activeKeyword) {
+            endpoint = "/discover/movie";
+            params.append("with_keywords", activeKeyword.id.toString());
+            params.append("sort_by", sortOption);
+        }
+
+        // 4. PRESET COLLECTION PATH
         else if (currentCollection && DEFAULT_COLLECTIONS[currentCollection]) {
             const colParams = DEFAULT_COLLECTIONS[currentCollection].params;
             Object.keys(colParams).forEach(key => params.append(key, colParams[key]));
             if (selectedRegion === "IN" && !colParams.with_origin_country) params.append("with_origin_country", "IN");
         } 
+        
+        // 5. POPULAR PEOPLE PATH
+        else if (selectedCategory === "People") {
+            endpoint = "/person/popular";
+            // params.delete("sort_by"); // popular people endpoint doesn't use sort_by in the same way
+        }
+        
+        // 6. STANDARD DISCOVERY PATH
         else if (selectedCategory === "ForYou") {
              params.set("sort_by", "popularity.desc");
              if (userProfile.genres && userProfile.genres.length > 0) {
@@ -510,23 +552,28 @@ export default function App() {
         }
 
         const res = await fetchWithRetry(`${TMDB_BASE_URL}${endpoint}?${params.toString()}`, controller.signal);
-        
         const data = await res.json();
         
         let results = data.results || [];
-        results = results.filter((m: any) => m.poster_path);
 
-        if (selectedCategory === "TV Shows" || selectedCategory === "Anime") {
-            results = results.map((m: any) => ({ ...m, media_type: 'tv', title: m.name, release_date: m.first_air_date }));
+        // Post-processing
+        if (selectedCategory === "People") {
+            // Keep people as is
+        } else {
+             results = results.filter((m: any) => m.poster_path);
+             if (selectedCategory === "TV Shows" || selectedCategory === "Anime") {
+                results = results.map((m: any) => ({ ...m, media_type: 'tv', title: m.name, release_date: m.first_air_date }));
+            }
         }
-
-        const finalResults = sortMovies(results, sortOption);
+        
+        // Only apply client-side sort for movies/tv, people order is usually good from API
+        const finalResults = selectedCategory === "People" ? results : sortMovies(results, sortOption);
 
         if (isLoadMore) {
             setMovies(prev => [...prev, ...finalResults]);
         } else {
             setMovies(finalResults);
-            if (!currentCollection && finalResults.length > 0 && !searchQuery) {
+            if (!currentCollection && !activeKeyword && !tmdbCollectionId && selectedCategory !== "People" && finalResults.length > 0 && !searchQuery) {
                 setFeaturedMovie(finalResults.find((m: Movie) => m.backdrop_path) || finalResults[0]);
             } else {
                 setFeaturedMovie(null);
@@ -540,15 +587,15 @@ export default function App() {
     } finally {
         if (!controller.signal.aborted) setLoading(false);
     }
-  }, [apiKey, searchQuery, selectedCategory, sortOption, appRegion, watchlist, favorites, watched, currentCollection, filterPeriod, selectedLanguage, selectedRegion, userProfile, maturityRating, sortMovies]);
+  }, [apiKey, searchQuery, selectedCategory, sortOption, appRegion, watchlist, favorites, watched, currentCollection, filterPeriod, selectedLanguage, selectedRegion, userProfile, maturityRating, sortMovies, tmdbCollectionId, activeKeyword]);
 
   // Debounced Search
   useEffect(() => {
      const timeout = setTimeout(() => {
          fetchMovies(1, false);
-     }, searchQuery ? 800 : 300); // Increased debounce for search to reduce API calls
+     }, searchQuery ? 800 : 300); 
      return () => clearTimeout(timeout);
-  }, [fetchMovies, searchQuery, selectedCategory, sortOption, appRegion, currentCollection, filterPeriod, selectedLanguage, selectedRegion, maturityRating]);
+  }, [fetchMovies, searchQuery, selectedCategory, sortOption, appRegion, currentCollection, filterPeriod, selectedLanguage, selectedRegion, maturityRating, tmdbCollectionId, activeKeyword]);
 
   // Suggestion Fetching
   useEffect(() => {
@@ -574,16 +621,30 @@ export default function App() {
   };
 
   const handleCollectionClick = (key: string) => {
+      resetFilters();
       setCurrentCollection(key);
       setSelectedCategory("Collection");
-      setSearchQuery("");
-      setFilterPeriod("all");
-      setSelectedRegion("Global");
-      setSelectedLanguage("All");
       setIsSidebarOpen(false);
   };
 
+  const handleTmdbCollectionClick = (id: number) => {
+      // Logic for Deep Discovery: Collection
+      setSelectedMovie(null);
+      resetFilters();
+      setTmdbCollectionId(id);
+      setSelectedCategory("Deep Dive");
+  };
+
+  const handleKeywordClick = (keyword: Keyword) => {
+      // Logic for Deep Discovery: Keyword
+      setSelectedMovie(null);
+      resetFilters();
+      setActiveKeyword(keyword);
+      setSelectedCategory("Deep Dive");
+  };
+
   const handleSearchSubmit = (query: string) => {
+      resetFilters();
       setSearchQuery(query);
       addToSearchHistory(query);
       setShowSuggestions(false);
@@ -630,13 +691,22 @@ export default function App() {
       );
   }
 
+  // Helper to determine title
+  const getPageTitle = () => {
+      if (tmdbCollectionId) return "Collection View";
+      if (activeKeyword) return `Tag: ${activeKeyword.name}`;
+      if (currentCollection) return "Curated Collection";
+      if (searchQuery) return `Results: ${searchQuery}`;
+      return selectedCategory === "All" ? "Trending Now" : selectedCategory;
+  }
+
   return (
     <div className="min-h-screen bg-[#030303] text-white font-sans selection:bg-red-500/30 selection:text-white">
       {/* Liquid Glass Navbar */}
       <nav className="fixed top-0 left-0 right-0 z-[60] bg-black/60 backdrop-blur-xl border-b border-white/5 h-16 flex items-center justify-between px-4 md:px-6 transition-all duration-300">
         <div className="flex items-center gap-4 md:gap-6">
            <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="md:hidden p-2 hover:bg-white/10 rounded-full transition-colors active:scale-95"><Menu size={20} /></button>
-           <div className="flex items-center gap-2 cursor-pointer group" onClick={() => {setSearchQuery(""); setSelectedCategory("All"); setCurrentCollection(null);}}>
+           <div className="flex items-center gap-2 cursor-pointer group" onClick={() => {resetFilters(); setSelectedCategory("All");}}>
                 <div className="relative">
                      <Film size={24} className="text-red-600 relative z-10 transition-transform duration-500 group-hover:rotate-12" />
                      <div className="absolute inset-0 bg-red-600 blur-lg opacity-50 group-hover:opacity-80 transition-opacity duration-500"></div>
@@ -645,10 +715,9 @@ export default function App() {
            </div>
            
            <div className="hidden md:flex items-center gap-1">
-               <button onClick={() => { setSelectedCategory("All"); setCurrentCollection(null); }} className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-300 hover:scale-105 active:scale-95 ${selectedCategory === "All" ? "bg-white text-black font-bold" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>Home</button>
-               <button onClick={() => { setSelectedCategory("TV Shows"); setCurrentCollection(null); }} className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-300 hover:scale-105 active:scale-95 ${selectedCategory === "TV Shows" ? "bg-white text-black font-bold" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>TV Shows</button>
-               <button onClick={() => { setSelectedCategory("Anime"); setCurrentCollection(null); }} className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-300 hover:scale-105 active:scale-95 ${selectedCategory === "Anime" ? "bg-white text-black font-bold" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>Anime</button>
-               <button onClick={() => { setSelectedCategory("ForYou"); setCurrentCollection(null); }} className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-300 hover:scale-105 active:scale-95 ${selectedCategory === "ForYou" ? "bg-gradient-to-r from-red-600 to-red-900 text-white font-bold shadow-lg shadow-red-900/40" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>For You</button>
+               <button onClick={() => { resetFilters(); setSelectedCategory("All"); }} className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-300 hover:scale-105 active:scale-95 ${selectedCategory === "All" && !activeKeyword && !tmdbCollectionId ? "bg-white text-black font-bold" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>Home</button>
+               <button onClick={() => { resetFilters(); setSelectedCategory("TV Shows"); }} className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-300 hover:scale-105 active:scale-95 ${selectedCategory === "TV Shows" ? "bg-white text-black font-bold" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>TV Shows</button>
+               <button onClick={() => { resetFilters(); setSelectedCategory("People"); }} className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-300 hover:scale-105 active:scale-95 ${selectedCategory === "People" ? "bg-white text-black font-bold" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>People</button>
            </div>
         </div>
         
@@ -657,7 +726,7 @@ export default function App() {
            <Search className={`absolute left-4 top-1/2 -translate-y-1/2 transition-colors duration-300 ${loading && searchQuery ? "text-red-400 animate-pulse" : "text-white/50 group-focus-within:text-white"}`} size={16} />
            <input 
               type="text" 
-              placeholder="Ask AI... (e.g., 'Movies like Interstellar')"
+              placeholder="Search movies, people, genres..."
               className={`w-full bg-black/40 border backdrop-blur-md rounded-full py-2.5 pl-11 pr-10 text-sm focus:outline-none transition-all duration-300 text-white placeholder-white/30 ${loading && searchQuery ? "border-red-500/50" : "border-white/10 focus:border-white/30 focus:bg-white/5 focus:shadow-[0_0_15px_rgba(255,255,255,0.1)]"}`} 
               value={searchQuery} 
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -739,33 +808,34 @@ export default function App() {
                <div className="mb-6 md:hidden">
                     <div className="relative">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40" size={16} />
-                        <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} onKeyDown={(e) => { if(e.key === 'Enter') handleSearchSubmit(searchQuery); }} placeholder="Search..." className="w-full bg-white/5 border border-white/10 rounded-xl py-3 pl-10 text-sm text-white focus:outline-none focus:border-red-600 transition-colors" />
+                        <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} onKeyDown={(e) => { if(e.key === 'Enter') handleSearchSubmit(searchQuery); }} placeholder="Search..." className="w-full bg-white/5 border border-white/10 rounded-xl py-3 pl-10 text-sm text-white focus:outline-none focus:border-red-600 focus:bg-white/5 transition-colors" />
                     </div>
                </div>
 
                <div className="space-y-6">
                    <div className="space-y-1">
                         <p className="text-xs font-bold text-white/40 uppercase tracking-wider mb-2 px-2">Discover</p>
-                        <button onClick={() => { setSelectedCategory("All"); setFilterPeriod("all"); setCurrentCollection(null); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 hover:translate-x-1 ${selectedCategory === "All" && filterPeriod === "all" ? 'bg-red-600/20 text-red-400' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}><TrendingUp size={18}/> Trending Now</button>
-                        <button onClick={() => { setSelectedCategory("TV Shows"); setCurrentCollection(null); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 hover:translate-x-1 ${selectedCategory === "TV Shows" ? 'bg-red-600/20 text-red-400' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}><Tv size={18}/> TV Shows</button>
-                        <button onClick={() => { setSelectedCategory("Anime"); setCurrentCollection(null); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 hover:translate-x-1 ${selectedCategory === "Anime" ? 'bg-red-600/20 text-red-400' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}><Ghost size={18}/> Anime</button>
-                        <button onClick={() => { setSortOption("vote_average.desc"); setSelectedCategory("All"); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 hover:translate-x-1 ${sortOption === "vote_average.desc" && selectedCategory === "All" ? 'bg-red-600/20 text-red-400' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}><Star size={18}/> Top Rated</button>
-                        <button onClick={() => { setFilterPeriod("future"); setSelectedCategory("All"); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 hover:translate-x-1 ${filterPeriod === "future" ? 'bg-red-600/20 text-red-400' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}><Calendar size={18}/> Coming Soon</button>
+                        <button onClick={() => { resetFilters(); setSelectedCategory("All"); setFilterPeriod("all"); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 hover:translate-x-1 ${selectedCategory === "All" && filterPeriod === "all" ? 'bg-red-600/20 text-red-400' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}><TrendingUp size={18}/> Trending Now</button>
+                        <button onClick={() => { resetFilters(); setSelectedCategory("People"); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 hover:translate-x-1 ${selectedCategory === "People" ? 'bg-red-600/20 text-red-400' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}><Users size={18}/> Popular People</button>
+                        <button onClick={() => { resetFilters(); setSelectedCategory("TV Shows"); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 hover:translate-x-1 ${selectedCategory === "TV Shows" ? 'bg-red-600/20 text-red-400' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}><Tv size={18}/> TV Shows</button>
+                        <button onClick={() => { resetFilters(); setSelectedCategory("Anime"); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 hover:translate-x-1 ${selectedCategory === "Anime" ? 'bg-red-600/20 text-red-400' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}><Ghost size={18}/> Anime</button>
+                        <button onClick={() => { resetFilters(); setSortOption("vote_average.desc"); setSelectedCategory("All"); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 hover:translate-x-1 ${sortOption === "vote_average.desc" && selectedCategory === "All" ? 'bg-red-600/20 text-red-400' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}><Star size={18}/> Top Rated</button>
+                        <button onClick={() => { resetFilters(); setFilterPeriod("future"); setSelectedCategory("All"); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 hover:translate-x-1 ${filterPeriod === "future" ? 'bg-red-600/20 text-red-400' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}><Calendar size={18}/> Coming Soon</button>
                    </div>
 
                    <div className="space-y-1">
                        <p className="text-xs font-bold text-white/40 uppercase tracking-wider mb-2 px-2">Library</p>
-                       <button onClick={() => { setSelectedCategory("Watchlist"); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 hover:translate-x-1 ${selectedCategory === "Watchlist" ? 'bg-red-600/20 text-red-400' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}><Bookmark size={18}/> Watchlist <span className="ml-auto text-xs opacity-50">{watchlist.length}</span></button>
-                       <button onClick={() => { setSelectedCategory("History"); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 hover:translate-x-1 ${selectedCategory === "History" ? 'bg-red-600/20 text-red-400' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}><History size={18}/> History <span className="ml-auto text-xs opacity-50">{watched.length}</span></button>
-                       <button onClick={() => { setSelectedCategory("Favorites"); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 hover:translate-x-1 ${selectedCategory === "Favorites" ? 'bg-red-600/20 text-red-400' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}><Heart size={18}/> Favorites <span className="ml-auto text-xs opacity-50">{favorites.length}</span></button>
-                       <button onClick={() => { setSelectedCategory("CineAnalytics"); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 hover:translate-x-1 ${selectedCategory === "CineAnalytics" ? 'bg-red-600/20 text-red-400' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}><BarChart3 size={18}/> Analytics</button>
+                       <button onClick={() => { resetFilters(); setSelectedCategory("Watchlist"); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 hover:translate-x-1 ${selectedCategory === "Watchlist" ? 'bg-red-600/20 text-red-400' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}><Bookmark size={18}/> Watchlist <span className="ml-auto text-xs opacity-50">{watchlist.length}</span></button>
+                       <button onClick={() => { resetFilters(); setSelectedCategory("History"); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 hover:translate-x-1 ${selectedCategory === "History" ? 'bg-red-600/20 text-red-400' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}><History size={18}/> History <span className="ml-auto text-xs opacity-50">{watched.length}</span></button>
+                       <button onClick={() => { resetFilters(); setSelectedCategory("Favorites"); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 hover:translate-x-1 ${selectedCategory === "Favorites" ? 'bg-red-600/20 text-red-400' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}><Heart size={18}/> Favorites <span className="ml-auto text-xs opacity-50">{favorites.length}</span></button>
+                       <button onClick={() => { resetFilters(); setSelectedCategory("CineAnalytics"); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 hover:translate-x-1 ${selectedCategory === "CineAnalytics" ? 'bg-red-600/20 text-red-400' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}><BarChart3 size={18}/> Analytics</button>
                    </div>
                    
                    {Object.keys(customLists).length > 0 && (
                        <div className="space-y-1">
                            <p className="text-xs font-bold text-white/40 uppercase tracking-wider mb-2 px-2">My Lists</p>
                            {Object.keys(customLists).map(listName => ( 
-                                <button key={listName} onClick={() => { setSelectedCategory(`Custom:${listName}`); setCurrentCollection(null); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 hover:translate-x-1 ${selectedCategory === `Custom:${listName}` ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}><Folder size={18} /> {listName} <span className="ml-auto text-xs opacity-50">{customLists[listName].length}</span></button> 
+                                <button key={listName} onClick={() => { resetFilters(); setSelectedCategory(`Custom:${listName}`); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 hover:translate-x-1 ${selectedCategory === `Custom:${listName}` ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}><Folder size={18} /> {listName} <span className="ml-auto text-xs opacity-50">{customLists[listName].length}</span></button> 
                             ))}
                        </div>
                    )}
@@ -783,7 +853,7 @@ export default function App() {
                             {GENRES_LIST.map(genre => (
                                 <button 
                                     key={genre}
-                                    onClick={() => { setSelectedCategory(genre); setFilterPeriod("all"); setCurrentCollection(null); setIsSidebarOpen(false); }}
+                                    onClick={() => { resetFilters(); setSelectedCategory(genre); setFilterPeriod("all"); setIsSidebarOpen(false); }}
                                     className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all duration-300 hover:scale-105 active:scale-95 ${selectedCategory === genre ? 'bg-red-600 text-white border-red-600 shadow-md shadow-red-900/40' : 'bg-white/5 border-white/5 text-gray-400 hover:text-white hover:border-white/20'}`}
                                 >
                                     {genre}
@@ -836,6 +906,7 @@ export default function App() {
                        </div> 
                    )}
 
+                   {/* Preset Collection Header */}
                    {currentCollection && DEFAULT_COLLECTIONS[currentCollection] && (
                       <div className="relative w-full h-[40vh] md:h-[50vh] overflow-hidden">
                           <img src={DEFAULT_COLLECTIONS[currentCollection].backdrop} className="w-full h-full object-cover animate-in fade-in duration-700" alt={DEFAULT_COLLECTIONS[currentCollection].title} />
@@ -852,7 +923,7 @@ export default function App() {
                        <div className="sticky top-20 z-50">
                             <div className="glass-panel p-2 rounded-2xl flex flex-wrap md:flex-nowrap gap-4 md:items-center justify-between mb-8 z-30 relative overflow-visible shadow-2xl animate-in slide-in-from-top-5 duration-500">
                                 <div className="flex items-center gap-2 px-2 shrink-0 w-full md:w-auto overflow-hidden">
-                                     <h2 className="text-xl font-bold text-white whitespace-nowrap truncate">{currentCollection ? "Collection Items" : selectedCategory === "All" && !searchQuery ? "Trending Now" : searchQuery ? `Results: ${searchQuery}` : selectedCategory}</h2>
+                                     <h2 className="text-xl font-bold text-white whitespace-nowrap truncate">{getPageTitle()}</h2>
                                      <span className="text-xs font-medium text-white/40 bg-white/5 px-2 py-0.5 rounded-md border border-white/5 shrink-0">{movies.length}</span>
                                 </div>
                                 <div className="flex items-center gap-2 shrink-0 overflow-visible pb-1 md:pb-0 w-full md:w-auto flex-wrap md:flex-nowrap">
@@ -896,6 +967,7 @@ export default function App() {
                             </div>
                        </div>
                        
+                       {/* Contextual Headers */}
                        {aiContextReason && searchQuery && (
                            <div className="flex items-center gap-3 bg-red-900/10 border border-red-500/20 p-4 rounded-xl backdrop-blur-md animate-in fade-in slide-in-from-top-2 duration-500">
                                <div className="bg-red-500/10 p-2 rounded-lg text-red-400 animate-pulse"><Sparkles size={18}/></div>
@@ -906,17 +978,35 @@ export default function App() {
                            </div>
                        )}
 
+                       {/* Keyword Header */}
+                       {activeKeyword && (
+                           <div className="flex items-center justify-between bg-white/5 border border-white/5 p-6 rounded-2xl animate-in fade-in slide-in-from-top-2">
+                               <div>
+                                   <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1 flex items-center gap-2"><Tag size={12}/> Tag Explorer</p>
+                                   <h2 className="text-3xl font-bold text-white">{activeKeyword.name}</h2>
+                               </div>
+                               <button onClick={resetFilters} className="text-xs font-bold text-red-400 hover:text-red-300 transition-colors">Clear Filter</button>
+                           </div>
+                       )}
+
                        <PosterMarquee movies={!searchQuery && selectedCategory === "All" && !currentCollection && movies.length > 0 ? movies : []} onMovieClick={setSelectedMovie} />
 
                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-x-4 gap-y-8 animate-in fade-in duration-700">
                            {movies.map((movie, idx) => (
                                <div key={`${movie.id}-${idx}`} ref={idx === movies.length - 1 ? lastMovieElementRef : null} className="animate-in fade-in zoom-in-95 duration-500" style={{ animationDelay: `${idx * 50}ms` }}>
-                                    <MovieCard 
-                                        movie={movie} 
-                                        onClick={setSelectedMovie} 
-                                        isWatched={watched.some(m => m.id === movie.id)} 
-                                        onToggleWatched={(m) => toggleList(watched, setWatched, 'movieverse_watched', m)} 
-                                    />
+                                    {selectedCategory === "People" ? (
+                                        <PersonCard 
+                                            person={movie}
+                                            onClick={(id) => setSelectedPersonId(id)}
+                                        />
+                                    ) : (
+                                        <MovieCard 
+                                            movie={movie} 
+                                            onClick={setSelectedMovie} 
+                                            isWatched={watched.some(m => m.id === movie.id)} 
+                                            onToggleWatched={(m) => toggleList(watched, setWatched, 'movieverse_watched', m)} 
+                                        />
+                                    )}
                                </div>
                            ))}
                            {loading && [...Array(12)].map((_, i) => <MovieSkeleton key={`skel-${i}`} />)}
@@ -925,7 +1015,7 @@ export default function App() {
                        {!loading && movies.length === 0 && (
                            <div className="text-center py-20 opacity-50 flex flex-col items-center animate-in fade-in zoom-in">
                                <Ghost size={48} className="mb-4 text-white/20"/>
-                               <p>No movies found. Try adjusting filters.</p>
+                               <p>No results found. Try adjusting filters.</p>
                            </div>
                        )}
 
@@ -963,6 +1053,8 @@ export default function App() {
             onOpenListModal={(m) => { setListModalMovie(m); setIsListModalOpen(true); }}
             appRegion={appRegion}
             userProfile={userProfile}
+            onKeywordClick={handleKeywordClick}
+            onCollectionClick={handleTmdbCollectionClick}
           />
       )}
 
