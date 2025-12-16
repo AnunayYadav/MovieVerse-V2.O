@@ -145,7 +145,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       <button onClick={onClose} className="hidden md:block absolute top-6 right-6 text-gray-400 hover:text-white p-2 bg-white/5 rounded-full hover:bg-white/10 transition-colors"><X size={20}/></button>
                       
                       {activeTab === 'account' && (
-                          <div className="space-y-8 animate-in fade-in slide-in-from-right-4 max-w-2xl">
+                          <div className="space-y-8 animate-in fade-in slide-in-from-right-4 max-w-3xl">
                               <div>
                                 <h3 className="text-2xl font-bold text-white mb-6">My Profile</h3>
                                 {/* Profile Card Code */}
@@ -168,20 +168,27 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                         </p>
                                     </div>
                                 </div>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                     <div className="p-4 bg-white/5 rounded-xl border border-white/5 hover:border-white/10 transition-colors group">
                                         <div className="flex items-center gap-3 mb-2">
                                             <div className="p-2 bg-blue-500/10 rounded-lg text-blue-400"><Mail size={18}/></div>
-                                            <span className="text-xs font-bold text-white/40 uppercase tracking-wider">Email Address</span>
+                                            <span className="text-xs font-bold text-white/40 uppercase tracking-wider">Email</span>
                                         </div>
-                                        <p className="text-white font-medium truncate" title={userEmail}>{userEmail}</p>
+                                        <p className="text-white font-medium truncate text-sm" title={userEmail}>{userEmail}</p>
                                     </div>
                                     <div className="p-4 bg-white/5 rounded-xl border border-white/5 hover:border-white/10 transition-colors">
                                         <div className="flex items-center gap-3 mb-2">
                                             <div className="p-2 bg-purple-500/10 rounded-lg text-purple-400"><Calendar size={18}/></div>
-                                            <span className="text-xs font-bold text-white/40 uppercase tracking-wider">Member Since</span>
+                                            <span className="text-xs font-bold text-white/40 uppercase tracking-wider">Joined</span>
                                         </div>
-                                        <p className="text-white font-medium">{joinDate}</p>
+                                        <p className="text-white font-medium text-sm">{joinDate}</p>
+                                    </div>
+                                    <div className="p-4 bg-white/5 rounded-xl border border-white/5 hover:border-white/10 transition-colors">
+                                        <div className="flex items-center gap-3 mb-2">
+                                            <div className="p-2 bg-green-500/10 rounded-lg text-green-400"><User size={18}/></div>
+                                            <span className="text-xs font-bold text-white/40 uppercase tracking-wider">Age</span>
+                                        </div>
+                                        <p className="text-white font-medium text-sm">{profile.age || "N/A"}</p>
                                     </div>
                                 </div>
                               </div>
