@@ -100,7 +100,8 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, pro
              return;
         }
         
-        onSave({ name, age, genres: selectedGenres, avatar, avatarBackground: avatarBg });
+        // Use spread to preserve existing properties like playerSettings
+        onSave({ ...profile, name, age, genres: selectedGenres, avatar, avatarBackground: avatarBg });
         onClose();
     };
 
