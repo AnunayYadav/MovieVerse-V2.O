@@ -205,6 +205,7 @@ export interface UserProfile {
   avatar?: string;
   avatarBackground?: string;
   canWatch?: boolean; // New Flag for Restricted Access
+  theme?: 'default' | 'gold'; // Theme preference for exclusive users
 }
 
 export interface AIAnalysisResult {

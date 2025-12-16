@@ -22,7 +22,8 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, pro
     const [error, setError] = useState("");
     
     const fileInputRef = useRef<HTMLInputElement>(null);
-    const isPremium = profile.canWatch === true;
+    const isExclusive = profile.canWatch === true;
+    const isGoldTheme = isExclusive && profile.theme !== 'default';
   
     useEffect(() => {
         if (isOpen) {
@@ -30,10 +31,10 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, pro
             setAge(profile.age || "");
             setSelectedGenres(profile.genres || []);
             setAvatar(profile.avatar || "");
-            setAvatarBg(profile.avatarBackground || (isPremium ? "bg-gradient-to-br from-amber-500 to-yellow-900" : "bg-gradient-to-br from-red-600 to-red-900"));
+            setAvatarBg(profile.avatarBackground || (isGoldTheme ? "bg-gradient-to-br from-amber-500 to-yellow-900" : "bg-gradient-to-br from-red-600 to-red-900"));
             setError("");
         }
-    }, [isOpen, profile, isPremium]);
+    }, [isOpen, profile, isGoldTheme]);
     
     const AVATARS = [
         { seed: "Felix", name: "Maverick" },
@@ -47,12 +48,12 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, pro
     ];
 
     const BACKGROUNDS = [
-        { id: "default", class: isPremium ? "bg-gradient-to-br from-amber-500 to-yellow-900" : "bg-gradient-to-br from-red-600 to-red-900", name: "Default" },
+        { id: "default", class: isGoldTheme ? "bg-gradient-to-br from-amber-500 to-yellow-900" : "bg-gradient-to-br from-red-600 to-red-900", name: "Default" },
         { id: "dark", class: "bg-gradient-to-br from-gray-900 to-black", name: "Dark Void" },
         { id: "crimson", class: "bg-gradient-to-br from-red-950 to-black", name: "Blood Moon" },
         { id: "steel", class: "bg-gradient-to-br from-zinc-700 to-zinc-900", name: "Dark Metal" },
         { id: "abyss", class: "bg-black", name: "Abyss" },
-        ...(isPremium ? [{ id: "gold", class: "bg-gradient-to-br from-yellow-400 via-amber-500 to-yellow-700", name: "Pure Gold" }] : [])
+        ...(isExclusive ? [{ id: "gold", class: "bg-gradient-to-br from-yellow-400 via-amber-500 to-yellow-700", name: "Pure Gold" }] : [])
     ];
   
     const toggleGenre = (genre: string) => {
@@ -134,7 +135,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, pro
                             <label className="text-xs font-bold text-gray-400 uppercase tracking-wider block">Avatar & Style</label>
                             <div className="flex justify-center md:justify-start">
                                 <div className="relative group">
-                                    <div className={`w-28 h-28 rounded-full flex items-center justify-center text-4xl font-bold text-white shadow-2xl overflow-hidden border-2 transition-colors duration-500 ${avatarBg} ${isPremium ? 'border-amber-500/50 shadow-amber-900/30' : 'border-white/10 shadow-black/50'}`}>
+                                    <div className={`w-28 h-28 rounded-full flex items-center justify-center text-4xl font-bold text-white shadow-2xl overflow-hidden border-2 transition-colors duration-500 ${avatarBg} ${isGoldTheme ? 'border-amber-500/50 shadow-amber-900/30' : 'border-white/10 shadow-black/50'}`}>
                                         {avatar ? <img src={avatar} className="w-full h-full object-cover animate-in fade-in duration-500" alt="avatar"/> : name.charAt(0).toUpperCase()}
                                     </div>
                                     <div className="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer border-2 border-white/30 duration-300" onClick={() => setAvatar("")}>
@@ -162,7 +163,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, pro
                             <div className="grid grid-cols-4 gap-2">
                                 {AVATARS.map(av => (
                                     <button key={av.seed} onClick={() => selectAvatar(av.seed)} className={`flex flex-col items-center gap-1 group transition-transform active:scale-95`}>
-                                        <div className={`w-10 h-10 rounded-full overflow-hidden border-2 transition-all duration-300 bg-black/40 ${avatar.includes(av.seed) ? (isPremium ? 'border-amber-500 scale-110' : 'border-red-500 scale-110') : 'border-transparent group-hover:border-white/30 group-hover:scale-105'}`}>
+                                        <div className={`w-10 h-10 rounded-full overflow-hidden border-2 transition-all duration-300 bg-black/40 ${avatar.includes(av.seed) ? (isGoldTheme ? 'border-amber-500 scale-110' : 'border-red-500 scale-110') : 'border-transparent group-hover:border-white/30 group-hover:scale-105'}`}>
                                              <img src={`https://api.dicebear.com/9.x/avataaars/svg?seed=${av.seed}`} alt={av.name} />
                                         </div>
                                         <span className={`text-[9px] font-bold uppercase tracking-wide transition-colors ${avatar.includes(av.seed) ? 'text-white' : 'text-gray-600'}`}>{av.name}</span>
@@ -176,14 +177,14 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, pro
                                 <label className="text-xs font-bold text-gray-400 uppercase tracking-wider ml-1">Display Name</label>
                                 <div className="relative group">
                                     <UserCircle size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30 group-focus-within:text-white transition-colors duration-300"/>
-                                    <input type="text" value={name} onChange={(e) => setName(e.target.value)} className={`w-full bg-white/5 border border-white/10 rounded-xl py-3 pl-10 pr-4 text-white focus:bg-white/10 focus:outline-none transition-all duration-300 text-sm hover:border-white/20 ${isPremium ? 'focus:border-amber-500' : 'focus:border-red-500'}`} placeholder="Your Name" />
+                                    <input type="text" value={name} onChange={(e) => setName(e.target.value)} className={`w-full bg-white/5 border border-white/10 rounded-xl py-3 pl-10 pr-4 text-white focus:bg-white/10 focus:outline-none transition-all duration-300 text-sm hover:border-white/20 ${isGoldTheme ? 'focus:border-amber-500' : 'focus:border-red-500'}`} placeholder="Your Name" />
                                 </div>
                             </div>
                             <div className="space-y-1.5">
                                 <label className="text-xs font-bold text-gray-400 uppercase tracking-wider ml-1">Age</label>
                                 <div className="relative group">
                                     <UserCircle size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30 group-focus-within:text-white transition-colors duration-300"/>
-                                    <input type="number" value={age} min="10" max="120" onChange={(e) => { const val = parseInt(e.target.value); if (!e.target.value || (val >= 0 && val <= 130)) { setAge(e.target.value); }}} className={`w-full bg-white/5 border border-white/10 rounded-xl py-3 pl-10 pr-4 text-white focus:bg-white/10 focus:outline-none transition-all duration-300 text-sm hover:border-white/20 ${isPremium ? 'focus:border-amber-500' : 'focus:border-red-500'}`} placeholder="10-120" />
+                                    <input type="number" value={age} min="10" max="120" onChange={(e) => { const val = parseInt(e.target.value); if (!e.target.value || (val >= 0 && val <= 130)) { setAge(e.target.value); }}} className={`w-full bg-white/5 border border-white/10 rounded-xl py-3 pl-10 pr-4 text-white focus:bg-white/10 focus:outline-none transition-all duration-300 text-sm hover:border-white/20 ${isGoldTheme ? 'focus:border-amber-500' : 'focus:border-red-500'}`} placeholder="10-120" />
                                 </div>
                             </div>
                         </div>
@@ -193,7 +194,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, pro
                     <div className="flex-1 space-y-6">
                         <div className="bg-white/5 rounded-2xl p-6 border border-white/5 h-full">
                             <div className="flex justify-between items-center mb-4">
-                                <h3 className="text-sm font-bold text-white flex items-center gap-2"><Heart size={16} className={isPremium ? "text-amber-500" : "text-red-500"}/> Content Interests</h3>
+                                <h3 className="text-sm font-bold text-white flex items-center gap-2"><Heart size={16} className={isGoldTheme ? "text-amber-500" : "text-red-500"}/> Content Interests</h3>
                                 <span className={`text-xs font-bold px-2 py-0.5 rounded-md transition-colors duration-300 ${selectedGenres.length >= 3 ? 'bg-green-500/20 text-green-400' : 'bg-yellow-500/20 text-yellow-400'}`}>
                                     {selectedGenres.length} Selected
                                 </span>
@@ -205,7 +206,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, pro
                                     <button 
                                     key={genre}
                                     onClick={() => toggleGenre(genre)}
-                                    className={`px-3 py-2 rounded-lg text-xs font-bold transition-all duration-300 border flex items-center gap-2 active:scale-95 ${selectedGenres.includes(genre) ? (isPremium ? 'bg-amber-500 border-amber-500 text-black shadow-lg shadow-amber-500/30' : 'bg-red-600 border-red-600 text-white shadow-lg shadow-red-900/30') : 'bg-black/40 border-white/10 text-gray-400 hover:border-white/30 hover:text-white hover:bg-white/5'}`}
+                                    className={`px-3 py-2 rounded-lg text-xs font-bold transition-all duration-300 border flex items-center gap-2 active:scale-95 ${selectedGenres.includes(genre) ? (isGoldTheme ? 'bg-amber-500 border-amber-500 text-black shadow-lg shadow-amber-500/30' : 'bg-red-600 border-red-600 text-white shadow-lg shadow-red-900/30') : 'bg-black/40 border-white/10 text-gray-400 hover:border-white/30 hover:text-white hover:bg-white/5'}`}
                                     >
                                         {genre}
                                         {selectedGenres.includes(genre) && <Check size={12} className="animate-in zoom-in duration-200"/>}
@@ -220,7 +221,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, pro
              {/* Footer */}
              <div className="p-6 border-t border-white/5 bg-black/20 flex justify-end gap-3">
                  <button onClick={onClose} className="px-6 py-3 rounded-xl text-sm font-bold text-gray-400 hover:text-white hover:bg-white/5 transition-all duration-300">Cancel</button>
-                 <button onClick={handleSave} className={`px-8 py-3 bg-white text-black font-bold rounded-xl transition-all duration-300 active:scale-[0.98] shadow-lg hover:shadow-white/20 ${isPremium ? 'bg-gradient-to-r from-amber-500 to-yellow-500 text-black hover:to-amber-400' : 'bg-white hover:bg-gray-200'}`}>
+                 <button onClick={handleSave} className={`px-8 py-3 bg-white text-black font-bold rounded-xl transition-all duration-300 active:scale-[0.98] shadow-lg hover:shadow-white/20 ${isGoldTheme ? 'bg-gradient-to-r from-amber-500 to-yellow-500 text-black hover:to-amber-400' : 'bg-white hover:bg-gray-200'}`}>
                      Save Changes
                  </button>
              </div>
@@ -638,7 +639,8 @@ interface NotificationModalProps {
 export const NotificationModal: React.FC<NotificationModalProps> = ({ isOpen, onClose, onUpdate, userProfile }) => {
     const [notifications, setNotifications] = useState<AppNotification[]>([]);
     const [loading, setLoading] = useState(false);
-    const isPremium = userProfile?.canWatch === true;
+    const isExclusive = userProfile?.canWatch === true;
+    const isGoldTheme = isExclusive && userProfile?.theme !== 'default';
 
     useEffect(() => {
         if (isOpen) {
@@ -666,7 +668,7 @@ export const NotificationModal: React.FC<NotificationModalProps> = ({ isOpen, on
         <div className="fixed top-16 right-4 md:right-20 z-[90] w-80 animate-in slide-in-from-top-2 fade-in zoom-in-95 duration-200">
             <div className="glass-panel rounded-xl overflow-hidden shadow-2xl border border-white/10">
                 <div className="p-4 border-b border-white/5 flex justify-between items-center bg-black/40">
-                    <h3 className="text-sm font-bold text-white flex items-center gap-2"><Bell size={14} className={isPremium ? "text-amber-500" : "text-red-500"}/> Notifications</h3>
+                    <h3 className="text-sm font-bold text-white flex items-center gap-2"><Bell size={14} className={isGoldTheme ? "text-amber-500" : "text-red-500"}/> Notifications</h3>
                     <div className="flex items-center gap-3">
                          <button 
                             onClick={loadNotifications} 
@@ -683,7 +685,7 @@ export const NotificationModal: React.FC<NotificationModalProps> = ({ isOpen, on
                 <div className="max-h-80 overflow-y-auto custom-scrollbar min-h-[150px]">
                     {loading ? (
                          <div className="flex flex-col items-center justify-center h-40 gap-3">
-                            <Loader2 size={24} className={`animate-spin ${isPremium ? 'text-amber-500' : 'text-red-500'}`}/>
+                            <Loader2 size={24} className={`animate-spin ${isGoldTheme ? 'text-amber-500' : 'text-red-500'}`}/>
                             <p className="text-xs text-gray-500 font-medium">Checking updates...</p>
                          </div>
                     ) : notifications.length === 0 ? (
@@ -696,7 +698,7 @@ export const NotificationModal: React.FC<NotificationModalProps> = ({ isOpen, on
                             <div key={n.id} className={`p-4 border-b border-white/5 hover:bg-white/5 transition-colors ${!n.read ? 'bg-white/5' : ''}`}>
                                 <div className="flex justify-between items-start mb-1 gap-2">
                                     <p className={`text-sm leading-snug ${!n.read ? 'text-white font-bold' : 'text-gray-300'}`}>{n.title}</p>
-                                    {!n.read && <div className={`w-2 h-2 rounded-full mt-1.5 shrink-0 animate-pulse ${isPremium ? 'bg-amber-500' : 'bg-red-500'}`}></div>}
+                                    {!n.read && <div className={`w-2 h-2 rounded-full mt-1.5 shrink-0 animate-pulse ${isGoldTheme ? 'bg-amber-500' : 'bg-red-500'}`}></div>}
                                 </div>
                                 <p className="text-xs text-gray-400 mb-1 line-clamp-2">{n.message}</p>
                                 <p className="text-[10px] text-gray-600">{n.time}</p>
@@ -709,7 +711,7 @@ export const NotificationModal: React.FC<NotificationModalProps> = ({ isOpen, on
                     <div className="p-3 text-center bg-black/40 border-t border-white/5">
                         <button 
                             onClick={handleMarkAllRead}
-                            className={`text-xs transition-colors flex items-center justify-center gap-1 w-full hover:underline ${isPremium ? 'text-amber-400 hover:text-amber-300' : 'text-red-400 hover:text-red-300'}`}
+                            className={`text-xs transition-colors flex items-center justify-center gap-1 w-full hover:underline ${isGoldTheme ? 'text-amber-400 hover:text-amber-300' : 'text-red-400 hover:text-red-300'}`}
                         >
                             <CheckCheck size={12}/> Mark all as read
                         </button>
