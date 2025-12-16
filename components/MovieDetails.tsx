@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { X, Calendar, Clock, Star, Play, PlayCircle, Bookmark, Heart, Share2, ListPlus, Eye, Tv, Clapperboard, User, ImageIcon, Lightbulb, ShieldAlert, Sparkles, Loader2, Check, DollarSign, TrendingUp, Globe } from 'lucide-react';
+import { X, Calendar, Clock, Star, Play, Bookmark, Heart, Share2, ListPlus, Tv, Clapperboard, User, Lightbulb, Sparkles, Loader2, Check, DollarSign, TrendingUp } from 'lucide-react';
 import { Movie, MovieDetails, Season, UserProfile } from '../types';
 import { TMDB_BASE_URL, TMDB_IMAGE_BASE, TMDB_BACKDROP_BASE, formatCurrency, ImageLightbox } from '../components/Shared';
 import { generateTrivia, getSimilarMoviesAI } from '../services/gemini';
-import { MoviePlayer } from './MoviePlayer';
 
 interface MovieModalProps {
     movie: Movie;
@@ -34,7 +33,6 @@ export const MovieModal: React.FC<MovieModalProps> = ({
     const [activeTab, setActiveTab] = useState("details");
     const [aiSimilar, setAiSimilar] = useState<Movie[]>([]);
     const [loadingAiSimilar, setLoadingAiSimilar] = useState(false);
-    const [isPlaying, setIsPlaying] = useState<{ season: number, episode: number } | false>(false);
     const [selectedSeason, setSelectedSeason] = useState(1);
     const [seasonData, setSeasonData] = useState<Season | null>(null);
     const [loadingSeason, setLoadingSeason] = useState(false);
@@ -62,7 +60,6 @@ export const MovieModal: React.FC<MovieModalProps> = ({
         // Reset states
         setTrivia("");
         setAiSimilar([]);
-        setIsPlaying(false);
         setActiveTab("details");
         setSeasonData(null);
 
@@ -128,24 +125,6 @@ export const MovieModal: React.FC<MovieModalProps> = ({
         if (trailer) window.open(`https://www.youtube.com/watch?v=${trailer}`, '_blank');
         else window.open(`https://www.youtube.com/results?search_query=${encodeURIComponent(movie.title + " trailer")}`, '_blank');
     };
-
-    if (isPlaying) {
-        return (
-            <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/95 backdrop-blur-2xl animate-in fade-in duration-500">
-                <div className="w-full h-full md:h-auto md:aspect-video md:max-w-6xl bg-black md:rounded-2xl overflow-hidden shadow-2xl border border-white/10 relative flex flex-col animate-in zoom-in-95 duration-500">
-                    <MoviePlayer 
-                        tmdbId={movie.id} 
-                        imdbId={details?.external_ids?.imdb_id} 
-                        mediaType={movie.media_type || 'movie'} 
-                        isAnime={details?.genres?.some(g => g.id === 16) && (details as any).original_language === 'ja'}
-                        initialSeason={isPlaying.season}
-                        initialEpisode={isPlaying.episode}
-                        onClose={() => setIsPlaying(false)} 
-                    />
-                </div>
-            </div>
-        );
-    }
 
     const displayData = { ...movie, ...details } as MovieDetails;
     const isTv = movie.media_type === 'tv';
@@ -217,8 +196,7 @@ export const MovieModal: React.FC<MovieModalProps> = ({
                                     {displayData.vote_average && <span className="flex items-center gap-1.5"><Star size={14} className="text-yellow-500" fill="currentColor"/> {displayData.vote_average.toFixed(1)}</span>}
                                 </div>
                                 <div className="flex flex-wrap gap-3 mt-2">
-                                    <button onClick={() => setIsPlaying({ season: 1, episode: 1 })} className="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-8 rounded-xl transition-all flex items-center gap-2 shadow-lg shadow-red-900/20 active:scale-95 hover:shadow-red-900/40"><PlayCircle size={20} fill="currentColor" /> {isTv ? "Start Watching" : "Watch Now"}</button>
-                                    <button onClick={handleTrailerClick} className="glass hover:bg-white/10 text-white font-bold py-3 px-6 rounded-xl transition-all flex items-center gap-2 active:scale-95"><Play size={18} /> Trailer</button>
+                                    <button onClick={handleTrailerClick} className="bg-white text-black hover:bg-gray-200 font-bold py-3 px-6 rounded-xl transition-all flex items-center gap-2 active:scale-95"><Play size={18} /> Trailer</button>
                                     <div className="flex gap-2">
                                         <button onClick={() => onToggleWatchlist(displayData)} className={`p-3 rounded-xl border transition-colors active:scale-95 ${isWatchlisted ? 'bg-red-600/20 border-red-500/50 text-red-400' : 'glass hover:bg-white/10 text-white/70'}`}><Bookmark size={20} fill={isWatchlisted ? "currentColor" : "none"} /></button>
                                         <button onClick={() => onToggleFavorite(displayData)} className={`p-3 rounded-xl border transition-colors active:scale-95 ${isFavorite ? 'bg-red-600/20 border-red-500/50 text-red-400' : 'glass hover:bg-white/10 text-white/70'}`}><Heart size={20} fill={isFavorite ? "currentColor" : "none"} /></button>
@@ -323,10 +301,9 @@ export const MovieModal: React.FC<MovieModalProps> = ({
                                         {loadingSeason ? <div className="py-12 flex justify-center"><Loader2 className="animate-spin text-red-500"/></div> : seasonData ? (
                                             <div className="space-y-3">
                                                 {seasonData.episodes?.map(ep => (
-                                                    <div key={ep.id} className="group flex gap-4 p-3 rounded-xl hover:bg-white/5 border border-transparent hover:border-white/5 transition-all cursor-pointer" onClick={() => setIsPlaying({ season: selectedSeason, episode: ep.episode_number })}>
+                                                    <div key={ep.id} className="group flex gap-4 p-3 rounded-xl hover:bg-white/5 border border-transparent hover:border-white/5 transition-all">
                                                         <div className="relative w-32 md:w-40 aspect-video shrink-0 rounded-lg overflow-hidden bg-white/5">
                                                             <img src={ep.still_path ? `${TMDB_IMAGE_BASE}${ep.still_path}` : "https://placehold.co/300x170/111/333"} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 opacity-70 group-hover:opacity-100" alt={ep.name}/>
-                                                            <div className="absolute inset-0 flex items-center justify-center"><PlayCircle size={24} className="text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow-lg scale-50 group-hover:scale-100 duration-300"/></div>
                                                         </div>
                                                         <div className="flex-1 min-w-0 py-1">
                                                             <div className="flex justify-between items-start mb-1"><h4 className="text-white font-bold text-sm truncate pr-2"><span className="text-red-500 mr-2">{ep.episode_number}.</span>{ep.name}</h4><span className="text-[10px] text-white/40">{ep.runtime || '?'}m</span></div>

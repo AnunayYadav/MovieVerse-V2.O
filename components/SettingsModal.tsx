@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { UserCircle, X, Check, Settings, ShieldCheck, RefreshCcw, HelpCircle, Shield, FileText, Lock, LogOut, MessageSquare, Send, Calendar, Mail, User, BrainCircuit, Pencil, CheckCheck, Loader2, ChevronDown } from 'lucide-react';
+import { UserCircle, X, Check, Settings, ShieldCheck, RefreshCcw, HelpCircle, Shield, FileText, Lock, LogOut, MessageSquare, Send, Calendar, Mail, User, BrainCircuit, Pencil, CheckCheck, Loader2, ChevronDown, ExternalLink } from 'lucide-react';
 import { UserProfile, MaturityRating } from '../types';
 import { getSupabase, submitSupportTicket } from '../services/supabase';
 
@@ -97,7 +97,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         { q: "How do I verify my email?", a: "Check your inbox for a confirmation link. If not found, check spam." },
         { q: "Is this service free?", a: "Yes, this is a demonstration app using public APIs for educational purposes." },
         { q: "Where does the data come from?", a: "We use the TMDB API for movie metadata and Google Gemini for AI features." },
-        { q: "Can I download movies?", a: "No, MovieVerse AI is a streaming discovery and tracking platform, not a download service." }
+        { q: "Can I watch movies here?", a: "No, MovieVerse AI is purely a discovery and tracking platform. We do not host or stream any video content." }
     ];
 
     if (!isOpen) return null;
@@ -107,12 +107,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         { id: 'general', icon: Settings, label: 'General' },
         { id: 'restrictions', icon: Lock, label: 'Restrictions' },
         { id: 'help', icon: HelpCircle, label: 'Help' },
-        { id: 'legal', icon: FileText, label: 'Legal' },
+        { id: 'legal', icon: FileText, label: 'Legal & Privacy' },
     ];
 
     return (
         <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/80 backdrop-blur-xl animate-in fade-in">
-             <div className="glass-panel w-full max-w-4xl rounded-2xl shadow-2xl relative flex flex-col md:flex-row overflow-hidden max-h-[85vh] h-auto my-auto border border-white/10">
+             <div className="glass-panel w-full max-w-5xl rounded-2xl shadow-2xl relative flex flex-col md:flex-row overflow-hidden max-h-[90vh] h-auto my-auto border border-white/10">
                   {/* Sidebar */}
                   <div className="w-full md:w-64 bg-black/40 border-b md:border-b-0 md:border-r border-white/5 p-4 flex flex-col shrink-0">
                       <div className="flex justify-between items-center mb-6">
@@ -141,7 +141,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   </div>
 
                   {/* Content Area */}
-                  <div className="flex-1 p-6 md:p-8 bg-[#0a0a0a] relative flex flex-col overflow-y-auto custom-scrollbar">
+                  <div className="flex-1 p-6 md:p-10 bg-[#0a0a0a] relative flex flex-col overflow-y-auto custom-scrollbar">
                       <button onClick={onClose} className="hidden md:block absolute top-6 right-6 text-gray-400 hover:text-white p-2 bg-white/5 rounded-full hover:bg-white/10 transition-colors"><X size={20}/></button>
                       
                       {activeTab === 'account' && (
@@ -394,22 +394,109 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       )}
 
                       {activeTab === 'legal' && (
-                          <div className="space-y-6 animate-in fade-in slide-in-from-right-4 h-full flex flex-col max-w-xl">
-                              <h3 className="text-2xl font-bold text-white mb-6">Legal & Privacy</h3>
-                              <div className="space-y-4 text-sm text-gray-400 leading-relaxed">
-                                  <div className="p-6 bg-red-950/20 border border-red-500/20 rounded-2xl">
-                                      <h4 className="text-red-400 font-bold mb-3 flex items-center gap-2 text-base"><Shield size={18}/> Disclaimer</h4>
-                                      <p>MovieVerse AI acts as a search engine and content aggregator. We do not host any files on our servers. All content is provided by non-affiliated third parties.</p>
+                          <div className="space-y-6 animate-in fade-in slide-in-from-right-4 h-full flex flex-col max-w-4xl">
+                              <h3 className="text-2xl font-bold text-white mb-4 flex items-center gap-2">
+                                  <ShieldCheck size={24} className="text-red-500"/> Legal Center
+                              </h3>
+                              
+                              <div className="flex-1 overflow-y-auto custom-scrollbar pr-6 space-y-10 text-sm text-gray-300 leading-relaxed pb-8">
+                                  
+                                  {/* TMDB Attribution - Prominent as requested for compliance */}
+                                  <div className="bg-gradient-to-br from-[#0d253f] to-[#01b4e4] rounded-2xl p-1 border border-white/10 shadow-lg">
+                                      <div className="bg-black/80 rounded-xl p-6 h-full backdrop-blur-sm">
+                                          <h4 className="text-white font-bold text-lg mb-4 flex items-center gap-2">Data Attribution</h4>
+                                          <div className="flex flex-col md:flex-row gap-6 items-center md:items-start">
+                                              <img 
+                                                  src="https://www.themoviedb.org/assets/2/v4/logos/v2/blue_square_2-d537fb228cf3ded904ef09b136fe3fec72548ebc1fea3fbbd1ad9e36364db38b.svg" 
+                                                  className="w-24 h-24 shrink-0" 
+                                                  alt="The Movie Database (TMDB)" 
+                                              />
+                                              <div className="space-y-3">
+                                                  <p className="text-gray-200 font-medium text-base">
+                                                      This product uses the TMDB API but is not endorsed or certified by TMDB.
+                                                  </p>
+                                                  <p className="text-xs text-gray-400">
+                                                      MovieVerse AI acknowledges and credits The Movie Database (TMDB) as the source of movie and TV show metadata, images, and other related content displayed within this application.
+                                                  </p>
+                                              </div>
+                                          </div>
+                                      </div>
                                   </div>
-                                  <div className="p-6 bg-white/5 border border-white/5 rounded-2xl">
-                                      <h4 className="text-white font-bold mb-2 text-base">Data Privacy</h4>
-                                      <p className="mb-4">We prioritize your privacy. User watchlists and preferences are stored securely. We do not sell your personal data to advertisers.</p>
-                                      <h4 className="text-white font-bold mb-2 text-base">Attribution</h4>
-                                      <p>Metadata provided by <a href="https://www.themoviedb.org/" target="_blank" rel="noreferrer" className="text-blue-400 hover:underline">TMDB</a>. AI services powered by Google Gemini.</p>
-                                  </div>
-                                  <div className="p-6 bg-white/5 border border-white/5 rounded-2xl">
-                                      <h4 className="text-white font-bold mb-2 text-base">Terms of Service</h4>
-                                      <p>By using this application, you acknowledge that it is for educational and demonstration purposes. You agree to comply with all local laws regarding copyright and content consumption.</p>
+
+                                  {/* Terms of Service */}
+                                  <section>
+                                      <h4 className="text-white font-bold text-xl mb-6 pb-2 border-b border-white/10 text-blue-400">Terms of Service</h4>
+                                      <div className="space-y-6 text-gray-400">
+                                          <div>
+                                              <h5 className="text-white font-bold mb-2 text-base">1. Acceptance of Terms</h5>
+                                              <p>By accessing and using MovieVerse AI ("the Application"), you accept and agree to be bound by the terms and provision of this agreement. In addition, when using this Application's particular services, you shall be subject to any posted guidelines or rules applicable to such services.</p>
+                                          </div>
+                                          <div>
+                                              <h5 className="text-white font-bold mb-2 text-base">2. Disclaimer of Warranties</h5>
+                                              <p>The Application is provided "as is" and "as available" without any representation or warranty, express or implied. MovieVerse AI does not warrant that the service will be uninterrupted or error-free. The content is for informational purposes only.</p>
+                                          </div>
+                                          <div>
+                                              <h5 className="text-white font-bold mb-2 text-base">3. Content Policy</h5>
+                                              <p>MovieVerse AI functions strictly as a discovery tool. We do not host, upload, stream, or index any video files. All media assets (posters, backdrops) are provided by third-party APIs. We are not responsible for the accuracy or legality of content provided by third-party sources.</p>
+                                          </div>
+                                          <div>
+                                              <h5 className="text-white font-bold mb-2 text-base">4. User Conduct</h5>
+                                              <p>You agree not to use the Application for any unlawful purpose or any purpose prohibited under this clause. You agree not to use the Application in any way that could damage the Application, the services, or the general business of MovieVerse AI.</p>
+                                          </div>
+                                          <div>
+                                              <h5 className="text-white font-bold mb-2 text-base">5. Termination</h5>
+                                              <p>We may terminate your access to the Application, without cause or notice, which may result in the forfeiture and destruction of all information associated with your account.</p>
+                                          </div>
+                                      </div>
+                                  </section>
+
+                                  {/* Privacy Policy */}
+                                  <section>
+                                      <h4 className="text-white font-bold text-xl mb-6 pb-2 border-b border-white/10 text-green-400">Privacy Policy</h4>
+                                      <div className="space-y-6 text-gray-400">
+                                          <div>
+                                              <h5 className="text-white font-bold mb-2 text-base">1. Information Collection</h5>
+                                              <p>We collect information you provide directly to us. For example, we collect information when you create an account, update your profile, or communicate with us. The types of information we may collect include your name, email address, and viewing preferences.</p>
+                                          </div>
+                                          <div>
+                                              <h5 className="text-white font-bold mb-2 text-base">2. Use of Information</h5>
+                                              <p>We use the information we collect to provide, maintain, and improve our services, such as to personalize the content you see (e.g., "AI Recommendations") and to facilitate synchronization across devices.</p>
+                                          </div>
+                                          <div>
+                                              <h5 className="text-white font-bold mb-2 text-base">3. Local Storage & Cookies</h5>
+                                              <p>We use local storage technology to store your preferences (API keys, watchlist, settings) directly on your device for a seamless experience. If you use cloud sync features, this data is encrypted and stored in our database.</p>
+                                          </div>
+                                          <div>
+                                              <h5 className="text-white font-bold mb-2 text-base">4. Third-Party Services</h5>
+                                              <p>This Application uses services provided by Google (Gemini AI), TMDB (Metadata), and Supabase (Authentication/DB). Please refer to their respective privacy policies for information on how they handle data.</p>
+                                          </div>
+                                      </div>
+                                  </section>
+
+                                  {/* Additional Acknowledgments */}
+                                  <section>
+                                      <h4 className="text-white font-bold text-xl mb-6 pb-2 border-b border-white/10">Acknowledgments</h4>
+                                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                          <div className="bg-white/5 p-4 rounded-xl border border-white/5 flex items-center gap-4">
+                                               <div className="bg-white p-2 rounded-lg"><BrainCircuit className="text-blue-600" size={24}/></div>
+                                               <div>
+                                                   <h6 className="font-bold text-white">Google Gemini</h6>
+                                                   <p className="text-xs text-gray-400">Powered by Gemini Pro models for intelligent analysis and recommendations.</p>
+                                               </div>
+                                          </div>
+                                          <div className="bg-white/5 p-4 rounded-xl border border-white/5 flex items-center gap-4">
+                                               <div className="bg-black p-2 rounded-lg text-white font-bold">L</div>
+                                               <div>
+                                                   <h6 className="font-bold text-white">Lucide React</h6>
+                                                   <p className="text-xs text-gray-400">Beautiful, consistent iconography used throughout the interface.</p>
+                                               </div>
+                                          </div>
+                                      </div>
+                                  </section>
+                                  
+                                  <div className="pt-8 mt-8 border-t border-white/10 text-center">
+                                      <p className="text-xs text-gray-500">Last Updated: January 2025</p>
+                                      <p className="text-xs text-gray-600 mt-2">MovieVerse AI © 2025. All Rights Reserved.</p>
                                   </div>
                               </div>
                           </div>
