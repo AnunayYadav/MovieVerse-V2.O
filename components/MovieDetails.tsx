@@ -45,6 +45,12 @@ export const MovieModal: React.FC<MovieModalProps> = ({
     const [showPlayer, setShowPlayer] = useState(false);
     const [playParams, setPlayParams] = useState({ season: 1, episode: 1 });
 
+    const isPremium = userProfile.canWatch === true;
+    const accentText = isPremium ? "text-amber-500" : "text-red-500";
+    const accentBgLow = isPremium ? "bg-amber-500/20" : "bg-red-500/20";
+    const accentBorder = isPremium ? "border-amber-500" : "border-red-500";
+    const accentShadow = isPremium ? "shadow-amber-900/40" : "shadow-red-900/40";
+
     useEffect(() => {
         if (!apiKey || !movie.id) return;
         setLoading(true);
@@ -198,7 +204,7 @@ export const MovieModal: React.FC<MovieModalProps> = ({
                 <button onClick={onClose} className="absolute top-4 right-4 z-20 bg-black/40 hover:bg-white/10 backdrop-blur-md p-2 rounded-full text-white/80 hover:text-white transition-all hover:scale-110 active:scale-95 border border-white/5"><X size={20} /></button>
                 
                 {loading && !details ? (
-                    <div className="h-96 flex items-center justify-center"><Loader2 className="animate-spin text-red-500" size={48}/></div>
+                    <div className="h-96 flex items-center justify-center"><Loader2 className={`animate-spin ${accentText}`} size={48}/></div>
                 ) : (
                     <div className="flex flex-col overflow-y-auto custom-scrollbar bg-[#0a0a0a]">
                         {/* Hero Header / Player */}
@@ -226,9 +232,9 @@ export const MovieModal: React.FC<MovieModalProps> = ({
                                  <div className="absolute bottom-0 left-0 p-6 md:p-10 w-full md:w-2/3 flex flex-col gap-4 animate-in slide-in-from-bottom-4 duration-700 delay-100">
                                     <h2 className="text-3xl md:text-5xl font-extrabold text-white leading-tight drop-shadow-lg">{title}</h2>
                                     <div className="flex flex-wrap items-center gap-3 md:gap-4 text-white/80 text-sm font-medium">
-                                        {isAnime && <span className="glass px-2 py-0.5 rounded text-xs font-bold text-red-400 border-red-500/30">ANIME</span>}
-                                        <span className="flex items-center gap-1.5"><Calendar size={14} className="text-red-500"/> {displayData.release_date?.split('-')[0] || displayData.first_air_date?.split('-')[0] || 'TBA'}</span>
-                                        <span className="flex items-center gap-1.5"><Clock size={14} className="text-red-500"/> {runtime}</span>
+                                        {isAnime && <span className={`glass px-2 py-0.5 rounded text-xs font-bold ${isPremium ? 'text-amber-400 border-amber-500/30' : 'text-red-400 border-red-500/30'}`}>ANIME</span>}
+                                        <span className="flex items-center gap-1.5"><Calendar size={14} className={accentText}/> {displayData.release_date?.split('-')[0] || displayData.first_air_date?.split('-')[0] || 'TBA'}</span>
+                                        <span className="flex items-center gap-1.5"><Clock size={14} className={accentText}/> {runtime}</span>
                                         {displayData.vote_average && <span className="flex items-center gap-1.5"><Star size={14} className="text-yellow-500" fill="currentColor"/> {displayData.vote_average.toFixed(1)}</span>}
                                         {displayData.external_ids && (
                                             <div className="flex gap-2 ml-2 border-l border-white/20 pl-4">
@@ -245,15 +251,15 @@ export const MovieModal: React.FC<MovieModalProps> = ({
                                                     setPlayParams({ season: selectedSeason, episode: 1 });
                                                     setShowPlayer(true);
                                                 }} 
-                                                className="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-8 rounded-xl transition-all flex items-center gap-2 active:scale-95 shadow-lg shadow-red-900/40"
+                                                className={`font-bold py-3 px-8 rounded-xl transition-all flex items-center gap-2 active:scale-95 shadow-lg ${isPremium ? 'bg-gradient-to-r from-amber-600 to-amber-500 text-black hover:from-amber-500 hover:to-amber-400 shadow-amber-900/40' : 'bg-red-600 hover:bg-red-700 text-white shadow-red-900/40'}`}
                                             >
                                                 <PlayCircle size={20} fill="currentColor" /> Watch Now
                                             </button>
                                         )}
                                         <button onClick={handleTrailerClick} className={`${userProfile.canWatch ? 'glass hover:bg-white/10 text-white' : 'bg-white text-black hover:bg-gray-200'} font-bold py-3 px-6 rounded-xl transition-all flex items-center gap-2 active:scale-95`}><Play size={18} /> Trailer</button>
                                         <div className="flex gap-2">
-                                            <button onClick={() => onToggleWatchlist(displayData)} className={`p-3 rounded-xl border transition-colors active:scale-95 ${isWatchlisted ? 'bg-red-600/20 border-red-500/50 text-red-400' : 'glass hover:bg-white/10 text-white/70'}`}><Bookmark size={20} fill={isWatchlisted ? "currentColor" : "none"} /></button>
-                                            <button onClick={() => onToggleFavorite(displayData)} className={`p-3 rounded-xl border transition-colors active:scale-95 ${isFavorite ? 'bg-red-600/20 border-red-500/50 text-red-400' : 'glass hover:bg-white/10 text-white/70'}`}><Heart size={20} fill={isFavorite ? "currentColor" : "none"} /></button>
+                                            <button onClick={() => onToggleWatchlist(displayData)} className={`p-3 rounded-xl border transition-colors active:scale-95 ${isWatchlisted ? `${accentBgLow} ${accentBorder} ${accentText}` : 'glass hover:bg-white/10 text-white/70'}`}><Bookmark size={20} fill={isWatchlisted ? "currentColor" : "none"} /></button>
+                                            <button onClick={() => onToggleFavorite(displayData)} className={`p-3 rounded-xl border transition-colors active:scale-95 ${isFavorite ? `${accentBgLow} ${accentBorder} ${accentText}` : 'glass hover:bg-white/10 text-white/70'}`}><Heart size={20} fill={isFavorite ? "currentColor" : "none"} /></button>
                                             <button onClick={() => onOpenListModal(displayData)} className="p-3 rounded-xl glass hover:bg-white/10 text-white/70 transition-colors active:scale-95" title="Add to Custom List"><ListPlus size={20} /></button>
                                             <button onClick={handleShare} className={`p-3 rounded-xl glass hover:bg-white/10 transition-colors active:scale-95 ${copied ? 'text-green-400' : 'text-white/70'}`}>{copied ? <Check size={20} /> : <Share2 size={20} />}</button>
                                             {onCompare && <button onClick={() => onCompare(displayData)} className="p-3 rounded-xl glass hover:bg-white/10 text-white/70 transition-colors active:scale-95" title="Compare Movie"><Scale size={20} /></button>}
@@ -296,7 +302,7 @@ export const MovieModal: React.FC<MovieModalProps> = ({
                                     </div>
                                     <div className="relative p-6 md:p-8 flex items-center justify-between">
                                         <div>
-                                            <p className="text-red-400 font-bold text-xs uppercase tracking-widest mb-1 flex items-center gap-2"><Layers size={14}/> Franchise</p>
+                                            <p className={`font-bold text-xs uppercase tracking-widest mb-1 flex items-center gap-2 ${isPremium ? 'text-amber-400' : 'text-red-400'}`}><Layers size={14}/> Franchise</p>
                                             <h3 className="text-2xl md:text-3xl font-black text-white italic">Part of the {displayData.belongs_to_collection.name}</h3>
                                             <button className="mt-4 px-5 py-2 bg-white/10 hover:bg-white text-white hover:text-black rounded-lg text-sm font-bold transition-all active:scale-95 flex items-center gap-2">
                                                 View Collection
@@ -309,11 +315,11 @@ export const MovieModal: React.FC<MovieModalProps> = ({
                             {/* Tabs */}
                             <div className="animate-in fade-in slide-in-from-bottom-2 duration-500 delay-400">
                                 <div className="flex gap-8 border-b border-white/10 mb-6 overflow-x-auto hide-scrollbar">
-                                    <button onClick={() => setActiveTab("details")} className={`pb-3 text-sm font-bold tracking-wide transition-all duration-300 whitespace-nowrap ${activeTab === "details" ? "text-red-500 border-b-2 border-red-500" : "text-white/50 hover:text-white"}`}>DETAILS</button>
-                                    {(isTv || isAnime) && <button onClick={() => setActiveTab("episodes")} className={`pb-3 text-sm font-bold tracking-wide transition-all duration-300 whitespace-nowrap ${activeTab === "episodes" ? "text-red-500 border-b-2 border-red-500" : "text-white/50 hover:text-white"}`}>EPISODES</button>}
-                                    <button onClick={() => setActiveTab("media")} className={`pb-3 text-sm font-bold tracking-wide transition-all duration-300 whitespace-nowrap ${activeTab === "media" ? "text-red-500 border-b-2 border-red-500" : "text-white/50 hover:text-white"}`}>MEDIA</button>
+                                    <button onClick={() => setActiveTab("details")} className={`pb-3 text-sm font-bold tracking-wide transition-all duration-300 whitespace-nowrap ${activeTab === "details" ? `${accentText} border-b-2 ${accentBorder}` : "text-white/50 hover:text-white"}`}>DETAILS</button>
+                                    {(isTv || isAnime) && <button onClick={() => setActiveTab("episodes")} className={`pb-3 text-sm font-bold tracking-wide transition-all duration-300 whitespace-nowrap ${activeTab === "episodes" ? `${accentText} border-b-2 ${accentBorder}` : "text-white/50 hover:text-white"}`}>EPISODES</button>}
+                                    <button onClick={() => setActiveTab("media")} className={`pb-3 text-sm font-bold tracking-wide transition-all duration-300 whitespace-nowrap ${activeTab === "media" ? `${accentText} border-b-2 ${accentBorder}` : "text-white/50 hover:text-white"}`}>MEDIA</button>
                                     {details?.reviews?.results && details.reviews.results.length > 0 && (
-                                        <button onClick={() => setActiveTab("reviews")} className={`pb-3 text-sm font-bold tracking-wide transition-all duration-300 whitespace-nowrap ${activeTab === "reviews" ? "text-red-500 border-b-2 border-red-500" : "text-white/50 hover:text-white"}`}>REVIEWS</button>
+                                        <button onClick={() => setActiveTab("reviews")} className={`pb-3 text-sm font-bold tracking-wide transition-all duration-300 whitespace-nowrap ${activeTab === "reviews" ? `${accentText} border-b-2 ${accentBorder}` : "text-white/50 hover:text-white"}`}>REVIEWS</button>
                                     )}
                                 </div>
 
@@ -326,7 +332,7 @@ export const MovieModal: React.FC<MovieModalProps> = ({
                                                     <button 
                                                         key={kw.id} 
                                                         onClick={() => onKeywordClick(kw)}
-                                                        className="px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs text-gray-300 hover:text-white hover:border-red-500/50 hover:bg-red-500/10 transition-all flex items-center gap-1.5 active:scale-95"
+                                                        className={`px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs text-gray-300 hover:text-white transition-all flex items-center gap-1.5 active:scale-95 ${isPremium ? 'hover:border-amber-500/50 hover:bg-amber-500/10' : 'hover:border-red-500/50 hover:bg-red-500/10'}`}
                                                     >
                                                         <Tag size={12} className="opacity-50"/> {kw.name}
                                                     </button>
@@ -344,8 +350,8 @@ export const MovieModal: React.FC<MovieModalProps> = ({
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                             <div className="glass p-5 rounded-2xl">
                                                 <p className="text-white/40 text-xs uppercase font-bold mb-3 flex items-center gap-2"><Clapperboard size={14}/> {isTv ? "Creator" : "Director"}</p>
-                                                <button onClick={() => onPersonClick(director.id)} className="flex items-center gap-3 text-white font-bold hover:text-red-400 transition-colors text-left group" disabled={!director.id}>
-                                                    <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center group-hover:bg-red-600/20 transition-colors">{director.name.charAt(0)}</div>
+                                                <button onClick={() => onPersonClick(director.id)} className={`flex items-center gap-3 text-white font-bold transition-colors text-left group ${isPremium ? 'hover:text-amber-400' : 'hover:text-red-400'}`} disabled={!director.id}>
+                                                    <div className={`w-10 h-10 rounded-full bg-white/10 flex items-center justify-center transition-colors ${isPremium ? 'group-hover:bg-amber-600/20' : 'group-hover:bg-red-600/20'}`}>{director.name.charAt(0)}</div>
                                                     <span>{director.name}</span>
                                                 </button>
                                             </div>
@@ -362,23 +368,23 @@ export const MovieModal: React.FC<MovieModalProps> = ({
                                         </div>
 
                                         {/* AI Trivia */}
-                                        <div className="relative overflow-hidden rounded-2xl border border-red-500/20 bg-gradient-to-r from-red-900/10 to-transparent p-1 transition-all hover:border-red-500/40">
+                                        <div className={`relative overflow-hidden rounded-2xl border bg-gradient-to-r to-transparent p-1 transition-all ${isPremium ? 'border-amber-500/20 from-amber-900/10 hover:border-amber-500/40' : 'border-red-500/20 from-red-900/10 hover:border-red-500/40'}`}>
                                             {!trivia ? (
                                                 <button onClick={handleGenerateTrivia} disabled={loadingTrivia} className="w-full h-full p-4 flex items-center justify-between group hover:bg-white/5 transition-colors rounded-xl">
                                                     <div className="flex items-center gap-3">
-                                                        <div className="p-2 bg-red-500/20 rounded-lg text-red-300 group-hover:text-white transition-colors">{loadingTrivia ? <Loader2 size={18} className="animate-spin"/> : <Sparkles size={18}/>}</div>
+                                                        <div className={`p-2 rounded-lg transition-colors ${isPremium ? 'bg-amber-500/20 text-amber-300 group-hover:text-white' : 'bg-red-500/20 text-red-300 group-hover:text-white'}`}>{loadingTrivia ? <Loader2 size={18} className="animate-spin"/> : <Sparkles size={18}/>}</div>
                                                         <div className="text-left">
                                                             <p className="text-sm font-bold text-white">Behind The Scenes</p>
                                                             <p className="text-xs text-white/50">Reveal AI-generated trivia about this title.</p>
                                                         </div>
                                                     </div>
-                                                    <div className="text-xs font-bold text-red-400 border border-red-500/30 px-3 py-1.5 rounded-full group-hover:bg-red-500 group-hover:text-white transition-all">GENERATE</div>
+                                                    <div className={`text-xs font-bold border px-3 py-1.5 rounded-full transition-all ${isPremium ? 'text-amber-400 border-amber-500/30 group-hover:bg-amber-500 group-hover:text-black' : 'text-red-400 border-red-500/30 group-hover:bg-red-500 group-hover:text-white'}`}>GENERATE</div>
                                                 </button>
                                             ) : (
                                                 <div className="p-4 flex gap-4 animate-in fade-in duration-500">
-                                                     <div className="shrink-0 p-2 bg-red-500/20 rounded-lg h-fit text-red-300"><Lightbulb size={20}/></div>
+                                                     <div className={`shrink-0 p-2 rounded-lg h-fit ${isPremium ? 'bg-amber-500/20 text-amber-300' : 'bg-red-500/20 text-red-300'}`}><Lightbulb size={20}/></div>
                                                      <div>
-                                                         <p className="text-xs font-bold text-red-400 mb-1 uppercase tracking-wider">Did you know?</p>
+                                                         <p className={`text-xs font-bold mb-1 uppercase tracking-wider ${isPremium ? 'text-amber-400' : 'text-red-400'}`}>Did you know?</p>
                                                          <p className="text-sm text-gray-200 italic leading-relaxed">"{trivia}"</p>
                                                      </div>
                                                 </div>
@@ -416,11 +422,11 @@ export const MovieModal: React.FC<MovieModalProps> = ({
                                         {details?.seasons && details.seasons.length > 0 && (
                                             <div className="flex items-center gap-2 overflow-x-auto pb-2 mb-4 hide-scrollbar">
                                                 {details.seasons.filter(s => s.season_number > 0).map(season => (
-                                                    <button key={season.id} onClick={() => setSelectedSeason(season.season_number)} className={`whitespace-nowrap px-5 py-2 rounded-full text-xs font-bold transition-all border ${selectedSeason === season.season_number ? 'bg-red-600 border-red-600 text-white shadow-lg shadow-red-900/40 scale-105' : 'bg-transparent border-white/10 text-gray-400 hover:text-white hover:border-white/30'}`}>{season.name}</button>
+                                                    <button key={season.id} onClick={() => setSelectedSeason(season.season_number)} className={`whitespace-nowrap px-5 py-2 rounded-full text-xs font-bold transition-all border ${selectedSeason === season.season_number ? `${isPremium ? 'bg-amber-600 border-amber-600 shadow-amber-900/40 text-black' : 'bg-red-600 border-red-600 text-white shadow-red-900/40'} shadow-lg scale-105` : 'bg-transparent border-white/10 text-gray-400 hover:text-white hover:border-white/30'}`}>{season.name}</button>
                                                 ))}
                                             </div>
                                         )}
-                                        {loadingSeason ? <div className="py-12 flex justify-center"><Loader2 className="animate-spin text-red-500"/></div> : seasonData ? (
+                                        {loadingSeason ? <div className="py-12 flex justify-center"><Loader2 className={`animate-spin ${accentText}`}/></div> : seasonData ? (
                                             <div className="space-y-3">
                                                 {seasonData.episodes?.map(ep => (
                                                     <div 
@@ -437,14 +443,14 @@ export const MovieModal: React.FC<MovieModalProps> = ({
                                                             <img src={ep.still_path ? `${TMDB_IMAGE_BASE}${ep.still_path}` : "https://placehold.co/300x170/111/333"} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 opacity-70 group-hover:opacity-100" alt={ep.name}/>
                                                             {userProfile.canWatch && (
                                                                 <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-black/40">
-                                                                    <div className="bg-red-600 rounded-full p-2 shadow-lg scale-75 group-hover:scale-100 transition-transform">
-                                                                        <Play size={16} fill="currentColor" className="text-white"/>
+                                                                    <div className={`rounded-full p-2 shadow-lg scale-75 group-hover:scale-100 transition-transform ${isPremium ? 'bg-amber-500 text-black' : 'bg-red-600 text-white'}`}>
+                                                                        <Play size={16} fill="currentColor"/>
                                                                     </div>
                                                                 </div>
                                                             )}
                                                         </div>
                                                         <div className="flex-1 min-w-0 py-1">
-                                                            <div className="flex justify-between items-start mb-1"><h4 className="text-white font-bold text-sm truncate pr-2 group-hover:text-red-400 transition-colors"><span className="text-red-500 mr-2">{ep.episode_number}.</span>{ep.name}</h4><span className="text-[10px] text-white/40">{ep.runtime || '?'}m</span></div>
+                                                            <div className="flex justify-between items-start mb-1"><h4 className={`text-white font-bold text-sm truncate pr-2 transition-colors ${isPremium ? 'group-hover:text-amber-400' : 'group-hover:text-red-400'}`}><span className={`${accentText} mr-2`}>{ep.episode_number}.</span>{ep.name}</h4><span className="text-[10px] text-white/40">{ep.runtime || '?'}m</span></div>
                                                             <p className="text-gray-400 text-xs line-clamp-2 leading-relaxed">{ep.overview || "No description available."}</p>
                                                         </div>
                                                     </div>
@@ -455,7 +461,7 @@ export const MovieModal: React.FC<MovieModalProps> = ({
                                 ) : (
                                     <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
                                         {mediaImages.length > 0 && <div><h4 className="text-white/60 font-bold text-xs uppercase mb-3 tracking-wider">Gallery</h4><div className="grid grid-cols-2 md:grid-cols-4 gap-3">{mediaImages.map((img, idx) => (<div key={idx} className="aspect-video rounded-lg overflow-hidden cursor-pointer relative group" onClick={() => setViewingImage(`${TMDB_BACKDROP_BASE}${img.file_path}`)}><img src={`${TMDB_IMAGE_BASE}${img.file_path}`} alt="Scene" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 opacity-80 group-hover:opacity-100"/><div className="absolute inset-0 bg-black/20 group-hover:bg-transparent transition-colors duration-500"/></div>))}</div></div>}
-                                        {videoClips.length > 0 && <div><h4 className="text-white/60 font-bold text-xs uppercase mb-3 tracking-wider">Videos</h4><div className="space-y-2">{videoClips.map((v, idx) => ( <div key={idx} className="flex gap-4 p-3 rounded-xl hover:bg-white/5 cursor-pointer group transition-colors" onClick={() => window.open(`https://www.youtube.com/watch?v=${v.key}`, '_blank')}><div className="relative w-32 aspect-video bg-black rounded-lg overflow-hidden shrink-0"><img src={`https://img.youtube.com/vi/${v.key}/mqdefault.jpg`} className="w-full h-full object-cover opacity-70 group-hover:opacity-100 transition-opacity duration-300"/><div className="absolute inset-0 flex items-center justify-center"><Play size={20} className="text-white fill-white group-hover:scale-110 transition-transform"/></div></div><div><p className="text-white font-bold text-sm line-clamp-1 group-hover:text-red-400 transition-colors">{v.name}</p><p className="text-xs text-white/40 mt-1">{v.type}</p></div></div> ))}</div></div>}
+                                        {videoClips.length > 0 && <div><h4 className="text-white/60 font-bold text-xs uppercase mb-3 tracking-wider">Videos</h4><div className="space-y-2">{videoClips.map((v, idx) => ( <div key={idx} className="flex gap-4 p-3 rounded-xl hover:bg-white/5 cursor-pointer group transition-colors" onClick={() => window.open(`https://www.youtube.com/watch?v=${v.key}`, '_blank')}><div className="relative w-32 aspect-video bg-black rounded-lg overflow-hidden shrink-0"><img src={`https://img.youtube.com/vi/${v.key}/mqdefault.jpg`} className="w-full h-full object-cover opacity-70 group-hover:opacity-100 transition-opacity duration-300"/><div className="absolute inset-0 flex items-center justify-center"><Play size={20} className="text-white fill-white group-hover:scale-110 transition-transform"/></div></div><div><p className={`text-white font-bold text-sm line-clamp-1 transition-colors ${isPremium ? 'group-hover:text-amber-400' : 'group-hover:text-red-400'}`}>{v.name}</p><p className="text-xs text-white/40 mt-1">{v.type}</p></div></div> ))}</div></div>}
                                     </div>
                                 )}
                             </div>
@@ -463,7 +469,7 @@ export const MovieModal: React.FC<MovieModalProps> = ({
                             {/* Similar AI Recommendations */}
                             {(similarMovies.length > 0 || loadingAiSimilar) && (
                                 <div className="border-t border-white/5 pt-8 animate-in fade-in slide-in-from-bottom-2 duration-500 delay-500">
-                                    <div className="flex items-center justify-between mb-4"><h4 className="text-white font-bold text-sm flex items-center gap-2"><Sparkles size={14} className="text-red-400"/> AI Recommendations</h4></div>
+                                    <div className="flex items-center justify-between mb-4"><h4 className="text-white font-bold text-sm flex items-center gap-2"><Sparkles size={14} className={accentText}/> AI Recommendations</h4></div>
                                     <div className="grid grid-cols-3 md:grid-cols-5 gap-3">
                                         {similarMovies.map(m => (
                                             <div key={m.id} className="cursor-pointer group relative aspect-[2/3] rounded-lg overflow-hidden" onClick={() => onSwitchMovie(m)}>
