@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Search, Film, Menu, TrendingUp, Tv, Ghost, Calendar, Star, X, Sparkles, Settings, Globe, BarChart3, Bookmark, Heart, Folder, MapPin, Languages, Filter, ChevronDown, Info, Plus, LogOut, ArrowRight, Bell, History, Clock, Trash2, Cloud, CloudOff, Loader2 } from 'lucide-react';
+import { Search, Film, Menu, TrendingUp, Tv, Ghost, Calendar, Star, X, Sparkles, Settings, Globe, BarChart3, Bookmark, Heart, Folder, Languages, Filter, ChevronDown, Info, Plus, Cloud, CloudOff, Clock, Bell, History } from 'lucide-react';
 import { Movie, UserProfile, GENRES_MAP, GENRES_LIST, INDIAN_LANGUAGES, MaturityRating } from './types';
 import { LogoLoader, MovieSkeleton, MovieCard, PosterMarquee, TMDB_BASE_URL, TMDB_BACKDROP_BASE, HARDCODED_TMDB_KEY, HARDCODED_GEMINI_KEY, getTmdbKey, getGeminiKey } from './components/Shared';
 import { MovieModal } from './components/MovieDetails';
@@ -96,15 +96,12 @@ export default function App() {
 
     const initApp = async () => {
       try {
-        // 1. Load Keys
         setApiKey(getTmdbKey());
         setGeminiKey(getGeminiKey());
 
-        // 2. Search History
         const savedHistory = localStorage.getItem('movieverse_search_history');
         if (savedHistory) setSearchHistory(JSON.parse(savedHistory));
 
-        // 3. Helper to Load Local State
         const loadLocalState = () => {
              const savedWatchlist = localStorage.getItem('movieverse_watchlist');
              if (savedWatchlist) setWatchlist(JSON.parse(savedWatchlist));
@@ -116,27 +113,22 @@ export default function App() {
              if (savedLists) setCustomLists(JSON.parse(savedLists));
              const savedProfile = localStorage.getItem('movieverse_profile');
              if (savedProfile) setUserProfile(JSON.parse(savedProfile));
-             setDataLoaded(true); // Allow sync after local load
+             setDataLoaded(true);
         };
 
-        // 4. Helper to Handle Successful Login
         const handleSessionFound = async (session: any) => {
              setIsAuthenticated(true);
-             
-             // Fetch Cloud Data
              try {
                 const cloudData = await fetchUserData();
                 let profileToSet = { name: "Guest", age: "", genres: [] } as UserProfile;
 
                 if (cloudData) {
-                    // APPLY CLOUD DATA
                     setWatchlist(cloudData.watchlist);
                     setFavorites(cloudData.favorites);
                     setWatched(cloudData.watched);
                     setCustomLists(cloudData.customLists);
                     if (cloudData.profile) profileToSet = cloudData.profile;
                     
-                    // Restore API Keys if found in cloud settings
                     if (cloudData.settings) {
                         if (cloudData.settings.tmdbKey && !getTmdbKey()) {
                             setApiKey(cloudData.settings.tmdbKey);
@@ -147,20 +139,16 @@ export default function App() {
                             localStorage.setItem('movieverse_gemini_key', cloudData.settings.geminiKey);
                         }
                     }
-                    // Enable sync because we successfully fetched valid data (even if it's empty, it's from DB)
                     setIsCloudSync(true);
                 } else {
-                    // No Cloud Data found (New User or DB Empty) - Initialize Default
                     setIsCloudSync(true);
                 }
                 
-                // Extract metadata from Google/Auth - BUT PRESERVE SAVED PROFILE
                 const meta = session.user.user_metadata;
                 if (meta) {
                     if (profileToSet.name === "Guest" || !profileToSet.name) {
                         profileToSet.name = meta.full_name || meta.name || profileToSet.name;
                     }
-                    // Only use Google Avatar if user hasn't set a custom one
                     if (!profileToSet.avatar) {
                         profileToSet.avatar = meta.avatar_url || meta.picture;
                     }
@@ -168,21 +156,16 @@ export default function App() {
                 setUserProfile(profileToSet);
              } catch (err) {
                  console.error("Cloud fetch error - Sync Disabled to protect data", err);
-                 // Fallback to local if cloud fetch fails due to network
-                 // IMPORTANT: Do NOT enable cloud sync here to prevent overwriting cloud with empty local data
                  loadLocalState();
              }
              
-             // UNLOCK: Now that state is settled, allow updates to trigger sync
              setDataLoaded(true);
              setAuthChecking(false);
         };
 
-        // 5. Supabase Auth Logic
         const supabase = getSupabase();
         
         if (supabase) {
-            // A. Setup Listener FIRST to catch redirects
             const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
                 if (event === 'SIGNED_IN' && session) {
                     handleSessionFound(session);
@@ -193,7 +176,6 @@ export default function App() {
             });
             authListener = subscription;
 
-            // B. Check Current Session (Persistence)
             try {
                 const { data: { session } } = await supabase.auth.getSession();
                 if (session) {
@@ -216,7 +198,6 @@ export default function App() {
                 setAuthChecking(false);
             }
         } else {
-            // No Supabase Configured -> Local Mode
             const localAuth = localStorage.getItem('movieverse_auth');
             if (localAuth) {
                 loadLocalState();
@@ -225,7 +206,6 @@ export default function App() {
             setAuthChecking(false);
         }
 
-        // 6. Deep Link Handling
         const params = new URLSearchParams(window.location.search);
         const movieId = params.get('movie');
         if (movieId && getTmdbKey()) {
@@ -247,10 +227,7 @@ export default function App() {
     };
   }, [resetAuthState]);
 
-  // --- SYNC HELPER ---
   useEffect(() => {
-      // SECURITY CHECK: Only sync if data has been initially loaded AND cloud sync is enabled.
-      // This prevents the default "Guest" state from overwriting Cloud Data during initialization race conditions.
       if (isCloudSync && isAuthenticated && dataLoaded) {
           const timeoutId = setTimeout(() => {
               syncUserData({
@@ -261,7 +238,7 @@ export default function App() {
                   profile: userProfile,
                   settings: { tmdbKey: apiKey, geminiKey: geminiKey }
               });
-          }, 1000); // Debounce sync to reduce DB writes
+          }, 1000); 
           return () => clearTimeout(timeoutId);
       }
   }, [watchlist, favorites, watched, customLists, userProfile, isCloudSync, isAuthenticated, apiKey, geminiKey, dataLoaded]);
@@ -271,11 +248,9 @@ export default function App() {
           const notifs = await getNotifications();
           setHasUnread(notifs.some(n => !n.read));
           
-          // Check for new arrival to trigger push automatically
           const latest = notifs[0];
           if (latest && !latest.read) {
               if (lastNotificationId && latest.id !== lastNotificationId) {
-                  // New notification arrived since last check
                   triggerSystemNotification(latest.title, latest.message);
               }
               if (lastNotificationId !== latest.id) {
@@ -289,7 +264,6 @@ export default function App() {
 
   useEffect(() => {
       if (isAuthenticated) {
-          // Polling every 60 seconds
           checkUnreadNotifications();
           const interval = setInterval(checkUnreadNotifications, 60000);
           return () => clearInterval(interval);
@@ -304,7 +278,6 @@ export default function App() {
         localStorage.setItem('movieverse_profile', JSON.stringify(profileData));
     }
     setIsAuthenticated(true);
-    // Note: dataLoaded/isCloudSync will be handled by the auth listener detecting the session
   };
 
   const handleLogout = async () => {
@@ -376,10 +349,10 @@ export default function App() {
       localStorage.setItem('movieverse_customlists', JSON.stringify(newLists));
   };
 
-  const sortMovies = (movies: Movie[], option: string) => {
-    if (!movies || !option) return movies;
-    if (option === 'relevance') return movies;
-    const sorted = [...movies];
+  const sortMovies = useCallback((moviesList: Movie[], option: string) => {
+    if (!moviesList || !option) return moviesList;
+    if (option === 'relevance') return moviesList;
+    const sorted = [...moviesList];
     switch (option) {
       case "popularity.desc": return sorted.sort((a, b) => (b.popularity || 0) - (a.popularity || 0));
       case "revenue.desc": return sorted.sort((a: any, b: any) => (b.revenue || 0) - (a.revenue || 0));
@@ -388,28 +361,36 @@ export default function App() {
       case "vote_average.desc": return sorted.sort((a, b) => (b.vote_average || 0) - (a.vote_average || 0));
       default: return sorted;
     }
-  };
+  }, []);
 
-  // Helper for retries
-  const fetchWithRetry = async (url: string, retries = 3, delay = 1000): Promise<Response> => {
+  const fetchWithRetry = async (url: string, signal?: AbortSignal, retries = 2, delay = 1000): Promise<Response> => {
       try {
-          const res = await fetch(url);
+          const res = await fetch(url, { signal });
           if (!res.ok && res.status !== 404) throw new Error(`HTTP ${res.status}`);
           return res;
-      } catch (err) {
+      } catch (err: any) {
+          if (err.name === 'AbortError') throw err;
           if (retries <= 0) throw err;
           await new Promise(r => setTimeout(r, delay));
-          return fetchWithRetry(url, retries - 1, delay * 2);
+          return fetchWithRetry(url, signal, retries - 1, delay * 2);
       }
   };
 
   const fetchMovies = useCallback(async (pageNum: number = 1, isLoadMore = false) => {
     if (!apiKey) return;
     
-    // Internal lists logic
-    if (selectedCategory === "Watchlist") { setMovies(sortMovies(watchlist, sortOption)); setFeaturedMovie(watchlist[0]); setHasMore(false); return; }
-    if (selectedCategory === "Favorites") { setMovies(sortMovies(favorites, sortOption)); setFeaturedMovie(null); setHasMore(false); return; }
-    if (selectedCategory === "History") { setMovies(sortMovies(watched, sortOption)); setFeaturedMovie(null); setHasMore(false); return; }
+    // Internal lists logic handling
+    const internalListMap: Record<string, Movie[]> = {
+        "Watchlist": watchlist,
+        "Favorites": favorites,
+        "History": watched
+    };
+    if (internalListMap[selectedCategory]) {
+         setMovies(sortMovies(internalListMap[selectedCategory], sortOption)); 
+         setFeaturedMovie(selectedCategory === "Watchlist" ? watchlist[0] : null); 
+         setHasMore(false); 
+         return; 
+    }
     if (selectedCategory === "CineAnalytics") return;
     if (selectedCategory.startsWith("Custom:")) { 
         const listName = selectedCategory.replace("Custom:", ""); 
@@ -426,7 +407,7 @@ export default function App() {
     abortControllerRef.current = controller;
 
     if (pageNum === 1) {
-        setMovies([]); // Clear to show skeletons immediately
+        setMovies([]);
     }
     setLoading(true);
     setAiContextReason(null);
@@ -439,19 +420,16 @@ export default function App() {
             language: "en-US",
             region: appRegion,
             include_adult: "false",
-            certification_country: "US", // Filter by US rating standard for simplicity
+            certification_country: "US",
             "certification.lte": maturityRating
         });
 
-        // ----------------------------------------------------
-        // SEARCH PATH (HYBRID STRATEGY: STANDARD + AI)
-        // ----------------------------------------------------
+        // SEARCH PATH
         if (searchQuery) {
-            // Hybrid Search Logic
             if (pageNum === 1) {
                  try {
                      const [stdRes, aiRecs] = await Promise.all([
-                         fetch(`${TMDB_BASE_URL}/search/movie?api_key=${apiKey}&query=${encodeURIComponent(searchQuery)}&include_adult=false`),
+                         fetch(`${TMDB_BASE_URL}/search/movie?api_key=${apiKey}&query=${encodeURIComponent(searchQuery)}&include_adult=false`, { signal: controller.signal }),
                          generateSmartRecommendations(searchQuery)
                      ]);
                      
@@ -463,8 +441,9 @@ export default function App() {
                      if (aiRecs && aiRecs.movies && aiRecs.movies.length > 0) {
                           setAiContextReason(aiRecs.reason);
                           
+                          // Attach signal to all sub-fetches
                           const aiMoviePromises = aiRecs.movies.map(title => 
-                             fetchWithRetry(`${TMDB_BASE_URL}/search/movie?api_key=${apiKey}&query=${encodeURIComponent(title)}`)
+                             fetchWithRetry(`${TMDB_BASE_URL}/search/movie?api_key=${apiKey}&query=${encodeURIComponent(title)}`, controller.signal)
                              .then(r => r.ok ? r.json() : {})
                              .then((d: any) => d.results?.[0]) 
                              .catch(e => null)
@@ -485,17 +464,15 @@ export default function App() {
                           setHasMore(false);
                           return; 
                      }
-                 } catch (e) { 
-                     console.error("Hybrid Search failed, falling back to standard", e); 
+                 } catch (e: any) { 
+                     if (e.name !== 'AbortError') console.error("Hybrid Search failed", e); 
                  }
             }
             endpoint = "/search/movie";
             params.set("query", searchQuery);
         }
 
-        // ----------------------------------------------------
-        // STANDARD DISCOVERY PATH (No Search Query)
-        // ----------------------------------------------------
+        // STANDARD DISCOVERY PATH
         else if (currentCollection && DEFAULT_COLLECTIONS[currentCollection]) {
             const colParams = DEFAULT_COLLECTIONS[currentCollection].params;
             Object.keys(colParams).forEach(key => params.append(key, colParams[key]));
@@ -532,31 +509,13 @@ export default function App() {
              else if (filterPeriod === "thisYear") { params.append("primary_release_year", new Date().getFullYear().toString()); }
         }
 
-        let res;
-        try {
-            res = await fetchWithRetry(`${TMDB_BASE_URL}${endpoint}?${params.toString()}`);
-        } catch (netErr: any) {
-            if (netErr.name !== 'AbortError') {
-                 console.warn("Network request failed", netErr);
-            }
-            if (!controller.signal.aborted) setLoading(false);
-            return;
-        }
-
-        if (controller.signal.aborted) return;
-
-        if (!res.ok) {
-             console.warn("API Error", res.status, res.statusText);
-             setLoading(false);
-             return;
-        }
+        const res = await fetchWithRetry(`${TMDB_BASE_URL}${endpoint}?${params.toString()}`, controller.signal);
         
         const data = await res.json();
         
         let results = data.results || [];
         results = results.filter((m: any) => m.poster_path);
 
-        // Normalize TV
         if (selectedCategory === "TV Shows" || selectedCategory === "Anime") {
             results = results.map((m: any) => ({ ...m, media_type: 'tv', title: m.name, release_date: m.first_air_date }));
         }
@@ -570,24 +529,26 @@ export default function App() {
             if (!currentCollection && finalResults.length > 0 && !searchQuery) {
                 setFeaturedMovie(finalResults.find((m: Movie) => m.backdrop_path) || finalResults[0]);
             } else {
-                setFeaturedMovie(null); // Don't show hero for search results
+                setFeaturedMovie(null);
             }
         }
         setHasMore(data.page < data.total_pages);
-    } catch (error) {
-        console.error("Fetch Logic Error:", error);
+    } catch (error: any) {
+        if (error.name !== 'AbortError') {
+             console.error("Fetch Logic Error:", error);
+        }
     } finally {
         if (!controller.signal.aborted) setLoading(false);
     }
-  }, [apiKey, searchQuery, selectedCategory, sortOption, appRegion, watchlist, favorites, watched, currentCollection, filterPeriod, selectedLanguage, selectedRegion, userProfile, maturityRating]);
+  }, [apiKey, searchQuery, selectedCategory, sortOption, appRegion, watchlist, favorites, watched, currentCollection, filterPeriod, selectedLanguage, selectedRegion, userProfile, maturityRating, sortMovies]);
 
   // Debounced Search
   useEffect(() => {
      const timeout = setTimeout(() => {
          fetchMovies(1, false);
-     }, searchQuery ? 1000 : 300);
+     }, searchQuery ? 800 : 300); // Increased debounce for search to reduce API calls
      return () => clearTimeout(timeout);
-  }, [searchQuery, selectedCategory, sortOption, appRegion, currentCollection, filterPeriod, selectedLanguage, selectedRegion, maturityRating]);
+  }, [fetchMovies, searchQuery, selectedCategory, sortOption, appRegion, currentCollection, filterPeriod, selectedLanguage, selectedRegion, maturityRating]);
 
   // Suggestion Fetching
   useEffect(() => {
@@ -682,7 +643,6 @@ export default function App() {
                 <span className="text-lg font-bold tracking-tight text-white hidden sm:block">Movie<span className="text-red-600">Verse</span></span>
            </div>
            
-           {/* Desktop Nav Links */}
            <div className="hidden md:flex items-center gap-1">
                <button onClick={() => { setSelectedCategory("All"); setCurrentCollection(null); }} className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-300 hover:scale-105 active:scale-95 ${selectedCategory === "All" ? "bg-white text-black font-bold" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>Home</button>
                <button onClick={() => { setSelectedCategory("TV Shows"); setCurrentCollection(null); }} className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-300 hover:scale-105 active:scale-95 ${selectedCategory === "TV Shows" ? "bg-white text-black font-bold" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>TV Shows</button>
@@ -691,7 +651,6 @@ export default function App() {
            </div>
         </div>
         
-        {/* Search Bar */}
         <div className="flex-1 max-w-lg mx-4 relative hidden md:block group z-[70]">
            <div className="absolute inset-0 bg-gradient-to-r from-red-500/20 to-gray-500/20 rounded-full blur-md opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
            <Search className={`absolute left-4 top-1/2 -translate-y-1/2 transition-colors duration-300 ${loading && searchQuery ? "text-red-400 animate-pulse" : "text-white/50 group-focus-within:text-white"}`} size={16} />
@@ -707,7 +666,6 @@ export default function App() {
            />
            {showSuggestions && (searchSuggestions.length > 0 || (searchHistory.length > 0 && !searchQuery)) && (
                <div className="absolute top-full left-0 right-0 mt-2 bg-[#0f0f0f]/95 border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-[100] backdrop-blur-xl animate-in fade-in slide-in-from-top-2 duration-200">
-                   {/* Search History Section */}
                    {!searchQuery && searchHistory.length > 0 && (
                        <div className="border-b border-white/5 pb-1">
                            <p className="px-4 py-2 text-[10px] text-white/40 font-bold uppercase tracking-wider">Recent Searches</p>
@@ -728,7 +686,6 @@ export default function App() {
                        </div>
                    )}
                    
-                   {/* AI Suggestions */}
                    {searchQuery && searchSuggestions.map((s, i) => (
                        <button 
                          key={i} 
@@ -761,7 +718,7 @@ export default function App() {
              </button>
              <button onClick={() => setIsProfileOpen(true)} className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white shadow-lg shadow-red-900/40 hover:scale-105 transition-transform overflow-hidden duration-300 ${userProfile.avatarBackground || 'bg-gradient-to-br from-red-600 to-red-900'}`}>
                  {userProfile.avatar ? (
-                    <img src={userProfile.avatar} alt={userProfile.name} className="w-full h-full object-cover" />
+                    <img key={userProfile.avatar} src={userProfile.avatar} alt={userProfile.name} className="w-full h-full object-cover" />
                  ) : (
                     userProfile.name.charAt(0).toUpperCase()
                  )}
@@ -771,7 +728,6 @@ export default function App() {
       </nav>
 
       <div className="flex pt-16">
-        {/* Sidebar Drawer */}
         <aside className={`fixed top-0 left-0 h-full w-72 bg-black/80 backdrop-blur-2xl border-r border-white/10 z-[60] transform transition-transform duration-500 cubic-bezier(0.4, 0, 0.2, 1) ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
            <div className="p-6 h-full overflow-y-auto custom-scrollbar">
                <div className="flex justify-between items-center mb-8">
@@ -779,7 +735,6 @@ export default function App() {
                    <button onClick={() => setIsSidebarOpen(false)} className="p-2 hover:bg-white/10 rounded-full transition-colors active:scale-95"><X size={20}/></button>
                </div>
                
-               {/* Mobile Search Input */}
                <div className="mb-6 md:hidden">
                     <div className="relative">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40" size={16} />
@@ -788,7 +743,6 @@ export default function App() {
                </div>
 
                <div className="space-y-6">
-                   {/* Discover Section */}
                    <div className="space-y-1">
                         <p className="text-xs font-bold text-white/40 uppercase tracking-wider mb-2 px-2">Discover</p>
                         <button onClick={() => { setSelectedCategory("All"); setFilterPeriod("all"); setCurrentCollection(null); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 hover:translate-x-1 ${selectedCategory === "All" && filterPeriod === "all" ? 'bg-red-600/20 text-red-400' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}><TrendingUp size={18}/> Trending Now</button>
@@ -846,20 +800,17 @@ export default function App() {
                    </div>
                </div>
            </div>
-           {/* Overlay to close */}
            <div 
              className={`absolute top-0 left-full w-screen h-full bg-black/50 backdrop-blur-sm transition-opacity duration-500 ${isSidebarOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`} 
              onClick={() => setIsSidebarOpen(false)}
            ></div>
         </aside>
 
-        {/* Main Content */}
         <main className="flex-1 min-h-[calc(100vh-4rem)] w-full">
            {selectedCategory === "CineAnalytics" ? (
                <AnalyticsDashboard watchedMovies={watched} watchlist={watchlist} favorites={favorites} apiKey={apiKey} onMovieClick={setSelectedMovie} />
            ) : (
                <>
-                   {/* HERO SECTION */}
                    {!searchQuery && selectedCategory === "All" && !currentCollection && filterPeriod === "all" && featuredMovie && !loading && page === 1 && ( 
                        <div className="relative w-full h-[60vh] min-h-[500px] md:h-[80vh] group overflow-hidden">
                            <div className="absolute inset-0 bg-black">
@@ -884,10 +835,9 @@ export default function App() {
                        </div> 
                    )}
 
-                   {/* Collection Hero */}
                    {currentCollection && DEFAULT_COLLECTIONS[currentCollection] && (
                       <div className="relative w-full h-[40vh] md:h-[50vh] overflow-hidden">
-                          <img src={DEFAULT_COLLECTIONS[currentCollection].backdrop} className="w-full h-full object-cover animate-in fade-in duration-700" />
+                          <img src={DEFAULT_COLLECTIONS[currentCollection].backdrop} className="w-full h-full object-cover animate-in fade-in duration-700" alt={DEFAULT_COLLECTIONS[currentCollection].title} />
                           <div className="absolute inset-0 bg-gradient-to-t from-[#030303] via-[#030303]/80 to-transparent"></div>
                           <div className="absolute bottom-0 left-0 p-8 md:p-12 animate-in slide-in-from-bottom-5 duration-700">
                               <div className="flex items-center gap-2 text-yellow-400 font-bold tracking-widest uppercase text-sm mb-2"><span className="text-2xl">{DEFAULT_COLLECTIONS[currentCollection].icon}</span> Collection</div>
@@ -898,7 +848,6 @@ export default function App() {
                    )}
 
                    <div className="px-4 md:px-12 py-8 space-y-8 relative z-10 -mt-10">
-                       {/* Control Bar */}
                        <div className="sticky top-20 z-50">
                             <div className="glass-panel p-2 rounded-2xl flex flex-wrap md:flex-nowrap gap-4 md:items-center justify-between mb-8 z-30 relative overflow-visible shadow-2xl animate-in slide-in-from-top-5 duration-500">
                                 <div className="flex items-center gap-2 px-2 shrink-0 w-full md:w-auto overflow-hidden">
@@ -946,7 +895,6 @@ export default function App() {
                             </div>
                        </div>
                        
-                       {/* AI Context Reason - Shows if the results are from AI */}
                        {aiContextReason && searchQuery && (
                            <div className="flex items-center gap-3 bg-red-900/10 border border-red-500/20 p-4 rounded-xl backdrop-blur-md animate-in fade-in slide-in-from-top-2 duration-500">
                                <div className="bg-red-500/10 p-2 rounded-lg text-red-400 animate-pulse"><Sparkles size={18}/></div>
@@ -957,10 +905,8 @@ export default function App() {
                            </div>
                        )}
 
-                       {/* Poster Marquee for Home */}
-                       {!searchQuery && selectedCategory === "All" && !currentCollection && movies.length > 0 && <PosterMarquee movies={movies} onMovieClick={setSelectedMovie} />}
+                       <PosterMarquee movies={!searchQuery && selectedCategory === "All" && !currentCollection && movies.length > 0 ? movies : []} onMovieClick={setSelectedMovie} />
 
-                       {/* Movie Grid */}
                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-x-4 gap-y-8 animate-in fade-in duration-700">
                            {movies.map((movie, idx) => (
                                <div key={`${movie.id}-${idx}`} ref={idx === movies.length - 1 ? lastMovieElementRef : null} className="animate-in fade-in zoom-in-95 duration-500" style={{ animationDelay: `${idx * 50}ms` }}>
@@ -982,7 +928,6 @@ export default function App() {
                            </div>
                        )}
 
-                       {/* Demo Mode Banner */}
                        {!apiKey && !loading && (
                            <div className="mt-12 bg-gradient-to-r from-red-900/20 to-gray-900/20 border border-white/10 rounded-2xl p-6 flex items-center justify-between backdrop-blur-md animate-in slide-in-from-bottom-5">
                                <div className="flex items-center gap-4">
@@ -1001,7 +946,6 @@ export default function App() {
         </main>
       </div>
 
-      {/* Modals */}
       {selectedMovie && (
           <MovieModal 
             movie={selectedMovie} 
@@ -1017,6 +961,7 @@ export default function App() {
             onSwitchMovie={setSelectedMovie}
             onOpenListModal={(m) => { setListModalMovie(m); setIsListModalOpen(true); }}
             appRegion={appRegion}
+            userProfile={userProfile}
           />
       )}
 

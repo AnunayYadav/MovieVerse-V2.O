@@ -158,12 +158,20 @@ export interface Provider {
   logo_path: string;
 }
 
+export interface PlayerSettings {
+  autoplay: boolean;
+  skipIntro: boolean;
+  primaryColor: string;
+  defaultAnimeType: 'sub' | 'dub';
+}
+
 export interface UserProfile {
   name: string;
   age: string;
   genres: string[];
   avatar?: string;
   avatarBackground?: string;
+  playerSettings?: PlayerSettings;
 }
 
 export interface AIAnalysisResult {

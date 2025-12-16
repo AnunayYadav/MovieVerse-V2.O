@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, Calendar, Clock, Star, Play, PlayCircle, Bookmark, Heart, Share2, ListPlus, Eye, Tv, Clapperboard, User, ImageIcon, Lightbulb, ShieldAlert, Sparkles, Loader2, Check, DollarSign, TrendingUp, Globe } from 'lucide-react';
-import { Movie, MovieDetails, Season } from '../types';
+import { Movie, MovieDetails, Season, UserProfile } from '../types';
 import { TMDB_BASE_URL, TMDB_IMAGE_BASE, TMDB_BACKDROP_BASE, formatCurrency, ImageLightbox } from '../components/Shared';
 import { generateTrivia, getSimilarMoviesAI } from '../services/gemini';
 import { MoviePlayer } from './MoviePlayer';
@@ -19,11 +19,12 @@ interface MovieModalProps {
     appRegion: string;
     isWatched: boolean;
     onToggleWatched: (m: Movie) => void;
+    userProfile: UserProfile;
 }
 
 export const MovieModal: React.FC<MovieModalProps> = ({ 
     movie, onClose, apiKey, onPersonClick, onToggleWatchlist, isWatchlisted, 
-    onSwitchMovie, onOpenListModal, onToggleFavorite, isFavorite, appRegion, isWatched, onToggleWatched 
+    onSwitchMovie, onOpenListModal, onToggleFavorite, isFavorite, appRegion, isWatched, onToggleWatched, userProfile
 }) => {
     const [details, setDetails] = useState<MovieDetails | null>(null);
     const [loading, setLoading] = useState(false);
@@ -140,6 +141,7 @@ export const MovieModal: React.FC<MovieModalProps> = ({
                         initialSeason={isPlaying.season}
                         initialEpisode={isPlaying.episode}
                         onClose={() => setIsPlaying(false)} 
+                        settings={userProfile.playerSettings}
                     />
                 </div>
             </div>

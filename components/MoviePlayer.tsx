@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Film, Tv, Ghost, ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { PlayerSettings } from '../types';
 
 interface MoviePlayerProps {
   tmdbId: number;
@@ -9,15 +10,18 @@ interface MoviePlayerProps {
   isAnime: boolean;
   initialSeason?: number;
   initialEpisode?: number;
+  settings?: PlayerSettings;
 }
 
 export const MoviePlayer: React.FC<MoviePlayerProps> = ({ 
-  tmdbId, onClose, mediaType, isAnime, initialSeason = 1, initialEpisode = 1 
+  tmdbId, onClose, mediaType, isAnime, initialSeason = 1, initialEpisode = 1, settings
 }) => {
   const [isTv, setIsTv] = useState(mediaType === 'tv' || isAnime);
   const [season, setSeason] = useState(initialSeason);
   const [episode, setEpisode] = useState(initialEpisode);
-  const [animeType, setAnimeType] = useState<'sub' | 'dub'>('sub');
+  
+  // Use settings default or fallback to 'sub'
+  const [animeType, setAnimeType] = useState<'sub' | 'dub'>(settings?.defaultAnimeType || 'sub');
   const [isMenuExpanded, setIsMenuExpanded] = useState(true);
 
   useEffect(() => {
@@ -62,14 +66,24 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   }, []);
 
   const getEmbedUrl = () => {
+    // URL param construction
+    const params = new URLSearchParams();
+    
+    // Default or User Preferences
+    if (settings?.autoplay !== false) params.set('autoPlay', '1'); // Default true if undefined
+    if (settings?.skipIntro) params.set('autoSkipIntro', '1');
+    
+    const themeColor = settings?.primaryColor ? settings.primaryColor.replace('#', '') : 'dc2626';
+    params.set('color', themeColor);
+
     // Vidsrc.cc is a popular embed source for demos
     if (isAnime) {
-        return `https://vidsrc.cc/v2/embed/anime/tmdb${tmdbId}/${episode}/${animeType}?autoPlay=1&autoSkipIntro=1`;
+        return `https://vidsrc.cc/v2/embed/anime/tmdb${tmdbId}/${episode}/${animeType}?${params.toString()}`;
     }
     if (isTv) {
-        return `https://vidsrc.cc/v2/embed/tv/${tmdbId}/${season}/${episode}?autoPlay=1&color=dc2626`;
+        return `https://vidsrc.cc/v2/embed/tv/${tmdbId}/${season}/${episode}?${params.toString()}`;
     }
-    return `https://vidsrc.cc/v2/embed/movie/${tmdbId}?autoPlay=1&color=dc2626`;
+    return `https://vidsrc.cc/v2/embed/movie/${tmdbId}?${params.toString()}`;
   };
 
   return (
@@ -163,7 +177,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
 
       <div className="flex-1 relative w-full h-full">
         <iframe 
-            key={`${isTv}-${isAnime}-${season}-${episode}-${animeType}`} 
+            key={`${isTv}-${isAnime}-${season}-${episode}-${animeType}-${settings?.primaryColor}`} 
             src={getEmbedUrl()}
             className="w-full h-full absolute inset-0 bg-black"
             allowFullScreen 

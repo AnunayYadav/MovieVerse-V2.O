@@ -4,7 +4,8 @@ import { Movie } from '../types';
 
 export const TMDB_BASE_URL = "https://api.themoviedb.org/3";
 export const TMDB_IMAGE_BASE = "https://image.tmdb.org/t/p/w500";
-export const TMDB_BACKDROP_BASE = "https://image.tmdb.org/t/p/original";
+// Optimized from 'original' to 'w1280' for better performance and lower bandwidth
+export const TMDB_BACKDROP_BASE = "https://image.tmdb.org/t/p/w1280";
 
 // --- CENTRALIZED CONFIGURATION ---
 
@@ -20,7 +21,6 @@ export const safeEnv = (key: string) => {
 };
 
 // Hardcoded fallbacks REMOVED for production security.
-// The app will now strictly look for Environment Variables or User Input in Settings.
 export const HARDCODED_TMDB_KEY = "";
 export const HARDCODED_GEMINI_KEY = "";
 
@@ -100,15 +100,18 @@ export const StarRating = ({ rating }: { rating: number | undefined }) => {
   );
 };
 
-export const PosterMarquee = ({ movies, onMovieClick }: { movies: Movie[], onMovieClick: (m: Movie) => void }) => {
+export const PosterMarquee = React.memo(({ movies, onMovieClick }: { movies: Movie[], onMovieClick: (m: Movie) => void }) => {
     if (!movies || movies.length === 0) return null;
-    const marqueeMovies = [...movies, ...movies, ...movies].slice(0, 30);
+    
+    // Performance: Take top 20 movies max, then duplicate for marquee effect
+    const sourceMovies = movies.slice(0, 20);
+    const marqueeMovies = [...sourceMovies, ...sourceMovies];
   
     return (
       <div className="relative w-full overflow-hidden py-8 border-y border-white/5 bg-black/40 backdrop-blur-sm mb-8 transition-all duration-500">
         <div className="absolute top-0 bottom-0 left-0 w-32 z-10 bg-gradient-to-r from-black to-transparent pointer-events-none" />
         <div className="absolute top-0 bottom-0 right-0 w-32 z-10 bg-gradient-to-l from-black to-transparent pointer-events-none" />
-        <div className="flex animate-marquee hover:[animation-play-state:paused]">
+        <div className="flex animate-marquee hover:[animation-play-state:paused]" style={{ width: 'max-content' }}>
           {marqueeMovies.map((movie, index) => (
              <div 
                key={`${movie.id}-${index}`} 
@@ -118,7 +121,8 @@ export const PosterMarquee = ({ movies, onMovieClick }: { movies: Movie[], onMov
                 <div className="aspect-[2/3] rounded-xl overflow-hidden shadow-2xl border border-white/10 group-hover:border-red-500/30 group-hover:shadow-[0_0_25px_rgba(220,38,38,0.3)] transition-all duration-500">
                     <img 
                       src={movie.poster_path ? `${TMDB_IMAGE_BASE}${movie.poster_path}` : (movie.poster || "https://placehold.co/300x450/333/FFF?text=Movie")} 
-                      alt="" 
+                      alt={movie.title || "Movie"} 
+                      loading="lazy"
                       className="w-full h-full object-cover opacity-60 grayscale group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-500"
                     />
                 </div>
@@ -128,16 +132,15 @@ export const PosterMarquee = ({ movies, onMovieClick }: { movies: Movie[], onMov
         <style>{`
           @keyframes marquee {
             0% { transform: translateX(0); }
-            100% { transform: translateX(-33.33%); }
+            100% { transform: translateX(-50%); }
           }
           .animate-marquee {
             animation: marquee 60s linear infinite;
-            width: fit-content;
           }
         `}</style>
       </div>
     );
-};
+});
 
 export const ImageLightbox = ({ src, onClose }: { src: string, onClose: () => void }) => {
     if (!src) return null;
@@ -152,6 +155,7 @@ export const ImageLightbox = ({ src, onClose }: { src: string, onClose: () => vo
           document.body.appendChild(link);
           link.click();
           document.body.removeChild(link);
+          window.URL.revokeObjectURL(url);
         } catch (e) {
           window.open(src, '_blank');
         }
