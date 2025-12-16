@@ -207,6 +207,9 @@ export interface UserProfile {
   canWatch?: boolean; // New Flag for Restricted Access
   theme?: 'default' | 'gold'; // Theme preference for exclusive users
   enableHistory?: boolean; // Toggle for history recording
+  // Synced Preferences
+  maturityRating?: MaturityRating;
+  region?: string;
 }
 
 export interface AIAnalysisResult {

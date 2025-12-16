@@ -108,6 +108,9 @@ export default function App() {
     setHasUnread(false);
     setLastNotificationId(null);
     setUserProfile({ name: "Guest", age: "", genres: [], enableHistory: true });
+    setSearchHistory([]);
+    setMaturityRating('NC-17');
+    setAppRegion('US');
   }, []);
 
   const resetFilters = () => {
@@ -154,7 +157,13 @@ export default function App() {
                     setFavorites(cloudData.favorites);
                     setWatched(cloudData.watched);
                     setCustomLists(cloudData.customLists);
-                    if (cloudData.profile) profileToSet = cloudData.profile;
+                    setSearchHistory(cloudData.searchHistory || []);
+                    if (cloudData.profile) {
+                        profileToSet = cloudData.profile;
+                        // Restore synced settings
+                        if (profileToSet.maturityRating) setMaturityRating(profileToSet.maturityRating);
+                        if (profileToSet.region) setAppRegion(profileToSet.region);
+                    }
                     
                     if (cloudData.settings) {
                         if (cloudData.settings.tmdbKey && !getTmdbKey()) {
@@ -254,7 +263,7 @@ export default function App() {
     };
   }, [resetAuthState]);
 
-  // ... (Keep existing UseEffects for Sync, Notification, Auth) ...
+  // Sync Logic - Includes appRegion and maturityRating now
   useEffect(() => {
       if (isCloudSync && isAuthenticated && dataLoaded) {
           const timeoutId = setTimeout(() => {
@@ -263,13 +272,18 @@ export default function App() {
                   favorites,
                   watched,
                   customLists,
-                  profile: userProfile,
-                  settings: { tmdbKey: apiKey, geminiKey: geminiKey }
+                  profile: {
+                    ...userProfile,
+                    maturityRating,
+                    region: appRegion
+                  },
+                  settings: { tmdbKey: apiKey, geminiKey: geminiKey },
+                  searchHistory: searchHistory
               });
           }, 1000); 
           return () => clearTimeout(timeoutId);
       }
-  }, [watchlist, favorites, watched, customLists, userProfile, isCloudSync, isAuthenticated, apiKey, geminiKey, dataLoaded]);
+  }, [watchlist, favorites, watched, customLists, userProfile, isCloudSync, isAuthenticated, apiKey, geminiKey, dataLoaded, searchHistory, maturityRating, appRegion]);
 
   const checkUnreadNotifications = async () => {
       try {

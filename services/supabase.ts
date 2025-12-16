@@ -86,6 +86,7 @@ export interface UserData {
     customLists: Record<string, Movie[]>;
     profile: UserProfile;
     settings?: UserSettings;
+    searchHistory?: string[];
 }
 
 export const syncUserData = async (userData: UserData) => {
@@ -107,6 +108,7 @@ export const syncUserData = async (userData: UserData) => {
             custom_lists: userData.customLists,
             profile: userData.profile,
             settings: userData.settings, // Sync API Keys/Settings
+            search_history: userData.searchHistory, // Sync Search History
             updated_at: new Date().toISOString()
         });
 
@@ -153,7 +155,8 @@ export const fetchUserData = async (): Promise<UserData | null> => {
                 watched: [],
                 customLists: {},
                 profile: { name: "New User", age: "", genres: [] },
-                settings: {}
+                settings: {},
+                searchHistory: []
              };
         }
         
@@ -176,7 +179,8 @@ export const fetchUserData = async (): Promise<UserData | null> => {
         watched: data.watched || [],
         customLists: data.custom_lists || {},
         profile: fetchedProfile,
-        settings: data.settings || {}
+        settings: data.settings || {},
+        searchHistory: data.search_history || []
     };
 };
 
