@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { X, Calendar, Clock, Star, Play, Bookmark, Heart, Share2, ListPlus, Tv, Clapperboard, User, Lightbulb, Sparkles, Loader2, Check, DollarSign, TrendingUp, Tag, Layers, MessageCircle, Scale, Globe, Facebook, Instagram, Twitter, Film, PlayCircle, Minimize2 } from 'lucide-react';
+import { X, Calendar, Clock, Star, Play, Bookmark, Heart, Share2, ListPlus, Tv, Clapperboard, User, Lightbulb, Sparkles, Loader2, Check, DollarSign, TrendingUp, Tag, Layers, MessageCircle, Scale, Globe, Facebook, Instagram, Twitter, Film, PlayCircle } from 'lucide-react';
 import { Movie, MovieDetails, Season, UserProfile, Keyword, Review } from '../types';
 import { TMDB_BASE_URL, TMDB_IMAGE_BASE, TMDB_BACKDROP_BASE, formatCurrency, ImageLightbox } from '../components/Shared';
 import { generateTrivia, getSimilarMoviesAI } from '../services/gemini';
+import { MoviePlayer } from './MoviePlayer';
 
 interface MovieModalProps {
     movie: Movie;
@@ -183,16 +184,6 @@ export const MovieModal: React.FC<MovieModalProps> = ({
         );
     };
 
-    // Construction of Embed URL
-    const getEmbedUrl = () => {
-        if (isTv) {
-            // Default to S{selectedSeason} E1 if user clicks Watch Now
-            // The embed player usually allows internal navigation, but we provide a starting point.
-            return `https://vidsrc.xyz/embed/tv/${displayData.id}/${selectedSeason}/1`;
-        }
-        return `https://vidsrc.xyz/embed/movie/${displayData.id}`;
-    };
-
     return (
         <div className="fixed inset-0 z-[70] flex items-end md:items-center justify-center md:p-6 animate-in fade-in duration-300">
             {/* Backdrop with Blur */}
@@ -211,20 +202,15 @@ export const MovieModal: React.FC<MovieModalProps> = ({
                         {/* Hero Header / Player */}
                         <div className="relative h-[60vh] md:h-[500px] w-full shrink-0 bg-black">
                              {showPlayer && userProfile.canWatch ? (
-                                 <div className="absolute inset-0 z-10 animate-in fade-in duration-700">
-                                     <iframe 
-                                        src={getEmbedUrl()} 
-                                        className="w-full h-full border-0" 
-                                        allowFullScreen 
-                                        referrerPolicy="origin"
-                                        title="Player"
+                                 <div className="absolute inset-0 z-50 animate-in fade-in duration-700">
+                                     <MoviePlayer 
+                                        tmdbId={displayData.id}
+                                        onClose={() => setShowPlayer(false)}
+                                        mediaType={isTv ? 'tv' : 'movie'}
+                                        isAnime={isAnime || false}
+                                        initialSeason={selectedSeason}
+                                        initialEpisode={1}
                                      />
-                                     <button 
-                                        onClick={() => setShowPlayer(false)} 
-                                        className="absolute top-4 left-4 z-20 bg-black/60 hover:bg-white/10 backdrop-blur-md px-4 py-2 rounded-full text-white/80 hover:text-white transition-all border border-white/10 flex items-center gap-2 text-sm font-bold"
-                                     >
-                                         <Minimize2 size={16}/> Close Player
-                                     </button>
                                  </div>
                              ) : (
                                  <div className="absolute inset-0">
