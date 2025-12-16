@@ -163,12 +163,19 @@ export const fetchUserData = async (): Promise<UserData | null> => {
 
     if (!data) return null;
 
+    // Map database profile + permission flags to app UserProfile
+    const fetchedProfile = data.profile || { name: "", age: "", genres: [] };
+    // Gatekeeper Logic: Check the 'can_watch' column in the database
+    if (data.can_watch === true) {
+        fetchedProfile.canWatch = true;
+    }
+
     return {
         watchlist: data.watchlist || [],
         favorites: data.favorites || [],
         watched: data.watched || [],
         customLists: data.custom_lists || {},
-        profile: data.profile || { name: "", age: "", genres: [] },
+        profile: fetchedProfile,
         settings: data.settings || {}
     };
 };

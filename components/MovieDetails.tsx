@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Calendar, Clock, Star, Play, Bookmark, Heart, Share2, ListPlus, Tv, Clapperboard, User, Lightbulb, Sparkles, Loader2, Check, DollarSign, TrendingUp, Tag, Layers, MessageCircle, Scale, Globe, Facebook, Instagram, Twitter, Film } from 'lucide-react';
+import { X, Calendar, Clock, Star, Play, Bookmark, Heart, Share2, ListPlus, Tv, Clapperboard, User, Lightbulb, Sparkles, Loader2, Check, DollarSign, TrendingUp, Tag, Layers, MessageCircle, Scale, Globe, Facebook, Instagram, Twitter, Film, PlayCircle, Minimize2 } from 'lucide-react';
 import { Movie, MovieDetails, Season, UserProfile, Keyword, Review } from '../types';
 import { TMDB_BASE_URL, TMDB_IMAGE_BASE, TMDB_BACKDROP_BASE, formatCurrency, ImageLightbox } from '../components/Shared';
 import { generateTrivia, getSimilarMoviesAI } from '../services/gemini';
@@ -41,6 +41,7 @@ export const MovieModal: React.FC<MovieModalProps> = ({
     const [seasonData, setSeasonData] = useState<Season | null>(null);
     const [loadingSeason, setLoadingSeason] = useState(false);
     const [viewingImage, setViewingImage] = useState<string | null>(null);
+    const [showPlayer, setShowPlayer] = useState(false);
 
     useEffect(() => {
         if (!apiKey || !movie.id) return;
@@ -67,6 +68,7 @@ export const MovieModal: React.FC<MovieModalProps> = ({
         setAiSimilar([]);
         setActiveTab("details");
         setSeasonData(null);
+        setShowPlayer(false); // Reset player on new movie load
 
     }, [movie.id, apiKey, movie.media_type]);
 
@@ -181,6 +183,16 @@ export const MovieModal: React.FC<MovieModalProps> = ({
         );
     };
 
+    // Construction of Embed URL
+    const getEmbedUrl = () => {
+        if (isTv) {
+            // Default to S{selectedSeason} E1 if user clicks Watch Now
+            // The embed player usually allows internal navigation, but we provide a starting point.
+            return `https://vidsrc.xyz/embed/tv/${displayData.id}/${selectedSeason}/1`;
+        }
+        return `https://vidsrc.xyz/embed/movie/${displayData.id}`;
+    };
+
     return (
         <div className="fixed inset-0 z-[70] flex items-end md:items-center justify-center md:p-6 animate-in fade-in duration-300">
             {/* Backdrop with Blur */}
@@ -196,40 +208,68 @@ export const MovieModal: React.FC<MovieModalProps> = ({
                     <div className="h-96 flex items-center justify-center"><Loader2 className="animate-spin text-red-500" size={48}/></div>
                 ) : (
                     <div className="flex flex-col overflow-y-auto custom-scrollbar bg-[#0a0a0a]">
-                        {/* Hero Header */}
-                        <div className="relative h-[60vh] md:h-[500px] w-full shrink-0">
-                             <div className="absolute inset-0">
-                                <img src={displayData.backdrop_path ? `${TMDB_BACKDROP_BASE}${displayData.backdrop_path}` : displayData.poster_path ? `${TMDB_IMAGE_BASE}${displayData.poster_path}` : "https://placehold.co/1200x600"} alt={title} className="w-full h-full object-cover animate-in fade-in duration-700" />
-                                <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0a] via-[#0a0a0a]/50 to-transparent"></div>
-                                <div className="absolute inset-0 bg-gradient-to-r from-[#0a0a0a] via-[#0a0a0a]/30 to-transparent"></div>
-                             </div>
+                        {/* Hero Header / Player */}
+                        <div className="relative h-[60vh] md:h-[500px] w-full shrink-0 bg-black">
+                             {showPlayer && userProfile.canWatch ? (
+                                 <div className="absolute inset-0 z-10 animate-in fade-in duration-700">
+                                     <iframe 
+                                        src={getEmbedUrl()} 
+                                        className="w-full h-full border-0" 
+                                        allowFullScreen 
+                                        referrerPolicy="origin"
+                                        title="Player"
+                                     />
+                                     <button 
+                                        onClick={() => setShowPlayer(false)} 
+                                        className="absolute top-4 left-4 z-20 bg-black/60 hover:bg-white/10 backdrop-blur-md px-4 py-2 rounded-full text-white/80 hover:text-white transition-all border border-white/10 flex items-center gap-2 text-sm font-bold"
+                                     >
+                                         <Minimize2 size={16}/> Close Player
+                                     </button>
+                                 </div>
+                             ) : (
+                                 <div className="absolute inset-0">
+                                    <img src={displayData.backdrop_path ? `${TMDB_BACKDROP_BASE}${displayData.backdrop_path}` : displayData.poster_path ? `${TMDB_IMAGE_BASE}${displayData.poster_path}` : "https://placehold.co/1200x600"} alt={title} className="w-full h-full object-cover animate-in fade-in duration-700" />
+                                    <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0a] via-[#0a0a0a]/50 to-transparent"></div>
+                                    <div className="absolute inset-0 bg-gradient-to-r from-[#0a0a0a] via-[#0a0a0a]/30 to-transparent"></div>
+                                 </div>
+                             )}
                              
-                             <div className="absolute bottom-0 left-0 p-6 md:p-10 w-full md:w-2/3 flex flex-col gap-4 animate-in slide-in-from-bottom-4 duration-700 delay-100">
-                                <h2 className="text-3xl md:text-5xl font-extrabold text-white leading-tight drop-shadow-lg">{title}</h2>
-                                <div className="flex flex-wrap items-center gap-3 md:gap-4 text-white/80 text-sm font-medium">
-                                    {isAnime && <span className="glass px-2 py-0.5 rounded text-xs font-bold text-red-400 border-red-500/30">ANIME</span>}
-                                    <span className="flex items-center gap-1.5"><Calendar size={14} className="text-red-500"/> {displayData.release_date?.split('-')[0] || displayData.first_air_date?.split('-')[0] || 'TBA'}</span>
-                                    <span className="flex items-center gap-1.5"><Clock size={14} className="text-red-500"/> {runtime}</span>
-                                    {displayData.vote_average && <span className="flex items-center gap-1.5"><Star size={14} className="text-yellow-500" fill="currentColor"/> {displayData.vote_average.toFixed(1)}</span>}
-                                    {displayData.external_ids && (
-                                        <div className="flex gap-2 ml-2 border-l border-white/20 pl-4">
-                                            {displayData.external_ids.imdb_id && <SocialLink url={`https://www.imdb.com/title/${displayData.external_ids.imdb_id}`} icon={Film} color="text-yellow-400"/>}
-                                            {displayData.external_ids.instagram_id && <SocialLink url={`https://instagram.com/${displayData.external_ids.instagram_id}`} icon={Instagram} color="text-pink-400"/>}
-                                            {displayData.homepage && <SocialLink url={displayData.homepage} icon={Globe} color="text-green-400"/>}
-                                        </div>
-                                    )}
-                                </div>
-                                <div className="flex flex-wrap gap-3 mt-2">
-                                    <button onClick={handleTrailerClick} className="bg-white text-black hover:bg-gray-200 font-bold py-3 px-6 rounded-xl transition-all flex items-center gap-2 active:scale-95"><Play size={18} /> Trailer</button>
-                                    <div className="flex gap-2">
-                                        <button onClick={() => onToggleWatchlist(displayData)} className={`p-3 rounded-xl border transition-colors active:scale-95 ${isWatchlisted ? 'bg-red-600/20 border-red-500/50 text-red-400' : 'glass hover:bg-white/10 text-white/70'}`}><Bookmark size={20} fill={isWatchlisted ? "currentColor" : "none"} /></button>
-                                        <button onClick={() => onToggleFavorite(displayData)} className={`p-3 rounded-xl border transition-colors active:scale-95 ${isFavorite ? 'bg-red-600/20 border-red-500/50 text-red-400' : 'glass hover:bg-white/10 text-white/70'}`}><Heart size={20} fill={isFavorite ? "currentColor" : "none"} /></button>
-                                        <button onClick={() => onOpenListModal(displayData)} className="p-3 rounded-xl glass hover:bg-white/10 text-white/70 transition-colors active:scale-95" title="Add to Custom List"><ListPlus size={20} /></button>
-                                        <button onClick={handleShare} className={`p-3 rounded-xl glass hover:bg-white/10 transition-colors active:scale-95 ${copied ? 'text-green-400' : 'text-white/70'}`}>{copied ? <Check size={20} /> : <Share2 size={20} />}</button>
-                                        {onCompare && <button onClick={() => onCompare(displayData)} className="p-3 rounded-xl glass hover:bg-white/10 text-white/70 transition-colors active:scale-95" title="Compare Movie"><Scale size={20} /></button>}
+                             {!showPlayer && (
+                                 <div className="absolute bottom-0 left-0 p-6 md:p-10 w-full md:w-2/3 flex flex-col gap-4 animate-in slide-in-from-bottom-4 duration-700 delay-100">
+                                    <h2 className="text-3xl md:text-5xl font-extrabold text-white leading-tight drop-shadow-lg">{title}</h2>
+                                    <div className="flex flex-wrap items-center gap-3 md:gap-4 text-white/80 text-sm font-medium">
+                                        {isAnime && <span className="glass px-2 py-0.5 rounded text-xs font-bold text-red-400 border-red-500/30">ANIME</span>}
+                                        <span className="flex items-center gap-1.5"><Calendar size={14} className="text-red-500"/> {displayData.release_date?.split('-')[0] || displayData.first_air_date?.split('-')[0] || 'TBA'}</span>
+                                        <span className="flex items-center gap-1.5"><Clock size={14} className="text-red-500"/> {runtime}</span>
+                                        {displayData.vote_average && <span className="flex items-center gap-1.5"><Star size={14} className="text-yellow-500" fill="currentColor"/> {displayData.vote_average.toFixed(1)}</span>}
+                                        {displayData.external_ids && (
+                                            <div className="flex gap-2 ml-2 border-l border-white/20 pl-4">
+                                                {displayData.external_ids.imdb_id && <SocialLink url={`https://www.imdb.com/title/${displayData.external_ids.imdb_id}`} icon={Film} color="text-yellow-400"/>}
+                                                {displayData.external_ids.instagram_id && <SocialLink url={`https://instagram.com/${displayData.external_ids.instagram_id}`} icon={Instagram} color="text-pink-400"/>}
+                                                {displayData.homepage && <SocialLink url={displayData.homepage} icon={Globe} color="text-green-400"/>}
+                                            </div>
+                                        )}
                                     </div>
-                                </div>
-                             </div>
+                                    <div className="flex flex-wrap gap-3 mt-2">
+                                        {userProfile.canWatch && (
+                                            <button 
+                                                onClick={() => setShowPlayer(true)} 
+                                                className="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-8 rounded-xl transition-all flex items-center gap-2 active:scale-95 shadow-lg shadow-red-900/40"
+                                            >
+                                                <PlayCircle size={20} fill="currentColor" /> Watch Now
+                                            </button>
+                                        )}
+                                        <button onClick={handleTrailerClick} className={`${userProfile.canWatch ? 'glass hover:bg-white/10 text-white' : 'bg-white text-black hover:bg-gray-200'} font-bold py-3 px-6 rounded-xl transition-all flex items-center gap-2 active:scale-95`}><Play size={18} /> Trailer</button>
+                                        <div className="flex gap-2">
+                                            <button onClick={() => onToggleWatchlist(displayData)} className={`p-3 rounded-xl border transition-colors active:scale-95 ${isWatchlisted ? 'bg-red-600/20 border-red-500/50 text-red-400' : 'glass hover:bg-white/10 text-white/70'}`}><Bookmark size={20} fill={isWatchlisted ? "currentColor" : "none"} /></button>
+                                            <button onClick={() => onToggleFavorite(displayData)} className={`p-3 rounded-xl border transition-colors active:scale-95 ${isFavorite ? 'bg-red-600/20 border-red-500/50 text-red-400' : 'glass hover:bg-white/10 text-white/70'}`}><Heart size={20} fill={isFavorite ? "currentColor" : "none"} /></button>
+                                            <button onClick={() => onOpenListModal(displayData)} className="p-3 rounded-xl glass hover:bg-white/10 text-white/70 transition-colors active:scale-95" title="Add to Custom List"><ListPlus size={20} /></button>
+                                            <button onClick={handleShare} className={`p-3 rounded-xl glass hover:bg-white/10 transition-colors active:scale-95 ${copied ? 'text-green-400' : 'text-white/70'}`}>{copied ? <Check size={20} /> : <Share2 size={20} />}</button>
+                                            {onCompare && <button onClick={() => onCompare(displayData)} className="p-3 rounded-xl glass hover:bg-white/10 text-white/70 transition-colors active:scale-95" title="Compare Movie"><Scale size={20} /></button>}
+                                        </div>
+                                    </div>
+                                 </div>
+                             )}
                         </div>
 
                         {/* Content Body */}

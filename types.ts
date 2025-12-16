@@ -204,6 +204,7 @@ export interface UserProfile {
   genres: string[];
   avatar?: string;
   avatarBackground?: string;
+  canWatch?: boolean; // New Flag for Restricted Access
 }
 
 export interface AIAnalysisResult {
