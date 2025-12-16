@@ -65,7 +65,7 @@ export default function App() {
   const [favorites, setFavorites] = useState<Movie[]>([]);
   const [watched, setWatched] = useState<Movie[]>([]);
   const [customLists, setCustomLists] = useState<Record<string, Movie[]>>({});
-  const [userProfile, setUserProfile] = useState<UserProfile>({ name: "Guest", age: "", genres: [] });
+  const [userProfile, setUserProfile] = useState<UserProfile>({ name: "Guest", age: "", genres: [], enableHistory: true });
   const [hasUnread, setHasUnread] = useState(false);
   const [lastNotificationId, setLastNotificationId] = useState<string | null>(null);
 
@@ -107,7 +107,7 @@ export default function App() {
     setCustomLists({});
     setHasUnread(false);
     setLastNotificationId(null);
-    setUserProfile({ name: "Guest", age: "", genres: [] });
+    setUserProfile({ name: "Guest", age: "", genres: [], enableHistory: true });
   }, []);
 
   const resetFilters = () => {
@@ -147,7 +147,7 @@ export default function App() {
              setIsAuthenticated(true);
              try {
                 const cloudData = await fetchUserData();
-                let profileToSet = { name: "Guest", age: "", genres: [] } as UserProfile;
+                let profileToSet = { name: "Guest", age: "", genres: [], enableHistory: true } as UserProfile;
 
                 if (cloudData) {
                     setWatchlist(cloudData.watchlist);
@@ -343,6 +343,7 @@ export default function App() {
 
   const addToSearchHistory = (query: string) => {
       if (!query.trim()) return;
+      if (userProfile.enableHistory === false) return; // Respect setting
       const newHistory = [query, ...searchHistory.filter(h => h !== query)].slice(0, 10);
       setSearchHistory(newHistory);
       localStorage.setItem('movieverse_search_history', JSON.stringify(newHistory));
@@ -360,6 +361,13 @@ export default function App() {
       const newList = exists ? list.filter(m => m.id !== movie.id) : [...list, movie];
       setList(newList);
       localStorage.setItem(key, JSON.stringify(newList));
+  };
+
+  // Specific handler for Watched history to respect the toggle setting
+  const handleToggleWatched = (movie: Movie) => {
+      const exists = watched.some(m => m.id === movie.id);
+      if (!exists && userProfile.enableHistory === false) return; // Prevent adding if history disabled
+      toggleList(watched, setWatched, 'movieverse_watched', movie);
   };
 
   const createCustomList = (name: string, initialMovie: Movie) => {
@@ -746,6 +754,10 @@ export default function App() {
             profile={userProfile}
             onUpdateProfile={setUserProfile}
             onLogout={handleLogout}
+            searchHistory={searchHistory}
+            setSearchHistory={(h) => { setSearchHistory(h); localStorage.setItem('movieverse_search_history', JSON.stringify(h)); }}
+            watchedMovies={watched}
+            setWatchedMovies={(m) => { setWatched(m); localStorage.setItem('movieverse_watched', JSON.stringify(m)); }}
           />
         </>
       );
@@ -1071,7 +1083,7 @@ export default function App() {
                                             movie={movie} 
                                             onClick={setSelectedMovie} 
                                             isWatched={watched.some(m => m.id === movie.id)} 
-                                            onToggleWatched={(m) => toggleList(watched, setWatched, 'movieverse_watched', m)} 
+                                            onToggleWatched={handleToggleWatched} 
                                         />
                                     )}
                                </div>
@@ -1114,7 +1126,7 @@ export default function App() {
             isWatchlisted={watchlist.some(m => m.id === selectedMovie.id)}
             onToggleFavorite={(m) => toggleList(favorites, setFavorites, 'movieverse_favorites', m)}
             isFavorite={favorites.some(m => m.id === selectedMovie.id)}
-            onToggleWatched={(m) => toggleList(watched, setWatched, 'movieverse_watched', m)}
+            onToggleWatched={handleToggleWatched}
             isWatched={watched.some(m => m.id === selectedMovie.id)}
             onSwitchMovie={setSelectedMovie}
             onOpenListModal={(m) => { setListModalMovie(m); setIsListModalOpen(true); }}
@@ -1174,6 +1186,10 @@ export default function App() {
         profile={userProfile}
         onUpdateProfile={setUserProfile}
         onLogout={handleLogout}
+        searchHistory={searchHistory}
+        setSearchHistory={(h) => { setSearchHistory(h); localStorage.setItem('movieverse_search_history', JSON.stringify(h)); }}
+        watchedMovies={watched}
+        setWatchedMovies={(m) => { setWatched(m); localStorage.setItem('movieverse_watched', JSON.stringify(m)); }}
       />
       
       <NotificationModal 

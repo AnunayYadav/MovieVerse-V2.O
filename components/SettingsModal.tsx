@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { UserCircle, X, Check, Settings, ShieldCheck, RefreshCcw, HelpCircle, Shield, FileText, Lock, LogOut, MessageSquare, Send, Calendar, Mail, User, BrainCircuit, Pencil, CheckCheck, Loader2, ChevronDown, ExternalLink, Fingerprint, Copy, ToggleLeft, ToggleRight, Crown } from 'lucide-react';
-import { UserProfile, MaturityRating } from '../types';
+import { UserCircle, X, Check, Settings, ShieldCheck, RefreshCcw, HelpCircle, Shield, FileText, Lock, LogOut, MessageSquare, Send, Calendar, Mail, User, BrainCircuit, Pencil, CheckCheck, Loader2, ChevronDown, ExternalLink, Fingerprint, Copy, ToggleLeft, ToggleRight, Crown, History, Trash2, Search, Clock } from 'lucide-react';
+import { UserProfile, MaturityRating, Movie } from '../types';
 import { getSupabase, submitSupportTicket } from '../services/supabase';
+import { TMDB_IMAGE_BASE } from './Shared';
 
 interface SettingsModalProps {
     isOpen: boolean;
@@ -15,10 +16,15 @@ interface SettingsModalProps {
     profile: UserProfile;
     onUpdateProfile: (p: UserProfile) => void;
     onLogout?: () => void;
+    searchHistory?: string[];
+    setSearchHistory?: (h: string[]) => void;
+    watchedMovies?: Movie[];
+    setWatchedMovies?: (m: Movie[]) => void;
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({ 
-    isOpen, onClose, apiKey, setApiKey, geminiKey, setGeminiKey, maturityRating, setMaturityRating, profile, onUpdateProfile, onLogout 
+    isOpen, onClose, apiKey, setApiKey, geminiKey, setGeminiKey, maturityRating, setMaturityRating, profile, onUpdateProfile, onLogout,
+    searchHistory = [], setSearchHistory, watchedMovies = [], setWatchedMovies
 }) => {
     // Check if custom keys are stored
     const hasCustomTmdb = !!localStorage.getItem('movieverse_tmdb_key');
@@ -47,6 +53,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
     const isExclusive = profile.canWatch === true;
     const isGoldTheme = isExclusive && profile.theme !== 'default';
+    
+    // Dynamic Accent Logic
+    const accentText = isGoldTheme ? "text-amber-500" : "text-red-600";
+    const accentBg = isGoldTheme ? "bg-amber-500" : "bg-red-600";
+    const accentBorder = isGoldTheme ? "border-amber-500" : "border-red-600";
+    const accentHoverText = isGoldTheme ? "hover:text-amber-400" : "hover:text-red-400";
 
     useEffect(() => {
         if (isOpen) {
@@ -100,6 +112,26 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         onUpdateProfile({ ...profile, theme: newTheme });
     };
 
+    const handleToggleHistory = () => {
+        onUpdateProfile({ ...profile, enableHistory: !profile.enableHistory });
+    };
+
+    const handleClearSearchHistory = () => {
+        if (setSearchHistory) setSearchHistory([]);
+    };
+
+    const handleRemoveSearchItem = (item: string) => {
+        if (setSearchHistory) setSearchHistory(searchHistory.filter(h => h !== item));
+    };
+
+    const handleClearWatchHistory = () => {
+        if (setWatchedMovies) setWatchedMovies([]);
+    };
+
+    const handleRemoveWatchItem = (movieId: number) => {
+        if (setWatchedMovies) setWatchedMovies(watchedMovies.filter(m => m.id !== movieId));
+    };
+
     const handleSendSupport = async () => {
         setSending(true);
         // Include User ID in message for context
@@ -126,6 +158,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     const tabs = [
         { id: 'account', icon: UserCircle, label: 'Account' },
         { id: 'general', icon: Settings, label: 'General' },
+        { id: 'history', icon: History, label: 'History' },
         { id: 'restrictions', icon: Lock, label: 'Restrictions' },
         { id: 'help', icon: HelpCircle, label: 'Help' },
         { id: 'legal', icon: FileText, label: 'Legal & Privacy' },
@@ -365,6 +398,97 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                               
                               <div className="pt-6">
                                 <button onClick={handleSave} className="w-full bg-white text-black font-bold py-4 rounded-xl transition-all hover:bg-gray-200 active:scale-[0.98]">Save Changes</button>
+                              </div>
+                          </div>
+                      )}
+
+                      {activeTab === 'history' && (
+                          <div className="space-y-8 animate-in fade-in slide-in-from-right-4 max-w-2xl h-full flex flex-col">
+                              <div className="flex items-center justify-between pb-4 border-b border-white/10">
+                                  <div>
+                                      <h3 className="text-2xl font-bold text-white mb-1">Manage History</h3>
+                                      <p className="text-xs text-gray-400">Control what is saved to your account.</p>
+                                  </div>
+                                  <div className="flex items-center gap-3 bg-white/5 px-4 py-2 rounded-xl border border-white/5">
+                                      <span className="text-xs font-bold text-white uppercase tracking-wider">{profile.enableHistory !== false ? 'Recording' : 'Paused'}</span>
+                                      <button 
+                                        onClick={handleToggleHistory}
+                                        className={`relative w-10 h-6 rounded-full transition-colors duration-300 ${profile.enableHistory !== false ? (isGoldTheme ? 'bg-amber-500' : 'bg-green-500') : 'bg-white/20'}`}
+                                      >
+                                          <div className={`absolute top-1 left-1 bg-white w-4 h-4 rounded-full transition-transform duration-300 shadow-md ${profile.enableHistory !== false ? 'translate-x-4' : 'translate-x-0'}`}></div>
+                                      </button>
+                                  </div>
+                              </div>
+
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 flex-1 overflow-hidden min-h-0">
+                                  {/* Search History Column */}
+                                  <div className="flex flex-col min-h-0">
+                                      <div className="flex justify-between items-center mb-4">
+                                          <h4 className="font-bold text-white flex items-center gap-2"><Search size={16} className="text-blue-400"/> Search History</h4>
+                                          {searchHistory.length > 0 && (
+                                              <button onClick={handleClearSearchHistory} className={`text-[10px] uppercase font-bold tracking-wider hover:underline transition-colors ${accentText}`}>Clear</button>
+                                          )}
+                                      </div>
+                                      <div className="bg-white/5 rounded-2xl border border-white/5 flex-1 overflow-y-auto custom-scrollbar p-2">
+                                          {searchHistory.length === 0 ? (
+                                              <div className="h-full flex flex-col items-center justify-center text-gray-500 opacity-50 p-8 text-center">
+                                                  <Search size={24} className="mb-2"/>
+                                                  <p className="text-xs">No recent searches</p>
+                                              </div>
+                                          ) : (
+                                              searchHistory.map((query, idx) => (
+                                                  <div key={`${query}-${idx}`} className="flex items-center justify-between p-3 hover:bg-white/5 rounded-xl group transition-colors">
+                                                      <div className="flex items-center gap-3 overflow-hidden">
+                                                          <Clock size={14} className="text-gray-500 shrink-0"/>
+                                                          <span className="text-sm text-gray-300 truncate">{query}</span>
+                                                      </div>
+                                                      <button onClick={() => handleRemoveSearchItem(query)} className="text-gray-600 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all p-1">
+                                                          <X size={14}/>
+                                                      </button>
+                                                  </div>
+                                              ))
+                                          )}
+                                      </div>
+                                  </div>
+
+                                  {/* Watch History Column */}
+                                  <div className="flex flex-col min-h-0">
+                                      <div className="flex justify-between items-center mb-4">
+                                          <h4 className="font-bold text-white flex items-center gap-2"><History size={16} className={isGoldTheme ? "text-amber-400" : "text-red-400"}/> Watch History</h4>
+                                          {watchedMovies.length > 0 && (
+                                              <button onClick={handleClearWatchHistory} className={`text-[10px] uppercase font-bold tracking-wider hover:underline transition-colors ${accentText}`}>Clear</button>
+                                          )}
+                                      </div>
+                                      <div className="bg-white/5 rounded-2xl border border-white/5 flex-1 overflow-y-auto custom-scrollbar p-2">
+                                          {watchedMovies.length === 0 ? (
+                                              <div className="h-full flex flex-col items-center justify-center text-gray-500 opacity-50 p-8 text-center">
+                                                  <History size={24} className="mb-2"/>
+                                                  <p className="text-xs">No watch history</p>
+                                              </div>
+                                          ) : (
+                                              watchedMovies.slice().reverse().map((movie) => (
+                                                  <div key={movie.id} className="flex items-center gap-3 p-2 hover:bg-white/5 rounded-xl group transition-colors relative">
+                                                      <img 
+                                                          src={movie.poster_path ? `${TMDB_IMAGE_BASE}${movie.poster_path}` : "https://placehold.co/50x75"} 
+                                                          alt={movie.title}
+                                                          className="w-10 h-14 object-cover rounded-lg shadow-sm"
+                                                      />
+                                                      <div className="flex-1 min-w-0">
+                                                          <p className={`text-sm font-bold text-gray-200 line-clamp-1 ${accentHoverText}`}>{movie.title || movie.name}</p>
+                                                          <p className="text-[10px] text-gray-500">{movie.release_date?.split('-')[0] || 'Unknown'}</p>
+                                                      </div>
+                                                      <button 
+                                                          onClick={() => handleRemoveWatchItem(movie.id)} 
+                                                          className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/50 p-2 rounded-full text-white/50 hover:text-red-500 hover:bg-white opacity-0 group-hover:opacity-100 transition-all scale-90 hover:scale-100"
+                                                          title="Remove from history"
+                                                      >
+                                                          <Trash2 size={14}/>
+                                                      </button>
+                                                  </div>
+                                              ))
+                                          )}
+                                      </div>
+                                  </div>
                               </div>
                           </div>
                       )}
