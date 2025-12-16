@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { UserCircle, X, ListPlus, Plus, Check, Loader2, Film, AlertCircle, BrainCircuit, Search, Star, RefreshCcw, Bell, CheckCheck, Inbox, Heart, PaintBucket, Upload } from 'lucide-react';
-import { UserProfile, Movie, GENRES_LIST, PersonDetails, AppNotification } from '../types';
-import { TMDB_BASE_URL, TMDB_IMAGE_BASE } from './Shared';
+import { UserCircle, X, ListPlus, Plus, Check, Loader2, Film, AlertCircle, BrainCircuit, Search, Star, RefreshCcw, Bell, CheckCheck, Inbox, Heart, PaintBucket, Upload, Facebook, Instagram, Twitter, Globe, Scale, DollarSign, Clock, Trophy } from 'lucide-react';
+import { UserProfile, Movie, GENRES_LIST, PersonDetails, AppNotification, MovieDetails } from '../types';
+import { TMDB_BASE_URL, TMDB_IMAGE_BASE, formatCurrency } from './Shared';
 import { generateSmartRecommendations } from '../services/gemini';
 import { getNotifications, markNotificationsRead } from '../services/supabase';
 
@@ -34,7 +34,6 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, pro
         }
     }, [isOpen, profile]);
     
-    // MovieVerse Aesthetic Names & Seeds
     const AVATARS = [
         { seed: "Felix", name: "Maverick" },
         { seed: "Aneka", name: "Siren" },
@@ -63,17 +62,14 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, pro
     const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
-            if (file.size > 5 * 1024 * 1024) { // 5MB limit check
+            if (file.size > 5 * 1024 * 1024) { 
                 setError("Image too large. Max 5MB.");
                 return;
             }
-            
-            // Simple validation
             if (!file.type.startsWith('image/')) {
                 setError("Please upload a valid image file.");
                 return;
             }
-
             const reader = new FileReader();
             reader.onload = (e) => {
                 if (e.target?.result) {
@@ -99,8 +95,6 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, pro
              setError("Please select at least 3 genres to personalize your feed.");
              return;
         }
-        
-        // Use spread to preserve existing properties like playerSettings
         onSave({ ...profile, name, age, genres: selectedGenres, avatar, avatarBackground: avatarBg });
         onClose();
     };
@@ -136,8 +130,6 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, pro
                     <div className="w-full md:w-1/3 space-y-6">
                         <div className="space-y-4">
                             <label className="text-xs font-bold text-gray-400 uppercase tracking-wider block">Avatar & Style</label>
-                            
-                            {/* Avatar Preview */}
                             <div className="flex justify-center md:justify-start">
                                 <div className="relative group">
                                     <div className={`w-28 h-28 rounded-full flex items-center justify-center text-4xl font-bold text-white shadow-2xl overflow-hidden border-2 border-white/10 transition-colors duration-500 ${avatarBg}`}>
@@ -148,8 +140,6 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, pro
                                     </div>
                                 </div>
                             </div>
-
-                            {/* Background Selector */}
                             <div>
                                 <p className="text-[10px] text-gray-500 font-bold mb-2 uppercase flex items-center gap-1"><PaintBucket size={10}/> Backdrop</p>
                                 <div className="flex gap-2">
@@ -163,33 +153,13 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, pro
                                     ))}
                                 </div>
                             </div>
-
-                            {/* Custom Upload Button */}
                             <div className="pt-2">
-                                <input 
-                                    type="file" 
-                                    ref={fileInputRef} 
-                                    onChange={handleFileUpload} 
-                                    accept="image/*" 
-                                    className="absolute opacity-0 w-0 h-0 pointer-events-none" 
-                                />
-                                <button 
-                                    type="button"
-                                    onClick={() => fileInputRef.current?.click()}
-                                    className="w-full py-3 bg-white/10 hover:bg-white/20 border border-white/20 rounded-xl text-xs font-bold text-white transition-all flex items-center justify-center gap-2 group active:scale-95 shadow-lg"
-                                >
-                                    <Upload size={16} className="group-hover:-translate-y-0.5 transition-transform"/> Upload Custom Photo
-                                </button>
+                                <input type="file" ref={fileInputRef} onChange={handleFileUpload} accept="image/*" className="absolute opacity-0 w-0 h-0 pointer-events-none" />
+                                <button type="button" onClick={() => fileInputRef.current?.click()} className="w-full py-3 bg-white/10 hover:bg-white/20 border border-white/20 rounded-xl text-xs font-bold text-white transition-all flex items-center justify-center gap-2 group active:scale-95 shadow-lg"><Upload size={16} className="group-hover:-translate-y-0.5 transition-transform"/> Upload Custom Photo</button>
                             </div>
-
-                            {/* Avatar Selector */}
                             <div className="grid grid-cols-4 gap-2">
                                 {AVATARS.map(av => (
-                                    <button 
-                                        key={av.seed}
-                                        onClick={() => selectAvatar(av.seed)}
-                                        className={`flex flex-col items-center gap-1 group transition-transform active:scale-95`}
-                                    >
+                                    <button key={av.seed} onClick={() => selectAvatar(av.seed)} className={`flex flex-col items-center gap-1 group transition-transform active:scale-95`}>
                                         <div className={`w-10 h-10 rounded-full overflow-hidden border-2 transition-all duration-300 bg-black/40 ${avatar.includes(av.seed) ? 'border-red-500 scale-110' : 'border-transparent group-hover:border-white/30 group-hover:scale-105'}`}>
                                              <img src={`https://api.dicebear.com/9.x/avataaars/svg?seed=${av.seed}`} alt={av.name} />
                                         </div>
@@ -204,35 +174,15 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, pro
                                 <label className="text-xs font-bold text-gray-400 uppercase tracking-wider ml-1">Display Name</label>
                                 <div className="relative group">
                                     <UserCircle size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30 group-focus-within:text-white transition-colors duration-300"/>
-                                    <input 
-                                    type="text" 
-                                    value={name} 
-                                    onChange={(e) => setName(e.target.value)} 
-                                    className="w-full bg-white/5 border border-white/10 rounded-xl py-3 pl-10 pr-4 text-white focus:border-red-500 focus:bg-white/10 focus:outline-none transition-all duration-300 text-sm hover:border-white/20"
-                                    placeholder="Your Name"
-                                    />
+                                    <input type="text" value={name} onChange={(e) => setName(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-xl py-3 pl-10 pr-4 text-white focus:border-red-500 focus:bg-white/10 focus:outline-none transition-all duration-300 text-sm hover:border-white/20" placeholder="Your Name" />
                                 </div>
                             </div>
                             <div className="space-y-1.5">
                                 <label className="text-xs font-bold text-gray-400 uppercase tracking-wider ml-1">Age</label>
                                 <div className="relative group">
                                     <UserCircle size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30 group-focus-within:text-white transition-colors duration-300"/>
-                                    <input 
-                                    type="number" 
-                                    value={age} 
-                                    min="10"
-                                    max="120"
-                                    onChange={(e) => {
-                                        const val = parseInt(e.target.value);
-                                        if (!e.target.value || (val >= 0 && val <= 130)) {
-                                            setAge(e.target.value);
-                                        }
-                                    }}
-                                    className="w-full bg-white/5 border border-white/10 rounded-xl py-3 pl-10 pr-4 text-white focus:border-red-500 focus:bg-white/10 focus:outline-none transition-all duration-300 text-sm hover:border-white/20"
-                                    placeholder="10-120"
-                                    />
+                                    <input type="number" value={age} min="10" max="120" onChange={(e) => { const val = parseInt(e.target.value); if (!e.target.value || (val >= 0 && val <= 130)) { setAge(e.target.value); }}} className="w-full bg-white/5 border border-white/10 rounded-xl py-3 pl-10 pr-4 text-white focus:border-red-500 focus:bg-white/10 focus:outline-none transition-all duration-300 text-sm hover:border-white/20" placeholder="10-120" />
                                 </div>
-                                <p className="text-[10px] text-gray-500 ml-1">Age limit: 10 - 120 years.</p>
                             </div>
                         </div>
                     </div>
@@ -306,7 +256,179 @@ export const ListSelectionModal: React.FC<ListModalProps> = ({ isOpen, onClose, 
     );
 };
 
-// PERSON MODAL
+// COMPARISON MODAL
+interface ComparisonModalProps {
+    isOpen: boolean;
+    onClose: () => void;
+    baseMovie: Movie | null;
+    apiKey: string;
+}
+
+export const ComparisonModal: React.FC<ComparisonModalProps> = ({ isOpen, onClose, baseMovie, apiKey }) => {
+    const [movie1, setMovie1] = useState<MovieDetails | null>(null);
+    const [movie2, setMovie2] = useState<MovieDetails | null>(null);
+    const [searchQuery, setSearchQuery] = useState("");
+    const [searchResults, setSearchResults] = useState<Movie[]>([]);
+    const [loading1, setLoading1] = useState(false);
+    const [loading2, setLoading2] = useState(false);
+
+    useEffect(() => {
+        if (isOpen && baseMovie && apiKey) {
+            setLoading1(true);
+            fetch(`${TMDB_BASE_URL}/movie/${baseMovie.id}?api_key=${apiKey}`)
+                .then(r => r.json())
+                .then(d => { setMovie1(d); setLoading1(false); })
+                .catch(() => setLoading1(false));
+            setMovie2(null);
+            setSearchQuery("");
+            setSearchResults([]);
+        }
+    }, [isOpen, baseMovie, apiKey]);
+
+    useEffect(() => {
+        if (searchQuery.length > 2 && apiKey) {
+            const timeout = setTimeout(() => {
+                fetch(`${TMDB_BASE_URL}/search/movie?api_key=${apiKey}&query=${encodeURIComponent(searchQuery)}`)
+                    .then(r => r.json())
+                    .then(d => setSearchResults((d.results || []).slice(0, 5)));
+            }, 300);
+            return () => clearTimeout(timeout);
+        } else {
+            setSearchResults([]);
+        }
+    }, [searchQuery, apiKey]);
+
+    const selectMovie2 = (m: Movie) => {
+        setLoading2(true);
+        fetch(`${TMDB_BASE_URL}/movie/${m.id}?api_key=${apiKey}`)
+            .then(r => r.json())
+            .then(d => { setMovie2(d); setLoading2(false); setSearchQuery(""); setSearchResults([]); })
+            .catch(() => setLoading2(false));
+    };
+
+    if (!isOpen || !baseMovie) return null;
+
+    const ComparisonBar = ({ val1, val2, max, format, inverse = false }: { val1: number, val2: number, max: number, format: (v: number) => string, inverse?: boolean }) => {
+        const p1 = Math.min((val1 / max) * 100, 100) || 0;
+        const p2 = Math.min((val2 / max) * 100, 100) || 0;
+        const win1 = inverse ? val1 < val2 : val1 > val2;
+        const win2 = inverse ? val2 < val1 : val2 > val1;
+
+        return (
+            <div className="flex items-center gap-4 w-full">
+                <div className={`w-24 text-right text-xs font-bold ${win1 ? 'text-green-400' : 'text-gray-400'}`}>{format(val1)}</div>
+                <div className="flex-1 h-2 bg-white/10 rounded-full overflow-hidden flex">
+                    <div className="bg-red-500 h-full transition-all duration-1000" style={{ width: `${p1}%` }}/>
+                </div>
+                <div className="flex-1 h-2 bg-white/10 rounded-full overflow-hidden flex justify-end">
+                    <div className="bg-blue-500 h-full transition-all duration-1000" style={{ width: `${p2}%` }}/>
+                </div>
+                <div className={`w-24 text-left text-xs font-bold ${win2 ? 'text-green-400' : 'text-gray-400'}`}>{format(val2)}</div>
+            </div>
+        );
+    };
+
+    return (
+        <div className="fixed inset-0 z-[90] flex items-center justify-center p-4 bg-black/90 backdrop-blur-xl animate-in fade-in duration-300">
+            <div className="glass-panel w-full max-w-5xl rounded-2xl overflow-hidden shadow-2xl relative flex flex-col max-h-[90vh]">
+                <div className="p-6 border-b border-white/10 flex justify-between items-center bg-black/40">
+                    <h2 className="text-xl font-bold text-white flex items-center gap-2"><Scale className="text-red-500"/> Movie Face-Off</h2>
+                    <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-full transition-colors"><X size={20}/></button>
+                </div>
+
+                <div className="flex-1 overflow-y-auto custom-scrollbar p-6">
+                    <div className="flex flex-col md:flex-row gap-8">
+                        {/* Movie 1 */}
+                        <div className="flex-1 flex flex-col items-center text-center">
+                            {loading1 ? <Loader2 className="animate-spin text-red-500"/> : movie1 && (
+                                <>
+                                    <img src={movie1.poster_path ? `${TMDB_IMAGE_BASE}${movie1.poster_path}` : "https://placehold.co/200x300"} className="w-48 rounded-xl shadow-lg border-2 border-red-500/50 mb-4 object-cover" alt={movie1.title}/>
+                                    <h3 className="text-xl font-bold text-white mb-1">{movie1.title}</h3>
+                                    <p className="text-sm text-gray-400 mb-2">{movie1.release_date?.split('-')[0]}</p>
+                                    <div className="flex items-center gap-1 text-yellow-500 font-bold"><Star size={14} fill="currentColor"/> {movie1.vote_average.toFixed(1)}</div>
+                                </>
+                            )}
+                        </div>
+
+                        {/* VS Divider / Search */}
+                        <div className="w-full md:w-80 shrink-0 flex flex-col items-center">
+                            {!movie2 ? (
+                                <div className="w-full space-y-4">
+                                    <div className="text-center">
+                                        <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mx-auto mb-2 text-2xl font-black text-gray-500 italic">VS</div>
+                                        <p className="text-sm text-gray-400">Select an opponent</p>
+                                    </div>
+                                    <div className="relative">
+                                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={16}/>
+                                        <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search movie..." className="w-full bg-black/50 border border-white/10 rounded-xl py-3 pl-10 pr-4 text-sm text-white focus:outline-none focus:border-blue-500 transition-colors"/>
+                                        {searchResults.length > 0 && (
+                                            <div className="absolute top-full left-0 right-0 mt-2 bg-gray-900 border border-white/10 rounded-xl overflow-hidden shadow-xl z-50">
+                                                {searchResults.map(m => (
+                                                    <button key={m.id} onClick={() => selectMovie2(m)} className="w-full text-left p-3 hover:bg-white/10 flex items-center gap-3 transition-colors">
+                                                        <img src={m.poster_path ? `${TMDB_IMAGE_BASE}${m.poster_path}` : "https://placehold.co/50x75"} className="w-8 h-12 object-cover rounded" alt=""/>
+                                                        <div>
+                                                            <p className="text-sm font-bold text-white line-clamp-1">{m.title}</p>
+                                                            <p className="text-xs text-gray-500">{m.release_date?.split('-')[0]}</p>
+                                                        </div>
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="flex flex-col items-center justify-center h-full">
+                                    <div className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-red-500 to-blue-500 italic">VS</div>
+                                    <button onClick={() => setMovie2(null)} className="mt-4 text-xs text-gray-400 hover:text-white underline">Change Opponent</button>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Movie 2 */}
+                        <div className="flex-1 flex flex-col items-center text-center">
+                            {loading2 ? <Loader2 className="animate-spin text-blue-500"/> : movie2 ? (
+                                <>
+                                    <img src={movie2.poster_path ? `${TMDB_IMAGE_BASE}${movie2.poster_path}` : "https://placehold.co/200x300"} className="w-48 rounded-xl shadow-lg border-2 border-blue-500/50 mb-4 object-cover" alt={movie2.title}/>
+                                    <h3 className="text-xl font-bold text-white mb-1">{movie2.title}</h3>
+                                    <p className="text-sm text-gray-400 mb-2">{movie2.release_date?.split('-')[0]}</p>
+                                    <div className="flex items-center gap-1 text-yellow-500 font-bold"><Star size={14} fill="currentColor"/> {movie2.vote_average.toFixed(1)}</div>
+                                </>
+                            ) : (
+                                <div className="w-48 h-72 rounded-xl border-2 border-dashed border-white/10 flex items-center justify-center text-gray-600">
+                                    <Film size={48}/>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Stats Comparison */}
+                    {movie1 && movie2 && (
+                        <div className="mt-12 space-y-8 max-w-3xl mx-auto">
+                            <div className="space-y-2">
+                                <p className="text-center text-xs font-bold text-gray-500 uppercase tracking-widest flex items-center justify-center gap-2"><DollarSign size={14}/> Budget</p>
+                                <ComparisonBar val1={movie1.budget} val2={movie2.budget} max={Math.max(movie1.budget, movie2.budget) * 1.2} format={(v) => formatCurrency(v, 'US')} />
+                            </div>
+                            <div className="space-y-2">
+                                <p className="text-center text-xs font-bold text-gray-500 uppercase tracking-widest flex items-center justify-center gap-2"><Trophy size={14}/> Box Office</p>
+                                <ComparisonBar val1={movie1.revenue} val2={movie2.revenue} max={Math.max(movie1.revenue, movie2.revenue) * 1.2} format={(v) => formatCurrency(v, 'US')} />
+                            </div>
+                            <div className="space-y-2">
+                                <p className="text-center text-xs font-bold text-gray-500 uppercase tracking-widest flex items-center justify-center gap-2"><Star size={14}/> User Rating</p>
+                                <ComparisonBar val1={movie1.vote_average} val2={movie2.vote_average} max={10} format={(v) => v.toFixed(1)} />
+                            </div>
+                            <div className="space-y-2">
+                                <p className="text-center text-xs font-bold text-gray-500 uppercase tracking-widest flex items-center justify-center gap-2"><Clock size={14}/> Runtime</p>
+                                <ComparisonBar val1={movie1.runtime || 0} val2={movie2.runtime || 0} max={Math.max(movie1.runtime||0, movie2.runtime||0) * 1.2} format={(v) => `${v}m`} />
+                            </div>
+                        </div>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+};
+
+// PERSON MODAL (Updated)
 interface PersonModalProps {
     personId: number;
     onClose: () => void;
@@ -321,13 +443,22 @@ export const PersonModal: React.FC<PersonModalProps> = ({ personId, onClose, api
     useEffect(() => {
       if (!personId || !apiKey) return;
       setLoading(true);
-      fetch(`${TMDB_BASE_URL}/person/${personId}?api_key=${apiKey}&append_to_response=combined_credits,images`)
+      fetch(`${TMDB_BASE_URL}/person/${personId}?api_key=${apiKey}&append_to_response=combined_credits,images,external_ids`)
         .then(res => { if (!res.ok) throw new Error("Fetch failed"); return res.json(); })
         .then(data => { setDetails(data); setLoading(false); })
         .catch(err => { console.error("Person fetch error", err); setLoading(false); setDetails(null); });
     }, [personId, apiKey]);
   
     if (!personId) return null;
+
+    const SocialLink = ({ url, icon: Icon, color }: { url?: string, icon: any, color: string }) => {
+        if (!url) return null;
+        return (
+            <a href={url} target="_blank" rel="noopener noreferrer" className={`p-2 rounded-full bg-white/5 hover:bg-white/10 transition-colors ${color}`}>
+                <Icon size={18}/>
+            </a>
+        );
+    };
   
     return (
       <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/80 backdrop-blur-xl animate-in fade-in duration-300">
@@ -343,6 +474,16 @@ export const PersonModal: React.FC<PersonModalProps> = ({ personId, onClose, api
                         alt={details.name} 
                         className="w-48 md:w-full mx-auto rounded-xl shadow-lg border border-white/10 mb-4 object-cover aspect-[2/3] animate-in fade-in zoom-in duration-500" 
                     />
+                    
+                    {/* Social Links */}
+                    <div className="flex justify-center gap-3 mb-6">
+                        {details.external_ids?.imdb_id && <SocialLink url={`https://www.imdb.com/name/${details.external_ids.imdb_id}`} icon={Film} color="text-yellow-400"/>}
+                        {details.external_ids?.instagram_id && <SocialLink url={`https://instagram.com/${details.external_ids.instagram_id}`} icon={Instagram} color="text-pink-400"/>}
+                        {details.external_ids?.twitter_id && <SocialLink url={`https://twitter.com/${details.external_ids.twitter_id}`} icon={Twitter} color="text-blue-400"/>}
+                        {details.external_ids?.facebook_id && <SocialLink url={`https://facebook.com/${details.external_ids.facebook_id}`} icon={Facebook} color="text-blue-600"/>}
+                        {details.homepage && <SocialLink url={details.homepage} icon={Globe} color="text-green-400"/>}
+                    </div>
+
                     <div className="space-y-3 text-center md:text-left">
                       <div className="glass p-3 rounded-xl text-sm transition-colors hover:bg-white/5"><span className="text-white/40 block text-[10px] uppercase font-bold tracking-wider mb-1">Born</span><span className="text-white font-medium">{details.birthday || 'N/A'}</span></div>
                       <div className="glass p-3 rounded-xl text-sm transition-colors hover:bg-white/5"><span className="text-white/40 block text-[10px] uppercase font-bold tracking-wider mb-1">Place</span><span className="text-white font-medium">{details.place_of_birth || 'N/A'}</span></div>

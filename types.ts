@@ -50,6 +50,13 @@ export interface CollectionDetails {
   parts: Movie[];
 }
 
+export interface ExternalIds {
+    imdb_id?: string;
+    facebook_id?: string;
+    instagram_id?: string;
+    twitter_id?: string;
+}
+
 export interface MovieDetails extends Movie {
   budget: number;
   revenue: number;
@@ -73,9 +80,8 @@ export interface MovieDetails extends Movie {
   "watch/providers"?: {
     results: Record<string, ProviderRegion>;
   };
-  external_ids?: {
-    imdb_id?: string;
-  };
+  external_ids?: ExternalIds;
+  homepage?: string;
   content_ratings?: {
     results: ContentRating[];
   };
@@ -112,6 +118,7 @@ export interface Review {
 export interface Creator {
   id: number;
   name: string;
+  job: string;
 }
 
 export interface ContentRating {
@@ -221,6 +228,8 @@ export interface PersonDetails {
   combined_credits: {
     cast: Movie[];
   };
+  external_ids?: ExternalIds;
+  homepage?: string;
 }
 
 export interface AppNotification {

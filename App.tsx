@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Search, Film, Menu, TrendingUp, Tv, Ghost, Calendar, Star, X, Sparkles, Settings, Globe, BarChart3, Bookmark, Heart, Folder, Languages, Filter, ChevronDown, Info, Plus, Cloud, CloudOff, Clock, Bell, History, User, Users, Tag, Layers } from 'lucide-react';
+import { Search, Film, Menu, TrendingUp, Tv, Ghost, Calendar, Star, X, Sparkles, Settings, Globe, BarChart3, Bookmark, Heart, Folder, Languages, Filter, ChevronDown, Info, Plus, Cloud, CloudOff, Clock, Bell, History, User, Users, Tag, Layers, Dice5 } from 'lucide-react';
 import { Movie, UserProfile, GENRES_MAP, GENRES_LIST, INDIAN_LANGUAGES, MaturityRating, Keyword } from './types';
 import { LogoLoader, MovieSkeleton, MovieCard, PersonCard, PosterMarquee, TMDB_BASE_URL, TMDB_BACKDROP_BASE, HARDCODED_TMDB_KEY, HARDCODED_GEMINI_KEY, getTmdbKey, getGeminiKey } from './components/Shared';
 import { MovieModal } from './components/MovieDetails';
 import { AnalyticsDashboard } from './components/Analytics';
-import { ProfileModal, ListSelectionModal, PersonModal, AIRecommendationModal, NotificationModal } from './components/Modals';
+import { ProfileModal, ListSelectionModal, PersonModal, AIRecommendationModal, NotificationModal, ComparisonModal } from './components/Modals';
 import { SettingsModal } from './components/SettingsModal';
 import { generateSmartRecommendations, getSearchSuggestions } from './services/gemini';
 import { LoginPage } from './components/LoginPage';
@@ -76,6 +76,8 @@ export default function App() {
   const [selectedPersonId, setSelectedPersonId] = useState<number | null>(null);
   const [isAIModalOpen, setIsAIModalOpen] = useState(false);
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
+  const [isComparisonOpen, setIsComparisonOpen] = useState(false);
+  const [comparisonBaseMovie, setComparisonBaseMovie] = useState<Movie | null>(null);
   
   const abortControllerRef = useRef<AbortController | null>(null);
 
@@ -654,6 +656,34 @@ export default function App() {
       handleSearchSubmit(suggestion);
   };
   
+  const handleFeelingLucky = () => {
+      setIsSidebarOpen(false);
+      resetFilters();
+      setLoading(true);
+      // Pick random page between 1 and 50
+      const randomPage = Math.floor(Math.random() * 50) + 1;
+      const params = new URLSearchParams({
+          api_key: apiKey,
+          page: randomPage.toString(),
+          sort_by: "vote_average.desc",
+          "vote_count.gte": "500",
+          include_adult: "false"
+      });
+      
+      fetch(`${TMDB_BASE_URL}/discover/movie?${params.toString()}`)
+        .then(r => r.json())
+        .then(d => {
+            if (d.results && d.results.length > 0) {
+                const randomMovie = d.results[Math.floor(Math.random() * d.results.length)];
+                setSelectedMovie(randomMovie);
+                setLoading(false);
+            } else {
+                setLoading(false);
+            }
+        })
+        .catch(() => setLoading(false));
+  };
+  
   const observer = useRef<IntersectionObserver | null>(null);
   const lastMovieElementRef = useCallback((node: HTMLDivElement) => {
     if (loading) return;
@@ -821,6 +851,7 @@ export default function App() {
                         <button onClick={() => { resetFilters(); setSelectedCategory("Anime"); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 hover:translate-x-1 ${selectedCategory === "Anime" ? 'bg-red-600/20 text-red-400' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}><Ghost size={18}/> Anime</button>
                         <button onClick={() => { resetFilters(); setSortOption("vote_average.desc"); setSelectedCategory("All"); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 hover:translate-x-1 ${sortOption === "vote_average.desc" && selectedCategory === "All" ? 'bg-red-600/20 text-red-400' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}><Star size={18}/> Top Rated</button>
                         <button onClick={() => { resetFilters(); setFilterPeriod("future"); setSelectedCategory("All"); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 hover:translate-x-1 ${filterPeriod === "future" ? 'bg-red-600/20 text-red-400' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}><Calendar size={18}/> Coming Soon</button>
+                        <button onClick={handleFeelingLucky} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 text-purple-400 hover:text-purple-300 hover:bg-purple-500/10 group"><Dice5 size={18} className="group-hover:rotate-180 transition-transform duration-500"/> I'm Feeling Lucky</button>
                    </div>
 
                    <div className="space-y-1">
@@ -1055,6 +1086,7 @@ export default function App() {
             userProfile={userProfile}
             onKeywordClick={handleKeywordClick}
             onCollectionClick={handleTmdbCollectionClick}
+            onCompare={(m) => { setIsComparisonOpen(true); setComparisonBaseMovie(m); }}
           />
       )}
 
@@ -1085,6 +1117,13 @@ export default function App() {
         isOpen={isAIModalOpen} 
         onClose={() => setIsAIModalOpen(false)} 
         apiKey={apiKey} 
+      />
+      
+      <ComparisonModal
+        isOpen={isComparisonOpen}
+        onClose={() => setIsComparisonOpen(false)}
+        baseMovie={comparisonBaseMovie}
+        apiKey={apiKey}
       />
 
       <SettingsModal 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Calendar, Clock, Star, Play, Bookmark, Heart, Share2, ListPlus, Tv, Clapperboard, User, Lightbulb, Sparkles, Loader2, Check, DollarSign, TrendingUp, Tag, Layers, MessageCircle } from 'lucide-react';
+import { X, Calendar, Clock, Star, Play, Bookmark, Heart, Share2, ListPlus, Tv, Clapperboard, User, Lightbulb, Sparkles, Loader2, Check, DollarSign, TrendingUp, Tag, Layers, MessageCircle, Scale, Globe, Facebook, Instagram, Twitter, Film } from 'lucide-react';
 import { Movie, MovieDetails, Season, UserProfile, Keyword, Review } from '../types';
 import { TMDB_BASE_URL, TMDB_IMAGE_BASE, TMDB_BACKDROP_BASE, formatCurrency, ImageLightbox } from '../components/Shared';
 import { generateTrivia, getSimilarMoviesAI } from '../services/gemini';
@@ -21,12 +21,13 @@ interface MovieModalProps {
     userProfile: UserProfile;
     onKeywordClick: (keyword: Keyword) => void;
     onCollectionClick: (collectionId: number) => void;
+    onCompare?: (m: Movie) => void;
 }
 
 export const MovieModal: React.FC<MovieModalProps> = ({ 
     movie, onClose, apiKey, onPersonClick, onToggleWatchlist, isWatchlisted, 
     onSwitchMovie, onOpenListModal, onToggleFavorite, isFavorite, appRegion, isWatched, onToggleWatched, userProfile,
-    onKeywordClick, onCollectionClick
+    onKeywordClick, onCollectionClick, onCompare
 }) => {
     const [details, setDetails] = useState<MovieDetails | null>(null);
     const [loading, setLoading] = useState(false);
@@ -171,6 +172,15 @@ export const MovieModal: React.FC<MovieModalProps> = ({
     // Keywords Logic (Unified for Movie and TV)
     const keywords = displayData.keywords?.keywords || displayData.keywords?.results || [];
 
+    const SocialLink = ({ url, icon: Icon, color }: { url?: string, icon: any, color: string }) => {
+        if (!url) return null;
+        return (
+            <a href={url} target="_blank" rel="noopener noreferrer" className={`p-2 rounded-full glass hover:bg-white/10 transition-colors ${color} hover:text-white`}>
+                <Icon size={18}/>
+            </a>
+        );
+    };
+
     return (
         <div className="fixed inset-0 z-[70] flex items-end md:items-center justify-center md:p-6 animate-in fade-in duration-300">
             {/* Backdrop with Blur */}
@@ -201,6 +211,13 @@ export const MovieModal: React.FC<MovieModalProps> = ({
                                     <span className="flex items-center gap-1.5"><Calendar size={14} className="text-red-500"/> {displayData.release_date?.split('-')[0] || displayData.first_air_date?.split('-')[0] || 'TBA'}</span>
                                     <span className="flex items-center gap-1.5"><Clock size={14} className="text-red-500"/> {runtime}</span>
                                     {displayData.vote_average && <span className="flex items-center gap-1.5"><Star size={14} className="text-yellow-500" fill="currentColor"/> {displayData.vote_average.toFixed(1)}</span>}
+                                    {displayData.external_ids && (
+                                        <div className="flex gap-2 ml-2 border-l border-white/20 pl-4">
+                                            {displayData.external_ids.imdb_id && <SocialLink url={`https://www.imdb.com/title/${displayData.external_ids.imdb_id}`} icon={Film} color="text-yellow-400"/>}
+                                            {displayData.external_ids.instagram_id && <SocialLink url={`https://instagram.com/${displayData.external_ids.instagram_id}`} icon={Instagram} color="text-pink-400"/>}
+                                            {displayData.homepage && <SocialLink url={displayData.homepage} icon={Globe} color="text-green-400"/>}
+                                        </div>
+                                    )}
                                 </div>
                                 <div className="flex flex-wrap gap-3 mt-2">
                                     <button onClick={handleTrailerClick} className="bg-white text-black hover:bg-gray-200 font-bold py-3 px-6 rounded-xl transition-all flex items-center gap-2 active:scale-95"><Play size={18} /> Trailer</button>
@@ -209,6 +226,7 @@ export const MovieModal: React.FC<MovieModalProps> = ({
                                         <button onClick={() => onToggleFavorite(displayData)} className={`p-3 rounded-xl border transition-colors active:scale-95 ${isFavorite ? 'bg-red-600/20 border-red-500/50 text-red-400' : 'glass hover:bg-white/10 text-white/70'}`}><Heart size={20} fill={isFavorite ? "currentColor" : "none"} /></button>
                                         <button onClick={() => onOpenListModal(displayData)} className="p-3 rounded-xl glass hover:bg-white/10 text-white/70 transition-colors active:scale-95" title="Add to Custom List"><ListPlus size={20} /></button>
                                         <button onClick={handleShare} className={`p-3 rounded-xl glass hover:bg-white/10 transition-colors active:scale-95 ${copied ? 'text-green-400' : 'text-white/70'}`}>{copied ? <Check size={20} /> : <Share2 size={20} />}</button>
+                                        {onCompare && <button onClick={() => onCompare(displayData)} className="p-3 rounded-xl glass hover:bg-white/10 text-white/70 transition-colors active:scale-95" title="Compare Movie"><Scale size={20} /></button>}
                                     </div>
                                 </div>
                              </div>
