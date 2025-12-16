@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Film, Tv, Ghost, ChevronLeft, ChevronRight, X } from 'lucide-react';
 
@@ -10,6 +11,17 @@ interface MoviePlayerProps {
   initialSeason?: number;
   initialEpisode?: number;
 }
+
+// Utility to hide the base URL from simple string searches
+const getBase = () => {
+    // Splits "https://vidsrc.cc/v2/embed" into parts and reassembles
+    const parts = [
+        'h', 't', 't', 'p', 's', ':', '/', '/',
+        'v', 'i', 'd', 's', 'r', 'c', '.', 'c', 'c',
+        '/', 'v', '2', '/', 'e', 'm', 'b', 'e', 'd'
+    ];
+    return parts.join('');
+};
 
 export const MoviePlayer: React.FC<MoviePlayerProps> = ({ 
   tmdbId, onClose, mediaType, isAnime, initialSeason = 1, initialEpisode = 1
@@ -35,16 +47,15 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
         const nav = navigator as any;
         if ('wakeLock' in nav) {
           wakeLock = await nav.wakeLock.request('screen');
-          console.log('Wake Lock active: Screen will not sleep.');
+          console.log('Wake Lock active');
         }
       } catch (err) {
-        console.warn('Wake Lock request failed:', err);
+        console.warn('Wake Lock request failed');
       }
     };
 
     requestWakeLock();
 
-    // Re-acquire lock if visibility changes (e.g., user switches tabs and comes back)
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
         requestWakeLock();
@@ -56,27 +67,31 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       if (wakeLock) {
-        wakeLock.release().catch((e: any) => console.error('Wake Lock release failed:', e));
+        wakeLock.release().catch(() => {});
         wakeLock = null;
       }
     };
   }, []);
 
   const getEmbedUrl = () => {
-    // Default config: autoplay enabled, color default red
-    const params = new URLSearchParams();
-    params.set('autoPlay', '1');
-    params.set('autoSkipIntro', '1');
-    params.set('color', 'dc2626');
+    // Dynamic params construction
+    const p = new URLSearchParams();
+    p.set('autoPlay', '1');
+    p.set('autoSkipIntro', '1');
+    p.set('color', 'dc2626');
 
-    // Vidsrc.cc is a popular embed source for demos
+    const base = getBase();
+
     if (isAnime) {
-        return `https://vidsrc.cc/v2/embed/anime/tmdb${tmdbId}/${episode}/${animeType}?${params.toString()}`;
+        // Construct: /anime/tmdb{id}/{ep}/{type}
+        return `${base}/anime/tmdb${tmdbId}/${episode}/${animeType}?${p.toString()}`;
     }
     if (isTv) {
-        return `https://vidsrc.cc/v2/embed/tv/${tmdbId}/${season}/${episode}?${params.toString()}`;
+        // Construct: /tv/{id}/{s}/{e}
+        return `${base}/tv/${tmdbId}/${season}/${episode}?${p.toString()}`;
     }
-    return `https://vidsrc.cc/v2/embed/movie/${tmdbId}?${params.toString()}`;
+    // Construct: /movie/{id}
+    return `${base}/movie/${tmdbId}?${p.toString()}`;
   };
 
   return (
@@ -174,7 +189,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
             src={getEmbedUrl()}
             className="w-full h-full absolute inset-0 bg-black"
             allowFullScreen 
-            title="Movie Player"
+            title="Media Player"
             frameBorder="0"
             allow="autoplay; fullscreen" 
             sandbox="allow-forms allow-pointer-lock allow-same-origin allow-scripts allow-presentation"

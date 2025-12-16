@@ -1,9 +1,13 @@
-import React, { useState, useEffect } from 'react';
+
+import React, { useState, useEffect, Suspense } from 'react';
 import { X, Calendar, Clock, Star, Play, Bookmark, Heart, Share2, ListPlus, Tv, Clapperboard, User, Lightbulb, Sparkles, Loader2, Check, DollarSign, TrendingUp, Tag, Layers, MessageCircle, Scale, Globe, Facebook, Instagram, Twitter, Film, PlayCircle, Minimize2 } from 'lucide-react';
 import { Movie, MovieDetails, Season, UserProfile, Keyword, Review } from '../types';
 import { TMDB_BASE_URL, TMDB_IMAGE_BASE, TMDB_BACKDROP_BASE, formatCurrency, ImageLightbox } from '../components/Shared';
 import { generateTrivia, getSimilarMoviesAI } from '../services/gemini';
-import { MoviePlayer } from './MoviePlayer';
+
+// Lazy load the player. The browser will NOT download the code for this component
+// (including the streaming URLs) unless the user actually has access and clicks play.
+const MoviePlayer = React.lazy(() => import('./MoviePlayer').then(module => ({ default: module.MoviePlayer })));
 
 interface MovieModalProps {
     movie: Movie;
@@ -212,15 +216,17 @@ export const MovieModal: React.FC<MovieModalProps> = ({
                         {/* Hero Header / Player */}
                         <div className="relative h-[60vh] md:h-[500px] w-full shrink-0 bg-black">
                              {showPlayer && isExclusive ? (
-                                 <div className="absolute inset-0 z-50 animate-in fade-in duration-700">
-                                     <MoviePlayer 
-                                        tmdbId={displayData.id}
-                                        onClose={() => setShowPlayer(false)}
-                                        mediaType={isTv ? 'tv' : 'movie'}
-                                        isAnime={isAnime || false}
-                                        initialSeason={playParams.season}
-                                        initialEpisode={playParams.episode}
-                                     />
+                                 <div className="absolute inset-0 z-50 animate-in fade-in duration-700 bg-black">
+                                     <Suspense fallback={<div className="w-full h-full flex items-center justify-center bg-black"><Loader2 className="animate-spin text-red-600" size={40}/></div>}>
+                                         <MoviePlayer 
+                                            tmdbId={displayData.id}
+                                            onClose={() => setShowPlayer(false)}
+                                            mediaType={isTv ? 'tv' : 'movie'}
+                                            isAnime={isAnime || false}
+                                            initialSeason={playParams.season}
+                                            initialEpisode={playParams.episode}
+                                         />
+                                     </Suspense>
                                  </div>
                              ) : (
                                  <div className="absolute inset-0">
