@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { UserCircle, X, Check, Settings, ShieldCheck, RefreshCcw, HelpCircle, Shield, FileText, Lock, LogOut, MessageSquare, Send, Calendar, Mail, User, BrainCircuit, Pencil, CheckCheck, Loader2, ChevronDown, ExternalLink } from 'lucide-react';
+import { UserCircle, X, Check, Settings, ShieldCheck, RefreshCcw, HelpCircle, Shield, FileText, Lock, LogOut, MessageSquare, Send, Calendar, Mail, User, BrainCircuit, Pencil, CheckCheck, Loader2, ChevronDown, ExternalLink, Fingerprint, Copy } from 'lucide-react';
 import { UserProfile, MaturityRating } from '../types';
 import { getSupabase, submitSupportTicket } from '../services/supabase';
 
@@ -33,8 +33,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
     // Enhanced Account State
     const [userEmail, setUserEmail] = useState("");
+    const [userId, setUserId] = useState("");
     const [joinDate, setJoinDate] = useState("");
     const [provider, setProvider] = useState("Guest");
+    const [idCopied, setIdCopied] = useState(false);
 
     // Help Form State
     const [supportSubject, setSupportSubject] = useState("General Inquiry");
@@ -57,16 +59,19 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     const { data: { user } } = await supabase.auth.getUser();
                     if (user) {
                         setUserEmail(user.email || "No Email");
+                        setUserId(user.id);
                         setJoinDate(new Date(user.created_at).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }));
                         setProvider(user.app_metadata.provider || "Email");
                     } else {
                         // Guest Fallback
                         setUserEmail("guest@movieverse.ai");
+                        setUserId("guest-session-" + Math.floor(Math.random() * 10000));
                         setJoinDate("Just Now");
                         setProvider("Local Session");
                     }
                 } else {
                      setUserEmail("guest@movieverse.ai");
+                     setUserId("guest-session-" + Math.floor(Math.random() * 10000));
                      setJoinDate("Just Now");
                      setProvider("Local Session");
                 }
@@ -81,9 +86,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         onClose();
     };
 
+    const handleCopyId = () => {
+        navigator.clipboard.writeText(userId);
+        setIdCopied(true);
+        setTimeout(() => setIdCopied(false), 2000);
+    };
+
     const handleSendSupport = async () => {
         setSending(true);
-        const success = await submitSupportTicket(supportSubject, supportMessage, userEmail);
+        // Include User ID in message for context
+        const fullMessage = `[User ID: ${userId}] ${supportMessage}`;
+        const success = await submitSupportTicket(supportSubject, fullMessage, userEmail);
         
         if (success) {
             setSentSuccess(true);
@@ -168,7 +181,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                         </p>
                                     </div>
                                 </div>
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div className="p-4 bg-white/5 rounded-xl border border-white/5 hover:border-white/10 transition-colors group">
                                         <div className="flex items-center gap-3 mb-2">
                                             <div className="p-2 bg-blue-500/10 rounded-lg text-blue-400"><Mail size={18}/></div>
@@ -176,6 +190,20 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                         </div>
                                         <p className="text-white font-medium truncate text-sm" title={userEmail}>{userEmail}</p>
                                     </div>
+                                    
+                                    <div className="p-4 bg-white/5 rounded-xl border border-white/5 hover:border-white/10 transition-colors group relative">
+                                        <div className="flex items-center gap-3 mb-2">
+                                            <div className="p-2 bg-pink-500/10 rounded-lg text-pink-400"><Fingerprint size={18}/></div>
+                                            <span className="text-xs font-bold text-white/40 uppercase tracking-wider">User ID</span>
+                                        </div>
+                                        <div className="flex items-center justify-between gap-2">
+                                            <p className="text-white font-mono text-xs truncate opacity-80" title={userId}>{userId}</p>
+                                            <button onClick={handleCopyId} className="p-1.5 hover:bg-white/10 rounded-lg text-gray-400 hover:text-white transition-colors">
+                                                {idCopied ? <CheckCheck size={14} className="text-green-400"/> : <Copy size={14}/>}
+                                            </button>
+                                        </div>
+                                    </div>
+
                                     <div className="p-4 bg-white/5 rounded-xl border border-white/5 hover:border-white/10 transition-colors">
                                         <div className="flex items-center gap-3 mb-2">
                                             <div className="p-2 bg-purple-500/10 rounded-lg text-purple-400"><Calendar size={18}/></div>
@@ -183,12 +211,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                         </div>
                                         <p className="text-white font-medium text-sm">{joinDate}</p>
                                     </div>
+                                    
                                     <div className="p-4 bg-white/5 rounded-xl border border-white/5 hover:border-white/10 transition-colors">
                                         <div className="flex items-center gap-3 mb-2">
                                             <div className="p-2 bg-green-500/10 rounded-lg text-green-400"><User size={18}/></div>
                                             <span className="text-xs font-bold text-white/40 uppercase tracking-wider">Age</span>
                                         </div>
-                                        <p className="text-white font-medium text-sm">{profile.age || "N/A"}</p>
+                                        <p className="text-white font-medium text-sm">{profile.age || "Not Set"}</p>
                                     </div>
                                 </div>
                               </div>
