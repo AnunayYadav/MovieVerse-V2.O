@@ -12,16 +12,10 @@ interface MoviePlayerProps {
   initialEpisode?: number;
 }
 
-// Utility to hide the base URL from simple string searches
-const getBase = () => {
-    // Splits "https://vidsrc.cc/v2/embed" into parts and reassembles
-    const parts = [
-        'h', 't', 't', 'p', 's', ':', '/', '/',
-        'v', 'i', 'd', 's', 'r', 'c', '.', 'c', 'c',
-        '/', 'v', '2', '/', 'e', 'm', 'b', 'e', 'd'
-    ];
-    return parts.join('');
-};
+// Obfuscated Source: https://vidsrc.cc/v2/embed
+// We use Base64 encoding (atob) to completely hide the URL string from simple "Find in Page" searches.
+// This executes in nanoseconds and does not affect performance.
+const HASH = "aHR0cHM6Ly92aWRzcmMuY2MvdjIvZW1iZWQ=";
 
 export const MoviePlayer: React.FC<MoviePlayerProps> = ({ 
   tmdbId, onClose, mediaType, isAnime, initialSeason = 1, initialEpisode = 1
@@ -47,10 +41,9 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
         const nav = navigator as any;
         if ('wakeLock' in nav) {
           wakeLock = await nav.wakeLock.request('screen');
-          console.log('Wake Lock active');
         }
       } catch (err) {
-        console.warn('Wake Lock request failed');
+        // Silently fail if wake lock is not supported
       }
     };
 
@@ -74,23 +67,26 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   }, []);
 
   const getEmbedUrl = () => {
-    // Dynamic params construction
     const p = new URLSearchParams();
     p.set('autoPlay', '1');
     p.set('autoSkipIntro', '1');
     p.set('color', 'dc2626');
 
-    const base = getBase();
+    let base = "";
+    try {
+        // Decodes the base64 string at runtime
+        base = atob(HASH);
+    } catch(e) {
+        console.error("Decryption failed");
+        return "";
+    }
 
     if (isAnime) {
-        // Construct: /anime/tmdb{id}/{ep}/{type}
         return `${base}/anime/tmdb${tmdbId}/${episode}/${animeType}?${p.toString()}`;
     }
     if (isTv) {
-        // Construct: /tv/{id}/{s}/{e}
         return `${base}/tv/${tmdbId}/${season}/${episode}?${p.toString()}`;
     }
-    // Construct: /movie/{id}
     return `${base}/movie/${tmdbId}?${p.toString()}`;
   };
 

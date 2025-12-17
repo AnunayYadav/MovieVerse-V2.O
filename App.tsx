@@ -660,8 +660,6 @@ export default function App() {
                   setSearchSuggestions(sugs);
                   setShowSuggestions(true);
               } catch (e) { console.error(e); }
-          } else {
-            if(searchQuery.length === 0) setShowSuggestions(true);
           }
       };
       const timeout = setTimeout(fetchSuggestions, 500);
