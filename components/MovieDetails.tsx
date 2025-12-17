@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, Suspense } from 'react';
-import { X, Calendar, Clock, Star, Play, Bookmark, Heart, Share2, ListPlus, Tv, Clapperboard, User, Lightbulb, Sparkles, Loader2, Check, DollarSign, TrendingUp, Tag, Layers, MessageCircle, Scale, Globe, Facebook, Instagram, Twitter, Film, PlayCircle, Minimize2 } from 'lucide-react';
+import { X, Calendar, Clock, Star, Play, Bookmark, Heart, Share2, ListPlus, Tv, Clapperboard, User, Lightbulb, Sparkles, Loader2, Check, DollarSign, TrendingUp, Tag, Layers, MessageCircle, Scale, Globe, Facebook, Instagram, Twitter, Film, PlayCircle, Minimize2, Eye } from 'lucide-react';
 import { Movie, MovieDetails, Season, UserProfile, Keyword, Review } from '../types';
 import { TMDB_BASE_URL, TMDB_IMAGE_BASE, TMDB_BACKDROP_BASE, formatCurrency, ImageLightbox } from '../components/Shared';
 import { generateTrivia, getSimilarMoviesAI } from '../services/gemini';
@@ -266,10 +266,11 @@ export const MovieModal: React.FC<MovieModalProps> = ({
                                         )}
                                         <button onClick={handleTrailerClick} className={`${isExclusive ? 'glass hover:bg-white/10 text-white' : 'bg-white text-black hover:bg-gray-200'} font-bold py-3 px-6 rounded-xl transition-all flex items-center gap-2 active:scale-95`}><Play size={18} /> Trailer</button>
                                         <div className="flex gap-2">
-                                            <button onClick={() => onToggleWatchlist(displayData)} className={`p-3 rounded-xl border transition-colors active:scale-95 ${isWatchlisted ? `${accentBgLow} ${accentBorder} ${accentText}` : 'glass hover:bg-white/10 text-white/70'}`}><Bookmark size={20} fill={isWatchlisted ? "currentColor" : "none"} /></button>
-                                            <button onClick={() => onToggleFavorite(displayData)} className={`p-3 rounded-xl border transition-colors active:scale-95 ${isFavorite ? `${accentBgLow} ${accentBorder} ${accentText}` : 'glass hover:bg-white/10 text-white/70'}`}><Heart size={20} fill={isFavorite ? "currentColor" : "none"} /></button>
+                                            <button onClick={() => onToggleWatchlist(displayData)} className={`p-3 rounded-xl border transition-colors active:scale-95 ${isWatchlisted ? `${accentBgLow} ${accentBorder} ${accentText}` : 'glass hover:bg-white/10 text-white/70'}`} title={isWatchlisted ? "Remove from Watchlist" : "Add to Watchlist"}><Bookmark size={20} fill={isWatchlisted ? "currentColor" : "none"} /></button>
+                                            <button onClick={() => onToggleWatched(displayData)} className={`p-3 rounded-xl border transition-colors active:scale-95 ${isWatched ? `${accentBgLow} ${accentBorder} ${accentText}` : 'glass hover:bg-white/10 text-white/70'}`} title={isWatched ? "Mark Unwatched" : "Mark Watched"}><Eye size={20} fill={isWatched ? "currentColor" : "none"} /></button>
+                                            <button onClick={() => onToggleFavorite(displayData)} className={`p-3 rounded-xl border transition-colors active:scale-95 ${isFavorite ? `${accentBgLow} ${accentBorder} ${accentText}` : 'glass hover:bg-white/10 text-white/70'}`} title={isFavorite ? "Remove from Favorites" : "Add to Favorites"}><Heart size={20} fill={isFavorite ? "currentColor" : "none"} /></button>
                                             <button onClick={() => onOpenListModal(displayData)} className="p-3 rounded-xl glass hover:bg-white/10 text-white/70 transition-colors active:scale-95" title="Add to Custom List"><ListPlus size={20} /></button>
-                                            <button onClick={handleShare} className={`p-3 rounded-xl glass hover:bg-white/10 transition-colors active:scale-95 ${copied ? 'text-green-400' : 'text-white/70'}`}>{copied ? <Check size={20} /> : <Share2 size={20} />}</button>
+                                            <button onClick={handleShare} className={`p-3 rounded-xl glass hover:bg-white/10 transition-colors active:scale-95 ${copied ? 'text-green-400' : 'text-white/70'}`} title="Share"><Share2 size={20} /></button>
                                             {onCompare && <button onClick={() => onCompare(displayData)} className="p-3 rounded-xl glass hover:bg-white/10 text-white/70 transition-colors active:scale-95" title="Compare Movie"><Scale size={20} /></button>}
                                         </div>
                                     </div>

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Search, Film, Menu, TrendingUp, Tv, Ghost, Calendar, Star, X, Sparkles, Settings, Globe, BarChart3, Bookmark, Heart, Folder, Languages, Filter, ChevronDown, Info, Plus, Cloud, CloudOff, Clock, Bell, History, User, Users, Tag, Layers, Dice5, Crown } from 'lucide-react';
 import { Movie, UserProfile, GENRES_MAP, GENRES_LIST, INDIAN_LANGUAGES, MaturityRating, Keyword } from './types';
@@ -68,6 +69,29 @@ export default function App() {
   const [userProfile, setUserProfile] = useState<UserProfile>({ name: "Guest", age: "", genres: [], enableHistory: true });
   const [hasUnread, setHasUnread] = useState(false);
   const [lastNotificationId, setLastNotificationId] = useState<string | null>(null);
+
+  // Refs for Internal Lists to prevent re-fetching/scrolling when toggling items
+  const watchlistRef = useRef<Movie[]>([]);
+  const favoritesRef = useRef<Movie[]>([]);
+  const watchedRef = useRef<Movie[]>([]);
+  const customListsRef = useRef<Record<string, Movie[]>>({});
+
+  // Sync refs with state
+  useEffect(() => { watchlistRef.current = watchlist; }, [watchlist]);
+  useEffect(() => { favoritesRef.current = favorites; }, [favorites]);
+  useEffect(() => { watchedRef.current = watched; }, [watched]);
+  useEffect(() => { customListsRef.current = customLists; }, [customLists]);
+
+  // Update displayed movies ONLY if we are currently viewing that specific list
+  useEffect(() => {
+      if (selectedCategory === "Watchlist") setMovies(watchlist);
+      if (selectedCategory === "Favorites") setMovies(favorites);
+      if (selectedCategory === "History") setMovies(watched);
+      if (selectedCategory.startsWith("Custom:")) {
+          const listName = selectedCategory.replace("Custom:", "");
+          setMovies(customLists[listName] || []);
+      }
+  }, [watchlist, favorites, watched, customLists, selectedCategory]);
 
   // Modals
   const [isProfileOpen, setIsProfileOpen] = useState(false);
@@ -429,22 +453,23 @@ export default function App() {
   const fetchMovies = useCallback(async (pageNum: number = 1, isLoadMore = false) => {
     if (!apiKey) return;
     
-    // Internal lists logic handling
+    // Internal lists logic handling - Use Refs to avoid dependency on list state
+    // This prevents re-fetching when toggling items on the main feed
     const internalListMap: Record<string, Movie[]> = {
-        "Watchlist": watchlist,
-        "Favorites": favorites,
-        "History": watched
+        "Watchlist": watchlistRef.current,
+        "Favorites": favoritesRef.current,
+        "History": watchedRef.current
     };
     if (internalListMap[selectedCategory]) {
          setMovies(sortMovies(internalListMap[selectedCategory], sortOption)); 
-         setFeaturedMovie(selectedCategory === "Watchlist" ? watchlist[0] : null); 
+         setFeaturedMovie(selectedCategory === "Watchlist" ? watchlistRef.current[0] : null); 
          setHasMore(false); 
          return; 
     }
     if (selectedCategory === "CineAnalytics") return;
     if (selectedCategory.startsWith("Custom:")) { 
         const listName = selectedCategory.replace("Custom:", ""); 
-        setMovies(sortMovies(customLists[listName] || [], sortOption)); 
+        setMovies(sortMovies(customListsRef.current[listName] || [], sortOption)); 
         setFeaturedMovie(null); 
         setHasMore(false); 
         return; 
@@ -640,7 +665,7 @@ export default function App() {
     } finally {
         if (!controller.signal.aborted) setLoading(false);
     }
-  }, [apiKey, searchQuery, selectedCategory, sortOption, appRegion, watchlist, favorites, watched, currentCollection, filterPeriod, selectedLanguage, selectedRegion, userProfile, maturityRating, sortMovies, tmdbCollectionId, activeKeyword]);
+  }, [apiKey, searchQuery, selectedCategory, sortOption, appRegion, currentCollection, filterPeriod, selectedLanguage, selectedRegion, userProfile, maturityRating, sortMovies, tmdbCollectionId, activeKeyword]);
 
   // Debounced Search
   useEffect(() => {
@@ -827,7 +852,8 @@ export default function App() {
                    {!searchQuery && searchHistory.length > 0 && (
                        <div className="border-b border-white/5 pb-1">
                            <p className="px-4 py-2 text-[10px] text-white/40 font-bold uppercase tracking-wider">Recent Searches</p>
-                           {searchHistory.map((s, i) => (
+                           {/* Limit to 4 recent searches */}
+                           {searchHistory.slice(0, 4).map((s, i) => (
                                <div key={`hist-${i}`} className="flex items-center justify-between px-4 py-3 text-sm hover:bg-white/10 text-gray-300 hover:text-white transition-colors cursor-pointer group/item" onMouseDown={(e) => { e.preventDefault(); handleSearchSubmit(s); }}>
                                    <div className="flex items-center gap-3">
                                        <Clock size={14} className="text-white/30 group-hover/item:text-white/50"/>
