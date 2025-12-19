@@ -17,8 +17,9 @@ interface MoviePlayerProps {
 
 const HASH_VIDSRC = "aHR0cHM6Ly92aWRzcmMuY2MvdjIvZW1iZWQ=";
 const BASE_VIDFAST = "https://vidfast.pro";
+const BASE_VIDKING = "https://www.vidking.net";
 
-type StreamingServer = 'vidsrc' | 'vidfast';
+type StreamingServer = 'vidsrc' | 'vidfast' | 'vidking';
 
 export const MoviePlayer: React.FC<MoviePlayerProps> = ({ 
   tmdbId, onClose, mediaType, isAnime, initialSeason = 1, initialEpisode = 1, apiKey
@@ -136,7 +137,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
         if (isAnime) return `${base}/anime/tmdb${tmdbId}/${episode}/${animeType}?${p.toString()}`;
         if (mediaType === 'tv') return `${base}/tv/${tmdbId}/${season}/${episode}?${p.toString()}`;
         return `${base}/movie/${tmdbId}?${p.toString()}`;
-    } else {
+    } else if (activeServer === 'vidfast') {
         // VidFast logic
         const p = new URLSearchParams();
         p.set('autoPlay', 'true');
@@ -147,6 +148,12 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
             return `${BASE_VIDFAST}/tv/${tmdbId}/${season}/${episode}?${p.toString()}`;
         }
         return `${BASE_VIDFAST}/movie/${tmdbId}?${p.toString()}`;
+    } else {
+        // VidKing logic
+        if (mediaType === 'tv' || isAnime) {
+            return `${BASE_VIDKING}/embed/tv/${tmdbId}/${season}/${episode}`;
+        }
+        return `${BASE_VIDKING}/embed/movie/${tmdbId}`;
     }
   };
 
@@ -154,6 +161,14 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     ep.episode_number.toString().includes(epSearchQuery) || 
     ep.name.toLowerCase().includes(epSearchQuery.toLowerCase())
   );
+
+  const getServerLabel = (server: StreamingServer) => {
+    switch(server) {
+      case 'vidsrc': return 'Server 1';
+      case 'vidfast': return 'Server 2';
+      case 'vidking': return 'Server 3';
+    }
+  };
 
   return (
     <div 
@@ -192,7 +207,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                   className={`bg-black/60 backdrop-blur-xl px-4 h-10 rounded-lg border border-white/10 text-white/70 hover:text-white transition-all active:scale-95 flex items-center gap-3 text-xs font-bold ${showServerDropdown ? 'ring-2 ring-amber-500/50' : ''}`}
                 >
                     <Server size={14} className="text-amber-500"/>
-                    <span className="uppercase tracking-widest hidden sm:inline">{activeServer === 'vidsrc' ? 'Server 1' : 'Server 2'}</span>
+                    <span className="uppercase tracking-widest hidden sm:inline">{getServerLabel(activeServer)}</span>
                     <ChevronDown size={14} className={`transition-transform duration-300 ${showServerDropdown ? 'rotate-180' : ''}`}/>
                 </button>
 
@@ -211,6 +226,13 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                         >
                             <span>SERVER 2 (VIDFAST)</span>
                             {activeServer === 'vidfast' && <div className="w-1.5 h-1.5 rounded-full bg-amber-500"></div>}
+                        </button>
+                        <button 
+                            onClick={() => { setActiveServer('vidking'); setShowServerDropdown(false); }}
+                            className={`w-full text-left px-5 py-3 text-xs font-bold transition-all flex items-center justify-between border-t border-white/5 ${activeServer === 'vidking' ? 'text-amber-500 bg-amber-500/10' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
+                        >
+                            <span>SERVER 3 (VIDKING)</span>
+                            {activeServer === 'vidking' && <div className="w-1.5 h-1.5 rounded-full bg-amber-500"></div>}
                         </button>
                     </div>
                 )}
