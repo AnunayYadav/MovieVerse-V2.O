@@ -138,7 +138,6 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
         if (mediaType === 'tv') return `${base}/tv/${tmdbId}/${season}/${episode}?${p.toString()}`;
         return `${base}/movie/${tmdbId}?${p.toString()}`;
     } else if (activeServer === 'vidfast') {
-        // VidFast logic
         const p = new URLSearchParams();
         p.set('autoPlay', 'true');
         p.set('theme', 'f59e0b');
@@ -149,7 +148,6 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
         }
         return `${BASE_VIDFAST}/movie/${tmdbId}?${p.toString()}`;
     } else {
-        // VidKing logic
         if (mediaType === 'tv' || isAnime) {
             return `${BASE_VIDKING}/embed/tv/${tmdbId}/${season}/${episode}`;
         }
@@ -365,7 +363,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
             title="Media Player"
             frameBorder="0"
             allow="autoplay; fullscreen" 
-            sandbox="allow-forms allow-pointer-lock allow-same-origin allow-scripts allow-presentation"
+            sandbox={activeServer === 'vidsrc' ? "allow-forms allow-pointer-lock allow-same-origin allow-scripts allow-presentation" : undefined}
         />
       </div>
     </div>
