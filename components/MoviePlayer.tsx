@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { ChevronRight, ChevronLeft, X, Film, Tv, Ghost, Search, List, ChevronDown, Loader2, Maximize2, Minimize2, Server } from 'lucide-react';
+import { ChevronRight, ChevronLeft, X, Film, Tv, Ghost, Search, List, ChevronDown, Loader2, Maximize2, Minimize2 } from 'lucide-react';
 import { Season, Episode } from '../types';
 import { TMDB_BASE_URL } from './Shared';
 
@@ -16,10 +16,6 @@ interface MoviePlayerProps {
 }
 
 const HASH_VIDSRC = "aHR0cHM6Ly92aWRzcmMuY2MvdjIvZW1iZWQ=";
-const BASE_VIDFAST = "https://vidfast.pro";
-const BASE_VIDKING = "https://www.vidking.net";
-
-type StreamingServer = 'vidsrc' | 'vidfast' | 'vidking';
 
 export const MoviePlayer: React.FC<MoviePlayerProps> = ({ 
   tmdbId, onClose, mediaType, isAnime, initialSeason = 1, initialEpisode = 1, apiKey
@@ -29,8 +25,6 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   const [animeType, setAnimeType] = useState<'sub' | 'dub'>('sub');
   const [isMenuExpanded, setIsMenuExpanded] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [activeServer, setActiveServer] = useState<StreamingServer>('vidsrc');
-  const [showServerDropdown, setShowServerDropdown] = useState(false);
   
   const containerRef = useRef<HTMLDivElement>(null);
   
@@ -128,45 +122,20 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   }, []);
 
   const getEmbedUrl = () => {
-    if (activeServer === 'vidsrc') {
-        const p = new URLSearchParams();
-        p.set('autoPlay', '1');
-        p.set('autoSkipIntro', '1');
-        p.set('color', 'f59e0b');
-        let base = atob(HASH_VIDSRC);
-        if (isAnime) return `${base}/anime/tmdb${tmdbId}/${episode}/${animeType}?${p.toString()}`;
-        if (mediaType === 'tv') return `${base}/tv/${tmdbId}/${season}/${episode}?${p.toString()}`;
-        return `${base}/movie/${tmdbId}?${p.toString()}`;
-    } else if (activeServer === 'vidfast') {
-        const p = new URLSearchParams();
-        p.set('autoPlay', 'true');
-        p.set('theme', 'f59e0b');
-        if (mediaType === 'tv' || isAnime) {
-            p.set('nextButton', 'true');
-            p.set('autoNext', 'true');
-            return `${BASE_VIDFAST}/tv/${tmdbId}/${season}/${episode}?${p.toString()}`;
-        }
-        return `${BASE_VIDFAST}/movie/${tmdbId}?${p.toString()}`;
-    } else {
-        if (mediaType === 'tv' || isAnime) {
-            return `${BASE_VIDKING}/embed/tv/${tmdbId}/${season}/${episode}`;
-        }
-        return `${BASE_VIDKING}/embed/movie/${tmdbId}`;
-    }
+    const p = new URLSearchParams();
+    p.set('autoPlay', '1');
+    p.set('autoSkipIntro', '1');
+    p.set('color', 'f59e0b');
+    let base = atob(HASH_VIDSRC);
+    if (isAnime) return `${base}/anime/tmdb${tmdbId}/${episode}/${animeType}?${p.toString()}`;
+    if (mediaType === 'tv') return `${base}/tv/${tmdbId}/${season}/${episode}?${p.toString()}`;
+    return `${base}/movie/${tmdbId}?${p.toString()}`;
   };
 
   const filteredEpisodes = currentSeasonData.filter(ep => 
     ep.episode_number.toString().includes(epSearchQuery) || 
     ep.name.toLowerCase().includes(epSearchQuery.toLowerCase())
   );
-
-  const getServerLabel = (server: StreamingServer) => {
-    switch(server) {
-      case 'vidsrc': return 'Server 1';
-      case 'vidfast': return 'Server 2';
-      case 'vidking': return 'Server 3';
-    }
-  };
 
   return (
     <div 
@@ -197,44 +166,6 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                     </div>
                 </div>
             )}
-
-            {/* Server Selector */}
-            <div className="relative pointer-events-auto">
-                <button 
-                  onClick={() => setShowServerDropdown(!showServerDropdown)}
-                  className={`bg-black/60 backdrop-blur-xl px-4 h-10 rounded-lg border border-white/10 text-white/70 hover:text-white transition-all active:scale-95 flex items-center gap-3 text-xs font-bold ${showServerDropdown ? 'ring-2 ring-amber-500/50' : ''}`}
-                >
-                    <Server size={14} className="text-amber-500"/>
-                    <span className="uppercase tracking-widest hidden sm:inline">{getServerLabel(activeServer)}</span>
-                    <ChevronDown size={14} className={`transition-transform duration-300 ${showServerDropdown ? 'rotate-180' : ''}`}/>
-                </button>
-
-                {showServerDropdown && (
-                    <div className="absolute top-full left-0 mt-2 w-48 bg-[#121212]/95 backdrop-blur-xl border border-amber-500/20 rounded-xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-                        <button 
-                            onClick={() => { setActiveServer('vidsrc'); setShowServerDropdown(false); }}
-                            className={`w-full text-left px-5 py-3 text-xs font-bold transition-all flex items-center justify-between ${activeServer === 'vidsrc' ? 'text-amber-500 bg-amber-500/10' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
-                        >
-                            <span>SERVER 1 (VIDSRC)</span>
-                            {activeServer === 'vidsrc' && <div className="w-1.5 h-1.5 rounded-full bg-amber-500"></div>}
-                        </button>
-                        <button 
-                            onClick={() => { setActiveServer('vidfast'); setShowServerDropdown(false); }}
-                            className={`w-full text-left px-5 py-3 text-xs font-bold transition-all flex items-center justify-between border-t border-white/5 ${activeServer === 'vidfast' ? 'text-amber-500 bg-amber-500/10' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
-                        >
-                            <span>SERVER 2 (VIDFAST)</span>
-                            {activeServer === 'vidfast' && <div className="w-1.5 h-1.5 rounded-full bg-amber-500"></div>}
-                        </button>
-                        <button 
-                            onClick={() => { setActiveServer('vidking'); setShowServerDropdown(false); }}
-                            className={`w-full text-left px-5 py-3 text-xs font-bold transition-all flex items-center justify-between border-t border-white/5 ${activeServer === 'vidking' ? 'text-amber-500 bg-amber-500/10' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
-                        >
-                            <span>SERVER 3 (VIDKING)</span>
-                            {activeServer === 'vidking' && <div className="w-1.5 h-1.5 rounded-full bg-amber-500"></div>}
-                        </button>
-                    </div>
-                )}
-            </div>
           </div>
 
           <div className="flex items-center gap-2 pointer-events-auto">
@@ -300,7 +231,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                                 value={epSearchQuery}
                                 onChange={(e) => setEpSearchQuery(e.target.value)}
                                 placeholder="Jump to Episode..."
-                                className="w-full bg-white/5 border border-white/5 rounded-lg pl-10 pr-4 py-2 text-xs text-white placeholder-gray-700 focus:outline-none focus:border-amber-500/30 transition-all"
+                                className="w-full bg-white/5 border border-white/10 rounded-lg pl-10 pr-4 py-2 text-xs text-white placeholder-gray-700 focus:outline-none focus:border-amber-500/30 transition-all"
                             />
                         </div>
                     </div>
@@ -356,14 +287,14 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
 
       <div className="flex-1 relative w-full h-full z-0 overflow-hidden">
         <iframe 
-            key={`${activeServer}-${mediaType}-${isAnime}-${season}-${episode}-${animeType}`} 
+            key={`${mediaType}-${isAnime}-${season}-${episode}-${animeType}`} 
             src={getEmbedUrl()}
             className="w-full h-full absolute inset-0 bg-black"
             allowFullScreen 
             title="Media Player"
             frameBorder="0"
             allow="autoplay; fullscreen" 
-            sandbox={activeServer === 'vidsrc' ? "allow-forms allow-pointer-lock allow-same-origin allow-scripts allow-presentation" : undefined}
+            sandbox="allow-forms allow-pointer-lock allow-same-origin allow-scripts allow-presentation"
         />
       </div>
     </div>
