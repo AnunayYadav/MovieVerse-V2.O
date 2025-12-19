@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { ChevronRight, ChevronLeft, X, Film, Tv, Ghost, Search, List, ChevronDown, Loader2 } from 'lucide-react';
+import { ChevronRight, ChevronLeft, X, Film, Tv, Ghost, Search, List, ChevronDown, Loader2, Maximize2, Minimize2, Server } from 'lucide-react';
 import { Season, Episode } from '../types';
 import { TMDB_BASE_URL } from './Shared';
 
@@ -15,7 +15,10 @@ interface MoviePlayerProps {
   apiKey: string;
 }
 
-const HASH = "aHR0cHM6Ly92aWRzcmMuY2MvdjIvZW1iZWQ=";
+const HASH_VIDSRC = "aHR0cHM6Ly92aWRzcmMuY2MvdjIvZW1iZWQ=";
+const BASE_VIDFAST = "https://vidfast.pro";
+
+type StreamingServer = 'vidsrc' | 'vidfast';
 
 export const MoviePlayer: React.FC<MoviePlayerProps> = ({ 
   tmdbId, onClose, mediaType, isAnime, initialSeason = 1, initialEpisode = 1, apiKey
@@ -24,6 +27,11 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   const [episode, setEpisode] = useState(initialEpisode);
   const [animeType, setAnimeType] = useState<'sub' | 'dub'>('sub');
   const [isMenuExpanded, setIsMenuExpanded] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [activeServer, setActiveServer] = useState<StreamingServer>('vidsrc');
+  const [showServerDropdown, setShowServerDropdown] = useState(false);
+  
+  const containerRef = useRef<HTMLDivElement>(null);
   
   // Episode Selector State
   const [seasons, setSeasons] = useState<Season[]>([]);
@@ -32,28 +40,46 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   const [epSearchQuery, setEpSearchQuery] = useState("");
   const [showSeasonDropdown, setShowSeasonDropdown] = useState(false);
 
-  const showControls = mediaType === 'tv' || isAnime;
+  const showEpisodeControls = mediaType === 'tv' || isAnime;
 
   useEffect(() => {
     setSeason(initialSeason);
     setEpisode(initialEpisode);
   }, [initialSeason, initialEpisode]);
 
+  // Fullscreen persistence logic
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, []);
+
+  const toggleFullscreen = () => {
+    if (!containerRef.current) return;
+    if (!document.fullscreenElement) {
+      containerRef.current.requestFullscreen().catch(err => {
+        console.error(`Error attempting to enable full-screen mode: ${err.message}`);
+      });
+    } else {
+      document.exitFullscreen();
+    }
+  };
+
   // Fetch Metadata for Episode List
   useEffect(() => {
-    if (!showControls || !apiKey) return;
+    if (!showEpisodeControls || !apiKey) return;
 
     const fetchMetadata = async () => {
         setLoadingMetadata(true);
         try {
-            // Get all seasons
             const res = await fetch(`${TMDB_BASE_URL}/tv/${tmdbId}?api_key=${apiKey}`);
             const data = await res.json();
             if (data.seasons) {
                 const validSeasons = data.seasons.filter((s: Season) => s.season_number > 0);
                 setSeasons(validSeasons);
                 
-                // Fetch initial season episodes
                 const epRes = await fetch(`${TMDB_BASE_URL}/tv/${tmdbId}/season/${season}?api_key=${apiKey}`);
                 const epData = await epRes.json();
                 setCurrentSeasonData(epData.episodes || []);
@@ -66,9 +92,8 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     };
 
     fetchMetadata();
-  }, [tmdbId, apiKey, showControls]);
+  }, [tmdbId, apiKey, showEpisodeControls]);
 
-  // Fetch new episodes when season changes
   const handleSeasonChange = async (sNum: number) => {
       setSeason(sNum);
       setShowSeasonDropdown(false);
@@ -102,16 +127,27 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   }, []);
 
   const getEmbedUrl = () => {
-    const p = new URLSearchParams();
-    p.set('autoPlay', '1');
-    p.set('autoSkipIntro', '1');
-    p.set('color', 'f59e0b'); // Gold theme color for player
-
-    let base = atob(HASH);
-
-    if (isAnime) return `${base}/anime/tmdb${tmdbId}/${episode}/${animeType}?${p.toString()}`;
-    if (mediaType === 'tv') return `${base}/tv/${tmdbId}/${season}/${episode}?${p.toString()}`;
-    return `${base}/movie/${tmdbId}?${p.toString()}`;
+    if (activeServer === 'vidsrc') {
+        const p = new URLSearchParams();
+        p.set('autoPlay', '1');
+        p.set('autoSkipIntro', '1');
+        p.set('color', 'f59e0b');
+        let base = atob(HASH_VIDSRC);
+        if (isAnime) return `${base}/anime/tmdb${tmdbId}/${episode}/${animeType}?${p.toString()}`;
+        if (mediaType === 'tv') return `${base}/tv/${tmdbId}/${season}/${episode}?${p.toString()}`;
+        return `${base}/movie/${tmdbId}?${p.toString()}`;
+    } else {
+        // VidFast logic
+        const p = new URLSearchParams();
+        p.set('autoPlay', 'true');
+        p.set('theme', 'f59e0b');
+        if (mediaType === 'tv' || isAnime) {
+            p.set('nextButton', 'true');
+            p.set('autoNext', 'true');
+            return `${BASE_VIDFAST}/tv/${tmdbId}/${season}/${episode}?${p.toString()}`;
+        }
+        return `${BASE_VIDFAST}/movie/${tmdbId}?${p.toString()}`;
+    }
   };
 
   const filteredEpisodes = currentSeasonData.filter(ep => 
@@ -120,13 +156,15 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   );
 
   return (
-    <div className="w-full h-full flex flex-col bg-black relative group/player select-none overflow-hidden">
+    <div 
+      ref={containerRef}
+      className="w-full h-full flex flex-col bg-black relative group/player select-none overflow-hidden"
+    >
        {/* Overlay Container */}
-       <div className="absolute top-0 left-0 right-0 z-40 p-6 flex justify-between items-start opacity-0 group-hover/player:opacity-100 transition-opacity duration-300 pointer-events-none bg-gradient-to-b from-black/90 via-black/20 to-transparent">
+       <div className="absolute top-0 left-0 right-0 z-[100] p-6 flex justify-between items-start opacity-0 group-hover/player:opacity-100 transition-opacity duration-300 pointer-events-none bg-gradient-to-b from-black/90 via-black/20 to-transparent">
           
-          {/* Controls Container with margin to avoid built-in player icons */}
           <div className="flex items-center gap-3 pointer-events-auto ml-14">
-            {showControls && (
+            {showEpisodeControls && (
                 <div className="flex items-center gap-2">
                     <button 
                         onClick={() => setIsMenuExpanded(!isMenuExpanded)}
@@ -146,21 +184,61 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                     </div>
                 </div>
             )}
+
+            {/* Server Selector */}
+            <div className="relative pointer-events-auto">
+                <button 
+                  onClick={() => setShowServerDropdown(!showServerDropdown)}
+                  className={`bg-black/60 backdrop-blur-xl px-4 h-10 rounded-lg border border-white/10 text-white/70 hover:text-white transition-all active:scale-95 flex items-center gap-3 text-xs font-bold ${showServerDropdown ? 'ring-2 ring-amber-500/50' : ''}`}
+                >
+                    <Server size={14} className="text-amber-500"/>
+                    <span className="uppercase tracking-widest hidden sm:inline">{activeServer === 'vidsrc' ? 'Server 1' : 'Server 2'}</span>
+                    <ChevronDown size={14} className={`transition-transform duration-300 ${showServerDropdown ? 'rotate-180' : ''}`}/>
+                </button>
+
+                {showServerDropdown && (
+                    <div className="absolute top-full left-0 mt-2 w-48 bg-[#121212]/95 backdrop-blur-xl border border-amber-500/20 rounded-xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                        <button 
+                            onClick={() => { setActiveServer('vidsrc'); setShowServerDropdown(false); }}
+                            className={`w-full text-left px-5 py-3 text-xs font-bold transition-all flex items-center justify-between ${activeServer === 'vidsrc' ? 'text-amber-500 bg-amber-500/10' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
+                        >
+                            <span>SERVER 1 (VIDSRC)</span>
+                            {activeServer === 'vidsrc' && <div className="w-1.5 h-1.5 rounded-full bg-amber-500"></div>}
+                        </button>
+                        <button 
+                            onClick={() => { setActiveServer('vidfast'); setShowServerDropdown(false); }}
+                            className={`w-full text-left px-5 py-3 text-xs font-bold transition-all flex items-center justify-between border-t border-white/5 ${activeServer === 'vidfast' ? 'text-amber-500 bg-amber-500/10' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
+                        >
+                            <span>SERVER 2 (VIDFAST)</span>
+                            {activeServer === 'vidfast' && <div className="w-1.5 h-1.5 rounded-full bg-amber-500"></div>}
+                        </button>
+                    </div>
+                )}
+            </div>
           </div>
 
-          <button 
-            onClick={onClose}
-            className="bg-black/40 hover:bg-amber-600 text-white p-2 rounded-lg transition-all shadow-lg active:scale-95 h-10 w-10 flex items-center justify-center shrink-0 border border-white/10 pointer-events-auto"
-            title="Close Player"
-          >
-            <X size={20}/>
-          </button>
+          <div className="flex items-center gap-2 pointer-events-auto">
+              <button 
+                onClick={toggleFullscreen}
+                className="bg-black/40 hover:bg-white/10 text-white p-2 rounded-lg transition-all shadow-lg active:scale-95 h-10 w-10 flex items-center justify-center shrink-0 border border-white/10"
+                title={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
+              >
+                {isFullscreen ? <Minimize2 size={18}/> : <Maximize2 size={18}/>}
+              </button>
+
+              <button 
+                onClick={onClose}
+                className="bg-black/40 hover:bg-amber-600 text-white p-2 rounded-lg transition-all shadow-lg active:scale-95 h-10 w-10 flex items-center justify-center shrink-0 border border-white/10"
+                title="Close Player"
+              >
+                <X size={20}/>
+              </button>
+          </div>
        </div>
 
        {/* EPISODE LIST OVERLAY */}
-       {isMenuExpanded && showControls && (
-           <div className="absolute top-0 left-0 bottom-0 w-80 md:w-96 z-50 bg-[#050505]/95 backdrop-blur-3xl border-r border-amber-500/10 shadow-2xl flex flex-col animate-in slide-in-from-left duration-400 ease-[cubic-bezier(0.4,0,0.2,1)]">
-                {/* Header */}
+       {isMenuExpanded && showEpisodeControls && (
+           <div className="absolute top-0 left-0 bottom-0 w-80 md:w-96 z-[110] bg-[#050505]/95 backdrop-blur-3xl border-r border-amber-500/10 shadow-2xl flex flex-col animate-in slide-in-from-left duration-400 ease-[cubic-bezier(0.4,0,0.2,1)]">
                 <div className="p-6 pb-4">
                     <div className="flex items-center justify-between mb-5">
                         <h3 className="text-white font-bold text-[10px] tracking-widest uppercase opacity-40">Select Episode</h3>
@@ -168,7 +246,6 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                     </div>
 
                     <div className="flex flex-col gap-3">
-                        {/* Season Dropdown */}
                         <div className="relative">
                             <button 
                                 onClick={() => setShowSeasonDropdown(!showSeasonDropdown)}
@@ -196,7 +273,6 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                             )}
                         </div>
 
-                        {/* Search Box */}
                         <div className="relative w-full">
                             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-600" />
                             <input 
@@ -210,7 +286,6 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                     </div>
                 </div>
 
-                {/* Episode Grid */}
                 <div className="flex-1 overflow-y-auto custom-scrollbar p-6 pt-2">
                     {loadingMetadata ? (
                         <div className="h-full flex items-center justify-center">
@@ -240,7 +315,6 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                     )}
                 </div>
 
-                {/* Anime Toggle */}
                 {isAnime && (
                     <div className="p-6 bg-black/40 border-t border-white/5 flex gap-2">
                         <button 
@@ -262,7 +336,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
 
       <div className="flex-1 relative w-full h-full z-0 overflow-hidden">
         <iframe 
-            key={`${mediaType}-${isAnime}-${season}-${episode}-${animeType}`} 
+            key={`${activeServer}-${mediaType}-${isAnime}-${season}-${episode}-${animeType}`} 
             src={getEmbedUrl()}
             className="w-full h-full absolute inset-0 bg-black"
             allowFullScreen 
