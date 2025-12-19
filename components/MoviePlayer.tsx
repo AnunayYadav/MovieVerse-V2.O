@@ -105,7 +105,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     const p = new URLSearchParams();
     p.set('autoPlay', '1');
     p.set('autoSkipIntro', '1');
-    p.set('color', 'dc2626');
+    p.set('color', 'f59e0b'); // Gold theme color for player
 
     let base = atob(HASH);
 
@@ -122,22 +122,23 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   return (
     <div className="w-full h-full flex flex-col bg-black relative group/player select-none overflow-hidden">
        {/* Overlay Container */}
-       <div className="absolute top-0 left-0 right-0 z-40 p-6 flex justify-between items-start opacity-0 group-hover/player:opacity-100 transition-opacity duration-300 pointer-events-none bg-gradient-to-b from-black/80 via-black/20 to-transparent">
+       <div className="absolute top-0 left-0 right-0 z-40 p-6 flex justify-between items-start opacity-0 group-hover/player:opacity-100 transition-opacity duration-300 pointer-events-none bg-gradient-to-b from-black/90 via-black/20 to-transparent">
           
-          <div className="flex items-center gap-3 pointer-events-auto">
+          {/* Controls Container with margin to avoid built-in player icons */}
+          <div className="flex items-center gap-3 pointer-events-auto ml-14">
             {showControls && (
                 <div className="flex items-center gap-2">
                     <button 
                         onClick={() => setIsMenuExpanded(!isMenuExpanded)}
-                        className={`bg-[#25252b]/80 backdrop-blur-xl p-2.5 rounded-xl border border-white/5 shadow-lg text-white/70 hover:text-white transition-all active:scale-95 flex items-center justify-center h-11 w-11 shrink-0 ${isMenuExpanded ? 'ring-2 ring-red-500/50 bg-[#25252b]' : ''}`}
+                        className={`bg-black/60 backdrop-blur-xl p-2 rounded-lg border border-white/10 shadow-lg text-white/70 hover:text-amber-500 transition-all active:scale-95 flex items-center justify-center h-10 w-10 shrink-0 ${isMenuExpanded ? 'ring-2 ring-amber-500/50 bg-[#1a1a1a]' : ''}`}
                         title={isMenuExpanded ? "Close Episode List" : "Open Episode List"}
                     >
-                        {isMenuExpanded ? <ChevronLeft size={20}/> : <List size={20}/>}
+                        {isMenuExpanded ? <ChevronLeft size={18}/> : <List size={18}/>}
                     </button>
                     
-                    <div className="bg-[#1c1c24]/90 backdrop-blur-xl px-4 h-11 rounded-xl border border-white/5 flex items-center gap-4 animate-in fade-in slide-in-from-left-1">
+                    <div className="bg-black/60 backdrop-blur-xl px-4 h-10 rounded-lg border border-white/5 flex items-center gap-4 animate-in fade-in slide-in-from-left-1">
                        <span className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em]">Playing</span>
-                       <span className="text-[13px] font-bold text-red-500 flex gap-2">
+                       <span className="text-[12px] font-bold text-amber-500 flex gap-2">
                            <span>S{season}</span>
                            <span className="opacity-40">|</span>
                            <span>E{episode}</span>
@@ -149,44 +150,44 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
 
           <button 
             onClick={onClose}
-            className="bg-red-600/90 hover:bg-red-600 text-white p-2.5 rounded-xl transition-all shadow-lg active:scale-95 h-11 w-11 flex items-center justify-center shrink-0 border border-white/10 pointer-events-auto"
+            className="bg-black/40 hover:bg-amber-600 text-white p-2 rounded-lg transition-all shadow-lg active:scale-95 h-10 w-10 flex items-center justify-center shrink-0 border border-white/10 pointer-events-auto"
             title="Close Player"
           >
-            <X size={22}/>
+            <X size={20}/>
           </button>
        </div>
 
-       {/* EPISODE LIST OVERLAY (MATCHING THE IMAGE) */}
+       {/* EPISODE LIST OVERLAY */}
        {isMenuExpanded && showControls && (
-           <div className="absolute top-0 left-0 bottom-0 w-80 md:w-96 z-50 bg-[#0a0a0f]/95 backdrop-blur-3xl border-r border-white/5 shadow-2xl flex flex-col animate-in slide-in-from-left duration-300 ease-out">
+           <div className="absolute top-0 left-0 bottom-0 w-80 md:w-96 z-50 bg-[#050505]/95 backdrop-blur-3xl border-r border-amber-500/10 shadow-2xl flex flex-col animate-in slide-in-from-left duration-400 ease-[cubic-bezier(0.4,0,0.2,1)]">
                 {/* Header */}
-                <div className="p-8 pb-4">
-                    <div className="flex items-center justify-between mb-6">
-                        <h3 className="text-white font-bold text-sm tracking-tight uppercase opacity-50">List of episodes:</h3>
-                        <button onClick={() => setIsMenuExpanded(false)} className="text-gray-600 hover:text-white transition-colors"><X size={20}/></button>
+                <div className="p-6 pb-4">
+                    <div className="flex items-center justify-between mb-5">
+                        <h3 className="text-white font-bold text-[10px] tracking-widest uppercase opacity-40">Select Episode</h3>
+                        <button onClick={() => setIsMenuExpanded(false)} className="text-gray-600 hover:text-white transition-colors p-1"><X size={18}/></button>
                     </div>
 
-                    <div className="flex gap-3 items-center">
+                    <div className="flex flex-col gap-3">
                         {/* Season Dropdown */}
-                        <div className="relative flex-1">
+                        <div className="relative">
                             <button 
                                 onClick={() => setShowSeasonDropdown(!showSeasonDropdown)}
-                                className="w-full bg-[#1c1c24] hover:bg-[#252530] border border-white/5 rounded-xl px-4 py-2.5 flex items-center justify-between text-xs font-bold text-white transition-colors"
+                                className="w-full bg-white/5 hover:bg-white/10 border border-white/5 rounded-lg px-4 py-2.5 flex items-center justify-between text-xs font-bold text-white transition-colors"
                             >
                                 <div className="flex items-center gap-3">
-                                    <List size={16} className="text-gray-500"/>
+                                    <List size={14} className="text-amber-500/50"/>
                                     <span className="truncate">{seasons.find(s => s.season_number === season)?.name || `Season ${season}`}</span>
                                 </div>
                                 <ChevronDown size={14} className={`text-gray-500 transition-transform duration-300 ${showSeasonDropdown ? 'rotate-180' : ''}`}/>
                             </button>
 
                             {showSeasonDropdown && (
-                                <div className="absolute top-full left-0 right-0 mt-2 bg-[#1c1c24] border border-white/10 rounded-xl shadow-2xl z-[60] py-2 max-h-64 overflow-y-auto custom-scrollbar animate-in fade-in zoom-in-95 duration-200">
+                                <div className="absolute top-full left-0 right-0 mt-2 bg-[#121212] border border-amber-500/20 rounded-xl shadow-2xl z-[60] py-1 max-h-64 overflow-y-auto custom-scrollbar animate-in fade-in zoom-in-95 duration-200">
                                     {seasons.map(s => (
                                         <button 
                                             key={s.id}
                                             onClick={() => handleSeasonChange(s.season_number)}
-                                            className={`w-full text-left px-5 py-3 text-xs font-bold transition-colors ${s.season_number === season ? 'text-red-500 bg-white/5' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
+                                            className={`w-full text-left px-5 py-3 text-xs font-bold transition-colors ${s.season_number === season ? 'text-amber-500 bg-amber-500/10' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
                                         >
                                             {s.name}
                                         </button>
@@ -196,35 +197,35 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                         </div>
 
                         {/* Search Box */}
-                        <div className="relative w-32 md:w-40 shrink-0">
-                            <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-600" />
+                        <div className="relative w-full">
+                            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-600" />
                             <input 
                                 type="text"
                                 value={epSearchQuery}
                                 onChange={(e) => setEpSearchQuery(e.target.value)}
-                                placeholder="Number of Ep"
-                                className="w-full bg-[#1c1c24] border border-white/5 rounded-xl pl-11 pr-4 py-2.5 text-xs text-white placeholder-gray-700 focus:outline-none focus:border-red-600/50 transition-all"
+                                placeholder="Jump to Episode..."
+                                className="w-full bg-white/5 border border-white/5 rounded-lg pl-10 pr-4 py-2 text-xs text-white placeholder-gray-700 focus:outline-none focus:border-amber-500/30 transition-all"
                             />
                         </div>
                     </div>
                 </div>
 
                 {/* Episode Grid */}
-                <div className="flex-1 overflow-y-auto custom-scrollbar p-8 pt-4">
+                <div className="flex-1 overflow-y-auto custom-scrollbar p-6 pt-2">
                     {loadingMetadata ? (
                         <div className="h-full flex items-center justify-center">
-                            <Loader2 className="animate-spin text-red-500" size={32}/>
+                            <Loader2 className="animate-spin text-amber-500" size={24}/>
                         </div>
                     ) : (
-                        <div className="grid grid-cols-4 sm:grid-cols-5 gap-3 pb-12">
+                        <div className="grid grid-cols-5 md:grid-cols-6 gap-2 pb-12">
                             {filteredEpisodes.map(ep => (
                                 <button 
                                     key={ep.id}
-                                    onClick={() => setEpisode(ep.episode_number)}
-                                    className={`aspect-square rounded-lg flex items-center justify-center text-xs font-bold transition-all border ${
+                                    onClick={() => { setEpisode(ep.episode_number); setIsMenuExpanded(false); }}
+                                    className={`aspect-square rounded-md flex items-center justify-center text-[11px] font-bold transition-all border ${
                                         ep.episode_number === episode 
-                                        ? 'bg-pink-400 text-black border-transparent shadow-[0_0_20px_rgba(244,114,182,0.4)] scale-110 z-10' 
-                                        : 'bg-[#252530] text-gray-400 hover:bg-[#303040] hover:text-white border-white/5 active:scale-95'
+                                        ? 'bg-amber-500 text-black border-transparent shadow-[0_0_15px_rgba(245,158,11,0.3)]' 
+                                        : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white border-white/5 active:scale-95'
                                     }`}
                                 >
                                     {ep.episode_number}
@@ -239,18 +240,18 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                     )}
                 </div>
 
-                {/* Anime Toggle (If applicable) */}
+                {/* Anime Toggle */}
                 {isAnime && (
-                    <div className="p-6 bg-black/40 border-t border-white/5 flex gap-3">
+                    <div className="p-6 bg-black/40 border-t border-white/5 flex gap-2">
                         <button 
                             onClick={() => setAnimeType('sub')}
-                            className={`flex-1 py-3 text-[10px] font-black rounded-xl transition-all ${animeType === 'sub' ? 'bg-white text-black shadow-lg' : 'bg-white/5 text-gray-500 hover:text-white'}`}
+                            className={`flex-1 py-2.5 text-[9px] font-black rounded-lg transition-all ${animeType === 'sub' ? 'bg-amber-500 text-black shadow-lg shadow-amber-900/40' : 'bg-white/5 text-gray-500 hover:text-white'}`}
                         >
                             SUBTITLED
                         </button>
                         <button 
                             onClick={() => setAnimeType('dub')}
-                            className={`flex-1 py-3 text-[10px] font-black rounded-xl transition-all ${animeType === 'dub' ? 'bg-white text-black shadow-lg' : 'bg-white/5 text-gray-500 hover:text-white'}`}
+                            className={`flex-1 py-2.5 text-[9px] font-black rounded-lg transition-all ${animeType === 'dub' ? 'bg-amber-500 text-black shadow-lg shadow-amber-900/40' : 'bg-white/5 text-gray-500 hover:text-white'}`}
                         >
                             DUBBED
                         </button>
