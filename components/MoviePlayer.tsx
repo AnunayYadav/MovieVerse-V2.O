@@ -124,8 +124,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
        {/* Overlay Container */}
        <div className="absolute top-0 left-0 right-0 z-40 p-6 flex justify-between items-start opacity-0 group-hover/player:opacity-100 transition-opacity duration-300 pointer-events-none bg-gradient-to-b from-black/80 via-black/20 to-transparent">
           
-          {/* Controls Container with margin to avoid built-in player icons */}
-          <div className="flex items-center gap-3 pointer-events-auto ml-14">
+          <div className="flex items-center gap-3 pointer-events-auto">
             {showControls && (
                 <div className="flex items-center gap-2">
                     <button 
