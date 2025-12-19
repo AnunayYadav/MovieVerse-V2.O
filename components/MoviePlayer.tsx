@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { ChevronRight, ChevronLeft, X, Film, Tv, Ghost, Cloud, Check } from 'lucide-react';
+import { ChevronRight, ChevronLeft, X, Film, Tv, Ghost } from 'lucide-react';
 
 interface MoviePlayerProps {
   tmdbId: number;
@@ -23,7 +23,6 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   const [animeType, setAnimeType] = useState<'sub' | 'dub'>('sub');
   
   const [isMenuExpanded, setIsMenuExpanded] = useState(false);
-  const [showSyncStatus, setShowSyncStatus] = useState(false);
 
   useEffect(() => {
     setSeason(initialSeason);
@@ -62,36 +61,11 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
 
   return (
     <div className="w-full h-full flex flex-col bg-black relative group/player select-none">
-       {/* Minimal Horizontal Controls Overlay */}
-       <div className="absolute top-0 left-0 right-0 z-40 p-4 flex justify-between items-center opacity-0 group-hover/player:opacity-100 transition-opacity duration-300 bg-gradient-to-b from-black/90 via-black/40 to-transparent">
+       {/* Overlay Container - pointer-events-none allows interaction with iframe beneath */}
+       <div className="absolute top-0 left-0 right-0 z-40 p-4 flex justify-between items-start opacity-0 group-hover/player:opacity-100 transition-opacity duration-300 pointer-events-none bg-gradient-to-b from-black/80 via-transparent to-transparent">
           
-          <div className="flex items-center gap-3">
-            {/* Cloud Sync Icon - Now explicitly clickable and separate */}
-            <div className="relative">
-                <button 
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        setShowSyncStatus(!showSyncStatus);
-                    }}
-                    className={`p-2.5 rounded-xl border transition-all active:scale-95 flex items-center justify-center backdrop-blur-xl ${showSyncStatus ? 'bg-white text-black border-white' : 'bg-black/40 border-white/10 text-white/40 hover:text-white hover:bg-white/10'}`}
-                    title="Cloud Sync Status"
-                >
-                    <Cloud size={18} />
-                </button>
-                
-                {showSyncStatus && (
-                    <div className="absolute top-full left-0 mt-2 bg-black/90 backdrop-blur-2xl border border-white/10 p-3 rounded-2xl shadow-2xl min-w-[160px] animate-in fade-in zoom-in-95 duration-200">
-                        <p className="text-[10px] font-black text-white/40 uppercase tracking-widest mb-2">Sync Status</p>
-                        <div className="flex items-center gap-2 text-green-400">
-                            <Check size={14} />
-                            <span className="text-xs font-bold uppercase">Cloud Synced</span>
-                        </div>
-                        <p className="text-[9px] text-white/30 mt-2">Your progress is being saved to MovieVerse Cloud.</p>
-                    </div>
-                )}
-            </div>
-
-            {/* Controls Toggle */}
+          <div className="flex items-center gap-3 ml-24 pointer-events-auto">
+            {/* Controls Toggle - Shifted right (ml-24) to avoid player's top-left native icons */}
             <div className="flex items-center gap-2">
                 <button 
                     onClick={() => setIsMenuExpanded(!isMenuExpanded)}
@@ -164,7 +138,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
 
           <button 
             onClick={onClose}
-            className="bg-red-600 hover:bg-red-700 text-white p-2.5 rounded-xl transition-all shadow-lg active:scale-95 h-10 w-10 flex items-center justify-center shrink-0 border border-red-500/20"
+            className="bg-red-600 hover:bg-red-700 text-white p-2.5 rounded-xl transition-all shadow-lg active:scale-95 h-10 w-10 flex items-center justify-center shrink-0 border border-red-500/20 pointer-events-auto"
             title="Close"
           >
             <X size={20}/>
