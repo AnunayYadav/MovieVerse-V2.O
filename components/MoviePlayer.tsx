@@ -126,6 +126,11 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     p.set('autoPlay', '1');
     p.set('autoSkipIntro', '1');
     p.set('color', 'f59e0b');
+    // Suppression parameters for built-in UI
+    p.set('fullscreenButton', '0');
+    p.set('fs', '0');
+    p.set('hideServer', '1');
+    
     let base = atob(HASH_VIDSRC);
     if (isAnime) return `${base}/anime/tmdb${tmdbId}/${episode}/${animeType}?${p.toString()}`;
     if (mediaType === 'tv') return `${base}/tv/${tmdbId}/${season}/${episode}?${p.toString()}`;
@@ -290,10 +295,14 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
             key={`${mediaType}-${isAnime}-${season}-${episode}-${animeType}`} 
             src={getEmbedUrl()}
             className="w-full h-full absolute inset-0 bg-black"
-            allowFullScreen 
             title="Media Player"
             frameBorder="0"
-            allow="autoplay; fullscreen" 
+            /* 
+               CRITICAL CHANGE: We intentionally omit 'fullscreen' permissions from the 'allow' and 'sandbox' strings.
+               Because we handle fullscreen on the containerRef (the parent div), the player still fills the screen,
+               but the internal player UI thinks it's forbidden from going fullscreen, thus hiding its own button.
+            */
+            allow="autoplay" 
             sandbox="allow-forms allow-pointer-lock allow-same-origin allow-scripts allow-presentation"
         />
       </div>
