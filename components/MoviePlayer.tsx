@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { ChevronRight, ChevronLeft, X, Film, Tv, Ghost, Search, List, ChevronDown, Loader2, Maximize2, Minimize2 } from 'lucide-react';
+import { ChevronRight, ChevronLeft, X, Film, Tv, Ghost, Search, List, ChevronDown, Loader2 } from 'lucide-react';
 import { Season, Episode } from '../types';
 import { TMDB_BASE_URL } from './Shared';
 
@@ -24,7 +24,6 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   const [episode, setEpisode] = useState(initialEpisode);
   const [animeType, setAnimeType] = useState<'sub' | 'dub'>('sub');
   const [isMenuExpanded, setIsMenuExpanded] = useState(false);
-  const [isFullscreen, setIsFullscreen] = useState(false);
   
   const containerRef = useRef<HTMLDivElement>(null);
   
@@ -41,26 +40,6 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     setSeason(initialSeason);
     setEpisode(initialEpisode);
   }, [initialSeason, initialEpisode]);
-
-  // Fullscreen persistence logic
-  useEffect(() => {
-    const handleFullscreenChange = () => {
-      setIsFullscreen(!!document.fullscreenElement);
-    };
-    document.addEventListener('fullscreenchange', handleFullscreenChange);
-    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
-  }, []);
-
-  const toggleFullscreen = () => {
-    if (!containerRef.current) return;
-    if (!document.fullscreenElement) {
-      containerRef.current.requestFullscreen().catch(err => {
-        console.error(`Error attempting to enable full-screen mode: ${err.message}`);
-      });
-    } else {
-      document.exitFullscreen();
-    }
-  };
 
   // Fetch Metadata for Episode List
   useEffect(() => {
@@ -126,11 +105,6 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     p.set('autoPlay', '1');
     p.set('autoSkipIntro', '1');
     p.set('color', 'f59e0b');
-    // Best effort URL parameters to hide built-in controls
-    p.set('controls', '1'); // Keep controls but try to hide FS specifically if supported
-    p.set('fs', '0');
-    p.set('hfs', '1');
-    p.set('hideServer', '1');
     
     let base = atob(HASH_VIDSRC);
     if (isAnime) return `${base}/anime/tmdb${tmdbId}/${episode}/${animeType}?${p.toString()}`;
@@ -175,14 +149,6 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
           </div>
 
           <div className="flex items-center gap-2 pointer-events-auto">
-              <button 
-                onClick={toggleFullscreen}
-                className="bg-black/40 hover:bg-white/10 text-white p-2 rounded-lg transition-all shadow-lg active:scale-95 h-10 w-10 flex items-center justify-center shrink-0 border border-white/10"
-                title={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
-              >
-                {isFullscreen ? <Minimize2 size={18}/> : <Maximize2 size={18}/>}
-              </button>
-
               <button 
                 onClick={onClose}
                 className="bg-black/40 hover:bg-amber-600 text-white p-2 rounded-lg transition-all shadow-lg active:scale-95 h-10 w-10 flex items-center justify-center shrink-0 border border-white/10"
@@ -266,7 +232,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                             {filteredEpisodes.length === 0 && (
                                 <div className="col-span-full py-12 text-center text-gray-700 italic text-xs">
                                     No episodes found.
-                                0.33</div>
+                                </div>
                             )}
                         </div>
                     )}
@@ -292,26 +258,12 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
        )}
 
       <div className="flex-1 relative w-full h-full z-0 overflow-hidden">
-        {/* 
-           UI SHIELD: This element is positioned exactly over the area where the 
-           internal player's fullscreen button typically resides. By using backdrop-blur 
-           and an amber/gold accent, it looks like a premium UI feature while 
-           effectively blocking/masking the provider's native button.
-        */}
-        <div className="absolute bottom-[2px] right-[2px] w-[50px] h-[50px] z-50 pointer-events-auto bg-black/80 backdrop-blur-md border border-white/10 flex items-center justify-center rounded-tl-xl opacity-0 group-hover/player:opacity-100 transition-opacity duration-300">
-             <Film size={18} className="text-amber-500/30" />
-        </div>
-
         <iframe 
             key={`${mediaType}-${isAnime}-${season}-${episode}-${animeType}`} 
             src={getEmbedUrl()}
             className="w-full h-full absolute inset-0 bg-black"
             title="Media Player"
             frameBorder="0"
-            /* 
-               Restored 'fullscreen' permissions to avoid 'dysfunctional' state.
-               We instead mask the button visually with the 'UI SHIELD' above.
-            */
             allow="autoplay; fullscreen" 
             allowFullScreen
             sandbox="allow-forms allow-pointer-lock allow-same-origin allow-scripts allow-presentation"
