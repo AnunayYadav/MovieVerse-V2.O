@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { ChevronRight, ChevronLeft, X, Film, Tv, Ghost, Search, List, ChevronDown, Loader2, Cloud } from 'lucide-react';
+import { ChevronRight, ChevronLeft, X, Film, Tv, Ghost, Search, List, ChevronDown, Loader2 } from 'lucide-react';
 import { Season, Episode } from '../types';
 import { TMDB_BASE_URL } from './Shared';
 
@@ -124,12 +124,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
        {/* Overlay Container */}
        <div className="absolute top-0 left-0 right-0 z-40 p-6 flex justify-between items-start opacity-0 group-hover/player:opacity-100 transition-opacity duration-300 pointer-events-none bg-gradient-to-b from-black/80 via-black/20 to-transparent">
           
-          <div className="flex items-center gap-4 pointer-events-auto">
-            {/* Logo/Cloud Icon similar to reference */}
-            <div className="p-2 bg-white/5 rounded-xl backdrop-blur-md border border-white/10 hidden sm:block">
-                <Cloud size={20} className="text-white/60" />
-            </div>
-
+          <div className="flex items-center gap-3 pointer-events-auto">
             {showControls && (
                 <div className="flex items-center gap-2">
                     <button 
