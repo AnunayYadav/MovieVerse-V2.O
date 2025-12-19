@@ -10,6 +10,7 @@ import { SettingsModal } from './components/SettingsModal';
 import { generateSmartRecommendations, getSearchSuggestions } from './services/gemini';
 import { LoginPage } from './components/LoginPage';
 import { getSupabase, syncUserData, fetchUserData, signOut, getNotifications, triggerSystemNotification } from './services/supabase';
+import { TopMoviesRow } from './components/TopMoviesRow';
 
 const DEFAULT_COLLECTIONS: any = {
   "srk": { title: "King Khan", params: { with_cast: "35742", sort_by: "popularity.desc" }, icon: "👑", backdrop: "https://images.unsplash.com/photo-1562821680-894c1395f725?q=80&w=2000&auto=format&fit=crop", description: "The Badshah of Bollywood. Romance, Action, and Charm." },
@@ -1104,6 +1105,11 @@ export default function App() {
                                </div>
                                <button onClick={resetFilters} className={`text-xs font-bold transition-colors ${isGoldTheme ? 'text-amber-400 hover:text-amber-300' : 'text-red-400 hover:text-red-300'}`}>Clear Filter</button>
                            </div>
+                       )}
+
+                       {/* Top 10 Popular Section */}
+                       {!searchQuery && selectedCategory === "All" && !currentCollection && filterPeriod === "all" && !activeKeyword && !tmdbCollectionId && (
+                           <TopMoviesRow onMovieClick={setSelectedMovie} apiKey={apiKey} isGoldTheme={isGoldTheme} />
                        )}
 
                        <PosterMarquee movies={!searchQuery && selectedCategory === "All" && !currentCollection && movies.length > 0 ? movies : []} onMovieClick={setSelectedMovie} />
