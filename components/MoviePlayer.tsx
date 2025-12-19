@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { ChevronRight, ChevronLeft, X, Film, Tv, Ghost, Search, List, ChevronDown, Loader2, Maximize2, Minimize2 } from 'lucide-react';
+import { ChevronRight, ChevronLeft, X, Film, Tv, Ghost, Search, List, ChevronDown, Loader2 } from 'lucide-react';
 import { Season, Episode } from '../types';
 import { TMDB_BASE_URL } from './Shared';
 
@@ -24,9 +24,6 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   const [episode, setEpisode] = useState(initialEpisode);
   const [animeType, setAnimeType] = useState<'sub' | 'dub'>('sub');
   const [isMenuExpanded, setIsMenuExpanded] = useState(false);
-  const [isFullscreen, setIsFullscreen] = useState(false);
-  
-  const containerRef = useRef<HTMLDivElement>(null);
   
   // Episode Selector State
   const [seasons, setSeasons] = useState<Season[]>([]);
@@ -42,26 +39,6 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     setEpisode(initialEpisode);
   }, [initialSeason, initialEpisode]);
 
-  // Fullscreen persistence logic
-  useEffect(() => {
-    const handleFullscreenChange = () => {
-      setIsFullscreen(!!document.fullscreenElement);
-    };
-    document.addEventListener('fullscreenchange', handleFullscreenChange);
-    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
-  }, []);
-
-  const toggleFullscreen = () => {
-    if (!containerRef.current) return;
-    if (!document.fullscreenElement) {
-      containerRef.current.requestFullscreen().catch(err => {
-        console.error(`Error attempting to enable full-screen mode: ${err.message}`);
-      });
-    } else {
-      document.exitFullscreen();
-    }
-  };
-
   // Fetch Metadata for Episode List
   useEffect(() => {
     if (!showControls || !apiKey) return;
@@ -69,12 +46,14 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     const fetchMetadata = async () => {
         setLoadingMetadata(true);
         try {
+            // Get all seasons
             const res = await fetch(`${TMDB_BASE_URL}/tv/${tmdbId}?api_key=${apiKey}`);
             const data = await res.json();
             if (data.seasons) {
                 const validSeasons = data.seasons.filter((s: Season) => s.season_number > 0);
                 setSeasons(validSeasons);
                 
+                // Fetch initial season episodes
                 const epRes = await fetch(`${TMDB_BASE_URL}/tv/${tmdbId}/season/${season}?api_key=${apiKey}`);
                 const epData = await epRes.json();
                 setCurrentSeasonData(epData.episodes || []);
@@ -89,6 +68,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     fetchMetadata();
   }, [tmdbId, apiKey, showControls]);
 
+  // Fetch new episodes when season changes
   const handleSeasonChange = async (sNum: number) => {
       setSeason(sNum);
       setShowSeasonDropdown(false);
@@ -125,7 +105,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     const p = new URLSearchParams();
     p.set('autoPlay', '1');
     p.set('autoSkipIntro', '1');
-    p.set('color', 'f59e0b');
+    p.set('color', 'f59e0b'); // Gold theme color for player
 
     let base = atob(HASH);
 
@@ -140,13 +120,11 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   );
 
   return (
-    <div 
-      ref={containerRef}
-      className="w-full h-full flex flex-col bg-black relative group/player select-none overflow-hidden"
-    >
-       {/* Overlay Container - Forced high z-index for Fullscreen persistence */}
-       <div className="absolute top-0 left-0 right-0 z-[100] p-6 flex justify-between items-start opacity-0 group-hover/player:opacity-100 transition-opacity duration-300 pointer-events-none bg-gradient-to-b from-black/90 via-black/20 to-transparent">
+    <div className="w-full h-full flex flex-col bg-black relative group/player select-none overflow-hidden">
+       {/* Overlay Container */}
+       <div className="absolute top-0 left-0 right-0 z-40 p-6 flex justify-between items-start opacity-0 group-hover/player:opacity-100 transition-opacity duration-300 pointer-events-none bg-gradient-to-b from-black/90 via-black/20 to-transparent">
           
+          {/* Controls Container with margin to avoid built-in player icons */}
           <div className="flex items-center gap-3 pointer-events-auto ml-14">
             {showControls && (
                 <div className="flex items-center gap-2">
@@ -170,28 +148,19 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
             )}
           </div>
 
-          <div className="flex items-center gap-2 pointer-events-auto">
-              <button 
-                onClick={toggleFullscreen}
-                className="bg-black/40 hover:bg-white/10 text-white p-2 rounded-lg transition-all shadow-lg active:scale-95 h-10 w-10 flex items-center justify-center shrink-0 border border-white/10"
-                title={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
-              >
-                {isFullscreen ? <Minimize2 size={18}/> : <Maximize2 size={18}/>}
-              </button>
-
-              <button 
-                onClick={onClose}
-                className="bg-black/40 hover:bg-amber-600 text-white p-2 rounded-lg transition-all shadow-lg active:scale-95 h-10 w-10 flex items-center justify-center shrink-0 border border-white/10"
-                title="Close Player"
-              >
-                <X size={20}/>
-              </button>
-          </div>
+          <button 
+            onClick={onClose}
+            className="bg-black/40 hover:bg-amber-600 text-white p-2 rounded-lg transition-all shadow-lg active:scale-95 h-10 w-10 flex items-center justify-center shrink-0 border border-white/10 pointer-events-auto"
+            title="Close Player"
+          >
+            <X size={20}/>
+          </button>
        </div>
 
-       {/* EPISODE LIST OVERLAY - High z-index for Fullscreen persistence */}
+       {/* EPISODE LIST OVERLAY */}
        {isMenuExpanded && showControls && (
-           <div className="absolute top-0 left-0 bottom-0 w-80 md:w-96 z-[110] bg-[#050505]/95 backdrop-blur-3xl border-r border-amber-500/10 shadow-2xl flex flex-col animate-in slide-in-from-left duration-400 ease-[cubic-bezier(0.4,0,0.2,1)]">
+           <div className="absolute top-0 left-0 bottom-0 w-80 md:w-96 z-50 bg-[#050505]/95 backdrop-blur-3xl border-r border-amber-500/10 shadow-2xl flex flex-col animate-in slide-in-from-left duration-400 ease-[cubic-bezier(0.4,0,0.2,1)]">
+                {/* Header */}
                 <div className="p-6 pb-4">
                     <div className="flex items-center justify-between mb-5">
                         <h3 className="text-white font-bold text-[10px] tracking-widest uppercase opacity-40">Select Episode</h3>
@@ -199,6 +168,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                     </div>
 
                     <div className="flex flex-col gap-3">
+                        {/* Season Dropdown */}
                         <div className="relative">
                             <button 
                                 onClick={() => setShowSeasonDropdown(!showSeasonDropdown)}
@@ -226,6 +196,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                             )}
                         </div>
 
+                        {/* Search Box */}
                         <div className="relative w-full">
                             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-600" />
                             <input 
@@ -239,6 +210,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                     </div>
                 </div>
 
+                {/* Episode Grid */}
                 <div className="flex-1 overflow-y-auto custom-scrollbar p-6 pt-2">
                     {loadingMetadata ? (
                         <div className="h-full flex items-center justify-center">
@@ -268,6 +240,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                     )}
                 </div>
 
+                {/* Anime Toggle */}
                 {isAnime && (
                     <div className="p-6 bg-black/40 border-t border-white/5 flex gap-2">
                         <button 
