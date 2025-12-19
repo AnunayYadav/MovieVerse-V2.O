@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Film, Tv, Ghost, ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { ChevronDown, ChevronUp, X, Film, Tv, Ghost } from 'lucide-react';
 
 interface MoviePlayerProps {
   tmdbId: number;
@@ -12,9 +12,6 @@ interface MoviePlayerProps {
   initialEpisode?: number;
 }
 
-// Obfuscated Source: https://vidsrc.cc/v2/embed
-// We use Base64 encoding (atob) to completely hide the URL string from simple "Find in Page" searches.
-// This executes in nanoseconds and does not affect performance.
 const HASH = "aHR0cHM6Ly92aWRzcmMuY2MvdjIvZW1iZWQ=";
 
 export const MoviePlayer: React.FC<MoviePlayerProps> = ({ 
@@ -23,46 +20,31 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   const [isTv, setIsTv] = useState(mediaType === 'tv' || isAnime);
   const [season, setSeason] = useState(initialSeason);
   const [episode, setEpisode] = useState(initialEpisode);
-  
   const [animeType, setAnimeType] = useState<'sub' | 'dub'>('sub');
-  const [isMenuExpanded, setIsMenuExpanded] = useState(true);
+  
+  // Menu now collapsed by default as requested
+  const [isMenuExpanded, setIsMenuExpanded] = useState(false);
 
   useEffect(() => {
     setSeason(initialSeason);
     setEpisode(initialEpisode);
   }, [initialSeason, initialEpisode]);
 
-  // Screen Wake Lock to prevent sleep during playback
+  // Handle Screen Wake Lock to prevent screen dimming during playback
   useEffect(() => {
     let wakeLock: any = null;
-
     const requestWakeLock = async () => {
       try {
         const nav = navigator as any;
-        if ('wakeLock' in nav) {
-          wakeLock = await nav.wakeLock.request('screen');
-        }
-      } catch (err) {
-        // Silently fail if wake lock is not supported
-      }
+        if ('wakeLock' in nav) { wakeLock = await nav.wakeLock.request('screen'); }
+      } catch (err) {}
     };
-
     requestWakeLock();
-
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        requestWakeLock();
-      }
-    };
-
+    const handleVisibilityChange = () => { if (document.visibilityState === 'visible') requestWakeLock(); };
     document.addEventListener('visibilitychange', handleVisibilityChange);
-
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
-      if (wakeLock) {
-        wakeLock.release().catch(() => {});
-        wakeLock = null;
-      }
+      if (wakeLock) { wakeLock.release().catch(() => {}); wakeLock = null; }
     };
   }, []);
 
@@ -72,98 +54,83 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     p.set('autoSkipIntro', '1');
     p.set('color', 'dc2626');
 
-    let base = "";
-    try {
-        // Decodes the base64 string at runtime
-        base = atob(HASH);
-    } catch(e) {
-        console.error("Decryption failed");
-        return "";
-    }
+    let base = atob(HASH);
 
-    if (isAnime) {
-        return `${base}/anime/tmdb${tmdbId}/${episode}/${animeType}?${p.toString()}`;
-    }
-    if (isTv) {
-        return `${base}/tv/${tmdbId}/${season}/${episode}?${p.toString()}`;
-    }
+    if (isAnime) return `${base}/anime/tmdb${tmdbId}/${episode}/${animeType}?${p.toString()}`;
+    if (isTv) return `${base}/tv/${tmdbId}/${season}/${episode}?${p.toString()}`;
     return `${base}/movie/${tmdbId}?${p.toString()}`;
   };
 
   return (
-    <div className="w-full h-full flex flex-col bg-black relative">
-       <div className="absolute top-0 left-0 right-0 z-20 p-4 flex justify-between items-start pointer-events-none">
-          <div className="pointer-events-auto flex flex-col gap-2">
-            <div className="flex items-center gap-2">
-                {isMenuExpanded ? (
-                    <div className="flex items-center gap-2 bg-black/60 backdrop-blur-md p-1.5 rounded-xl border border-white/10 shadow-lg animate-in fade-in slide-in-from-left-2 duration-300">
+    <div className="w-full h-full flex flex-col bg-black relative group/player select-none">
+       {/* Controls Overlay */}
+       <div className="absolute top-0 left-0 right-0 z-30 p-4 flex justify-between items-start opacity-0 group-hover/player:opacity-100 transition-opacity duration-300 bg-gradient-to-b from-black/80 to-transparent">
+          
+          {/* Menu Section - Shifted "a little right" as requested */}
+          <div className="flex flex-col gap-2 ml-12">
+            <button 
+                onClick={() => setIsMenuExpanded(!isMenuExpanded)}
+                className="bg-black/60 backdrop-blur-xl p-2 rounded-xl border border-white/10 shadow-lg text-white/70 hover:text-white transition-all active:scale-95 flex items-center gap-2 w-fit"
+                title={isMenuExpanded ? "Hide Controls" : "Show Controls"}
+            >
+                {isMenuExpanded ? <ChevronUp size={18}/> : <ChevronDown size={18}/>}
+                {!isMenuExpanded && <span className="text-[10px] font-bold uppercase tracking-wider pr-1">Controls</span>}
+            </button>
+
+            {isMenuExpanded && (
+                <div className="flex flex-col gap-2 animate-in slide-in-from-top-2 duration-300">
+                    <div className="flex items-center gap-2 bg-black/60 backdrop-blur-xl p-1.5 rounded-2xl border border-white/10 shadow-2xl">
                         {!isAnime && (
-                          <>
+                          <div className="flex gap-1">
                             <button 
                                 onClick={() => setIsTv(false)} 
-                                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2 ${!isTv ? 'bg-red-600 text-white shadow-md shadow-red-900/50' : 'hover:bg-white/10 text-gray-300'}`}
+                                className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-2 ${!isTv ? 'bg-red-600 text-white shadow-lg' : 'hover:bg-white/10 text-gray-400'}`}
                             >
-                                <Film size={14}/> Movie
+                                <Film size={14}/> MOVIE
                             </button>
                             <button 
                                 onClick={() => setIsTv(true)} 
-                                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2 ${isTv ? 'bg-red-600 text-white shadow-md shadow-red-900/50' : 'hover:bg-white/10 text-gray-300'}`}
+                                className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-2 ${isTv ? 'bg-red-600 text-white shadow-lg' : 'hover:bg-white/10 text-gray-400'}`}
                             >
-                                <Tv size={14}/> TV Show
+                                <Tv size={14}/> TV SHOW
                             </button>
-                          </>
+                          </div>
                         )}
                         {isAnime && (
-                            <div className="px-3 py-1.5 rounded-lg text-xs font-bold bg-purple-600 text-white shadow-md shadow-purple-900/50 flex items-center gap-2">
-                                <Ghost size={14}/> Anime Mode
+                            <div className="px-4 py-2 rounded-xl text-xs font-black bg-purple-600 text-white shadow-lg flex items-center gap-2">
+                                <Ghost size={14}/> ANIME
                             </div>
                         )}
-                        <div className="w-px h-4 bg-white/10 mx-1"></div>
-                        <button 
-                            onClick={() => setIsMenuExpanded(false)}
-                            className="p-1.5 hover:bg-white/10 rounded-lg text-gray-400 hover:text-white transition-colors"
-                            title="Collapse Menu"
-                        >
-                            <ChevronLeft size={14}/>
-                        </button>
                     </div>
-                ) : (
-                    <button 
-                        onClick={() => setIsMenuExpanded(true)}
-                        className="bg-black/60 backdrop-blur-md p-2.5 rounded-xl border border-white/10 shadow-lg text-gray-300 hover:text-white hover:bg-white/10 transition-all animate-in fade-in zoom-in duration-300"
-                        title="Expand Menu"
-                    >
-                        <ChevronRight size={16}/>
-                    </button>
-                )}
-            </div>
 
-            {isMenuExpanded && (isTv || isAnime) && (
-                <div className="flex items-center gap-2 bg-black/60 backdrop-blur-md p-2 rounded-xl border border-white/10 shadow-lg animate-in slide-in-from-left-2">
-                    <div className="flex items-center gap-1">
-                        <span className="text-[10px] text-gray-400 uppercase font-bold px-1">S</span>
-                        <input 
-                          type="number" 
-                          min="1" 
-                          value={season}
-                          onChange={(e) => setSeason(Math.max(1, parseInt(e.target.value) || 1))}
-                          className="w-12 bg-white/10 border border-white/20 rounded-md text-center text-white text-sm py-1 focus:outline-none focus:border-red-500"
-                        />
-                    </div>
-                    <div className="flex items-center gap-1">
-                        <span className="text-[10px] text-gray-400 uppercase font-bold px-1">E</span>
-                        <input 
-                          type="number" 
-                          min="1" 
-                          value={episode}
-                          onChange={(e) => setEpisode(Math.max(1, parseInt(e.target.value) || 1))}
-                          className="w-12 bg-white/10 border border-white/20 rounded-md text-center text-white text-sm py-1 focus:outline-none focus:border-red-500"
-                        />
-                    </div>
-                    {isAnime && (
-                        <div className="flex bg-white/10 rounded-md p-0.5 ml-1">
-                             <button onClick={() => setAnimeType('sub')} className={`px-2 py-0.5 text-[10px] font-bold rounded transition-colors ${animeType === 'sub' ? 'bg-white text-black' : 'text-gray-400 hover:text-white'}`}>SUB</button>
-                             <button onClick={() => setAnimeType('dub')} className={`px-2 py-0.5 text-[10px] font-bold rounded transition-colors ${animeType === 'dub' ? 'bg-white text-black' : 'text-gray-400 hover:text-white'}`}>DUB</button>
+                    {(isTv || isAnime) && (
+                        <div className="flex items-center gap-3 bg-black/60 backdrop-blur-xl p-2 rounded-2xl border border-white/10 shadow-2xl">
+                            <div className="flex items-center gap-2">
+                                <span className="text-[10px] text-red-500 uppercase font-black px-1">S</span>
+                                <input 
+                                  type="number" 
+                                  min="1" 
+                                  value={season}
+                                  onChange={(e) => setSeason(Math.max(1, parseInt(e.target.value) || 1))}
+                                  className="w-10 bg-white/5 border border-white/5 rounded-lg text-center text-white text-xs py-1.5 focus:outline-none focus:border-red-500 transition-all font-bold"
+                                />
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <span className="text-[10px] text-red-500 uppercase font-black px-1">E</span>
+                                <input 
+                                  type="number" 
+                                  min="1" 
+                                  value={episode}
+                                  onChange={(e) => setEpisode(Math.max(1, parseInt(e.target.value) || 1))}
+                                  className="w-10 bg-white/5 border border-white/5 rounded-lg text-center text-white text-xs py-1.5 focus:outline-none focus:border-red-500 transition-all font-bold"
+                                />
+                            </div>
+                            {isAnime && (
+                                <div className="flex bg-white/5 rounded-lg p-1 ml-1">
+                                    <button onClick={() => setAnimeType('sub')} className={`px-2 py-1 text-[9px] font-black rounded transition-all ${animeType === 'sub' ? 'bg-white text-black' : 'text-gray-500 hover:text-white'}`}>SUB</button>
+                                    <button onClick={() => setAnimeType('dub')} className={`px-2 py-1 text-[9px] font-black rounded transition-all ${animeType === 'dub' ? 'bg-white text-black' : 'text-gray-500 hover:text-white'}`}>DUB</button>
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>
@@ -172,14 +139,14 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
 
           <button 
             onClick={onClose}
-            className="pointer-events-auto bg-black/60 hover:bg-red-600 text-white p-2 rounded-full transition-colors backdrop-blur-sm"
-            title="Close Player"
+            className="bg-red-600 hover:bg-red-700 text-white p-2.5 rounded-xl transition-all shadow-lg active:scale-95"
+            title="Close"
           >
-            <X size={24}/>
+            <X size={20}/>
           </button>
        </div>
 
-      <div className="flex-1 relative w-full h-full">
+      <div className="flex-1 relative w-full h-full z-0 overflow-hidden">
         <iframe 
             key={`${isTv}-${isAnime}-${season}-${episode}-${animeType}`} 
             src={getEmbedUrl()}
