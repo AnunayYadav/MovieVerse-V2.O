@@ -225,6 +225,7 @@ export const MovieModal: React.FC<MovieModalProps> = ({
                                             isAnime={isAnime || false}
                                             initialSeason={playParams.season}
                                             initialEpisode={playParams.episode}
+                                            apiKey={apiKey}
                                          />
                                      </Suspense>
                                  </div>

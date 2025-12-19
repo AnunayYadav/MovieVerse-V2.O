@@ -1,6 +1,8 @@
 
-import React, { useState, useEffect } from 'react';
-import { ChevronRight, ChevronLeft, X, Film, Tv, Ghost } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { ChevronRight, ChevronLeft, X, Film, Tv, Ghost, Search, List, ChevronDown, Loader2 } from 'lucide-react';
+import { Season, Episode } from '../types';
+import { TMDB_BASE_URL } from './Shared';
 
 interface MoviePlayerProps {
   tmdbId: number;
@@ -10,27 +12,77 @@ interface MoviePlayerProps {
   isAnime: boolean;
   initialSeason?: number;
   initialEpisode?: number;
+  apiKey: string;
 }
 
 const HASH = "aHR0cHM6Ly92aWRzcmMuY2MvdjIvZW1iZWQ=";
 
 export const MoviePlayer: React.FC<MoviePlayerProps> = ({ 
-  tmdbId, onClose, mediaType, isAnime, initialSeason = 1, initialEpisode = 1
+  tmdbId, onClose, mediaType, isAnime, initialSeason = 1, initialEpisode = 1, apiKey
 }) => {
-  const [isTv, setIsTv] = useState(mediaType === 'tv' || isAnime);
   const [season, setSeason] = useState(initialSeason);
   const [episode, setEpisode] = useState(initialEpisode);
   const [animeType, setAnimeType] = useState<'sub' | 'dub'>('sub');
-  
   const [isMenuExpanded, setIsMenuExpanded] = useState(false);
+  
+  // Episode Selector State
+  const [seasons, setSeasons] = useState<Season[]>([]);
+  const [currentSeasonData, setCurrentSeasonData] = useState<Episode[]>([]);
+  const [loadingMetadata, setLoadingMetadata] = useState(false);
+  const [epSearchQuery, setEpSearchQuery] = useState("");
+  const [showSeasonDropdown, setShowSeasonDropdown] = useState(false);
 
-  // Determine if we should even offer the overlay controls
   const showControls = mediaType === 'tv' || isAnime;
 
   useEffect(() => {
     setSeason(initialSeason);
     setEpisode(initialEpisode);
   }, [initialSeason, initialEpisode]);
+
+  // Fetch Metadata for Episode List
+  useEffect(() => {
+    if (!showControls || !apiKey) return;
+
+    const fetchMetadata = async () => {
+        setLoadingMetadata(true);
+        try {
+            // Get all seasons
+            const res = await fetch(`${TMDB_BASE_URL}/tv/${tmdbId}?api_key=${apiKey}`);
+            const data = await res.json();
+            if (data.seasons) {
+                const validSeasons = data.seasons.filter((s: Season) => s.season_number > 0);
+                setSeasons(validSeasons);
+                
+                // Fetch initial season episodes
+                const epRes = await fetch(`${TMDB_BASE_URL}/tv/${tmdbId}/season/${season}?api_key=${apiKey}`);
+                const epData = await epRes.json();
+                setCurrentSeasonData(epData.episodes || []);
+            }
+        } catch (e) {
+            console.error("Failed to load player metadata", e);
+        } finally {
+            setLoadingMetadata(false);
+        }
+    };
+
+    fetchMetadata();
+  }, [tmdbId, apiKey, showControls]);
+
+  // Fetch new episodes when season changes
+  const handleSeasonChange = async (sNum: number) => {
+      setSeason(sNum);
+      setShowSeasonDropdown(false);
+      setLoadingMetadata(true);
+      try {
+          const res = await fetch(`${TMDB_BASE_URL}/tv/${tmdbId}/season/${sNum}?api_key=${apiKey}`);
+          const data = await res.json();
+          setCurrentSeasonData(data.episodes || []);
+      } catch (e) {
+          console.error(e);
+      } finally {
+          setLoadingMetadata(false);
+      }
+  };
 
   useEffect(() => {
     let wakeLock: any = null;
@@ -58,71 +110,36 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     let base = atob(HASH);
 
     if (isAnime) return `${base}/anime/tmdb${tmdbId}/${episode}/${animeType}?${p.toString()}`;
-    if (isTv) return `${base}/tv/${tmdbId}/${season}/${episode}?${p.toString()}`;
+    if (mediaType === 'tv') return `${base}/tv/${tmdbId}/${season}/${episode}?${p.toString()}`;
     return `${base}/movie/${tmdbId}?${p.toString()}`;
   };
 
+  const filteredEpisodes = currentSeasonData.filter(ep => 
+    ep.episode_number.toString().includes(epSearchQuery) || 
+    ep.name.toLowerCase().includes(epSearchQuery.toLowerCase())
+  );
+
   return (
-    <div className="w-full h-full flex flex-col bg-black relative group/player select-none">
+    <div className="w-full h-full flex flex-col bg-black relative group/player select-none overflow-hidden">
        {/* Overlay Container */}
        <div className="absolute top-0 left-0 right-0 z-40 p-4 flex justify-between items-start opacity-0 group-hover/player:opacity-100 transition-opacity duration-300 pointer-events-none bg-gradient-to-b from-black/80 via-transparent to-transparent">
           
           <div className="flex items-center gap-3 ml-24 pointer-events-auto">
-            {/* Episode Controls - ONLY visible for TV/Anime */}
             {showControls && (
                 <div className="flex items-center gap-2">
                     <button 
                         onClick={() => setIsMenuExpanded(!isMenuExpanded)}
-                        className="bg-black/60 backdrop-blur-xl p-2 rounded-xl border border-white/10 shadow-lg text-white/70 hover:text-white transition-all active:scale-95 flex items-center justify-center h-10 w-10 shrink-0"
-                        title={isMenuExpanded ? "Collapse" : "Expand"}
+                        className={`bg-black/60 backdrop-blur-xl p-2 rounded-xl border border-white/10 shadow-lg text-white/70 hover:text-white transition-all active:scale-95 flex items-center justify-center h-10 w-10 shrink-0 ${isMenuExpanded ? 'ring-2 ring-red-500/50' : ''}`}
+                        title={isMenuExpanded ? "Close Episode List" : "Open Episode List"}
                     >
-                        {isMenuExpanded ? <ChevronLeft size={18}/> : <ChevronRight size={18}/>}
+                        {isMenuExpanded ? <ChevronLeft size={18}/> : <List size={18}/>}
                     </button>
-
-                    {isMenuExpanded && (
-                        <div className="flex items-center gap-2 animate-in slide-in-from-left-2 fade-in duration-300">
-                            <div className="flex items-center gap-1 bg-black/60 backdrop-blur-xl p-1 rounded-2xl border border-white/10 shadow-2xl h-10">
-                                {isAnime ? (
-                                    <div className="px-3 h-full rounded-xl text-[10px] font-black bg-purple-600 text-white flex items-center gap-1.5">
-                                        <Ghost size={12}/> ANIME
-                                    </div>
-                                ) : (
-                                    <div className="px-3 h-full rounded-xl text-[10px] font-black bg-red-600 text-white flex items-center gap-1.5">
-                                        <Tv size={12}/> TV SHOW
-                                    </div>
-                                )}
-                            </div>
-
-                            <div className="flex items-center gap-2 bg-black/60 backdrop-blur-xl px-2 rounded-2xl border border-white/10 shadow-2xl h-10">
-                                <div className="flex items-center gap-1">
-                                    <span className="text-[10px] text-red-500 font-black">S</span>
-                                    <input 
-                                      type="number" 
-                                      min="1" 
-                                      value={season}
-                                      onChange={(e) => setSeason(Math.max(1, parseInt(e.target.value) || 1))}
-                                      className="w-8 bg-transparent text-center text-white text-xs py-1 focus:outline-none font-bold"
-                                    />
-                                </div>
-                                <div className="w-px h-3 bg-white/10"></div>
-                                <div className="flex items-center gap-1">
-                                    <span className="text-[10px] text-red-500 font-black">E</span>
-                                    <input 
-                                      type="number" 
-                                      min="1" 
-                                      value={episode}
-                                      onChange={(e) => setEpisode(Math.max(1, parseInt(e.target.value) || 1))}
-                                      className="w-8 bg-transparent text-center text-white text-xs py-1 focus:outline-none font-bold"
-                                    />
-                                </div>
-                                {isAnime && (
-                                    <div className="flex bg-white/5 rounded-lg p-0.5 ml-1 border border-white/5">
-                                        <button onClick={() => setAnimeType('sub')} className={`px-1.5 py-0.5 text-[8px] font-black rounded transition-all ${animeType === 'sub' ? 'bg-white text-black' : 'text-gray-500 hover:text-white'}`}>SUB</button>
-                                        <button onClick={() => setAnimeType('dub')} className={`px-1.5 py-0.5 text-[8px] font-black rounded transition-all ${animeType === 'dub' ? 'bg-white text-black' : 'text-gray-500 hover:text-white'}`}>DUB</button>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
+                    
+                    {!isMenuExpanded && (
+                         <div className="bg-black/60 backdrop-blur-xl px-3 h-10 rounded-xl border border-white/10 flex items-center gap-3 animate-in fade-in slide-in-from-left-2">
+                            <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">Playing</span>
+                            <span className="text-xs font-bold text-red-500">S{season} E{episode}</span>
+                         </div>
                     )}
                 </div>
             )}
@@ -131,15 +148,118 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
           <button 
             onClick={onClose}
             className="bg-red-600 hover:bg-red-700 text-white p-2.5 rounded-xl transition-all shadow-lg active:scale-95 h-10 w-10 flex items-center justify-center shrink-0 border border-red-500/20 pointer-events-auto"
-            title="Close"
+            title="Close Player"
           >
             <X size={20}/>
           </button>
        </div>
 
+       {/* EPISODE LIST OVERLAY (MATCHING THE IMAGE) */}
+       {isMenuExpanded && showControls && (
+           <div className="absolute top-0 left-0 bottom-0 w-80 md:w-96 z-50 bg-[#0f0f13]/95 backdrop-blur-2xl border-r border-white/10 shadow-2xl flex flex-col animate-in slide-in-from-left duration-300 ease-out">
+                {/* Header */}
+                <div className="p-6 pb-4">
+                    <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-white font-bold text-sm tracking-tight uppercase opacity-60">List of episodes:</h3>
+                        <button onClick={() => setIsMenuExpanded(false)} className="text-gray-500 hover:text-white"><X size={18}/></button>
+                    </div>
+
+                    <div className="flex gap-2 items-center">
+                        {/* Season Dropdown */}
+                        <div className="relative flex-1">
+                            <button 
+                                onClick={() => setShowSeasonDropdown(!showSeasonDropdown)}
+                                className="w-full bg-[#1c1c24] hover:bg-[#252530] border border-white/5 rounded-lg px-3 py-2 flex items-center justify-between text-xs font-bold text-white transition-colors"
+                            >
+                                <div className="flex items-center gap-2">
+                                    <List size={14} className="text-gray-500"/>
+                                    <span>{seasons.find(s => s.season_number === season)?.name || `Season ${season}`}</span>
+                                </div>
+                                <ChevronDown size={14} className={`text-gray-500 transition-transform ${showSeasonDropdown ? 'rotate-180' : ''}`}/>
+                            </button>
+
+                            {showSeasonDropdown && (
+                                <div className="absolute top-full left-0 right-0 mt-2 bg-[#1c1c24] border border-white/10 rounded-xl shadow-2xl z-[60] py-1 max-h-60 overflow-y-auto custom-scrollbar animate-in fade-in zoom-in-95 duration-200">
+                                    {seasons.map(s => (
+                                        <button 
+                                            key={s.id}
+                                            onClick={() => handleSeasonChange(s.season_number)}
+                                            className={`w-full text-left px-4 py-2.5 text-xs font-bold transition-colors ${s.season_number === season ? 'text-red-500 bg-white/5' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
+                                        >
+                                            {s.name}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Search Box */}
+                        <div className="relative w-32 md:w-40 shrink-0">
+                            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+                            <input 
+                                type="text"
+                                value={epSearchQuery}
+                                onChange={(e) => setEpSearchQuery(e.target.value)}
+                                placeholder="Number of Ep"
+                                className="w-full bg-[#1c1c24] border border-white/5 rounded-lg pl-9 pr-3 py-2 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-red-500 transition-all"
+                            />
+                        </div>
+                    </div>
+                </div>
+
+                {/* Episode Grid */}
+                <div className="flex-1 overflow-y-auto custom-scrollbar p-6 pt-0">
+                    {loadingMetadata ? (
+                        <div className="h-full flex items-center justify-center">
+                            <Loader2 className="animate-spin text-red-500" size={32}/>
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-4 sm:grid-cols-5 gap-2 pb-10">
+                            {filteredEpisodes.map(ep => (
+                                <button 
+                                    key={ep.id}
+                                    onClick={() => setEpisode(ep.episode_number)}
+                                    className={`aspect-square rounded-md flex items-center justify-center text-xs font-bold transition-all ${
+                                        ep.episode_number === episode 
+                                        ? 'bg-pink-400 text-black shadow-[0_0_15px_rgba(244,114,182,0.4)]' 
+                                        : 'bg-[#252530] text-gray-400 hover:bg-[#303040] hover:text-white border border-white/5'
+                                    }`}
+                                >
+                                    {ep.episode_number}
+                                </button>
+                            ))}
+                            {filteredEpisodes.length === 0 && (
+                                <div className="col-span-full py-10 text-center text-gray-600 italic text-xs">
+                                    No episodes found matching search.
+                                </div>
+                            )}
+                        </div>
+                    )}
+                </div>
+
+                {/* Anime Toggle (If applicable) */}
+                {isAnime && (
+                    <div className="p-4 bg-black/40 border-t border-white/5 flex gap-2">
+                        <button 
+                            onClick={() => setAnimeType('sub')}
+                            className={`flex-1 py-2 text-[10px] font-black rounded-lg transition-all ${animeType === 'sub' ? 'bg-white text-black' : 'bg-white/5 text-gray-500 hover:text-white'}`}
+                        >
+                            SUBTITLED
+                        </button>
+                        <button 
+                            onClick={() => setAnimeType('dub')}
+                            className={`flex-1 py-2 text-[10px] font-black rounded-lg transition-all ${animeType === 'dub' ? 'bg-white text-black' : 'bg-white/5 text-gray-500 hover:text-white'}`}
+                        >
+                            DUBBED
+                        </button>
+                    </div>
+                )}
+           </div>
+       )}
+
       <div className="flex-1 relative w-full h-full z-0 overflow-hidden">
         <iframe 
-            key={`${isTv}-${isAnime}-${season}-${episode}-${animeType}`} 
+            key={`${mediaType}-${isAnime}-${season}-${episode}-${animeType}`} 
             src={getEmbedUrl()}
             className="w-full h-full absolute inset-0 bg-black"
             allowFullScreen 
