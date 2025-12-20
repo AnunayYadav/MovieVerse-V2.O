@@ -3,8 +3,8 @@ export interface Movie {
   id: number;
   title: string;
   original_title?: string;
-  name?: string;
-  original_name?: string;
+  name?: string; // For TV
+  original_name?: string; // For TV
   overview: string;
   poster_path: string | null;
   backdrop_path: string | null;
@@ -19,13 +19,36 @@ export interface Movie {
   runtime?: number;
   episode_run_time?: number[];
   adult?: boolean;
+  year?: number; // fallback
+  poster?: string; // fallback
+  backdrop?: string; // fallback
+  rating?: number; // fallback
+  certification?: string; // fallback
+  ott?: any[]; // fallback
+  // Person specific
   profile_path?: string | null;
   known_for_department?: string;
   known_for?: Movie[];
 }
 
-export interface Genre { id: number; name: string; }
-export interface Keyword { id: number; name: string; }
+export interface Genre {
+  id: number;
+  name: string;
+}
+
+export interface Keyword {
+  id: number;
+  name: string;
+}
+
+export interface CollectionDetails {
+  id: number;
+  name: string;
+  overview: string;
+  poster_path: string;
+  backdrop_path: string;
+  parts: Movie[];
+}
 
 export interface ExternalIds {
     imdb_id?: string;
@@ -39,17 +62,40 @@ export interface MovieDetails extends Movie {
   revenue: number;
   status: string;
   tagline: string;
-  credits?: { cast: CastMember[]; crew: CrewMember[]; };
-  videos?: { results: VideoResult[]; };
-  similar?: { results: Movie[]; };
+  credits?: {
+    cast: CastMember[];
+    crew: CrewMember[];
+  };
+  videos?: {
+    results: VideoResult[];
+  };
+  similar?: {
+    results: Movie[];
+  };
   seasons?: Season[];
-  images?: { backdrops: Image[]; posters: Image[]; };
-  "watch/providers"?: { results: Record<string, ProviderRegion>; };
+  images?: {
+    backdrops: Image[];
+    posters: Image[];
+  };
+  "watch/providers"?: {
+    results: Record<string, ProviderRegion>;
+  };
   external_ids?: ExternalIds;
   homepage?: string;
-  reviews?: { results: Review[]; };
+  content_ratings?: {
+    results: ContentRating[];
+  };
+  release_dates?: {
+    results: ReleaseDateResult[];
+  };
+  reviews?: {
+    results: Review[];
+  };
   created_by?: Creator[];
-  keywords?: { keywords?: Keyword[]; results?: Keyword[]; };
+  keywords?: {
+    keywords?: Keyword[];
+    results?: Keyword[];
+  };
   belongs_to_collection?: {
     id: number;
     name: string;
@@ -63,10 +109,27 @@ export interface Review {
   content: string;
   id: string;
   created_at: string;
-  author_details?: { rating?: number; avatar_path?: string; }
+  author_details?: {
+      rating?: number;
+      avatar_path?: string;
+  }
 }
 
-export interface Creator { id: number; name: string; }
+export interface Creator {
+  id: number;
+  name: string;
+  job: string;
+}
+
+export interface ContentRating {
+  iso_3166_1: string;
+  rating: string;
+}
+
+export interface ReleaseDateResult {
+  iso_3166_1: string;
+  release_dates: { certification: string }[];
+}
 
 export interface Season {
   id: number;
@@ -82,6 +145,7 @@ export interface Episode {
   name: string;
   overview: string;
   vote_average: number;
+  vote_count: number;
   air_date: string;
   episode_number: number;
   season_number: number;
@@ -94,17 +158,30 @@ export interface CastMember {
   name: string;
   character: string;
   profile_path: string | null;
+  popularity: number;
 }
 
 export interface CrewMember {
   id: number;
   name: string;
   job: string;
+  department: string;
   profile_path: string | null;
+  popularity: number;
 }
 
-export interface VideoResult { id: string; key: string; name: string; site: string; type: string; }
-export interface Image { file_path: string; aspect_ratio: number; }
+export interface VideoResult {
+  id: string;
+  key: string;
+  name: string;
+  site: string;
+  type: string;
+}
+
+export interface Image {
+  file_path: string;
+  aspect_ratio: number;
+}
 
 export interface ProviderRegion {
   link: string;
@@ -127,9 +204,10 @@ export interface UserProfile {
   genres: string[];
   avatar?: string;
   avatarBackground?: string;
-  canWatch?: boolean;
-  theme?: 'default' | 'gold';
-  enableHistory?: boolean;
+  canWatch?: boolean; // New Flag for Restricted Access
+  theme?: 'default' | 'gold'; // Theme preference for exclusive users
+  enableHistory?: boolean; // Toggle for history recording
+  // Synced Preferences
   maturityRating?: MaturityRating;
   region?: string;
 }
@@ -153,7 +231,9 @@ export interface PersonDetails {
   place_of_birth: string;
   profile_path: string | null;
   known_for_department: string;
-  combined_credits: { cast: Movie[]; };
+  combined_credits: {
+    cast: Movie[];
+  };
   external_ids?: ExternalIds;
   homepage?: string;
 }
@@ -169,10 +249,15 @@ export interface AppNotification {
 export type MaturityRating = "G" | "PG" | "PG-13" | "R" | "NC-17";
 
 export const INDIAN_LANGUAGES = [
-  { code: "hi", name: "Hindi" },
-  { code: "te", name: "Telugu" },
-  { code: "ta", name: "Tamil" },
-  { code: "ml", name: "Malayalam" },
+  { code: "hi", name: "Hindi (Bollywood)" },
+  { code: "te", name: "Telugu (Tollywood)" },
+  { code: "ta", name: "Tamil (Kollywood)" },
+  { code: "ml", name: "Malayalam (Mollywood)" },
+  { code: "kn", name: "Kannada (Sandalwood)" },
+  { code: "mr", name: "Marathi" },
+  { code: "gu", name: "Gujarati" },
+  { code: "bn", name: "Bengali" },
+  { code: "pa", name: "Punjabi" },
   { code: "en", name: "English" }
 ];
 
@@ -180,6 +265,6 @@ export const GENRES_MAP: Record<string, number> = {
   "Action": 28, "Adventure": 12, "Animation": 16, "Comedy": 35, "Crime": 80,
   "Documentary": 99, "Drama": 18, "Family": 10751, "Fantasy": 14, "History": 36,
   "Horror": 27, "Music": 10402, "Mystery": 9648, "Romance": 10749, "Sci-Fi": 878,
-  "Thriller": 53, "War": 10752, "Western": 37
+  "TV Movie": 10770, "Thriller": 53, "War": 10752, "Western": 37
 };
 export const GENRES_LIST = Object.keys(GENRES_MAP);
