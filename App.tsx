@@ -1,6 +1,5 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-// Added missing Loader2 to imports
 import { Search, Film, Menu, TrendingUp, Tv, Ghost, Calendar, Star, X, Sparkles, Settings, Globe, BarChart3, Bookmark, Heart, Folder, Languages, Filter, ChevronDown, Info, Plus, Cloud, CloudOff, Clock, Bell, History, User, Users, Tag, Layers, Dice5, Crown, Loader2 } from 'lucide-react';
 import { Movie, UserProfile, GENRES_MAP, GENRES_LIST, INDIAN_LANGUAGES, MaturityRating, Keyword } from './types';
 import { LogoLoader, MovieSkeleton, MovieCard, PersonCard, PosterMarquee, TMDB_BASE_URL, TMDB_BACKDROP_BASE, HARDCODED_TMDB_KEY, HARDCODED_GEMINI_KEY, getTmdbKey, getGeminiKey } from './components/Shared';
@@ -11,7 +10,6 @@ import { SettingsModal } from './components/SettingsModal';
 import { generateSmartRecommendations, getSearchSuggestions } from './services/gemini';
 import { LoginPage } from './components/LoginPage';
 import { getSupabase, syncUserData, fetchUserData, signOut, getNotifications, triggerSystemNotification } from './services/supabase';
-import { TopMoviesRow } from './components/TopMoviesRow';
 
 const DEFAULT_COLLECTIONS: any = {
   "srk": { title: "King Khan", params: { with_cast: "35742", sort_by: "popularity.desc" }, icon: "👑", backdrop: "https://images.unsplash.com/photo-1562821680-894c1395f725?q=80&w=2000&auto=format&fit=crop", description: "The Badshah of Bollywood. Romance, Action, and Charm." },
@@ -79,9 +77,9 @@ export default function App() {
 
   useEffect(() => {
       if (selectedCategory === "Watchlist") setMovies(watchlist);
-      if (selectedCategory === "Favorites") setMovies(favorites);
-      if (selectedCategory === "History") setMovies(watched);
-      if (selectedCategory.startsWith("Custom:")) {
+      else if (selectedCategory === "Favorites") setMovies(favorites);
+      else if (selectedCategory === "History") setMovies(watched);
+      else if (selectedCategory.startsWith("Custom:")) {
           const listName = selectedCategory.replace("Custom:", "");
           setMovies(customLists[listName] || []);
       }
@@ -130,36 +128,32 @@ export default function App() {
       setCurrentCollection(null);
       setTmdbCollectionId(null);
       setActiveKeyword(null);
+      setAiContextReason(null);
   };
 
-  // Implement handleLogin for LoginPage
   const handleLogin = (profileData?: UserProfile) => {
     setIsAuthenticated(true);
     if (profileData) setUserProfile(profileData);
     localStorage.setItem('movieverse_auth', 'true');
   };
 
-  // Implement handleLogout for SettingsModal
   const handleLogout = async () => {
     await signOut();
     resetAuthState();
   };
 
-  // Implement handleKeywordClick for MovieModal
   const handleKeywordClick = (keyword: Keyword) => {
     resetFilters();
     setActiveKeyword(keyword);
     setSelectedCategory("All");
   };
 
-  // Implement handleTmdbCollectionClick for MovieModal
   const handleTmdbCollectionClick = (collectionId: number) => {
     resetFilters();
     setTmdbCollectionId(collectionId);
     setSelectedCategory("All");
   };
 
-  // Implement createCustomList for ListSelectionModal
   const createCustomList = (name: string, movie: Movie) => {
     setCustomLists(prev => {
       const newList = { ...prev, [name]: [movie] };
@@ -168,7 +162,6 @@ export default function App() {
     });
   };
 
-  // Implement addToCustomList for ListSelectionModal
   const addToCustomList = (name: string, movie: Movie) => {
     setCustomLists(prev => {
       const list = prev[name] || [];
@@ -182,13 +175,11 @@ export default function App() {
     });
   };
 
-  // Implement saveSettings for SettingsModal
   const saveSettings = (key: string) => {
     setApiKey(key);
     localStorage.setItem('movieverse_tmdb_key', key);
   };
 
-  // Implement saveGeminiKey for SettingsModal
   const saveGeminiKey = (key: string) => {
     setGeminiKey(key);
     localStorage.setItem('movieverse_gemini_key', key);
@@ -373,7 +364,6 @@ export default function App() {
 
     if (pageNum === 1) setMovies([]);
     setLoading(true);
-    setAiContextReason(null);
 
     try {
         let endpoint = "/discover/movie";
@@ -384,10 +374,6 @@ export default function App() {
         if (searchQuery) {
             endpoint = "/search/movie";
             params.set("query", searchQuery);
-            if (pageNum === 1) {
-                const recs = await generateSmartRecommendations(searchQuery);
-                if (recs?.reason) setAiContextReason(recs.reason);
-            }
         } else if (tmdbCollectionId) {
             endpoint = `/collection/${tmdbCollectionId}`;
         } else if (activeKeyword) {
@@ -513,7 +499,7 @@ export default function App() {
                  {hasUnread && <span className={`absolute -top-1 -right-1 w-2 h-2 rounded-full animate-pulse ${accentBg}`}></span>}
              </button>
              <button onClick={() => setIsProfileOpen(true)} className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white shadow-lg overflow-hidden ${userProfile.avatarBackground || accentBg}`}>
-                 {userProfile.avatar ? <img src={userProfile.avatar} className="w-full h-full object-cover" /> : userProfile.name.charAt(0).toUpperCase()}
+                 {userProfile.avatar ? <img src={userProfile.avatar} className="w-full h-full object-cover" alt="avatar" /> : userProfile.name.charAt(0).toUpperCase()}
              </button>
              <button onClick={() => setIsSettingsOpen(true)} className="text-gray-400 hover:text-white transition-all"><Settings size={20} /></button>
         </div>
@@ -564,7 +550,7 @@ export default function App() {
                <>
                    {!searchQuery && selectedCategory === "All" && featuredMovie && !loading && (
                        <div className="relative w-full h-[60vh] md:h-[80vh] overflow-hidden">
-                           <img src={`${TMDB_BACKDROP_BASE}${featuredMovie.backdrop_path}`} className="w-full h-full object-cover opacity-80" />
+                           <img src={`${TMDB_BACKDROP_BASE}${featuredMovie.backdrop_path}`} className="w-full h-full object-cover opacity-80" alt="Featured" />
                            <div className="absolute inset-0 bg-gradient-to-t from-[#030303] via-transparent to-transparent"></div>
                            <div className="absolute bottom-0 left-0 p-12 w-full md:w-2/3 space-y-4">
                                <div className={`w-fit px-3 py-1 rounded-full text-xs font-bold ${featuredBadge}`}>FEATURED SPOTLIGHT</div>
@@ -579,10 +565,6 @@ export default function App() {
                    )}
 
                    <div className="px-6 md:px-12 py-12 space-y-12">
-                       {!searchQuery && selectedCategory === "All" && (
-                           <TopMoviesRow onMovieClick={setSelectedMovie} apiKey={apiKey} isGoldTheme={isGoldTheme} />
-                       )}
-
                        <div className="space-y-6">
                            <div className="flex items-center justify-between">
                                <h2 className="text-2xl font-bold flex items-center gap-2">

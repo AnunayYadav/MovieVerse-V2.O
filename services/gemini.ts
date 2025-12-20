@@ -9,35 +9,6 @@ const cleanJson = (text: string): string => {
   return cleaned || "{}";
 };
 
-export const getTopMoviesFromRT = async (): Promise<string[]> => {
-  try {
-    const apiKey = getGeminiKey();
-    if (!apiKey) return [];
-
-    const ai = new GoogleGenAI({ apiKey });
-    const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
-      contents: "List the top 10 most popular movies right now according to the Rotten Tomatoes popular movies guide (editorial.rottentomatoes.com/guide/popular-movies/). Return ONLY a JSON array of strings containing just the movie titles.",
-      config: {
-        tools: [{ googleSearch: {} }],
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.ARRAY,
-          items: { type: Type.STRING }
-        }
-      },
-    });
-
-    if (response.text) {
-      const parsed = JSON.parse(cleanJson(response.text));
-      return Array.isArray(parsed) ? parsed.slice(0, 10) : [];
-    }
-  } catch (e) {
-    console.error("Failed to fetch top movies from RT via AI", e);
-  }
-  return [];
-};
-
 export const generateMovieAnalysis = async (
   watchedTitles: string,
   favTitles: string,
@@ -125,10 +96,8 @@ export const generateSmartRecommendations = async (query: string): Promise<{ mov
         Act as a premium movie recommendation engine. The user searched for: "${query}".
         
         1.  **Analyze Intent**: Is it a specific movie title, a genre (e.g., "90s action"), a mood (e.g., "sad movies"), or a plot?
-        2.  **Exact Match Priority**: IF the query looks like a specific movie name (e.g. "Inception", "The Godfather"), your FIRST recommendation MUST be that exact movie.
-        3.  **Select Best Fits**: Identify 15-20 specific, distinct, and popular movie titles that best match this query. 
-        4.  **Prioritize Popularity**: Prefer well-known or critically acclaimed movies.
-        5.  **Context**: Provide a very brief, fun one-sentence reason for this selection.
+        2.  **Select Best Fits**: Identify 15-20 specific movie titles that best match this query.
+        3.  **Context**: Provide a very brief, fun one-sentence reason for this selection.
       `;
 
       const response = await ai.models.generateContent({
@@ -165,7 +134,7 @@ export const getSimilarMoviesAI = async (title: string, year: string): Promise<s
         if (!apiKey) return [];
 
         const ai = new GoogleGenAI({ apiKey });
-        const prompt = `Recommend 5 movies similar to "${title}" (${year}). Focus on genre, director style, and tone. Return a list of strings.`;
+        const prompt = `Recommend 5 movies similar to "${title}" (${year}). Return a JSON array of strings.`;
         
         const response = await ai.models.generateContent({
             model: 'gemini-3-flash-preview',
@@ -195,11 +164,7 @@ export const getSearchSuggestions = async (query: string): Promise<string[]> => 
       if (!apiKey) return [];
 
       const ai = new GoogleGenAI({ apiKey });
-      const prompt = `
-        The user is typing in a movie search bar: "${query}".
-        Suggest 5 concise, relevant auto-complete options.
-        These should be high-quality search terms (e.g. "Christopher Nolan best movies", "Romantic comedies from the 2000s", "Inception").
-      `;
+      const prompt = `The user is typing: "${query}". Suggest 5 concise auto-complete movie search options. Return JSON array.`;
       
       const response = await ai.models.generateContent({
           model: 'gemini-3-flash-preview',
