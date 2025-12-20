@@ -12,8 +12,7 @@ export const generateMovieAnalysis = async (
   favTitles: string,
   watchlistTitles: string
 ): Promise<AIAnalysisResult> => {
-  // Use named parameter and process.env.API_KEY directly as per SDK requirements
-  const ai = new GoogleGenAI({ apiKey: (process as any).env.API_KEY });
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || "" });
   const prompt = `Analyze my movie taste:
   Watched: ${watchedTitles}
   Favs: ${favTitles}
@@ -44,8 +43,7 @@ export const generateMovieAnalysis = async (
 };
 
 export const generateTrivia = async (movieTitle: string, year: string): Promise<string> => {
-  // Use named parameter and process.env.API_KEY directly as per SDK requirements
-  const ai = new GoogleGenAI({ apiKey: (process as any).env.API_KEY });
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || "" });
   const response = await ai.models.generateContent({
     model: 'gemini-3-flash-preview',
     contents: `Tell one short, fascinating behind-the-scenes trivia fact about "${movieTitle}" (${year}). Max 30 words.`,
@@ -54,8 +52,7 @@ export const generateTrivia = async (movieTitle: string, year: string): Promise<
 };
 
 export const generateSmartRecommendations = async (query: string): Promise<{ movies: string[], reason: string }> => {
-  // Use named parameter and process.env.API_KEY directly as per SDK requirements
-  const ai = new GoogleGenAI({ apiKey: (process as any).env.API_KEY });
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || "" });
   const response = await ai.models.generateContent({
     model: 'gemini-3-flash-preview',
     contents: `Act as a movie engine. User search: "${query}". Return 15 relevant movie titles and a fun reason for the selection. JSON format.`,
@@ -75,8 +72,7 @@ export const generateSmartRecommendations = async (query: string): Promise<{ mov
 };
 
 export const getSearchSuggestions = async (query: string): Promise<string[]> => {
-  // Use named parameter and process.env.API_KEY directly as per SDK requirements
-  const ai = new GoogleGenAI({ apiKey: (process as any).env.API_KEY });
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || "" });
   const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: `User typing: "${query}". Suggest 5 concise auto-complete search options. Return JSON array.`,
@@ -89,8 +85,7 @@ export const getSearchSuggestions = async (query: string): Promise<string[]> => 
 };
 
 export const getSimilarMoviesAI = async (title: string, year: string): Promise<string[]> => {
-    // Use named parameter and process.env.API_KEY directly as per SDK requirements
-    const ai = new GoogleGenAI({ apiKey: (process as any).env.API_KEY });
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || "" });
     const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
         contents: `Recommend 5 movies similar to "${title}" (${year}). Return JSON array of strings.`,

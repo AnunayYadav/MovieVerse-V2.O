@@ -7,7 +7,6 @@ export const TMDB_BASE_URL = "https://api.themoviedb.org/3";
 export const TMDB_IMAGE_BASE = "https://image.tmdb.org/t/p/w500";
 export const TMDB_BACKDROP_BASE = "https://image.tmdb.org/t/p/w1280";
 
-// Fix: Added safeEnv to securely retrieve environment variables in different contexts
 export const safeEnv = (key: string): string => {
   if (typeof process !== 'undefined' && process.env && (process as any).env[key]) {
     return (process as any).env[key];
@@ -19,8 +18,7 @@ export const safeEnv = (key: string): string => {
 };
 
 export const getTmdbKey = (): string => localStorage.getItem('movieverse_tmdb_key') || safeEnv('API_KEY') || "";
-// Gemini SDK requires obtaining the key exclusively from process.env.API_KEY
-export const getGeminiKey = (): string => (process as any).env?.API_KEY || "";
+export const getGeminiKey = (): string => safeEnv('API_KEY') || "";
 
 export const formatCurrency = (value: number | undefined, region: string = 'US') => {
     if (!value) return "N/A";
@@ -80,7 +78,7 @@ export const MovieCard = React.memo(({ movie, onClick, isWatched, onToggleWatche
     return (
       <div className="group relative rounded-xl overflow-hidden cursor-pointer transition-all duration-500 hover:scale-[1.03] hover:shadow-[0_10px_40px_rgba(220,38,38,0.25)]" onClick={() => onClick(movie)}>
         <div className="aspect-[2/3] bg-white/5 relative">
-          <img src={movie.poster_path ? `${TMDB_IMAGE_BASE}${movie.poster_path}` : "https://placehold.co/500x750"} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" loading="lazy" alt=""/>
+          <img src={movie.poster_path ? `${TMDB_IMAGE_BASE}${movie.poster_path}` : "https://placehold.co/50x750"} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" loading="lazy" alt=""/>
           <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent opacity-80" />
           <div className="absolute inset-0 p-4 flex flex-col justify-end translate-y-2 group-hover:translate-y-0 transition-transform duration-500">
              <h3 className="text-white font-bold text-sm leading-tight line-clamp-2">{movie.title || movie.name}</h3>

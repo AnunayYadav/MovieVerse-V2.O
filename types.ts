@@ -1,5 +1,4 @@
 
-
 export interface Movie {
   id: number;
   title: string;
@@ -112,7 +111,6 @@ export interface ProviderRegion {
   flatrate?: Provider[];
   rent?: Provider[];
   buy?: Provider[];
-  // Fix: Added missing optional properties for free and ads providers
   free?: Provider[];
   ads?: Provider[];
 }
