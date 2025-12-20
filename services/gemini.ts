@@ -1,12 +1,41 @@
+
 import { GoogleGenAI, Type } from "@google/genai";
 import { AIAnalysisResult } from "../types";
 import { getGeminiKey } from "../components/Shared";
 
 const cleanJson = (text: string): string => {
   if (!text) return "{}";
-  // Handles ```json, ```JSON, or just ``` blocks
   const cleaned = text.replace(/```(json)?/gi, '').replace(/```/g, '').trim();
   return cleaned || "{}";
+};
+
+export const getTopMoviesFromRT = async (): Promise<string[]> => {
+  try {
+    const apiKey = getGeminiKey();
+    if (!apiKey) return [];
+
+    const ai = new GoogleGenAI({ apiKey });
+    const response = await ai.models.generateContent({
+      model: "gemini-3-flash-preview",
+      contents: "List the top 10 most popular movies right now according to the Rotten Tomatoes popular movies guide (editorial.rottentomatoes.com/guide/popular-movies/). Return ONLY a JSON array of strings containing just the movie titles.",
+      config: {
+        tools: [{ googleSearch: {} }],
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.ARRAY,
+          items: { type: Type.STRING }
+        }
+      },
+    });
+
+    if (response.text) {
+      const parsed = JSON.parse(cleanJson(response.text));
+      return Array.isArray(parsed) ? parsed.slice(0, 10) : [];
+    }
+  } catch (e) {
+    console.error("Failed to fetch top movies from RT via AI", e);
+  }
+  return [];
 };
 
 export const generateMovieAnalysis = async (
@@ -37,7 +66,7 @@ export const generateMovieAnalysis = async (
       `;
 
       const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
+        model: 'gemini-3-flash-preview',
         contents: prompt,
         config: {
           responseMimeType: "application/json",
@@ -75,7 +104,7 @@ export const generateTrivia = async (movieTitle: string, year: string): Promise<
       const prompt = `Tell me one short, fascinating, and lesser-known behind-the-scenes trivia fact about the movie "${movieTitle}" (${year}). Keep it under 30 words.`;
       
       const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
+        model: 'gemini-3-flash-preview',
         contents: prompt,
       });
 
@@ -103,7 +132,7 @@ export const generateSmartRecommendations = async (query: string): Promise<{ mov
       `;
 
       const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
+        model: 'gemini-3-flash-preview',
         contents: prompt,
         config: {
             responseMimeType: 'application/json',
@@ -139,7 +168,7 @@ export const getSimilarMoviesAI = async (title: string, year: string): Promise<s
         const prompt = `Recommend 5 movies similar to "${title}" (${year}). Focus on genre, director style, and tone. Return a list of strings.`;
         
         const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
+            model: 'gemini-3-flash-preview',
             contents: prompt,
             config: { 
                 responseMimeType: 'application/json',
@@ -173,7 +202,7 @@ export const getSearchSuggestions = async (query: string): Promise<string[]> => 
       `;
       
       const response = await ai.models.generateContent({
-          model: 'gemini-2.5-flash',
+          model: 'gemini-3-flash-preview',
           contents: prompt,
           config: { 
               responseMimeType: 'application/json',
