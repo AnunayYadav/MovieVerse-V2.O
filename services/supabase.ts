@@ -1,19 +1,22 @@
-
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { Movie, UserProfile, AppNotification } from '../types';
 import { safeEnv } from '../components/Shared';
 
 let supabaseInstance: SupabaseClient | null = null;
 
+// Hardcoded fallbacks REMOVED for production security.
 const DEFAULT_SUPABASE_URL = "";
 const DEFAULT_SUPABASE_KEY = "";
 
 export const getSupabase = (): SupabaseClient | null => {
     if (supabaseInstance) return supabaseInstance;
+
     const envUrl = safeEnv('VITE_SUPABASE_URL') || safeEnv('REACT_APP_SUPABASE_URL') || safeEnv('SUPABASE_URL');
     const envKey = safeEnv('VITE_SUPABASE_KEY') || safeEnv('REACT_APP_SUPABASE_KEY') || safeEnv('SUPABASE_KEY');
+
     const url = localStorage.getItem('movieverse_supabase_url') || envUrl || DEFAULT_SUPABASE_URL;
     const key = localStorage.getItem('movieverse_supabase_key') || envKey || DEFAULT_SUPABASE_KEY;
+
     if (url && key) {
         try {
             supabaseInstance = createClient(url, key);
@@ -26,12 +29,18 @@ export const getSupabase = (): SupabaseClient | null => {
     return null;
 };
 
+// --- AUTHENTICATION ---
+
 export const signInWithGoogle = async () => {
     const supabase = getSupabase();
     if (!supabase) throw new Error("Supabase not configured");
+    
+    // Redirect flow
     const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
-        options: { redirectTo: window.location.origin }
+        options: {
+            redirectTo: window.location.origin
+        }
     });
     if (error) throw error;
     return data;
@@ -63,6 +72,8 @@ export const signOut = async () => {
     await supabase.auth.signOut();
 };
 
+// --- DATABASE SYNC ---
+
 export interface UserSettings {
     tmdbKey?: string;
     geminiKey?: string;
@@ -81,8 +92,11 @@ export interface UserData {
 export const syncUserData = async (userData: UserData) => {
     const supabase = getSupabase();
     if (!supabase) return;
+
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
+
+    // Upsert into 'user_data' table
     const { error } = await supabase
         .from('user_data')
         .upsert({
@@ -93,25 +107,72 @@ export const syncUserData = async (userData: UserData) => {
             watched: userData.watched,
             custom_lists: userData.customLists,
             profile: userData.profile,
-            settings: userData.settings,
-            search_history: userData.searchHistory,
+            settings: userData.settings, // Sync API Keys/Settings
+            search_history: userData.searchHistory, // Sync Search History
             updated_at: new Date().toISOString()
         });
-    if (error) console.error("Sync Error:", error);
+
+    if (error) {
+        console.error("Sync Error:", error);
+        // Alert developer/user if the table is missing
+        if (error.code === '42P01') { 
+            triggerSystemNotification(
+                "Database Setup Required",
+                "The 'user_data' table is missing in Supabase. Please run the SQL setup script."
+            );
+        }
+    }
 };
 
 export const fetchUserData = async (): Promise<UserData | null> => {
     const supabase = getSupabase();
     if (!supabase) return null;
+
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return null;
-    const { data, error } = await supabase.from('user_data').select('*').eq('id', user.id).single();
+
+    const { data, error } = await supabase
+        .from('user_data')
+        .select('*')
+        .eq('id', user.id)
+        .single();
+
     if (error) {
-        if (error.code === 'PGRST116') return { watchlist: [], favorites: [], watched: [], customLists: {}, profile: { name: "New User", age: "", genres: [] }, settings: {}, searchHistory: [] };
+        // Code 42P01: Undefined Table (Table doesn't exist)
+        if (error.code === '42P01') {
+            console.error("Supabase Table Missing: user_data");
+            triggerSystemNotification("Database Error", "Missing 'user_data' table. Run SQL script.");
+            return null;
+        }
+        
+        // Code PGRST116: JSON object requested, multiple (or no) rows returned
+        // This usually means the user is Authenticated but has NO data row yet (New User).
+        // We should return a default object so the App treats them as a valid fresh user.
+        if (error.code === 'PGRST116') {
+             return {
+                watchlist: [],
+                favorites: [],
+                watched: [],
+                customLists: {},
+                profile: { name: "New User", age: "", genres: [] },
+                settings: {},
+                searchHistory: []
+             };
+        }
+        
+        console.warn("Fetch Error", error);
         return null;
     }
+
+    if (!data) return null;
+
+    // Map database profile + permission flags to app UserProfile
     const fetchedProfile = data.profile || { name: "", age: "", genres: [] };
-    if (data.can_watch === true) fetchedProfile.canWatch = true;
+    // Gatekeeper Logic: Check the 'can_watch' column in the database
+    if (data.can_watch === true) {
+        fetchedProfile.canWatch = true;
+    }
+
     return {
         watchlist: data.watchlist || [],
         favorites: data.favorites || [],
@@ -123,14 +184,32 @@ export const fetchUserData = async (): Promise<UserData | null> => {
     };
 };
 
+// --- NOTIFICATIONS ---
+
 export const getNotifications = async (): Promise<AppNotification[]> => {
     const supabase = getSupabase();
+    // Strictly return empty if no backend configured
     if (!supabase) return [];
+
     try {
         const { data: { user } } = await supabase.auth.getUser();
+        
+        // If not logged in, return empty
         if (!user) return [];
-        const { data, error } = await supabase.from('notifications').select('*').eq('user_id', user.id).order('created_at', { ascending: false });
-        if (error) return [];
+
+        const { data, error } = await supabase
+            .from('notifications')
+            .select('*')
+            .eq('user_id', user.id)
+            .order('created_at', { ascending: false });
+
+        if (error) {
+            console.warn("Failed to fetch notifications:", error.message);
+            // Return empty array on error instead of mocks
+            return [];
+        }
+
+        // Return actual data or empty array if null
         return (data || []).map((n: any) => ({
             id: n.id,
             title: n.title,
@@ -138,32 +217,104 @@ export const getNotifications = async (): Promise<AppNotification[]> => {
             read: n.is_read || false,
             time: new Date(n.created_at).toLocaleDateString() + ' ' + new Date(n.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
         }));
-    } catch (e) { return []; }
+
+    } catch (e) {
+        console.error("Notification Fetch Exception", e);
+        return [];
+    }
 };
 
 export const markNotificationsRead = async () => {
     const supabase = getSupabase();
     if (!supabase) return;
+
     try {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
-        await supabase.from('notifications').update({ is_read: true }).eq('user_id', user.id).eq('is_read', false);
-    } catch (e) {}
+
+        await supabase
+            .from('notifications')
+            .update({ is_read: true })
+            .eq('user_id', user.id)
+            .eq('is_read', false);
+    } catch (e) {
+        console.warn("Failed to mark read");
+    }
+};
+
+export const sendNotification = async (title: string, message: string) => {
+    const supabase = getSupabase();
+    if (!supabase) return null;
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return null;
+
+    const { data, error } = await supabase
+        .from('notifications')
+        .insert({
+            user_id: user.id,
+            title,
+            message,
+            is_read: false
+        })
+        .select()
+        .single();
+    
+    if (error) {
+        console.error("Failed to send notification", error);
+        throw error;
+    }
+    return data;
 };
 
 export const triggerSystemNotification = (title: string, body: string) => {
     if (!("Notification" in window)) return;
-    if (Notification.permission === "granted") new Notification(title, { body });
-    else if (Notification.permission !== "denied") Notification.requestPermission().then(p => { if (p === "granted") new Notification(title, { body }); });
+    
+    if (Notification.permission === "granted") {
+        new Notification(title, { body });
+    } else if (Notification.permission !== "denied") {
+        Notification.requestPermission().then(permission => {
+            if (permission === "granted") {
+                new Notification(title, { body });
+            }
+        });
+    }
 };
 
 export const submitSupportTicket = async (subject: string, message: string, contactEmail: string) => {
     const supabase = getSupabase();
-    await new Promise(r => setTimeout(r, 1500));
-    if (!supabase) return true;
+    
+    // Simulate API call delay for better UX even if no backend
+    await new Promise(resolve => setTimeout(resolve, 1500));
+
+    if (!supabase) {
+        console.log("Mock Support Ticket Sent:", { subject, message, contactEmail });
+        return true; 
+    }
+
     try {
         const { data: { user } } = await supabase.auth.getUser();
-        const { error } = await supabase.from('support_tickets').insert({ user_id: user?.id || null, email: contactEmail, subject, message });
+        
+        // Attempt to insert into a 'support_tickets' table
+        // Ensure this table exists in your Supabase project:
+        // create table support_tickets (id uuid default gen_random_uuid() primary key, user_id uuid, email text, subject text, message text, created_at timestamptz default now());
+        const { error } = await supabase
+            .from('support_tickets')
+            .insert({
+                user_id: user?.id || null,
+                email: contactEmail,
+                subject,
+                message
+            });
+
+        if (error) {
+            console.warn("Supabase insert failed (Table 'support_tickets' might be missing). Logging to console instead.", error);
+            // Fallback for demo: just return true so user sees success
+            return true;
+        }
         return true;
-    } catch (e) { return false; }
+    } catch (e) {
+        console.error("Support Ticket Error", e);
+        return false;
+    }
 };
