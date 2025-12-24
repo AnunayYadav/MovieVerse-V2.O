@@ -1,3 +1,4 @@
+
 import { GoogleGenAI, Type } from "@google/genai";
 import { AIAnalysisResult } from "../types";
 import { getGeminiKey } from "../components/Shared";
@@ -9,6 +10,7 @@ const cleanJson = (text: string): string => {
   return cleaned || "{}";
 };
 
+// Use gemini-3-pro-preview for complex analysis tasks
 export const generateMovieAnalysis = async (
   watchedTitles: string,
   favTitles: string,
@@ -37,7 +39,7 @@ export const generateMovieAnalysis = async (
       `;
 
       const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
+        model: 'gemini-3-pro-preview',
         contents: prompt,
         config: {
           responseMimeType: "application/json",
@@ -56,6 +58,7 @@ export const generateMovieAnalysis = async (
         }
       });
 
+      // Directly access .text property
       if (response.text) {
         return JSON.parse(cleanJson(response.text)) as AIAnalysisResult;
       }
@@ -66,6 +69,7 @@ export const generateMovieAnalysis = async (
   }
 };
 
+// Use gemini-3-flash-preview for simple text tasks
 export const generateTrivia = async (movieTitle: string, year: string): Promise<string> => {
   try {
       const apiKey = getGeminiKey();
@@ -75,7 +79,7 @@ export const generateTrivia = async (movieTitle: string, year: string): Promise<
       const prompt = `Tell me one short, fascinating, and lesser-known behind-the-scenes trivia fact about the movie "${movieTitle}" (${year}). Keep it under 30 words.`;
       
       const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
+        model: 'gemini-3-flash-preview',
         contents: prompt,
       });
 
@@ -86,6 +90,7 @@ export const generateTrivia = async (movieTitle: string, year: string): Promise<
   }
 };
 
+// Use gemini-3-pro-preview for detailed recommendation reasoning
 export const generateSmartRecommendations = async (query: string): Promise<{ movies: string[], reason: string }> => {
   try {
       const apiKey = getGeminiKey();
@@ -103,7 +108,7 @@ export const generateSmartRecommendations = async (query: string): Promise<{ mov
       `;
 
       const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
+        model: 'gemini-3-pro-preview',
         contents: prompt,
         config: {
             responseMimeType: 'application/json',
@@ -130,6 +135,7 @@ export const generateSmartRecommendations = async (query: string): Promise<{ mov
   return { movies: [], reason: "Could not generate recommendations." };
 };
 
+// Use gemini-3-pro-preview for style-based similarity
 export const getSimilarMoviesAI = async (title: string, year: string): Promise<string[]> => {
     try {
         const apiKey = getGeminiKey();
@@ -139,7 +145,7 @@ export const getSimilarMoviesAI = async (title: string, year: string): Promise<s
         const prompt = `Recommend 5 movies similar to "${title}" (${year}). Focus on genre, director style, and tone. Return a list of strings.`;
         
         const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
+            model: 'gemini-3-pro-preview',
             contents: prompt,
             config: { 
                 responseMimeType: 'application/json',
@@ -160,6 +166,7 @@ export const getSimilarMoviesAI = async (title: string, year: string): Promise<s
     return [];
 }
 
+// Use gemini-3-flash-preview for auto-completion
 export const getSearchSuggestions = async (query: string): Promise<string[]> => {
   try {
       const apiKey = getGeminiKey();
@@ -173,7 +180,7 @@ export const getSearchSuggestions = async (query: string): Promise<string[]> => 
       `;
       
       const response = await ai.models.generateContent({
-          model: 'gemini-2.5-flash',
+          model: 'gemini-3-flash-preview',
           contents: prompt,
           config: { 
               responseMimeType: 'application/json',
