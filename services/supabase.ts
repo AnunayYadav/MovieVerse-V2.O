@@ -100,18 +100,6 @@ export const syncUserData = async (userData: UserData) => {
     if (error) console.error("Sync Error:", error);
 };
 
-export const upgradeToExclusive = async () => {
-    const supabase = getSupabase();
-    if (!supabase) return false;
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return false;
-    const { error } = await supabase
-        .from('user_data')
-        .update({ can_watch: true })
-        .eq('id', user.id);
-    return !error;
-};
-
 export const fetchUserData = async (): Promise<UserData | null> => {
     const supabase = getSupabase();
     if (!supabase) return null;

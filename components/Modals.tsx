@@ -4,184 +4,7 @@ import { UserCircle, X, ListPlus, Plus, Check, Loader2, Film, AlertCircle, Brain
 import { UserProfile, Movie, GENRES_LIST, PersonDetails, AppNotification, MovieDetails } from '../types';
 import { TMDB_BASE_URL, TMDB_IMAGE_BASE, formatCurrency } from './Shared';
 import { generateSmartRecommendations } from '../services/gemini';
-import { getNotifications, markNotificationsRead, upgradeToExclusive } from '../services/supabase';
-
-// Helper: ChevronRight and ChevronLeft icons for Payment Modal
-const ChevronRight = ({ size, className }: any) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="m9 18 6-6-6-6"/></svg>;
-const ChevronLeft = ({ size, className }: any) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="m15 18-6-6 6-6"/></svg>;
-const CheckCircle = ({ size, className }: any) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg>;
-
-// PAYMENT MODAL
-interface PaymentModalProps {
-    isOpen: boolean;
-    onClose: () => void;
-    onSuccess: () => void;
-    userProfile: UserProfile;
-}
-
-export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, onSuccess, userProfile }) => {
-    const [step, setStep] = useState(1); // 1: Plans, 2: Checkout, 3: Success
-    const [loading, setLoading] = useState(false);
-    const [plan, setPlan] = useState<'monthly' | 'yearly'>('yearly');
-
-    const handlePayment = async () => {
-        setLoading(true);
-        // Mock payment processing delay
-        await new Promise(r => setTimeout(r, 2500));
-        const success = await upgradeToExclusive();
-        if (success) {
-            setStep(3);
-            setTimeout(() => {
-                onSuccess();
-                onClose();
-            }, 3000);
-        } else {
-            // Local fallback for demo
-            onSuccess();
-            setStep(3);
-        }
-        setLoading(false);
-    };
-
-    if (!isOpen) return null;
-
-    const FEATURES = [
-        { icon: <Film size={18}/>, title: "Unlimited Streaming", desc: "Access our entire library of movies and TV shows in 4K." },
-        { icon: <BrainCircuit size={18}/>, title: "Deep AI Analytics", desc: "Advanced psychological breakdown of your viewing habits." },
-        { icon: <PaintBucket size={18}/>, title: "Exclusive Gold Theme", desc: "Luxury interface with gold accents and premium animations." },
-        { icon: <ShieldCheck size={18}/>, title: "Ad-Free Experience", desc: "No interruptions, just pure cinematic storytelling." }
-    ];
-
-    return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/90 backdrop-blur-2xl animate-in fade-in duration-500">
-            <div className="glass-panel w-full max-w-4xl rounded-[2.5rem] overflow-hidden shadow-2xl relative flex flex-col md:flex-row h-auto max-h-[90vh] animate-in zoom-in-95 duration-500">
-                <button onClick={onClose} className="absolute top-6 right-6 z-20 text-white/30 hover:text-white transition-colors bg-white/5 p-2 rounded-full"><X size={20}/></button>
-
-                {/* Left Side: Pitch */}
-                <div className="w-full md:w-1/2 bg-gradient-to-br from-amber-600/20 to-black p-8 md:p-12 flex flex-col border-b md:border-b-0 md:border-r border-white/5">
-                    <div className="mb-10">
-                        <div className="inline-flex items-center gap-2 px-3 py-1 bg-amber-500 text-black rounded-full text-[10px] font-black tracking-widest uppercase mb-4 shadow-lg shadow-amber-500/20">
-                            <Crown size={12}/> Premium Access
-                        </div>
-                        <h2 className="text-4xl font-black text-white italic leading-tight">Elevate Your Cinema<br/><span className="text-amber-500">Experience.</span></h2>
-                    </div>
-
-                    <div className="space-y-6 flex-1">
-                        {FEATURES.map((f, i) => (
-                            <div key={i} className="flex gap-4 group">
-                                <div className="shrink-0 w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-amber-500 group-hover:scale-110 transition-transform duration-500">{f.icon}</div>
-                                <div>
-                                    <h4 className="text-white font-bold text-sm">{f.title}</h4>
-                                    <p className="text-white/40 text-xs leading-relaxed">{f.desc}</p>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-
-                    <div className="mt-8 pt-8 border-t border-white/5">
-                        <p className="text-[10px] text-white/20 uppercase font-bold tracking-widest">Trusted by 50,000+ Cinephiles</p>
-                    </div>
-                </div>
-
-                {/* Right Side: Flow */}
-                <div className="w-full md:w-1/2 bg-[#050505] p-8 md:p-12 flex flex-col justify-center overflow-y-auto">
-                    {step === 1 && (
-                        <div className="animate-in slide-in-from-right-4 duration-500">
-                            <h3 className="text-2xl font-bold text-white mb-2">Choose Plan</h3>
-                            <p className="text-white/40 text-sm mb-8">Start your 7-day free trial. Cancel anytime.</p>
-
-                            <div className="space-y-4 mb-8">
-                                <button 
-                                    onClick={() => setPlan('monthly')}
-                                    className={`w-full p-5 rounded-2xl border transition-all flex items-center justify-between group ${plan === 'monthly' ? 'bg-amber-500/10 border-amber-500 text-white' : 'bg-white/5 border-white/10 text-gray-400 hover:border-white/30'}`}
-                                >
-                                    <div className="text-left">
-                                        <p className="font-bold">Monthly Pro</p>
-                                        <p className="text-xs opacity-50">Billed every 30 days</p>
-                                    </div>
-                                    <div className="text-right">
-                                        <p className="text-xl font-black">$9.99</p>
-                                        <p className="text-[10px] opacity-50">USD / mo</p>
-                                    </div>
-                                </button>
-
-                                <button 
-                                    onClick={() => setPlan('yearly')}
-                                    className={`w-full p-5 rounded-2xl border transition-all flex items-center justify-between group relative overflow-hidden ${plan === 'yearly' ? 'bg-amber-500/10 border-amber-500 text-white' : 'bg-white/5 border-white/10 text-gray-400 hover:border-white/30'}`}
-                                >
-                                    <div className="absolute top-0 right-0 bg-amber-500 text-black text-[9px] font-black px-3 py-1 rounded-bl-lg">BEST VALUE</div>
-                                    <div className="text-left">
-                                        <p className="font-bold">Yearly Elite</p>
-                                        <p className="text-xs opacity-50">Save 40% annually</p>
-                                    </div>
-                                    <div className="text-right">
-                                        <p className="text-xl font-black">$69.99</p>
-                                        <p className="text-[10px] opacity-50">USD / yr</p>
-                                    </div>
-                                </button>
-                            </div>
-
-                            <button onClick={() => setStep(2)} className="w-full py-4 bg-white text-black font-black rounded-2xl hover:bg-amber-500 transition-all active:scale-95 shadow-xl flex items-center justify-center gap-2 group">
-                                Continue to Checkout <ChevronRight size={18} className="group-hover:translate-x-1 transition-transform"/>
-                            </button>
-                        </div>
-                    )}
-
-                    {step === 2 && (
-                        <div className="animate-in slide-in-from-right-4 duration-500">
-                            <button onClick={() => setStep(1)} className="text-white/40 hover:text-white text-xs font-bold flex items-center gap-1 mb-6 transition-colors"><ChevronLeft size={14}/> Back to Plans</button>
-                            <h3 className="text-2xl font-bold text-white mb-2 text-center">Secure Payment</h3>
-                            <div className="flex justify-center gap-4 mb-8">
-                                <div className="px-3 py-1.5 bg-white/5 rounded-lg border border-white/10 flex items-center gap-2"><CreditCard size={14} className="text-gray-400"/> <span className="text-[10px] font-bold text-white/60">STRIPE SECURE</span></div>
-                            </div>
-
-                            <div className="space-y-4 mb-10">
-                                <div className="space-y-1.5">
-                                    <label className="text-[10px] font-bold text-white/30 uppercase tracking-widest ml-1">Card Number</label>
-                                    <div className="relative">
-                                        <input type="text" placeholder="•••• •••• •••• ••••" className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-white focus:outline-none focus:border-amber-500/50" disabled={loading}/>
-                                        <CreditCard size={18} className="absolute right-4 top-1/2 -translate-y-1/2 text-white/20"/>
-                                    </div>
-                                </div>
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className="space-y-1.5">
-                                        <label className="text-[10px] font-bold text-white/30 uppercase tracking-widest ml-1">Expiry</label>
-                                        <input type="text" placeholder="MM / YY" className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-white focus:outline-none focus:border-amber-500/50" disabled={loading}/>
-                                    </div>
-                                    <div className="space-y-1.5">
-                                        <label className="text-[10px] font-bold text-white/30 uppercase tracking-widest ml-1">CVC</label>
-                                        <input type="text" placeholder="•••" className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-white focus:outline-none focus:border-amber-500/50" disabled={loading}/>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <button 
-                                onClick={handlePayment} 
-                                disabled={loading}
-                                className="w-full py-4 bg-amber-500 text-black font-black rounded-2xl hover:bg-amber-400 disabled:opacity-50 transition-all active:scale-95 shadow-xl shadow-amber-500/20 flex items-center justify-center gap-2"
-                            >
-                                {loading ? <Loader2 size={20} className="animate-spin"/> : <CheckCircle size={20}/>}
-                                {loading ? "Processing..." : `Pay ${plan === 'monthly' ? '$9.99' : '$69.99'}`}
-                            </button>
-                            <p className="text-center text-[9px] text-white/20 mt-4 px-8">By subscribing, you agree to MovieVerse's Terms of Service and Privacy Policy.</p>
-                        </div>
-                    )}
-
-                    {step === 3 && (
-                        <div className="text-center animate-in zoom-in duration-700">
-                            <div className="w-24 h-24 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-6 shadow-2xl shadow-green-500/40">
-                                <Check size={48} className="text-white" strokeWidth={4}/>
-                            </div>
-                            <h3 className="text-3xl font-black text-white mb-2">Welcome to Exclusive</h3>
-                            <p className="text-white/50 text-sm mb-8">Your account has been upgraded to the Gold tier. Enjoy the show!</p>
-                            <div className="flex justify-center"><Loader2 size={24} className="animate-spin text-amber-500"/></div>
-                        </div>
-                    )}
-                </div>
-            </div>
-        </div>
-    );
-};
+import { getNotifications, markNotificationsRead } from '../services/supabase';
 
 // PROFILE MODAL
 interface ProfileModalProps {
@@ -214,17 +37,6 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, pro
         }
     }, [isOpen, profile, isGoldTheme]);
     
-    const AVATARS = [
-        { seed: "Felix", name: "Maverick" },
-        { seed: "Aneka", name: "Siren" },
-        { seed: "Zack", name: "Cipher" },
-        { seed: "Midnight", name: "Noir" },
-        { seed: "Shadow", name: "Vantage" },
-        { seed: "Bandit", name: "Rogue" },
-        { seed: "Luna", name: "Eclipse" },
-        { seed: "Leo", name: "Titan" }
-    ];
-
     const BACKGROUNDS = [
         { id: "default", class: isGoldTheme ? "bg-gradient-to-br from-amber-500 to-yellow-900" : "bg-gradient-to-br from-red-600 to-red-900", name: "Default" },
         { id: "dark", class: "bg-gradient-to-br from-gray-900 to-black", name: "Dark Void" },
@@ -280,10 +92,6 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, pro
         onClose();
     };
 
-    const selectAvatar = (seed: string) => {
-        setAvatar(`https://api.dicebear.com/9.x/avataaars/svg?seed=${seed}`);
-    };
-  
     if (!isOpen) return null;
   
     return (

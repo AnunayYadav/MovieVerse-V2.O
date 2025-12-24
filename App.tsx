@@ -5,7 +5,7 @@ import { Movie, UserProfile, GENRES_MAP, GENRES_LIST, INDIAN_LANGUAGES, Maturity
 import { LogoLoader, MovieSkeleton, MovieCard, PersonCard, PosterMarquee, TMDB_BASE_URL, TMDB_BACKDROP_BASE, getTmdbKey } from './components/Shared';
 import { MovieModal } from './components/MovieDetails';
 import { AnalyticsDashboard } from './components/Analytics';
-import { ProfileModal, ListSelectionModal, PersonModal, AIRecommendationModal, NotificationModal, ComparisonModal, PaymentModal } from './components/Modals';
+import { ProfileModal, ListSelectionModal, PersonModal, AIRecommendationModal, NotificationModal, ComparisonModal } from './components/Modals';
 import { SettingsModal } from './components/SettingsModal';
 import { generateSmartRecommendations, getSearchSuggestions } from './services/gemini';
 import { LoginPage } from './components/LoginPage';
@@ -60,7 +60,6 @@ export default function App() {
 
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isListModalOpen, setIsListModalOpen] = useState(false);
-  const [isPaymentOpen, setIsPaymentOpen] = useState(false);
   const [listModalMovie, setListModalMovie] = useState<Movie | null>(null);
   const [selectedPersonId, setSelectedPersonId] = useState<number | null>(null);
   const [isAIModalOpen, setIsAIModalOpen] = useState(false);
@@ -118,16 +117,6 @@ export default function App() {
     const newList = exists ? list.filter(m => m.id !== movie.id) : [...list, movie];
     setList(newList);
     localStorage.setItem(key, JSON.stringify(newList));
-  };
-
-  const handleUpgradeSuccess = async () => {
-    const cloud = await fetchUserData();
-    if (cloud && cloud.profile) {
-      setUserProfile(cloud.profile);
-    } else {
-        // Local fallback
-        setUserProfile(prev => ({ ...prev, canWatch: true }));
-    }
   };
 
   const fetchMovies = useCallback(async (pageNum = 1, isLoadMore = false) => {
@@ -228,11 +217,6 @@ export default function App() {
         </div>
         
         <div className="flex items-center gap-4">
-             {!userProfile.canWatch && (
-                 <button onClick={() => setIsPaymentOpen(true)} className="hidden md:flex items-center gap-2 bg-gradient-to-r from-amber-500 to-amber-600 text-black font-black px-4 py-2 rounded-full text-[10px] uppercase tracking-tighter hover:scale-105 active:scale-95 transition-all shadow-lg shadow-amber-500/20 animate-in fade-in">
-                    <Crown size={14}/> Go Exclusive
-                 </button>
-             )}
              <button onClick={() => setIsNotificationOpen(true)} className="relative text-gray-400 hover:text-white"><Bell size={20}/></button>
              <button onClick={() => setIsProfileOpen(true)} className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white shadow-lg overflow-hidden ${userProfile.avatarBackground || accentBg}`}>
                  {userProfile.avatar ? <img src={userProfile.avatar} className="w-full h-full object-cover" /> : userProfile.name.charAt(0).toUpperCase()}
@@ -257,17 +241,10 @@ export default function App() {
                    <div className="space-y-1">
                        <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest mb-3 px-2">Library</p>
                        {[ { id: "Watchlist", label: "Watchlist", icon: Bookmark, count: watchlist.length }, { id: "History", label: "History", icon: History, count: watched.length }, { id: "Favorites", label: "Favorites", icon: Heart, count: favorites.length } ].map(item => (
-                         <button key={item.id} onClick={() => { setSearchQuery(""); setSelectedCategory(item.id); setIsSidebarOpen(false); }} className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm transition-all ${selectedCategory === item.id ? `${accentBgLow} ${accentText}` : 'text-gray-400 hover:text-white hover:bg-white/5'}`}><div className="flex items-center gap-3"><item.icon size={18}/> {item.label}</div> <span className="text-xs opacity-50">{item.count}</span></button>
+                         <button key={item.id} onClick={() => { resetFilters(); setSelectedCategory(item.id); setIsSidebarOpen(false); }} className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm transition-all ${selectedCategory === item.id ? `${accentBgLow} ${accentText}` : 'text-gray-400 hover:text-white hover:bg-white/5'}`}><div className="flex items-center gap-3"><item.icon size={18}/> {item.label}</div> <span className="text-xs opacity-50">{item.count}</span></button>
                        ))}
                    </div>
                </div>
-               {!userProfile.canWatch && (
-                   <div className="mt-8 p-4 rounded-2xl bg-gradient-to-br from-amber-600/10 to-amber-900/10 border border-amber-500/20">
-                       <p className="text-amber-500 font-bold text-xs mb-1">Elite Access Locked</p>
-                       <p className="text-[10px] text-white/40 leading-relaxed mb-4">Unlock 4K streaming, deep AI insights, and custom gold themes.</p>
-                       <button onClick={() => setIsPaymentOpen(true)} className="w-full py-2 bg-amber-500 text-black font-black text-[10px] rounded-lg hover:bg-amber-400 transition-colors uppercase">Upgrade Now</button>
-                   </div>
-               )}
            </div>
         </aside>
 
@@ -343,11 +320,10 @@ export default function App() {
           />
       )}
 
-      <PaymentModal isOpen={isPaymentOpen} onClose={() => setIsPaymentOpen(false)} onSuccess={handleUpgradeSuccess} userProfile={userProfile} />
       <ListSelectionModal isOpen={isListModalOpen} onClose={() => setIsListModalOpen(false)} movie={listModalMovie} customLists={customLists} onCreateList={(name, m) => toggleList(customLists[name] || [], (l: any) => setCustomLists({...customLists, [name]: l}), `movieverse_custom_${name}`, m)} onAddToList={(name, m) => toggleList(customLists[name] || [], (l: any) => setCustomLists({...customLists, [name]: l}), `movieverse_custom_${name}`, m)} />
       <ProfileModal isOpen={isProfileOpen} onClose={() => setIsProfileOpen(false)} profile={userProfile} onSave={(p) => { setUserProfile(p); localStorage.setItem('movieverse_profile', JSON.stringify(p)); }} />
       <PersonModal personId={selectedPersonId || 0} onClose={() => setSelectedPersonId(null)} apiKey={apiKey} onMovieClick={setSelectedMovie} />
-      <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} apiKey={apiKey} setApiKey={setApiKey} maturityRating={maturityRating} setMaturityRating={setMaturityRating} profile={userProfile} onUpdateProfile={setUserProfile} onLogout={() => signOut()} />
+      <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} apiKey={apiKey} setApiKey={setApiKey} geminiKey={localStorage.getItem('movieverse_gemini_key') || ""} setGeminiKey={(k) => localStorage.setItem('movieverse_gemini_key', k)} maturityRating={maturityRating} setMaturityRating={setMaturityRating} profile={userProfile} onUpdateProfile={setUserProfile} onLogout={() => signOut()} />
       <NotificationModal isOpen={isNotificationOpen} onClose={() => setIsNotificationOpen(false)} userProfile={userProfile} />
       <AIRecommendationModal isOpen={isAIModalOpen} onClose={() => setIsAIModalOpen(false)} apiKey={apiKey} />
       <ComparisonModal isOpen={isComparisonOpen} onClose={() => setIsComparisonOpen(false)} baseMovie={comparisonBaseMovie} apiKey={apiKey} />

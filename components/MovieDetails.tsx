@@ -4,7 +4,6 @@ import { X, Calendar, Clock, Star, Play, Bookmark, Heart, Share2, ListPlus, Tv, 
 import { Movie, MovieDetails, Season, UserProfile, Keyword, Review } from '../types';
 import { TMDB_BASE_URL, TMDB_IMAGE_BASE, TMDB_BACKDROP_BASE, formatCurrency, ImageLightbox } from '../components/Shared';
 import { generateTrivia, getSimilarMoviesAI } from '../services/gemini';
-import { PaymentModal } from './Modals';
 
 const MoviePlayer = React.lazy(() => import('./MoviePlayer').then(module => ({ default: module.MoviePlayer })));
 
@@ -47,7 +46,6 @@ export const MovieModal: React.FC<MovieModalProps> = ({
     const [viewingImage, setViewingImage] = useState<string | null>(null);
     const [showPlayer, setShowPlayer] = useState(false);
     const [playParams, setPlayParams] = useState({ season: 1, episode: 1 });
-    const [showPayment, setShowPayment] = useState(false);
 
     const isExclusive = userProfile.canWatch === true;
     const isGoldTheme = isExclusive && userProfile.theme !== 'default';
@@ -77,7 +75,6 @@ export const MovieModal: React.FC<MovieModalProps> = ({
         setActiveTab("details");
         setSeasonData(null);
         setShowPlayer(false);
-        setShowPayment(false);
         setPlayParams({ season: 1, episode: 1 });
     }, [movie.id, apiKey, movie.media_type]);
 
@@ -106,12 +103,8 @@ export const MovieModal: React.FC<MovieModalProps> = ({
     }, [movie.id, apiKey, selectedSeason, movie.media_type]);
 
     const handleWatchClick = () => {
-        if (isExclusive) {
-            setPlayParams({ season: selectedSeason, episode: 1 });
-            setShowPlayer(true);
-        } else {
-            setShowPayment(true);
-        }
+        setPlayParams({ season: selectedSeason, episode: 1 });
+        setShowPlayer(true);
     };
 
     const handleGenerateTrivia = async () => {
@@ -164,7 +157,6 @@ export const MovieModal: React.FC<MovieModalProps> = ({
         <div className="fixed inset-0 z-[70] flex items-end md:items-center justify-center md:p-6 animate-in fade-in duration-300">
             <div className="absolute inset-0 bg-black/60 backdrop-blur-xl transition-opacity duration-300" onClick={onClose}></div>
             {viewingImage && <ImageLightbox src={viewingImage} onClose={() => setViewingImage(null)} />}
-            {showPayment && <PaymentModal isOpen={showPayment} onClose={() => setShowPayment(false)} onSuccess={() => setShowPayment(false)} userProfile={userProfile} />}
             
             <div className="glass-panel w-full md:max-w-5xl md:rounded-3xl rounded-t-3xl overflow-hidden shadow-2xl relative max-h-[90vh] flex flex-col z-10 animate-in slide-in-from-bottom-10 zoom-in-95 duration-500">
                 <button onClick={onClose} className="absolute top-4 right-4 z-20 bg-black/40 hover:bg-white/10 backdrop-blur-md p-2 rounded-full text-white/80 hover:text-white transition-all hover:scale-110 active:scale-95 border border-white/5"><X size={20} /></button>
@@ -174,7 +166,7 @@ export const MovieModal: React.FC<MovieModalProps> = ({
                 ) : (
                     <div className="flex flex-col overflow-y-auto custom-scrollbar bg-[#0a0a0a]">
                         <div className="relative h-[60vh] md:h-[500px] w-full shrink-0 bg-black">
-                             {showPlayer && isExclusive ? (
+                             {showPlayer ? (
                                  <div className="absolute inset-0 z-50 animate-in fade-in duration-700 bg-black">
                                      <Suspense fallback={<div className="w-full h-full flex items-center justify-center bg-black"><Loader2 className="animate-spin text-red-600" size={40}/></div>}>
                                          <MoviePlayer tmdbId={displayData.id} onClose={() => setShowPlayer(false)} mediaType={isTv ? 'tv' : 'movie'} isAnime={isAnime || false} initialSeason={playParams.season} initialEpisode={playParams.episode} apiKey={apiKey} />
@@ -198,10 +190,10 @@ export const MovieModal: React.FC<MovieModalProps> = ({
                                     <div className="flex flex-wrap gap-3 mt-2">
                                         <button 
                                             onClick={handleWatchClick} 
-                                            className={`font-bold py-3 px-8 rounded-xl transition-all flex items-center gap-2 active:scale-95 shadow-lg ${isGoldTheme ? 'bg-gradient-to-r from-amber-600 to-amber-500 text-black shadow-amber-900/40' : (isExclusive ? 'bg-red-600 hover:bg-red-700 text-white' : 'bg-amber-500 text-black')}`}
+                                            className={`font-bold py-3 px-8 rounded-xl transition-all flex items-center gap-2 active:scale-95 shadow-lg ${isGoldTheme ? 'bg-gradient-to-r from-amber-600 to-amber-500 text-black shadow-amber-900/40' : 'bg-red-600 hover:bg-red-700 text-white'}`}
                                         >
-                                            {isExclusive ? <PlayCircle size={20} fill="currentColor" /> : <Lock size={18}/>}
-                                            {isExclusive ? "Watch Now" : "Unlock with Exclusive"}
+                                            <PlayCircle size={20} fill="currentColor" />
+                                            Watch Now
                                         </button>
                                         <button onClick={() => details?.videos?.results?.[0] && window.open(`https://www.youtube.com/watch?v=${details.videos.results[0].key}`)} className="glass hover:bg-white/10 text-white font-bold py-3 px-6 rounded-xl transition-all flex items-center gap-2 active:scale-95"><Play size={18} /> Trailer</button>
                                         <div className="flex gap-2">
