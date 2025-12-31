@@ -99,11 +99,11 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   }, []);
 
   const getEmbedUrl = () => {
-    // Reverted to VidSrc API
+    // vidsrc.cc Implementation
     if (mediaType === 'tv' || (isAnime && mediaType !== 'movie')) {
-        return `https://vidsrc.xyz/embed/tv/${tmdbId}/${season}/${episode}`;
+        return `https://vidsrc.cc/v2/embed/tv/${tmdbId}/${season}/${episode}`;
     }
-    return `https://vidsrc.xyz/embed/movie/${tmdbId}`;
+    return `https://vidsrc.cc/v2/embed/movie/${tmdbId}`;
   };
 
   const filteredEpisodes = currentSeasonData.filter(ep => 
@@ -243,7 +243,8 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
             frameBorder="0"
             allow="autoplay; fullscreen; picture-in-picture"
             allowFullScreen
-            sandbox="allow-forms allow-pointer-lock allow-same-origin allow-scripts allow-top-navigation"
+            // Expanded sandbox to ensure vidsrc.cc loads correctly (often needs popups/storage access)
+            sandbox="allow-forms allow-pointer-lock allow-same-origin allow-scripts allow-top-navigation allow-popups"
         />
       </div>
     </div>
