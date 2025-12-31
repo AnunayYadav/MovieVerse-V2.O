@@ -136,7 +136,7 @@ const COUNTRIES = [
     { id: 'TR', name: 'Turkey', icon: '🇹🇷' },
     { id: 'UA', name: 'Ukraine', icon: '🇺🇦' },
     { id: 'AE', name: 'United Arab Emirates', icon: '🇦🇪' },
-    { id: 'GB', name: 'United Kingdom', icon: '🇬🇧' },
+    { id: 'UK', name: 'United Kingdom', icon: '🇬🇧' },
     { id: 'US', name: 'United States', icon: '🇺🇸' },
     { id: 'UY', name: 'Uruguay', icon: '🇺🇾' },
     { id: 'UZ', name: 'Uzbekistan', icon: '🇺🇿' },
@@ -178,20 +178,42 @@ export const LiveTV: React.FC<LiveTVProps> = ({ userProfile }) => {
 
     useEffect(() => {
         if (isExclusive) {
-            fetchChannels(activeCategory);
+            fetchChannels();
         }
-    }, [activeCategory, isExclusive]);
+    }, [activeCategory, selectedCountry, isExclusive]);
 
-    const fetchChannels = async (categoryId: string) => {
+    const fetchChannels = async () => {
         setLoading(true);
         setError(false);
         setChannels([]);
+        
         try {
-            const response = await fetch(`https://iptv-org.github.io/iptv/categories/${categoryId}.m3u`);
+            let url = '';
+            let isCountryFetch = false;
+
+            if (selectedCountry === 'ALL') {
+                // Fetch by Category
+                url = `https://iptv-org.github.io/iptv/categories/${activeCategory}.m3u`;
+            } else {
+                // Fetch by Country
+                url = `https://iptv-org.github.io/iptv/countries/${selectedCountry.toLowerCase()}.m3u`;
+                isCountryFetch = true;
+            }
+
+            const response = await fetch(url);
             if (!response.ok) throw new Error("Failed to fetch playlist");
             
             const text = await response.text();
-            const parsedChannels = parseM3U(text);
+            let parsedChannels = parseM3U(text);
+            
+            // If fetching by country, we must filter by the selected category to keep the UI consistent.
+            if (isCountryFetch) {
+                // Map category IDs to likely group titles in the M3U
+                // e.g. 'news' matches 'News', 'movies' matches 'Movies'
+                parsedChannels = parsedChannels.filter(c => 
+                    c.group && c.group.toLowerCase().includes(activeCategory.toLowerCase())
+                );
+            }
             
             // Prioritize channels with logos for better UI
             const channelsWithLogos = parsedChannels.filter(c => c.logo && c.logo.length > 0);
@@ -238,11 +260,9 @@ export const LiveTV: React.FC<LiveTVProps> = ({ userProfile }) => {
         return result;
     };
 
-    const filteredChannels = channels.filter(c => {
-        const matchesSearch = c.name.toLowerCase().includes(searchQuery.toLowerCase());
-        const matchesCountry = selectedCountry === 'ALL' || (c.country && c.country.toUpperCase() === selectedCountry);
-        return matchesSearch && matchesCountry;
-    });
+    const filteredChannels = channels.filter(c => 
+        c.name.toLowerCase().includes(searchQuery.toLowerCase())
+    );
 
     const activeCountryObj = COUNTRIES.find(c => c.id === selectedCountry) || COUNTRIES[0];
 
@@ -358,7 +378,7 @@ export const LiveTV: React.FC<LiveTVProps> = ({ userProfile }) => {
                          <Wifi size={48} className="mb-4 opacity-50"/>
                          <p className="text-lg font-bold mb-2">Connection Issue</p>
                          <p className="text-sm mb-6">Could not load channel list from the server.</p>
-                         <button onClick={() => fetchChannels(activeCategory)} className="flex items-center gap-2 px-6 py-2 bg-white/10 hover:bg-white/20 rounded-full font-bold text-white transition-colors">
+                         <button onClick={() => fetchChannels()} className="flex items-center gap-2 px-6 py-2 bg-white/10 hover:bg-white/20 rounded-full font-bold text-white transition-colors">
                              <RefreshCcw size={16}/> Retry
                          </button>
                     </div>
