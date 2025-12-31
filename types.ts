@@ -274,6 +274,7 @@ export interface WatchParty {
 export interface PartySettings {
     allowChat: boolean;
     allowControls: boolean; // Allow members to pause/play
+    coHosts?: string[]; // Array of user names who are co-hosts
 }
 
 export interface PartyMessage {

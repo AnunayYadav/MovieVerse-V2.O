@@ -1,8 +1,8 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Users, Search, Plus, Lock, Unlock, LogIn, MessageSquare, Send, Settings, Play, Pause, X, Loader2, Film, Crown, Check, Share2, Copy } from 'lucide-react';
+import { Users, Search, Plus, Lock, Unlock, LogIn, MessageSquare, Send, Settings, Play, Pause, X, Loader2, Film, Crown, Check, Share2, Copy, Menu, UserPlus, UserMinus, ShieldAlert, LogOut, ChevronDown } from 'lucide-react';
 import { WatchParty, UserProfile, Movie, PartyMessage } from '../types';
-import { createWatchParty, joinWatchParty, getPublicParties, updatePartySettings, updatePartyMovie, subscribeToParty, sendPartyMessage } from '../services/supabase';
+import { createWatchParty, joinWatchParty, getPublicParties, updatePartySettings, updatePartyMovie, subscribeToParty, sendPartyMessage, deleteWatchParty } from '../services/supabase';
 import { TMDB_IMAGE_BASE, TMDB_BASE_URL } from './Shared';
 import { MoviePlayer } from './MoviePlayer';
 
@@ -49,7 +49,6 @@ const WatchPartyLobby = ({ userProfile, onJoin, onClose }: { userProfile: UserPr
 
     useEffect(() => {
         loadParties();
-        // Simple polling for lobby list
         const interval = setInterval(loadParties, 10000); 
         return () => clearInterval(interval);
     }, []);
@@ -87,13 +86,13 @@ const WatchPartyLobby = ({ userProfile, onJoin, onClose }: { userProfile: UserPr
     };
 
     return (
-        <div className="w-full h-full p-6 md:p-10 animate-in fade-in">
+        <div className="w-full h-full p-4 md:p-10 animate-in fade-in overflow-y-auto pb-20">
             <div className="flex justify-between items-center mb-8">
                 <div>
-                    <h1 className="text-3xl font-bold text-white flex items-center gap-3">
+                    <h1 className="text-2xl md:text-3xl font-bold text-white flex items-center gap-3">
                         <Users size={32} className="text-amber-500"/> Watch Parties
                     </h1>
-                    <p className="text-gray-400 mt-1">Watch movies together with friends across the world.</p>
+                    <p className="text-gray-400 mt-1 text-sm md:text-base">Watch movies together with friends across the world.</p>
                 </div>
                 <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-full text-white"><X/></button>
             </div>
@@ -134,13 +133,13 @@ const WatchPartyLobby = ({ userProfile, onJoin, onClose }: { userProfile: UserPr
                         {parties.map(party => (
                             <div key={party.id} className="bg-white/5 border border-white/5 hover:border-amber-500/30 rounded-xl p-4 transition-all hover:bg-white/10 group relative overflow-hidden">
                                 <div className="flex justify-between items-start mb-3">
-                                    <div>
-                                        <h4 className="font-bold text-white text-lg">{party.name}</h4>
-                                        <p className="text-xs text-gray-400 flex items-center gap-1">Host: <span className="text-white">{party.hostName}</span></p>
+                                    <div className="min-w-0 pr-2">
+                                        <h4 className="font-bold text-white text-lg truncate">{party.name}</h4>
+                                        <p className="text-xs text-gray-400 flex items-center gap-1">Host: <span className="text-white truncate">{party.hostName}</span></p>
                                     </div>
-                                    <div className="flex items-center gap-2">
+                                    <div className="flex items-center gap-2 shrink-0">
                                         {party.isPrivate ? <Lock size={14} className="text-red-400"/> : <Unlock size={14} className="text-green-400"/>}
-                                        <span className="bg-black/40 px-2 py-1 rounded text-xs font-mono text-gray-300">ID: {party.id}</span>
+                                        <span className="bg-black/40 px-2 py-1 rounded text-xs font-mono text-gray-300 hidden sm:inline-block">ID: {party.id}</span>
                                     </div>
                                 </div>
                                 
@@ -178,7 +177,6 @@ const WatchPartyLobby = ({ userProfile, onJoin, onClose }: { userProfile: UserPr
                 </div>
             </div>
 
-            {/* Create Modal */}
             {isCreateModalOpen && (
                 <CreatePartyModal 
                     userProfile={userProfile} 
@@ -187,7 +185,6 @@ const WatchPartyLobby = ({ userProfile, onJoin, onClose }: { userProfile: UserPr
                 />
             )}
 
-            {/* Password Modal */}
             {selectedPrivateParty && (
                 <div className="fixed inset-0 z-[120] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
                     <div className="bg-[#121212] border border-white/10 rounded-2xl p-6 w-full max-w-sm">
@@ -282,40 +279,56 @@ const WatchPartyRoom = ({ party, isHost, userProfile, apiKey, onLeave }: { party
     const [activeParty, setActiveParty] = useState(party);
     const [messages, setMessages] = useState<PartyMessage[]>([]);
     const [inputMsg, setInputMsg] = useState("");
-    const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false); // Default closed on mobile
     const [showSearch, setShowSearch] = useState(!party.movie && isHost);
-    const [viewerCount, setViewerCount] = useState(1);
+    const [viewers, setViewers] = useState<any[]>([]);
     const [copiedId, setCopiedId] = useState(false);
+    const [activeTab, setActiveTab] = useState<'chat' | 'members'>('chat');
     
-    // Movie Search State for Host
     const [searchQuery, setSearchQuery] = useState("");
     const [searchResults, setSearchResults] = useState<Movie[]>([]);
 
+    // Check if user is the Owner (original creator) or a Co-Host
+    const isOwner = userProfile.name === activeParty.hostName;
+    const isCoHost = activeParty.settings.coHosts?.includes(userProfile.name);
+    const hasControl = isOwner || isCoHost;
+
     useEffect(() => {
         // System message for local user join
-        setMessages([{ id: 'sys-1', user: 'System', text: `Welcome to ${party.name}! Waiting for data...`, timestamp: '', isSystem: true }]);
+        setMessages([{ id: 'sys-1', user: 'System', text: `Welcome to ${party.name}!`, timestamp: '', isSystem: true }]);
         
         // Subscribe to real-time events
         const unsubscribe = subscribeToParty(party.id, userProfile, {
             onMessage: (msg) => {
+                if (msg.text.startsWith('CMD:KICK:')) {
+                    const target = msg.text.split(':')[2];
+                    if (target === userProfile.name) {
+                        alert("You have been kicked from the party.");
+                        onLeave();
+                    }
+                    return;
+                }
                 setMessages(prev => [...prev, msg]);
             },
             onUpdate: (updatedFields) => {
                 setActiveParty(prev => ({
                     ...prev,
                     ...updatedFields,
-                    // If movie updates and we are host, ensure search closes
                     movie: updatedFields.movie || prev.movie
                 }));
                 if (updatedFields.movie) setShowSearch(false);
             },
-            onViewersUpdate: (count) => {
-                setViewerCount(count);
+            onViewersUpdate: (count, list) => {
+                setViewers(list);
+            },
+            onDelete: () => {
+                alert("The host has closed the party.");
+                onLeave();
             }
         });
 
         // Notify join
-        sendPartyMessage(party.id, "System", `${userProfile.name} joined the party.`, true);
+        sendPartyMessage(party.id, "System", `${userProfile.name} joined.`, true);
 
         return () => {
             unsubscribe();
@@ -332,7 +345,7 @@ const WatchPartyRoom = ({ party, isHost, userProfile, apiKey, onLeave }: { party
     const handleMovieSelect = (m: Movie) => {
         updatePartyMovie(party.id, m);
         setShowSearch(false);
-        sendPartyMessage(party.id, "System", `${isHost ? 'Host' : 'System'} changed the movie to: ${m.title || m.name}`, true);
+        sendPartyMessage(party.id, "System", `${userProfile.name} changed the movie to: ${m.title || m.name}`, true);
     };
 
     const handleSearchMovies = async (q: string) => {
@@ -350,6 +363,30 @@ const WatchPartyRoom = ({ party, isHost, userProfile, apiKey, onLeave }: { party
         sendPartyMessage(party.id, "System", `Host ${newSettings[key] ? 'enabled' : 'disabled'} ${key === 'allowChat' ? 'chat' : 'member controls'}.`, true);
     };
 
+    const handlePromote = (userName: string) => {
+        const currentHosts = activeParty.settings.coHosts || [];
+        const newHosts = currentHosts.includes(userName) 
+            ? currentHosts.filter(h => h !== userName) 
+            : [...currentHosts, userName];
+        
+        updatePartySettings(party.id, { ...activeParty.settings, coHosts: newHosts });
+        sendPartyMessage(party.id, "System", `${userName} is ${currentHosts.includes(userName) ? 'no longer' : 'now'} a co-host.`, true);
+    };
+
+    const handleKick = (userName: string) => {
+        if (!confirm(`Kick ${userName}?`)) return;
+        sendPartyMessage(party.id, "System", `CMD:KICK:${userName}`, true);
+        sendPartyMessage(party.id, "System", `${userName} was kicked by host.`, true);
+    };
+
+    const handleDeleteParty = async () => {
+        if (confirm("Are you sure you want to close this party for everyone?")) {
+            await deleteWatchParty(party.id);
+            // Local leave handled by subscription onDelete callback or immediate navigation
+            onLeave();
+        }
+    };
+
     const copyInvite = () => {
         navigator.clipboard.writeText(party.id);
         setCopiedId(true);
@@ -357,34 +394,34 @@ const WatchPartyRoom = ({ party, isHost, userProfile, apiKey, onLeave }: { party
     }
 
     return (
-        <div className="flex h-[calc(100vh-4rem)] bg-black overflow-hidden relative">
+        <div className="flex flex-col md:flex-row h-full md:h-[calc(100vh-4rem)] bg-black overflow-hidden relative">
             {/* Main Content (Player) */}
-            <div className={`flex-1 flex flex-col relative transition-all duration-300 ${isSidebarOpen ? 'mr-0 md:mr-80' : 'mr-0'}`}>
-                {/* Header Overlay */}
-                <div className="bg-white/5 border-b border-white/5 p-4 flex justify-between items-center z-10">
-                    <div className="flex items-center gap-3">
-                        <button onClick={onLeave} className="p-2 hover:bg-white/10 rounded-full transition-colors"><X size={20}/></button>
-                        <div>
-                            <h2 className="font-bold text-white flex items-center gap-2">
+            <div className="flex-1 flex flex-col relative w-full h-full">
+                {/* Header Overlay - Mobile Responsive */}
+                <div className="bg-white/5 border-b border-white/5 p-3 md:p-4 flex justify-between items-center z-10 shrink-0">
+                    <div className="flex items-center gap-2 md:gap-3 overflow-hidden">
+                        <button onClick={onLeave} className="p-2 hover:bg-white/10 rounded-full transition-colors shrink-0"><X size={20}/></button>
+                        <div className="min-w-0">
+                            <h2 className="font-bold text-white flex items-center gap-2 text-sm md:text-base truncate">
                                 {activeParty.name} 
-                                <button onClick={copyInvite} className="flex items-center gap-1 text-xs bg-amber-500/20 text-amber-500 px-2 py-0.5 rounded font-mono hover:bg-amber-500/30 transition-colors" title="Copy ID">
+                                <button onClick={copyInvite} className="hidden md:flex items-center gap-1 text-xs bg-amber-500/20 text-amber-500 px-2 py-0.5 rounded font-mono hover:bg-amber-500/30 transition-colors" title="Copy ID">
                                     ID: {activeParty.id} {copiedId ? <Check size={10}/> : <Copy size={10}/>}
                                 </button>
                             </h2>
-                            <p className="text-xs text-gray-400">{viewerCount} Online • Host: {activeParty.hostName}</p>
+                            <p className="text-xs text-gray-400 truncate">{viewers.length} Online • Host: {activeParty.hostName}</p>
                         </div>
                     </div>
-                    <div className="flex gap-2">
-                        {isHost && (
+                    <div className="flex gap-2 shrink-0">
+                        {hasControl && (
                             <button 
                                 onClick={() => setShowSearch(!showSearch)} 
                                 className="flex items-center gap-2 bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors"
                             >
-                                <Film size={14}/> Change Movie
+                                <Film size={14}/> <span className="hidden sm:inline">Movie</span>
                             </button>
                         )}
-                        <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="p-2 bg-white/10 rounded-lg hover:bg-white/20 relative">
-                            <MessageSquare size={18}/>
+                        <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className={`p-2 rounded-lg hover:bg-white/20 relative transition-colors ${isSidebarOpen ? 'bg-amber-500 text-black' : 'bg-white/10 text-white'}`}>
+                            {isSidebarOpen ? <X size={18}/> : <Menu size={18}/>}
                         </button>
                     </div>
                 </div>
@@ -393,9 +430,9 @@ const WatchPartyRoom = ({ party, isHost, userProfile, apiKey, onLeave }: { party
                     {activeParty.movie ? (
                         <div className="w-full h-full relative">
                             {/* Controls Overlay for Members if controls disabled */}
-                            {!isHost && !activeParty.settings.allowControls && (
+                            {!hasControl && !activeParty.settings.allowControls && (
                                 <div className="absolute inset-0 z-50 pointer-events-none border-[4px] border-amber-500/20">
-                                    <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-black/60 backdrop-blur px-3 py-1 rounded-full text-xs text-white/70 flex items-center gap-2">
+                                    <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-black/60 backdrop-blur px-3 py-1 rounded-full text-xs text-white/70 flex items-center gap-2 pointer-events-auto">
                                         <Lock size={10}/> Host has control
                                     </div>
                                 </div>
@@ -403,28 +440,28 @@ const WatchPartyRoom = ({ party, isHost, userProfile, apiKey, onLeave }: { party
                             <MoviePlayer 
                                 tmdbId={activeParty.movie.id}
                                 mediaType={activeParty.movie.media_type || 'movie'}
-                                isAnime={false} // Demo simplification
-                                onClose={() => {}} // Disable close inside party
+                                isAnime={false} 
+                                onClose={() => {}} 
                                 apiKey={apiKey}
                             />
                         </div>
                     ) : (
-                        <div className="text-center text-gray-500">
+                        <div className="text-center text-gray-500 p-6">
                             <Film size={48} className="mx-auto mb-4 opacity-50"/>
                             <p>Waiting for host to select a movie...</p>
-                            {isHost && <button onClick={() => setShowSearch(true)} className="mt-4 text-amber-500 hover:underline">Select Now</button>}
+                            {hasControl && <button onClick={() => setShowSearch(true)} className="mt-4 text-amber-500 hover:underline">Select Now</button>}
                         </div>
                     )}
 
                     {/* Movie Selector Modal */}
                     {showSearch && (
-                        <div className="absolute inset-0 z-[60] bg-black/90 backdrop-blur-md p-8 flex flex-col animate-in fade-in">
-                            <div className="max-w-2xl mx-auto w-full">
-                                <div className="flex justify-between items-center mb-6">
+                        <div className="absolute inset-0 z-[60] bg-black/95 backdrop-blur-md p-4 md:p-8 flex flex-col animate-in fade-in">
+                            <div className="max-w-2xl mx-auto w-full flex flex-col h-full">
+                                <div className="flex justify-between items-center mb-6 shrink-0">
                                     <h3 className="text-xl font-bold text-white">Select Content</h3>
                                     <button onClick={() => setShowSearch(false)}><X className="text-gray-400 hover:text-white"/></button>
                                 </div>
-                                <div className="relative mb-6">
+                                <div className="relative mb-6 shrink-0">
                                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500"/>
                                     <input 
                                         autoFocus
@@ -435,7 +472,7 @@ const WatchPartyRoom = ({ party, isHost, userProfile, apiKey, onLeave }: { party
                                         onChange={(e) => handleSearchMovies(e.target.value)}
                                     />
                                 </div>
-                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 max-h-[60vh] overflow-y-auto custom-scrollbar">
+                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 overflow-y-auto custom-scrollbar flex-1 pb-10">
                                     {searchResults.map(m => (
                                         <div key={m.id} onClick={() => handleMovieSelect(m)} className="cursor-pointer group">
                                             <div className="aspect-[2/3] rounded-lg overflow-hidden bg-white/5 relative">
@@ -454,63 +491,118 @@ const WatchPartyRoom = ({ party, isHost, userProfile, apiKey, onLeave }: { party
                 </div>
             </div>
 
-            {/* Sidebar (Chat & Settings) */}
-            <div className={`fixed right-0 top-16 bottom-0 w-80 bg-[#0a0a0a] border-l border-white/5 transform transition-transform duration-300 z-20 flex flex-col ${isSidebarOpen ? 'translate-x-0' : 'translate-x-full'}`}>
+            {/* Sidebar (Chat & Settings & Members) */}
+            <div className={`fixed inset-0 top-[60px] md:top-16 md:relative md:w-80 bg-[#0a0a0a] border-l border-white/5 transform transition-transform duration-300 z-20 flex flex-col ${isSidebarOpen ? 'translate-x-0' : 'translate-x-full md:hidden'}`}>
                 {/* Tabs */}
-                <div className="flex border-b border-white/5">
-                    <button className="flex-1 py-3 text-sm font-bold text-white border-b-2 border-amber-500 bg-white/5">Chat</button>
-                    {isHost && <button className="flex-1 py-3 text-sm font-bold text-gray-400 hover:text-white">Settings</button>}
+                <div className="flex border-b border-white/5 shrink-0">
+                    <button onClick={() => setActiveTab('chat')} className={`flex-1 py-3 text-sm font-bold transition-colors ${activeTab === 'chat' ? 'text-white border-b-2 border-amber-500 bg-white/5' : 'text-gray-400 hover:text-white'}`}>Chat</button>
+                    <button onClick={() => setActiveTab('members')} className={`flex-1 py-3 text-sm font-bold transition-colors ${activeTab === 'members' ? 'text-white border-b-2 border-amber-500 bg-white/5' : 'text-gray-400 hover:text-white'}`}>Members ({viewers.length})</button>
                 </div>
 
-                {/* Chat Area */}
-                <div className="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-4 flex flex-col">
-                    {messages.length === 0 && <p className="text-gray-600 text-xs text-center mt-4">Room created. Invite friends!</p>}
-                    {messages.map(msg => (
-                        <div key={msg.id} className={`flex flex-col ${msg.isSystem ? 'items-center' : 'items-start'}`}>
-                            {msg.isSystem ? (
-                                <span className="text-[10px] bg-white/10 text-gray-400 px-2 py-0.5 rounded-full my-2">{msg.text}</span>
-                            ) : (
-                                <>
-                                    <div className="flex items-baseline gap-2">
-                                        <span className={`text-xs font-bold ${msg.user === userProfile.name ? 'text-amber-500' : 'text-gray-300'}`}>{msg.user}</span>
-                                        <span className="text-[10px] text-gray-600">{msg.timestamp}</span>
+                {/* Content Area */}
+                <div className="flex-1 overflow-y-auto custom-scrollbar p-4 flex flex-col relative">
+                    {activeTab === 'chat' ? (
+                        <>
+                            <div className="flex-1 space-y-4 mb-4">
+                                {messages.length === 0 && <p className="text-gray-600 text-xs text-center mt-4">Room created. Invite friends!</p>}
+                                {messages.map((msg, i) => (
+                                    <div key={i} className={`flex flex-col ${msg.isSystem ? 'items-center' : 'items-start'}`}>
+                                        {msg.isSystem ? (
+                                            <span className="text-[10px] bg-white/10 text-gray-400 px-2 py-0.5 rounded-full my-2 text-center max-w-[90%]">{msg.text}</span>
+                                        ) : (
+                                            <>
+                                                <div className="flex items-baseline gap-2">
+                                                    <span className={`text-xs font-bold ${msg.user === userProfile.name ? 'text-amber-500' : 'text-gray-300'} ${activeParty.hostName === msg.user ? 'text-red-400' : ''}`}>{msg.user}</span>
+                                                    <span className="text-[10px] text-gray-600">{msg.timestamp}</span>
+                                                </div>
+                                                <p className="text-sm text-gray-200 bg-white/5 p-2 rounded-lg rounded-tl-none mt-1 break-words w-full">{msg.text}</p>
+                                            </>
+                                        )}
                                     </div>
-                                    <p className="text-sm text-gray-200 bg-white/5 p-2 rounded-lg rounded-tl-none mt-1 break-words w-full">{msg.text}</p>
-                                </>
-                            )}
-                        </div>
-                    ))}
-                </div>
-
-                {/* Input Area */}
-                <div className="p-4 bg-black/20 border-t border-white/5">
-                    {activeParty.settings.allowChat || isHost ? (
-                        <form onSubmit={handleSendMessage} className="relative">
-                            <input 
-                                type="text" 
-                                value={inputMsg}
-                                onChange={(e) => setInputMsg(e.target.value)}
-                                placeholder="Type a message..." 
-                                className="w-full bg-white/5 border border-white/10 rounded-xl py-3 pl-4 pr-12 text-sm text-white outline-none focus:border-amber-500/50 transition-colors"
-                            />
-                            <button type="submit" className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 bg-amber-500 text-black rounded-lg hover:bg-amber-400 transition-colors disabled:opacity-50" disabled={!inputMsg.trim()}>
-                                <Send size={14}/>
-                            </button>
-                        </form>
+                                ))}
+                            </div>
+                            
+                            <div className="mt-auto shrink-0 pt-2">
+                                {activeParty.settings.allowChat || hasControl ? (
+                                    <form onSubmit={handleSendMessage} className="relative">
+                                        <input 
+                                            type="text" 
+                                            value={inputMsg}
+                                            onChange={(e) => setInputMsg(e.target.value)}
+                                            placeholder="Type a message..." 
+                                            className="w-full bg-white/5 border border-white/10 rounded-xl py-3 pl-4 pr-12 text-sm text-white outline-none focus:border-amber-500/50 transition-colors"
+                                        />
+                                        <button type="submit" className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 bg-amber-500 text-black rounded-lg hover:bg-amber-400 transition-colors disabled:opacity-50" disabled={!inputMsg.trim()}>
+                                            <Send size={14}/>
+                                        </button>
+                                    </form>
+                                ) : (
+                                    <div className="text-center text-xs text-red-400 bg-red-900/10 p-2 rounded border border-red-900/30">
+                                        Chat is disabled by host.
+                                    </div>
+                                )}
+                            </div>
+                        </>
                     ) : (
-                        <div className="text-center text-xs text-red-400 bg-red-900/10 p-2 rounded border border-red-900/30">
-                            Chat is disabled by host.
+                        <div className="space-y-3">
+                            {viewers.map((viewer, idx) => {
+                                const isViewerOwner = viewer.user === activeParty.hostName;
+                                const isViewerCoHost = activeParty.settings.coHosts?.includes(viewer.user);
+                                
+                                return (
+                                    <div key={idx} className="flex items-center justify-between bg-white/5 p-3 rounded-xl border border-white/5">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-gray-700 to-gray-900 flex items-center justify-center overflow-hidden border border-white/10">
+                                                {viewer.avatar ? <img src={viewer.avatar} className="w-full h-full object-cover"/> : viewer.user.charAt(0)}
+                                            </div>
+                                            <div>
+                                                <p className="text-sm font-bold text-white flex items-center gap-2">
+                                                    {viewer.user}
+                                                    {isViewerOwner && <Crown size={12} className="text-yellow-500 fill-yellow-500"/>}
+                                                    {isViewerCoHost && !isViewerOwner && <ShieldAlert size={12} className="text-blue-400"/>}
+                                                </p>
+                                                <p className="text-[10px] text-gray-500">{isViewerOwner ? "Owner" : isViewerCoHost ? "Co-Host" : "Member"}</p>
+                                            </div>
+                                        </div>
+                                        
+                                        {/* Actions for Owner Only */}
+                                        {isOwner && viewer.user !== userProfile.name && (
+                                            <div className="flex items-center gap-1">
+                                                <button 
+                                                    onClick={() => handlePromote(viewer.user)}
+                                                    className={`p-2 rounded-lg transition-colors ${isViewerCoHost ? 'text-blue-400 bg-blue-500/10 hover:bg-blue-500/20' : 'text-gray-400 hover:text-white hover:bg-white/10'}`}
+                                                    title={isViewerCoHost ? "Demote" : "Promote to Co-Host"}
+                                                >
+                                                    {isViewerCoHost ? <UserMinus size={14}/> : <UserPlus size={14}/>}
+                                                </button>
+                                                <button 
+                                                    onClick={() => handleKick(viewer.user)}
+                                                    className="p-2 rounded-lg text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-colors"
+                                                    title="Kick Member"
+                                                >
+                                                    <LogOut size={14}/>
+                                                </button>
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })}
                         </div>
                     )}
                 </div>
 
-                {/* Admin Controls (Overlay or Bottom Section if Host) */}
-                {isHost && (
-                    <div className="border-t border-white/10 bg-[#121212] p-4">
-                        <h4 className="text-xs font-bold text-gray-500 uppercase mb-3 flex items-center gap-2"><Crown size={12}/> Host Controls</h4>
+                {/* Host Controls Footer */}
+                {hasControl && (
+                    <div className="border-t border-white/10 bg-[#121212] p-4 shrink-0">
+                        <div className="flex justify-between items-center mb-3">
+                            <h4 className="text-xs font-bold text-gray-500 uppercase flex items-center gap-2"><Crown size={12}/> Host Controls</h4>
+                            {isOwner && (
+                                <button onClick={handleDeleteParty} className="text-[10px] text-red-500 font-bold hover:underline">CLOSE PARTY</button>
+                            )}
+                        </div>
                         <div className="space-y-2">
                             <div className="flex justify-between items-center">
-                                <span className="text-sm text-gray-300">Enable Chat</span>
+                                <span className="text-sm text-gray-300">Chat Enabled</span>
                                 <button onClick={() => toggleSetting('allowChat')} className={`w-8 h-4 rounded-full relative transition-colors ${activeParty.settings.allowChat ? 'bg-green-500' : 'bg-gray-600'}`}>
                                     <div className={`absolute top-0.5 left-0.5 w-3 h-3 bg-white rounded-full transition-transform ${activeParty.settings.allowChat ? 'translate-x-4' : 'translate-x-0'}`}></div>
                                 </button>

@@ -290,14 +290,13 @@ export const createWatchParty = async (name: string, isPrivate: boolean, passwor
             is_private: isPrivate,
             password: password,
             movie_data: movie,
-            settings: { allowChat: true, allowControls: false }
+            settings: { allowChat: true, allowControls: false, coHosts: [] }
         })
         .select()
         .single();
 
     if (error) throw error;
 
-    // Convert snake_case DB response to CamelCase Type
     return {
         id: data.id,
         name: data.name,
@@ -309,6 +308,13 @@ export const createWatchParty = async (name: string, isPrivate: boolean, passwor
         viewers: 1,
         createdAt: new Date(data.created_at).getTime()
     };
+};
+
+export const deleteWatchParty = async (partyId: string) => {
+    const supabase = getSupabase();
+    if (!supabase) return;
+    const { error } = await supabase.from('watch_parties').delete().eq('id', partyId);
+    if (error) console.error("Error closing party:", error);
 };
 
 export const joinWatchParty = async (partyId: string, password?: string): Promise<WatchParty | null> => {
@@ -332,7 +338,7 @@ export const joinWatchParty = async (partyId: string, password?: string): Promis
         password: data.password,
         movie: data.movie_data,
         settings: data.settings,
-        viewers: 1, // Presence will update this later
+        viewers: 1, 
         createdAt: new Date(data.created_at).getTime()
     };
 };
@@ -341,7 +347,6 @@ export const getPublicParties = async (): Promise<WatchParty[]> => {
     const supabase = getSupabase();
     if (!supabase) return [];
 
-    // Fetch last 50 parties
     const { data, error } = await supabase
         .from('watch_parties')
         .select('*')
@@ -358,7 +363,7 @@ export const getPublicParties = async (): Promise<WatchParty[]> => {
         password: p.password,
         movie: p.movie_data,
         settings: p.settings,
-        viewers: 0, // List view won't show real-time viewers efficiently without specialized query or edge function
+        viewers: 0,
         createdAt: new Date(p.created_at).getTime()
     }));
 };
@@ -392,13 +397,14 @@ export const subscribeToParty = (
     callbacks: {
         onMessage: (msg: PartyMessage) => void,
         onUpdate: (party: Partial<WatchParty>) => void,
-        onViewersUpdate: (count: number, viewers: any[]) => void
+        onViewersUpdate: (count: number, viewers: any[]) => void,
+        onDelete: () => void
     }
 ) => {
     const supabase = getSupabase();
     if (!supabase) return () => {};
 
-    // 1. Subscribe to DB Changes (Messages & Settings)
+    // 1. Subscribe to DB Changes (Messages & Settings & DELETE)
     const dbChannel = supabase.channel(`party-db:${partyId}`)
         .on(
             'postgres_changes', 
@@ -424,6 +430,13 @@ export const subscribeToParty = (
                 });
             }
         )
+        .on(
+            'postgres_changes',
+            { event: 'DELETE', schema: 'public', table: 'watch_parties', filter: `id=eq.${partyId}` },
+            () => {
+                callbacks.onDelete();
+            }
+        )
         .subscribe();
 
     // 2. Subscribe to Presence (Viewers)
@@ -444,7 +457,6 @@ export const subscribeToParty = (
         })
         .subscribe(async (status) => {
             if (status === 'SUBSCRIBED') {
-                // Send initial presence data
                 await presenceChannel.track({
                     user: userProfile.name,
                     avatar: userProfile.avatar || "",
