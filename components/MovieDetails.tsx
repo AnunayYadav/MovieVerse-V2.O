@@ -196,7 +196,7 @@ export const MovieModal: React.FC<MovieModalProps> = ({
                                         <div className="absolute inset-0 w-full h-full overflow-hidden pointer-events-none">
                                             <iframe
                                                 src={`https://www.youtube.com/embed/${trailer.key}?autoplay=1&mute=1&controls=0&loop=1&playlist=${trailer.key}&showinfo=0&rel=0&iv_load_policy=3&modestbranding=1&playsinline=1&enablejsapi=1&origin=${window.location.origin}`}
-                                                className={`absolute top-1/2 left-1/2 w-[150%] h-[150%] -translate-x-1/2 -translate-y-1/2 pointer-events-none transition-opacity duration-1000 ease-in-out ${videoLoaded ? 'opacity-60' : 'opacity-0'}`}
+                                                className={`absolute top-1/2 left-1/2 w-[400%] h-[200%] md:w-[150%] md:h-[150%] -translate-x-1/2 -translate-y-1/2 pointer-events-none transition-opacity duration-1000 ease-in-out ${videoLoaded ? 'opacity-60' : 'opacity-0'}`}
                                                 allow="autoplay; encrypted-media; gyroscope; picture-in-picture"
                                                 title="Background Trailer"
                                                 loading="lazy"
@@ -230,7 +230,7 @@ export const MovieModal: React.FC<MovieModalProps> = ({
                                         <img 
                                             src={`${TMDB_IMAGE_BASE}${logo.file_path}`} 
                                             alt={title} 
-                                            className="max-h-24 md:max-h-32 max-w-[70%] w-auto object-contain object-left drop-shadow-2xl mb-4 origin-bottom-left -ml-1.5"
+                                            className="max-h-16 md:max-h-32 max-w-[70%] w-auto object-contain object-left drop-shadow-2xl mb-4 origin-bottom-left -ml-1.5"
                                         />
                                     ) : (
                                         <h2 className="text-3xl md:text-5xl font-extrabold text-white leading-tight drop-shadow-lg">{title}</h2>
@@ -244,17 +244,17 @@ export const MovieModal: React.FC<MovieModalProps> = ({
                                         {isExclusive && (
                                             <button 
                                                 onClick={handleWatchClick} 
-                                                className={`font-bold py-3 px-8 rounded-xl transition-all flex items-center gap-2 active:scale-95 shadow-lg ${isGoldTheme ? 'bg-gradient-to-r from-amber-600 to-amber-500 text-black shadow-amber-900/40' : 'bg-red-600 hover:bg-red-700 text-white'}`}
+                                                className={`font-bold py-2.5 px-6 md:py-3 md:px-8 text-sm md:text-base rounded-xl transition-all flex items-center gap-2 active:scale-95 shadow-lg ${isGoldTheme ? 'bg-gradient-to-r from-amber-600 to-amber-500 text-black shadow-amber-900/40' : 'bg-red-600 hover:bg-red-700 text-white'}`}
                                             >
                                                 <PlayCircle size={20} fill="currentColor" />
                                                 Watch Now
                                             </button>
                                         )}
-                                        <button onClick={() => details?.videos?.results?.[0] && window.open(`https://www.youtube.com/watch?v=${details.videos.results[0].key}`)} className="glass hover:bg-white/10 text-white font-bold py-3 px-6 rounded-xl transition-all flex items-center gap-2 active:scale-95"><Play size={18} /> Trailer</button>
+                                        <button onClick={() => details?.videos?.results?.[0] && window.open(`https://www.youtube.com/watch?v=${details.videos.results[0].key}`)} className="glass hover:bg-white/10 text-white font-bold py-2.5 px-5 md:py-3 md:px-6 text-sm md:text-base rounded-xl transition-all flex items-center gap-2 active:scale-95"><Play size={18} /> Trailer</button>
                                         <div className="flex gap-2">
-                                            <button onClick={() => onToggleWatchlist(displayData)} className={`p-3 rounded-xl border transition-colors ${isWatchlisted ? `${accentBgLow} ${accentBorder} ${accentText}` : 'glass hover:bg-white/10 text-white/70'}`}><Bookmark size={20} fill={isWatchlisted ? "currentColor" : "none"} /></button>
-                                            <button onClick={() => onToggleFavorite(displayData)} className={`p-3 rounded-xl border transition-colors ${isFavorite ? `${accentBgLow} ${accentBorder} ${accentText}` : 'glass hover:bg-white/10 text-white/70'}`}><Heart size={20} fill={isFavorite ? "currentColor" : "none"} /></button>
-                                            <button onClick={handleShare} className={`p-3 rounded-xl glass hover:bg-white/10 transition-colors ${copied ? 'text-green-400' : 'text-white/70'}`}><Share2 size={20} /></button>
+                                            <button onClick={() => onToggleWatchlist(displayData)} className={`p-2.5 md:p-3 rounded-xl border transition-colors ${isWatchlisted ? `${accentBgLow} ${accentBorder} ${accentText}` : 'glass hover:bg-white/10 text-white/70'}`}><Bookmark size={20} fill={isWatchlisted ? "currentColor" : "none"} /></button>
+                                            <button onClick={() => onToggleFavorite(displayData)} className={`p-2.5 md:p-3 rounded-xl border transition-colors ${isFavorite ? `${accentBgLow} ${accentBorder} ${accentText}` : 'glass hover:bg-white/10 text-white/70'}`}><Heart size={20} fill={isFavorite ? "currentColor" : "none"} /></button>
+                                            <button onClick={handleShare} className={`p-2.5 md:p-3 rounded-xl glass hover:bg-white/10 transition-colors ${copied ? 'text-green-400' : 'text-white/70'}`}><Share2 size={20} /></button>
                                         </div>
                                     </div>
                                  </div>
