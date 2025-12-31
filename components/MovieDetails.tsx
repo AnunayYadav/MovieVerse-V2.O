@@ -1,5 +1,5 @@
 import React, { useState, useEffect, Suspense } from 'react';
-import { X, Calendar, Clock, Star, Play, Bookmark, Heart, Share2, ListPlus, Tv, Clapperboard, User, Lightbulb, Sparkles, Loader2, Check, DollarSign, TrendingUp, Tag, Layers, MessageCircle, Scale, Globe, Facebook, Instagram, Twitter, Film, PlayCircle, Minimize2, Eye, Lock, ChevronDown, Zap } from 'lucide-react';
+import { X, Calendar, Clock, Star, Play, Bookmark, Heart, Share2, ListPlus, Tv, Clapperboard, User, Lightbulb, Sparkles, Loader2, Check, DollarSign, TrendingUp, Tag, Layers, MessageCircle, Scale, Globe, Facebook, Instagram, Twitter, Film, PlayCircle, Minimize2, Eye, Lock, ChevronDown, Zap, Quote } from 'lucide-react';
 import { Movie, MovieDetails, Season, UserProfile, Keyword, Review } from '../types';
 import { TMDB_BASE_URL, TMDB_IMAGE_BASE, TMDB_BACKDROP_BASE, formatCurrency, ImageLightbox } from '../components/Shared';
 import { generateTrivia, getSimilarMoviesAI } from '../services/gemini';
@@ -25,6 +25,45 @@ interface MovieModalProps {
     onCollectionClick: (collectionId: number) => void;
     onCompare?: (m: Movie) => void;
 }
+
+const ReviewCard: React.FC<{ review: Review }> = ({ review }) => {
+    const [expanded, setExpanded] = useState(false);
+    const isLong = review.content.length > 300;
+    const content = expanded ? review.content : review.content.slice(0, 300) + (isLong ? "..." : "");
+    const avatarPath = review.author_details?.avatar_path;
+    const avatarUrl = avatarPath 
+        ? (avatarPath.startsWith('/http') ? avatarPath.substring(1) : (avatarPath.startsWith('http') ? avatarPath : `${TMDB_IMAGE_BASE}${avatarPath}`)) 
+        : null;
+
+    return (
+        <div className="bg-white/5 border border-white/5 p-5 rounded-xl">
+            <div className="flex items-center gap-3 mb-3">
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-gray-700 to-gray-900 flex items-center justify-center overflow-hidden shrink-0 text-white font-bold border border-white/10">
+                    {avatarUrl ? <img src={avatarUrl} alt={review.author} className="w-full h-full object-cover"/> : review.author.charAt(0).toUpperCase()}
+                </div>
+                <div>
+                    <h4 className="font-bold text-white text-sm">{review.author}</h4>
+                    <div className="flex items-center gap-2 text-xs text-gray-400">
+                        <span>{new Date(review.created_at).toLocaleDateString()}</span>
+                        {review.author_details?.rating && (
+                            <span className="flex items-center gap-1 text-yellow-500 bg-yellow-500/10 px-1.5 rounded border border-yellow-500/20">
+                                <Star size={10} fill="currentColor"/> {review.author_details.rating.toFixed(1)}
+                            </span>
+                        )}
+                    </div>
+                </div>
+            </div>
+            <div className="relative">
+                <p className="text-gray-300 text-sm leading-relaxed whitespace-pre-line">{content}</p>
+                {isLong && (
+                    <button onClick={() => setExpanded(!expanded)} className="text-xs font-bold text-white mt-2 hover:underline opacity-70 hover:opacity-100 transition-opacity">
+                        {expanded ? "Show Less" : "Read More"}
+                    </button>
+                )}
+            </div>
+        </div>
+    );
+};
 
 export const MovieModal: React.FC<MovieModalProps> = ({ 
     movie, onClose, apiKey, onPersonClick, onToggleWatchlist, isWatchlisted, 
@@ -296,6 +335,7 @@ export const MovieModal: React.FC<MovieModalProps> = ({
                             <div className="flex gap-8 border-b border-white/10 mb-6 overflow-x-auto hide-scrollbar">
                                 <button onClick={() => setActiveTab("details")} className={`pb-3 text-sm font-bold tracking-wide transition-all ${activeTab === "details" ? `${accentText} border-b-2 ${accentBorder}` : "text-white/50 hover:text-white"}`}>DETAILS</button>
                                 {(isTv || isAnime) && <button onClick={() => setActiveTab("episodes")} className={`pb-3 text-sm font-bold tracking-wide transition-all ${activeTab === "episodes" ? `${accentText} border-b-2 ${accentBorder}` : "text-white/50 hover:text-white"}`}>EPISODES</button>}
+                                <button onClick={() => setActiveTab("reviews")} className={`pb-3 text-sm font-bold tracking-wide transition-all ${activeTab === "reviews" ? `${accentText} border-b-2 ${accentBorder}` : "text-white/50 hover:text-white"}`}>REVIEWS</button>
                                 <button onClick={() => setActiveTab("media")} className={`pb-3 text-sm font-bold tracking-wide transition-all ${activeTab === "media" ? `${accentText} border-b-2 ${accentBorder}` : "text-white/50 hover:text-white"}`}>MEDIA</button>
                             </div>
 
@@ -338,6 +378,19 @@ export const MovieModal: React.FC<MovieModalProps> = ({
                                             </div>
                                         ))}
                                     </div>
+                                </div>
+                            ) : activeTab === "reviews" ? (
+                                <div className="space-y-4 animate-in fade-in">
+                                    {details?.reviews?.results && details.reviews.results.length > 0 ? (
+                                        details.reviews.results.map((review: Review) => (
+                                            <ReviewCard key={review.id} review={review} />
+                                        ))
+                                    ) : (
+                                        <div className="text-center py-12 text-gray-500">
+                                            <MessageCircle size={48} className="mx-auto mb-3 opacity-30"/>
+                                            <p>No reviews available yet.</p>
+                                        </div>
+                                    )}
                                 </div>
                             ) : (
                                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">{mediaImages.map((img, idx) => (<div key={idx} className="aspect-video rounded-lg overflow-hidden cursor-pointer" onClick={() => setViewingImage(`${TMDB_BACKDROP_BASE}${img.file_path}`)}><img src={`${TMDB_IMAGE_BASE}${img.file_path}`} className="w-full h-full object-cover hover:scale-110 transition-transform duration-700"/></div>))}</div>

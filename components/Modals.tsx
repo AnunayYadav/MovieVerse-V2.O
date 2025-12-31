@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { UserCircle, X, ListPlus, Plus, Check, Loader2, Film, AlertCircle, BrainCircuit, Search, Star, RefreshCcw, Bell, CheckCheck, Inbox, Heart, PaintBucket, Upload, Facebook, Instagram, Twitter, Globe, Scale, DollarSign, Clock, Trophy } from 'lucide-react';
+import { UserCircle, X, ListPlus, Plus, Check, Loader2, Film, AlertCircle, BrainCircuit, Search, Star, RefreshCcw, Bell, CheckCheck, Inbox, Heart, PaintBucket, Upload, Facebook, Instagram, Twitter, Globe, Scale, DollarSign, Clock, Trophy, ChevronRight, ChevronDown, Calendar, ArrowUp, ArrowDown, TrendingUp, History } from 'lucide-react';
 import { UserProfile, Movie, GENRES_LIST, PersonDetails, AppNotification, MovieDetails } from '../types';
 import { TMDB_BASE_URL, TMDB_IMAGE_BASE, formatCurrency } from './Shared';
 import { generateSmartRecommendations } from '../services/gemini';
@@ -230,6 +230,141 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, pro
     );
 };
 
+// FILMOGRAPHY MODAL
+interface FilmographyModalProps {
+    isOpen: boolean;
+    onClose: () => void;
+    personId: number;
+    personName: string;
+    apiKey: string;
+    onMovieClick: (m: Movie) => void;
+}
+
+const FilmographyModal: React.FC<FilmographyModalProps> = ({ isOpen, onClose, personId, personName, apiKey, onMovieClick }) => {
+    const [movies, setMovies] = useState<Movie[]>([]);
+    const [loading, setLoading] = useState(false);
+    const [sortBy, setSortBy] = useState("primary_release_date.desc");
+    
+    // Use discover to allow sorting by revenue/popularity etc. on the server side
+    useEffect(() => {
+        if (!isOpen || !apiKey || !personId) return;
+        
+        setLoading(true);
+        // Include page 1 and 2 to get a good chunk of movies (up to 40) for the modal
+        // Note: For full exhaustion we'd need pagination, but this covers most needs.
+        const fetchFilmography = async () => {
+             try {
+                const params = new URLSearchParams({
+                    api_key: apiKey,
+                    with_cast: personId.toString(),
+                    sort_by: sortBy,
+                    "vote_count.gte": "10" // Filter out noise
+                });
+                
+                // Fetch 2 pages to get ~40 items
+                const [res1, res2] = await Promise.all([
+                    fetch(`${TMDB_BASE_URL}/discover/movie?${params.toString()}&page=1`).then(r => r.json()),
+                    fetch(`${TMDB_BASE_URL}/discover/movie?${params.toString()}&page=2`).then(r => r.json())
+                ]);
+                
+                const allResults = [...(res1.results || []), ...(res2.results || [])];
+                // Dedup just in case
+                const unique = Array.from(new Map(allResults.map(m => [m.id, m])).values()) as Movie[];
+                setMovies(unique);
+             } catch (e) {
+                 console.error("Filmography fetch failed", e);
+             } finally {
+                 setLoading(false);
+             }
+        };
+
+        fetchFilmography();
+    }, [isOpen, apiKey, personId, sortBy]);
+
+    if (!isOpen) return null;
+
+    const sortOptions = [
+        { label: "Release Date (Newest)", value: "primary_release_date.desc", icon: <Calendar size={14}/> },
+        { label: "Release Date (Oldest)", value: "primary_release_date.asc", icon: <History size={14}/> },
+        { label: "Popularity", value: "popularity.desc", icon: <TrendingUp size={14}/> },
+        { label: "Box Office (Revenue)", value: "revenue.desc", icon: <DollarSign size={14}/> },
+        { label: "Top Rated", value: "vote_average.desc", icon: <Star size={14}/> },
+    ];
+
+    return (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/90 backdrop-blur-xl animate-in fade-in duration-300">
+            <div className="glass-panel w-full max-w-5xl rounded-2xl overflow-hidden shadow-2xl relative flex flex-col h-[85vh] animate-in zoom-in-95 slide-in-from-bottom-5 duration-300">
+                <div className="p-6 border-b border-white/10 flex justify-between items-center bg-black/40">
+                    <div>
+                        <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                            <Film className="text-red-500" size={20}/> {personName}
+                        </h2>
+                        <p className="text-xs text-gray-400 mt-1">Full Filmography</p>
+                    </div>
+                    <div className="flex items-center gap-4">
+                        <div className="relative group">
+                            <button className="flex items-center gap-2 bg-white/10 hover:bg-white/20 px-4 py-2 rounded-lg text-sm font-medium transition-colors border border-white/5">
+                                {sortOptions.find(o => o.value === sortBy)?.icon}
+                                {sortOptions.find(o => o.value === sortBy)?.label}
+                                <ChevronDown size={14}/>
+                            </button>
+                            <div className="absolute right-0 top-full mt-2 w-56 bg-[#1a1a1a] border border-white/10 rounded-xl shadow-xl overflow-hidden hidden group-hover:block z-50">
+                                {sortOptions.map(opt => (
+                                    <button 
+                                        key={opt.value}
+                                        onClick={() => setSortBy(opt.value)}
+                                        className={`w-full text-left px-4 py-3 text-sm flex items-center gap-3 hover:bg-white/10 ${sortBy === opt.value ? 'text-red-500 bg-red-500/10' : 'text-gray-300'}`}
+                                    >
+                                        {opt.icon} {opt.label}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                        <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-full transition-colors"><X size={20}/></button>
+                    </div>
+                </div>
+
+                <div className="flex-1 overflow-y-auto custom-scrollbar p-6 bg-[#0a0a0a]">
+                    {loading ? (
+                        <div className="h-full flex items-center justify-center flex-col gap-4">
+                            <Loader2 size={40} className="animate-spin text-red-500"/>
+                            <p className="text-gray-500 text-sm">Loading filmography...</p>
+                        </div>
+                    ) : movies.length === 0 ? (
+                        <div className="h-full flex items-center justify-center text-gray-500">No movies found.</div>
+                    ) : (
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                            {movies.filter(m => m.poster_path).map(movie => (
+                                <div 
+                                    key={movie.id} 
+                                    onClick={() => { onClose(); onMovieClick(movie); }}
+                                    className="group cursor-pointer relative"
+                                >
+                                    <div className="aspect-[2/3] rounded-lg overflow-hidden bg-white/5 mb-2 relative border border-white/5 transition-all duration-300 group-hover:scale-105 group-hover:border-white/20 group-hover:shadow-lg group-hover:z-10">
+                                        <img 
+                                            src={`${TMDB_IMAGE_BASE}${movie.poster_path}`} 
+                                            alt={movie.title} 
+                                            className="w-full h-full object-cover"
+                                            loading="lazy"
+                                        />
+                                        <div className="absolute top-1 left-1 bg-black/60 backdrop-blur-md px-1.5 py-0.5 rounded text-[10px] font-bold text-white border border-white/10">
+                                            {movie.release_date?.split('-')[0] || 'TBA'}
+                                        </div>
+                                        <div className="absolute bottom-1 right-1 flex items-center gap-1 bg-black/60 backdrop-blur-md px-1.5 py-0.5 rounded text-[10px] font-bold text-yellow-500 border border-white/10">
+                                            <Star size={8} fill="currentColor"/> {movie.vote_average?.toFixed(1)}
+                                        </div>
+                                    </div>
+                                    <h3 className="text-xs font-bold text-gray-300 group-hover:text-white truncate px-1">{movie.title}</h3>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+};
+
 // LIST SELECTION MODAL
 interface ListModalProps {
     isOpen: boolean;
@@ -442,6 +577,7 @@ interface PersonModalProps {
 export const PersonModal: React.FC<PersonModalProps> = ({ personId, onClose, apiKey, onMovieClick }) => {
     const [details, setDetails] = useState<PersonDetails | null>(null);
     const [loading, setLoading] = useState(true);
+    const [showFilmography, setShowFilmography] = useState(false);
   
     useEffect(() => {
       if (!personId || !apiKey) return;
@@ -499,7 +635,15 @@ export const PersonModal: React.FC<PersonModalProps> = ({ personId, onClose, api
                     <h3 className="text-white font-bold text-sm mb-2 uppercase tracking-wide opacity-70">Biography</h3>
                     <p className="text-gray-300 text-sm leading-relaxed mb-8 whitespace-pre-line">{details.biography || "No biography available."}</p>
                     
-                    <h3 className="text-white font-bold text-sm mb-4 uppercase tracking-wide opacity-70 flex items-center gap-2"><Film size={14} className="text-red-500"/> Known For</h3>
+                    <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-white font-bold text-sm uppercase tracking-wide opacity-70 flex items-center gap-2"><Film size={14} className="text-red-500"/> Known For</h3>
+                        <button 
+                            onClick={() => setShowFilmography(true)}
+                            className="text-xs font-bold text-red-400 hover:text-red-300 flex items-center gap-1 transition-all hover:translate-x-1"
+                        >
+                            View Full Filmography <ChevronRight size={14}/>
+                        </button>
+                    </div>
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                         {details.combined_credits?.cast?.sort((a: any,b: any) => b.popularity - a.popularity).slice(0, 9).map((movie: Movie) => (
                           <div key={movie.id} onClick={() => onMovieClick(movie)} className="cursor-pointer group">
@@ -512,6 +656,17 @@ export const PersonModal: React.FC<PersonModalProps> = ({ personId, onClose, api
              </div>
           ) : <div className="p-12 text-center flex flex-col items-center text-gray-500"><AlertCircle size={48} className="mb-4 opacity-50 text-red-500"/><p className="text-lg font-bold text-gray-300">Details Unavailable</p></div>}
         </div>
+        
+        {details && (
+            <FilmographyModal 
+                isOpen={showFilmography}
+                onClose={() => setShowFilmography(false)}
+                personId={personId}
+                personName={details.name}
+                apiKey={apiKey}
+                onMovieClick={onMovieClick}
+            />
+        )}
       </div>
     );
 };
