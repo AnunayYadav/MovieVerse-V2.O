@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, Suspense } from 'react';
 import { X, Calendar, Clock, Star, Play, Bookmark, Heart, Share2, ListPlus, Tv, Clapperboard, User, Lightbulb, Sparkles, Loader2, Check, DollarSign, TrendingUp, Tag, Layers, MessageCircle, Scale, Globe, Facebook, Instagram, Twitter, Film, PlayCircle, Minimize2, Eye, Lock, ChevronDown, Zap } from 'lucide-react';
 import { Movie, MovieDetails, Season, UserProfile, Keyword, Review } from '../types';
@@ -235,8 +234,8 @@ export const MovieModal: React.FC<MovieModalProps> = ({
                                     {/* 2. Side Vignette - Fades OUT on idle */}
                                     <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-transparent to-transparent transition-opacity duration-700 ease-in-out opacity-0 group-hover/hero:opacity-100 pointer-events-none"></div>
 
-                                    {/* 3. Bottom Gradient - PERSISTENT but lower. Only covers bottom half for smooth transition */}
-                                    <div className="absolute bottom-0 left-0 right-0 h-1/2 bg-gradient-to-t from-[#0a0a0a] via-[#0a0a0a]/60 to-transparent opacity-100 pointer-events-none"></div>
+                                    {/* 3. Bottom Gradient - Reduced height to h-24 or h-32 to just blend the edge without obscuring the video */}
+                                    <div className="absolute bottom-0 left-0 right-0 h-24 md:h-32 bg-gradient-to-t from-[#0a0a0a] via-[#0a0a0a]/60 to-transparent opacity-100 pointer-events-none"></div>
                                  </div>
                              )}
                              
