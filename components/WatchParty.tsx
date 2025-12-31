@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Users, Search, Plus, Lock, Unlock, LogIn, MessageSquare, Send, Settings, Play, Pause, X, Loader2, Film, Crown, Check, Share2, Copy, Menu, UserPlus, UserMinus, ShieldAlert, LogOut, ChevronDown, MonitorPlay, Maximize2, Minimize2, Volume2, VolumeX, FastForward, Rewind, RefreshCcw, AlertTriangle } from 'lucide-react';
+import { Users, Search, Plus, Lock, Unlock, LogIn, MessageSquare, Send, Settings, Play, Pause, X, Loader2, Film, Crown, Check, Share2, Copy, Menu, UserPlus, UserMinus, ShieldAlert, LogOut, ChevronDown, MonitorPlay, Maximize2, Minimize2, Volume2, VolumeX, FastForward, Rewind, RefreshCcw, AlertTriangle, Link as LinkIcon } from 'lucide-react';
 import { WatchParty, UserProfile, Movie, PartyMessage, PartySettings } from '../types';
 import { createWatchParty, joinWatchParty, getPublicParties, updatePartySettings, updatePartyMovie, subscribeToParty, sendPartyMessage, deleteWatchParty } from '../services/supabase';
 import { TMDB_IMAGE_BASE, TMDB_BASE_URL } from './Shared';
@@ -65,6 +65,8 @@ const SynchronizedPlayer = ({
     const [extracting, setExtracting] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [retryCount, setRetryCount] = useState(0);
+    const [manualUrl, setManualUrl] = useState("");
+    const [showManualInput, setShowManualInput] = useState(false);
     
     const controlsTimeoutRef = useRef<any>(null);
     const hlsRef = useRef<any>(null);
@@ -84,43 +86,78 @@ const SynchronizedPlayer = ({
             setStreamUrl("");
             
             try {
-                // Construct the Embed URL for vidsrc.cc
-                const targetUrl = mediaType === 'movie' 
-                    ? `https://vidsrc.cc/v2/embed/movie/${movie.id}`
-                    : `https://vidsrc.cc/v2/embed/tv/${movie.id}/${season}/${episode}`;
+                // Try scraping via a few known open embeds
+                // Using corsproxy.io to bypass CORS headers on the embed page itself.
+                // We attempt multiple sources in order.
+                const sources = [
+                    // Source 1: vidsrc.cc (v2)
+                    mediaType === 'movie' 
+                        ? `https://vidsrc.cc/v2/embed/movie/${movie.id}`
+                        : `https://vidsrc.cc/v2/embed/tv/${movie.id}/${season}/${episode}`,
+                    // Source 2: vidsrc.xyz (often cleaner)
+                    mediaType === 'movie'
+                        ? `https://vidsrc.xyz/embed/movie/${movie.id}`
+                        : `https://vidsrc.xyz/embed/tv/${movie.id}/${season}/${episode}`,
+                    // Source 3: Pro (backup)
+                    mediaType === 'movie'
+                        ? `https://vidsrc.pro/embed/movie/${movie.id}`
+                        : `https://vidsrc.pro/embed/tv/${movie.id}/${season}/${episode}`
+                ];
 
-                // Use a public CORS proxy to fetch the HTML source of the embed page
-                // NOTE: In a real production app, this should be your own backend proxy to ensure stability.
-                const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
-                
-                console.log(`[Player] Extracting manifest from: ${targetUrl}`);
-                
-                const response = await fetch(proxyUrl);
-                if (!response.ok) throw new Error(`Proxy error: ${response.status}`);
-                
-                const html = await response.text();
-                
-                // Advanced Extraction: Look for the .m3u8 link within the source code
-                // Pattern: matches http/https links ending in .m3u8 inside quotes or similar contexts
-                const m3u8Regex = /https?:\/\/[^"'\s]+\.m3u8/g;
-                const match = html.match(m3u8Regex);
+                let foundStream = "";
 
-                if (match && match[0]) {
+                for (const source of sources) {
+                    if (foundStream) break;
+                    if (!isMounted) break;
+                    
+                    try {
+                        console.log(`[Player] Attempting extract from: ${source}`);
+                        // Use corsproxy.io which is robust for this
+                        const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(source)}`;
+                        const response = await fetch(proxyUrl);
+                        if (!response.ok) continue;
+                        
+                        const html = await response.text();
+                        
+                        // Look for .m3u8 patterns
+                        // 1. Standard file: "..." or source: "..."
+                        // 2. Encoded or obfuscated strings often start with http and end with m3u8
+                        const patterns = [
+                            /file:\s*["'](https?:\/\/[^"']+\.m3u8[^"']*)["']/, 
+                            /source:\s*["'](https?:\/\/[^"']+\.m3u8[^"']*)["']/,
+                            /src:\s*["'](https?:\/\/[^"']+\.m3u8[^"']*)["']/,
+                            /(https?:\/\/[a-zA-Z0-9\-_./]+\.m3u8[^"'\s]*)/
+                        ];
+
+                        for (const pattern of patterns) {
+                            const match = html.match(pattern);
+                            if (match && match[1]) {
+                                // Sometimes the match includes extra garbage, simple clean
+                                let candidate = match[1];
+                                if (!candidate.startsWith('http')) continue;
+                                foundStream = candidate;
+                                break;
+                            }
+                        }
+                    } catch (err) {
+                        console.warn(`Failed source ${source}`, err);
+                    }
+                }
+
+                if (foundStream) {
                     if (isMounted) {
-                        console.log("[Player] Manifest found:", match[0]);
-                        setStreamUrl(match[0]);
+                        console.log("[Player] Manifest found:", foundStream);
+                        setStreamUrl(foundStream);
                         setExtracting(false);
                     }
                 } else {
-                    // Fallback logic for specialized sources if standard regex fails
-                    // Sometimes vidsrc obfuscates. We can try a secondary source if primary fails.
-                    throw new Error("Could not find HLS manifest in source.");
+                    throw new Error("Could not auto-extract stream.");
                 }
 
             } catch (e: any) {
                 if (isMounted) {
                     console.error("[Player] Extraction failed", e);
-                    setError(e.message || "Failed to extract video stream.");
+                    setError("Could not automatically find the stream link.");
                     setExtracting(false);
                 }
             }
@@ -176,6 +213,9 @@ const SynchronizedPlayer = ({
                             hls.recoverMediaError();
                             break;
                         default:
+                            // If it fails fatallly, we show error
+                            // Often due to CORS on the .ts chunks themselves
+                            setError("Stream blocked by provider (CORS).");
                             hls.destroy();
                             break;
                     }
@@ -280,6 +320,14 @@ const SynchronizedPlayer = ({
         }
     };
 
+    const handleManualSubmit = () => {
+        if (manualUrl) {
+            setStreamUrl(manualUrl);
+            setError(null);
+            setExtracting(false);
+        }
+    };
+
     const formatTime = (seconds: number) => {
         if (isNaN(seconds)) return "0:00";
         const min = Math.floor(seconds / 60);
@@ -305,8 +353,8 @@ const SynchronizedPlayer = ({
                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-black z-20">
                     <Loader2 size={48} className="animate-spin text-amber-500 mb-4"/>
                     <div className="flex flex-col items-center space-y-2">
-                        <p className="text-amber-500 font-mono text-sm animate-pulse font-bold tracking-widest">EXTRACTING STREAM MANIFEST...</p>
-                        <p className="text-gray-500 text-xs">Target: VidSrc API ({mediaType.toUpperCase()} ID: {movie.id})</p>
+                        <p className="text-amber-500 font-mono text-sm animate-pulse font-bold tracking-widest">SCANNING SOURCES...</p>
+                        <p className="text-gray-500 text-xs">Looking for manifest: {mediaType.toUpperCase()} {movie.id}</p>
                     </div>
                 </div>
             )}
@@ -314,14 +362,38 @@ const SynchronizedPlayer = ({
             {error && !extracting && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-black z-20 p-6 text-center">
                     <AlertTriangle size={48} className="text-red-500 mb-4"/>
-                    <h3 className="text-xl font-bold text-white mb-2">Stream Extraction Failed</h3>
-                    <p className="text-gray-400 text-sm max-w-md mb-6">{error}</p>
-                    <button 
-                        onClick={() => setRetryCount(prev => prev + 1)}
-                        className="px-6 py-3 bg-white text-black font-bold rounded-xl hover:bg-gray-200 transition-colors flex items-center gap-2"
-                    >
-                        <RefreshCcw size={18}/> Retry Connection
-                    </button>
+                    <h3 className="text-xl font-bold text-white mb-2">Stream Unavailable</h3>
+                    <p className="text-gray-400 text-sm max-w-md mb-6">{error} Client-side extraction is limited.</p>
+                    <div className="flex flex-col gap-3 w-full max-w-xs">
+                        <button 
+                            onClick={() => setRetryCount(prev => prev + 1)}
+                            className="w-full py-3 bg-white text-black font-bold rounded-xl hover:bg-gray-200 transition-colors flex items-center justify-center gap-2"
+                        >
+                            <RefreshCcw size={18}/> Retry Scan
+                        </button>
+                        <button 
+                            onClick={() => setShowManualInput(!showManualInput)}
+                            className="w-full py-3 bg-white/10 text-white font-bold rounded-xl hover:bg-white/20 transition-colors flex items-center justify-center gap-2"
+                        >
+                            <LinkIcon size={18}/> {showManualInput ? "Hide Input" : "Paste HLS Link"}
+                        </button>
+                    </div>
+                    
+                    {showManualInput && (
+                        <div className="mt-4 w-full max-w-md animate-in slide-in-from-bottom-2">
+                            <div className="flex gap-2">
+                                <input 
+                                    type="text" 
+                                    value={manualUrl}
+                                    onChange={(e) => setManualUrl(e.target.value)}
+                                    placeholder="https://example.com/video.m3u8" 
+                                    className="flex-1 bg-white/10 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-amber-500 outline-none"
+                                />
+                                <button onClick={handleManualSubmit} className="bg-amber-500 text-black px-4 py-2 rounded-lg font-bold hover:bg-amber-400">Play</button>
+                            </div>
+                            <p className="text-[10px] text-gray-500 mt-2 text-left">Advanced: Open Developer Tools on the provider site, go to Network tab, filter by "m3u8", copy link.</p>
+                        </div>
+                    )}
                 </div>
             )}
 
