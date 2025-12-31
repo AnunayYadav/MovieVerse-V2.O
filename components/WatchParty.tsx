@@ -1,8 +1,8 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Users, Search, Plus, Lock, Unlock, LogIn, MessageSquare, Send, Settings, Play, Pause, X, Loader2, Film, Crown, Check } from 'lucide-react';
+import { Users, Search, Plus, Lock, Unlock, LogIn, MessageSquare, Send, Settings, Play, Pause, X, Loader2, Film, Crown, Check, Share2, Copy } from 'lucide-react';
 import { WatchParty, UserProfile, Movie, PartyMessage } from '../types';
-import { createWatchParty, joinWatchParty, getPublicParties, updatePartySettings, updatePartyMovie } from '../services/supabase';
+import { createWatchParty, joinWatchParty, getPublicParties, updatePartySettings, updatePartyMovie, subscribeToParty, sendPartyMessage } from '../services/supabase';
 import { TMDB_IMAGE_BASE, TMDB_BASE_URL } from './Shared';
 import { MoviePlayer } from './MoviePlayer';
 
@@ -49,7 +49,8 @@ const WatchPartyLobby = ({ userProfile, onJoin, onClose }: { userProfile: UserPr
 
     useEffect(() => {
         loadParties();
-        const interval = setInterval(loadParties, 5000); // Polling for demo
+        // Simple polling for lobby list
+        const interval = setInterval(loadParties, 10000); 
         return () => clearInterval(interval);
     }, []);
 
@@ -82,14 +83,7 @@ const WatchPartyLobby = ({ userProfile, onJoin, onClose }: { userProfile: UserPr
 
     const handleSearch = () => {
         if (!searchId) return;
-        // Search in local list first, or try to join blindly
-        const found = parties.find(p => p.id === searchId.toUpperCase());
-        if (found) {
-            handleJoinClick(found);
-        } else {
-            // Try blind join
-            attemptJoin(searchId.toUpperCase());
-        }
+        attemptJoin(searchId.toUpperCase());
     };
 
     return (
@@ -99,7 +93,7 @@ const WatchPartyLobby = ({ userProfile, onJoin, onClose }: { userProfile: UserPr
                     <h1 className="text-3xl font-bold text-white flex items-center gap-3">
                         <Users size={32} className="text-amber-500"/> Watch Parties
                     </h1>
-                    <p className="text-gray-400 mt-1">Watch movies together with friends in real-time.</p>
+                    <p className="text-gray-400 mt-1">Watch movies together with friends across the world.</p>
                 </div>
                 <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-full text-white"><X/></button>
             </div>
@@ -132,7 +126,7 @@ const WatchPartyLobby = ({ userProfile, onJoin, onClose }: { userProfile: UserPr
                 {/* Right: Party List */}
                 <div className="lg:col-span-2 space-y-4">
                     <div className="flex items-center justify-between">
-                        <h3 className="font-bold text-white">Active Parties ({parties.length})</h3>
+                        <h3 className="font-bold text-white">Public Parties</h3>
                         <button onClick={loadParties} className="text-xs text-gray-400 hover:text-white">Refresh</button>
                     </div>
                     
@@ -165,7 +159,7 @@ const WatchPartyLobby = ({ userProfile, onJoin, onClose }: { userProfile: UserPr
                                 )}
 
                                 <div className="flex items-center justify-between mt-auto">
-                                    <span className="text-xs text-gray-500 flex items-center gap-1"><Users size={12}/> {party.viewers} Watching</span>
+                                    <span className="text-xs text-gray-500 flex items-center gap-1">Live Now</span>
                                     <button 
                                         onClick={() => handleJoinClick(party)}
                                         className="bg-white text-black text-xs font-bold px-4 py-2 rounded-lg hover:bg-gray-200 transition-colors flex items-center gap-2"
@@ -229,8 +223,9 @@ const CreatePartyModal = ({ userProfile, onClose, onCreate }: { userProfile: Use
         try {
             const party = await createWatchParty(name, isPrivate, password, userProfile.name);
             onCreate(party);
-        } catch (e) {
+        } catch (e: any) {
             console.error(e);
+            alert(e.message || "Failed to create party. Check DB setup.");
         } finally {
             setCreating(false);
         }
@@ -289,59 +284,55 @@ const WatchPartyRoom = ({ party, isHost, userProfile, apiKey, onLeave }: { party
     const [inputMsg, setInputMsg] = useState("");
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
     const [showSearch, setShowSearch] = useState(!party.movie && isHost);
+    const [viewerCount, setViewerCount] = useState(1);
+    const [copiedId, setCopiedId] = useState(false);
     
     // Movie Search State for Host
     const [searchQuery, setSearchQuery] = useState("");
     const [searchResults, setSearchResults] = useState<Movie[]>([]);
 
     useEffect(() => {
-        // System message
-        addMessage("System", `Welcome to ${party.name}! Room ID: ${party.id}`);
+        // System message for local user join
+        setMessages([{ id: 'sys-1', user: 'System', text: `Welcome to ${party.name}! Waiting for data...`, timestamp: '', isSystem: true }]);
         
-        // Mock Sync Loop (In a real app, this would be Supabase Realtime subscription)
-        const interval = setInterval(() => {
-            // Re-fetch party state to see if movie changed
-            // In mock mode, we just check local storage
-            const stored = localStorage.getItem('movieverse_parties');
-            if (stored) {
-                const list = JSON.parse(stored);
-                const updated = list.find((p: WatchParty) => p.id === party.id);
-                if (updated) {
-                    setActiveParty(prev => ({
-                        ...prev,
-                        movie: updated.movie,
-                        settings: updated.settings,
-                        viewers: updated.viewers
-                    }));
-                }
+        // Subscribe to real-time events
+        const unsubscribe = subscribeToParty(party.id, userProfile, {
+            onMessage: (msg) => {
+                setMessages(prev => [...prev, msg]);
+            },
+            onUpdate: (updatedFields) => {
+                setActiveParty(prev => ({
+                    ...prev,
+                    ...updatedFields,
+                    // If movie updates and we are host, ensure search closes
+                    movie: updatedFields.movie || prev.movie
+                }));
+                if (updatedFields.movie) setShowSearch(false);
+            },
+            onViewersUpdate: (count) => {
+                setViewerCount(count);
             }
-        }, 3000);
+        });
 
-        return () => clearInterval(interval);
+        // Notify join
+        sendPartyMessage(party.id, "System", `${userProfile.name} joined the party.`, true);
+
+        return () => {
+            unsubscribe();
+        };
     }, []);
-
-    const addMessage = (user: string, text: string, isSystem = false) => {
-        setMessages(prev => [...prev, {
-            id: Math.random().toString(),
-            user,
-            text,
-            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-            isSystem
-        }]);
-    };
 
     const handleSendMessage = (e: React.FormEvent) => {
         e.preventDefault();
         if (!inputMsg.trim()) return;
-        addMessage(userProfile.name, inputMsg);
+        sendPartyMessage(party.id, userProfile.name, inputMsg);
         setInputMsg("");
     };
 
     const handleMovieSelect = (m: Movie) => {
-        updatePartyMovie(party.id, m); // Updates "DB"
-        setActiveParty(prev => ({ ...prev, movie: m }));
+        updatePartyMovie(party.id, m);
         setShowSearch(false);
-        addMessage("System", `${isHost ? 'Host' : 'System'} changed the movie to: ${m.title || m.name}`, true);
+        sendPartyMessage(party.id, "System", `${isHost ? 'Host' : 'System'} changed the movie to: ${m.title || m.name}`, true);
     };
 
     const handleSearchMovies = async (q: string) => {
@@ -356,9 +347,14 @@ const WatchPartyRoom = ({ party, isHost, userProfile, apiKey, onLeave }: { party
     const toggleSetting = (key: 'allowChat' | 'allowControls') => {
         const newSettings = { ...activeParty.settings, [key]: !activeParty.settings[key] };
         updatePartySettings(party.id, newSettings);
-        setActiveParty(prev => ({ ...prev, settings: newSettings }));
-        addMessage("System", `Host ${newSettings[key] ? 'enabled' : 'disabled'} ${key === 'allowChat' ? 'chat' : 'member controls'}.`, true);
+        sendPartyMessage(party.id, "System", `Host ${newSettings[key] ? 'enabled' : 'disabled'} ${key === 'allowChat' ? 'chat' : 'member controls'}.`, true);
     };
+
+    const copyInvite = () => {
+        navigator.clipboard.writeText(party.id);
+        setCopiedId(true);
+        setTimeout(() => setCopiedId(false), 2000);
+    }
 
     return (
         <div className="flex h-[calc(100vh-4rem)] bg-black overflow-hidden relative">
@@ -371,9 +367,11 @@ const WatchPartyRoom = ({ party, isHost, userProfile, apiKey, onLeave }: { party
                         <div>
                             <h2 className="font-bold text-white flex items-center gap-2">
                                 {activeParty.name} 
-                                <span className="text-xs bg-amber-500/20 text-amber-500 px-2 py-0.5 rounded font-mono">ID: {activeParty.id}</span>
+                                <button onClick={copyInvite} className="flex items-center gap-1 text-xs bg-amber-500/20 text-amber-500 px-2 py-0.5 rounded font-mono hover:bg-amber-500/30 transition-colors" title="Copy ID">
+                                    ID: {activeParty.id} {copiedId ? <Check size={10}/> : <Copy size={10}/>}
+                                </button>
                             </h2>
-                            <p className="text-xs text-gray-400">{activeParty.viewers} Watching • Host: {activeParty.hostName}</p>
+                            <p className="text-xs text-gray-400">{viewerCount} Online • Host: {activeParty.hostName}</p>
                         </div>
                     </div>
                     <div className="flex gap-2">
@@ -387,7 +385,6 @@ const WatchPartyRoom = ({ party, isHost, userProfile, apiKey, onLeave }: { party
                         )}
                         <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="p-2 bg-white/10 rounded-lg hover:bg-white/20 relative">
                             <MessageSquare size={18}/>
-                            {/* Dot indicator if chat is active could go here */}
                         </button>
                     </div>
                 </div>
@@ -398,7 +395,6 @@ const WatchPartyRoom = ({ party, isHost, userProfile, apiKey, onLeave }: { party
                             {/* Controls Overlay for Members if controls disabled */}
                             {!isHost && !activeParty.settings.allowControls && (
                                 <div className="absolute inset-0 z-50 pointer-events-none border-[4px] border-amber-500/20">
-                                    {/* Transparent overlay to hint host control, but we can't fully block iframe interactions easily without hiding controls in Player */}
                                     <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-black/60 backdrop-blur px-3 py-1 rounded-full text-xs text-white/70 flex items-center gap-2">
                                         <Lock size={10}/> Host has control
                                     </div>

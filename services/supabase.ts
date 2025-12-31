@@ -1,6 +1,6 @@
 
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { Movie, UserProfile, AppNotification, WatchParty } from '../types';
+import { Movie, UserProfile, AppNotification, WatchParty, PartyMessage } from '../types';
 import { safeEnv } from '../components/Shared';
 
 let supabaseInstance: SupabaseClient | null = null;
@@ -36,7 +36,6 @@ export const signInWithGoogle = async () => {
     const supabase = getSupabase();
     if (!supabase) throw new Error("Supabase not configured");
     
-    // Redirect flow
     const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
@@ -97,7 +96,6 @@ export const syncUserData = async (userData: UserData) => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    // Upsert into 'user_data' table
     const { error } = await supabase
         .from('user_data')
         .upsert({
@@ -108,20 +106,13 @@ export const syncUserData = async (userData: UserData) => {
             watched: userData.watched,
             custom_lists: userData.customLists,
             profile: userData.profile,
-            settings: userData.settings, // Sync API Keys/Settings
-            search_history: userData.searchHistory, // Sync Search History
+            settings: userData.settings,
+            search_history: userData.searchHistory,
             updated_at: new Date().toISOString()
         });
 
     if (error) {
         console.error("Sync Error:", error);
-        // Alert developer/user if the table is missing
-        if (error.code === '42P01') { 
-            triggerSystemNotification(
-                "Database Setup Required",
-                "The 'user_data' table is missing in Supabase. Please run the SQL setup script."
-            );
-        }
     }
 };
 
@@ -139,16 +130,6 @@ export const fetchUserData = async (): Promise<UserData | null> => {
         .single();
 
     if (error) {
-        // Code 42P01: Undefined Table (Table doesn't exist)
-        if (error.code === '42P01') {
-            console.error("Supabase Table Missing: user_data");
-            triggerSystemNotification("Database Error", "Missing 'user_data' table. Run SQL script.");
-            return null;
-        }
-        
-        // Code PGRST116: JSON object requested, multiple (or no) rows returned
-        // This usually means the user is Authenticated but has NO data row yet (New User).
-        // We should return a default object so the App treats them as a valid fresh user.
         if (error.code === 'PGRST116') {
              return {
                 watchlist: [],
@@ -160,16 +141,13 @@ export const fetchUserData = async (): Promise<UserData | null> => {
                 searchHistory: []
              };
         }
-        
         console.warn("Fetch Error", error);
         return null;
     }
 
     if (!data) return null;
 
-    // Map database profile + permission flags to app UserProfile
     const fetchedProfile = data.profile || { name: "", age: "", genres: [] };
-    // Gatekeeper Logic: Check the 'can_watch' column in the database
     if (data.can_watch === true) {
         fetchedProfile.canWatch = true;
     }
@@ -189,13 +167,10 @@ export const fetchUserData = async (): Promise<UserData | null> => {
 
 export const getNotifications = async (): Promise<AppNotification[]> => {
     const supabase = getSupabase();
-    // Strictly return empty if no backend configured
     if (!supabase) return [];
 
     try {
         const { data: { user } } = await supabase.auth.getUser();
-        
-        // If not logged in, return empty
         if (!user) return [];
 
         const { data, error } = await supabase
@@ -204,13 +179,8 @@ export const getNotifications = async (): Promise<AppNotification[]> => {
             .eq('user_id', user.id)
             .order('created_at', { ascending: false });
 
-        if (error) {
-            console.warn("Failed to fetch notifications:", error.message);
-            // Return empty array on error instead of mocks
-            return [];
-        }
+        if (error) return [];
 
-        // Return actual data or empty array if null
         return (data || []).map((n: any) => ({
             id: n.id,
             title: n.title,
@@ -261,10 +231,7 @@ export const sendNotification = async (title: string, message: string) => {
         .select()
         .single();
     
-    if (error) {
-        console.error("Failed to send notification", error);
-        throw error;
-    }
+    if (error) throw error;
     return data;
 };
 
@@ -284,14 +251,9 @@ export const triggerSystemNotification = (title: string, body: string) => {
 
 export const submitSupportTicket = async (subject: string, message: string, contactEmail: string) => {
     const supabase = getSupabase();
-    
-    // Simulate API call delay for better UX even if no backend
     await new Promise(resolve => setTimeout(resolve, 1500));
 
-    if (!supabase) {
-        console.log("Mock Support Ticket Sent:", { subject, message, contactEmail });
-        return true; 
-    }
+    if (!supabase) return true; 
 
     try {
         const { data: { user } } = await supabase.auth.getUser();
@@ -304,92 +266,195 @@ export const submitSupportTicket = async (subject: string, message: string, cont
                 message
             });
 
-        if (error) {
-            console.warn("Supabase insert failed (Table 'support_tickets' might be missing). Logging to console instead.", error);
-            // Fallback for demo: just return true so user sees success
-            return true;
-        }
+        if (error) return true;
         return true;
     } catch (e) {
-        console.error("Support Ticket Error", e);
         return false;
     }
 };
 
-// --- WATCH PARTY MANAGEMENT (Local Mock for Demo Reliability) ---
-
-const PARTY_KEY = 'movieverse_parties';
-
-const getParties = (): WatchParty[] => {
-    const stored = localStorage.getItem(PARTY_KEY);
-    return stored ? JSON.parse(stored) : [];
-};
-
-const saveParties = (parties: WatchParty[]) => {
-    localStorage.setItem(PARTY_KEY, JSON.stringify(parties));
-};
+// --- WATCH PARTY MANAGEMENT (REALTIME SUPABASE) ---
 
 export const createWatchParty = async (name: string, isPrivate: boolean, password?: string, hostName?: string, movie?: Movie): Promise<WatchParty> => {
-    // Simulate network delay
-    await new Promise(r => setTimeout(r, 500));
-    
-    const newParty: WatchParty = {
-        id: Math.random().toString(36).substr(2, 6).toUpperCase(), // Short room ID
-        name,
-        hostName: hostName || "Anonymous",
-        isPrivate,
-        password,
-        movie,
-        viewers: 1,
-        settings: {
-            allowChat: true,
-            allowControls: false // By default only host controls
-        },
-        createdAt: Date.now()
-    };
+    const supabase = getSupabase();
+    if (!supabase) throw new Error("Supabase not configured");
 
-    const parties = getParties();
-    parties.push(newParty);
-    saveParties(parties);
-    return newParty;
+    const id = Math.random().toString(36).substr(2, 6).toUpperCase();
+    
+    const { data, error } = await supabase
+        .from('watch_parties')
+        .insert({
+            id,
+            name,
+            host_name: hostName || "Anonymous",
+            is_private: isPrivate,
+            password: password,
+            movie_data: movie,
+            settings: { allowChat: true, allowControls: false }
+        })
+        .select()
+        .single();
+
+    if (error) throw error;
+
+    // Convert snake_case DB response to CamelCase Type
+    return {
+        id: data.id,
+        name: data.name,
+        hostName: data.host_name,
+        isPrivate: data.is_private,
+        password: data.password,
+        movie: data.movie_data,
+        settings: data.settings,
+        viewers: 1,
+        createdAt: new Date(data.created_at).getTime()
+    };
 };
 
 export const joinWatchParty = async (partyId: string, password?: string): Promise<WatchParty | null> => {
-    await new Promise(r => setTimeout(r, 600));
-    const parties = getParties();
-    const party = parties.find(p => p.id === partyId);
-    
-    if (!party) throw new Error("Party not found");
-    if (party.isPrivate && party.password !== password) throw new Error("Incorrect Password");
-    
-    // Increment viewer count mock
-    party.viewers += 1;
-    saveParties(parties);
-    
-    return party;
+    const supabase = getSupabase();
+    if (!supabase) throw new Error("Supabase not configured");
+
+    const { data, error } = await supabase
+        .from('watch_parties')
+        .select('*')
+        .eq('id', partyId)
+        .single();
+
+    if (error) throw new Error("Party not found");
+    if (data.is_private && data.password !== password) throw new Error("Incorrect Password");
+
+    return {
+        id: data.id,
+        name: data.name,
+        hostName: data.host_name,
+        isPrivate: data.is_private,
+        password: data.password,
+        movie: data.movie_data,
+        settings: data.settings,
+        viewers: 1, // Presence will update this later
+        createdAt: new Date(data.created_at).getTime()
+    };
 };
 
 export const getPublicParties = async (): Promise<WatchParty[]> => {
-    await new Promise(r => setTimeout(r, 400));
-    const parties = getParties();
-    // Return all parties for the list, UI can indicate locked status
-    return parties.sort((a,b) => b.createdAt - a.createdAt);
+    const supabase = getSupabase();
+    if (!supabase) return [];
+
+    // Fetch last 50 parties
+    const { data, error } = await supabase
+        .from('watch_parties')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(50);
+
+    if (error) return [];
+
+    return data.map((p: any) => ({
+        id: p.id,
+        name: p.name,
+        hostName: p.host_name,
+        isPrivate: p.is_private,
+        password: p.password,
+        movie: p.movie_data,
+        settings: p.settings,
+        viewers: 0, // List view won't show real-time viewers efficiently without specialized query or edge function
+        createdAt: new Date(p.created_at).getTime()
+    }));
 };
 
 export const updatePartySettings = async (partyId: string, settings: any) => {
-    const parties = getParties();
-    const idx = parties.findIndex(p => p.id === partyId);
-    if (idx !== -1) {
-        parties[idx].settings = { ...parties[idx].settings, ...settings };
-        saveParties(parties);
-    }
+    const supabase = getSupabase();
+    if (!supabase) return;
+    await supabase.from('watch_parties').update({ settings }).eq('id', partyId);
 };
 
 export const updatePartyMovie = async (partyId: string, movie: Movie) => {
-    const parties = getParties();
-    const idx = parties.findIndex(p => p.id === partyId);
-    if (idx !== -1) {
-        parties[idx].movie = movie;
-        saveParties(parties);
+    const supabase = getSupabase();
+    if (!supabase) return;
+    await supabase.from('watch_parties').update({ movie_data: movie }).eq('id', partyId);
+};
+
+export const sendPartyMessage = async (partyId: string, userName: string, content: string, isSystem: boolean = false) => {
+    const supabase = getSupabase();
+    if (!supabase) return;
+    await supabase.from('watch_party_messages').insert({
+        party_id: partyId,
+        user_name: userName,
+        content,
+        is_system: isSystem
+    });
+};
+
+export const subscribeToParty = (
+    partyId: string, 
+    userProfile: UserProfile,
+    callbacks: {
+        onMessage: (msg: PartyMessage) => void,
+        onUpdate: (party: Partial<WatchParty>) => void,
+        onViewersUpdate: (count: number, viewers: any[]) => void
     }
+) => {
+    const supabase = getSupabase();
+    if (!supabase) return () => {};
+
+    // 1. Subscribe to DB Changes (Messages & Settings)
+    const dbChannel = supabase.channel(`party-db:${partyId}`)
+        .on(
+            'postgres_changes', 
+            { event: 'INSERT', schema: 'public', table: 'watch_party_messages', filter: `party_id=eq.${partyId}` }, 
+            (payload) => {
+                callbacks.onMessage({
+                    id: payload.new.id,
+                    user: payload.new.user_name,
+                    text: payload.new.content,
+                    timestamp: new Date(payload.new.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
+                    isSystem: payload.new.is_system
+                });
+            }
+        )
+        .on(
+            'postgres_changes',
+            { event: 'UPDATE', schema: 'public', table: 'watch_parties', filter: `id=eq.${partyId}` },
+            (payload) => {
+                const p = payload.new;
+                callbacks.onUpdate({
+                    movie: p.movie_data,
+                    settings: p.settings
+                });
+            }
+        )
+        .subscribe();
+
+    // 2. Subscribe to Presence (Viewers)
+    const presenceChannel = supabase.channel(`party-presence:${partyId}`, {
+        config: { presence: { key: userProfile.name } }
+    });
+
+    presenceChannel
+        .on('presence', { event: 'sync' }, () => {
+            const state = presenceChannel.presenceState();
+            let count = 0;
+            const viewers: any[] = [];
+            for (const key in state) {
+                count += state[key].length;
+                viewers.push(...state[key]);
+            }
+            callbacks.onViewersUpdate(count, viewers);
+        })
+        .subscribe(async (status) => {
+            if (status === 'SUBSCRIBED') {
+                // Send initial presence data
+                await presenceChannel.track({
+                    user: userProfile.name,
+                    avatar: userProfile.avatar || "",
+                    online_at: new Date().toISOString()
+                });
+            }
+        });
+
+    return () => {
+        supabase.removeChannel(dbChannel);
+        supabase.removeChannel(presenceChannel);
+    };
 };
