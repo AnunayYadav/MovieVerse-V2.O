@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Users, Search, Plus, Lock, Unlock, LogIn, MessageSquare, Send, Settings, Play, Pause, X, Loader2, Film, Crown, Check, Share2, Copy, Menu, UserPlus, UserMinus, ShieldAlert, LogOut, ChevronDown, MonitorPlay, Maximize2, Minimize2, Volume2, VolumeX, FastForward, Rewind } from 'lucide-react';
+import { Users, Search, Plus, Lock, Unlock, LogIn, MessageSquare, Send, Settings, Play, Pause, X, Loader2, Film, Crown, Check, Share2, Copy, Menu, UserPlus, UserMinus, ShieldAlert, LogOut, ChevronDown, MonitorPlay, Maximize2, Minimize2, Volume2, VolumeX, FastForward, Rewind, RefreshCcw, AlertTriangle } from 'lucide-react';
 import { WatchParty, UserProfile, Movie, PartyMessage, PartySettings } from '../types';
 import { createWatchParty, joinWatchParty, getPublicParties, updatePartySettings, updatePartyMovie, subscribeToParty, sendPartyMessage, deleteWatchParty } from '../services/supabase';
 import { TMDB_IMAGE_BASE, TMDB_BASE_URL } from './Shared';
@@ -36,7 +36,7 @@ export const WatchPartySection: React.FC<WatchPartyProps> = ({ userProfile, apiK
     );
 };
 
-// --- SYNCHRONIZED PLAYER COMPONENT (Advanced Stream Extraction) ---
+// --- SYNCHRONIZED PLAYER COMPONENT (Real Stream Extraction) ---
 const SynchronizedPlayer = ({ 
     partyId, 
     movie, 
@@ -60,46 +60,102 @@ const SynchronizedPlayer = ({
     const [isMuted, setIsMuted] = useState(false);
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [showControls, setShowControls] = useState(true);
+    
+    // Extraction State
     const [extracting, setExtracting] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const [retryCount, setRetryCount] = useState(0);
     
     const controlsTimeoutRef = useRef<any>(null);
+    const hlsRef = useRef<any>(null);
 
-    // 1. Simulating "The Extraction"
-    // In a real implementation, this would hit a backend endpoint that scrapes the hoster
-    // and returns the m3u8 playlist URL.
+    // Get active season/episode from party settings or default to 1/1
+    const season = settings.mediaParams?.season || 1;
+    const episode = settings.mediaParams?.episode || 1;
+    const mediaType = movie.media_type === 'tv' || movie.first_air_date ? 'tv' : 'movie';
+
+    // 1. Stream Extraction Logic
     useEffect(() => {
-        setExtracting(true);
-        setStreamUrl("");
+        let isMounted = true;
         
-        // Simulating the delay of "scraping" and "handshake"
-        const extractionTimeout = setTimeout(() => {
-            // For DEMO purposes, we use a stable HLS test stream.
-            // Replace this URL with your proxy/scraper endpoint response.
-            // E.g., const realUrl = await fetch(`/api/extract/${movie.id}`).then(r => r.json());
-            const DEMO_STREAM = "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8"; 
-            setStreamUrl(DEMO_STREAM);
-            setExtracting(false);
-        }, 1500);
+        const fetchStream = async () => {
+            setExtracting(true);
+            setError(null);
+            setStreamUrl("");
+            
+            try {
+                // Construct the Embed URL for vidsrc.cc
+                const targetUrl = mediaType === 'movie' 
+                    ? `https://vidsrc.cc/v2/embed/movie/${movie.id}`
+                    : `https://vidsrc.cc/v2/embed/tv/${movie.id}/${season}/${episode}`;
 
-        return () => clearTimeout(extractionTimeout);
-    }, [movie.id]);
+                // Use a public CORS proxy to fetch the HTML source of the embed page
+                // NOTE: In a real production app, this should be your own backend proxy to ensure stability.
+                const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
+                
+                console.log(`[Player] Extracting manifest from: ${targetUrl}`);
+                
+                const response = await fetch(proxyUrl);
+                if (!response.ok) throw new Error(`Proxy error: ${response.status}`);
+                
+                const html = await response.text();
+                
+                // Advanced Extraction: Look for the .m3u8 link within the source code
+                // Pattern: matches http/https links ending in .m3u8 inside quotes or similar contexts
+                const m3u8Regex = /https?:\/\/[^"'\s]+\.m3u8/g;
+                const match = html.match(m3u8Regex);
 
-    // 2. Initialize Custom Player (Hls.js) & Injection
+                if (match && match[0]) {
+                    if (isMounted) {
+                        console.log("[Player] Manifest found:", match[0]);
+                        setStreamUrl(match[0]);
+                        setExtracting(false);
+                    }
+                } else {
+                    // Fallback logic for specialized sources if standard regex fails
+                    // Sometimes vidsrc obfuscates. We can try a secondary source if primary fails.
+                    throw new Error("Could not find HLS manifest in source.");
+                }
+
+            } catch (e: any) {
+                if (isMounted) {
+                    console.error("[Player] Extraction failed", e);
+                    setError(e.message || "Failed to extract video stream.");
+                    setExtracting(false);
+                }
+            }
+        };
+
+        fetchStream();
+
+        return () => { isMounted = false; };
+    }, [movie.id, mediaType, season, episode, retryCount]);
+
+    // 2. Initialize Player (Hls.js)
     useEffect(() => {
         if (!streamUrl || !videoRef.current) return;
+        
         const video = videoRef.current;
         const Hls = (window as any).Hls;
+
+        // Cleanup previous instance
+        if (hlsRef.current) {
+            hlsRef.current.destroy();
+        }
 
         if (Hls && Hls.isSupported()) {
             const hls = new Hls({
                 enableWorker: true,
                 lowLatencyMode: true,
+                // Add some buffer config to smooth out playback
+                maxBufferLength: 30,
+                maxMaxBufferLength: 600,
             });
             
-            // "The Handshake": Loading the manifest
-            hls.loadSource(streamUrl);
+            hlsRef.current = hls;
             
-            // "The Injection": Attaching to MediaSource
+            // "The Handshake" & "The Injection"
+            hls.loadSource(streamUrl);
             hls.attachMedia(video);
             
             hls.on(Hls.Events.MANIFEST_PARSED, () => {
@@ -107,6 +163,25 @@ const SynchronizedPlayer = ({
                     video.play().catch(() => {});
                 }
             });
+            
+            hls.on(Hls.Events.ERROR, (event: any, data: any) => {
+                if (data.fatal) {
+                    switch (data.type) {
+                        case Hls.ErrorTypes.NETWORK_ERROR:
+                            console.error("Network error, trying to recover...");
+                            hls.startLoad();
+                            break;
+                        case Hls.ErrorTypes.MEDIA_ERROR:
+                            console.error("Media error, trying to recover...");
+                            hls.recoverMediaError();
+                            break;
+                        default:
+                            hls.destroy();
+                            break;
+                    }
+                }
+            });
+
         } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
             // Native HLS (Safari)
             video.src = streamUrl;
@@ -128,10 +203,11 @@ const SynchronizedPlayer = ({
             video.removeEventListener('timeupdate', handleTimeUpdate);
             video.removeEventListener('play', handlePlay);
             video.removeEventListener('pause', handlePause);
+            if (hlsRef.current) hlsRef.current.destroy();
         };
     }, [streamUrl]);
 
-    // 3. Sync Logic (Incoming)
+    // 3. Sync Logic (Incoming from Server)
     useEffect(() => {
         if (!videoRef.current || !settings.playerState) return;
         
@@ -141,9 +217,8 @@ const SynchronizedPlayer = ({
         // Calculate drift
         const drift = Math.abs(video.currentTime - serverState.currentTime);
         
-        // Sync Time if drift > 2s
+        // Sync Time if drift > 2s to avoid jitter
         if (drift > 2) {
-            console.log(`Syncing: Drift ${drift.toFixed(2)}s detected`);
             video.currentTime = serverState.currentTime;
         }
 
@@ -156,7 +231,7 @@ const SynchronizedPlayer = ({
 
     }, [settings.playerState]);
 
-    // 4. Controls Logic (Outgoing)
+    // 4. Controls Logic (Outgoing to Server)
     const togglePlay = () => {
         if (!hasControl) return;
         const video = videoRef.current;
@@ -229,7 +304,24 @@ const SynchronizedPlayer = ({
             {extracting && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-black z-20">
                     <Loader2 size={48} className="animate-spin text-amber-500 mb-4"/>
-                    <p className="text-amber-500 font-mono text-sm animate-pulse">EXTRACTING STREAM MANIFEST...</p>
+                    <div className="flex flex-col items-center space-y-2">
+                        <p className="text-amber-500 font-mono text-sm animate-pulse font-bold tracking-widest">EXTRACTING STREAM MANIFEST...</p>
+                        <p className="text-gray-500 text-xs">Target: VidSrc API ({mediaType.toUpperCase()} ID: {movie.id})</p>
+                    </div>
+                </div>
+            )}
+
+            {error && !extracting && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-black z-20 p-6 text-center">
+                    <AlertTriangle size={48} className="text-red-500 mb-4"/>
+                    <h3 className="text-xl font-bold text-white mb-2">Stream Extraction Failed</h3>
+                    <p className="text-gray-400 text-sm max-w-md mb-6">{error}</p>
+                    <button 
+                        onClick={() => setRetryCount(prev => prev + 1)}
+                        className="px-6 py-3 bg-white text-black font-bold rounded-xl hover:bg-gray-200 transition-colors flex items-center gap-2"
+                    >
+                        <RefreshCcw size={18}/> Retry Connection
+                    </button>
                 </div>
             )}
 
@@ -243,63 +335,70 @@ const SynchronizedPlayer = ({
             />
 
             {/* Controls Overlay */}
-            <div className={`absolute inset-0 bg-black/40 flex flex-col justify-end transition-opacity duration-300 ${showControls ? 'opacity-100' : 'opacity-0'}`}>
-                {/* Center Play Button */}
-                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                     {!isPlaying && !extracting && (
-                         <div className="w-20 h-20 bg-white/10 backdrop-blur-md rounded-full flex items-center justify-center border border-white/20 shadow-2xl animate-in zoom-in pointer-events-auto cursor-pointer" onClick={togglePlay}>
-                             <Play size={40} className="text-white ml-2" fill="currentColor"/>
-                         </div>
-                     )}
-                </div>
-
-                <div className="p-4 bg-gradient-to-t from-black/90 via-black/60 to-transparent pt-20">
-                    {/* Timeline */}
-                    <div className="flex items-center gap-4 mb-2">
-                        <span className="text-xs font-mono text-white/80 w-12 text-right">{formatTime(progress)}</span>
-                        <div className="relative flex-1 h-1.5 bg-white/20 rounded-full group/timeline">
-                            <div className="absolute top-0 left-0 h-full bg-amber-500 rounded-full" style={{ width: `${(progress / duration) * 100}%` }}></div>
-                            <input 
-                                type="range" 
-                                min="0" 
-                                max={duration || 100} 
-                                value={progress} 
-                                onChange={handleSeek}
-                                disabled={!hasControl}
-                                className={`absolute inset-0 w-full h-full opacity-0 ${hasControl ? 'cursor-pointer' : 'cursor-not-allowed'}`}
-                            />
-                        </div>
-                        <span className="text-xs font-mono text-white/50 w-12">{formatTime(duration)}</span>
+            {!extracting && !error && (
+                <div className={`absolute inset-0 bg-black/40 flex flex-col justify-end transition-opacity duration-300 ${showControls ? 'opacity-100' : 'opacity-0'}`}>
+                    {/* Center Play Button */}
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                         {!isPlaying && (
+                             <div className="w-20 h-20 bg-white/10 backdrop-blur-md rounded-full flex items-center justify-center border border-white/20 shadow-2xl animate-in zoom-in pointer-events-auto cursor-pointer hover:scale-110 transition-transform" onClick={togglePlay}>
+                                 <Play size={40} className="text-white ml-2" fill="currentColor"/>
+                             </div>
+                         )}
                     </div>
 
-                    {/* Bottom Bar */}
-                    <div className="flex justify-between items-center">
-                        <div className="flex items-center gap-4">
-                            <button onClick={togglePlay} disabled={!hasControl} className={`text-white hover:text-amber-500 transition-colors ${!hasControl && 'opacity-50 cursor-not-allowed'}`}>
-                                {isPlaying ? <Pause size={24} fill="currentColor"/> : <Play size={24} fill="currentColor"/>}
-                            </button>
-                            <button onClick={toggleMute} className="text-white hover:text-amber-500 transition-colors">
-                                {isMuted ? <VolumeX size={20}/> : <Volume2 size={20}/>}
-                            </button>
-                            <div className="flex items-center gap-2 border-l border-white/20 pl-4 ml-2">
-                                {hasControl ? (
-                                    <span className="flex items-center gap-1.5 text-[10px] font-bold text-amber-500 bg-amber-500/10 px-2 py-1 rounded border border-amber-500/20">
-                                        <Crown size={10}/> CONTROLLER
-                                    </span>
-                                ) : (
-                                    <span className="text-[10px] font-bold text-gray-400">VIEWER</span>
+                    <div className="p-4 bg-gradient-to-t from-black/90 via-black/60 to-transparent pt-20">
+                        {/* Timeline */}
+                        <div className="flex items-center gap-4 mb-2">
+                            <span className="text-xs font-mono text-white/80 w-12 text-right">{formatTime(progress)}</span>
+                            <div className="relative flex-1 h-1.5 bg-white/20 rounded-full group/timeline">
+                                <div className="absolute top-0 left-0 h-full bg-amber-500 rounded-full" style={{ width: `${(progress / duration) * 100}%` }}></div>
+                                <input 
+                                    type="range" 
+                                    min="0" 
+                                    max={duration || 100} 
+                                    value={progress} 
+                                    onChange={handleSeek}
+                                    disabled={!hasControl}
+                                    className={`absolute inset-0 w-full h-full opacity-0 ${hasControl ? 'cursor-pointer' : 'cursor-not-allowed'}`}
+                                />
+                            </div>
+                            <span className="text-xs font-mono text-white/50 w-12">{formatTime(duration)}</span>
+                        </div>
+
+                        {/* Bottom Bar */}
+                        <div className="flex justify-between items-center">
+                            <div className="flex items-center gap-4">
+                                <button onClick={togglePlay} disabled={!hasControl} className={`text-white hover:text-amber-500 transition-colors ${!hasControl && 'opacity-50 cursor-not-allowed'}`}>
+                                    {isPlaying ? <Pause size={24} fill="currentColor"/> : <Play size={24} fill="currentColor"/>}
+                                </button>
+                                <button onClick={toggleMute} className="text-white hover:text-amber-500 transition-colors">
+                                    {isMuted ? <VolumeX size={20}/> : <Volume2 size={20}/>}
+                                </button>
+                                <div className="flex items-center gap-2 border-l border-white/20 pl-4 ml-2">
+                                    {hasControl ? (
+                                        <span className="flex items-center gap-1.5 text-[10px] font-bold text-amber-500 bg-amber-500/10 px-2 py-1 rounded border border-amber-500/20">
+                                            <Crown size={10}/> CONTROLLER
+                                        </span>
+                                    ) : (
+                                        <span className="text-[10px] font-bold text-gray-400">VIEWER</span>
+                                    )}
+                                </div>
+                            </div>
+
+                            <div className="flex items-center gap-3">
+                                {mediaType === 'tv' && (
+                                    <div className="text-xs font-mono text-white/60 bg-white/5 px-2 py-1 rounded border border-white/5">
+                                        S{season} E{episode}
+                                    </div>
                                 )}
+                                <button onClick={toggleFullscreen} className="text-white hover:text-amber-500 transition-colors">
+                                    {isFullscreen ? <Minimize2 size={20}/> : <Maximize2 size={20}/>}
+                                </button>
                             </div>
                         </div>
-
-                        <div className="flex items-center gap-3">
-                            <button onClick={toggleFullscreen} className="text-white hover:text-amber-500 transition-colors">
-                                {isFullscreen ? <Minimize2 size={20}/> : <Maximize2 size={20}/>}
-                            </button>
-                        </div>
                     </div>
                 </div>
-            </div>
+            )}
         </div>
     );
 };
@@ -608,7 +707,13 @@ const WatchPartyRoom = ({ party, isHost, userProfile, apiKey, onLeave }: { party
     };
 
     const handleMovieSelect = (m: Movie) => {
+        // Reset media params to start of movie/series
+        const newSettings = { ...activeParty.settings, mediaParams: { season: 1, episode: 1 } };
+        
+        // Optimistic update for local UI speed
         updatePartyMovie(party.id, m);
+        updatePartySettings(party.id, newSettings);
+        
         setShowSearch(false);
         sendPartyMessage(party.id, "System", `${userProfile.name} changed the movie to: ${m.title || m.name}`, true);
     };
@@ -618,6 +723,8 @@ const WatchPartyRoom = ({ party, isHost, userProfile, apiKey, onLeave }: { party
         if (q.length > 2) {
             const res = await fetch(`${TMDB_BASE_URL}/search/movie?api_key=${apiKey}&query=${encodeURIComponent(q)}`);
             const data = await res.json();
+            // Also fetch TV shows if needed, but for now stick to movies as per search endpoint
+            // To support both, we'd need multi-search.
             setSearchResults(data.results || []);
         }
     };

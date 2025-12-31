@@ -280,6 +280,10 @@ export interface PartySettings {
         currentTime: number;
         updatedAt: number;
     };
+    mediaParams?: {
+        season: number;
+        episode: number;
+    };
 }
 
 export interface PartyMessage {
