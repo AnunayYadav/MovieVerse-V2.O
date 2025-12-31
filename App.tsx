@@ -1,6 +1,7 @@
 
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Search, Film, Menu, TrendingUp, Tv, Ghost, Calendar, Star, X, Sparkles, Settings, Globe, BarChart3, Bookmark, Heart, Folder, Languages, Filter, ChevronDown, Info, Plus, Cloud, CloudOff, Clock, Bell, History, User, Users, Tag, Layers, Dice5, Crown, Loader2 } from 'lucide-react';
+import { Search, Film, Menu, TrendingUp, Tv, Ghost, Calendar, Star, X, Sparkles, Settings, Globe, BarChart3, Bookmark, Heart, Folder, Languages, Filter, ChevronDown, Info, Plus, Cloud, CloudOff, Clock, Bell, History, User, Users, Tag, Layers, Dice5, Crown, Loader2, Radio } from 'lucide-react';
 import { Movie, UserProfile, GENRES_MAP, GENRES_LIST, INDIAN_LANGUAGES, MaturityRating, Keyword } from './types';
 import { LogoLoader, MovieSkeleton, MovieCard, PersonCard, PosterMarquee, TMDB_BASE_URL, TMDB_BACKDROP_BASE, HARDCODED_TMDB_KEY, HARDCODED_GEMINI_KEY, getTmdbKey, getGeminiKey } from './components/Shared';
 import { MovieModal } from './components/MovieDetails';
@@ -10,6 +11,7 @@ import { SettingsModal } from './components/SettingsModal';
 import { generateSmartRecommendations, getSearchSuggestions } from './services/gemini';
 import { LoginPage } from './components/LoginPage';
 import { getSupabase, syncUserData, fetchUserData, signOut, getNotifications, triggerSystemNotification } from './services/supabase';
+import { LiveTV } from './components/LiveTV';
 
 const DEFAULT_COLLECTIONS: any = {
   "srk": { title: "King Khan", params: { with_cast: "35742", sort_by: "popularity.desc" }, icon: "👑", backdrop: "https://images.unsplash.com/photo-1562821680-894c1395f725?q=80&w=2000&auto=format&fit=crop", description: "The Badshah of Bollywood. Romance, Action, and Charm." },
@@ -454,7 +456,6 @@ export default function App() {
     if (!apiKey) return;
     
     // Internal lists logic handling - Use Refs to avoid dependency on list state
-    // This prevents re-fetching when toggling items on the main feed
     const internalListMap: Record<string, Movie[]> = {
         "Watchlist": watchlistRef.current,
         "Favorites": favoritesRef.current,
@@ -466,7 +467,7 @@ export default function App() {
          setHasMore(false); 
          return; 
     }
-    if (selectedCategory === "CineAnalytics") return;
+    if (selectedCategory === "CineAnalytics" || selectedCategory === "LiveTV") return;
     if (selectedCategory.startsWith("Custom:")) { 
         const listName = selectedCategory.replace("Custom:", ""); 
         setMovies(sortMovies(customListsRef.current[listName] || [], sortOption)); 
@@ -499,17 +500,13 @@ export default function App() {
             "certification.lte": maturityRating
         });
 
-        // 1. SEARCH PATH
         if (searchQuery) {
             if (selectedCategory === "People") {
-                // Specific People Search Logic
                 endpoint = "/search/person";
-                // Cleanup params that aren't supported by search/person
                 params.delete("certification_country");
                 params.delete("certification.lte");
                 params.set("query", searchQuery);
             } else if (pageNum === 1) {
-                // Hybrid Search for Movies
                  try {
                      const [stdRes, aiRecs] = await Promise.all([
                          fetch(`${TMDB_BASE_URL}/search/movie?api_key=${apiKey}&query=${encodeURIComponent(searchQuery)}&include_adult=false`, { signal: controller.signal }),
@@ -523,31 +520,24 @@ export default function App() {
 
                      if (aiRecs && aiRecs.movies && aiRecs.movies.length > 0) {
                           setAiContextReason(aiRecs.reason);
-                          
-                          // Attach signal to all sub-fetches
                           const aiMoviePromises = aiRecs.movies.map(title => 
                              fetchWithRetry(`${TMDB_BASE_URL}/search/movie?api_key=${apiKey}&query=${encodeURIComponent(title)}`, controller.signal)
                              .then(r => r.ok ? r.json() : {})
                              .then((d: any) => d.results?.[0]) 
                              .catch(e => null)
                           );
-                          
                           const aiMoviesRaw = await Promise.all(aiMoviePromises);
                           const aiMovies = aiMoviesRaw.filter((m: any) => m && m.poster_path);
-                          
                           const topStd = stdMovies.slice(0, 3);
                           const aiFiltered = aiMovies.filter((aim: any) => !topStd.some((std: any) => std.id === aim.id));
                           const combined = [...topStd, ...aiFiltered];
                           const uniqueMovies = Array.from(new Map(combined.map((m: any) => [m.id, m])).values()) as Movie[];
-
                           const normalized = uniqueMovies.map((m: any) => ({ ...m, media_type: 'movie' }));
-                          
                           setMovies(normalized);
                           setLoading(false);
                           setHasMore(false);
                           return; 
                      }
-                     // If AI fails/empty, fall through to standard search below (by setting endpoint)
                      endpoint = "/search/movie";
                      params.set("query", searchQuery);
                  } catch (e: any) { 
@@ -556,48 +546,33 @@ export default function App() {
                      params.set("query", searchQuery);
                  }
             } else {
-                // Pagination for search (standard)
                 endpoint = "/search/movie";
                 params.set("query", searchQuery);
             }
         }
-
-        // 2. TMDB COLLECTION PATH
         else if (tmdbCollectionId) {
-            // Note: Collection endpoint doesn't support pagination directly like discover
             const res = await fetchWithRetry(`${TMDB_BASE_URL}/collection/${tmdbCollectionId}?api_key=${apiKey}`, controller.signal);
             const data = await res.json();
             const parts = data.parts || [];
-            // Sort parts by release date usually makes sense for collections
             const sortedParts = parts.sort((a: any, b: any) => new Date(a.release_date || "").getTime() - new Date(b.release_date || "").getTime());
-            
             setMovies(sortedParts);
             setLoading(false);
             setHasMore(false); // Collections usually small enough for one page
             return;
         }
-
-        // 3. KEYWORD FILTER PATH
         else if (activeKeyword) {
             endpoint = "/discover/movie";
             params.append("with_keywords", activeKeyword.id.toString());
             params.append("sort_by", sortOption);
         }
-
-        // 4. PRESET COLLECTION PATH
         else if (currentCollection && DEFAULT_COLLECTIONS[currentCollection]) {
             const colParams = DEFAULT_COLLECTIONS[currentCollection].params;
             Object.keys(colParams).forEach(key => params.append(key, colParams[key]));
             if (selectedRegion === "IN" && !colParams.with_origin_country) params.append("with_origin_country", "IN");
         } 
-        
-        // 5. POPULAR PEOPLE PATH
         else if (selectedCategory === "People") {
             endpoint = "/person/popular";
-            // params.delete("sort_by"); // popular people endpoint doesn't use sort_by in the same way
         }
-        
-        // 6. STANDARD DISCOVERY PATH
         else if (selectedCategory === "ForYou") {
              params.set("sort_by", "popularity.desc");
              if (userProfile.genres && userProfile.genres.length > 0) {
@@ -634,7 +609,6 @@ export default function App() {
         
         let results = data.results || [];
 
-        // Post-processing
         if (selectedCategory === "People") {
             // Keep people as is
         } else {
@@ -644,7 +618,6 @@ export default function App() {
             }
         }
         
-        // Only apply client-side sort for movies/tv, people order is usually good from API
         const finalResults = selectedCategory === "People" ? results : sortMovies(results, sortOption);
 
         if (isLoadMore) {
@@ -675,8 +648,6 @@ export default function App() {
      return () => clearTimeout(timeout);
   }, [fetchMovies, searchQuery, selectedCategory, sortOption, appRegion, currentCollection, filterPeriod, selectedLanguage, selectedRegion, maturityRating, tmdbCollectionId, activeKeyword]);
 
-  // ... (Other useEffects same as before) ...
-  // Suggestion Fetching
   useEffect(() => {
       const fetchSuggestions = async () => {
           if (searchQuery.length > 3) {
@@ -705,7 +676,6 @@ export default function App() {
   };
 
   const handleTmdbCollectionClick = (id: number) => {
-      // Logic for Deep Discovery: Collection
       setSelectedMovie(null);
       resetFilters();
       setTmdbCollectionId(id);
@@ -713,7 +683,6 @@ export default function App() {
   };
 
   const handleKeywordClick = (keyword: Keyword) => {
-      // Logic for Deep Discovery: Keyword
       setSelectedMovie(null);
       resetFilters();
       setActiveKeyword(keyword);
@@ -735,7 +704,6 @@ export default function App() {
       setIsSidebarOpen(false);
       resetFilters();
       setLoading(true);
-      // Pick random page between 1 and 50
       const randomPage = Math.floor(Math.random() * 50) + 1;
       const params = new URLSearchParams({
           api_key: apiKey,
@@ -800,8 +768,8 @@ export default function App() {
       );
   }
 
-  // Helper to determine title
   const getPageTitle = () => {
+      if (selectedCategory === "LiveTV") return "Live TV";
       if (tmdbCollectionId) return "Collection View";
       if (activeKeyword) return `Tag: ${activeKeyword.name}`;
       if (currentCollection) return "Curated Collection";
@@ -811,7 +779,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-[#030303] text-white font-sans selection:bg-amber-500/30 selection:text-white">
-      {/* Liquid Glass Navbar */}
+      {/* Navbar */}
       <nav className={`fixed top-0 left-0 right-0 z-[60] bg-black/70 backdrop-blur-xl border-b h-16 flex items-center justify-between px-4 md:px-6 transition-all duration-300 ${isGoldTheme ? 'border-amber-500/10' : 'border-white/5'}`}>
         <div className="flex items-center gap-4 md:gap-6">
            <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="md:hidden p-2 hover:bg-white/10 rounded-full transition-colors active:scale-95"><Menu size={20} /></button>
@@ -829,7 +797,7 @@ export default function App() {
            <div className="hidden md:flex items-center gap-1">
                <button onClick={() => { resetFilters(); setSelectedCategory("All"); }} className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-300 hover:scale-105 active:scale-95 ${selectedCategory === "All" && !activeKeyword && !tmdbCollectionId ? "bg-white text-black font-bold" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>Home</button>
                <button onClick={() => { resetFilters(); setSelectedCategory("TV Shows"); }} className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-300 hover:scale-105 active:scale-95 ${selectedCategory === "TV Shows" ? "bg-white text-black font-bold" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>TV Shows</button>
-               <button onClick={() => { resetFilters(); setSelectedCategory("Anime"); }} className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-300 hover:scale-105 active:scale-95 ${selectedCategory === "Anime" ? "bg-white text-black font-bold" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>Anime</button>
+               <button onClick={() => { resetFilters(); setSelectedCategory("LiveTV"); }} className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-300 hover:scale-105 active:scale-95 flex items-center gap-1 ${selectedCategory === "LiveTV" ? "bg-red-600 text-white font-bold" : "text-gray-400 hover:text-white hover:bg-white/5"}`}> <Radio size={12}/> Live TV</button>
                <button onClick={() => { resetFilters(); setSelectedCategory("People"); }} className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-300 hover:scale-105 active:scale-95 ${selectedCategory === "People" ? "bg-white text-black font-bold" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>People</button>
            </div>
         </div>
@@ -852,7 +820,6 @@ export default function App() {
                    {!searchQuery && searchHistory.length > 0 && (
                        <div className="border-b border-white/5 pb-1">
                            <p className="px-4 py-2 text-[10px] text-white/40 font-bold uppercase tracking-wider">Recent Searches</p>
-                           {/* Limit to 4 recent searches */}
                            {searchHistory.slice(0, 4).map((s, i) => (
                                <div key={`hist-${i}`} className="flex items-center justify-between px-4 py-3 text-sm hover:bg-white/10 text-gray-300 hover:text-white transition-colors cursor-pointer group/item" onMouseDown={(e) => { e.preventDefault(); handleSearchSubmit(s); }}>
                                    <div className="flex items-center gap-3">
@@ -884,16 +851,8 @@ export default function App() {
         </div>
         
         <div className="flex items-center gap-2 md:gap-4">
-             {isCloudSync && (
-                 <div className="hidden md:flex items-center text-green-500 text-xs gap-1 animate-in fade-in" title="Cloud Sync Active">
-                     <Cloud size={14}/>
-                 </div>
-             )}
-             {!isCloudSync && isAuthenticated && (
-                 <div className="hidden md:flex items-center text-gray-600 text-xs gap-1 animate-in fade-in" title="Local Storage Only">
-                     <CloudOff size={14}/>
-                 </div>
-             )}
+             {isCloudSync && <div className="hidden md:flex items-center text-green-500 text-xs gap-1 animate-in fade-in"><Cloud size={14}/></div>}
+             {!isCloudSync && isAuthenticated && <div className="hidden md:flex items-center text-gray-600 text-xs gap-1 animate-in fade-in"><CloudOff size={14}/></div>}
              <button onClick={() => setIsNotificationOpen(true)} className="relative text-gray-400 hover:text-white transition-colors hover:scale-110 active:scale-95 duration-300">
                  <Bell size={20}/>
                  {hasUnread && (
@@ -930,11 +889,11 @@ export default function App() {
                    <div className="space-y-1">
                         <p className="text-xs font-bold text-white/40 uppercase tracking-wider mb-2 px-2">Discover</p>
                         <button onClick={() => { resetFilters(); setSelectedCategory("All"); setFilterPeriod("all"); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 hover:translate-x-1 ${selectedCategory === "All" && filterPeriod === "all" ? `${accentBgLow} ${accentText}` : 'text-gray-400 hover:text-white hover:bg-white/5'}`}><TrendingUp size={18}/> Trending Now</button>
+                        <button onClick={() => { resetFilters(); setSelectedCategory("LiveTV"); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 hover:translate-x-1 ${selectedCategory === "LiveTV" ? `${accentBgLow} ${accentText}` : 'text-gray-400 hover:text-white hover:bg-white/5'}`}><Radio size={18}/> Live TV</button>
                         <button onClick={() => { resetFilters(); setSelectedCategory("People"); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 hover:translate-x-1 ${selectedCategory === "People" ? `${accentBgLow} ${accentText}` : 'text-gray-400 hover:text-white hover:bg-white/5'}`}><Users size={18}/> Popular People</button>
                         <button onClick={() => { resetFilters(); setSelectedCategory("TV Shows"); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 hover:translate-x-1 ${selectedCategory === "TV Shows" ? `${accentBgLow} ${accentText}` : 'text-gray-400 hover:text-white hover:bg-white/5'}`}><Tv size={18}/> TV Shows</button>
                         <button onClick={() => { resetFilters(); setSelectedCategory("Anime"); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 hover:translate-x-1 ${selectedCategory === "Anime" ? `${accentBgLow} ${accentText}` : 'text-gray-400 hover:text-white hover:bg-white/5'}`}><Ghost size={18}/> Anime</button>
                         <button onClick={() => { resetFilters(); setSortOption("vote_average.desc"); setSelectedCategory("All"); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 hover:translate-x-1 ${sortOption === "vote_average.desc" && selectedCategory === "All" ? `${accentBgLow} ${accentText}` : 'text-gray-400 hover:text-white hover:bg-white/5'}`}><Star size={18}/> Top Rated</button>
-                        <button onClick={() => { resetFilters(); setFilterPeriod("future"); setSelectedCategory("All"); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 hover:translate-x-1 ${filterPeriod === "future" ? `${accentBgLow} ${accentText}` : 'text-gray-400 hover:text-white hover:bg-white/5'}`}><Calendar size={18}/> Coming Soon</button>
                         <button onClick={handleFeelingLucky} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 text-purple-400 hover:text-purple-300 hover:bg-purple-500/10 group"><Dice5 size={18} className="group-hover:rotate-180 transition-transform duration-500"/> I'm Feeling Lucky</button>
                    </div>
 
@@ -954,13 +913,6 @@ export default function App() {
                             ))}
                        </div>
                    )}
-
-                   <div className="space-y-2">
-                       <p className="text-xs font-bold text-white/40 uppercase tracking-wider mb-2 px-2">Curated</p>
-                       {Object.entries(DEFAULT_COLLECTIONS).map(([key, col]: any) => ( 
-                           <button key={key} onClick={() => handleCollectionClick(key)} className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium transition-all duration-300 hover:translate-x-1 ${currentCollection === key ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}><span>{col.icon}</span> {col.title}</button>
-                       ))}
-                   </div>
                    
                    <div className="space-y-2">
                         <p className="text-xs font-bold text-white/40 uppercase tracking-wider mb-2 px-2">Genres</p>
@@ -977,14 +929,6 @@ export default function App() {
                         </div>
                    </div>
                </div>
-               
-               <div className="mt-8 pt-6 border-t border-white/10">
-                   <button onClick={() => setIsSettingsOpen(true)} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-gray-400 hover:text-white hover:bg-white/5 transition-all active:scale-95"><Settings size={18}/> Settings</button>
-                   <div className="mt-4 px-3 flex gap-2">
-                       <button onClick={() => setAppRegion('US')} className={`flex-1 py-1.5 text-xs font-bold rounded-lg border transition-all active:scale-95 ${appRegion === 'US' ? 'bg-white text-black border-white' : 'border-white/20 text-gray-500 hover:text-white hover:border-white/50'}`}>US</button>
-                       <button onClick={() => setAppRegion('IN')} className={`flex-1 py-1.5 text-xs font-bold rounded-lg border transition-all active:scale-95 ${appRegion === 'IN' ? 'bg-white text-black border-white' : 'border-white/20 text-gray-500 hover:text-white hover:border-white/50'}`}>India</button>
-                   </div>
-               </div>
            </div>
            <div 
              className={`absolute top-0 left-full w-screen h-full bg-black/50 backdrop-blur-sm transition-opacity duration-500 ${isSidebarOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`} 
@@ -995,6 +939,8 @@ export default function App() {
         <main className="flex-1 min-h-[calc(100vh-4rem)] w-full">
            {selectedCategory === "CineAnalytics" ? (
                <AnalyticsDashboard watchedMovies={watched} watchlist={watchlist} favorites={favorites} apiKey={apiKey} onMovieClick={setSelectedMovie} />
+           ) : selectedCategory === "LiveTV" ? (
+               <LiveTV />
            ) : (
                <>
                    {!searchQuery && selectedCategory === "All" && !currentCollection && filterPeriod === "all" && featuredMovie && ( 

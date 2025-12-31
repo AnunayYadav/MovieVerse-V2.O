@@ -1,4 +1,5 @@
 
+
 export interface Movie {
   id: number;
   title: string;
@@ -244,6 +245,14 @@ export interface AppNotification {
   message: string;
   time: string;
   read: boolean;
+}
+
+export interface LiveChannel {
+    id: string;
+    name: string;
+    logo: string;
+    url: string;
+    group?: string;
 }
 
 export type MaturityRating = "G" | "PG" | "PG-13" | "R" | "NC-17";
