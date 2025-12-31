@@ -36,7 +36,7 @@ const ReviewCard: React.FC<{ review: Review }> = ({ review }) => {
         : null;
 
     return (
-        <div className="bg-white/5 border border-white/5 p-5 rounded-xl">
+        <div className="bg-white/5 border border-white/5 p-5 rounded-xl animate-in fade-in slide-in-from-bottom-2">
             <div className="flex items-center gap-3 mb-3">
                 <div className="w-10 h-10 rounded-full bg-gradient-to-br from-gray-700 to-gray-900 flex items-center justify-center overflow-hidden shrink-0 text-white font-bold border border-white/10">
                     {avatarUrl ? <img src={avatarUrl} alt={review.author} className="w-full h-full object-cover"/> : review.author.charAt(0).toUpperCase()}
@@ -54,9 +54,9 @@ const ReviewCard: React.FC<{ review: Review }> = ({ review }) => {
                 </div>
             </div>
             <div className="relative">
-                <p className="text-gray-300 text-sm leading-relaxed whitespace-pre-line">{content}</p>
+                <p className="text-gray-300 text-sm leading-relaxed whitespace-pre-line font-light">{content}</p>
                 {isLong && (
-                    <button onClick={() => setExpanded(!expanded)} className="text-xs font-bold text-white mt-2 hover:underline opacity-70 hover:opacity-100 transition-opacity">
+                    <button onClick={() => setExpanded(!expanded)} className="text-xs font-bold text-white mt-2 hover:underline opacity-70 hover:opacity-100 transition-opacity flex items-center gap-1">
                         {expanded ? "Show Less" : "Read More"}
                     </button>
                 )}
@@ -265,8 +265,8 @@ export const MovieModal: React.FC<MovieModalProps> = ({
                                     {/* Fallback dark background behind everything to prevent white flashes */}
                                     <div className="absolute inset-0 bg-black -z-20"></div>
 
-                                    {/* Single Unified Vignette: Fades to 25% opacity on idle, 100% on hover. Using -inset-1 to prevent sub-pixel gaps. */}
-                                    <div className="absolute -inset-1 bg-gradient-to-t from-[#0a0a0a] via-[#0a0a0a]/50 to-transparent transition-opacity duration-700 ease-in-out opacity-25 group-hover/hero:opacity-100 pointer-events-none"></div>
+                                    {/* Single Unified Vignette: Fades to 25% opacity on idle, 100% on hover ONLY if video is loaded. Else stays fully visible. */}
+                                    <div className={`absolute -inset-1 bg-gradient-to-t from-[#0a0a0a] via-[#0a0a0a]/50 to-transparent transition-opacity duration-700 ease-in-out pointer-events-none ${videoLoaded ? 'opacity-25 group-hover/hero:opacity-100' : 'opacity-100'}`}></div>
                                  </div>
                              )}
                              
@@ -276,14 +276,14 @@ export const MovieModal: React.FC<MovieModalProps> = ({
                                         <img 
                                             src={`${TMDB_IMAGE_BASE}${logo.file_path}`} 
                                             alt={title} 
-                                            className="max-h-14 md:max-h-28 max-w-[65%] w-auto object-contain object-left drop-shadow-2xl mb-4 origin-bottom-left -ml-1.5 transition-all duration-700 ease-in-out transform scale-90 opacity-70 translate-y-20 group-hover/hero:scale-100 group-hover/hero:opacity-100 group-hover/hero:translate-y-0"
+                                            className={`max-h-14 md:max-h-28 max-w-[65%] w-auto object-contain object-left drop-shadow-2xl mb-4 origin-bottom-left -ml-1.5 transition-all duration-700 ease-in-out transform ${videoLoaded ? 'scale-90 opacity-70 translate-y-20 group-hover/hero:scale-100 group-hover/hero:opacity-100 group-hover/hero:translate-y-0' : 'scale-100 opacity-100 translate-y-0'}`}
                                         />
                                     ) : (
-                                        <h2 className="text-3xl md:text-5xl font-extrabold text-white leading-tight drop-shadow-lg transition-all duration-700 ease-in-out opacity-80 translate-y-12 group-hover/hero:opacity-100 group-hover/hero:translate-y-0">{title}</h2>
+                                        <h2 className={`text-3xl md:text-5xl font-extrabold text-white leading-tight drop-shadow-lg transition-all duration-700 ease-in-out ${videoLoaded ? 'opacity-80 translate-y-12 group-hover/hero:opacity-100 group-hover/hero:translate-y-0' : 'opacity-100 translate-y-0'}`}>{title}</h2>
                                     )}
                                     
-                                    {/* Metadata & Socials - Fades out completely on idle for immersion, allowing logo to take space */}
-                                    <div className="space-y-4 transition-all duration-700 ease-in-out opacity-0 -translate-y-4 group-hover/hero:opacity-100 group-hover/hero:translate-y-0 origin-bottom">
+                                    {/* Metadata & Socials - Fades out completely on idle if video is playing */}
+                                    <div className={`space-y-4 transition-all duration-700 ease-in-out origin-bottom ${videoLoaded ? 'opacity-0 -translate-y-4 group-hover/hero:opacity-100 group-hover/hero:translate-y-0' : 'opacity-100 translate-y-0'}`}>
                                         <div className="flex flex-wrap items-center gap-3 md:gap-4 text-white/80 text-sm font-medium">
                                             <span className="flex items-center gap-1.5"><Calendar size={14} className={accentText}/> {displayData.release_date?.split('-')[0] || displayData.first_air_date?.split('-')[0] || 'TBA'}</span>
                                             <span className="flex items-center gap-1.5"><Clock size={14} className={accentText}/> {runtime}</span>

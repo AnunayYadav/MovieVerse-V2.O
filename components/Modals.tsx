@@ -251,7 +251,6 @@ const FilmographyModal: React.FC<FilmographyModalProps> = ({ isOpen, onClose, pe
         
         setLoading(true);
         // Include page 1 and 2 to get a good chunk of movies (up to 40) for the modal
-        // Note: For full exhaustion we'd need pagination, but this covers most needs.
         const fetchFilmography = async () => {
              try {
                 const params = new URLSearchParams({
