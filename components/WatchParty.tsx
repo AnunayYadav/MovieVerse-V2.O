@@ -36,8 +36,7 @@ export const WatchPartySection: React.FC<WatchPartyProps> = ({ userProfile, apiK
     );
 };
 
-// --- SYNCHRONIZED PLAYER COMPONENT (THE ADVANCED WAY) ---
-// Simulates extraction of blob and uses native video for control
+// --- SYNCHRONIZED PLAYER COMPONENT (Advanced Stream Extraction) ---
 const SynchronizedPlayer = ({ 
     partyId, 
     movie, 
@@ -61,35 +60,55 @@ const SynchronizedPlayer = ({
     const [isMuted, setIsMuted] = useState(false);
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [showControls, setShowControls] = useState(true);
+    const [extracting, setExtracting] = useState(true);
+    
     const controlsTimeoutRef = useRef<any>(null);
 
-    // 1. "Extract" the stream (Simulated for this demo using a stable HLS stream)
-    // In a real Cineby-style implementation, this would fetch from a proxy that returns the m3u8.
+    // 1. Simulating "The Extraction"
+    // In a real implementation, this would hit a backend endpoint that scrapes the hoster
+    // and returns the m3u8 playlist URL.
     useEffect(() => {
-        // Sample stream (Big Buck Bunny or Sintel) for demonstration of sync capability
-        // Replace this with your actual extracted blob/m3u8 logic
-        const MOCK_STREAM_URL = "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8"; 
+        setExtracting(true);
+        setStreamUrl("");
         
-        setStreamUrl(MOCK_STREAM_URL);
+        // Simulating the delay of "scraping" and "handshake"
+        const extractionTimeout = setTimeout(() => {
+            // For DEMO purposes, we use a stable HLS test stream.
+            // Replace this URL with your proxy/scraper endpoint response.
+            // E.g., const realUrl = await fetch(`/api/extract/${movie.id}`).then(r => r.json());
+            const DEMO_STREAM = "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8"; 
+            setStreamUrl(DEMO_STREAM);
+            setExtracting(false);
+        }, 1500);
+
+        return () => clearTimeout(extractionTimeout);
     }, [movie.id]);
 
-    // 2. Initialize Player (HLS.js)
+    // 2. Initialize Custom Player (Hls.js) & Injection
     useEffect(() => {
         if (!streamUrl || !videoRef.current) return;
         const video = videoRef.current;
         const Hls = (window as any).Hls;
 
         if (Hls && Hls.isSupported()) {
-            const hls = new Hls();
+            const hls = new Hls({
+                enableWorker: true,
+                lowLatencyMode: true,
+            });
+            
+            // "The Handshake": Loading the manifest
             hls.loadSource(streamUrl);
+            
+            // "The Injection": Attaching to MediaSource
             hls.attachMedia(video);
+            
             hls.on(Hls.Events.MANIFEST_PARSED, () => {
-                // Video ready
                 if (settings.playerState?.isPlaying) {
                     video.play().catch(() => {});
                 }
             });
         } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+            // Native HLS (Safari)
             video.src = streamUrl;
         }
 
@@ -98,11 +117,21 @@ const SynchronizedPlayer = ({
             setDuration(video.duration || 0);
         };
         
+        const handlePlay = () => setIsPlaying(true);
+        const handlePause = () => setIsPlaying(false);
+
         video.addEventListener('timeupdate', handleTimeUpdate);
-        return () => video.removeEventListener('timeupdate', handleTimeUpdate);
+        video.addEventListener('play', handlePlay);
+        video.addEventListener('pause', handlePause);
+        
+        return () => {
+            video.removeEventListener('timeupdate', handleTimeUpdate);
+            video.removeEventListener('play', handlePlay);
+            video.removeEventListener('pause', handlePause);
+        };
     }, [streamUrl]);
 
-    // 3. Handle Incoming Sync (From DB)
+    // 3. Sync Logic (Incoming)
     useEffect(() => {
         if (!videoRef.current || !settings.playerState) return;
         
@@ -110,28 +139,25 @@ const SynchronizedPlayer = ({
         const serverState = settings.playerState;
         
         // Calculate drift
-        // We account for network latency roughly by checking updatedAt vs now if we had high precision time
         const drift = Math.abs(video.currentTime - serverState.currentTime);
         
-        // If drift is significant (> 2s), jump to server time
+        // Sync Time if drift > 2s
         if (drift > 2) {
-            console.log("Syncing time... Drift:", drift);
+            console.log(`Syncing: Drift ${drift.toFixed(2)}s detected`);
             video.currentTime = serverState.currentTime;
         }
 
-        // Sync Play/Pause
+        // Sync State
         if (serverState.isPlaying && video.paused) {
             video.play().catch(() => {});
-            setIsPlaying(true);
         } else if (!serverState.isPlaying && !video.paused) {
             video.pause();
-            setIsPlaying(false);
         }
 
     }, [settings.playerState]);
 
-    // 4. Handle Outgoing Sync (User Actions)
-    const handlePlayPause = () => {
+    // 4. Controls Logic (Outgoing)
+    const togglePlay = () => {
         if (!hasControl) return;
         const video = videoRef.current;
         if (!video) return;
@@ -143,10 +169,6 @@ const SynchronizedPlayer = ({
             video.play().catch(() => {});
         }
         
-        // Optimistic update
-        setIsPlaying(!newState);
-
-        // Send to DB
         onSyncUpdate({
             isPlaying: !newState,
             currentTime: video.currentTime
@@ -160,7 +182,6 @@ const SynchronizedPlayer = ({
             videoRef.current.currentTime = time;
             setProgress(time);
         }
-        // Send to DB
         onSyncUpdate({
             isPlaying: !videoRef.current?.paused,
             currentTime: time
@@ -185,6 +206,7 @@ const SynchronizedPlayer = ({
     };
 
     const formatTime = (seconds: number) => {
+        if (isNaN(seconds)) return "0:00";
         const min = Math.floor(seconds / 60);
         const sec = Math.floor(seconds % 60);
         return `${min}:${sec < 10 ? '0' : ''}${sec}`;
@@ -200,70 +222,78 @@ const SynchronizedPlayer = ({
 
     return (
         <div 
-            className="w-full h-full relative group bg-black flex flex-col justify-center" 
+            className="w-full h-full relative group bg-black flex flex-col justify-center overflow-hidden" 
             onMouseMove={handleMouseMove} 
             onMouseLeave={() => isPlaying && setShowControls(false)}
         >
-            {/* Video Element */}
+            {extracting && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-black z-20">
+                    <Loader2 size={48} className="animate-spin text-amber-500 mb-4"/>
+                    <p className="text-amber-500 font-mono text-sm animate-pulse">EXTRACTING STREAM MANIFEST...</p>
+                </div>
+            )}
+
             <video 
                 ref={videoRef}
                 className="w-full h-full object-contain"
                 playsInline
-                onClick={handlePlayPause}
+                autoPlay={false} // Managed by sync
+                onClick={togglePlay}
                 poster={movie.backdrop_path ? `${TMDB_IMAGE_BASE}${movie.backdrop_path}` : undefined}
             />
 
-            {/* Custom Controls Overlay */}
+            {/* Controls Overlay */}
             <div className={`absolute inset-0 bg-black/40 flex flex-col justify-end transition-opacity duration-300 ${showControls ? 'opacity-100' : 'opacity-0'}`}>
-                {/* Big Center Play Button */}
+                {/* Center Play Button */}
                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                     {!isPlaying && (
-                         <div className="w-16 h-16 bg-white/10 backdrop-blur-md rounded-full flex items-center justify-center border border-white/20 shadow-2xl animate-in zoom-in">
-                             <Play size={32} className="text-white ml-1" fill="currentColor"/>
+                     {!isPlaying && !extracting && (
+                         <div className="w-20 h-20 bg-white/10 backdrop-blur-md rounded-full flex items-center justify-center border border-white/20 shadow-2xl animate-in zoom-in pointer-events-auto cursor-pointer" onClick={togglePlay}>
+                             <Play size={40} className="text-white ml-2" fill="currentColor"/>
                          </div>
                      )}
                 </div>
 
-                {/* Control Bar */}
-                <div className="p-4 bg-gradient-to-t from-black/90 to-transparent pt-20">
-                    {/* Progress Bar */}
-                    <div className="flex items-center gap-3 mb-2">
-                        <span className="text-xs font-mono text-white/80 w-10 text-right">{formatTime(progress)}</span>
-                        <input 
-                            type="range" 
-                            min="0" 
-                            max={duration || 100} 
-                            value={progress} 
-                            onChange={handleSeek}
-                            disabled={!hasControl}
-                            className={`flex-1 h-1.5 rounded-full appearance-none cursor-pointer transition-all ${hasControl ? 'bg-white/20 hover:bg-white/40 accent-amber-500' : 'bg-gray-700 accent-gray-500 cursor-not-allowed'}`}
-                        />
-                        <span className="text-xs font-mono text-white/50 w-10">{formatTime(duration)}</span>
+                <div className="p-4 bg-gradient-to-t from-black/90 via-black/60 to-transparent pt-20">
+                    {/* Timeline */}
+                    <div className="flex items-center gap-4 mb-2">
+                        <span className="text-xs font-mono text-white/80 w-12 text-right">{formatTime(progress)}</span>
+                        <div className="relative flex-1 h-1.5 bg-white/20 rounded-full group/timeline">
+                            <div className="absolute top-0 left-0 h-full bg-amber-500 rounded-full" style={{ width: `${(progress / duration) * 100}%` }}></div>
+                            <input 
+                                type="range" 
+                                min="0" 
+                                max={duration || 100} 
+                                value={progress} 
+                                onChange={handleSeek}
+                                disabled={!hasControl}
+                                className={`absolute inset-0 w-full h-full opacity-0 ${hasControl ? 'cursor-pointer' : 'cursor-not-allowed'}`}
+                            />
+                        </div>
+                        <span className="text-xs font-mono text-white/50 w-12">{formatTime(duration)}</span>
                     </div>
 
-                    {/* Buttons */}
+                    {/* Bottom Bar */}
                     <div className="flex justify-between items-center">
                         <div className="flex items-center gap-4">
-                            <button 
-                                onClick={handlePlayPause} 
-                                disabled={!hasControl}
-                                className={`p-2 rounded-full hover:bg-white/10 transition-colors ${!hasControl ? 'opacity-50 cursor-not-allowed' : 'text-white'}`}
-                            >
+                            <button onClick={togglePlay} disabled={!hasControl} className={`text-white hover:text-amber-500 transition-colors ${!hasControl && 'opacity-50 cursor-not-allowed'}`}>
                                 {isPlaying ? <Pause size={24} fill="currentColor"/> : <Play size={24} fill="currentColor"/>}
                             </button>
-                            
-                            <button onClick={toggleMute} className="p-2 rounded-full hover:bg-white/10 text-white transition-colors">
+                            <button onClick={toggleMute} className="text-white hover:text-amber-500 transition-colors">
                                 {isMuted ? <VolumeX size={20}/> : <Volume2 size={20}/>}
                             </button>
-
-                            <div className="flex items-center gap-2">
-                                <span className="bg-red-600 px-1.5 py-0.5 rounded text-[10px] font-bold text-white tracking-wider uppercase">LIVE</span>
-                                {hasControl && <span className="text-xs text-amber-500 font-bold border border-amber-500/30 px-2 py-0.5 rounded-md">CONTROLLING</span>}
+                            <div className="flex items-center gap-2 border-l border-white/20 pl-4 ml-2">
+                                {hasControl ? (
+                                    <span className="flex items-center gap-1.5 text-[10px] font-bold text-amber-500 bg-amber-500/10 px-2 py-1 rounded border border-amber-500/20">
+                                        <Crown size={10}/> CONTROLLER
+                                    </span>
+                                ) : (
+                                    <span className="text-[10px] font-bold text-gray-400">VIEWER</span>
+                                )}
                             </div>
                         </div>
 
                         <div className="flex items-center gap-3">
-                            <button onClick={toggleFullscreen} className="p-2 rounded-full hover:bg-white/10 text-white transition-colors">
+                            <button onClick={toggleFullscreen} className="text-white hover:text-amber-500 transition-colors">
                                 {isFullscreen ? <Minimize2 size={20}/> : <Maximize2 size={20}/>}
                             </button>
                         </div>
