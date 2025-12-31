@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, Suspense } from 'react';
 import { X, Calendar, Clock, Star, Play, Bookmark, Heart, Share2, ListPlus, Tv, Clapperboard, User, Lightbulb, Sparkles, Loader2, Check, DollarSign, TrendingUp, Tag, Layers, MessageCircle, Scale, Globe, Facebook, Instagram, Twitter, Film, PlayCircle, Minimize2, Eye, Lock, ChevronDown, Zap } from 'lucide-react';
 import { Movie, MovieDetails, Season, UserProfile, Keyword, Review } from '../types';
@@ -230,7 +229,7 @@ export const MovieModal: React.FC<MovieModalProps> = ({
                                         <img 
                                             src={`${TMDB_IMAGE_BASE}${logo.file_path}`} 
                                             alt={title} 
-                                            className="max-h-16 md:max-h-32 max-w-[70%] w-auto object-contain object-left drop-shadow-2xl mb-4 origin-bottom-left -ml-1.5"
+                                            className="max-h-16 md:max-h-32 max-w-[70%] w-auto object-contain object-left drop-shadow-2xl mb-4 origin-bottom-left -ml-1.5 transition-all duration-1000 delay-1000 ease-in-out scale-75 opacity-80 group-hover/hero:scale-100 group-hover/hero:opacity-100 group-hover/hero:delay-0 group-hover/hero:duration-300"
                                         />
                                     ) : (
                                         <h2 className="text-3xl md:text-5xl font-extrabold text-white leading-tight drop-shadow-lg">{title}</h2>
