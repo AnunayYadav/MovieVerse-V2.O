@@ -105,8 +105,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     // Server 2: Cineby
     if (server === 'cineby') {
         const type = mediaType === 'tv' ? 'tv' : 'movie';
-        // Note: Cineby typically handles season/episode selection internally on their page
-        // so we direct to the main title page.
+        // Cineby usually handles episode selection on their own page, so we link to the title root
         return `https://www.cineby.gd/${type}/${tmdbId}`;
     }
 
