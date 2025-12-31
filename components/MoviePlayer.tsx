@@ -99,13 +99,11 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   }, []);
 
   const getEmbedUrl = () => {
-    // VidKing Implementation
-    // Logic: Movie -> /embed/movie/ID
-    // Logic: TV -> /embed/tv/ID/SEASON/EPISODE
+    // Reverted to VidSrc API
     if (mediaType === 'tv' || (isAnime && mediaType !== 'movie')) {
-        return `https://www.vidking.net/embed/tv/${tmdbId}/${season}/${episode}`;
+        return `https://vidsrc.xyz/embed/tv/${tmdbId}/${season}/${episode}`;
     }
-    return `https://www.vidking.net/embed/movie/${tmdbId}`;
+    return `https://vidsrc.xyz/embed/movie/${tmdbId}`;
   };
 
   const filteredEpisodes = currentSeasonData.filter(ep => 
@@ -245,7 +243,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
             frameBorder="0"
             allow="autoplay; fullscreen; picture-in-picture"
             allowFullScreen
-            // Sandbox removed to support VidKing ads/scripts as requested
+            sandbox="allow-forms allow-pointer-lock allow-same-origin allow-scripts allow-top-navigation"
         />
       </div>
     </div>
