@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, Suspense } from 'react';
 import { X, Calendar, Clock, Star, Play, Bookmark, Heart, Share2, ListPlus, Tv, Clapperboard, User, Lightbulb, Sparkles, Loader2, Check, DollarSign, TrendingUp, Tag, Layers, MessageCircle, Scale, Globe, Facebook, Instagram, Twitter, Film, PlayCircle, Minimize2, Eye, Lock, ChevronDown, Zap } from 'lucide-react';
 import { Movie, MovieDetails, Season, UserProfile, Keyword, Review } from '../types';
@@ -162,6 +163,15 @@ export const MovieModal: React.FC<MovieModalProps> = ({
     // Find Trailer for background
     const trailer = displayData.videos?.results?.find(v => v.type === 'Trailer' && v.site === 'YouTube') || displayData.videos?.results?.find(v => v.site === 'YouTube');
 
+    const SocialLink = ({ url, icon: Icon, color }: { url?: string, icon: any, color: string }) => {
+        if (!url) return null;
+        return (
+            <a href={url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className={`p-2 rounded-full bg-white/5 hover:bg-white/20 backdrop-blur-md transition-all hover:scale-110 border border-white/5 ${color}`}>
+                <Icon size={14} />
+            </a>
+        );
+    };
+
     return (
         <div className="fixed inset-0 z-[70] flex items-end md:items-center justify-center md:p-6 animate-in fade-in duration-300">
             <div className="absolute inset-0 bg-black/60 backdrop-blur-xl transition-opacity duration-300" onClick={onClose}></div>
@@ -217,9 +227,9 @@ export const MovieModal: React.FC<MovieModalProps> = ({
                                     {/* Fallback dark background behind everything to prevent white flashes */}
                                     <div className="absolute inset-0 bg-black -z-20"></div>
 
-                                    {/* Gradients */}
-                                    <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0a] via-[#0a0a0a]/50 to-transparent"></div>
-                                    <div className="absolute inset-0 bg-gradient-to-r from-[#0a0a0a]/80 via-transparent to-transparent"></div>
+                                    {/* Gradients - Immersive Vignette: Fades heavily when idle to show video, returns on hover */}
+                                    <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0a] via-[#0a0a0a]/50 to-transparent transition-opacity duration-1000 delay-1000 ease-in-out opacity-30 group-hover/hero:opacity-100 group-hover/hero:delay-0"></div>
+                                    <div className="absolute inset-0 bg-gradient-to-r from-[#0a0a0a]/80 via-transparent to-transparent transition-opacity duration-1000 delay-1000 ease-in-out opacity-30 group-hover/hero:opacity-100 group-hover/hero:delay-0"></div>
                                  </div>
                              )}
                              
@@ -229,16 +239,30 @@ export const MovieModal: React.FC<MovieModalProps> = ({
                                         <img 
                                             src={`${TMDB_IMAGE_BASE}${logo.file_path}`} 
                                             alt={title} 
-                                            className="max-h-16 md:max-h-32 max-w-[70%] w-auto object-contain object-left drop-shadow-2xl mb-4 origin-bottom-left -ml-1.5 transition-all duration-1000 delay-1000 ease-in-out scale-75 opacity-80 group-hover/hero:scale-100 group-hover/hero:opacity-100 group-hover/hero:delay-0 group-hover/hero:duration-300"
+                                            className="max-h-16 md:max-h-32 max-w-[70%] w-auto object-contain object-left drop-shadow-2xl mb-4 origin-bottom-left -ml-1.5 transition-all duration-1000 delay-1000 ease-in-out scale-60 opacity-80 translate-y-12 group-hover/hero:scale-100 group-hover/hero:opacity-100 group-hover/hero:delay-0 group-hover/hero:duration-300 group-hover/hero:translate-y-0"
                                         />
                                     ) : (
-                                        <h2 className="text-3xl md:text-5xl font-extrabold text-white leading-tight drop-shadow-lg">{title}</h2>
+                                        <h2 className="text-3xl md:text-5xl font-extrabold text-white leading-tight drop-shadow-lg transition-all duration-1000 delay-1000 ease-in-out opacity-80 translate-y-8 group-hover/hero:opacity-100 group-hover/hero:translate-y-0 group-hover/hero:delay-0">{title}</h2>
                                     )}
-                                    <div className="flex flex-wrap items-center gap-3 md:gap-4 text-white/80 text-sm font-medium">
-                                        <span className="flex items-center gap-1.5"><Calendar size={14} className={accentText}/> {displayData.release_date?.split('-')[0] || displayData.first_air_date?.split('-')[0] || 'TBA'}</span>
-                                        <span className="flex items-center gap-1.5"><Clock size={14} className={accentText}/> {runtime}</span>
-                                        {displayData.vote_average && <span className="flex items-center gap-1.5"><Star size={14} className="text-yellow-500" fill="currentColor"/> {displayData.vote_average.toFixed(1)}</span>}
+                                    
+                                    {/* Metadata & Socials - Fades out completely on idle for immersion */}
+                                    <div className="space-y-4 transition-all duration-1000 delay-1000 ease-in-out opacity-0 -translate-y-4 group-hover/hero:opacity-100 group-hover/hero:translate-y-0 group-hover/hero:delay-0">
+                                        <div className="flex flex-wrap items-center gap-3 md:gap-4 text-white/80 text-sm font-medium">
+                                            <span className="flex items-center gap-1.5"><Calendar size={14} className={accentText}/> {displayData.release_date?.split('-')[0] || displayData.first_air_date?.split('-')[0] || 'TBA'}</span>
+                                            <span className="flex items-center gap-1.5"><Clock size={14} className={accentText}/> {runtime}</span>
+                                            {displayData.vote_average && <span className="flex items-center gap-1.5"><Star size={14} className="text-yellow-500" fill="currentColor"/> {displayData.vote_average.toFixed(1)}</span>}
+                                        </div>
+                                        
+                                        {/* Social Handles */}
+                                        <div className="flex items-center gap-3">
+                                            {displayData.external_ids?.imdb_id && <SocialLink url={`https://www.imdb.com/title/${displayData.external_ids.imdb_id}`} icon={Film} color="text-yellow-400"/>}
+                                            {displayData.external_ids?.instagram_id && <SocialLink url={`https://instagram.com/${displayData.external_ids.instagram_id}`} icon={Instagram} color="text-pink-400"/>}
+                                            {displayData.external_ids?.twitter_id && <SocialLink url={`https://twitter.com/${displayData.external_ids.twitter_id}`} icon={Twitter} color="text-blue-400"/>}
+                                            {displayData.external_ids?.facebook_id && <SocialLink url={`https://facebook.com/${displayData.external_ids.facebook_id}`} icon={Facebook} color="text-blue-600"/>}
+                                            {displayData.homepage && <SocialLink url={displayData.homepage} icon={Globe} color="text-green-400"/>}
+                                        </div>
                                     </div>
+
                                     <div className="flex flex-wrap gap-3 mt-2">
                                         {isExclusive && (
                                             <button 
