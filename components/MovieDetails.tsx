@@ -196,7 +196,7 @@ export const MovieModal: React.FC<MovieModalProps> = ({
                                         <img 
                                             src={`${TMDB_IMAGE_BASE}${logo.file_path}`} 
                                             alt={title} 
-                                            className="max-h-24 md:max-h-32 max-w-[80%] md:max-w-[60%] w-auto object-contain drop-shadow-2xl mb-4 origin-bottom-left"
+                                            className="max-h-24 md:max-h-32 max-w-[70%] w-auto object-contain object-left drop-shadow-2xl mb-4 origin-bottom-left -ml-1.5"
                                         />
                                     ) : (
                                         <h2 className="text-3xl md:text-5xl font-extrabold text-white leading-tight drop-shadow-lg">{title}</h2>
