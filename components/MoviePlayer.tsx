@@ -15,14 +15,11 @@ interface MoviePlayerProps {
   apiKey: string;
 }
 
-const HASH_VIDSRC = "aHR0cHM6Ly92aWRzcmMuY2MvdjIvZW1iZWQ=";
-
 export const MoviePlayer: React.FC<MoviePlayerProps> = ({ 
   tmdbId, onClose, mediaType, isAnime, initialSeason = 1, initialEpisode = 1, apiKey
 }) => {
   const [season, setSeason] = useState(initialSeason);
   const [episode, setEpisode] = useState(initialEpisode);
-  const [animeType, setAnimeType] = useState<'sub' | 'dub'>('sub');
   const [isMenuExpanded, setIsMenuExpanded] = useState(false);
   
   const containerRef = useRef<HTMLDivElement>(null);
@@ -66,7 +63,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     };
 
     fetchMetadata();
-  }, [tmdbId, apiKey, showEpisodeControls]);
+  }, [tmdbId, apiKey, showEpisodeControls, season]);
 
   const handleSeasonChange = async (sNum: number) => {
       setSeason(sNum);
@@ -76,6 +73,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
           const res = await fetch(`${TMDB_BASE_URL}/tv/${tmdbId}/season/${sNum}?api_key=${apiKey}`);
           const data = await res.json();
           setCurrentSeasonData(data.episodes || []);
+          setEpisode(1); // Reset to ep 1 on season change
       } catch (e) {
           console.error(e);
       } finally {
@@ -101,15 +99,13 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   }, []);
 
   const getEmbedUrl = () => {
-    const p = new URLSearchParams();
-    p.set('autoPlay', '1');
-    p.set('autoSkipIntro', '1');
-    p.set('color', 'f59e0b');
-    
-    let base = atob(HASH_VIDSRC);
-    if (isAnime) return `${base}/anime/tmdb${tmdbId}/${episode}/${animeType}?${p.toString()}`;
-    if (mediaType === 'tv') return `${base}/tv/${tmdbId}/${season}/${episode}?${p.toString()}`;
-    return `${base}/movie/${tmdbId}?${p.toString()}`;
+    // VidKing Implementation
+    // Logic: Movie -> /embed/movie/ID
+    // Logic: TV -> /embed/tv/ID/SEASON/EPISODE
+    if (mediaType === 'tv' || (isAnime && mediaType !== 'movie')) {
+        return `https://www.vidking.net/embed/tv/${tmdbId}/${season}/${episode}`;
+    }
+    return `https://www.vidking.net/embed/movie/${tmdbId}`;
   };
 
   const filteredEpisodes = currentSeasonData.filter(ep => 
@@ -237,36 +233,19 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                         </div>
                     )}
                 </div>
-
-                {isAnime && (
-                    <div className="p-6 bg-black/40 border-t border-white/5 flex gap-2">
-                        <button 
-                            onClick={() => setAnimeType('sub')}
-                            className={`flex-1 py-2.5 text-[9px] font-black rounded-lg transition-all ${animeType === 'sub' ? 'bg-amber-500 text-black shadow-lg shadow-amber-900/40' : 'bg-white/5 text-gray-500 hover:text-white'}`}
-                        >
-                            SUBTITLED
-                        </button>
-                        <button 
-                            onClick={() => setAnimeType('dub')}
-                            className={`flex-1 py-2.5 text-[9px] font-black rounded-lg transition-all ${animeType === 'dub' ? 'bg-amber-500 text-black shadow-lg shadow-amber-900/40' : 'bg-white/5 text-gray-500 hover:text-white'}`}
-                        >
-                            DUBBED
-                        </button>
-                    </div>
-                )}
            </div>
        )}
 
       <div className="flex-1 relative w-full h-full z-0 overflow-hidden">
         <iframe 
-            key={`${mediaType}-${isAnime}-${season}-${episode}-${animeType}`} 
+            key={`${mediaType}-${isAnime}-${season}-${episode}`} 
             src={getEmbedUrl()}
             className="w-full h-full absolute inset-0 bg-black"
             title="Media Player"
             frameBorder="0"
-            allow="autoplay; fullscreen" 
+            allow="autoplay; fullscreen; picture-in-picture"
             allowFullScreen
-            sandbox="allow-forms allow-pointer-lock allow-same-origin allow-scripts allow-presentation"
+            // Sandbox removed to support VidKing ads/scripts as requested
         />
       </div>
     </div>
