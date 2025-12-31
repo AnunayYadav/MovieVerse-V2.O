@@ -13,13 +13,12 @@ interface MoviePlayerProps {
   initialSeason?: number;
   initialEpisode?: number;
   apiKey: string;
-  server?: string; // 'vidsrc' | 'cineby'
 }
 
 const HASH_VIDSRC = "aHR0cHM6Ly92aWRzcmMuY2MvdjIvZW1iZWQ=";
 
 export const MoviePlayer: React.FC<MoviePlayerProps> = ({ 
-  tmdbId, onClose, mediaType, isAnime, initialSeason = 1, initialEpisode = 1, apiKey, server = 'vidsrc'
+  tmdbId, onClose, mediaType, isAnime, initialSeason = 1, initialEpisode = 1, apiKey
 }) => {
   const [season, setSeason] = useState(initialSeason);
   const [episode, setEpisode] = useState(initialEpisode);
@@ -102,14 +101,6 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   }, []);
 
   const getEmbedUrl = () => {
-    // Server 2: Cineby
-    if (server === 'cineby') {
-        const type = mediaType === 'tv' ? 'tv' : 'movie';
-        // Cineby usually handles episode selection on their own page, so we link to the title root
-        return `https://www.cineby.gd/${type}/${tmdbId}`;
-    }
-
-    // Default Server: VidSrc
     const p = new URLSearchParams();
     p.set('autoPlay', '1');
     p.set('autoSkipIntro', '1');
@@ -135,7 +126,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
        <div className="absolute top-0 left-0 right-0 z-[100] p-6 flex justify-between items-start opacity-0 group-hover/player:opacity-100 transition-opacity duration-300 pointer-events-none bg-gradient-to-b from-black/90 via-black/20 to-transparent">
           
           <div className="flex items-center gap-3 pointer-events-auto ml-14">
-            {showEpisodeControls && server !== 'cineby' && (
+            {showEpisodeControls && (
                 <div className="flex items-center gap-2">
                     <button 
                         onClick={() => setIsMenuExpanded(!isMenuExpanded)}
@@ -155,11 +146,6 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                     </div>
                 </div>
             )}
-            {server === 'cineby' && (
-                <div className="bg-blue-600/80 backdrop-blur-xl px-4 h-10 rounded-lg border border-white/5 flex items-center gap-2 animate-in fade-in">
-                    <span className="text-[10px] font-black text-white uppercase tracking-wider">Cineby Server</span>
-                </div>
-            )}
           </div>
 
           <div className="flex items-center gap-2 pointer-events-auto">
@@ -173,8 +159,8 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
           </div>
        </div>
 
-       {/* EPISODE LIST OVERLAY (Only for Vidsrc) */}
-       {isMenuExpanded && showEpisodeControls && server !== 'cineby' && (
+       {/* EPISODE LIST OVERLAY */}
+       {isMenuExpanded && showEpisodeControls && (
            <div className="absolute top-0 left-0 bottom-0 w-80 md:w-96 z-[110] bg-[#050505]/95 backdrop-blur-3xl border-r border-amber-500/10 shadow-2xl flex flex-col animate-in slide-in-from-left duration-400 ease-[cubic-bezier(0.4,0,0.2,1)]">
                 <div className="p-6 pb-4">
                     <div className="flex items-center justify-between mb-5">
@@ -273,7 +259,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
 
       <div className="flex-1 relative w-full h-full z-0 overflow-hidden">
         <iframe 
-            key={`${mediaType}-${isAnime}-${season}-${episode}-${animeType}-${server}`} 
+            key={`${mediaType}-${isAnime}-${season}-${episode}-${animeType}`} 
             src={getEmbedUrl()}
             className="w-full h-full absolute inset-0 bg-black"
             title="Media Player"
