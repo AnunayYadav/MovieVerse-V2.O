@@ -153,6 +153,9 @@ export const MovieModal: React.FC<MovieModalProps> = ({
     const similarMovies = aiSimilar.length > 0 ? aiSimilar : (displayData.similar?.results?.slice(0, 5) || []);
     const keywords = displayData.keywords?.keywords || displayData.keywords?.results || [];
 
+    // Find the best logo: prefer English, fallback to first available
+    const logo = displayData.images?.logos?.find((l) => l.iso_639_1 === 'en') || displayData.images?.logos?.[0];
+
     return (
         <div className="fixed inset-0 z-[70] flex items-end md:items-center justify-center md:p-6 animate-in fade-in duration-300">
             <div className="absolute inset-0 bg-black/60 backdrop-blur-xl transition-opacity duration-300" onClick={onClose}></div>
@@ -189,7 +192,15 @@ export const MovieModal: React.FC<MovieModalProps> = ({
                              
                              {!showPlayer && (
                                  <div className="absolute bottom-0 left-0 p-6 md:p-10 w-full md:w-2/3 flex flex-col gap-4 animate-in slide-in-from-bottom-4 duration-700 delay-100">
-                                    <h2 className="text-3xl md:text-5xl font-extrabold text-white leading-tight drop-shadow-lg">{title}</h2>
+                                    {logo ? (
+                                        <img 
+                                            src={`${TMDB_IMAGE_BASE}${logo.file_path}`} 
+                                            alt={title} 
+                                            className="max-h-32 md:max-h-48 w-auto object-contain drop-shadow-2xl mb-2 origin-bottom-left"
+                                        />
+                                    ) : (
+                                        <h2 className="text-3xl md:text-5xl font-extrabold text-white leading-tight drop-shadow-lg">{title}</h2>
+                                    )}
                                     <div className="flex flex-wrap items-center gap-3 md:gap-4 text-white/80 text-sm font-medium">
                                         <span className="flex items-center gap-1.5"><Calendar size={14} className={accentText}/> {displayData.release_date?.split('-')[0] || displayData.first_air_date?.split('-')[0] || 'TBA'}</span>
                                         <span className="flex items-center gap-1.5"><Clock size={14} className={accentText}/> {runtime}</span>

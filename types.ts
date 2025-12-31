@@ -76,6 +76,7 @@ export interface MovieDetails extends Movie {
   images?: {
     backdrops: Image[];
     posters: Image[];
+    logos?: Image[];
   };
   "watch/providers"?: {
     results: Record<string, ProviderRegion>;
@@ -181,6 +182,9 @@ export interface VideoResult {
 export interface Image {
   file_path: string;
   aspect_ratio: number;
+  iso_639_1?: string | null;
+  vote_average?: number;
+  vote_count?: number;
 }
 
 export interface ProviderRegion {
