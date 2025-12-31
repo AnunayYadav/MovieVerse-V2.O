@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, Suspense } from 'react';
 import { X, Calendar, Clock, Star, Play, Bookmark, Heart, Share2, ListPlus, Tv, Clapperboard, User, Lightbulb, Sparkles, Loader2, Check, DollarSign, TrendingUp, Tag, Layers, MessageCircle, Scale, Globe, Facebook, Instagram, Twitter, Film, PlayCircle, Minimize2, Eye, Lock, ChevronDown, Zap } from 'lucide-react';
 import { Movie, MovieDetails, Season, UserProfile, Keyword, Review } from '../types';
@@ -229,13 +230,13 @@ export const MovieModal: React.FC<MovieModalProps> = ({
                                     {/* Immersive Gradients Logic: Split into fade-out top and persistent bottom */}
                                     
                                     {/* 1. Top/Mid Vignette - Fades OUT on idle to reveal video */}
-                                    <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/20 to-transparent transition-opacity duration-1000 delay-1000 ease-in-out opacity-0 group-hover/hero:opacity-100 group-hover/hero:delay-0 pointer-events-none"></div>
+                                    <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/20 to-transparent transition-opacity duration-700 ease-in-out opacity-0 group-hover/hero:opacity-100 pointer-events-none"></div>
                                     
                                     {/* 2. Side Vignette - Fades OUT on idle */}
-                                    <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-transparent to-transparent transition-opacity duration-1000 delay-1000 ease-in-out opacity-0 group-hover/hero:opacity-100 group-hover/hero:delay-0 pointer-events-none"></div>
+                                    <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-transparent to-transparent transition-opacity duration-700 ease-in-out opacity-0 group-hover/hero:opacity-100 pointer-events-none"></div>
 
-                                    {/* 3. Bottom Gradient - PERSISTENT (Always opaque) to keep text/buttons readable */}
-                                    <div className="absolute bottom-0 left-0 right-0 h-3/4 bg-gradient-to-t from-[#0a0a0a] via-[#0a0a0a]/80 to-transparent opacity-100 pointer-events-none"></div>
+                                    {/* 3. Bottom Gradient - PERSISTENT but lower. Only covers bottom half for smooth transition */}
+                                    <div className="absolute bottom-0 left-0 right-0 h-1/2 bg-gradient-to-t from-[#0a0a0a] via-[#0a0a0a]/60 to-transparent opacity-100 pointer-events-none"></div>
                                  </div>
                              )}
                              
@@ -245,14 +246,14 @@ export const MovieModal: React.FC<MovieModalProps> = ({
                                         <img 
                                             src={`${TMDB_IMAGE_BASE}${logo.file_path}`} 
                                             alt={title} 
-                                            className="max-h-14 md:max-h-28 max-w-[65%] w-auto object-contain object-left drop-shadow-2xl mb-4 origin-bottom-left -ml-1.5 transition-all duration-1000 delay-700 ease-in-out transform scale-50 opacity-70 translate-y-12 group-hover/hero:scale-100 group-hover/hero:opacity-100 group-hover/hero:delay-0 group-hover/hero:duration-500 group-hover/hero:translate-y-0"
+                                            className="max-h-14 md:max-h-28 max-w-[65%] w-auto object-contain object-left drop-shadow-2xl mb-4 origin-bottom-left -ml-1.5 transition-all duration-700 ease-in-out transform scale-75 opacity-70 translate-y-24 group-hover/hero:scale-100 group-hover/hero:opacity-100 group-hover/hero:translate-y-0"
                                         />
                                     ) : (
-                                        <h2 className="text-3xl md:text-5xl font-extrabold text-white leading-tight drop-shadow-lg transition-all duration-1000 delay-700 ease-in-out opacity-80 translate-y-8 group-hover/hero:opacity-100 group-hover/hero:translate-y-0 group-hover/hero:delay-0">{title}</h2>
+                                        <h2 className="text-3xl md:text-5xl font-extrabold text-white leading-tight drop-shadow-lg transition-all duration-700 ease-in-out opacity-80 translate-y-12 group-hover/hero:opacity-100 group-hover/hero:translate-y-0">{title}</h2>
                                     )}
                                     
                                     {/* Metadata & Socials - Fades out completely on idle for immersion, allowing logo to take space */}
-                                    <div className="space-y-4 transition-all duration-1000 delay-700 ease-in-out opacity-0 -translate-y-4 group-hover/hero:opacity-100 group-hover/hero:translate-y-0 group-hover/hero:delay-0 origin-bottom">
+                                    <div className="space-y-4 transition-all duration-700 ease-in-out opacity-0 -translate-y-4 group-hover/hero:opacity-100 group-hover/hero:translate-y-0 origin-bottom">
                                         <div className="flex flex-wrap items-center gap-3 md:gap-4 text-white/80 text-sm font-medium">
                                             <span className="flex items-center gap-1.5"><Calendar size={14} className={accentText}/> {displayData.release_date?.split('-')[0] || displayData.first_air_date?.split('-')[0] || 'TBA'}</span>
                                             <span className="flex items-center gap-1.5"><Clock size={14} className={accentText}/> {runtime}</span>
