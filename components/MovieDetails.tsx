@@ -226,16 +226,8 @@ export const MovieModal: React.FC<MovieModalProps> = ({
                                     {/* Fallback dark background behind everything to prevent white flashes */}
                                     <div className="absolute inset-0 bg-black -z-20"></div>
 
-                                    {/* Immersive Gradients Logic: Split into fade-out top and persistent bottom */}
-                                    
-                                    {/* 1. Top/Mid Vignette - Fades OUT on idle to reveal video */}
-                                    <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/20 to-transparent transition-opacity duration-700 ease-in-out opacity-0 group-hover/hero:opacity-100 pointer-events-none"></div>
-                                    
-                                    {/* 2. Side Vignette - Fades OUT on idle */}
-                                    <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-transparent to-transparent transition-opacity duration-700 ease-in-out opacity-0 group-hover/hero:opacity-100 pointer-events-none"></div>
-
-                                    {/* 3. Bottom Gradient - Reduced height to h-24 or h-32 to just blend the edge without obscuring the video */}
-                                    <div className="absolute bottom-0 left-0 right-0 h-24 md:h-32 bg-gradient-to-t from-[#0a0a0a] via-[#0a0a0a]/60 to-transparent opacity-100 pointer-events-none"></div>
+                                    {/* Single Unified Vignette: Fades to 25% opacity on idle, 100% on hover */}
+                                    <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0a] via-black/50 to-transparent transition-opacity duration-700 ease-in-out opacity-25 group-hover/hero:opacity-100 pointer-events-none"></div>
                                  </div>
                              )}
                              
