@@ -156,6 +156,9 @@ export const MovieModal: React.FC<MovieModalProps> = ({
     // Find the best logo: prefer English, fallback to first available
     const logo = displayData.images?.logos?.find((l) => l.iso_639_1 === 'en') || displayData.images?.logos?.[0];
 
+    // Find Trailer for background
+    const trailer = displayData.videos?.results?.find(v => v.type === 'Trailer' && v.site === 'YouTube') || displayData.videos?.results?.find(v => v.site === 'YouTube');
+
     return (
         <div className="fixed inset-0 z-[70] flex items-end md:items-center justify-center md:p-6 animate-in fade-in duration-300">
             <div className="absolute inset-0 bg-black/60 backdrop-blur-xl transition-opacity duration-300" onClick={onClose}></div>
@@ -168,7 +171,7 @@ export const MovieModal: React.FC<MovieModalProps> = ({
                     <div className="h-96 flex items-center justify-center"><Loader2 className={`animate-spin ${accentText}`} size={48}/></div>
                 ) : (
                     <div className="flex flex-col overflow-y-auto custom-scrollbar bg-[#0a0a0a]">
-                        <div className="relative h-[60vh] md:h-[500px] w-full shrink-0 bg-black">
+                        <div className="relative h-[60vh] md:h-[500px] w-full shrink-0 bg-black overflow-hidden group/hero">
                              {showPlayer ? (
                                  <div className="absolute inset-0 z-50 animate-in fade-in duration-700 bg-black">
                                      <Suspense fallback={<div className="w-full h-full flex items-center justify-center bg-black"><Loader2 className="animate-spin text-red-600" size={40}/></div>}>
@@ -185,13 +188,36 @@ export const MovieModal: React.FC<MovieModalProps> = ({
                                  </div>
                              ) : (
                                  <div className="absolute inset-0">
-                                    <img src={displayData.backdrop_path ? `${TMDB_BACKDROP_BASE}${displayData.backdrop_path}` : displayData.poster_path ? `${TMDB_IMAGE_BASE}${displayData.poster_path}` : "https://placehold.co/1200x600"} alt={title} className="w-full h-full object-cover animate-in fade-in duration-700" />
+                                    {trailer ? (
+                                        <div className="absolute inset-0 w-full h-full overflow-hidden">
+                                            <iframe
+                                                src={`https://www.youtube.com/embed/${trailer.key}?autoplay=1&mute=1&controls=0&loop=1&playlist=${trailer.key}&showinfo=0&rel=0&iv_load_policy=3&modestbranding=1&playsinline=1&enablejsapi=1&origin=${window.location.origin}`}
+                                                className="w-full h-[150%] -mt-[25%] pointer-events-none scale-150 opacity-60 transition-opacity duration-1000"
+                                                allow="autoplay; encrypted-media; gyroscope; picture-in-picture"
+                                                title="Background Trailer"
+                                                loading="lazy"
+                                            />
+                                        </div>
+                                    ) : (
+                                        <img 
+                                            src={displayData.backdrop_path ? `${TMDB_BACKDROP_BASE}${displayData.backdrop_path}` : displayData.poster_path ? `${TMDB_IMAGE_BASE}${displayData.poster_path}` : "https://placehold.co/1200x600"} 
+                                            alt={title} 
+                                            className="w-full h-full object-cover animate-in fade-in duration-700" 
+                                        />
+                                    )}
+                                    {/* Fallback image behind iframe to prevent black flash or if video fails */}
+                                    <img 
+                                        src={displayData.backdrop_path ? `${TMDB_BACKDROP_BASE}${displayData.backdrop_path}` : "https://placehold.co/1200x600"} 
+                                        alt="Background" 
+                                        className="absolute inset-0 w-full h-full object-cover -z-10" 
+                                    />
                                     <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0a] via-[#0a0a0a]/50 to-transparent"></div>
+                                    <div className="absolute inset-0 bg-gradient-to-r from-[#0a0a0a]/80 via-transparent to-transparent"></div>
                                  </div>
                              )}
                              
                              {!showPlayer && (
-                                 <div className="absolute bottom-0 left-0 p-6 md:p-10 w-full md:w-2/3 flex flex-col gap-4 animate-in slide-in-from-bottom-4 duration-700 delay-100">
+                                 <div className="absolute bottom-0 left-0 p-6 md:p-10 w-full md:w-2/3 flex flex-col gap-4 animate-in slide-in-from-bottom-4 duration-700 delay-100 z-10">
                                     {logo ? (
                                         <img 
                                             src={`${TMDB_IMAGE_BASE}${logo.file_path}`} 
