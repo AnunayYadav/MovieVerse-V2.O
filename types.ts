@@ -1,5 +1,4 @@
 
-
 export interface Movie {
   id: number;
   title: string;
@@ -253,6 +252,7 @@ export interface LiveChannel {
     logo: string;
     url: string;
     group?: string;
+    country?: string;
 }
 
 export type MaturityRating = "G" | "PG" | "PG-13" | "R" | "NC-17";
