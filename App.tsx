@@ -1,5 +1,4 @@
 
-
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Search, Film, Menu, TrendingUp, Tv, Ghost, Calendar, Star, X, Sparkles, Settings, Globe, BarChart3, Bookmark, Heart, Folder, Languages, Filter, ChevronDown, Info, Plus, Cloud, CloudOff, Clock, Bell, History, User, Users, Tag, Layers, Dice5, Crown, Loader2, Radio } from 'lucide-react';
 import { Movie, UserProfile, GENRES_MAP, GENRES_LIST, INDIAN_LANGUAGES, MaturityRating, Keyword } from './types';
@@ -289,7 +288,7 @@ export default function App() {
     };
   }, [resetAuthState]);
 
-  // Sync Logic - Includes appRegion and maturityRating now
+  // Sync Logic
   useEffect(() => {
       if (isCloudSync && isAuthenticated && dataLoaded) {
           const timeoutId = setTimeout(() => {
@@ -383,7 +382,7 @@ export default function App() {
 
   const addToSearchHistory = (query: string) => {
       if (!query.trim()) return;
-      if (userProfile.enableHistory === false) return; // Respect setting
+      if (userProfile.enableHistory === false) return; 
       const newHistory = [query, ...searchHistory.filter(h => h !== query)].slice(0, 10);
       setSearchHistory(newHistory);
       localStorage.setItem('movieverse_search_history', JSON.stringify(newHistory));
@@ -403,10 +402,9 @@ export default function App() {
       localStorage.setItem(key, JSON.stringify(newList));
   };
 
-  // Specific handler for Watched history to respect the toggle setting
   const handleToggleWatched = (movie: Movie) => {
       const exists = watched.some(m => m.id === movie.id);
-      if (!exists && userProfile.enableHistory === false) return; // Prevent adding if history disabled
+      if (!exists && userProfile.enableHistory === false) return; 
       toggleList(watched, setWatched, 'movieverse_watched', movie);
   };
 
@@ -797,12 +795,13 @@ export default function App() {
            <div className="hidden md:flex items-center gap-1">
                <button onClick={() => { resetFilters(); setSelectedCategory("All"); }} className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-300 hover:scale-105 active:scale-95 ${selectedCategory === "All" && !activeKeyword && !tmdbCollectionId ? "bg-white text-black font-bold" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>Home</button>
                <button onClick={() => { resetFilters(); setSelectedCategory("TV Shows"); }} className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-300 hover:scale-105 active:scale-95 ${selectedCategory === "TV Shows" ? "bg-white text-black font-bold" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>TV Shows</button>
+               <button onClick={() => { resetFilters(); setSelectedCategory("Anime"); }} className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-300 hover:scale-105 active:scale-95 ${selectedCategory === "Anime" ? "bg-white text-black font-bold" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>Anime</button>
                <button onClick={() => { resetFilters(); setSelectedCategory("LiveTV"); }} className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-300 hover:scale-105 active:scale-95 flex items-center gap-1 ${selectedCategory === "LiveTV" ? "bg-red-600 text-white font-bold" : "text-gray-400 hover:text-white hover:bg-white/5"}`}> <Radio size={12}/> Live TV</button>
                <button onClick={() => { resetFilters(); setSelectedCategory("People"); }} className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-300 hover:scale-105 active:scale-95 ${selectedCategory === "People" ? "bg-white text-black font-bold" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>People</button>
            </div>
         </div>
         
-        <div className="flex-1 max-w-lg mx-4 relative hidden md:block group z-[70]">
+        <div className="flex-1 max-w-md mx-4 relative hidden md:block group z-[70]">
            <div className={`absolute inset-0 bg-gradient-to-r rounded-full blur-md opacity-0 group-hover:opacity-100 transition-opacity duration-500 ${isGoldTheme ? 'from-amber-500/20 to-yellow-900/20' : 'from-red-500/20 to-gray-500/20'}`}></div>
            <Search className={`absolute left-4 top-1/2 -translate-y-1/2 transition-colors duration-300 ${loading && searchQuery ? `${accentText} animate-pulse` : "text-white/50 group-focus-within:text-white"}`} size={16} />
            <input 
@@ -940,7 +939,7 @@ export default function App() {
            {selectedCategory === "CineAnalytics" ? (
                <AnalyticsDashboard watchedMovies={watched} watchlist={watchlist} favorites={favorites} apiKey={apiKey} onMovieClick={setSelectedMovie} />
            ) : selectedCategory === "LiveTV" ? (
-               <LiveTV />
+               <LiveTV userProfile={userProfile} />
            ) : (
                <>
                    {!searchQuery && selectedCategory === "All" && !currentCollection && filterPeriod === "all" && featuredMovie && ( 
