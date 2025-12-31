@@ -1,10 +1,9 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Users, Search, Plus, Lock, Unlock, LogIn, MessageSquare, Send, Settings, Play, Pause, X, Loader2, Film, Crown, Check, Share2, Copy, Menu, UserPlus, UserMinus, ShieldAlert, LogOut, ChevronDown } from 'lucide-react';
-import { WatchParty, UserProfile, Movie, PartyMessage } from '../types';
+import { Users, Search, Plus, Lock, Unlock, LogIn, MessageSquare, Send, Settings, Play, Pause, X, Loader2, Film, Crown, Check, Share2, Copy, Menu, UserPlus, UserMinus, ShieldAlert, LogOut, ChevronDown, MonitorPlay, Maximize2, Minimize2, Volume2, VolumeX, FastForward, Rewind } from 'lucide-react';
+import { WatchParty, UserProfile, Movie, PartyMessage, PartySettings } from '../types';
 import { createWatchParty, joinWatchParty, getPublicParties, updatePartySettings, updatePartyMovie, subscribeToParty, sendPartyMessage, deleteWatchParty } from '../services/supabase';
 import { TMDB_IMAGE_BASE, TMDB_BASE_URL } from './Shared';
-import { MoviePlayer } from './MoviePlayer';
 
 interface WatchPartyProps {
     userProfile: UserProfile;
@@ -37,7 +36,245 @@ export const WatchPartySection: React.FC<WatchPartyProps> = ({ userProfile, apiK
     );
 };
 
-// --- SUB-COMPONENTS ---
+// --- SYNCHRONIZED PLAYER COMPONENT (THE ADVANCED WAY) ---
+// Simulates extraction of blob and uses native video for control
+const SynchronizedPlayer = ({ 
+    partyId, 
+    movie, 
+    isHost, 
+    hasControl, 
+    settings,
+    onSyncUpdate 
+}: { 
+    partyId: string, 
+    movie: Movie, 
+    isHost: boolean, 
+    hasControl: boolean, 
+    settings: PartySettings,
+    onSyncUpdate: (state: { isPlaying: boolean, currentTime: number }) => void 
+}) => {
+    const videoRef = useRef<HTMLVideoElement>(null);
+    const [streamUrl, setStreamUrl] = useState<string>("");
+    const [isPlaying, setIsPlaying] = useState(false);
+    const [progress, setProgress] = useState(0);
+    const [duration, setDuration] = useState(0);
+    const [isMuted, setIsMuted] = useState(false);
+    const [isFullscreen, setIsFullscreen] = useState(false);
+    const [showControls, setShowControls] = useState(true);
+    const controlsTimeoutRef = useRef<any>(null);
+
+    // 1. "Extract" the stream (Simulated for this demo using a stable HLS stream)
+    // In a real Cineby-style implementation, this would fetch from a proxy that returns the m3u8.
+    useEffect(() => {
+        // Sample stream (Big Buck Bunny or Sintel) for demonstration of sync capability
+        // Replace this with your actual extracted blob/m3u8 logic
+        const MOCK_STREAM_URL = "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8"; 
+        
+        setStreamUrl(MOCK_STREAM_URL);
+    }, [movie.id]);
+
+    // 2. Initialize Player (HLS.js)
+    useEffect(() => {
+        if (!streamUrl || !videoRef.current) return;
+        const video = videoRef.current;
+        const Hls = (window as any).Hls;
+
+        if (Hls && Hls.isSupported()) {
+            const hls = new Hls();
+            hls.loadSource(streamUrl);
+            hls.attachMedia(video);
+            hls.on(Hls.Events.MANIFEST_PARSED, () => {
+                // Video ready
+                if (settings.playerState?.isPlaying) {
+                    video.play().catch(() => {});
+                }
+            });
+        } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+            video.src = streamUrl;
+        }
+
+        const handleTimeUpdate = () => {
+            setProgress(video.currentTime);
+            setDuration(video.duration || 0);
+        };
+        
+        video.addEventListener('timeupdate', handleTimeUpdate);
+        return () => video.removeEventListener('timeupdate', handleTimeUpdate);
+    }, [streamUrl]);
+
+    // 3. Handle Incoming Sync (From DB)
+    useEffect(() => {
+        if (!videoRef.current || !settings.playerState) return;
+        
+        const video = videoRef.current;
+        const serverState = settings.playerState;
+        
+        // Calculate drift
+        // We account for network latency roughly by checking updatedAt vs now if we had high precision time
+        const drift = Math.abs(video.currentTime - serverState.currentTime);
+        
+        // If drift is significant (> 2s), jump to server time
+        if (drift > 2) {
+            console.log("Syncing time... Drift:", drift);
+            video.currentTime = serverState.currentTime;
+        }
+
+        // Sync Play/Pause
+        if (serverState.isPlaying && video.paused) {
+            video.play().catch(() => {});
+            setIsPlaying(true);
+        } else if (!serverState.isPlaying && !video.paused) {
+            video.pause();
+            setIsPlaying(false);
+        }
+
+    }, [settings.playerState]);
+
+    // 4. Handle Outgoing Sync (User Actions)
+    const handlePlayPause = () => {
+        if (!hasControl) return;
+        const video = videoRef.current;
+        if (!video) return;
+
+        const newState = !video.paused;
+        if (newState) {
+            video.pause();
+        } else {
+            video.play().catch(() => {});
+        }
+        
+        // Optimistic update
+        setIsPlaying(!newState);
+
+        // Send to DB
+        onSyncUpdate({
+            isPlaying: !newState,
+            currentTime: video.currentTime
+        });
+    };
+
+    const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (!hasControl) return;
+        const time = parseFloat(e.target.value);
+        if (videoRef.current) {
+            videoRef.current.currentTime = time;
+            setProgress(time);
+        }
+        // Send to DB
+        onSyncUpdate({
+            isPlaying: !videoRef.current?.paused,
+            currentTime: time
+        });
+    };
+
+    const toggleMute = () => {
+        if (videoRef.current) {
+            videoRef.current.muted = !videoRef.current.muted;
+            setIsMuted(!isMuted);
+        }
+    };
+
+    const toggleFullscreen = () => {
+        if (!document.fullscreenElement) {
+            videoRef.current?.parentElement?.requestFullscreen();
+            setIsFullscreen(true);
+        } else {
+            document.exitFullscreen();
+            setIsFullscreen(false);
+        }
+    };
+
+    const formatTime = (seconds: number) => {
+        const min = Math.floor(seconds / 60);
+        const sec = Math.floor(seconds % 60);
+        return `${min}:${sec < 10 ? '0' : ''}${sec}`;
+    };
+
+    const handleMouseMove = () => {
+        setShowControls(true);
+        if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
+        controlsTimeoutRef.current = setTimeout(() => {
+            if (isPlaying) setShowControls(false);
+        }, 3000);
+    };
+
+    return (
+        <div 
+            className="w-full h-full relative group bg-black flex flex-col justify-center" 
+            onMouseMove={handleMouseMove} 
+            onMouseLeave={() => isPlaying && setShowControls(false)}
+        >
+            {/* Video Element */}
+            <video 
+                ref={videoRef}
+                className="w-full h-full object-contain"
+                playsInline
+                onClick={handlePlayPause}
+                poster={movie.backdrop_path ? `${TMDB_IMAGE_BASE}${movie.backdrop_path}` : undefined}
+            />
+
+            {/* Custom Controls Overlay */}
+            <div className={`absolute inset-0 bg-black/40 flex flex-col justify-end transition-opacity duration-300 ${showControls ? 'opacity-100' : 'opacity-0'}`}>
+                {/* Big Center Play Button */}
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                     {!isPlaying && (
+                         <div className="w-16 h-16 bg-white/10 backdrop-blur-md rounded-full flex items-center justify-center border border-white/20 shadow-2xl animate-in zoom-in">
+                             <Play size={32} className="text-white ml-1" fill="currentColor"/>
+                         </div>
+                     )}
+                </div>
+
+                {/* Control Bar */}
+                <div className="p-4 bg-gradient-to-t from-black/90 to-transparent pt-20">
+                    {/* Progress Bar */}
+                    <div className="flex items-center gap-3 mb-2">
+                        <span className="text-xs font-mono text-white/80 w-10 text-right">{formatTime(progress)}</span>
+                        <input 
+                            type="range" 
+                            min="0" 
+                            max={duration || 100} 
+                            value={progress} 
+                            onChange={handleSeek}
+                            disabled={!hasControl}
+                            className={`flex-1 h-1.5 rounded-full appearance-none cursor-pointer transition-all ${hasControl ? 'bg-white/20 hover:bg-white/40 accent-amber-500' : 'bg-gray-700 accent-gray-500 cursor-not-allowed'}`}
+                        />
+                        <span className="text-xs font-mono text-white/50 w-10">{formatTime(duration)}</span>
+                    </div>
+
+                    {/* Buttons */}
+                    <div className="flex justify-between items-center">
+                        <div className="flex items-center gap-4">
+                            <button 
+                                onClick={handlePlayPause} 
+                                disabled={!hasControl}
+                                className={`p-2 rounded-full hover:bg-white/10 transition-colors ${!hasControl ? 'opacity-50 cursor-not-allowed' : 'text-white'}`}
+                            >
+                                {isPlaying ? <Pause size={24} fill="currentColor"/> : <Play size={24} fill="currentColor"/>}
+                            </button>
+                            
+                            <button onClick={toggleMute} className="p-2 rounded-full hover:bg-white/10 text-white transition-colors">
+                                {isMuted ? <VolumeX size={20}/> : <Volume2 size={20}/>}
+                            </button>
+
+                            <div className="flex items-center gap-2">
+                                <span className="bg-red-600 px-1.5 py-0.5 rounded text-[10px] font-bold text-white tracking-wider uppercase">LIVE</span>
+                                {hasControl && <span className="text-xs text-amber-500 font-bold border border-amber-500/30 px-2 py-0.5 rounded-md">CONTROLLING</span>}
+                            </div>
+                        </div>
+
+                        <div className="flex items-center gap-3">
+                            <button onClick={toggleFullscreen} className="p-2 rounded-full hover:bg-white/10 text-white transition-colors">
+                                {isFullscreen ? <Minimize2 size={20}/> : <Maximize2 size={20}/>}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+// --- WATCH PARTY LOBBY ---
 
 const WatchPartyLobby = ({ userProfile, onJoin, onClose }: { userProfile: UserProfile, onJoin: (p: WatchParty, isHost: boolean) => void, onClose: () => void }) => {
     const [parties, setParties] = useState<WatchParty[]>([]);
@@ -275,11 +512,13 @@ const CreatePartyModal = ({ userProfile, onClose, onCreate }: { userProfile: Use
     );
 };
 
+// --- ROOM COMPONENT ---
+
 const WatchPartyRoom = ({ party, isHost, userProfile, apiKey, onLeave }: { party: WatchParty, isHost: boolean, userProfile: UserProfile, apiKey: string, onLeave: () => void }) => {
     const [activeParty, setActiveParty] = useState(party);
     const [messages, setMessages] = useState<PartyMessage[]>([]);
     const [inputMsg, setInputMsg] = useState("");
-    const [isSidebarOpen, setIsSidebarOpen] = useState(false); // Default closed on mobile
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false); 
     const [showSearch, setShowSearch] = useState(!party.movie && isHost);
     const [viewers, setViewers] = useState<any[]>([]);
     const [copiedId, setCopiedId] = useState(false);
@@ -288,16 +527,13 @@ const WatchPartyRoom = ({ party, isHost, userProfile, apiKey, onLeave }: { party
     const [searchQuery, setSearchQuery] = useState("");
     const [searchResults, setSearchResults] = useState<Movie[]>([]);
 
-    // Check if user is the Owner (original creator) or a Co-Host
     const isOwner = userProfile.name === activeParty.hostName;
     const isCoHost = activeParty.settings.coHosts?.includes(userProfile.name);
-    const hasControl = isOwner || isCoHost;
+    const hasControl = isOwner || isCoHost || activeParty.settings.allowControls;
 
     useEffect(() => {
-        // System message for local user join
         setMessages([{ id: 'sys-1', user: 'System', text: `Welcome to ${party.name}!`, timestamp: '', isSystem: true }]);
         
-        // Subscribe to real-time events
         const unsubscribe = subscribeToParty(party.id, userProfile, {
             onMessage: (msg) => {
                 if (msg.text.startsWith('CMD:KICK:')) {
@@ -327,7 +563,6 @@ const WatchPartyRoom = ({ party, isHost, userProfile, apiKey, onLeave }: { party
             }
         });
 
-        // Notify join
         sendPartyMessage(party.id, "System", `${userProfile.name} joined.`, true);
 
         return () => {
@@ -382,7 +617,6 @@ const WatchPartyRoom = ({ party, isHost, userProfile, apiKey, onLeave }: { party
     const handleDeleteParty = async () => {
         if (confirm("Are you sure you want to close this party for everyone?")) {
             await deleteWatchParty(party.id);
-            // Local leave handled by subscription onDelete callback or immediate navigation
             onLeave();
         }
     };
@@ -391,13 +625,25 @@ const WatchPartyRoom = ({ party, isHost, userProfile, apiKey, onLeave }: { party
         navigator.clipboard.writeText(party.id);
         setCopiedId(true);
         setTimeout(() => setCopiedId(false), 2000);
-    }
+    };
+
+    // Callback for SynchronizedPlayer to update DB
+    const handleSyncUpdate = (state: { isPlaying: boolean, currentTime: number }) => {
+        const newSettings = {
+            ...activeParty.settings,
+            playerState: {
+                ...state,
+                updatedAt: Date.now()
+            }
+        };
+        updatePartySettings(party.id, newSettings);
+    };
 
     return (
         <div className="flex flex-col md:flex-row h-full md:h-[calc(100vh-4rem)] bg-black overflow-hidden relative">
             {/* Main Content (Player) */}
             <div className="flex-1 flex flex-col relative w-full h-full">
-                {/* Header Overlay - Mobile Responsive */}
+                {/* Header Overlay */}
                 <div className="bg-white/5 border-b border-white/5 p-3 md:p-4 flex justify-between items-center z-10 shrink-0">
                     <div className="flex items-center gap-2 md:gap-3 overflow-hidden">
                         <button onClick={onLeave} className="p-2 hover:bg-white/10 rounded-full transition-colors shrink-0"><X size={20}/></button>
@@ -412,7 +658,7 @@ const WatchPartyRoom = ({ party, isHost, userProfile, apiKey, onLeave }: { party
                         </div>
                     </div>
                     <div className="flex gap-2 shrink-0">
-                        {hasControl && (
+                        {(isOwner || isCoHost) && (
                             <button 
                                 onClick={() => setShowSearch(!showSearch)} 
                                 className="flex items-center gap-2 bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors"
@@ -429,27 +675,20 @@ const WatchPartyRoom = ({ party, isHost, userProfile, apiKey, onLeave }: { party
                 <div className="flex-1 relative bg-black flex items-center justify-center overflow-hidden">
                     {activeParty.movie ? (
                         <div className="w-full h-full relative">
-                            {/* Controls Overlay for Members if controls disabled */}
-                            {!hasControl && !activeParty.settings.allowControls && (
-                                <div className="absolute inset-0 z-50 pointer-events-none border-[4px] border-amber-500/20">
-                                    <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-black/60 backdrop-blur px-3 py-1 rounded-full text-xs text-white/70 flex items-center gap-2 pointer-events-auto">
-                                        <Lock size={10}/> Host has control
-                                    </div>
-                                </div>
-                            )}
-                            <MoviePlayer 
-                                tmdbId={activeParty.movie.id}
-                                mediaType={activeParty.movie.media_type || 'movie'}
-                                isAnime={false} 
-                                onClose={() => {}} 
-                                apiKey={apiKey}
+                            <SynchronizedPlayer 
+                                partyId={activeParty.id}
+                                movie={activeParty.movie}
+                                isHost={isHost}
+                                hasControl={hasControl}
+                                settings={activeParty.settings}
+                                onSyncUpdate={handleSyncUpdate}
                             />
                         </div>
                     ) : (
                         <div className="text-center text-gray-500 p-6">
-                            <Film size={48} className="mx-auto mb-4 opacity-50"/>
+                            <MonitorPlay size={48} className="mx-auto mb-4 opacity-50"/>
                             <p>Waiting for host to select a movie...</p>
-                            {hasControl && <button onClick={() => setShowSearch(true)} className="mt-4 text-amber-500 hover:underline">Select Now</button>}
+                            {(isOwner || isCoHost) && <button onClick={() => setShowSearch(true)} className="mt-4 text-amber-500 hover:underline">Select Now</button>}
                         </div>
                     )}
 

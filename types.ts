@@ -275,6 +275,11 @@ export interface PartySettings {
     allowChat: boolean;
     allowControls: boolean; // Allow members to pause/play
     coHosts?: string[]; // Array of user names who are co-hosts
+    playerState?: {
+        isPlaying: boolean;
+        currentTime: number;
+        updatedAt: number;
+    };
 }
 
 export interface PartyMessage {
