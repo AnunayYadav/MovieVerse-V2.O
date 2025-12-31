@@ -243,8 +243,8 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
             frameBorder="0"
             allow="autoplay; fullscreen; picture-in-picture"
             allowFullScreen
-            // Expanded sandbox to ensure vidsrc.cc loads correctly (often needs popups/storage access)
-            sandbox="allow-forms allow-pointer-lock allow-same-origin allow-scripts allow-top-navigation allow-popups"
+            // Sandbox restricts ads and popups
+            sandbox="allow-forms allow-pointer-lock allow-same-origin allow-scripts allow-top-navigation"
         />
       </div>
     </div>
