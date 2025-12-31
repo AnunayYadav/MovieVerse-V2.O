@@ -46,6 +46,9 @@ export const MovieModal: React.FC<MovieModalProps> = ({
     const [viewingImage, setViewingImage] = useState<string | null>(null);
     const [showPlayer, setShowPlayer] = useState(false);
     const [playParams, setPlayParams] = useState({ season: 1, episode: 1 });
+    
+    // State to handle smooth video transition
+    const [videoLoaded, setVideoLoaded] = useState(false);
 
     const isExclusive = userProfile.canWatch === true;
     const isGoldTheme = isExclusive && userProfile.theme !== 'default';
@@ -75,6 +78,7 @@ export const MovieModal: React.FC<MovieModalProps> = ({
         setActiveTab("details");
         setSeasonData(null);
         setShowPlayer(false);
+        setVideoLoaded(false); // Reset video state on movie change
         setPlayParams({ season: 1, episode: 1 });
     }, [movie.id, apiKey, movie.media_type]);
 
@@ -188,29 +192,33 @@ export const MovieModal: React.FC<MovieModalProps> = ({
                                  </div>
                              ) : (
                                  <div className="absolute inset-0">
-                                    {trailer ? (
-                                        <div className="absolute inset-0 w-full h-full overflow-hidden">
+                                    {trailer && (
+                                        <div className="absolute inset-0 w-full h-full overflow-hidden pointer-events-none">
                                             <iframe
                                                 src={`https://www.youtube.com/embed/${trailer.key}?autoplay=1&mute=1&controls=0&loop=1&playlist=${trailer.key}&showinfo=0&rel=0&iv_load_policy=3&modestbranding=1&playsinline=1&enablejsapi=1&origin=${window.location.origin}`}
-                                                className="w-full h-[150%] -mt-[25%] pointer-events-none scale-150 opacity-60 transition-opacity duration-1000"
+                                                className={`absolute top-1/2 left-1/2 w-[150%] h-[150%] -translate-x-1/2 -translate-y-1/2 pointer-events-none transition-opacity duration-1000 ease-in-out ${videoLoaded ? 'opacity-60' : 'opacity-0'}`}
                                                 allow="autoplay; encrypted-media; gyroscope; picture-in-picture"
                                                 title="Background Trailer"
                                                 loading="lazy"
+                                                onLoad={() => {
+                                                    // Small delay to ensure video rendering prevents black flash
+                                                    setTimeout(() => setVideoLoaded(true), 1500);
+                                                }}
                                             />
                                         </div>
-                                    ) : (
-                                        <img 
-                                            src={displayData.backdrop_path ? `${TMDB_BACKDROP_BASE}${displayData.backdrop_path}` : displayData.poster_path ? `${TMDB_IMAGE_BASE}${displayData.poster_path}` : "https://placehold.co/1200x600"} 
-                                            alt={title} 
-                                            className="w-full h-full object-cover animate-in fade-in duration-700" 
-                                        />
                                     )}
-                                    {/* Fallback image behind iframe to prevent black flash or if video fails */}
+
+                                    {/* Poster / Backdrop Image - Stays visible but fades out if video loads */}
                                     <img 
-                                        src={displayData.backdrop_path ? `${TMDB_BACKDROP_BASE}${displayData.backdrop_path}` : "https://placehold.co/1200x600"} 
-                                        alt="Background" 
-                                        className="absolute inset-0 w-full h-full object-cover -z-10" 
+                                        src={displayData.backdrop_path ? `${TMDB_BACKDROP_BASE}${displayData.backdrop_path}` : displayData.poster_path ? `${TMDB_IMAGE_BASE}${displayData.poster_path}` : "https://placehold.co/1200x600"} 
+                                        alt={title} 
+                                        className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-1000 ${trailer && videoLoaded ? 'opacity-0' : 'opacity-100'}`} 
                                     />
+                                    
+                                    {/* Fallback dark background behind everything to prevent white flashes */}
+                                    <div className="absolute inset-0 bg-black -z-20"></div>
+
+                                    {/* Gradients */}
                                     <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0a] via-[#0a0a0a]/50 to-transparent"></div>
                                     <div className="absolute inset-0 bg-gradient-to-r from-[#0a0a0a]/80 via-transparent to-transparent"></div>
                                  </div>
