@@ -226,8 +226,8 @@ export const MovieModal: React.FC<MovieModalProps> = ({
                                     {/* Fallback dark background behind everything to prevent white flashes */}
                                     <div className="absolute inset-0 bg-black -z-20"></div>
 
-                                    {/* Single Unified Vignette: Fades to 25% opacity on idle, 100% on hover */}
-                                    <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0a] via-black/50 to-transparent transition-opacity duration-700 ease-in-out opacity-25 group-hover/hero:opacity-100 pointer-events-none"></div>
+                                    {/* Single Unified Vignette: Fades to 25% opacity on idle, 100% on hover. Using -inset-1 to prevent sub-pixel gaps. */}
+                                    <div className="absolute -inset-1 bg-gradient-to-t from-[#0a0a0a] via-[#0a0a0a]/50 to-transparent transition-opacity duration-700 ease-in-out opacity-25 group-hover/hero:opacity-100 pointer-events-none"></div>
                                  </div>
                              )}
                              
@@ -237,7 +237,7 @@ export const MovieModal: React.FC<MovieModalProps> = ({
                                         <img 
                                             src={`${TMDB_IMAGE_BASE}${logo.file_path}`} 
                                             alt={title} 
-                                            className="max-h-14 md:max-h-28 max-w-[65%] w-auto object-contain object-left drop-shadow-2xl mb-4 origin-bottom-left -ml-1.5 transition-all duration-700 ease-in-out transform scale-75 opacity-70 translate-y-24 group-hover/hero:scale-100 group-hover/hero:opacity-100 group-hover/hero:translate-y-0"
+                                            className="max-h-14 md:max-h-28 max-w-[65%] w-auto object-contain object-left drop-shadow-2xl mb-4 origin-bottom-left -ml-1.5 transition-all duration-700 ease-in-out transform scale-90 opacity-70 translate-y-20 group-hover/hero:scale-100 group-hover/hero:opacity-100 group-hover/hero:translate-y-0"
                                         />
                                     ) : (
                                         <h2 className="text-3xl md:text-5xl font-extrabold text-white leading-tight drop-shadow-lg transition-all duration-700 ease-in-out opacity-80 translate-y-12 group-hover/hero:opacity-100 group-hover/hero:translate-y-0">{title}</h2>
