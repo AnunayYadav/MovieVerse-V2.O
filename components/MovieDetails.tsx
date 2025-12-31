@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, Suspense } from 'react';
-import { X, Calendar, Clock, Star, Play, Bookmark, Heart, Share2, ListPlus, Tv, Clapperboard, User, Lightbulb, Sparkles, Loader2, Check, DollarSign, TrendingUp, Tag, Layers, MessageCircle, Scale, Globe, Facebook, Instagram, Twitter, Film, PlayCircle, Minimize2, Eye } from 'lucide-react';
+import { X, Calendar, Clock, Star, Play, Bookmark, Heart, Share2, ListPlus, Tv, Clapperboard, User, Lightbulb, Sparkles, Loader2, Check, DollarSign, TrendingUp, Tag, Layers, MessageCircle, Scale, Globe, Facebook, Instagram, Twitter, Film, PlayCircle, Minimize2, Eye, Lock, ChevronDown, Zap } from 'lucide-react';
 import { Movie, MovieDetails, Season, UserProfile, Keyword, Review } from '../types';
 import { TMDB_BASE_URL, TMDB_IMAGE_BASE, TMDB_BACKDROP_BASE, formatCurrency, ImageLightbox } from '../components/Shared';
 import { generateTrivia, getSimilarMoviesAI } from '../services/gemini';
@@ -47,7 +47,8 @@ export const MovieModal: React.FC<MovieModalProps> = ({
     const [loadingSeason, setLoadingSeason] = useState(false);
     const [viewingImage, setViewingImage] = useState<string | null>(null);
     const [showPlayer, setShowPlayer] = useState(false);
-    const [playParams, setPlayParams] = useState({ season: 1, episode: 1 });
+    const [playParams, setPlayParams] = useState({ season: 1, episode: 1, server: 'vidsrc' });
+    const [showServerMenu, setShowServerMenu] = useState(false);
 
     const isExclusive = userProfile.canWatch === true;
     const isGoldTheme = isExclusive && userProfile.theme !== 'default';
@@ -83,7 +84,8 @@ export const MovieModal: React.FC<MovieModalProps> = ({
         setActiveTab("details");
         setSeasonData(null);
         setShowPlayer(false); // Reset player on new movie load
-        setPlayParams({ season: 1, episode: 1 });
+        setPlayParams({ season: 1, episode: 1, server: 'vidsrc' });
+        setShowServerMenu(false);
 
     }, [movie.id, apiKey, movie.media_type]);
 
@@ -146,6 +148,12 @@ export const MovieModal: React.FC<MovieModalProps> = ({
         const trailer = details?.videos?.results?.find(v => v.type === "Trailer")?.key;
         if (trailer) window.open(`https://www.youtube.com/watch?v=${trailer}`, '_blank');
         else window.open(`https://www.youtube.com/results?search_query=${encodeURIComponent(movie.title + " trailer")}`, '_blank');
+    };
+
+    const handleWatchClick = (server: string = 'vidsrc') => {
+        setPlayParams(prev => ({ ...prev, season: selectedSeason, episode: 1, server }));
+        setShowPlayer(true);
+        setShowServerMenu(false);
     };
 
     const displayData = { ...movie, ...details } as MovieDetails;
@@ -226,6 +234,7 @@ export const MovieModal: React.FC<MovieModalProps> = ({
                                             initialSeason={playParams.season}
                                             initialEpisode={playParams.episode}
                                             apiKey={apiKey}
+                                            server={playParams.server}
                                          />
                                      </Suspense>
                                  </div>
@@ -255,15 +264,32 @@ export const MovieModal: React.FC<MovieModalProps> = ({
                                     </div>
                                     <div className="flex flex-wrap gap-3 mt-2">
                                         {isExclusive && (
-                                            <button 
-                                                onClick={() => {
-                                                    setPlayParams({ season: selectedSeason, episode: 1 });
-                                                    setShowPlayer(true);
-                                                }} 
-                                                className={`font-bold py-3 px-8 rounded-xl transition-all flex items-center gap-2 active:scale-95 shadow-lg ${isGoldTheme ? 'bg-gradient-to-r from-amber-600 to-amber-500 text-black hover:from-amber-500 hover:to-amber-400 shadow-amber-900/40' : 'bg-red-600 hover:bg-red-700 text-white shadow-red-900/40'}`}
-                                            >
-                                                <PlayCircle size={20} fill="currentColor" /> Watch Now
-                                            </button>
+                                            <div className="flex items-stretch rounded-xl shadow-lg overflow-hidden transition-all active:scale-95 group/btn">
+                                                <button 
+                                                    onClick={() => handleWatchClick('vidsrc')} 
+                                                    className={`font-bold py-3 px-6 flex items-center gap-2 ${isGoldTheme ? 'bg-amber-500 text-black' : 'bg-red-600 text-white'}`}
+                                                >
+                                                    <PlayCircle size={20} fill="currentColor" /> Watch Now
+                                                </button>
+                                                <div className={`relative border-l ${isGoldTheme ? 'border-amber-600 bg-amber-500 text-black' : 'border-red-700 bg-red-600 text-white'}`}>
+                                                     <button 
+                                                        className="h-full px-2 hover:bg-black/10 transition-colors flex items-center" 
+                                                        onClick={(e) => { e.stopPropagation(); setShowServerMenu(!showServerMenu); }}
+                                                     >
+                                                        <ChevronDown size={16} />
+                                                     </button>
+                                                     {showServerMenu && (
+                                                         <div className="absolute top-full right-0 mt-2 w-48 bg-[#111] border border-white/10 rounded-xl shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2">
+                                                             <button onClick={() => handleWatchClick('vidsrc')} className="w-full text-left px-4 py-3 hover:bg-white/10 text-sm text-gray-300 hover:text-white flex items-center gap-2 border-b border-white/5">
+                                                                <Zap size={14} className="text-yellow-500"/> Server 1 (Fast)
+                                                             </button>
+                                                             <button onClick={() => handleWatchClick('cineby')} className="w-full text-left px-4 py-3 hover:bg-white/10 text-sm text-gray-300 hover:text-white flex items-center gap-2">
+                                                                <Globe size={14} className="text-blue-500"/> Server 2 (Cineby)
+                                                             </button>
+                                                         </div>
+                                                     )}
+                                                </div>
+                                            </div>
                                         )}
                                         <button onClick={handleTrailerClick} className={`${isExclusive ? 'glass hover:bg-white/10 text-white' : 'bg-white text-black hover:bg-gray-200'} font-bold py-3 px-6 rounded-xl transition-all flex items-center gap-2 active:scale-95`}><Play size={18} /> Trailer</button>
                                         <div className="flex gap-2">
@@ -444,7 +470,7 @@ export const MovieModal: React.FC<MovieModalProps> = ({
                                                         className={`group flex gap-4 p-3 rounded-xl border border-transparent transition-all relative ${isExclusive ? 'cursor-pointer hover:bg-white/10 hover:border-white/10' : 'hover:bg-white/5 hover:border-white/5'}`}
                                                         onClick={() => {
                                                             if (isExclusive) {
-                                                                setPlayParams({ season: ep.season_number, episode: ep.episode_number });
+                                                                setPlayParams({ season: ep.season_number, episode: ep.episode_number, server: 'vidsrc' });
                                                                 setShowPlayer(true);
                                                             }
                                                         }}
