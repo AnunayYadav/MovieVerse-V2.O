@@ -1,5 +1,6 @@
+
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { Movie, UserProfile, AppNotification } from '../types';
+import { Movie, UserProfile, AppNotification, WatchParty } from '../types';
 import { safeEnv } from '../components/Shared';
 
 let supabaseInstance: SupabaseClient | null = null;
@@ -294,10 +295,6 @@ export const submitSupportTicket = async (subject: string, message: string, cont
 
     try {
         const { data: { user } } = await supabase.auth.getUser();
-        
-        // Attempt to insert into a 'support_tickets' table
-        // Ensure this table exists in your Supabase project:
-        // create table support_tickets (id uuid default gen_random_uuid() primary key, user_id uuid, email text, subject text, message text, created_at timestamptz default now());
         const { error } = await supabase
             .from('support_tickets')
             .insert({
@@ -316,5 +313,83 @@ export const submitSupportTicket = async (subject: string, message: string, cont
     } catch (e) {
         console.error("Support Ticket Error", e);
         return false;
+    }
+};
+
+// --- WATCH PARTY MANAGEMENT (Local Mock for Demo Reliability) ---
+
+const PARTY_KEY = 'movieverse_parties';
+
+const getParties = (): WatchParty[] => {
+    const stored = localStorage.getItem(PARTY_KEY);
+    return stored ? JSON.parse(stored) : [];
+};
+
+const saveParties = (parties: WatchParty[]) => {
+    localStorage.setItem(PARTY_KEY, JSON.stringify(parties));
+};
+
+export const createWatchParty = async (name: string, isPrivate: boolean, password?: string, hostName?: string, movie?: Movie): Promise<WatchParty> => {
+    // Simulate network delay
+    await new Promise(r => setTimeout(r, 500));
+    
+    const newParty: WatchParty = {
+        id: Math.random().toString(36).substr(2, 6).toUpperCase(), // Short room ID
+        name,
+        hostName: hostName || "Anonymous",
+        isPrivate,
+        password,
+        movie,
+        viewers: 1,
+        settings: {
+            allowChat: true,
+            allowControls: false // By default only host controls
+        },
+        createdAt: Date.now()
+    };
+
+    const parties = getParties();
+    parties.push(newParty);
+    saveParties(parties);
+    return newParty;
+};
+
+export const joinWatchParty = async (partyId: string, password?: string): Promise<WatchParty | null> => {
+    await new Promise(r => setTimeout(r, 600));
+    const parties = getParties();
+    const party = parties.find(p => p.id === partyId);
+    
+    if (!party) throw new Error("Party not found");
+    if (party.isPrivate && party.password !== password) throw new Error("Incorrect Password");
+    
+    // Increment viewer count mock
+    party.viewers += 1;
+    saveParties(parties);
+    
+    return party;
+};
+
+export const getPublicParties = async (): Promise<WatchParty[]> => {
+    await new Promise(r => setTimeout(r, 400));
+    const parties = getParties();
+    // Return all parties for the list, UI can indicate locked status
+    return parties.sort((a,b) => b.createdAt - a.createdAt);
+};
+
+export const updatePartySettings = async (partyId: string, settings: any) => {
+    const parties = getParties();
+    const idx = parties.findIndex(p => p.id === partyId);
+    if (idx !== -1) {
+        parties[idx].settings = { ...parties[idx].settings, ...settings };
+        saveParties(parties);
+    }
+};
+
+export const updatePartyMovie = async (partyId: string, movie: Movie) => {
+    const parties = getParties();
+    const idx = parties.findIndex(p => p.id === partyId);
+    if (idx !== -1) {
+        parties[idx].movie = movie;
+        saveParties(parties);
     }
 };

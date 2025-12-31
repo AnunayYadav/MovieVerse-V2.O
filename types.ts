@@ -259,6 +259,31 @@ export interface LiveChannel {
     country?: string;
 }
 
+export interface WatchParty {
+    id: string;
+    name: string;
+    hostName: string;
+    isPrivate: boolean;
+    password?: string; // Only locally checked for demo
+    movie?: Movie;
+    viewers: number;
+    settings: PartySettings;
+    createdAt: number;
+}
+
+export interface PartySettings {
+    allowChat: boolean;
+    allowControls: boolean; // Allow members to pause/play
+}
+
+export interface PartyMessage {
+    id: string;
+    user: string;
+    text: string;
+    timestamp: string;
+    isSystem?: boolean;
+}
+
 export type MaturityRating = "G" | "PG" | "PG-13" | "R" | "NC-17";
 
 export const INDIAN_LANGUAGES = [
