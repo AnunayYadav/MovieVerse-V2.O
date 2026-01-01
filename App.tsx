@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Search, Film, Menu, TrendingUp, Tv, Ghost, Calendar, Star, X, Sparkles, Settings, Globe, BarChart3, Bookmark, Heart, Folder, Languages, Filter, ChevronDown, Info, Plus, Cloud, CloudOff, Clock, Bell, History, User, Users, Tag, Layers, Dice5, Crown, Loader2, Radio } from 'lucide-react';
 import { Movie, UserProfile, GENRES_MAP, GENRES_LIST, INDIAN_LANGUAGES, MaturityRating, Keyword } from './types';
@@ -485,6 +486,19 @@ export default function App() {
     setLoading(true);
     setAiContextReason(null);
 
+    // Calculate Maturity Rating based on User Age
+    let maxCertification = maturityRating;
+    if (userProfile.age) {
+        const age = parseInt(userProfile.age);
+        if (!isNaN(age)) {
+            if (age < 7) maxCertification = 'G';
+            else if (age < 13) maxCertification = 'PG';
+            else if (age < 17) maxCertification = 'PG-13';
+            else if (age < 18) maxCertification = 'R';
+            else maxCertification = 'NC-17';
+        }
+    }
+
     try {
         let endpoint = "/discover/movie";
         const params = new URLSearchParams({
@@ -494,7 +508,7 @@ export default function App() {
             region: appRegion,
             include_adult: "false",
             certification_country: "US",
-            "certification.lte": maturityRating
+            "certification.lte": maxCertification
         });
 
         if (searchQuery) {

@@ -1,5 +1,6 @@
+
 import React, { useState, useEffect, Suspense } from 'react';
-import { X, Calendar, Clock, Star, Play, Bookmark, Heart, Share2, ListPlus, Tv, Clapperboard, User, Lightbulb, Sparkles, Loader2, Check, DollarSign, TrendingUp, Tag, Layers, MessageCircle, Scale, Globe, Facebook, Instagram, Twitter, Film, PlayCircle, Minimize2, Eye, Lock, ChevronDown, Zap, Quote } from 'lucide-react';
+import { X, Calendar, Clock, Star, Play, Bookmark, Heart, Share2, ListPlus, Tv, Clapperboard, User, Lightbulb, Sparkles, Loader2, Check, DollarSign, TrendingUp, Tag, Layers, MessageCircle, Scale, Globe, Facebook, Instagram, Twitter, Film, PlayCircle, Minimize2, Eye, Lock, ChevronDown, Zap, Quote, Shield } from 'lucide-react';
 import { Movie, MovieDetails, Season, UserProfile, Keyword, Review } from '../types';
 import { TMDB_BASE_URL, TMDB_IMAGE_BASE, TMDB_BACKDROP_BASE, formatCurrency, ImageLightbox } from '../components/Shared';
 import { generateTrivia, getSimilarMoviesAI } from '../services/gemini';
@@ -201,6 +202,26 @@ export const MovieModal: React.FC<MovieModalProps> = ({
     // Find Trailer for background
     const trailer = displayData.videos?.results?.find(v => v.type === 'Trailer' && v.site === 'YouTube') || displayData.videos?.results?.find(v => v.site === 'YouTube');
 
+    // Certification Logic
+    const getRating = () => {
+        if (isTv) {
+             const usRating = displayData.content_ratings?.results?.find(r => r.iso_3166_1 === 'US');
+             return usRating ? usRating.rating : 'NR';
+        }
+        const usRelease = displayData.release_dates?.results?.find(r => r.iso_3166_1 === 'US');
+        if (usRelease) {
+            // Prioritize theatrical/digital releases that have a certification
+            const cert = usRelease.release_dates.find(x => x.certification)?.certification;
+            return cert || 'NR';
+        }
+        return 'NR';
+    };
+    
+    const ratingLabel = getRating();
+    const isMature = ['R', 'NC-17', 'TV-MA'].includes(ratingLabel);
+    const isTeen = ['PG-13', 'TV-14'].includes(ratingLabel);
+    const ratingColor = isMature ? 'bg-red-600 text-white' : isTeen ? 'bg-yellow-500 text-black' : 'bg-green-500 text-white';
+
     const SocialLink = ({ url, icon: Icon, color }: { url?: string, icon: any, color: string }) => {
         if (!url) return null;
         return (
@@ -285,6 +306,9 @@ export const MovieModal: React.FC<MovieModalProps> = ({
                                     {/* Metadata & Socials - Fades out completely on idle if video is playing */}
                                     <div className={`space-y-4 transition-all duration-700 ease-in-out origin-bottom ${videoLoaded ? 'opacity-0 -translate-y-4 group-hover/hero:opacity-100 group-hover/hero:translate-y-0' : 'opacity-100 translate-y-0'}`}>
                                         <div className="flex flex-wrap items-center gap-3 md:gap-4 text-white/80 text-sm font-medium">
+                                            {ratingLabel !== 'NR' && (
+                                                <span className={`px-2 py-0.5 rounded text-xs font-bold shadow-sm ${ratingColor}`}>{ratingLabel}</span>
+                                            )}
                                             <span className="flex items-center gap-1.5"><Calendar size={14} className={accentText}/> {displayData.release_date?.split('-')[0] || displayData.first_air_date?.split('-')[0] || 'TBA'}</span>
                                             <span className="flex items-center gap-1.5"><Clock size={14} className={accentText}/> {runtime}</span>
                                             {displayData.vote_average && <span className="flex items-center gap-1.5"><Star size={14} className="text-yellow-500" fill="currentColor"/> {displayData.vote_average.toFixed(1)}</span>}
