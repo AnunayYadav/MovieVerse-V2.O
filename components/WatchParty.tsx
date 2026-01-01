@@ -1,6 +1,6 @@
 
-import React, { useState, useEffect, useRef } from 'react';
-import { Users, Search, Plus, Lock, Unlock, LogIn, MessageSquare, Send, Settings, Play, Pause, X, Loader2, Film, Crown, Check, Share2, Copy, Menu, UserPlus, UserMinus, ShieldAlert, LogOut, ChevronDown, MonitorPlay, Maximize2, Minimize2, Volume2, VolumeX, FastForward, Rewind, RefreshCcw, AlertTriangle, Link as LinkIcon, ExternalLink, Tv } from 'lucide-react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { Users, Search, Plus, Lock, Unlock, LogIn, MessageSquare, Send, Settings, Play, Pause, X, Loader2, Film, Crown, Check, Share2, Copy, Menu, UserPlus, UserMinus, ShieldAlert, LogOut, ChevronDown, MonitorPlay, Maximize2, Minimize2, Volume2, VolumeX, FastForward, Rewind, RefreshCcw, AlertTriangle, Link as LinkIcon, ExternalLink, Tv, SkipForward, Volume1 } from 'lucide-react';
 import { WatchParty, UserProfile, Movie, PartyMessage, PartySettings } from '../types';
 import { createWatchParty, joinWatchParty, getPublicParties, updatePartySettings, updatePartyMovie, subscribeToParty, sendPartyMessage, deleteWatchParty } from '../services/supabase';
 import { TMDB_IMAGE_BASE, TMDB_BASE_URL } from './Shared';
@@ -36,7 +36,7 @@ export const WatchPartySection: React.FC<WatchPartyProps> = ({ userProfile, apiK
     );
 };
 
-// --- SYNCHRONIZED PLAYER COMPONENT ---
+// --- SYNCHRONIZED PLAYER COMPONENT (Premium UI) ---
 const SynchronizedPlayer = ({ 
     partyId, 
     movie, 
@@ -53,21 +53,24 @@ const SynchronizedPlayer = ({
     onSyncUpdate: (state: { isPlaying: boolean, currentTime: number }) => void 
 }) => {
     const videoRef = useRef<HTMLVideoElement>(null);
+    const containerRef = useRef<HTMLDivElement>(null);
+    
+    // Player State
     const [streamUrl, setStreamUrl] = useState<string>("");
     const [isPlaying, setIsPlaying] = useState(false);
     const [progress, setProgress] = useState(0);
     const [duration, setDuration] = useState(0);
+    const [volume, setVolume] = useState(1);
     const [isMuted, setIsMuted] = useState(false);
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [showControls, setShowControls] = useState(true);
+    const [showSkipIntro, setShowSkipIntro] = useState(false);
+    const [buffering, setBuffering] = useState(false);
     
     // Extraction & Fallback State
     const [extracting, setExtracting] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [retryCount, setRetryCount] = useState(0);
     const [useEmbedFallback, setUseEmbedFallback] = useState(false);
-    const [manualUrl, setManualUrl] = useState("");
-    const [showManualInput, setShowManualInput] = useState(false);
     
     const controlsTimeoutRef = useRef<any>(null);
     const hlsRef = useRef<any>(null);
@@ -85,7 +88,6 @@ const SynchronizedPlayer = ({
 
     // 1. Stream Extraction Logic
     useEffect(() => {
-        // If we already decided to use embed, skip extraction
         if (useEmbedFallback) return;
 
         let isMounted = true;
@@ -110,16 +112,13 @@ const SynchronizedPlayer = ({
                     if (!isMounted) break;
                     
                     try {
-                        console.log(`[Player] Scanning: ${source}`);
                         const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(source)}`;
-                        
                         const response = await fetch(proxyUrl, { 
                             signal: controller.signal,
                             headers: { 'Origin': 'null' }
                         });
                         
                         if (!response.ok) continue;
-                        
                         const html = await response.text();
                         
                         // Regex for .m3u8
@@ -147,13 +146,10 @@ const SynchronizedPlayer = ({
 
                 if (foundStream) {
                     if (isMounted) {
-                        console.log("[Player] Stream Found:", foundStream);
                         setStreamUrl(foundStream);
                         setExtracting(false);
                     }
                 } else {
-                    // Auto-fallback if extraction fails
-                    console.log("[Player] Extraction failed, switching to Embed Mode");
                     if (isMounted) {
                         setUseEmbedFallback(true);
                         setExtracting(false);
@@ -162,7 +158,6 @@ const SynchronizedPlayer = ({
 
             } catch (e: any) {
                 if (isMounted) {
-                    console.error("[Player] Critical Failure", e);
                     setUseEmbedFallback(true);
                     setExtracting(false);
                 }
@@ -175,9 +170,9 @@ const SynchronizedPlayer = ({
             isMounted = false; 
             controller.abort();
         };
-    }, [movie.id, mediaType, season, episode, retryCount, useEmbedFallback]);
+    }, [movie.id, mediaType, season, episode, useEmbedFallback]);
 
-    // 2. Initialize HLS Player (Only if NOT using Embed Fallback)
+    // 2. Initialize HLS Player
     useEffect(() => {
         if (useEmbedFallback || !streamUrl || !videoRef.current) return;
         
@@ -190,6 +185,8 @@ const SynchronizedPlayer = ({
             const hls = new Hls({
                 enableWorker: true,
                 lowLatencyMode: true,
+                backBufferLength: 90,
+                // xhrSetup simulates the proxy headers for segments
                 xhrSetup: function (xhr: XMLHttpRequest, url: string) {
                     if (!url.includes('corsproxy.io')) {
                         xhr.open('GET', `https://corsproxy.io/?${encodeURIComponent(url)}`, true);
@@ -207,10 +204,8 @@ const SynchronizedPlayer = ({
             
             hls.on(Hls.Events.ERROR, (event: any, data: any) => {
                 if (data.fatal) {
-                    // If stream dies, recover or fallback
-                    console.warn("Stream Fatal Error", data);
                     hls.destroy();
-                    setUseEmbedFallback(true); // Fallback on fatal error
+                    setUseEmbedFallback(true);
                 }
             });
         } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
@@ -220,26 +215,38 @@ const SynchronizedPlayer = ({
         const handleTimeUpdate = () => {
             setProgress(video.currentTime);
             setDuration(video.duration || 0);
+            setBuffering(false);
+            
+            // Logic for "Skip Intro" (Mocked for generic streams without cue-points)
+            // Shows button between 60s and 180s
+            if (video.currentTime > 60 && video.currentTime < 180) {
+                setShowSkipIntro(true);
+            } else {
+                setShowSkipIntro(false);
+            }
         };
-        const handlePlay = () => setIsPlaying(true);
+        
+        const handleWaiting = () => setBuffering(true);
+        const handlePlaying = () => { setIsPlaying(true); setBuffering(false); };
         const handlePause = () => setIsPlaying(false);
 
         video.addEventListener('timeupdate', handleTimeUpdate);
-        video.addEventListener('play', handlePlay);
+        video.addEventListener('waiting', handleWaiting);
+        video.addEventListener('playing', handlePlaying);
         video.addEventListener('pause', handlePause);
         
         return () => {
             video.removeEventListener('timeupdate', handleTimeUpdate);
-            video.removeEventListener('play', handlePlay);
+            video.removeEventListener('waiting', handleWaiting);
+            video.removeEventListener('playing', handlePlaying);
             video.removeEventListener('pause', handlePause);
             if (hlsRef.current) hlsRef.current.destroy();
         };
     }, [streamUrl, useEmbedFallback]);
 
-    // 3. Sync Logic (Only for HLS)
+    // 3. Sync Logic & Keyboard Controls
     useEffect(() => {
         if (useEmbedFallback || !videoRef.current || !settings.playerState) return;
-        
         const video = videoRef.current;
         const serverState = settings.playerState;
         
@@ -248,15 +255,106 @@ const SynchronizedPlayer = ({
 
         if (serverState.isPlaying && video.paused) video.play().catch(() => {});
         else if (!serverState.isPlaying && !video.paused) video.pause();
-
     }, [settings.playerState, useEmbedFallback]);
 
-    // Format Helpers
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (useEmbedFallback) return;
+            if (!hasControl) return;
+            
+            switch(e.key.toLowerCase()) {
+                case " ":
+                case "k":
+                    e.preventDefault();
+                    togglePlay();
+                    break;
+                case "f":
+                    toggleFullscreen();
+                    break;
+                case "m":
+                    toggleMute();
+                    break;
+                case "arrowright":
+                    skip(10);
+                    break;
+                case "arrowleft":
+                    skip(-10);
+                    break;
+            }
+        };
+        window.addEventListener("keydown", handleKeyDown);
+        return () => window.removeEventListener("keydown", handleKeyDown);
+    }, [hasControl, useEmbedFallback, isPlaying]);
+
+    // Controls
+    const togglePlay = () => {
+        if (!hasControl) return;
+        const newState = !isPlaying;
+        onSyncUpdate({ isPlaying: newState, currentTime: videoRef.current?.currentTime || 0 });
+    };
+
+    const skip = (amount: number) => {
+        if (!hasControl || !videoRef.current) return;
+        const newTime = videoRef.current.currentTime + amount;
+        videoRef.current.currentTime = newTime;
+        onSyncUpdate({ isPlaying, currentTime: newTime });
+    };
+
+    const handleSkipIntro = () => {
+        if (!hasControl || !videoRef.current) return;
+        const newTime = videoRef.current.currentTime + 85; // Skip standard 85s intro
+        videoRef.current.currentTime = newTime;
+        onSyncUpdate({ isPlaying, currentTime: newTime });
+        setShowSkipIntro(false);
+    };
+
+    const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (!hasControl || !videoRef.current) return;
+        const time = parseFloat(e.target.value);
+        videoRef.current.currentTime = time;
+        setProgress(time);
+        onSyncUpdate({ isPlaying, currentTime: time });
+    };
+
+    const handleVolume = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const val = parseFloat(e.target.value);
+        setVolume(val);
+        if (videoRef.current) {
+            videoRef.current.volume = val;
+            videoRef.current.muted = val === 0;
+            setIsMuted(val === 0);
+        }
+    };
+
+    const toggleMute = () => {
+        if (videoRef.current) {
+            const newMute = !videoRef.current.muted;
+            videoRef.current.muted = newMute;
+            setIsMuted(newMute);
+            if (!newMute && volume === 0) {
+                setVolume(0.5);
+                videoRef.current.volume = 0.5;
+            }
+        }
+    };
+
+    const toggleFullscreen = () => {
+        if (!document.fullscreenElement) {
+            containerRef.current?.requestFullscreen();
+            setIsFullscreen(true);
+        } else {
+            document.exitFullscreen();
+            setIsFullscreen(false);
+        }
+    };
+
     const formatTime = (seconds: number) => {
         if (isNaN(seconds)) return "0:00";
-        const min = Math.floor(seconds / 60);
-        const sec = Math.floor(seconds % 60);
-        return `${min}:${sec < 10 ? '0' : ''}${sec}`;
+        const h = Math.floor(seconds / 3600);
+        const m = Math.floor((seconds % 3600) / 60);
+        const s = Math.floor(seconds % 60);
+        if (h > 0) return `${h}:${m < 10 ? '0' : ''}${m}:${s < 10 ? '0' : ''}${s}`;
+        return `${m}:${s < 10 ? '0' : ''}${s}`;
     };
 
     const handleMouseMove = () => {
@@ -271,14 +369,12 @@ const SynchronizedPlayer = ({
     if (useEmbedFallback) {
         return (
             <div className="w-full h-full relative bg-black flex flex-col">
-                {/* Embed Header Overlay */}
                 <div className="absolute top-0 left-0 right-0 p-4 bg-gradient-to-b from-black/90 to-transparent z-10 flex justify-between items-start pointer-events-none">
                     <div className="pointer-events-auto bg-amber-500/10 border border-amber-500/20 text-amber-500 px-3 py-1.5 rounded-lg backdrop-blur-md flex items-center gap-2">
                         <AlertTriangle size={14}/> 
                         <span className="text-xs font-bold uppercase tracking-wider">Embed Mode</span>
                     </div>
                     
-                    {/* Sync Status Display for Embed Mode */}
                     <div className="pointer-events-auto flex flex-col items-end gap-2">
                         <div className="bg-black/60 backdrop-blur-md px-3 py-2 rounded-lg border border-white/10 text-right">
                             <p className="text-[10px] text-gray-400 uppercase font-bold">Host Time</p>
@@ -314,19 +410,24 @@ const SynchronizedPlayer = ({
         );
     }
 
-    // --- RENDER: NATIVE HLS PLAYER ---
+    // --- RENDER: NATIVE HLS PLAYER (Premium) ---
     return (
         <div 
+            ref={containerRef}
             className="w-full h-full relative group bg-black flex flex-col justify-center overflow-hidden" 
             onMouseMove={handleMouseMove} 
             onMouseLeave={() => isPlaying && setShowControls(false)}
+            onDoubleClick={toggleFullscreen}
         >
             {extracting && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-black z-20">
-                    <Loader2 size={48} className="animate-spin text-amber-500 mb-4"/>
-                    <div className="flex flex-col items-center space-y-2">
-                        <p className="text-amber-500 font-mono text-sm animate-pulse font-bold tracking-widest">CONNECTING TO STREAM...</p>
-                        <p className="text-gray-500 text-xs">Finding best server for {movie.title || movie.name}</p>
+                    <div className="relative">
+                        <div className="absolute inset-0 bg-red-600/20 blur-xl rounded-full"></div>
+                        <Loader2 size={48} className="animate-spin text-red-600 relative z-10"/>
+                    </div>
+                    <div className="flex flex-col items-center space-y-2 mt-4">
+                        <p className="text-white font-medium text-sm animate-pulse tracking-widest uppercase">Initializing Secure Stream</p>
+                        <p className="text-gray-500 text-xs">Decryption in progress...</p>
                     </div>
                     <button 
                         onClick={() => setUseEmbedFallback(true)}
@@ -341,88 +442,116 @@ const SynchronizedPlayer = ({
                 ref={videoRef}
                 className="w-full h-full object-contain"
                 playsInline
-                autoPlay={false} // Managed by sync
-                onClick={() => hasControl && onSyncUpdate({ isPlaying: !isPlaying, currentTime: videoRef.current?.currentTime || 0 })}
+                autoPlay={false} 
+                onClick={togglePlay}
                 poster={movie.backdrop_path ? `${TMDB_IMAGE_BASE}${movie.backdrop_path}` : undefined}
             />
 
+            {/* Buffering Indicator */}
+            {buffering && !extracting && (
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
+                    <div className="bg-black/50 p-4 rounded-full backdrop-blur-md">
+                        <Loader2 size={32} className="animate-spin text-white"/>
+                    </div>
+                </div>
+            )}
+
+            {/* Skip Intro Button */}
+            {showSkipIntro && !extracting && hasControl && (
+                <div className={`absolute bottom-24 right-6 z-20 transition-opacity duration-300 ${showControls ? 'opacity-100' : 'opacity-0'}`}>
+                    <button 
+                        onClick={handleSkipIntro}
+                        className="bg-white text-black font-bold px-6 py-2.5 rounded-md shadow-lg flex items-center gap-2 hover:bg-gray-200 transition-all active:scale-95 group/skip"
+                    >
+                        Skip Intro <SkipForward size={16} className="group-hover/skip:translate-x-1 transition-transform"/>
+                    </button>
+                </div>
+            )}
+
             {/* Controls Overlay */}
             {!extracting && !useEmbedFallback && (
-                <div className={`absolute inset-0 bg-black/40 flex flex-col justify-end transition-opacity duration-300 ${showControls ? 'opacity-100' : 'opacity-0'}`}>
-                    {/* Center Play Button */}
+                <div className={`absolute inset-0 flex flex-col justify-end transition-opacity duration-300 ${showControls || !isPlaying ? 'opacity-100' : 'opacity-0'}`}>
+                    {/* Top Gradient */}
+                    <div className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-b from-black/80 to-transparent pointer-events-none p-6">
+                        <h3 className="text-white font-bold text-lg drop-shadow-md">{movie.title || movie.name}</h3>
+                        {mediaType === 'tv' && <p className="text-gray-300 text-xs font-medium">S{season} E{episode}</p>}
+                    </div>
+
+                    {/* Center Play Button (Big) */}
                     <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                         {!isPlaying && (
-                             <div className="w-20 h-20 bg-white/10 backdrop-blur-md rounded-full flex items-center justify-center border border-white/20 shadow-2xl animate-in zoom-in pointer-events-auto cursor-pointer hover:scale-110 transition-transform" onClick={() => hasControl && onSyncUpdate({ isPlaying: true, currentTime: progress })}>
-                                 <Play size={40} className="text-white ml-2" fill="currentColor"/>
+                         {!isPlaying && !buffering && (
+                             <div className="w-16 h-16 bg-black/60 backdrop-blur-sm rounded-full flex items-center justify-center border border-white/20 shadow-2xl pointer-events-auto cursor-pointer hover:scale-110 hover:bg-red-600/90 hover:border-red-600 transition-all group/play" onClick={togglePlay}>
+                                 <Play size={32} className="text-white ml-1 group-hover/play:fill-white" fill="currentColor"/>
                              </div>
                          )}
                     </div>
 
-                    <div className="p-4 bg-gradient-to-t from-black/90 via-black/60 to-transparent pt-20">
+                    {/* Bottom Controls */}
+                    <div className="px-4 pb-4 pt-20 bg-gradient-to-t from-black/90 via-black/60 to-transparent">
                         {/* Timeline */}
-                        <div className="flex items-center gap-4 mb-2">
-                            <span className="text-xs font-mono text-white/80 w-12 text-right">{formatTime(progress)}</span>
-                            <div className="relative flex-1 h-1.5 bg-white/20 rounded-full group/timeline">
-                                <div className="absolute top-0 left-0 h-full bg-amber-500 rounded-full" style={{ width: `${(progress / duration) * 100}%` }}></div>
+                        <div className="flex items-center gap-4 mb-3 group/timeline">
+                            <span className="text-xs font-medium text-gray-300 w-12 text-right">{formatTime(progress)}</span>
+                            <div className="relative flex-1 h-1.5 bg-white/20 rounded-full cursor-pointer group-hover/timeline:h-2.5 transition-all">
+                                <div className="absolute top-0 left-0 h-full bg-red-600 rounded-full" style={{ width: `${(progress / duration) * 100}%` }}>
+                                    <div className="absolute right-0 top-1/2 -translate-y-1/2 w-3 h-3 bg-red-600 rounded-full shadow-md scale-0 group-hover/timeline:scale-125 transition-transform"></div>
+                                </div>
                                 <input 
                                     type="range" 
                                     min="0" 
                                     max={duration || 100} 
                                     value={progress} 
-                                    onChange={(e) => {
-                                        const time = parseFloat(e.target.value);
-                                        if (hasControl) {
-                                            if (videoRef.current) videoRef.current.currentTime = time;
-                                            setProgress(time);
-                                            onSyncUpdate({ isPlaying, currentTime: time });
-                                        }
-                                    }}
+                                    onChange={handleSeek}
                                     disabled={!hasControl}
                                     className={`absolute inset-0 w-full h-full opacity-0 ${hasControl ? 'cursor-pointer' : 'cursor-not-allowed'}`}
                                 />
                             </div>
-                            <span className="text-xs font-mono text-white/50 w-12">{formatTime(duration)}</span>
+                            <span className="text-xs font-medium text-gray-300 w-12">{formatTime(duration)}</span>
                         </div>
 
-                        {/* Bottom Bar */}
+                        {/* Button Bar */}
                         <div className="flex justify-between items-center">
                             <div className="flex items-center gap-4">
-                                <button onClick={() => hasControl && onSyncUpdate({ isPlaying: !isPlaying, currentTime: progress })} disabled={!hasControl} className={`text-white hover:text-amber-500 transition-colors ${!hasControl && 'opacity-50 cursor-not-allowed'}`}>
-                                    {isPlaying ? <Pause size={24} fill="currentColor"/> : <Play size={24} fill="currentColor"/>}
+                                <button onClick={togglePlay} disabled={!hasControl} className={`text-white hover:text-white transition-colors ${!hasControl && 'opacity-50 cursor-not-allowed'}`}>
+                                    {isPlaying ? <Pause size={28} fill="currentColor"/> : <Play size={28} fill="currentColor"/>}
                                 </button>
-                                <button onClick={() => { if(videoRef.current) { videoRef.current.muted = !videoRef.current.muted; setIsMuted(!isMuted); }}} className="text-white hover:text-amber-500 transition-colors">
-                                    {isMuted ? <VolumeX size={20}/> : <Volume2 size={20}/>}
+                                
+                                <button onClick={() => skip(-10)} disabled={!hasControl} className="text-gray-300 hover:text-white transition-transform active:scale-90 group/rw">
+                                    <Rewind size={24} className="group-hover/rw:fill-white/20"/>
                                 </button>
-                                <div className="flex items-center gap-2 border-l border-white/20 pl-4 ml-2">
-                                    {hasControl ? (
-                                        <span className="flex items-center gap-1.5 text-[10px] font-bold text-amber-500 bg-amber-500/10 px-2 py-1 rounded border border-amber-500/20">
-                                            <Crown size={10}/> CONTROLLER
-                                        </span>
-                                    ) : (
-                                        <span className="text-[10px] font-bold text-gray-400">VIEWER</span>
-                                    )}
+                                <button onClick={() => skip(10)} disabled={!hasControl} className="text-gray-300 hover:text-white transition-transform active:scale-90 group/ff">
+                                    <FastForward size={24} className="group-hover/ff:fill-white/20"/>
+                                </button>
+
+                                <div className="flex items-center gap-2 group/vol">
+                                    <button onClick={toggleMute} className="text-gray-300 hover:text-white">
+                                        {isMuted || volume === 0 ? <VolumeX size={24}/> : volume < 0.5 ? <Volume1 size={24}/> : <Volume2 size={24}/>}
+                                    </button>
+                                    <div className="w-0 overflow-hidden group-hover/vol:w-24 transition-all duration-300">
+                                        <input 
+                                            type="range" 
+                                            min="0" 
+                                            max="1" 
+                                            step="0.1" 
+                                            value={isMuted ? 0 : volume} 
+                                            onChange={handleVolume}
+                                            className="w-20 h-1 bg-white/30 rounded-full appearance-none cursor-pointer accent-red-600"
+                                        />
+                                    </div>
                                 </div>
                             </div>
 
-                            <div className="flex items-center gap-3">
-                                <button onClick={() => setUseEmbedFallback(true)} className="text-xs font-bold text-gray-400 hover:text-white flex items-center gap-1 bg-white/5 px-2 py-1 rounded">
-                                    <Tv size={12}/> Switch Player
-                                </button>
+                            <div className="flex items-center gap-4">
                                 {mediaType === 'tv' && (
-                                    <div className="text-xs font-mono text-white/60 bg-white/5 px-2 py-1 rounded border border-white/5">
-                                        S{season} E{episode}
+                                    <div className="text-sm font-bold text-white/80">
+                                        Season {season} Episode {episode}
                                     </div>
                                 )}
-                                <button onClick={() => {
-                                    if (!document.fullscreenElement) {
-                                        videoRef.current?.parentElement?.requestFullscreen();
-                                        setIsFullscreen(true);
-                                    } else {
-                                        document.exitFullscreen();
-                                        setIsFullscreen(false);
-                                    }
-                                }} className="text-white hover:text-amber-500 transition-colors">
-                                    {isFullscreen ? <Minimize2 size={20}/> : <Maximize2 size={20}/>}
+                                <div className="h-4 w-px bg-white/20"></div>
+                                <button onClick={() => setUseEmbedFallback(true)} className="text-xs font-bold text-gray-400 hover:text-white flex items-center gap-1.5 transition-colors">
+                                    <Tv size={14}/> Backup Player
+                                </button>
+                                <button onClick={toggleFullscreen} className="text-white hover:scale-110 transition-transform">
+                                    {isFullscreen ? <Minimize2 size={24}/> : <Maximize2 size={24}/>}
                                 </button>
                             </div>
                         </div>
