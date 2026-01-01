@@ -1,7 +1,7 @@
 {
-  "name": "movieverse-v2",
+  "name": "movieverse-ai",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -9,19 +9,18 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@google/generative-ai": "^0.21.0", 
-    "hls.js": "^1.5.0",
-    "lucide-react": "latest",
-    "crypto-js": "^4.2.0",
-    "@supabase/supabase-js": "latest",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react": "^19.2.1",
+    "react-dom": "^19.2.1",
+    "@google/genai": "^1.31.0",
+    "lucide-react": "^0.556.0",
+    "@supabase/supabase-js": "2.45.1",
+    "crypto": "^1.0.1",
+    "hls.js": "^1.6.15"
   },
   "devDependencies": {
-    "@types/react": "^18.3.3",
-    "@types/react-dom": "^18.3.0",
-    "@vitejs/plugin-react": "^4.3.1",
-    "typescript": "^5.2.2",
-    "vite": "^5.3.1"
+    "@types/node": "^22.14.0",
+    "@vitejs/plugin-react": "^5.0.0",
+    "typescript": "~5.8.2",
+    "vite": "^6.2.0"
   }
 }
