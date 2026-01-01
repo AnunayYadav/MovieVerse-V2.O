@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Tv, Play, Search, AlertCircle, RefreshCcw, Wifi, Globe, Loader2, Lock, MapPin, ChevronDown, Check } from 'lucide-react';
+import { Tv, Play, Search, AlertCircle, RefreshCcw, Wifi, Globe, Loader2, Lock, ChevronDown, Check } from 'lucide-react';
 import { LiveChannel, UserProfile } from '../types';
 import { LiveTVPlayer } from './LiveTVPlayer';
 

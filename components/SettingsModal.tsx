@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { UserCircle, X, Check, Settings, ShieldCheck, RefreshCcw, HelpCircle, Shield, FileText, Lock, LogOut, MessageSquare, Send, Calendar, Mail, User, BrainCircuit, Pencil, CheckCheck, Loader2, ChevronDown, ExternalLink, Fingerprint, Copy, ToggleLeft, ToggleRight, Crown, History, Trash2, Search, Clock, ArrowLeft } from 'lucide-react';
+import { UserCircle, X, Check, Settings, ShieldCheck, RefreshCcw, HelpCircle, FileText, Lock, LogOut, Calendar, Mail, User, BrainCircuit, Pencil, CheckCheck, Loader2, ChevronDown, Fingerprint, Copy, Crown, History, Trash2, Search, Clock, ArrowLeft } from 'lucide-react';
 import { UserProfile, MaturityRating, Movie } from '../types';
 import { getSupabase, submitSupportTicket } from '../services/supabase';
 import { TMDB_IMAGE_BASE } from './Shared';
@@ -57,8 +57,6 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
     
     // Dynamic Accent Logic
     const accentText = isGoldTheme ? "text-amber-500" : "text-red-600";
-    const accentBg = isGoldTheme ? "bg-amber-500" : "bg-red-600";
-    const accentBorder = isGoldTheme ? "border-amber-500" : "border-red-600";
     const accentHoverText = isGoldTheme ? "hover:text-amber-400" : "hover:text-red-400";
 
     useEffect(() => {
@@ -185,7 +183,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                                 className={`flex-shrink-0 w-auto md:w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all ${
                                     activeTab === tab.id 
                                     ? (isGoldTheme ? 'bg-gradient-to-r from-amber-600 to-amber-500 text-black shadow-lg shadow-amber-500/20' : 'bg-red-600 text-white shadow-lg shadow-red-900/20') 
-                                    : 'text-gray-400 hover:text-white hover:bg-white/5'
+                                    : 'text-gray-400 hover:text-white hover:bg-white/10'
                                 }`}
                               >
                                   <tab.icon size={18} /> <span>{tab.label}</span>
@@ -546,7 +544,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                                           </div>
                                       </div>
                                       <div className="bg-white/5 p-6 rounded-2xl border border-white/5">
-                                          <h4 className="font-bold text-white text-base mb-4 flex items-center gap-3"><MessageSquare size={18} className="text-blue-400"/> Contact Support</h4>
+                                          <h4 className="font-bold text-white text-base mb-4 flex items-center gap-3"><FileText size={18} className="text-blue-400"/> Contact Support</h4>
                                           <div className="space-y-4">
                                               <div>
                                                   <label className="text-[10px] font-bold text-gray-500 uppercase mb-1 block">Subject</label>
@@ -583,8 +581,8 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                                                       disabled={sending || !supportMessage.trim()}
                                                       className="w-full bg-white text-black font-bold py-3 rounded-xl transition-all hover:bg-gray-200 flex items-center justify-center gap-2 disabled:opacity-50 active:scale-[0.98] shadow-lg text-sm"
                                                   >
-                                                      {sending ? <Loader2 size={16} className="animate-spin"/> : <Send size={16}/>}
-                                                      {sending ? "Sending..." : "Submit Ticket"}
+                                                      {sending ? <Loader2 size={16} className="animate-spin"/> : "Submit Ticket"}
+                                                      {sending && "Sending..."}
                                                   </button>
                                               )}
                                           </div>

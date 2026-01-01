@@ -1,5 +1,6 @@
+
 import React from 'react';
-import { Film, Star, Check, Eye, Download, X, User } from 'lucide-react';
+import { Film, Star, Eye, Download, X, Check } from 'lucide-react';
 import { Movie } from '../types';
 
 export const TMDB_BASE_URL = "https://api.themoviedb.org/3";

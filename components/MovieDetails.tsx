@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, Suspense, useRef } from 'react';
-import { X, Calendar, Clock, Star, Play, Bookmark, Heart, Share2, ListPlus, Tv, Clapperboard, User, Lightbulb, Sparkles, Loader2, Check, DollarSign, TrendingUp, Tag, Layers, MessageCircle, Scale, Globe, Facebook, Instagram, Twitter, Film, PlayCircle, Minimize2, Eye, Lock, ChevronDown, Zap, Quote, Shield, ArrowLeft, Volume2, VolumeX, Users } from 'lucide-react';
+import { X, Calendar, Clock, Star, Play, Bookmark, Heart, Share2, Clapperboard, Sparkles, Loader2, Tag, MessageCircle, Globe, Facebook, Instagram, Twitter, Film, PlayCircle, Eye, Volume2, VolumeX, Users, ArrowLeft, Lightbulb, DollarSign, Trophy } from 'lucide-react';
 import { Movie, MovieDetails, Season, UserProfile, Keyword, Review } from '../types';
 import { TMDB_BASE_URL, TMDB_IMAGE_BASE, TMDB_BACKDROP_BASE, formatCurrency, ImageLightbox } from '../components/Shared';
 import { generateTrivia } from '../services/gemini';
@@ -97,7 +97,6 @@ export const MoviePage: React.FC<MoviePageProps> = ({
     const accentText = isGoldTheme ? "text-amber-500" : "text-red-500";
     const accentBgLow = isGoldTheme ? "bg-amber-500/20" : "bg-red-500/20";
     const accentBorder = isGoldTheme ? "border-amber-500" : "border-red-500";
-    const accentShadow = isGoldTheme ? "shadow-amber-900/40" : "shadow-red-900/40";
 
     useEffect(() => {
         if (!apiKey || !movie.id) return;
@@ -175,16 +174,6 @@ export const MoviePage: React.FC<MoviePageProps> = ({
     const title = displayData.title || displayData.name;
     const runtime = displayData.runtime ? `${Math.floor(displayData.runtime/60)}h ${displayData.runtime%60}m` : (displayData.episode_run_time?.[0] ? `${displayData.episode_run_time[0]}m / ep` : "N/A");
     
-    let providers: any[] = [];
-    if (displayData['watch/providers']?.results) {
-        const results = displayData['watch/providers'].results;
-        const localeData = appRegion === 'IN' ? results.IN : results.US;
-        if (localeData) {
-            providers = [...(localeData.flatrate || []), ...(localeData.free || []), ...(localeData.ads || []), ...(localeData.rent || []), ...(localeData.buy || [])]
-                .filter((v,i,a)=>a.findIndex(v2=>(v2.provider_id===v.provider_id))===i);
-        }
-    }
-
     // Improved Director Logic to catch Profile Path
     let director = { name: "Unknown", id: 0, profile_path: null as string | null };
     if (isTv && displayData.created_by && displayData.created_by.length > 0) {
