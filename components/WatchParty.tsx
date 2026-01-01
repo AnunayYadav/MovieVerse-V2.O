@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Users, Search, Plus, Lock, Unlock, LogIn, MessageSquare, Send, Settings, Play, Pause, X, Loader2, Film, Crown, Check, Share2, Copy, Menu, UserPlus, UserMinus, ShieldAlert, LogOut, ChevronDown, MonitorPlay, Maximize2, Minimize2, Volume2, VolumeX, FastForward, Rewind, RefreshCcw, AlertTriangle, Link as LinkIcon } from 'lucide-react';
+import { Users, Search, Plus, Lock, Unlock, LogIn, MessageSquare, Send, Settings, Play, Pause, X, Loader2, Film, Crown, Check, Share2, Copy, Menu, UserPlus, UserMinus, ShieldAlert, LogOut, ChevronDown, MonitorPlay, Maximize2, Minimize2, Volume2, VolumeX, FastForward, Rewind, RefreshCcw, AlertTriangle, Link as LinkIcon, ExternalLink, Tv } from 'lucide-react';
 import { WatchParty, UserProfile, Movie, PartyMessage, PartySettings } from '../types';
 import { createWatchParty, joinWatchParty, getPublicParties, updatePartySettings, updatePartyMovie, subscribeToParty, sendPartyMessage, deleteWatchParty } from '../services/supabase';
 import { TMDB_IMAGE_BASE, TMDB_BASE_URL } from './Shared';
@@ -36,7 +36,7 @@ export const WatchPartySection: React.FC<WatchPartyProps> = ({ userProfile, apiK
     );
 };
 
-// --- SYNCHRONIZED PLAYER COMPONENT (Real Stream Extraction) ---
+// --- SYNCHRONIZED PLAYER COMPONENT ---
 const SynchronizedPlayer = ({ 
     partyId, 
     movie, 
@@ -61,23 +61,33 @@ const SynchronizedPlayer = ({
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [showControls, setShowControls] = useState(true);
     
-    // Extraction State
+    // Extraction & Fallback State
     const [extracting, setExtracting] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [retryCount, setRetryCount] = useState(0);
+    const [useEmbedFallback, setUseEmbedFallback] = useState(false);
     const [manualUrl, setManualUrl] = useState("");
     const [showManualInput, setShowManualInput] = useState(false);
     
     const controlsTimeoutRef = useRef<any>(null);
     const hlsRef = useRef<any>(null);
 
-    // Get active season/episode from party settings or default to 1/1
     const season = settings.mediaParams?.season || 1;
     const episode = settings.mediaParams?.episode || 1;
     const mediaType = movie.media_type === 'tv' || movie.first_air_date ? 'tv' : 'movie';
 
+    // Construct embed URLs for fallback
+    const getEmbedUrl = (server = 'cc') => {
+        const baseUrl = server === 'xyz' ? 'https://vidsrc.xyz/embed' : 'https://vidsrc.cc/v2/embed';
+        if (mediaType === 'movie') return `${baseUrl}/movie/${movie.id}`;
+        return `${baseUrl}/tv/${movie.id}/${season}/${episode}`;
+    };
+
     // 1. Stream Extraction Logic
     useEffect(() => {
+        // If we already decided to use embed, skip extraction
+        if (useEmbedFallback) return;
+
         let isMounted = true;
         const controller = new AbortController();
         
@@ -87,21 +97,10 @@ const SynchronizedPlayer = ({
             setStreamUrl("");
             
             try {
-                // List of embed sources to try
-                // Using corsproxy.io to bypass CORS headers on the embed page itself.
+                // Multi-source scraper
                 const sources = [
-                    // vidsrc.cc (v2) - Common
-                    mediaType === 'movie' 
-                        ? `https://vidsrc.cc/v2/embed/movie/${movie.id}`
-                        : `https://vidsrc.cc/v2/embed/tv/${movie.id}/${season}/${episode}`,
-                    // vidsrc.xyz - Cleaner HTML often
-                    mediaType === 'movie'
-                        ? `https://vidsrc.xyz/embed/movie/${movie.id}`
-                        : `https://vidsrc.xyz/embed/tv/${movie.id}/${season}/${episode}`,
-                    // vidsrc.pro - Backup
-                    mediaType === 'movie'
-                        ? `https://vidsrc.pro/embed/movie/${movie.id}`
-                        : `https://vidsrc.pro/embed/tv/${movie.id}/${season}/${episode}`
+                    getEmbedUrl('cc'),
+                    getEmbedUrl('xyz')
                 ];
 
                 let foundStream = "";
@@ -111,36 +110,31 @@ const SynchronizedPlayer = ({
                     if (!isMounted) break;
                     
                     try {
-                        console.log(`[Player] Attempting extract from: ${source}`);
+                        console.log(`[Player] Scanning: ${source}`);
                         const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(source)}`;
                         
                         const response = await fetch(proxyUrl, { 
                             signal: controller.signal,
-                            headers: {
-                                'Origin': 'null' // Sometimes helps with proxies
-                            }
+                            headers: { 'Origin': 'null' }
                         });
                         
                         if (!response.ok) continue;
                         
                         const html = await response.text();
                         
-                        // Regex Patterns to find the .m3u8 link
-                        // 1. Standard file: "..." or source: "..."
-                        // 2. Encoded or obfuscated strings often start with http and end with m3u8
+                        // Regex for .m3u8
                         const patterns = [
                             /file:\s*["'](https?:\/\/[^"']+\.m3u8[^"']*)["']/, 
                             /source:\s*["'](https?:\/\/[^"']+\.m3u8[^"']*)["']/,
                             /src:\s*["'](https?:\/\/[^"']+\.m3u8[^"']*)["']/,
-                            /["'](https?:\/\/[^"']+\.m3u8[^"']*)["']/, // General catch-all inside quotes
+                            /["'](https?:\/\/[^"']+\.m3u8[^"']*)["']/,
                         ];
 
                         for (const pattern of patterns) {
                             const match = html.match(pattern);
                             if (match && match[1]) {
                                 let candidate = match[1];
-                                // Basic validation
-                                if (candidate.startsWith('http') && !candidate.includes('ad_') && !candidate.includes('trailer')) {
+                                if (candidate.startsWith('http') && !candidate.includes('ad_')) {
                                     foundStream = candidate;
                                     break;
                                 }
@@ -153,18 +147,23 @@ const SynchronizedPlayer = ({
 
                 if (foundStream) {
                     if (isMounted) {
-                        console.log("[Player] Manifest found:", foundStream);
+                        console.log("[Player] Stream Found:", foundStream);
                         setStreamUrl(foundStream);
                         setExtracting(false);
                     }
                 } else {
-                    throw new Error("Could not auto-extract stream. Try manual link or refresh.");
+                    // Auto-fallback if extraction fails
+                    console.log("[Player] Extraction failed, switching to Embed Mode");
+                    if (isMounted) {
+                        setUseEmbedFallback(true);
+                        setExtracting(false);
+                    }
                 }
 
             } catch (e: any) {
                 if (isMounted) {
-                    console.error("[Player] Extraction failed", e);
-                    setError("Could not automatically find the stream link.");
+                    console.error("[Player] Critical Failure", e);
+                    setUseEmbedFallback(true);
                     setExtracting(false);
                 }
             }
@@ -176,32 +175,22 @@ const SynchronizedPlayer = ({
             isMounted = false; 
             controller.abort();
         };
-    }, [movie.id, mediaType, season, episode, retryCount]);
+    }, [movie.id, mediaType, season, episode, retryCount, useEmbedFallback]);
 
-    // 2. Initialize Player (Hls.js) with Proxy Injection
+    // 2. Initialize HLS Player (Only if NOT using Embed Fallback)
     useEffect(() => {
-        if (!streamUrl || !videoRef.current) return;
+        if (useEmbedFallback || !streamUrl || !videoRef.current) return;
         
         const video = videoRef.current;
         const Hls = (window as any).Hls;
 
-        // Cleanup previous instance
-        if (hlsRef.current) {
-            hlsRef.current.destroy();
-        }
+        if (hlsRef.current) hlsRef.current.destroy();
 
         if (Hls && Hls.isSupported()) {
-            // Configure Hls.js to route chunks through proxy
-            // This enables "The Injection" mentioned: fetching chunks via proxy (JS) 
-            // and feeding them to MediaSource, bypassing browser CORS/Referer blocks on the video tag.
             const hls = new Hls({
                 enableWorker: true,
                 lowLatencyMode: true,
-                maxBufferLength: 30,
-                maxMaxBufferLength: 600,
                 xhrSetup: function (xhr: XMLHttpRequest, url: string) {
-                    // CRITICAL: Proxy all requests to bypass provider's Referer/Origin checks
-                    // We check if it's already proxied to avoid double-proxying
                     if (!url.includes('corsproxy.io')) {
                         xhr.open('GET', `https://corsproxy.io/?${encodeURIComponent(url)}`, true);
                     }
@@ -209,43 +198,22 @@ const SynchronizedPlayer = ({
             });
             
             hlsRef.current = hls;
-            
-            // "The Handshake"
             hls.loadSource(streamUrl);
             hls.attachMedia(video);
             
             hls.on(Hls.Events.MANIFEST_PARSED, () => {
-                if (settings.playerState?.isPlaying) {
-                    video.play().catch(() => {});
-                }
+                if (settings.playerState?.isPlaying) video.play().catch(() => {});
             });
             
             hls.on(Hls.Events.ERROR, (event: any, data: any) => {
                 if (data.fatal) {
-                    switch (data.type) {
-                        case Hls.ErrorTypes.NETWORK_ERROR:
-                            console.error("Network error, trying to recover...");
-                            hls.startLoad();
-                            break;
-                        case Hls.ErrorTypes.MEDIA_ERROR:
-                            console.error("Media error, trying to recover...");
-                            hls.recoverMediaError();
-                            break;
-                        default:
-                            console.error("Unrecoverable error", data);
-                            // Only set error UI if we really can't play
-                            if (!video.currentTime) {
-                                setError("Stream playback blocked. Try a manual link.");
-                            }
-                            hls.destroy();
-                            break;
-                    }
+                    // If stream dies, recover or fallback
+                    console.warn("Stream Fatal Error", data);
+                    hls.destroy();
+                    setUseEmbedFallback(true); // Fallback on fatal error
                 }
             });
-
         } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-            // Native HLS (Safari) - Proxying is harder here without a service worker
-            // We try direct, if it fails, user might need to use manual link
             video.src = streamUrl;
         }
 
@@ -253,7 +221,6 @@ const SynchronizedPlayer = ({
             setProgress(video.currentTime);
             setDuration(video.duration || 0);
         };
-        
         const handlePlay = () => setIsPlaying(true);
         const handlePause = () => setIsPlaying(false);
 
@@ -267,89 +234,24 @@ const SynchronizedPlayer = ({
             video.removeEventListener('pause', handlePause);
             if (hlsRef.current) hlsRef.current.destroy();
         };
-    }, [streamUrl]);
+    }, [streamUrl, useEmbedFallback]);
 
-    // 3. Sync Logic (Incoming from Server)
+    // 3. Sync Logic (Only for HLS)
     useEffect(() => {
-        if (!videoRef.current || !settings.playerState) return;
+        if (useEmbedFallback || !videoRef.current || !settings.playerState) return;
         
         const video = videoRef.current;
         const serverState = settings.playerState;
         
-        // Calculate drift
         const drift = Math.abs(video.currentTime - serverState.currentTime);
-        
-        // Sync Time if drift > 2s to avoid jitter
-        if (drift > 2) {
-            video.currentTime = serverState.currentTime;
-        }
+        if (drift > 2) video.currentTime = serverState.currentTime;
 
-        // Sync State
-        if (serverState.isPlaying && video.paused) {
-            video.play().catch(() => {});
-        } else if (!serverState.isPlaying && !video.paused) {
-            video.pause();
-        }
+        if (serverState.isPlaying && video.paused) video.play().catch(() => {});
+        else if (!serverState.isPlaying && !video.paused) video.pause();
 
-    }, [settings.playerState]);
+    }, [settings.playerState, useEmbedFallback]);
 
-    // 4. Controls Logic (Outgoing to Server)
-    const togglePlay = () => {
-        if (!hasControl) return;
-        const video = videoRef.current;
-        if (!video) return;
-
-        const newState = !video.paused;
-        if (newState) {
-            video.pause();
-        } else {
-            video.play().catch(() => {});
-        }
-        
-        onSyncUpdate({
-            isPlaying: !newState,
-            currentTime: video.currentTime
-        });
-    };
-
-    const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (!hasControl) return;
-        const time = parseFloat(e.target.value);
-        if (videoRef.current) {
-            videoRef.current.currentTime = time;
-            setProgress(time);
-        }
-        onSyncUpdate({
-            isPlaying: !videoRef.current?.paused,
-            currentTime: time
-        });
-    };
-
-    const toggleMute = () => {
-        if (videoRef.current) {
-            videoRef.current.muted = !videoRef.current.muted;
-            setIsMuted(!isMuted);
-        }
-    };
-
-    const toggleFullscreen = () => {
-        if (!document.fullscreenElement) {
-            videoRef.current?.parentElement?.requestFullscreen();
-            setIsFullscreen(true);
-        } else {
-            document.exitFullscreen();
-            setIsFullscreen(false);
-        }
-    };
-
-    const handleManualSubmit = () => {
-        if (manualUrl) {
-            setStreamUrl(manualUrl);
-            setError(null);
-            setExtracting(false);
-        }
-    };
-
+    // Format Helpers
     const formatTime = (seconds: number) => {
         if (isNaN(seconds)) return "0:00";
         const min = Math.floor(seconds / 60);
@@ -365,6 +267,54 @@ const SynchronizedPlayer = ({
         }, 3000);
     };
 
+    // --- RENDER: EMBED FALLBACK MODE ---
+    if (useEmbedFallback) {
+        return (
+            <div className="w-full h-full relative bg-black flex flex-col">
+                {/* Embed Header Overlay */}
+                <div className="absolute top-0 left-0 right-0 p-4 bg-gradient-to-b from-black/90 to-transparent z-10 flex justify-between items-start pointer-events-none">
+                    <div className="pointer-events-auto bg-amber-500/10 border border-amber-500/20 text-amber-500 px-3 py-1.5 rounded-lg backdrop-blur-md flex items-center gap-2">
+                        <AlertTriangle size={14}/> 
+                        <span className="text-xs font-bold uppercase tracking-wider">Embed Mode</span>
+                    </div>
+                    
+                    {/* Sync Status Display for Embed Mode */}
+                    <div className="pointer-events-auto flex flex-col items-end gap-2">
+                        <div className="bg-black/60 backdrop-blur-md px-3 py-2 rounded-lg border border-white/10 text-right">
+                            <p className="text-[10px] text-gray-400 uppercase font-bold">Host Time</p>
+                            <p className="text-sm font-mono text-white font-bold">{formatTime(settings.playerState?.currentTime || 0)}</p>
+                        </div>
+                        {hasControl && (
+                            <div className="flex gap-2">
+                                <button onClick={() => onSyncUpdate({ isPlaying: true, currentTime: settings.playerState?.currentTime || 0 })} className="bg-green-600 text-white p-2 rounded hover:bg-green-500" title="Signal Play"><Play size={14}/></button>
+                                <button onClick={() => onSyncUpdate({ isPlaying: false, currentTime: settings.playerState?.currentTime || 0 })} className="bg-red-600 text-white p-2 rounded hover:bg-red-500" title="Signal Pause"><Pause size={14}/></button>
+                            </div>
+                        )}
+                        <p className="text-[10px] text-gray-500 max-w-[150px] text-right">Syncing is manual in Embed Mode. Use the time above to coordinate.</p>
+                    </div>
+                </div>
+
+                <iframe 
+                    src={getEmbedUrl('cc')}
+                    className="w-full h-full border-0"
+                    allow="autoplay; fullscreen; picture-in-picture"
+                    allowFullScreen
+                    sandbox="allow-scripts allow-same-origin allow-forms allow-presentation"
+                />
+                
+                <div className="absolute bottom-4 left-4 z-10 pointer-events-auto">
+                    <button 
+                        onClick={() => setUseEmbedFallback(false)} 
+                        className="text-xs text-gray-500 hover:text-white underline"
+                    >
+                        Try Native Player Again
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
+    // --- RENDER: NATIVE HLS PLAYER ---
     return (
         <div 
             className="w-full h-full relative group bg-black flex flex-col justify-center overflow-hidden" 
@@ -375,49 +325,15 @@ const SynchronizedPlayer = ({
                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-black z-20">
                     <Loader2 size={48} className="animate-spin text-amber-500 mb-4"/>
                     <div className="flex flex-col items-center space-y-2">
-                        <p className="text-amber-500 font-mono text-sm animate-pulse font-bold tracking-widest">SCANNING STREAMS...</p>
-                        <p className="text-gray-500 text-xs">Target: {mediaType.toUpperCase()} {movie.id}</p>
+                        <p className="text-amber-500 font-mono text-sm animate-pulse font-bold tracking-widest">CONNECTING TO STREAM...</p>
+                        <p className="text-gray-500 text-xs">Finding best server for {movie.title || movie.name}</p>
                     </div>
-                </div>
-            )}
-
-            {error && !extracting && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center bg-black z-20 p-6 text-center">
-                    <AlertTriangle size={48} className="text-red-500 mb-4"/>
-                    <h3 className="text-xl font-bold text-white mb-2">Stream Extraction Failed</h3>
-                    <p className="text-gray-400 text-sm max-w-md mb-6">{error}</p>
-                    <div className="flex flex-col gap-3 w-full max-w-xs">
-                        <button 
-                            onClick={() => setRetryCount(prev => prev + 1)}
-                            className="w-full py-3 bg-white text-black font-bold rounded-xl hover:bg-gray-200 transition-colors flex items-center justify-center gap-2"
-                        >
-                            <RefreshCcw size={18}/> Retry Scan
-                        </button>
-                        <button 
-                            onClick={() => setShowManualInput(!showManualInput)}
-                            className="w-full py-3 bg-white/10 text-white font-bold rounded-xl hover:bg-white/20 transition-colors flex items-center justify-center gap-2"
-                        >
-                            <LinkIcon size={18}/> {showManualInput ? "Hide Input" : "Paste .m3u8 Link"}
-                        </button>
-                    </div>
-                    
-                    {showManualInput && (
-                        <div className="mt-4 w-full max-w-md animate-in slide-in-from-bottom-2">
-                            <div className="flex gap-2">
-                                <input 
-                                    type="text" 
-                                    value={manualUrl}
-                                    onChange={(e) => setManualUrl(e.target.value)}
-                                    placeholder="https://example.com/playlist.m3u8" 
-                                    className="flex-1 bg-white/10 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-amber-500 outline-none"
-                                />
-                                <button onClick={handleManualSubmit} className="bg-amber-500 text-black px-4 py-2 rounded-lg font-bold hover:bg-amber-400">Play</button>
-                            </div>
-                            <p className="text-[10px] text-gray-500 mt-2 text-left">
-                                Tip: Use browser DevTools (Network tab) on a video site to find the .m3u8 file.
-                            </p>
-                        </div>
-                    )}
+                    <button 
+                        onClick={() => setUseEmbedFallback(true)}
+                        className="mt-8 px-6 py-2 bg-white/10 hover:bg-white/20 rounded-full text-xs font-bold text-gray-300 transition-colors"
+                    >
+                        Taking too long? Switch to Embed
+                    </button>
                 </div>
             )}
 
@@ -426,17 +342,17 @@ const SynchronizedPlayer = ({
                 className="w-full h-full object-contain"
                 playsInline
                 autoPlay={false} // Managed by sync
-                onClick={togglePlay}
+                onClick={() => hasControl && onSyncUpdate({ isPlaying: !isPlaying, currentTime: videoRef.current?.currentTime || 0 })}
                 poster={movie.backdrop_path ? `${TMDB_IMAGE_BASE}${movie.backdrop_path}` : undefined}
             />
 
             {/* Controls Overlay */}
-            {!extracting && !error && (
+            {!extracting && !useEmbedFallback && (
                 <div className={`absolute inset-0 bg-black/40 flex flex-col justify-end transition-opacity duration-300 ${showControls ? 'opacity-100' : 'opacity-0'}`}>
                     {/* Center Play Button */}
                     <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                          {!isPlaying && (
-                             <div className="w-20 h-20 bg-white/10 backdrop-blur-md rounded-full flex items-center justify-center border border-white/20 shadow-2xl animate-in zoom-in pointer-events-auto cursor-pointer hover:scale-110 transition-transform" onClick={togglePlay}>
+                             <div className="w-20 h-20 bg-white/10 backdrop-blur-md rounded-full flex items-center justify-center border border-white/20 shadow-2xl animate-in zoom-in pointer-events-auto cursor-pointer hover:scale-110 transition-transform" onClick={() => hasControl && onSyncUpdate({ isPlaying: true, currentTime: progress })}>
                                  <Play size={40} className="text-white ml-2" fill="currentColor"/>
                              </div>
                          )}
@@ -453,7 +369,14 @@ const SynchronizedPlayer = ({
                                     min="0" 
                                     max={duration || 100} 
                                     value={progress} 
-                                    onChange={handleSeek}
+                                    onChange={(e) => {
+                                        const time = parseFloat(e.target.value);
+                                        if (hasControl) {
+                                            if (videoRef.current) videoRef.current.currentTime = time;
+                                            setProgress(time);
+                                            onSyncUpdate({ isPlaying, currentTime: time });
+                                        }
+                                    }}
                                     disabled={!hasControl}
                                     className={`absolute inset-0 w-full h-full opacity-0 ${hasControl ? 'cursor-pointer' : 'cursor-not-allowed'}`}
                                 />
@@ -464,10 +387,10 @@ const SynchronizedPlayer = ({
                         {/* Bottom Bar */}
                         <div className="flex justify-between items-center">
                             <div className="flex items-center gap-4">
-                                <button onClick={togglePlay} disabled={!hasControl} className={`text-white hover:text-amber-500 transition-colors ${!hasControl && 'opacity-50 cursor-not-allowed'}`}>
+                                <button onClick={() => hasControl && onSyncUpdate({ isPlaying: !isPlaying, currentTime: progress })} disabled={!hasControl} className={`text-white hover:text-amber-500 transition-colors ${!hasControl && 'opacity-50 cursor-not-allowed'}`}>
                                     {isPlaying ? <Pause size={24} fill="currentColor"/> : <Play size={24} fill="currentColor"/>}
                                 </button>
-                                <button onClick={toggleMute} className="text-white hover:text-amber-500 transition-colors">
+                                <button onClick={() => { if(videoRef.current) { videoRef.current.muted = !videoRef.current.muted; setIsMuted(!isMuted); }}} className="text-white hover:text-amber-500 transition-colors">
                                     {isMuted ? <VolumeX size={20}/> : <Volume2 size={20}/>}
                                 </button>
                                 <div className="flex items-center gap-2 border-l border-white/20 pl-4 ml-2">
@@ -482,12 +405,23 @@ const SynchronizedPlayer = ({
                             </div>
 
                             <div className="flex items-center gap-3">
+                                <button onClick={() => setUseEmbedFallback(true)} className="text-xs font-bold text-gray-400 hover:text-white flex items-center gap-1 bg-white/5 px-2 py-1 rounded">
+                                    <Tv size={12}/> Switch Player
+                                </button>
                                 {mediaType === 'tv' && (
                                     <div className="text-xs font-mono text-white/60 bg-white/5 px-2 py-1 rounded border border-white/5">
                                         S{season} E{episode}
                                     </div>
                                 )}
-                                <button onClick={toggleFullscreen} className="text-white hover:text-amber-500 transition-colors">
+                                <button onClick={() => {
+                                    if (!document.fullscreenElement) {
+                                        videoRef.current?.parentElement?.requestFullscreen();
+                                        setIsFullscreen(true);
+                                    } else {
+                                        document.exitFullscreen();
+                                        setIsFullscreen(false);
+                                    }
+                                }} className="text-white hover:text-amber-500 transition-colors">
                                     {isFullscreen ? <Minimize2 size={20}/> : <Maximize2 size={20}/>}
                                 </button>
                             </div>
