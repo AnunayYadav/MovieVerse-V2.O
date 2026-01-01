@@ -1,4 +1,3 @@
-
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { Movie, UserProfile, AppNotification } from '../types';
 import { safeEnv } from '../components/Shared';
