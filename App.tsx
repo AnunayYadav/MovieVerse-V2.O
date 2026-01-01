@@ -144,6 +144,16 @@ export default function App() {
       setTmdbCollectionId(null);
       setActiveKeyword(null);
   };
+  
+  // Reset all view states to default Home
+  const resetToHome = () => {
+      resetFilters();
+      setSelectedCategory("All");
+      setSortOption("popularity.desc");
+      setFilterPeriod("all");
+      setSelectedRegion("Global");
+      setSelectedLanguage("All");
+  };
 
   // --- AUTH & INITIALIZATION ---
   useEffect(() => {
@@ -792,6 +802,13 @@ export default function App() {
       return selectedCategory === "All" ? "Trending Now" : selectedCategory;
   }
 
+  // Determine active view state for Navbar highlighting
+  const isHomeView = selectedCategory === "All" && !activeKeyword && !tmdbCollectionId && !currentCollection && filterPeriod === "all" && sortOption === "popularity.desc" && selectedRegion === "Global" && selectedLanguage === "All" && !searchQuery;
+  const isTVView = selectedCategory === "TV Shows" && !searchQuery;
+  const isLiveView = selectedCategory === "LiveTV" && !searchQuery;
+  // Browse is active if we are displaying content but NOT in one of the standard main views and NOT in a user library view.
+  const isBrowseView = !isHomeView && !isTVView && !isLiveView && !searchQuery && !['Watchlist', 'Favorites', 'History', 'CineAnalytics'].includes(selectedCategory) && !selectedCategory.startsWith('Custom:');
+
   return (
     <div className="min-h-screen bg-[#030303] text-white font-sans selection:bg-amber-500/30 selection:text-white">
       {/* Navbar */}
@@ -799,7 +816,7 @@ export default function App() {
         <div className="flex items-center justify-between w-full max-w-7xl">
             <div className="flex items-center gap-4 md:gap-6">
             <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="md:hidden p-2 hover:bg-white/10 rounded-full transition-colors active:scale-95"><Menu size={20} /></button>
-            <div className="flex items-center gap-2 cursor-pointer group" onClick={() => {resetFilters(); setSelectedCategory("All");}}>
+            <div className="flex items-center gap-2 cursor-pointer group" onClick={resetToHome}>
                     <div className="relative">
                         <Film size={24} className={`${accentText} relative z-10 transition-transform duration-500 group-hover:rotate-12`} />
                         <div className={`absolute inset-0 blur-lg opacity-50 group-hover:opacity-80 transition-opacity duration-500 ${isGoldTheme ? 'bg-amber-500' : 'bg-red-600'}`}></div>
@@ -811,19 +828,19 @@ export default function App() {
             </div>
             
             <div className="hidden md:flex items-center gap-1">
-                <button onClick={() => { resetFilters(); setSelectedCategory("All"); }} className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-300 hover:scale-105 active:scale-95 ${selectedCategory === "All" && !activeKeyword && !tmdbCollectionId ? "bg-white text-black font-bold" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>Home</button>
-                <button onClick={() => { resetFilters(); setSelectedCategory("TV Shows"); }} className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-300 hover:scale-105 active:scale-95 ${selectedCategory === "TV Shows" ? "bg-white text-black font-bold" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>TV Shows</button>
-                <button onClick={() => { resetFilters(); setSelectedCategory("LiveTV"); }} className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-300 hover:scale-105 active:scale-95 flex items-center gap-1 ${selectedCategory === "LiveTV" ? "bg-white text-black font-bold" : "text-gray-400 hover:text-white hover:bg-white/5"}`}> <Radio size={12}/> Live TV</button>
+                <button onClick={resetToHome} className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-300 hover:scale-105 active:scale-95 ${isHomeView ? "bg-white text-black font-bold" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>Home</button>
+                <button onClick={() => { resetFilters(); setSelectedCategory("TV Shows"); }} className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-300 hover:scale-105 active:scale-95 ${isTVView ? "bg-white text-black font-bold" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>TV Shows</button>
+                <button onClick={() => { resetFilters(); setSelectedCategory("LiveTV"); }} className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-300 hover:scale-105 active:scale-95 flex items-center gap-1 ${isLiveView ? "bg-white text-black font-bold" : "text-gray-400 hover:text-white hover:bg-white/5"}`}> <Radio size={12}/> Live TV</button>
                 
                 {/* NEW BROWSE MEGA-MENU */}
                 <div className="relative group z-50">
-                    <button className="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium text-gray-400 hover:text-white hover:bg-white/5 transition-all outline-none">
+                    <button className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium transition-all outline-none ${isBrowseView ? "bg-white text-black font-bold" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>
                         <LayoutGrid size={16} />
                         <span>Browse</span>
                     </button>
                     
-                    {/* Added padding-top (pt-2) to bridge the gap for hover state */}
-                    <div className="absolute top-full left-0 pt-2 w-[280px] hidden group-hover:block animate-in fade-in slide-in-from-top-2 duration-200">
+                    {/* Added padding-top (pt-4) to bridge the gap for hover state */}
+                    <div className="absolute top-full left-0 pt-4 w-[280px] hidden group-hover:block animate-in fade-in slide-in-from-top-2 duration-200">
                         <div className="bg-[#0f0f0f]/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl p-4 grid grid-cols-3 gap-2">
                             <div className="col-span-3 pb-2 mb-1 border-b border-white/5">
                                 <span className="text-[10px] font-bold text-white/40 uppercase tracking-wider">Browse By</span>
@@ -835,10 +852,10 @@ export default function App() {
                                 { label: "Awards", icon: Award, action: () => { resetFilters(); setSortOption("vote_average.desc"); setSelectedCategory("All"); } },
                                 { label: "Family", icon: Baby, action: () => { resetFilters(); setSelectedCategory("Family"); } },
                                 { label: "Genres", icon: Clapperboard, action: () => setIsSidebarOpen(true) },
-                                { label: "India", icon: Globe, action: () => { resetFilters(); setSelectedRegion("IN"); } },
-                                { label: "Select", icon: Sparkles, action: () => { resetFilters(); setCurrentCollection('90s'); } },
-                                { label: "Trend", icon: TrendingUp, action: () => { resetFilters(); setSortOption("popularity.desc"); setSelectedCategory("All"); } },
-                                { label: "Coming", icon: Calendar, action: () => { resetFilters(); setFilterPeriod("future"); } },
+                                { label: "India", icon: Globe, action: () => { resetFilters(); setSelectedCategory("All"); setSelectedRegion("IN"); } },
+                                { label: "Select", icon: Sparkles, action: () => { resetFilters(); setCurrentCollection('90s'); setSelectedCategory("Collection"); } },
+                                { label: "Trend", icon: TrendingUp, action: resetToHome },
+                                { label: "Coming", icon: Calendar, action: () => { resetFilters(); setSelectedCategory("All"); setFilterPeriod("future"); } },
                             ].map((item) => (
                                 <button 
                                     key={item.label}
@@ -942,10 +959,10 @@ export default function App() {
                <div className="space-y-6">
                    <div className="space-y-1">
                         <p className="text-xs font-bold text-white/40 uppercase tracking-wider mb-2 px-2">Discover</p>
-                        <button onClick={() => { resetFilters(); setSelectedCategory("All"); setFilterPeriod("all"); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 hover:translate-x-1 ${selectedCategory === "All" && filterPeriod === "all" ? `${accentBgLow} ${accentText}` : 'text-gray-400 hover:text-white hover:bg-white/5'}`}><TrendingUp size={18}/> Trending Now</button>
-                        <button onClick={() => { resetFilters(); setSelectedCategory("LiveTV"); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 hover:translate-x-1 ${selectedCategory === "LiveTV" ? `${accentBgLow} ${accentText}` : 'text-gray-400 hover:text-white hover:bg-white/5'}`}><Radio size={18}/> Live TV</button>
+                        <button onClick={() => { resetToHome(); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 hover:translate-x-1 ${isHomeView ? `${accentBgLow} ${accentText}` : 'text-gray-400 hover:text-white hover:bg-white/5'}`}><TrendingUp size={18}/> Trending Now</button>
+                        <button onClick={() => { resetFilters(); setSelectedCategory("LiveTV"); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 hover:translate-x-1 ${isLiveView ? `${accentBgLow} ${accentText}` : 'text-gray-400 hover:text-white hover:bg-white/5'}`}><Radio size={18}/> Live TV</button>
                         <button onClick={() => { resetFilters(); setSelectedCategory("People"); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 hover:translate-x-1 ${selectedCategory === "People" ? `${accentBgLow} ${accentText}` : 'text-gray-400 hover:text-white hover:bg-white/5'}`}><Users size={18}/> Popular People</button>
-                        <button onClick={() => { resetFilters(); setSelectedCategory("TV Shows"); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 hover:translate-x-1 ${selectedCategory === "TV Shows" ? `${accentBgLow} ${accentText}` : 'text-gray-400 hover:text-white hover:bg-white/5'}`}><Tv size={18}/> TV Shows</button>
+                        <button onClick={() => { resetFilters(); setSelectedCategory("TV Shows"); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 hover:translate-x-1 ${isTVView ? `${accentBgLow} ${accentText}` : 'text-gray-400 hover:text-white hover:bg-white/5'}`}><Tv size={18}/> TV Shows</button>
                         <button onClick={() => { resetFilters(); setSelectedCategory("Anime"); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 hover:translate-x-1 ${selectedCategory === "Anime" ? `${accentBgLow} ${accentText}` : 'text-gray-400 hover:text-white hover:bg-white/5'}`}><Ghost size={18}/> Anime</button>
                         <button onClick={() => { resetFilters(); setSortOption("vote_average.desc"); setSelectedCategory("All"); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 hover:translate-x-1 ${sortOption === "vote_average.desc" && selectedCategory === "All" ? `${accentBgLow} ${accentText}` : 'text-gray-400 hover:text-white hover:bg-white/5'}`}><Star size={18}/> Top Rated</button>
                         <button onClick={handleFeelingLucky} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 text-purple-400 hover:text-purple-300 hover:bg-purple-500/10 group"><Dice5 size={18} className="group-hover:rotate-180 transition-transform duration-500"/> I'm Feeling Lucky</button>
@@ -1089,155 +1106,4 @@ export default function App() {
                            <div className={`flex items-center gap-3 border p-4 rounded-xl backdrop-blur-md animate-in fade-in slide-in-from-top-2 duration-500 ${isGoldTheme ? 'bg-amber-900/10 border-amber-500/20' : 'bg-red-900/10 border-red-500/20'}`}>
                                <div className={`p-2 rounded-lg animate-pulse ${isGoldTheme ? 'bg-amber-500/10 text-amber-400' : 'bg-red-500/10 text-red-400'}`}><Sparkles size={18}/></div>
                                <div>
-                                   <p className={`text-xs font-bold uppercase tracking-wider mb-0.5 ${isGoldTheme ? 'text-amber-400' : 'text-red-400'}`}>AI Search Analysis</p>
-                                   <p className="text-sm text-gray-200 italic">"{aiContextReason}"</p>
-                               </div>
-                           </div>
-                       )}
-
-                       {/* Keyword Header */}
-                       {activeKeyword && (
-                           <div className="flex items-center justify-between bg-white/5 border border-white/5 p-6 rounded-2xl animate-in fade-in slide-in-from-top-2">
-                               <div>
-                                   <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1 flex items-center gap-2"><Tag size={12}/> Tag Explorer</p>
-                                   <h2 className="text-3xl font-bold text-white">{activeKeyword.name}</h2>
-                               </div>
-                               <button onClick={resetFilters} className={`text-xs font-bold transition-colors ${isGoldTheme ? 'text-amber-400 hover:text-amber-300' : 'text-red-400 hover:text-red-300'}`}>Clear Filter</button>
-                           </div>
-                       )}
-
-                       <PosterMarquee movies={!searchQuery && selectedCategory === "All" && !currentCollection && movies.length > 0 ? movies : []} onMovieClick={setSelectedMovie} />
-
-                       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-x-4 gap-y-8 animate-in fade-in duration-700">
-                           {movies.map((movie, idx) => (
-                               <div key={`${movie.id}-${idx}`} ref={idx === movies.length - 1 ? lastMovieElementRef : null} className="animate-in fade-in zoom-in-95 duration-500" style={{ animationDelay: `${idx * 50}ms` }}>
-                                    {selectedCategory === "People" ? (
-                                        <PersonCard 
-                                            person={movie}
-                                            onClick={(id) => setSelectedPersonId(id)}
-                                        />
-                                    ) : (
-                                        <MovieCard 
-                                            movie={movie} 
-                                            onClick={setSelectedMovie} 
-                                            isWatched={watched.some(m => m.id === movie.id)} 
-                                            onToggleWatched={handleToggleWatched} 
-                                        />
-                                    )}
-                               </div>
-                           ))}
-                           {loading && [...Array(12)].map((_, i) => <MovieSkeleton key={`skel-${i}`} />)}
-                       </div>
-
-                       {!loading && movies.length === 0 && (
-                           <div className="text-center py-20 opacity-50 flex flex-col items-center animate-in fade-in zoom-in">
-                               <Ghost size={48} className="mb-4 text-white/20"/>
-                               <p>No results found. Try adjusting filters.</p>
-                           </div>
-                       )}
-
-                       {!apiKey && !loading && (
-                           <div className={`mt-12 bg-gradient-to-r border rounded-2xl p-6 flex items-center justify-between backdrop-blur-md animate-in slide-in-from-bottom-5 ${isGoldTheme ? 'from-amber-900/20 to-gray-900/20 border-amber-500/20' : 'from-red-900/20 to-gray-900/20 border-white/10'}`}>
-                               <div className="flex items-center gap-4">
-                                   <div className={`p-3 rounded-full ${isGoldTheme ? 'bg-amber-500/10 text-amber-500' : 'bg-red-500/10 text-red-500'}`}><Info size={24}/></div>
-                                   <div>
-                                       <h3 className="font-bold text-white">Demo Mode Active</h3>
-                                       <p className="text-sm text-gray-400">Add your TMDB API Key in settings to unlock full access.</p>
-                                   </div>
-                               </div>
-                               <button onClick={() => setIsSettingsOpen(true)} className="px-6 py-2 bg-white text-black font-bold rounded-lg hover:bg-gray-200 transition-all active:scale-95">Add Key</button>
-                           </div>
-                       )}
-                   </div>
-               </>
-           )}
-        </main>
-      </div>
-
-      {selectedMovie && (
-          <MoviePage 
-            movie={selectedMovie} 
-            onClose={() => setSelectedMovie(null)} 
-            apiKey={apiKey} 
-            onPersonClick={setSelectedPersonId}
-            onToggleWatchlist={(m) => toggleList(watchlist, setWatchlist, 'movieverse_watchlist', m)}
-            isWatchlisted={watchlist.some(m => m.id === selectedMovie.id)}
-            onToggleFavorite={(m) => toggleList(favorites, setFavorites, 'movieverse_favorites', m)}
-            isFavorite={favorites.some(m => m.id === selectedMovie.id)}
-            onToggleWatched={handleToggleWatched}
-            isWatched={watched.some(m => m.id === selectedMovie.id)}
-            onSwitchMovie={setSelectedMovie}
-            onOpenListModal={(m) => { setListModalMovie(m); setIsListModalOpen(true); }}
-            appRegion={appRegion}
-            userProfile={userProfile}
-            onKeywordClick={handleKeywordClick}
-            onCollectionClick={handleTmdbCollectionClick}
-            onCompare={(m) => { setIsComparisonOpen(true); setComparisonBaseMovie(m); }}
-          />
-      )}
-
-      <ListSelectionModal 
-        isOpen={isListModalOpen} 
-        onClose={() => setIsListModalOpen(false)} 
-        movie={listModalMovie} 
-        customLists={customLists} 
-        onCreateList={createCustomList} 
-        onAddToList={addToCustomList} 
-      />
-
-      <ProfilePage 
-        isOpen={isProfileOpen} 
-        onClose={() => setIsProfileOpen(false)} 
-        profile={userProfile} 
-        onSave={(p) => { setUserProfile(p); localStorage.setItem('movieverse_profile', JSON.stringify(p)); }} 
-      />
-
-      <PersonPage 
-        personId={selectedPersonId || 0} 
-        onClose={() => setSelectedPersonId(null)} 
-        apiKey={apiKey} 
-        onMovieClick={(m) => { setSelectedPersonId(null); setTimeout(() => setSelectedMovie(m), 300); }} 
-      />
-
-      <AIRecommendationModal 
-        isOpen={isAIModalOpen} 
-        onClose={() => setIsAIModalOpen(false)} 
-        apiKey={apiKey} 
-      />
-      
-      <ComparisonModal
-        isOpen={isComparisonOpen}
-        onClose={() => setIsComparisonOpen(false)}
-        baseMovie={comparisonBaseMovie}
-        apiKey={apiKey}
-      />
-
-      <SettingsPage 
-        isOpen={isSettingsOpen} 
-        onClose={() => setIsSettingsOpen(false)} 
-        apiKey={apiKey} 
-        setApiKey={(k) => saveSettings(k)} 
-        geminiKey={geminiKey}
-        setGeminiKey={(k) => saveGeminiKey(k)}
-        maturityRating={maturityRating}
-        setMaturityRating={setMaturityRating}
-        profile={userProfile}
-        onUpdateProfile={setUserProfile}
-        onLogout={handleLogout}
-        searchHistory={searchHistory}
-        setSearchHistory={(h) => { setSearchHistory(h); localStorage.setItem('movieverse_search_history', JSON.stringify(h)); }}
-        watchedMovies={watched}
-        setWatchedMovies={(m) => { setWatched(m); localStorage.setItem('movieverse_watched', JSON.stringify(m)); }}
-      />
-      
-      <NotificationModal 
-        isOpen={isNotificationOpen} 
-        onClose={() => setIsNotificationOpen(false)} 
-        onUpdate={checkUnreadNotifications}
-        userProfile={userProfile}
-      />
-      
-      {!apiKey && loading && <div className="fixed inset-0 z-[100] bg-black"><LogoLoader /></div>}
-    </div>
-  );
-}
+                                   <p className={`text-xs font-bold uppercase tracking-wider mb-0.5 ${isGoldTheme ? 'text-amber-400' : 'text-red-400'}`}>AI Search Analysis</p
