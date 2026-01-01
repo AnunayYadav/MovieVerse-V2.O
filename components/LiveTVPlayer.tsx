@@ -1,4 +1,3 @@
-
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { X, AlertCircle, Loader2, Play, Pause, Volume2, VolumeX, Maximize, Minimize, Radio } from 'lucide-react';
 import { LiveChannel } from '../types';
@@ -21,7 +20,7 @@ export const LiveTVPlayer: React.FC<LiveTVPlayerProps> = ({ channel, onClose, is
     const [volume, setVolume] = useState(1);
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [showControls, setShowControls] = useState(true);
-    const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const controlsTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     // Dynamic Colors
     const accentColor = isGoldTheme ? 'text-amber-500' : 'text-red-600';

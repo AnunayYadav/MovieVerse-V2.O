@@ -1,9 +1,9 @@
 
 import React, { useState, useEffect, Suspense, useRef } from 'react';
-import { X, Calendar, Clock, Star, Play, Bookmark, Heart, Share2, ListPlus, Tv, Clapperboard, User, Lightbulb, Sparkles, Loader2, Check, DollarSign, TrendingUp, Tag, Layers, MessageCircle, Scale, Globe, Facebook, Instagram, Twitter, Film, PlayCircle, Minimize2, Eye, Lock, ChevronDown, Zap, Quote, Shield, ArrowLeft, Volume2, VolumeX } from 'lucide-react';
+import { X, Calendar, Clock, Star, Play, Bookmark, Heart, Share2, ListPlus, Tv, Clapperboard, User, Lightbulb, Sparkles, Loader2, Check, DollarSign, TrendingUp, Tag, Layers, MessageCircle, Scale, Globe, Facebook, Instagram, Twitter, Film, PlayCircle, Minimize2, Eye, Lock, ChevronDown, Zap, Quote, Shield, ArrowLeft, Volume2, VolumeX, Users } from 'lucide-react';
 import { Movie, MovieDetails, Season, UserProfile, Keyword, Review } from '../types';
 import { TMDB_BASE_URL, TMDB_IMAGE_BASE, TMDB_BACKDROP_BASE, formatCurrency, ImageLightbox } from '../components/Shared';
-import { generateTrivia, getSimilarMoviesAI } from '../services/gemini';
+import { generateTrivia } from '../services/gemini';
 
 const MoviePlayer = React.lazy(() => import('./MoviePlayer').then(module => ({ default: module.MoviePlayer })));
 
@@ -77,8 +77,6 @@ export const MoviePage: React.FC<MoviePageProps> = ({
     const [loadingTrivia, setLoadingTrivia] = useState(false);
     const [copied, setCopied] = useState(false);
     const [activeTab, setActiveTab] = useState("details");
-    const [aiSimilar, setAiSimilar] = useState<Movie[]>([]);
-    const [loadingAiSimilar, setLoadingAiSimilar] = useState(false);
     const [selectedSeason, setSelectedSeason] = useState(1);
     const [seasonData, setSeasonData] = useState<Season | null>(null);
     const [loadingSeason, setLoadingSeason] = useState(false);
@@ -117,7 +115,6 @@ export const MoviePage: React.FC<MoviePageProps> = ({
             })
             .catch(() => setLoading(false));
         setTrivia("");
-        setAiSimilar([]);
         setActiveTab("details");
         setSeasonData(null);
         setShowPlayer(false);
@@ -125,20 +122,6 @@ export const MoviePage: React.FC<MoviePageProps> = ({
         setIsMuted(true); // Reset mute state
         setPlayParams({ season: 1, episode: 1 });
     }, [movie.id, apiKey, movie.media_type]);
-
-    useEffect(() => {
-        if (movie && apiKey) {
-            setLoadingAiSimilar(true);
-            const year = (movie.release_date || movie.first_air_date || "").split('-')[0];
-            getSimilarMoviesAI(movie.title, year).then(titles => {
-                Promise.all(titles.map(t => fetch(`${TMDB_BASE_URL}/search/movie?api_key=${apiKey}&query=${encodeURIComponent(t)}`).then(r => r.ok ? r.json() : {}).catch(() => ({})))).then((results: any[]) => {
-                    const found = results.map(r => r.results?.[0]).filter(Boolean);
-                    setAiSimilar(found);
-                    setLoadingAiSimilar(false);
-                });
-            }).catch(() => setLoadingAiSimilar(false));
-        }
-    }, [movie, apiKey]);
 
     useEffect(() => {
         if (apiKey && movie.id && movie.media_type === 'tv' && selectedSeason !== null) {
@@ -202,16 +185,20 @@ export const MoviePage: React.FC<MoviePageProps> = ({
         }
     }
 
-    let director = { name: "Unknown", id: 0 };
-    if (isTv && displayData.created_by && displayData.created_by.length > 0) director = displayData.created_by[0];
+    // Improved Director Logic to catch Profile Path
+    let director = { name: "Unknown", id: 0, profile_path: null as string | null };
+    if (isTv && displayData.created_by && displayData.created_by.length > 0) {
+        director = { ...displayData.created_by[0] };
+    }
     else if (displayData.credits?.crew) {
         const dir = displayData.credits.crew.find(c => c.job === "Director");
-        if (dir) director = { name: dir.name, id: dir.id };
+        if (dir) director = { name: dir.name, id: dir.id, profile_path: dir.profile_path };
     }
 
-    const cast = displayData.credits?.cast?.slice(0, 5) || [];
+    const cast = displayData.credits?.cast?.slice(0, 12) || [];
     const mediaImages = displayData.images?.backdrops?.slice(0, 12) || [];
-    const similarMovies = aiSimilar.length > 0 ? aiSimilar : (displayData.similar?.results?.slice(0, 5) || []);
+    // Use TMDB Similar Movies primarily
+    const similarMovies = displayData.similar?.results?.slice(0, 6) || [];
     const keywords = displayData.keywords?.keywords || displayData.keywords?.results || [];
 
     // Find the best logo: prefer English, fallback to first available
@@ -288,35 +275,26 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                             <iframe
                                                 ref={iframeRef}
                                                 src={`https://www.youtube.com/embed/${trailer.key}?autoplay=1&mute=1&controls=0&loop=1&playlist=${trailer.key}&showinfo=0&rel=0&iv_load_policy=3&modestbranding=1&playsinline=1&enablejsapi=1&origin=${window.location.origin}`}
-                                                // Responsive scaling: 
-                                                // Mobile: w-[350%] to zoom into 16:9 video on portrait screen (eliminates black bars).
-                                                // Desktop: w-full scale-125 to gently crop controls but maintain field of view.
                                                 className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none transition-opacity duration-1000 ease-in-out w-[350%] h-[150%] md:w-full md:h-full md:scale-[1.25] ${videoLoaded ? 'opacity-60' : 'opacity-0'}`}
                                                 allow="autoplay; encrypted-media; gyroscope; picture-in-picture"
                                                 title="Background Trailer"
                                                 loading="lazy"
                                                 onLoad={() => {
-                                                    // Small delay to ensure video rendering prevents black flash
                                                     setTimeout(() => setVideoLoaded(true), 1500);
                                                 }}
                                             />
                                         </div>
                                     )}
 
-                                    {/* Poster / Backdrop Image - Stays visible but fades out if video loads */}
                                     <img 
                                         src={displayData.backdrop_path ? `${TMDB_BACKDROP_BASE}${displayData.backdrop_path}` : displayData.poster_path ? `${TMDB_IMAGE_BASE}${displayData.poster_path}` : "https://placehold.co/1200x600"} 
                                         alt={title} 
                                         className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-1000 ${trailer && videoLoaded ? 'opacity-0' : 'opacity-100'}`} 
                                     />
                                     
-                                    {/* Fallback dark background behind everything to prevent white flashes */}
                                     <div className="absolute inset-0 bg-black -z-20"></div>
-
-                                    {/* Single Unified Vignette: Fades to 25% opacity on idle, 100% on hover ONLY if video is loaded. Else stays fully visible. */}
                                     <div className={`absolute -inset-1 bg-gradient-to-t from-[#0a0a0a] via-[#0a0a0a]/50 to-transparent transition-opacity duration-700 ease-in-out pointer-events-none ${videoLoaded ? 'opacity-25 group-hover/hero:opacity-100' : 'opacity-100'}`}></div>
                                  
-                                    {/* Mute Button - Positioned bottom right of the hero image area, avoiding text */}
                                     {trailer && videoLoaded && (
                                         <button 
                                             onClick={toggleMute}
@@ -330,7 +308,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                              )}
                              
                              {!showPlayer && (
-                                 <div className="absolute bottom-0 left-0 w-full px-6 pb-2 md:px-10 md:pb-4 flex flex-col gap-4 animate-in slide-in-from-bottom-4 duration-700 delay-100 z-10 pointer-events-none">
+                                 <div className="absolute bottom-0 left-0 w-full px-6 pb-8 md:px-10 md:pb-12 flex flex-col gap-6 animate-in slide-in-from-bottom-4 duration-700 delay-100 z-10 pointer-events-none">
                                     <div className="pointer-events-auto w-full">
                                         <button onClick={onClose} className="md:hidden absolute top-[-55vh] left-0 flex items-center gap-2 text-white/80 bg-black/40 backdrop-blur-md px-3 py-1.5 rounded-full text-xs border border-white/10"><ArrowLeft size={14}/> Back</button>
                                         
@@ -338,14 +316,13 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                             <img 
                                                 src={`${TMDB_IMAGE_BASE}${logo.file_path}`} 
                                                 alt={title} 
-                                                className={`max-h-16 md:max-h-24 max-w-[55%] w-auto object-contain object-left drop-shadow-2xl mb-1 origin-bottom-left -ml-1 transition-all duration-700 ease-in-out transform ${videoLoaded ? 'scale-90 opacity-70 translate-y-10 group-hover/hero:scale-100 group-hover/hero:opacity-100 group-hover/hero:translate-y-0' : 'scale-100 opacity-100 translate-y-0'}`}
+                                                className={`max-h-16 md:max-h-24 max-w-[55%] w-auto object-contain object-left drop-shadow-2xl mb-4 origin-bottom-left -ml-1 transition-all duration-700 ease-in-out transform ${videoLoaded ? 'scale-90 opacity-70 group-hover/hero:scale-100 group-hover/hero:opacity-100' : 'scale-100 opacity-100'}`}
                                             />
                                         ) : (
-                                            <h2 className={`text-3xl md:text-5xl font-extrabold text-white leading-tight drop-shadow-lg transition-all duration-700 ease-in-out ${videoLoaded ? 'opacity-80 translate-y-8 group-hover/hero:opacity-100 group-hover/hero:translate-y-0' : 'opacity-100 translate-y-0'}`}>{title}</h2>
+                                            <h2 className={`text-3xl md:text-5xl font-extrabold text-white leading-tight drop-shadow-lg mb-4 transition-all duration-700 ease-in-out ${videoLoaded ? 'opacity-80 group-hover/hero:opacity-100' : 'opacity-100'}`}>{title}</h2>
                                         )}
                                         
-                                        {/* Metadata */}
-                                        <div className={`flex flex-wrap items-center gap-4 text-white/90 text-xs md:text-sm font-medium transition-all duration-700 ease-in-out origin-bottom ${videoLoaded ? 'opacity-0 -translate-y-2 group-hover/hero:opacity-100 group-hover/hero:translate-y-0' : 'opacity-100 translate-y-0'}`}>
+                                        <div className={`flex flex-wrap items-center gap-4 text-white/90 text-xs md:text-sm font-medium transition-all duration-700 ease-in-out origin-bottom ${videoLoaded ? 'opacity-0 group-hover/hero:opacity-100' : 'opacity-100'}`}>
                                             {ratingLabel !== 'NR' && (
                                                 <span className={`px-2 py-0.5 rounded text-[10px] md:text-xs font-bold shadow-lg ${ratingColor}`}>{ratingLabel}</span>
                                             )}
@@ -354,8 +331,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                             {displayData.vote_average && <span className="flex items-center gap-2"><Star size={14} className="text-yellow-500" fill="currentColor"/> {displayData.vote_average.toFixed(1)}</span>}
                                         </div>
 
-                                        {/* Primary Actions */}
-                                        <div className="flex flex-wrap gap-3 mt-2">
+                                        <div className="flex flex-wrap gap-3 mt-4">
                                             {isExclusive && (
                                                 <button 
                                                     onClick={handleWatchClick} 
@@ -387,7 +363,6 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                         <Share2 size={16} /> <span>{copied ? 'Copied' : 'Share'}</span>
                                     </button>
                                 </div>
-                                {/* Social Handles moved here */}
                                 <div className="flex items-center gap-2 ml-auto shrink-0">
                                     {displayData.external_ids?.imdb_id && <SocialLink url={`https://www.imdb.com/title/${displayData.external_ids.imdb_id}`} icon={Film} color="text-yellow-400"/>}
                                     {displayData.external_ids?.instagram_id && <SocialLink url={`https://instagram.com/${displayData.external_ids.instagram_id}`} icon={Instagram} color="text-pink-400"/>}
@@ -414,33 +389,118 @@ export const MoviePage: React.FC<MoviePageProps> = ({
 
                                     <div className="min-h-[300px]">
                                         {activeTab === "details" && (
-                                            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2">
+                                            <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2">
+                                                
+                                                {/* Keywords */}
                                                 {keywords.length > 0 && (
-                                                    <div className="flex flex-wrap gap-2">
-                                                        {keywords.map(kw => (<button key={kw.id} onClick={() => onKeywordClick(kw)} className="px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs text-gray-300 hover:text-white transition-all flex items-center gap-1.5 active:scale-95"><Tag size={12}/> {kw.name}</button>))}
+                                                    <div className="space-y-3">
+                                                        <h4 className="text-sm font-bold text-white/50 uppercase tracking-widest flex items-center gap-2">
+                                                            <Tag size={14} /> Story Tags
+                                                        </h4>
+                                                        <div className="flex flex-wrap gap-2">
+                                                            {keywords.map(kw => (
+                                                                <button 
+                                                                    key={kw.id} 
+                                                                    onClick={() => onKeywordClick(kw)} 
+                                                                    className="px-3 py-1.5 text-xs font-medium bg-white/5 border border-white/5 rounded-lg text-gray-300 hover:text-white hover:bg-white/10 hover:border-white/20 transition-all active:scale-95"
+                                                                >
+                                                                    #{kw.name}
+                                                                </button>
+                                                            ))}
+                                                        </div>
                                                     </div>
                                                 )}
-                                                
-                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                                    <div className="glass p-5 rounded-2xl">
-                                                        <p className="text-white/40 text-[10px] uppercase font-bold mb-3">Director / Creator</p>
-                                                        <button onClick={() => onPersonClick(director.id)} className={`flex items-center gap-2 text-white font-bold text-sm hover:text-amber-500 transition-colors`}>{director.name}</button>
+
+                                                {/* Cast & Crew - Redesigned */}
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                                    
+                                                    {/* Director / Creator */}
+                                                    <div className="bg-white/5 border border-white/5 rounded-2xl p-5 hover:bg-white/[0.07] transition-colors">
+                                                        <h4 className="text-xs font-bold text-white/50 uppercase tracking-widest mb-4 flex items-center gap-2">
+                                                            <Clapperboard size={14}/> {isTv ? "Creators" : "Director"}
+                                                        </h4>
+                                                        <div className="flex items-center gap-4">
+                                                            <div className="w-14 h-14 rounded-full bg-black/50 overflow-hidden border border-white/10 flex items-center justify-center shrink-0">
+                                                                {director.profile_path ? (
+                                                                    <img src={`${TMDB_IMAGE_BASE}${director.profile_path}`} className="w-full h-full object-cover" alt={director.name}/>
+                                                                ) : (
+                                                                    <span className="text-lg font-bold text-white/30">{director.name?.[0]}</span>
+                                                                )}
+                                                            </div>
+                                                            <div>
+                                                                <button onClick={() => onPersonClick(director.id)} className="text-base font-bold text-white hover:text-amber-500 transition-colors text-left block">
+                                                                    {director.name}
+                                                                </button>
+                                                                <p className="text-xs text-gray-500 mt-0.5">Visionary</p>
+                                                            </div>
+                                                        </div>
                                                     </div>
-                                                    <div className="glass p-5 rounded-2xl">
-                                                        <p className="text-white/40 text-[10px] uppercase font-bold mb-3">Top Cast</p>
-                                                        <div className="flex flex-wrap gap-2">{cast.map((c, i) => (<button key={i} onClick={() => onPersonClick(c.id)} className="text-xs bg-white/5 px-3 py-1.5 rounded-full text-gray-300 hover:text-white transition-colors border border-white/5 hover:border-white/20">{c.name}</button>))}</div>
+
+                                                    {/* Top Billed Cast */}
+                                                    <div className="bg-white/5 border border-white/5 rounded-2xl p-5 hover:bg-white/[0.07] transition-colors">
+                                                         <h4 className="text-xs font-bold text-white/50 uppercase tracking-widest mb-4 flex items-center gap-2">
+                                                            <Users size={14}/> Top Cast
+                                                        </h4>
+                                                        <div className="flex flex-col gap-3">
+                                                            {cast.slice(0, 3).map((c) => (
+                                                                <div key={c.id} className="flex items-center gap-3 group cursor-pointer" onClick={() => onPersonClick(c.id)}>
+                                                                    <div className="w-10 h-10 rounded-full bg-black/50 overflow-hidden border border-white/10 shrink-0">
+                                                                        {c.profile_path ? (
+                                                                            <img src={`${TMDB_IMAGE_BASE}${c.profile_path}`} className="w-full h-full object-cover group-hover:scale-110 transition-transform" alt={c.name}/>
+                                                                        ) : (
+                                                                            <div className="w-full h-full flex items-center justify-center text-xs font-bold text-white/30">{c.name[0]}</div>
+                                                                        )}
+                                                                    </div>
+                                                                    <div className="min-w-0">
+                                                                        <p className="text-sm font-bold text-gray-200 group-hover:text-white transition-colors truncate">{c.name}</p>
+                                                                        <p className="text-[10px] text-gray-500 truncate">{c.character}</p>
+                                                                    </div>
+                                                                </div>
+                                                            ))}
+                                                            {cast.length > 3 && (
+                                                                <div className="pl-13 ml-12">
+                                                                    <p className="text-xs text-gray-500 italic">+ {cast.length - 3} more</p>
+                                                                </div>
+                                                            )}
+                                                        </div>
                                                     </div>
                                                 </div>
 
-                                                <div className={`relative overflow-hidden rounded-2xl border bg-gradient-to-r from-amber-900/10 to-transparent p-5`}>
-                                                    {!trivia ? (
-                                                        <button onClick={handleGenerateTrivia} className="flex items-center justify-between w-full group">
-                                                            <div className="flex items-center gap-3"><Sparkles size={20} className="text-amber-500"/><div className="text-left"><p className="text-sm font-bold text-white">Behind The Scenes</p><p className="text-xs text-white/50">Reveal AI trivia about this title.</p></div></div>
-                                                            <span className="text-xs font-bold border px-3 py-1.5 rounded-full text-amber-400 border-amber-500/30 group-hover:bg-amber-500 group-hover:text-black transition-all">GENERATE</span>
-                                                        </button>
-                                                    ) : (
-                                                        <div className="flex gap-3 animate-in fade-in"><Lightbulb size={20} className="text-amber-400 shrink-0"/><p className="text-sm text-gray-200 italic leading-relaxed">"{trivia}"</p></div>
-                                                    )}
+                                                {/* Trivia Card - Modernized */}
+                                                <div className={`relative overflow-hidden rounded-2xl border p-1 group transition-all duration-500 ${isGoldTheme ? 'bg-gradient-to-br from-amber-500/10 to-black border-amber-500/20 hover:border-amber-500/40' : 'bg-gradient-to-br from-purple-500/10 to-black border-purple-500/20 hover:border-purple-500/40'}`}>
+                                                    <div className="bg-[#0a0a0a]/80 backdrop-blur-xl rounded-xl p-5 h-full relative z-10">
+                                                        {!trivia ? (
+                                                            <div className="flex items-center justify-between gap-4">
+                                                                <div className="flex items-center gap-4">
+                                                                    <div className={`p-3 rounded-full ${isGoldTheme ? 'bg-amber-500/10 text-amber-500' : 'bg-purple-500/10 text-purple-400'}`}>
+                                                                        <Sparkles size={20} className="animate-pulse"/>
+                                                                    </div>
+                                                                    <div>
+                                                                        <h4 className="text-sm font-bold text-white">Did you know?</h4>
+                                                                        <p className="text-xs text-gray-400">Generate AI-powered trivia about this title.</p>
+                                                                    </div>
+                                                                </div>
+                                                                <button 
+                                                                    onClick={handleGenerateTrivia} 
+                                                                    disabled={loadingTrivia}
+                                                                    className={`px-4 py-2 rounded-lg text-xs font-bold transition-all active:scale-95 flex items-center gap-2 ${isGoldTheme ? 'bg-amber-500 text-black hover:bg-amber-400' : 'bg-purple-600 text-white hover:bg-purple-500'}`}
+                                                                >
+                                                                    {loadingTrivia ? <Loader2 size={14} className="animate-spin"/> : "Reveal Fact"}
+                                                                </button>
+                                                            </div>
+                                                        ) : (
+                                                            <div className="animate-in fade-in zoom-in duration-300">
+                                                                <div className="flex gap-4">
+                                                                    <div className={`shrink-0 mt-1 ${isGoldTheme ? 'text-amber-500' : 'text-purple-400'}`}>
+                                                                        <Lightbulb size={20} fill="currentColor"/>
+                                                                    </div>
+                                                                    <p className="text-sm text-gray-200 leading-relaxed italic font-medium">"{trivia}"</p>
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                    {/* Background Glow Effect */}
+                                                    <div className={`absolute top-0 right-0 w-32 h-32 blur-[60px] rounded-full opacity-20 group-hover:opacity-40 transition-opacity duration-700 pointer-events-none ${isGoldTheme ? 'bg-amber-500' : 'bg-purple-600'}`}></div>
                                                 </div>
                                             </div>
                                         )}
