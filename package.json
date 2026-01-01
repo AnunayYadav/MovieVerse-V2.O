@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@google/generative-ai": "^0.21.0", 
     "hls.js": "^1.5.0",
     "lucide-react": "latest",
     "crypto-js": "^4.2.0",
