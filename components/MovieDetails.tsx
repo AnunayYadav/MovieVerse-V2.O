@@ -269,8 +269,10 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                         <div className="absolute inset-0 w-full h-full pointer-events-none">
                                             <iframe
                                                 src={`https://www.youtube.com/embed/${trailer.key}?autoplay=1&mute=1&controls=0&loop=1&playlist=${trailer.key}&showinfo=0&rel=0&iv_load_policy=3&modestbranding=1&playsinline=1&enablejsapi=1&origin=${window.location.origin}`}
-                                                // Updated scaling technique to ensure fill on all screens, especially portrait mobile
-                                                className={`absolute top-1/2 left-1/2 min-w-full min-h-full w-[300%] h-[300%] -translate-x-1/2 -translate-y-1/2 pointer-events-none transition-opacity duration-1000 ease-in-out ${videoLoaded ? 'opacity-60' : 'opacity-0'}`}
+                                                // Responsive scaling: 
+                                                // Mobile: w-[350%] to zoom into 16:9 video on portrait screen (eliminates black bars).
+                                                // Desktop: w-full scale-125 to gently crop controls but maintain field of view.
+                                                className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none transition-opacity duration-1000 ease-in-out w-[350%] h-[150%] md:w-full md:h-full md:scale-[1.25] ${videoLoaded ? 'opacity-60' : 'opacity-0'}`}
                                                 allow="autoplay; encrypted-media; gyroscope; picture-in-picture"
                                                 title="Background Trailer"
                                                 loading="lazy"
@@ -298,14 +300,14 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                              )}
                              
                              {!showPlayer && (
-                                 <div className="absolute bottom-0 left-0 w-full p-6 md:p-10 flex flex-col gap-3 animate-in slide-in-from-bottom-4 duration-700 delay-100 z-10">
+                                 <div className="absolute bottom-0 left-0 w-full px-6 pb-6 md:px-10 md:pb-8 flex flex-col gap-2 animate-in slide-in-from-bottom-4 duration-700 delay-100 z-10">
                                     <button onClick={onClose} className="md:hidden absolute top-[-55vh] left-0 flex items-center gap-2 text-white/80 bg-black/40 backdrop-blur-md px-3 py-1.5 rounded-full text-xs border border-white/10"><ArrowLeft size={14}/> Back</button>
                                     
                                     {logo ? (
                                         <img 
                                             src={`${TMDB_IMAGE_BASE}${logo.file_path}`} 
                                             alt={title} 
-                                            className={`max-h-16 md:max-h-24 max-w-[60%] w-auto object-contain object-left drop-shadow-2xl mb-1 origin-bottom-left -ml-1 transition-all duration-700 ease-in-out transform ${videoLoaded ? 'scale-90 opacity-70 translate-y-10 group-hover/hero:scale-100 group-hover/hero:opacity-100 group-hover/hero:translate-y-0' : 'scale-100 opacity-100 translate-y-0'}`}
+                                            className={`max-h-16 md:max-h-24 max-w-[55%] w-auto object-contain object-left drop-shadow-2xl mb-1 origin-bottom-left -ml-1 transition-all duration-700 ease-in-out transform ${videoLoaded ? 'scale-90 opacity-70 translate-y-10 group-hover/hero:scale-100 group-hover/hero:opacity-100 group-hover/hero:translate-y-0' : 'scale-100 opacity-100 translate-y-0'}`}
                                         />
                                     ) : (
                                         <h2 className={`text-3xl md:text-5xl font-extrabold text-white leading-tight drop-shadow-lg transition-all duration-700 ease-in-out ${videoLoaded ? 'opacity-80 translate-y-8 group-hover/hero:opacity-100 group-hover/hero:translate-y-0' : 'opacity-100 translate-y-0'}`}>{title}</h2>
@@ -339,7 +341,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                         </div>
 
                         {/* Content Section */}
-                        <div className="max-w-7xl mx-auto w-full p-6 md:p-10 flex flex-col gap-8 -mt-6 relative z-20">
+                        <div className="max-w-7xl mx-auto w-full px-6 py-8 md:p-10 flex flex-col gap-8 -mt-6 relative z-20">
                             {/* Secondary Actions Bar */}
                             <div className="flex items-center justify-between gap-4 overflow-x-auto hide-scrollbar pb-2">
                                 <div className="flex gap-3">
