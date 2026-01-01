@@ -79,6 +79,7 @@ const SynchronizedPlayer = ({
     // 1. Stream Extraction Logic
     useEffect(() => {
         let isMounted = true;
+        const controller = new AbortController();
         
         const fetchStream = async () => {
             setExtracting(true);
@@ -86,19 +87,18 @@ const SynchronizedPlayer = ({
             setStreamUrl("");
             
             try {
-                // Try scraping via a few known open embeds
+                // List of embed sources to try
                 // Using corsproxy.io to bypass CORS headers on the embed page itself.
-                // We attempt multiple sources in order.
                 const sources = [
-                    // Source 1: vidsrc.cc (v2)
+                    // vidsrc.cc (v2) - Common
                     mediaType === 'movie' 
                         ? `https://vidsrc.cc/v2/embed/movie/${movie.id}`
                         : `https://vidsrc.cc/v2/embed/tv/${movie.id}/${season}/${episode}`,
-                    // Source 2: vidsrc.xyz (often cleaner)
+                    // vidsrc.xyz - Cleaner HTML often
                     mediaType === 'movie'
                         ? `https://vidsrc.xyz/embed/movie/${movie.id}`
                         : `https://vidsrc.xyz/embed/tv/${movie.id}/${season}/${episode}`,
-                    // Source 3: Pro (backup)
+                    // vidsrc.pro - Backup
                     mediaType === 'movie'
                         ? `https://vidsrc.pro/embed/movie/${movie.id}`
                         : `https://vidsrc.pro/embed/tv/${movie.id}/${season}/${episode}`
@@ -112,31 +112,38 @@ const SynchronizedPlayer = ({
                     
                     try {
                         console.log(`[Player] Attempting extract from: ${source}`);
-                        // Use corsproxy.io which is robust for this
                         const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(source)}`;
-                        const response = await fetch(proxyUrl);
+                        
+                        const response = await fetch(proxyUrl, { 
+                            signal: controller.signal,
+                            headers: {
+                                'Origin': 'null' // Sometimes helps with proxies
+                            }
+                        });
+                        
                         if (!response.ok) continue;
                         
                         const html = await response.text();
                         
-                        // Look for .m3u8 patterns
+                        // Regex Patterns to find the .m3u8 link
                         // 1. Standard file: "..." or source: "..."
                         // 2. Encoded or obfuscated strings often start with http and end with m3u8
                         const patterns = [
                             /file:\s*["'](https?:\/\/[^"']+\.m3u8[^"']*)["']/, 
                             /source:\s*["'](https?:\/\/[^"']+\.m3u8[^"']*)["']/,
                             /src:\s*["'](https?:\/\/[^"']+\.m3u8[^"']*)["']/,
-                            /(https?:\/\/[a-zA-Z0-9\-_./]+\.m3u8[^"'\s]*)/
+                            /["'](https?:\/\/[^"']+\.m3u8[^"']*)["']/, // General catch-all inside quotes
                         ];
 
                         for (const pattern of patterns) {
                             const match = html.match(pattern);
                             if (match && match[1]) {
-                                // Sometimes the match includes extra garbage, simple clean
                                 let candidate = match[1];
-                                if (!candidate.startsWith('http')) continue;
-                                foundStream = candidate;
-                                break;
+                                // Basic validation
+                                if (candidate.startsWith('http') && !candidate.includes('ad_') && !candidate.includes('trailer')) {
+                                    foundStream = candidate;
+                                    break;
+                                }
                             }
                         }
                     } catch (err) {
@@ -151,7 +158,7 @@ const SynchronizedPlayer = ({
                         setExtracting(false);
                     }
                 } else {
-                    throw new Error("Could not auto-extract stream.");
+                    throw new Error("Could not auto-extract stream. Try manual link or refresh.");
                 }
 
             } catch (e: any) {
@@ -165,10 +172,13 @@ const SynchronizedPlayer = ({
 
         fetchStream();
 
-        return () => { isMounted = false; };
+        return () => { 
+            isMounted = false; 
+            controller.abort();
+        };
     }, [movie.id, mediaType, season, episode, retryCount]);
 
-    // 2. Initialize Player (Hls.js)
+    // 2. Initialize Player (Hls.js) with Proxy Injection
     useEffect(() => {
         if (!streamUrl || !videoRef.current) return;
         
@@ -181,17 +191,26 @@ const SynchronizedPlayer = ({
         }
 
         if (Hls && Hls.isSupported()) {
+            // Configure Hls.js to route chunks through proxy
+            // This enables "The Injection" mentioned: fetching chunks via proxy (JS) 
+            // and feeding them to MediaSource, bypassing browser CORS/Referer blocks on the video tag.
             const hls = new Hls({
                 enableWorker: true,
                 lowLatencyMode: true,
-                // Add some buffer config to smooth out playback
                 maxBufferLength: 30,
                 maxMaxBufferLength: 600,
+                xhrSetup: function (xhr: XMLHttpRequest, url: string) {
+                    // CRITICAL: Proxy all requests to bypass provider's Referer/Origin checks
+                    // We check if it's already proxied to avoid double-proxying
+                    if (!url.includes('corsproxy.io')) {
+                        xhr.open('GET', `https://corsproxy.io/?${encodeURIComponent(url)}`, true);
+                    }
+                }
             });
             
             hlsRef.current = hls;
             
-            // "The Handshake" & "The Injection"
+            // "The Handshake"
             hls.loadSource(streamUrl);
             hls.attachMedia(video);
             
@@ -213,9 +232,11 @@ const SynchronizedPlayer = ({
                             hls.recoverMediaError();
                             break;
                         default:
-                            // If it fails fatallly, we show error
-                            // Often due to CORS on the .ts chunks themselves
-                            setError("Stream blocked by provider (CORS).");
+                            console.error("Unrecoverable error", data);
+                            // Only set error UI if we really can't play
+                            if (!video.currentTime) {
+                                setError("Stream playback blocked. Try a manual link.");
+                            }
                             hls.destroy();
                             break;
                     }
@@ -223,7 +244,8 @@ const SynchronizedPlayer = ({
             });
 
         } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-            // Native HLS (Safari)
+            // Native HLS (Safari) - Proxying is harder here without a service worker
+            // We try direct, if it fails, user might need to use manual link
             video.src = streamUrl;
         }
 
@@ -353,8 +375,8 @@ const SynchronizedPlayer = ({
                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-black z-20">
                     <Loader2 size={48} className="animate-spin text-amber-500 mb-4"/>
                     <div className="flex flex-col items-center space-y-2">
-                        <p className="text-amber-500 font-mono text-sm animate-pulse font-bold tracking-widest">SCANNING SOURCES...</p>
-                        <p className="text-gray-500 text-xs">Looking for manifest: {mediaType.toUpperCase()} {movie.id}</p>
+                        <p className="text-amber-500 font-mono text-sm animate-pulse font-bold tracking-widest">SCANNING STREAMS...</p>
+                        <p className="text-gray-500 text-xs">Target: {mediaType.toUpperCase()} {movie.id}</p>
                     </div>
                 </div>
             )}
@@ -362,8 +384,8 @@ const SynchronizedPlayer = ({
             {error && !extracting && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-black z-20 p-6 text-center">
                     <AlertTriangle size={48} className="text-red-500 mb-4"/>
-                    <h3 className="text-xl font-bold text-white mb-2">Stream Unavailable</h3>
-                    <p className="text-gray-400 text-sm max-w-md mb-6">{error} Client-side extraction is limited.</p>
+                    <h3 className="text-xl font-bold text-white mb-2">Stream Extraction Failed</h3>
+                    <p className="text-gray-400 text-sm max-w-md mb-6">{error}</p>
                     <div className="flex flex-col gap-3 w-full max-w-xs">
                         <button 
                             onClick={() => setRetryCount(prev => prev + 1)}
@@ -375,7 +397,7 @@ const SynchronizedPlayer = ({
                             onClick={() => setShowManualInput(!showManualInput)}
                             className="w-full py-3 bg-white/10 text-white font-bold rounded-xl hover:bg-white/20 transition-colors flex items-center justify-center gap-2"
                         >
-                            <LinkIcon size={18}/> {showManualInput ? "Hide Input" : "Paste HLS Link"}
+                            <LinkIcon size={18}/> {showManualInput ? "Hide Input" : "Paste .m3u8 Link"}
                         </button>
                     </div>
                     
@@ -386,12 +408,14 @@ const SynchronizedPlayer = ({
                                     type="text" 
                                     value={manualUrl}
                                     onChange={(e) => setManualUrl(e.target.value)}
-                                    placeholder="https://example.com/video.m3u8" 
+                                    placeholder="https://example.com/playlist.m3u8" 
                                     className="flex-1 bg-white/10 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-amber-500 outline-none"
                                 />
                                 <button onClick={handleManualSubmit} className="bg-amber-500 text-black px-4 py-2 rounded-lg font-bold hover:bg-amber-400">Play</button>
                             </div>
-                            <p className="text-[10px] text-gray-500 mt-2 text-left">Advanced: Open Developer Tools on the provider site, go to Network tab, filter by "m3u8", copy link.</p>
+                            <p className="text-[10px] text-gray-500 mt-2 text-left">
+                                Tip: Use browser DevTools (Network tab) on a video site to find the .m3u8 file.
+                            </p>
                         </div>
                     )}
                 </div>
