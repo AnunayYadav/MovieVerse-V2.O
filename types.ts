@@ -120,6 +120,9 @@ export interface Creator {
   id: number;
   name: string;
   job: string;
+  department: string;
+  profile_path: string | null;
+  popularity: number;
 }
 
 export interface ContentRating {
@@ -257,41 +260,6 @@ export interface LiveChannel {
     url: string;
     group?: string;
     country?: string;
-}
-
-export interface WatchParty {
-    id: string;
-    name: string;
-    hostName: string;
-    isPrivate: boolean;
-    password?: string; // Only locally checked for demo
-    movie?: Movie;
-    viewers: number;
-    settings: PartySettings;
-    createdAt: number;
-}
-
-export interface PartySettings {
-    allowChat: boolean;
-    allowControls: boolean; // Allow members to pause/play
-    coHosts?: string[]; // Array of user names who are co-hosts
-    playerState?: {
-        isPlaying: boolean;
-        currentTime: number;
-        updatedAt: number;
-    };
-    mediaParams?: {
-        season: number;
-        episode: number;
-    };
-}
-
-export interface PartyMessage {
-    id: string;
-    user: string;
-    text: string;
-    timestamp: string;
-    isSystem?: boolean;
 }
 
 export type MaturityRating = "G" | "PG" | "PG-13" | "R" | "NC-17";
