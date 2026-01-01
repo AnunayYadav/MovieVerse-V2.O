@@ -822,31 +822,34 @@ export default function App() {
                         <span>Browse</span>
                     </button>
                     
-                    <div className="absolute top-full left-0 mt-2 w-[280px] bg-[#0f0f0f]/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl p-4 hidden group-hover:grid grid-cols-3 gap-2 animate-in fade-in slide-in-from-top-2 duration-200">
-                        <div className="col-span-3 pb-2 mb-1 border-b border-white/5">
-                            <span className="text-[10px] font-bold text-white/40 uppercase tracking-wider">Browse By</span>
+                    {/* Added padding-top (pt-2) to bridge the gap for hover state */}
+                    <div className="absolute top-full left-0 pt-2 w-[280px] hidden group-hover:block animate-in fade-in slide-in-from-top-2 duration-200">
+                        <div className="bg-[#0f0f0f]/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl p-4 grid grid-cols-3 gap-2">
+                            <div className="col-span-3 pb-2 mb-1 border-b border-white/5">
+                                <span className="text-[10px] font-bold text-white/40 uppercase tracking-wider">Browse By</span>
+                            </div>
+                            
+                            {[
+                                { label: "People", icon: Users, action: () => { resetFilters(); setSelectedCategory("People"); } },
+                                { label: "Anime", icon: Ghost, action: () => { resetFilters(); setSelectedCategory("Anime"); } },
+                                { label: "Awards", icon: Award, action: () => { resetFilters(); setSortOption("vote_average.desc"); setSelectedCategory("All"); } },
+                                { label: "Family", icon: Baby, action: () => { resetFilters(); setSelectedCategory("Family"); } },
+                                { label: "Genres", icon: Clapperboard, action: () => setIsSidebarOpen(true) },
+                                { label: "India", icon: Globe, action: () => { resetFilters(); setSelectedRegion("IN"); } },
+                                { label: "Select", icon: Sparkles, action: () => { resetFilters(); setCurrentCollection('90s'); } },
+                                { label: "Trend", icon: TrendingUp, action: () => { resetFilters(); setSortOption("popularity.desc"); setSelectedCategory("All"); } },
+                                { label: "Coming", icon: Calendar, action: () => { resetFilters(); setFilterPeriod("future"); } },
+                            ].map((item) => (
+                                <button 
+                                    key={item.label}
+                                    onClick={item.action}
+                                    className="flex flex-col items-center justify-center gap-2 p-3 rounded-xl bg-white/5 hover:bg-white/10 hover:scale-105 transition-all active:scale-95 group/item"
+                                >
+                                    <item.icon size={20} className="text-gray-400 group-hover/item:text-white transition-colors" />
+                                    <span className="text-[10px] font-medium text-gray-400 group-hover/item:text-white transition-colors">{item.label}</span>
+                                </button>
+                            ))}
                         </div>
-                        
-                        {[
-                            { label: "People", icon: Users, action: () => { resetFilters(); setSelectedCategory("People"); } },
-                            { label: "Anime", icon: Ghost, action: () => { resetFilters(); setSelectedCategory("Anime"); } },
-                            { label: "Awards", icon: Award, action: () => { resetFilters(); setSortOption("vote_average.desc"); setSelectedCategory("All"); } },
-                            { label: "Family", icon: Baby, action: () => { resetFilters(); setSelectedCategory("Family"); } },
-                            { label: "Genres", icon: Clapperboard, action: () => setIsSidebarOpen(true) },
-                            { label: "India", icon: Globe, action: () => { resetFilters(); setSelectedRegion("IN"); } },
-                            { label: "Select", icon: Sparkles, action: () => { resetFilters(); setCurrentCollection('90s'); } },
-                            { label: "Trend", icon: TrendingUp, action: () => { resetFilters(); setSortOption("popularity.desc"); setSelectedCategory("All"); } },
-                            { label: "Coming", icon: Calendar, action: () => { resetFilters(); setFilterPeriod("future"); } },
-                        ].map((item) => (
-                            <button 
-                                key={item.label}
-                                onClick={item.action}
-                                className="flex flex-col items-center justify-center gap-2 p-3 rounded-xl bg-white/5 hover:bg-white/10 hover:scale-105 transition-all active:scale-95 group/item"
-                            >
-                                <item.icon size={20} className="text-gray-400 group-hover/item:text-white transition-colors" />
-                                <span className="text-[10px] font-medium text-gray-400 group-hover/item:text-white transition-colors">{item.label}</span>
-                            </button>
-                        ))}
                     </div>
                 </div>
             </div>
