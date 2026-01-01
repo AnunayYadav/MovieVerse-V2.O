@@ -1,13 +1,13 @@
 
 import React, { useState, useEffect, Suspense } from 'react';
-import { X, Calendar, Clock, Star, Play, Bookmark, Heart, Share2, ListPlus, Tv, Clapperboard, User, Lightbulb, Sparkles, Loader2, Check, DollarSign, TrendingUp, Tag, Layers, MessageCircle, Scale, Globe, Facebook, Instagram, Twitter, Film, PlayCircle, Minimize2, Eye, Lock, ChevronDown, Zap, Quote, Shield } from 'lucide-react';
+import { X, Calendar, Clock, Star, Play, Bookmark, Heart, Share2, ListPlus, Tv, Clapperboard, User, Lightbulb, Sparkles, Loader2, Check, DollarSign, TrendingUp, Tag, Layers, MessageCircle, Scale, Globe, Facebook, Instagram, Twitter, Film, PlayCircle, Minimize2, Eye, Lock, ChevronDown, Zap, Quote, Shield, ArrowLeft } from 'lucide-react';
 import { Movie, MovieDetails, Season, UserProfile, Keyword, Review } from '../types';
 import { TMDB_BASE_URL, TMDB_IMAGE_BASE, TMDB_BACKDROP_BASE, formatCurrency, ImageLightbox } from '../components/Shared';
 import { generateTrivia, getSimilarMoviesAI } from '../services/gemini';
 
 const MoviePlayer = React.lazy(() => import('./MoviePlayer').then(module => ({ default: module.MoviePlayer })));
 
-interface MovieModalProps {
+interface MoviePageProps {
     movie: Movie;
     onClose: () => void;
     apiKey: string;
@@ -66,7 +66,7 @@ const ReviewCard: React.FC<{ review: Review }> = ({ review }) => {
     );
 };
 
-export const MovieModal: React.FC<MovieModalProps> = ({ 
+export const MoviePage: React.FC<MoviePageProps> = ({ 
     movie, onClose, apiKey, onPersonClick, onToggleWatchlist, isWatchlisted, 
     onSwitchMovie, onOpenListModal, onToggleFavorite, isFavorite, appRegion, isWatched, onToggleWatched, userProfile,
     onKeywordClick, onCollectionClick, onCompare
@@ -232,18 +232,23 @@ export const MovieModal: React.FC<MovieModalProps> = ({
     };
 
     return (
-        <div className="fixed inset-0 z-[70] flex items-end md:items-center justify-center md:p-6 animate-in fade-in duration-300">
-            <div className="absolute inset-0 bg-black/60 backdrop-blur-xl transition-opacity duration-300" onClick={onClose}></div>
+        <div className="fixed inset-0 z-[100] bg-[#0a0a0a] overflow-y-auto custom-scrollbar animate-in slide-in-from-right-10 duration-500">
             {viewingImage && <ImageLightbox src={viewingImage} onClose={() => setViewingImage(null)} />}
             
-            <div className="glass-panel w-full md:max-w-5xl md:rounded-3xl rounded-t-3xl overflow-hidden shadow-2xl relative max-h-[90vh] flex flex-col z-10 animate-in slide-in-from-bottom-10 zoom-in-95 duration-500">
-                <button onClick={onClose} className="absolute top-4 right-4 z-20 bg-black/40 hover:bg-white/10 backdrop-blur-md p-2 rounded-full text-white/80 hover:text-white transition-all hover:scale-110 active:scale-95 border border-white/5"><X size={20} /></button>
+            <div className="relative w-full min-h-screen flex flex-col">
+                <button onClick={onClose} className="fixed top-6 right-6 z-[120] bg-black/40 hover:bg-white/10 backdrop-blur-md p-3 rounded-full text-white/80 hover:text-white transition-all hover:scale-110 active:scale-95 border border-white/5 group">
+                    <X size={24} />
+                    <span className="absolute right-full mr-3 top-1/2 -translate-y-1/2 bg-black/80 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">Close Details</span>
+                </button>
                 
                 {loading && !details ? (
-                    <div className="h-96 flex items-center justify-center"><Loader2 className={`animate-spin ${accentText}`} size={48}/></div>
+                    <div className="h-screen flex flex-col items-center justify-center gap-4">
+                        <Loader2 className={`animate-spin ${accentText}`} size={64}/>
+                        <p className="text-gray-500 text-sm animate-pulse">Loading Movie Details...</p>
+                    </div>
                 ) : (
-                    <div className="flex flex-col overflow-y-auto custom-scrollbar bg-[#0a0a0a]">
-                        <div className="relative h-[60vh] md:h-[500px] w-full shrink-0 bg-black overflow-hidden group/hero">
+                    <div className="flex flex-col">
+                        <div className="relative h-[65vh] md:h-[70vh] w-full shrink-0 bg-black overflow-hidden group/hero">
                              {showPlayer ? (
                                  <div className="absolute inset-0 z-50 animate-in fade-in duration-700 bg-black">
                                      <Suspense fallback={<div className="w-full h-full flex items-center justify-center bg-black"><Loader2 className="animate-spin text-red-600" size={40}/></div>}>
@@ -292,30 +297,31 @@ export const MovieModal: React.FC<MovieModalProps> = ({
                              )}
                              
                              {!showPlayer && (
-                                 <div className="absolute bottom-0 left-0 p-6 md:p-10 w-full md:w-2/3 flex flex-col gap-4 animate-in slide-in-from-bottom-4 duration-700 delay-100 z-10">
+                                 <div className="absolute bottom-0 left-0 p-6 md:p-16 w-full md:w-2/3 flex flex-col gap-6 animate-in slide-in-from-bottom-4 duration-700 delay-100 z-10">
+                                    <button onClick={onClose} className="md:hidden absolute top-[-60vh] left-0 flex items-center gap-2 text-white/80 bg-black/40 backdrop-blur-md px-4 py-2 rounded-full"><ArrowLeft size={16}/> Back</button>
                                     {logo ? (
                                         <img 
                                             src={`${TMDB_IMAGE_BASE}${logo.file_path}`} 
                                             alt={title} 
-                                            className={`max-h-14 md:max-h-28 max-w-[65%] w-auto object-contain object-left drop-shadow-2xl mb-4 origin-bottom-left -ml-1.5 transition-all duration-700 ease-in-out transform ${videoLoaded ? 'scale-90 opacity-70 translate-y-20 group-hover/hero:scale-100 group-hover/hero:opacity-100 group-hover/hero:translate-y-0' : 'scale-100 opacity-100 translate-y-0'}`}
+                                            className={`max-h-24 md:max-h-40 max-w-[80%] w-auto object-contain object-left drop-shadow-2xl mb-2 origin-bottom-left -ml-1.5 transition-all duration-700 ease-in-out transform ${videoLoaded ? 'scale-90 opacity-70 translate-y-20 group-hover/hero:scale-100 group-hover/hero:opacity-100 group-hover/hero:translate-y-0' : 'scale-100 opacity-100 translate-y-0'}`}
                                         />
                                     ) : (
-                                        <h2 className={`text-3xl md:text-5xl font-extrabold text-white leading-tight drop-shadow-lg transition-all duration-700 ease-in-out ${videoLoaded ? 'opacity-80 translate-y-12 group-hover/hero:opacity-100 group-hover/hero:translate-y-0' : 'opacity-100 translate-y-0'}`}>{title}</h2>
+                                        <h2 className={`text-4xl md:text-7xl font-extrabold text-white leading-tight drop-shadow-lg transition-all duration-700 ease-in-out ${videoLoaded ? 'opacity-80 translate-y-12 group-hover/hero:opacity-100 group-hover/hero:translate-y-0' : 'opacity-100 translate-y-0'}`}>{title}</h2>
                                     )}
                                     
                                     {/* Metadata & Socials - Fades out completely on idle if video is playing */}
-                                    <div className={`space-y-4 transition-all duration-700 ease-in-out origin-bottom ${videoLoaded ? 'opacity-0 -translate-y-4 group-hover/hero:opacity-100 group-hover/hero:translate-y-0' : 'opacity-100 translate-y-0'}`}>
-                                        <div className="flex flex-wrap items-center gap-3 md:gap-4 text-white/80 text-sm font-medium">
+                                    <div className={`space-y-6 transition-all duration-700 ease-in-out origin-bottom ${videoLoaded ? 'opacity-0 -translate-y-4 group-hover/hero:opacity-100 group-hover/hero:translate-y-0' : 'opacity-100 translate-y-0'}`}>
+                                        <div className="flex flex-wrap items-center gap-4 md:gap-6 text-white/90 text-sm md:text-base font-medium">
                                             {ratingLabel !== 'NR' && (
-                                                <span className={`px-2 py-0.5 rounded text-xs font-bold shadow-sm ${ratingColor}`}>{ratingLabel}</span>
+                                                <span className={`px-3 py-1 rounded text-sm font-black shadow-lg ${ratingColor}`}>{ratingLabel}</span>
                                             )}
-                                            <span className="flex items-center gap-1.5"><Calendar size={14} className={accentText}/> {displayData.release_date?.split('-')[0] || displayData.first_air_date?.split('-')[0] || 'TBA'}</span>
-                                            <span className="flex items-center gap-1.5"><Clock size={14} className={accentText}/> {runtime}</span>
-                                            {displayData.vote_average && <span className="flex items-center gap-1.5"><Star size={14} className="text-yellow-500" fill="currentColor"/> {displayData.vote_average.toFixed(1)}</span>}
+                                            <span className="flex items-center gap-2"><Calendar size={16} className={accentText}/> {displayData.release_date?.split('-')[0] || displayData.first_air_date?.split('-')[0] || 'TBA'}</span>
+                                            <span className="flex items-center gap-2"><Clock size={16} className={accentText}/> {runtime}</span>
+                                            {displayData.vote_average && <span className="flex items-center gap-2"><Star size={16} className="text-yellow-500" fill="currentColor"/> {displayData.vote_average.toFixed(1)}</span>}
                                         </div>
                                         
                                         {/* Social Handles */}
-                                        <div className="flex items-center gap-3">
+                                        <div className="flex items-center gap-4">
                                             {displayData.external_ids?.imdb_id && <SocialLink url={`https://www.imdb.com/title/${displayData.external_ids.imdb_id}`} icon={Film} color="text-yellow-400"/>}
                                             {displayData.external_ids?.instagram_id && <SocialLink url={`https://instagram.com/${displayData.external_ids.instagram_id}`} icon={Instagram} color="text-pink-400"/>}
                                             {displayData.external_ids?.twitter_id && <SocialLink url={`https://twitter.com/${displayData.external_ids.twitter_id}`} icon={Twitter} color="text-blue-400"/>}
@@ -324,115 +330,154 @@ export const MovieModal: React.FC<MovieModalProps> = ({
                                         </div>
                                     </div>
 
-                                    <div className="flex flex-wrap gap-3 mt-2">
+                                    <div className="flex flex-wrap gap-4 mt-2">
                                         {isExclusive && (
                                             <button 
                                                 onClick={handleWatchClick} 
-                                                className={`font-bold py-2.5 px-6 md:py-3 md:px-8 text-sm md:text-base rounded-xl transition-all flex items-center gap-2 active:scale-95 shadow-lg ${isGoldTheme ? 'bg-gradient-to-r from-amber-600 to-amber-500 text-black shadow-amber-900/40' : 'bg-red-600 hover:bg-red-700 text-white'}`}
+                                                className={`font-bold py-3 px-8 md:py-4 md:px-10 text-base md:text-lg rounded-xl transition-all flex items-center gap-3 active:scale-95 shadow-xl hover:shadow-2xl ${isGoldTheme ? 'bg-gradient-to-r from-amber-600 to-amber-500 text-black shadow-amber-900/40' : 'bg-red-600 hover:bg-red-700 text-white'}`}
                                             >
-                                                <PlayCircle size={20} fill="currentColor" />
+                                                <PlayCircle size={24} fill="currentColor" />
                                                 Watch Now
                                             </button>
                                         )}
-                                        <button onClick={() => details?.videos?.results?.[0] && window.open(`https://www.youtube.com/watch?v=${details.videos.results[0].key}`)} className="glass hover:bg-white/10 text-white font-bold py-2.5 px-5 md:py-3 md:px-6 text-sm md:text-base rounded-xl transition-all flex items-center gap-2 active:scale-95"><Play size={18} /> Trailer</button>
-                                        <div className="flex gap-2">
-                                            <button onClick={() => onToggleWatchlist(displayData)} className={`p-2.5 md:p-3 rounded-xl border transition-colors ${isWatchlisted ? `${accentBgLow} ${accentBorder} ${accentText}` : 'glass hover:bg-white/10 text-white/70'}`}><Bookmark size={20} fill={isWatchlisted ? "currentColor" : "none"} /></button>
-                                            <button onClick={() => onToggleFavorite(displayData)} className={`p-2.5 md:p-3 rounded-xl border transition-colors ${isFavorite ? `${accentBgLow} ${accentBorder} ${accentText}` : 'glass hover:bg-white/10 text-white/70'}`}><Heart size={20} fill={isFavorite ? "currentColor" : "none"} /></button>
-                                            <button onClick={handleShare} className={`p-2.5 md:p-3 rounded-xl glass hover:bg-white/10 transition-colors ${copied ? 'text-green-400' : 'text-white/70'}`}><Share2 size={20} /></button>
+                                        <button onClick={() => details?.videos?.results?.[0] && window.open(`https://www.youtube.com/watch?v=${details.videos.results[0].key}`)} className="glass hover:bg-white/10 text-white font-bold py-3 px-6 md:py-4 md:px-8 text-base md:text-lg rounded-xl transition-all flex items-center gap-3 active:scale-95"><Play size={20} /> Trailer</button>
+                                        <div className="flex gap-3">
+                                            <button onClick={() => onToggleWatchlist(displayData)} className={`p-3 md:p-4 rounded-xl border transition-colors ${isWatchlisted ? `${accentBgLow} ${accentBorder} ${accentText}` : 'glass hover:bg-white/10 text-white/70'}`}><Bookmark size={24} fill={isWatchlisted ? "currentColor" : "none"} /></button>
+                                            <button onClick={() => onToggleFavorite(displayData)} className={`p-3 md:p-4 rounded-xl border transition-colors ${isFavorite ? `${accentBgLow} ${accentBorder} ${accentText}` : 'glass hover:bg-white/10 text-white/70'}`}><Heart size={24} fill={isFavorite ? "currentColor" : "none"} /></button>
+                                            <button onClick={handleShare} className={`p-3 md:p-4 rounded-xl glass hover:bg-white/10 transition-colors ${copied ? 'text-green-400' : 'text-white/70'}`}><Share2 size={24} /></button>
                                         </div>
                                     </div>
                                  </div>
                              )}
                         </div>
 
-                        <div className="p-6 md:p-10 flex flex-col gap-8">
-                            <div className="grid grid-cols-2 gap-4 bg-white/5 rounded-xl p-4 border border-white/5">
-                                <div><p className="text-[10px] text-white/40 uppercase font-bold mb-1 tracking-wider">Budget</p><p className="text-white font-mono text-sm">{formatCurrency(displayData.budget, appRegion)}</p></div>
-                                <div><p className="text-[10px] text-white/40 uppercase font-bold mb-1 tracking-wider">Revenue</p><p className="text-white font-mono text-sm text-green-500">{formatCurrency(displayData.revenue, appRegion)}</p></div>
-                            </div>
-
-                            <div>
-                                <h3 className="text-lg font-bold text-white mb-2">Synopsis</h3>
-                                <p className="text-gray-300 leading-relaxed text-sm md:text-base">{displayData.overview}</p>
-                            </div>
-
-                            <div className="flex gap-8 border-b border-white/10 mb-6 overflow-x-auto hide-scrollbar">
-                                <button onClick={() => setActiveTab("details")} className={`pb-3 text-sm font-bold tracking-wide transition-all ${activeTab === "details" ? `${accentText} border-b-2 ${accentBorder}` : "text-white/50 hover:text-white"}`}>DETAILS</button>
-                                {(isTv || isAnime) && <button onClick={() => setActiveTab("episodes")} className={`pb-3 text-sm font-bold tracking-wide transition-all ${activeTab === "episodes" ? `${accentText} border-b-2 ${accentBorder}` : "text-white/50 hover:text-white"}`}>EPISODES</button>}
-                                <button onClick={() => setActiveTab("reviews")} className={`pb-3 text-sm font-bold tracking-wide transition-all ${activeTab === "reviews" ? `${accentText} border-b-2 ${accentBorder}` : "text-white/50 hover:text-white"}`}>REVIEWS</button>
-                                <button onClick={() => setActiveTab("media")} className={`pb-3 text-sm font-bold tracking-wide transition-all ${activeTab === "media" ? `${accentText} border-b-2 ${accentBorder}` : "text-white/50 hover:text-white"}`}>MEDIA</button>
-                            </div>
-
-                            {activeTab === "details" ? (
-                                <div className="space-y-6">
-                                    {keywords.length > 0 && (
-                                        <div className="flex flex-wrap gap-2">
-                                            {keywords.map(kw => (<button key={kw.id} onClick={() => onKeywordClick(kw)} className="px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs text-gray-300 hover:text-white transition-all flex items-center gap-1.5 active:scale-95"><Tag size={12}/> {kw.name}</button>))}
-                                        </div>
-                                    )}
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                        <div className="glass p-5 rounded-2xl">
-                                            <p className="text-white/40 text-xs uppercase font-bold mb-3">Director</p>
-                                            <button onClick={() => onPersonClick(director.id)} className={`flex items-center gap-3 text-white font-bold hover:text-amber-500 transition-colors`}>{director.name}</button>
-                                        </div>
-                                        <div className="glass p-5 rounded-2xl">
-                                            <p className="text-white/40 text-xs uppercase font-bold mb-3">Top Cast</p>
-                                            <div className="flex flex-wrap gap-2">{cast.map((c, i) => (<button key={i} onClick={() => onPersonClick(c.id)} className="text-xs bg-white/5 px-3 py-1.5 rounded-full text-gray-300 hover:text-white transition-colors">{c.name}</button>))}</div>
-                                        </div>
+                        <div className="max-w-7xl mx-auto w-full p-6 md:p-12 flex flex-col gap-12">
+                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
+                                <div className="lg:col-span-2 space-y-8">
+                                    <div>
+                                        <h3 className="text-2xl font-bold text-white mb-4">Synopsis</h3>
+                                        <p className="text-gray-300 leading-relaxed text-base md:text-lg font-light">{displayData.overview}</p>
                                     </div>
-                                    <div className={`relative overflow-hidden rounded-2xl border bg-gradient-to-r from-amber-900/10 to-transparent p-4`}>
-                                        {!trivia ? (
-                                            <button onClick={handleGenerateTrivia} className="flex items-center justify-between w-full group">
-                                                <div className="flex items-center gap-3"><Sparkles size={18} className="text-amber-500"/><div className="text-left"><p className="text-sm font-bold text-white">Behind The Scenes</p><p className="text-xs text-white/50">Reveal AI trivia about this title.</p></div></div>
-                                                <span className="text-xs font-bold border px-3 py-1 rounded-full text-amber-400 border-amber-500/30 group-hover:bg-amber-500 group-hover:text-black transition-all">GENERATE</span>
-                                            </button>
-                                        ) : (
-                                            <div className="flex gap-4 animate-in fade-in"><Lightbulb size={20} className="text-amber-400 shrink-0"/><p className="text-sm text-gray-200 italic">"{trivia}"</p></div>
+                                    
+                                    {/* Action Tabs */}
+                                    <div className="flex gap-8 border-b border-white/10 mb-6 overflow-x-auto hide-scrollbar sticky top-0 bg-[#0a0a0a] z-40 py-2">
+                                        <button onClick={() => setActiveTab("details")} className={`pb-3 text-sm font-bold tracking-wide transition-all ${activeTab === "details" ? `${accentText} border-b-2 ${accentBorder}` : "text-white/50 hover:text-white"}`}>DETAILS</button>
+                                        {(isTv || isAnime) && <button onClick={() => setActiveTab("episodes")} className={`pb-3 text-sm font-bold tracking-wide transition-all ${activeTab === "episodes" ? `${accentText} border-b-2 ${accentBorder}` : "text-white/50 hover:text-white"}`}>EPISODES</button>}
+                                        <button onClick={() => setActiveTab("reviews")} className={`pb-3 text-sm font-bold tracking-wide transition-all ${activeTab === "reviews" ? `${accentText} border-b-2 ${accentBorder}` : "text-white/50 hover:text-white"}`}>REVIEWS</button>
+                                        <button onClick={() => setActiveTab("media")} className={`pb-3 text-sm font-bold tracking-wide transition-all ${activeTab === "media" ? `${accentText} border-b-2 ${accentBorder}` : "text-white/50 hover:text-white"}`}>MEDIA</button>
+                                    </div>
+
+                                    <div className="min-h-[300px]">
+                                        {activeTab === "details" && (
+                                            <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2">
+                                                {keywords.length > 0 && (
+                                                    <div className="flex flex-wrap gap-2">
+                                                        {keywords.map(kw => (<button key={kw.id} onClick={() => onKeywordClick(kw)} className="px-4 py-2 rounded-full bg-white/5 border border-white/10 text-sm text-gray-300 hover:text-white transition-all flex items-center gap-2 active:scale-95"><Tag size={14}/> {kw.name}</button>))}
+                                                    </div>
+                                                )}
+                                                
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                                    <div className="glass p-6 rounded-2xl">
+                                                        <p className="text-white/40 text-xs uppercase font-bold mb-4">Director / Creator</p>
+                                                        <button onClick={() => onPersonClick(director.id)} className={`flex items-center gap-3 text-white font-bold text-lg hover:text-amber-500 transition-colors`}>{director.name}</button>
+                                                    </div>
+                                                    <div className="glass p-6 rounded-2xl">
+                                                        <p className="text-white/40 text-xs uppercase font-bold mb-4">Top Cast</p>
+                                                        <div className="flex flex-wrap gap-3">{cast.map((c, i) => (<button key={i} onClick={() => onPersonClick(c.id)} className="text-sm bg-white/5 px-4 py-2 rounded-full text-gray-300 hover:text-white transition-colors border border-white/5 hover:border-white/20">{c.name}</button>))}</div>
+                                                    </div>
+                                                </div>
+
+                                                <div className={`relative overflow-hidden rounded-2xl border bg-gradient-to-r from-amber-900/10 to-transparent p-6`}>
+                                                    {!trivia ? (
+                                                        <button onClick={handleGenerateTrivia} className="flex items-center justify-between w-full group">
+                                                            <div className="flex items-center gap-4"><Sparkles size={24} className="text-amber-500"/><div className="text-left"><p className="text-base font-bold text-white">Behind The Scenes</p><p className="text-sm text-white/50">Reveal AI trivia about this title.</p></div></div>
+                                                            <span className="text-sm font-bold border px-4 py-2 rounded-full text-amber-400 border-amber-500/30 group-hover:bg-amber-500 group-hover:text-black transition-all">GENERATE</span>
+                                                        </button>
+                                                    ) : (
+                                                        <div className="flex gap-4 animate-in fade-in"><Lightbulb size={24} className="text-amber-400 shrink-0"/><p className="text-base text-gray-200 italic leading-relaxed">"{trivia}"</p></div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {activeTab === "episodes" && (
+                                            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2">
+                                                <div className="flex overflow-x-auto pb-4 gap-2 hide-scrollbar">
+                                                    {details?.seasons?.map(s => (<button key={s.id} onClick={() => setSelectedSeason(s.season_number)} className={`px-5 py-2.5 rounded-full text-sm font-bold border transition-all whitespace-nowrap ${selectedSeason === s.season_number ? 'bg-amber-500 text-black border-amber-500' : 'border-white/10 text-gray-400 hover:text-white'}`}>{s.name}</button>))}
+                                                </div>
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                    {seasonData?.episodes?.map(ep => (
+                                                        <div key={ep.id} className="flex gap-4 p-4 rounded-xl bg-white/5 hover:bg-white/10 transition-colors cursor-pointer border border-white/5 group" onClick={handleWatchClick}>
+                                                            <div className="w-36 aspect-video bg-black rounded-lg overflow-hidden shrink-0 relative"><img src={`${TMDB_IMAGE_BASE}${ep.still_path}`} className="w-full h-full object-cover opacity-60 group-hover:opacity-40 transition-opacity"/><Play size={20} className="absolute inset-0 m-auto text-white opacity-0 group-hover:opacity-100 scale-90 group-hover:scale-100 transition-all"/></div>
+                                                            <div>
+                                                                <h4 className="text-white font-bold text-sm mb-1 line-clamp-1">E{ep.episode_number}: {ep.name}</h4>
+                                                                <p className="text-gray-500 text-xs mb-2">{ep.air_date}</p>
+                                                                <p className="text-gray-400 text-xs line-clamp-2">{ep.overview}</p>
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {activeTab === "reviews" && (
+                                            <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2">
+                                                {details?.reviews?.results && details.reviews.results.length > 0 ? (
+                                                    details.reviews.results.map((review: Review) => (
+                                                        <ReviewCard key={review.id} review={review} />
+                                                    ))
+                                                ) : (
+                                                    <div className="text-center py-12 text-gray-500 bg-white/5 rounded-2xl border border-white/5">
+                                                        <MessageCircle size={48} className="mx-auto mb-3 opacity-30"/>
+                                                        <p>No reviews available yet.</p>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+
+                                        {activeTab === "media" && (
+                                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 animate-in fade-in slide-in-from-bottom-2">
+                                                {mediaImages.map((img, idx) => (
+                                                    <div key={idx} className="aspect-video rounded-xl overflow-hidden cursor-pointer relative group" onClick={() => setViewingImage(`${TMDB_BACKDROP_BASE}${img.file_path}`)}>
+                                                        <img src={`${TMDB_IMAGE_BASE}${img.file_path}`} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"/>
+                                                        <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                                            <Eye size={24} className="text-white"/>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
                                         )}
                                     </div>
                                 </div>
-                            ) : activeTab === "episodes" ? (
-                                <div className="space-y-4">
-                                    {details?.seasons?.map(s => (<button key={s.id} onClick={() => setSelectedSeason(s.season_number)} className={`px-4 py-2 rounded-full text-xs font-bold border mr-2 mb-2 transition-all ${selectedSeason === s.season_number ? 'bg-amber-500 text-black border-amber-500' : 'border-white/10 text-gray-400'}`}>{s.name}</button>))}
-                                    <div className="space-y-3 mt-4">
-                                        {seasonData?.episodes?.map(ep => (
-                                            <div key={ep.id} className="flex gap-4 p-3 rounded-xl hover:bg-white/5 transition-colors cursor-pointer" onClick={handleWatchClick}>
-                                                <div className="w-32 aspect-video bg-white/5 rounded-lg overflow-hidden shrink-0 relative"><img src={`${TMDB_IMAGE_BASE}${ep.still_path}`} className="w-full h-full object-cover opacity-60"/><Play size={16} className="absolute inset-0 m-auto text-white opacity-0 group-hover:opacity-100"/></div>
-                                                <div><h4 className="text-white font-bold text-sm">S{ep.season_number} E{ep.episode_number}: {ep.name}</h4><p className="text-gray-500 text-xs line-clamp-2">{ep.overview}</p></div>
-                                            </div>
-                                        ))}
+
+                                {/* Sidebar Column */}
+                                <div className="space-y-8">
+                                    <div className="bg-white/5 rounded-2xl p-6 border border-white/5">
+                                        <h4 className="text-white/40 text-xs uppercase font-bold mb-4 tracking-wider">Financials</h4>
+                                        <div className="space-y-4">
+                                            <div><p className="text-gray-400 text-xs mb-1">Budget</p><p className="text-white font-mono text-lg">{formatCurrency(displayData.budget, appRegion)}</p></div>
+                                            <div><p className="text-gray-400 text-xs mb-1">Revenue</p><p className="text-green-400 font-mono text-lg">{formatCurrency(displayData.revenue, appRegion)}</p></div>
+                                        </div>
                                     </div>
-                                </div>
-                            ) : activeTab === "reviews" ? (
-                                <div className="space-y-4 animate-in fade-in">
-                                    {details?.reviews?.results && details.reviews.results.length > 0 ? (
-                                        details.reviews.results.map((review: Review) => (
-                                            <ReviewCard key={review.id} review={review} />
-                                        ))
-                                    ) : (
-                                        <div className="text-center py-12 text-gray-500">
-                                            <MessageCircle size={48} className="mx-auto mb-3 opacity-30"/>
-                                            <p>No reviews available yet.</p>
+
+                                    {(similarMovies.length > 0) && (
+                                        <div>
+                                            <h4 className="text-white font-bold text-lg mb-6 flex items-center gap-2"><Sparkles size={18} className="text-amber-500"/> Similar Vibes</h4>
+                                            <div className="grid grid-cols-2 gap-4">
+                                                {similarMovies.map(m => (
+                                                    <div key={m.id} className="cursor-pointer group aspect-[2/3] rounded-xl overflow-hidden relative shadow-lg" onClick={() => onSwitchMovie(m)}>
+                                                        <img src={`${TMDB_IMAGE_BASE}${m.poster_path}`} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"/>
+                                                        <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-60"></div>
+                                                        <div className="absolute bottom-0 left-0 p-3 w-full">
+                                                            <p className="text-xs font-bold text-white text-center line-clamp-1">{m.title}</p>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
                                         </div>
                                     )}
                                 </div>
-                            ) : (
-                                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">{mediaImages.map((img, idx) => (<div key={idx} className="aspect-video rounded-lg overflow-hidden cursor-pointer" onClick={() => setViewingImage(`${TMDB_BACKDROP_BASE}${img.file_path}`)}><img src={`${TMDB_IMAGE_BASE}${img.file_path}`} className="w-full h-full object-cover hover:scale-110 transition-transform duration-700"/></div>))}</div>
-                            )}
-
-                            {(similarMovies.length > 0) && (
-                                <div className="border-t border-white/5 pt-8">
-                                    <h4 className="text-white font-bold text-sm mb-4 flex items-center gap-2"><Sparkles size={14} className="text-amber-500"/> AI Recommendations</h4>
-                                    <div className="grid grid-cols-3 md:grid-cols-5 gap-3">
-                                        {similarMovies.map(m => (
-                                            <div key={m.id} className="cursor-pointer group aspect-[2/3] rounded-lg overflow-hidden relative" onClick={() => onSwitchMovie(m)}>
-                                                <img src={`${TMDB_IMAGE_BASE}${m.poster_path}`} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"/>
-                                                <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center p-2"><p className="text-[10px] font-bold text-white text-center">{m.title}</p></div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
+                            </div>
                         </div>
                     </div>
                 )}

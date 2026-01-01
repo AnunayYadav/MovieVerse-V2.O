@@ -1,19 +1,20 @@
+
 import React, { useState, useEffect, useRef } from 'react';
-import { UserCircle, X, ListPlus, Plus, Check, Loader2, Film, AlertCircle, BrainCircuit, Search, Star, RefreshCcw, Bell, CheckCheck, Inbox, Heart, PaintBucket, Upload, Facebook, Instagram, Twitter, Globe, Scale, DollarSign, Clock, Trophy, ChevronRight, ChevronDown, Calendar, ArrowUp, ArrowDown, TrendingUp, History } from 'lucide-react';
+import { UserCircle, X, ListPlus, Plus, Check, Loader2, Film, AlertCircle, BrainCircuit, Search, Star, RefreshCcw, Bell, CheckCheck, Inbox, Heart, PaintBucket, Upload, Facebook, Instagram, Twitter, Globe, Scale, DollarSign, Clock, Trophy, ChevronRight, ChevronDown, Calendar, ArrowUp, ArrowDown, TrendingUp, History, ArrowLeft, MoreHorizontal, Dice5 } from 'lucide-react';
 import { UserProfile, Movie, GENRES_LIST, PersonDetails, AppNotification, MovieDetails } from '../types';
 import { TMDB_BASE_URL, TMDB_IMAGE_BASE, formatCurrency } from './Shared';
 import { generateSmartRecommendations } from '../services/gemini';
 import { getNotifications, markNotificationsRead } from '../services/supabase';
 
-// PROFILE MODAL
-interface ProfileModalProps {
+// PROFILE PAGE
+interface ProfilePageProps {
     isOpen: boolean;
     onClose: () => void;
     profile: UserProfile;
     onSave: (p: UserProfile) => void;
 }
 
-export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, profile, onSave }) => {
+export const ProfilePage: React.FC<ProfilePageProps> = ({ isOpen, onClose, profile, onSave }) => {
     const [name, setName] = useState(profile.name || "");
     const [age, setAge] = useState(profile.age || "");
     const [selectedGenres, setSelectedGenres] = useState<string[]>(profile.genres || []);
@@ -109,107 +110,104 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, pro
     if (!isOpen) return null;
   
     return (
-      <div className="fixed inset-0 z-[90] flex items-center justify-center p-4 bg-black/80 backdrop-blur-xl animate-in fade-in duration-300">
-         <div className="glass-panel w-full max-w-3xl rounded-3xl p-0 shadow-2xl relative overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 slide-in-from-bottom-5 duration-300 ease-out">
+      <div className="fixed inset-0 z-[100] bg-[#0a0a0a] overflow-y-auto animate-in slide-in-from-bottom-10 duration-500">
+         <div className="max-w-4xl mx-auto min-h-screen flex flex-col p-6 md:p-12">
              {/* Header */}
-             <div className="p-6 border-b border-white/5 flex justify-between items-center bg-white/5">
+             <div className="flex justify-between items-center mb-10">
                  <div>
-                    <h2 className="text-xl font-bold text-white flex items-center gap-2">Edit Profile</h2>
-                    <p className="text-xs text-gray-400">Update your persona and viewing preferences.</p>
+                    <h2 className="text-3xl font-bold text-white flex items-center gap-3"><UserCircle size={32} className="text-red-500"/> Edit Profile</h2>
+                    <p className="text-sm text-gray-400 mt-1">Update your persona and viewing preferences.</p>
                  </div>
-                 <button onClick={onClose} className="text-gray-400 hover:text-white transition-colors bg-white/5 p-2 rounded-full hover:bg-white/10 hover:scale-105 active:scale-95"><X size={20}/></button>
+                 <button onClick={onClose} className="text-white/80 hover:text-white transition-colors bg-white/5 p-3 rounded-full hover:bg-white/10 hover:scale-105 active:scale-95"><X size={24}/></button>
              </div>
              
-             <div className="flex-1 overflow-y-auto custom-scrollbar p-6 md:p-8">
+             <div className="flex-1">
                 {error && (
-                    <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-xl flex items-center gap-3 text-red-200 text-sm font-medium animate-in slide-in-from-top-2 duration-300">
+                    <div className="mb-8 p-4 bg-red-500/10 border border-red-500/20 rounded-xl flex items-center gap-3 text-red-200 text-sm font-medium animate-in slide-in-from-top-2 duration-300">
                         <div className="bg-red-500/20 p-1.5 rounded-full"><AlertCircle size={16}/></div>
                         {error}
                     </div>
                 )}
 
-                <div className="flex flex-col md:flex-row gap-8">
+                <div className="flex flex-col lg:flex-row gap-12">
                     {/* Left Column: Identity */}
-                    <div className="w-full md:w-1/3 space-y-6">
-                        <div className="space-y-4">
+                    <div className="w-full lg:w-1/2 space-y-8">
+                        <div className="space-y-6">
                             <label className="text-xs font-bold text-gray-400 uppercase tracking-wider block">Avatar & Style</label>
-                            <div className="flex justify-center md:justify-start">
+                            <div className="flex justify-center lg:justify-start">
                                 <div className="relative group">
-                                    <div className={`w-28 h-28 rounded-full flex items-center justify-center text-4xl font-bold text-white shadow-2xl overflow-hidden border-2 transition-colors duration-500 ${avatarBg} ${isGoldTheme ? 'border-amber-500/50 shadow-amber-900/30' : 'border-white/10 shadow-black/50'}`}>
+                                    <div className={`w-40 h-40 rounded-full flex items-center justify-center text-5xl font-bold text-white shadow-2xl overflow-hidden border-4 transition-colors duration-500 ${avatarBg} ${isGoldTheme ? 'border-amber-500/50 shadow-amber-900/30' : 'border-white/10 shadow-black/50'}`}>
                                         {avatar ? <img src={avatar} className="w-full h-full object-cover animate-in fade-in duration-500" alt="avatar"/> : name.charAt(0).toUpperCase()}
                                     </div>
-                                    <div className="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer border-2 border-white/30 duration-300" onClick={() => setAvatar("")}>
-                                        <RefreshCcw size={24} className="text-white"/>
+                                    <div className="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer border-4 border-white/30 duration-300" onClick={() => setAvatar("")}>
+                                        <RefreshCcw size={32} className="text-white"/>
                                     </div>
                                 </div>
                             </div>
-                            <div>
-                                <p className="text-[10px] text-gray-500 font-bold mb-2 uppercase flex items-center gap-1"><PaintBucket size={10}/> Backdrop</p>
-                                <div className="flex gap-2">
+                            
+                            <div className="bg-white/5 p-6 rounded-2xl border border-white/5">
+                                <p className="text-[10px] text-gray-500 font-bold mb-4 uppercase flex items-center gap-2"><PaintBucket size={12}/> Background Theme</p>
+                                <div className="flex gap-4 flex-wrap">
                                     {BACKGROUNDS.map(bg => (
                                         <button 
                                             key={bg.id}
                                             onClick={() => setAvatarBg(bg.class)}
-                                            className={`w-6 h-6 rounded-full ${bg.class} border-2 transition-all duration-300 ${avatarBg === bg.class ? 'border-white scale-110 shadow-lg' : 'border-transparent hover:border-white/50 hover:scale-105'}`}
+                                            className={`w-8 h-8 rounded-full ${bg.class} border-2 transition-all duration-300 ring-2 ring-transparent ${avatarBg === bg.class ? 'border-white scale-110 shadow-xl ring-white/20' : 'border-transparent hover:border-white/50 hover:scale-105'}`}
                                             title={bg.name}
                                         />
                                     ))}
                                 </div>
                             </div>
-                            <div className="pt-2">
-                                <input type="file" ref={fileInputRef} onChange={handleFileUpload} accept="image/*" className="absolute opacity-0 w-0 h-0 pointer-events-none" />
-                                <button type="button" onClick={() => fileInputRef.current?.click()} className="w-full py-3 bg-white/10 hover:bg-white/20 border border-white/20 rounded-xl text-xs font-bold text-white transition-all flex items-center justify-center gap-2 group active:scale-95 shadow-lg"><Upload size={16} className="group-hover:-translate-y-0.5 transition-transform"/> Upload Custom Photo</button>
-                            </div>
-                            <div className="grid grid-cols-4 gap-2">
-                                {AVATARS.map(av => (
-                                    <button key={av.seed} onClick={() => selectAvatar(av.seed)} className={`flex flex-col items-center gap-1 group transition-transform active:scale-95`}>
-                                        <div className={`w-10 h-10 rounded-full overflow-hidden border-2 transition-all duration-300 bg-black/40 ${avatar.includes(av.seed) ? (isGoldTheme ? 'border-amber-500 scale-110' : 'border-red-500 scale-110') : 'border-transparent group-hover:border-white/30 group-hover:scale-105'}`}>
-                                             <img src={`https://api.dicebear.com/9.x/avataaars/svg?seed=${av.seed}`} alt={av.name} />
-                                        </div>
-                                        <span className={`text-[9px] font-bold uppercase tracking-wide transition-colors ${avatar.includes(av.seed) ? 'text-white' : 'text-gray-600'}`}>{av.name}</span>
-                                    </button>
-                                ))}
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <button type="button" onClick={() => fileInputRef.current?.click()} className="py-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-sm font-bold text-white transition-all flex items-center justify-center gap-2 group active:scale-95">
+                                    <Upload size={18} className="group-hover:-translate-y-0.5 transition-transform"/> Upload Photo
+                                    <input type="file" ref={fileInputRef} onChange={handleFileUpload} accept="image/*" className="hidden" />
+                                </button>
+                                <button type="button" onClick={() => selectAvatar(AVATARS[Math.floor(Math.random() * AVATARS.length)].seed)} className="py-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-sm font-bold text-white transition-all flex items-center justify-center gap-2 group active:scale-95">
+                                    <Dice5 size={18} className="group-hover:rotate-180 transition-transform duration-500"/> Randomize
+                                </button>
                             </div>
                         </div>
 
-                        <div className="space-y-4 pt-4 border-t border-white/5">
-                            <div className="space-y-1.5">
+                        <div className="space-y-6 pt-6 border-t border-white/5">
+                            <div className="space-y-2">
                                 <label className="text-xs font-bold text-gray-400 uppercase tracking-wider ml-1">Display Name</label>
                                 <div className="relative group">
-                                    <UserCircle size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30 group-focus-within:text-white transition-colors duration-300"/>
-                                    <input type="text" value={name} onChange={(e) => setName(e.target.value)} className={`w-full bg-white/5 border border-white/10 rounded-xl py-3 pl-10 pr-4 text-white focus:bg-white/10 focus:outline-none transition-all duration-300 text-sm hover:border-white/20 ${isGoldTheme ? 'focus:border-amber-500' : 'focus:border-red-500'}`} placeholder="Your Name" />
+                                    <UserCircle size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30 group-focus-within:text-white transition-colors duration-300"/>
+                                    <input type="text" value={name} onChange={(e) => setName(e.target.value)} className={`w-full bg-white/5 border border-white/10 rounded-xl py-4 pl-12 pr-4 text-white focus:bg-white/10 focus:outline-none transition-all duration-300 text-base hover:border-white/20 ${isGoldTheme ? 'focus:border-amber-500' : 'focus:border-red-500'}`} placeholder="Your Name" />
                                 </div>
                             </div>
-                            <div className="space-y-1.5">
+                            <div className="space-y-2">
                                 <label className="text-xs font-bold text-gray-400 uppercase tracking-wider ml-1">Age</label>
                                 <div className="relative group">
-                                    <UserCircle size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30 group-focus-within:text-white transition-colors duration-300"/>
-                                    <input type="number" value={age} min="10" max="120" onChange={(e) => { const val = parseInt(e.target.value); if (!e.target.value || (val >= 0 && val <= 130)) { setAge(e.target.value); }}} className={`w-full bg-white/5 border border-white/10 rounded-xl py-3 pl-10 pr-4 text-white focus:bg-white/10 focus:outline-none transition-all duration-300 text-sm hover:border-white/20 ${isGoldTheme ? 'focus:border-amber-500' : 'focus:border-red-500'}`} placeholder="10-120" />
+                                    <UserCircle size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30 group-focus-within:text-white transition-colors duration-300"/>
+                                    <input type="number" value={age} min="10" max="120" onChange={(e) => { const val = parseInt(e.target.value); if (!e.target.value || (val >= 0 && val <= 130)) { setAge(e.target.value); }}} className={`w-full bg-white/5 border border-white/10 rounded-xl py-4 pl-12 pr-4 text-white focus:bg-white/10 focus:outline-none transition-all duration-300 text-base hover:border-white/20 ${isGoldTheme ? 'focus:border-amber-500' : 'focus:border-red-500'}`} placeholder="10-120" />
                                 </div>
                             </div>
                         </div>
                     </div>
 
                     {/* Right Column: Preferences */}
-                    <div className="flex-1 space-y-6">
-                        <div className="bg-white/5 rounded-2xl p-6 border border-white/5 h-full">
-                            <div className="flex justify-between items-center mb-4">
-                                <h3 className="text-sm font-bold text-white flex items-center gap-2"><Heart size={16} className={isGoldTheme ? "text-amber-500" : "text-red-500"}/> Content Interests</h3>
-                                <span className={`text-xs font-bold px-2 py-0.5 rounded-md transition-colors duration-300 ${selectedGenres.length >= 3 ? 'bg-green-500/20 text-green-400' : 'bg-yellow-500/20 text-yellow-400'}`}>
+                    <div className="flex-1 space-y-8">
+                        <div className="bg-white/5 rounded-2xl p-8 border border-white/5 h-full">
+                            <div className="flex justify-between items-center mb-6">
+                                <h3 className="text-lg font-bold text-white flex items-center gap-3"><Heart size={20} className={isGoldTheme ? "text-amber-500" : "text-red-500"}/> Content Interests</h3>
+                                <span className={`text-xs font-bold px-3 py-1 rounded-md transition-colors duration-300 ${selectedGenres.length >= 3 ? 'bg-green-500/20 text-green-400' : 'bg-yellow-500/20 text-yellow-400'}`}>
                                     {selectedGenres.length} Selected
                                 </span>
                             </div>
-                            <p className="text-xs text-gray-400 mb-4">Select at least 3 genres to help us personalize your "For You" feed and AI recommendations.</p>
+                            <p className="text-sm text-gray-400 mb-6 leading-relaxed">Select at least 3 genres to help us personalize your "For You" feed and AI recommendations.</p>
                             
-                            <div className="flex flex-wrap gap-2 max-h-[350px] overflow-y-auto custom-scrollbar p-1">
+                            <div className="flex flex-wrap gap-3">
                                 {GENRES_LIST.map(genre => (
                                     <button 
                                     key={genre}
                                     onClick={() => toggleGenre(genre)}
-                                    className={`px-3 py-2 rounded-lg text-xs font-bold transition-all duration-300 border flex items-center gap-2 active:scale-95 ${selectedGenres.includes(genre) ? (isGoldTheme ? 'bg-amber-500 border-amber-500 text-black shadow-lg shadow-amber-500/30' : 'bg-red-600 border-red-600 text-white shadow-lg shadow-red-900/30') : 'bg-black/40 border-white/10 text-gray-400 hover:border-white/30 hover:text-white hover:bg-white/5'}`}
+                                    className={`px-4 py-3 rounded-xl text-sm font-bold transition-all duration-300 border flex items-center gap-2 active:scale-95 ${selectedGenres.includes(genre) ? (isGoldTheme ? 'bg-amber-500 border-amber-500 text-black shadow-lg shadow-amber-500/30' : 'bg-red-600 border-red-600 text-white shadow-lg shadow-red-900/30') : 'bg-black/40 border-white/10 text-gray-400 hover:border-white/30 hover:text-white hover:bg-white/5'}`}
                                     >
                                         {genre}
-                                        {selectedGenres.includes(genre) && <Check size={12} className="animate-in zoom-in duration-200"/>}
+                                        {selectedGenres.includes(genre) && <Check size={14} className="animate-in zoom-in duration-200"/>}
                                     </button>
                                 ))}
                             </div>
@@ -219,9 +217,9 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, pro
              </div>
              
              {/* Footer */}
-             <div className="p-6 border-t border-white/5 bg-black/20 flex justify-end gap-3">
-                 <button onClick={onClose} className="px-6 py-3 rounded-xl text-sm font-bold text-gray-400 hover:text-white hover:bg-white/5 transition-all duration-300">Cancel</button>
-                 <button onClick={handleSave} className={`px-8 py-3 bg-white text-black font-bold rounded-xl transition-all duration-300 active:scale-[0.98] shadow-lg hover:shadow-white/20 ${isGoldTheme ? 'bg-gradient-to-r from-amber-500 to-yellow-500 text-black hover:to-amber-400' : 'bg-white hover:bg-gray-200'}`}>
+             <div className="mt-12 pt-6 border-t border-white/5 flex justify-end gap-4 sticky bottom-0 bg-[#0a0a0a]/90 backdrop-blur-lg p-6 -mx-6 -mb-6">
+                 <button onClick={onClose} className="px-8 py-4 rounded-xl text-base font-bold text-gray-400 hover:text-white hover:bg-white/5 transition-all duration-300">Cancel</button>
+                 <button onClick={handleSave} className={`px-10 py-4 bg-white text-black font-bold rounded-xl transition-all duration-300 active:scale-[0.98] shadow-lg hover:shadow-white/20 text-base ${isGoldTheme ? 'bg-gradient-to-r from-amber-500 to-yellow-500 text-black hover:to-amber-400' : 'bg-white hover:bg-gray-200'}`}>
                      Save Changes
                  </button>
              </div>
@@ -230,7 +228,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, pro
     );
 };
 
-// FILMOGRAPHY MODAL
+// FILMOGRAPHY MODAL (Kept as Modal for PersonPage Context)
 interface FilmographyModalProps {
     isOpen: boolean;
     onClose: () => void;
@@ -245,29 +243,25 @@ const FilmographyModal: React.FC<FilmographyModalProps> = ({ isOpen, onClose, pe
     const [loading, setLoading] = useState(false);
     const [sortBy, setSortBy] = useState("primary_release_date.desc");
     
-    // Use discover to allow sorting by revenue/popularity etc. on the server side
     useEffect(() => {
         if (!isOpen || !apiKey || !personId) return;
         
         setLoading(true);
-        // Include page 1 and 2 to get a good chunk of movies (up to 40) for the modal
         const fetchFilmography = async () => {
              try {
                 const params = new URLSearchParams({
                     api_key: apiKey,
                     with_cast: personId.toString(),
                     sort_by: sortBy,
-                    "vote_count.gte": "10" // Filter out noise
+                    "vote_count.gte": "10" 
                 });
                 
-                // Fetch 2 pages to get ~40 items
                 const [res1, res2] = await Promise.all([
                     fetch(`${TMDB_BASE_URL}/discover/movie?${params.toString()}&page=1`).then(r => r.json()),
                     fetch(`${TMDB_BASE_URL}/discover/movie?${params.toString()}&page=2`).then(r => r.json())
                 ]);
                 
                 const allResults = [...(res1.results || []), ...(res2.results || [])];
-                // Dedup just in case
                 const unique = Array.from(new Map(allResults.map(m => [m.id, m])).values()) as Movie[];
                 setMovies(unique);
              } catch (e) {
@@ -291,7 +285,7 @@ const FilmographyModal: React.FC<FilmographyModalProps> = ({ isOpen, onClose, pe
     ];
 
     return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/90 backdrop-blur-xl animate-in fade-in duration-300">
+        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/90 backdrop-blur-xl animate-in fade-in duration-300">
             <div className="glass-panel w-full max-w-5xl rounded-2xl overflow-hidden shadow-2xl relative flex flex-col h-[85vh] animate-in zoom-in-95 slide-in-from-bottom-5 duration-300">
                 <div className="p-6 border-b border-white/10 flex justify-between items-center bg-black/40">
                     <div>
@@ -364,7 +358,7 @@ const FilmographyModal: React.FC<FilmographyModalProps> = ({ isOpen, onClose, pe
     );
 };
 
-// LIST SELECTION MODAL
+// LIST SELECTION MODAL (Keep as Modal)
 interface ListModalProps {
     isOpen: boolean;
     onClose: () => void;
@@ -379,7 +373,7 @@ export const ListSelectionModal: React.FC<ListModalProps> = ({ isOpen, onClose, 
     if (!isOpen || !movie) return null;
     const handleCreate = () => { if (newListName.trim()) { onCreateList(newListName, movie); setNewListName(""); onClose(); }};
     return (
-      <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/80 backdrop-blur-xl animate-in fade-in duration-300">
+      <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-black/80 backdrop-blur-xl animate-in fade-in duration-300">
         <div className="glass-panel w-full max-w-sm rounded-2xl p-6 shadow-2xl animate-in zoom-in-95 slide-in-from-bottom-5 duration-300 ease-out">
           <div className="flex justify-between items-center mb-6"><h3 className="text-lg font-bold text-white flex items-center gap-2"><ListPlus size={20} className="text-red-500"/> Add to List</h3><button onClick={onClose} className="text-gray-400 hover:text-white hover:bg-white/10 p-1.5 rounded-full transition-colors active:scale-95"><X size={20}/></button></div>
           <div className="space-y-4">
@@ -393,7 +387,7 @@ export const ListSelectionModal: React.FC<ListModalProps> = ({ isOpen, onClose, 
     );
 };
 
-// COMPARISON MODAL
+// COMPARISON MODAL (Keep as Modal)
 interface ComparisonModalProps {
     isOpen: boolean;
     onClose: () => void;
@@ -466,7 +460,7 @@ export const ComparisonModal: React.FC<ComparisonModalProps> = ({ isOpen, onClos
     };
 
     return (
-        <div className="fixed inset-0 z-[90] flex items-center justify-center p-4 bg-black/90 backdrop-blur-xl animate-in fade-in duration-300">
+        <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-black/90 backdrop-blur-xl animate-in fade-in duration-300">
             <div className="glass-panel w-full max-w-5xl rounded-2xl overflow-hidden shadow-2xl relative flex flex-col max-h-[90vh]">
                 <div className="p-6 border-b border-white/10 flex justify-between items-center bg-black/40">
                     <h2 className="text-xl font-bold text-white flex items-center gap-2"><Scale className="text-red-500"/> Movie Face-Off</h2>
@@ -565,15 +559,15 @@ export const ComparisonModal: React.FC<ComparisonModalProps> = ({ isOpen, onClos
     );
 };
 
-// PERSON MODAL (Updated)
-interface PersonModalProps {
+// PERSON PAGE
+interface PersonPageProps {
     personId: number;
     onClose: () => void;
     apiKey: string;
     onMovieClick: (m: Movie) => void;
 }
 
-export const PersonModal: React.FC<PersonModalProps> = ({ personId, onClose, apiKey, onMovieClick }) => {
+export const PersonPage: React.FC<PersonPageProps> = ({ personId, onClose, apiKey, onMovieClick }) => {
     const [details, setDetails] = useState<PersonDetails | null>(null);
     const [loading, setLoading] = useState(true);
     const [showFilmography, setShowFilmography] = useState(false);
@@ -592,29 +586,37 @@ export const PersonModal: React.FC<PersonModalProps> = ({ personId, onClose, api
     const SocialLink = ({ url, icon: Icon, color }: { url?: string, icon: any, color: string }) => {
         if (!url) return null;
         return (
-            <a href={url} target="_blank" rel="noopener noreferrer" className={`p-2 rounded-full bg-white/5 hover:bg-white/10 transition-colors ${color}`}>
-                <Icon size={18}/>
+            <a href={url} target="_blank" rel="noopener noreferrer" className={`p-3 rounded-full bg-white/5 hover:bg-white/10 transition-colors ${color} border border-white/5`}>
+                <Icon size={20}/>
             </a>
         );
     };
   
     return (
-      <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/80 backdrop-blur-xl animate-in fade-in duration-300">
-        <div className="glass-panel w-full max-w-4xl rounded-2xl overflow-hidden shadow-2xl relative max-h-[85vh] flex flex-col animate-in zoom-in-95 slide-in-from-bottom-5 duration-300 ease-out">
-           <button onClick={onClose} className="absolute top-4 right-4 z-20 bg-black/50 hover:bg-white/20 p-2 rounded-full text-white transition-colors hover:scale-105 active:scale-95"><X size={20} /></button>
+      <div className="fixed inset-0 z-[100] bg-[#0a0a0a] overflow-y-auto custom-scrollbar animate-in slide-in-from-bottom-10 duration-500">
+        <button onClick={onClose} className="fixed top-6 right-6 z-[120] bg-black/40 hover:bg-white/10 backdrop-blur-md p-3 rounded-full text-white/80 hover:text-white transition-all hover:scale-110 active:scale-95 border border-white/5"><X size={24} /></button>
+        <button onClick={onClose} className="md:hidden fixed top-6 left-6 z-[120] bg-black/40 hover:bg-white/10 backdrop-blur-md px-4 py-2 rounded-full text-white flex items-center gap-2 border border-white/5"><ArrowLeft size={16}/> Back</button>
+
           {loading ? (
-             <div className="h-64 flex items-center justify-center"><Loader2 className="animate-spin text-red-500" size={32}/></div>
+             <div className="h-screen flex items-center justify-center flex-col gap-4">
+                 <Loader2 className="animate-spin text-red-500" size={48}/>
+                 <p className="text-gray-500 text-sm animate-pulse">Loading Details...</p>
+             </div>
           ) : details ? (
-             <div className="flex flex-col md:flex-row h-full md:overflow-hidden overflow-y-auto custom-scrollbar pb-24 md:pb-0">
-                  <div className="w-full md:w-80 shrink-0 bg-black/40 p-6 md:p-8 md:overflow-y-auto border-b md:border-b-0 md:border-r border-white/5">
+             <div className="flex flex-col lg:flex-row min-h-screen">
+                  {/* Left Column: Image & Quick Info */}
+                  <div className="w-full lg:w-96 shrink-0 bg-black/40 p-8 lg:h-screen lg:sticky lg:top-0 lg:overflow-y-auto border-r border-white/5 flex flex-col items-center text-center">
                     <img 
                         src={details.profile_path ? `${TMDB_IMAGE_BASE}${details.profile_path}` : "https://placehold.co/300x450/333/FFF?text=No+Image"} 
                         alt={details.name} 
-                        className="w-48 md:w-full mx-auto rounded-xl shadow-lg border border-white/10 mb-4 object-cover aspect-[2/3] animate-in fade-in zoom-in duration-500" 
+                        className="w-64 rounded-2xl shadow-2xl border border-white/10 mb-8 object-cover aspect-[2/3] animate-in fade-in zoom-in duration-500" 
                     />
                     
+                    <h2 className="text-3xl font-bold text-white mb-2">{details.name}</h2>
+                    <p className="text-red-400 text-sm font-bold tracking-wider uppercase mb-8">{details.known_for_department}</p>
+
                     {/* Social Links */}
-                    <div className="flex justify-center gap-3 mb-6">
+                    <div className="flex justify-center gap-4 mb-8">
                         {details.external_ids?.imdb_id && <SocialLink url={`https://www.imdb.com/name/${details.external_ids.imdb_id}`} icon={Film} color="text-yellow-400"/>}
                         {details.external_ids?.instagram_id && <SocialLink url={`https://instagram.com/${details.external_ids.instagram_id}`} icon={Instagram} color="text-pink-400"/>}
                         {details.external_ids?.twitter_id && <SocialLink url={`https://twitter.com/${details.external_ids.twitter_id}`} icon={Twitter} color="text-blue-400"/>}
@@ -622,39 +624,38 @@ export const PersonModal: React.FC<PersonModalProps> = ({ personId, onClose, api
                         {details.homepage && <SocialLink url={details.homepage} icon={Globe} color="text-green-400"/>}
                     </div>
 
-                    <div className="space-y-3 text-center md:text-left">
-                      <div className="glass p-3 rounded-xl text-sm transition-colors hover:bg-white/5"><span className="text-white/40 block text-[10px] uppercase font-bold tracking-wider mb-1">Born</span><span className="text-white font-medium">{details.birthday || 'N/A'}</span></div>
-                      <div className="glass p-3 rounded-xl text-sm transition-colors hover:bg-white/5"><span className="text-white/40 block text-[10px] uppercase font-bold tracking-wider mb-1">Place</span><span className="text-white font-medium">{details.place_of_birth || 'N/A'}</span></div>
+                    <div className="space-y-4 w-full text-left">
+                      <div className="bg-white/5 p-4 rounded-xl border border-white/5"><span className="text-white/40 block text-[10px] uppercase font-bold tracking-wider mb-1">Born</span><span className="text-white font-medium">{details.birthday || 'N/A'}</span></div>
+                      <div className="bg-white/5 p-4 rounded-xl border border-white/5"><span className="text-white/40 block text-[10px] uppercase font-bold tracking-wider mb-1">Place of Birth</span><span className="text-white font-medium">{details.place_of_birth || 'N/A'}</span></div>
                     </div>
                   </div>
-                  <div className="flex-1 p-6 md:p-8 md:overflow-y-auto custom-scrollbar bg-[#0f0f0f]/50">
-                    <h2 className="text-3xl md:text-4xl font-bold text-white mb-2 text-center md:text-left">{details.name}</h2>
-                    <p className="text-red-400 text-sm font-bold tracking-wider mb-6 text-center md:text-left">{details.known_for_department}</p>
+
+                  {/* Right Column: Bio & Credits */}
+                  <div className="flex-1 p-8 lg:p-12">
+                    <h3 className="text-2xl font-bold text-white mb-4">Biography</h3>
+                    <p className="text-gray-300 text-base leading-relaxed mb-12 whitespace-pre-line max-w-4xl">{details.biography || "No biography available."}</p>
                     
-                    <h3 className="text-white font-bold text-sm mb-2 uppercase tracking-wide opacity-70">Biography</h3>
-                    <p className="text-gray-300 text-sm leading-relaxed mb-8 whitespace-pre-line">{details.biography || "No biography available."}</p>
-                    
-                    <div className="flex items-center justify-between mb-4">
-                        <h3 className="text-white font-bold text-sm uppercase tracking-wide opacity-70 flex items-center gap-2"><Film size={14} className="text-red-500"/> Known For</h3>
+                    <div className="flex items-center justify-between mb-6">
+                        <h3 className="text-xl font-bold text-white flex items-center gap-2"><Film size={20} className="text-red-500"/> Known For</h3>
                         <button 
                             onClick={() => setShowFilmography(true)}
-                            className="text-xs font-bold text-red-400 hover:text-red-300 flex items-center gap-1 transition-all hover:translate-x-1"
+                            className="px-4 py-2 bg-white/5 hover:bg-white/10 rounded-lg text-sm font-bold text-white border border-white/10 transition-all active:scale-95"
                         >
-                            View Full Filmography <ChevronRight size={14}/>
+                            View Full Filmography
                         </button>
                     </div>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                        {details.combined_credits?.cast?.sort((a: any,b: any) => b.popularity - a.popularity).slice(0, 9).map((movie: Movie) => (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-6">
+                        {details.combined_credits?.cast?.sort((a: any,b: any) => b.popularity - a.popularity).slice(0, 10).map((movie: Movie) => (
                           <div key={movie.id} onClick={() => onMovieClick(movie)} className="cursor-pointer group">
-                            <div className="aspect-[2/3] rounded-lg overflow-hidden mb-2 relative border border-white/5"><img src={movie.poster_path ? `${TMDB_IMAGE_BASE}${movie.poster_path}` : "https://placehold.co/100x150"} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 ease-out" alt={movie.title || movie.name} /></div>
-                            <p className="text-xs font-medium text-gray-300 truncate group-hover:text-white transition-colors">{movie.title || movie.name}</p>
+                            <div className="aspect-[2/3] rounded-xl overflow-hidden mb-3 relative border border-white/5 shadow-lg"><img src={movie.poster_path ? `${TMDB_IMAGE_BASE}${movie.poster_path}` : "https://placehold.co/100x150"} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 ease-out" alt={movie.title || movie.name} /></div>
+                            <p className="text-sm font-bold text-white truncate group-hover:text-red-400 transition-colors">{movie.title || movie.name}</p>
+                            <p className="text-xs text-gray-500 mt-1">{movie.release_date?.split('-')[0] || movie.first_air_date?.split('-')[0]}</p>
                           </div>
                         ))}
                      </div>
                   </div>
              </div>
-          ) : <div className="p-12 text-center flex flex-col items-center text-gray-500"><AlertCircle size={48} className="mb-4 opacity-50 text-red-500"/><p className="text-lg font-bold text-gray-300">Details Unavailable</p></div>}
-        </div>
+          ) : null}
         
         {details && (
             <FilmographyModal 
@@ -670,7 +671,7 @@ export const PersonModal: React.FC<PersonModalProps> = ({ personId, onClose, api
     );
 };
 
-// AI RECOMMENDATION MODAL
+// AI RECOMMENDATION MODAL (Keep as Modal)
 interface AIRecommendationModalProps {
     isOpen: boolean;
     onClose: () => void;
@@ -710,7 +711,7 @@ export const AIRecommendationModal: React.FC<AIRecommendationModalProps> = ({ is
     if (!isOpen) return null;
 
     return (
-      <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/80 backdrop-blur-xl animate-in fade-in duration-300">
+      <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-black/80 backdrop-blur-xl animate-in fade-in duration-300">
          <div className="glass-panel w-full max-w-lg rounded-2xl p-6 shadow-2xl relative max-h-[80vh] flex flex-col border border-white/10 animate-in zoom-in-95 slide-in-from-bottom-5 duration-300 ease-out">
           <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-white hover:scale-110 active:scale-95 transition-all"><X size={20}/></button>
           <div className="text-center mb-8 flex-shrink-0 mt-2">
@@ -782,7 +783,7 @@ export const AIRecommendationModal: React.FC<AIRecommendationModalProps> = ({ is
     );
 };
 
-// NOTIFICATION MODAL
+// NOTIFICATION MODAL (Keep as Modal)
 interface NotificationModalProps {
     isOpen: boolean;
     onClose: () => void;

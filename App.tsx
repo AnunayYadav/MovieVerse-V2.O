@@ -3,10 +3,10 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Search, Film, Menu, TrendingUp, Tv, Ghost, Calendar, Star, X, Sparkles, Settings, Globe, BarChart3, Bookmark, Heart, Folder, Languages, Filter, ChevronDown, Info, Plus, Cloud, CloudOff, Clock, Bell, History, User, Users, Tag, Layers, Dice5, Crown, Loader2, Radio } from 'lucide-react';
 import { Movie, UserProfile, GENRES_MAP, GENRES_LIST, INDIAN_LANGUAGES, MaturityRating, Keyword } from './types';
 import { LogoLoader, MovieSkeleton, MovieCard, PersonCard, PosterMarquee, TMDB_BASE_URL, TMDB_BACKDROP_BASE, HARDCODED_TMDB_KEY, HARDCODED_GEMINI_KEY, getTmdbKey, getGeminiKey } from './components/Shared';
-import { MovieModal } from './components/MovieDetails';
+import { MoviePage } from './components/MovieDetails';
 import { AnalyticsDashboard } from './components/Analytics';
-import { ProfileModal, ListSelectionModal, PersonModal, AIRecommendationModal, NotificationModal, ComparisonModal } from './components/Modals';
-import { SettingsModal } from './components/SettingsModal';
+import { ProfilePage, ListSelectionModal, PersonPage, AIRecommendationModal, NotificationModal, ComparisonModal } from './components/Modals';
+import { SettingsPage } from './components/SettingsModal';
 import { generateSmartRecommendations, getSearchSuggestions } from './services/gemini';
 import { LoginPage } from './components/LoginPage';
 import { getSupabase, syncUserData, fetchUserData, signOut, getNotifications, triggerSystemNotification } from './services/supabase';
@@ -453,7 +453,6 @@ export default function App() {
   const fetchMovies = useCallback(async (pageNum: number = 1, isLoadMore = false) => {
     if (!apiKey) return;
     
-    // Internal lists logic handling - Use Refs to avoid dependency on list state
     const internalListMap: Record<string, Movie[]> = {
         "Watchlist": watchlistRef.current,
         "Favorites": favoritesRef.current,
@@ -486,7 +485,7 @@ export default function App() {
     setLoading(true);
     setAiContextReason(null);
 
-    // Calculate Maturity Rating based on User Age
+    // Automatic Age Filtering Logic
     let maxCertification = maturityRating;
     if (userProfile.age) {
         const age = parseInt(userProfile.age);
@@ -758,7 +757,7 @@ export default function App() {
       return (
         <>
           <LoginPage onLogin={handleLogin} onOpenSettings={() => setIsSettingsOpen(true)} />
-          <SettingsModal 
+          <SettingsPage 
             isOpen={isSettingsOpen} 
             onClose={() => setIsSettingsOpen(false)} 
             apiKey={apiKey} 
@@ -1115,7 +1114,7 @@ export default function App() {
       </div>
 
       {selectedMovie && (
-          <MovieModal 
+          <MoviePage 
             movie={selectedMovie} 
             onClose={() => setSelectedMovie(null)} 
             apiKey={apiKey} 
@@ -1145,14 +1144,14 @@ export default function App() {
         onAddToList={addToCustomList} 
       />
 
-      <ProfileModal 
+      <ProfilePage 
         isOpen={isProfileOpen} 
         onClose={() => setIsProfileOpen(false)} 
         profile={userProfile} 
         onSave={(p) => { setUserProfile(p); localStorage.setItem('movieverse_profile', JSON.stringify(p)); }} 
       />
 
-      <PersonModal 
+      <PersonPage 
         personId={selectedPersonId || 0} 
         onClose={() => setSelectedPersonId(null)} 
         apiKey={apiKey} 
@@ -1172,7 +1171,7 @@ export default function App() {
         apiKey={apiKey}
       />
 
-      <SettingsModal 
+      <SettingsPage 
         isOpen={isSettingsOpen} 
         onClose={() => setIsSettingsOpen(false)} 
         apiKey={apiKey} 
