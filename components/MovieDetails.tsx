@@ -300,7 +300,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                              )}
                              
                              {!showPlayer && (
-                                 <div className="absolute bottom-0 left-0 w-full px-6 pb-6 md:px-10 md:pb-8 flex flex-col gap-2 animate-in slide-in-from-bottom-4 duration-700 delay-100 z-10">
+                                 <div className="absolute bottom-0 left-0 w-full px-6 pb-2 md:px-10 md:pb-4 flex flex-col gap-4 animate-in slide-in-from-bottom-4 duration-700 delay-100 z-10">
                                     <button onClick={onClose} className="md:hidden absolute top-[-55vh] left-0 flex items-center gap-2 text-white/80 bg-black/40 backdrop-blur-md px-3 py-1.5 rounded-full text-xs border border-white/10"><ArrowLeft size={14}/> Back</button>
                                     
                                     {logo ? (
@@ -324,7 +324,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                     </div>
 
                                     {/* Primary Actions */}
-                                    <div className="flex flex-wrap gap-3 mt-1">
+                                    <div className="flex flex-wrap gap-3 mt-2">
                                         {isExclusive && (
                                             <button 
                                                 onClick={handleWatchClick} 
