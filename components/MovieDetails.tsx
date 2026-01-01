@@ -248,7 +248,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                     </div>
                 ) : (
                     <div className="flex flex-col">
-                        <div className="relative h-[55vh] md:h-[65vh] w-full shrink-0 bg-black overflow-hidden group/hero">
+                        <div className="relative h-[65vh] md:h-[65vh] w-full shrink-0 bg-black overflow-hidden group/hero">
                              {showPlayer ? (
                                  <div className="absolute inset-0 z-50 animate-in fade-in duration-700 bg-black">
                                      <Suspense fallback={<div className="w-full h-full flex items-center justify-center bg-black"><Loader2 className="animate-spin text-red-600" size={40}/></div>}>
@@ -264,13 +264,13 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                      </Suspense>
                                  </div>
                              ) : (
-                                 <div className="absolute inset-0">
+                                 <div className="absolute inset-0 w-full h-full overflow-hidden">
                                     {trailer && (
-                                        <div className="absolute inset-0 w-full h-full overflow-hidden pointer-events-none">
+                                        <div className="absolute inset-0 w-full h-full pointer-events-none">
                                             <iframe
                                                 src={`https://www.youtube.com/embed/${trailer.key}?autoplay=1&mute=1&controls=0&loop=1&playlist=${trailer.key}&showinfo=0&rel=0&iv_load_policy=3&modestbranding=1&playsinline=1&enablejsapi=1&origin=${window.location.origin}`}
-                                                // Adjusted scale and positioning to minimize top cutting
-                                                className={`absolute top-1/2 left-1/2 w-[140%] h-[140%] -translate-x-1/2 -translate-y-1/2 pointer-events-none transition-opacity duration-1000 ease-in-out ${videoLoaded ? 'opacity-60' : 'opacity-0'}`}
+                                                // Updated scaling technique to ensure fill on all screens, especially portrait mobile
+                                                className={`absolute top-1/2 left-1/2 min-w-full min-h-full w-[300%] h-[300%] -translate-x-1/2 -translate-y-1/2 pointer-events-none transition-opacity duration-1000 ease-in-out ${videoLoaded ? 'opacity-60' : 'opacity-0'}`}
                                                 allow="autoplay; encrypted-media; gyroscope; picture-in-picture"
                                                 title="Background Trailer"
                                                 loading="lazy"
@@ -298,61 +298,71 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                              )}
                              
                              {!showPlayer && (
-                                 <div className="absolute bottom-0 left-0 p-6 md:p-10 w-full md:w-2/3 flex flex-col gap-4 animate-in slide-in-from-bottom-4 duration-700 delay-100 z-10">
-                                    <button onClick={onClose} className="md:hidden absolute top-[-50vh] left-0 flex items-center gap-2 text-white/80 bg-black/40 backdrop-blur-md px-3 py-1.5 rounded-full text-xs border border-white/10"><ArrowLeft size={14}/> Back</button>
+                                 <div className="absolute bottom-0 left-0 w-full p-6 md:p-10 flex flex-col gap-3 animate-in slide-in-from-bottom-4 duration-700 delay-100 z-10">
+                                    <button onClick={onClose} className="md:hidden absolute top-[-55vh] left-0 flex items-center gap-2 text-white/80 bg-black/40 backdrop-blur-md px-3 py-1.5 rounded-full text-xs border border-white/10"><ArrowLeft size={14}/> Back</button>
+                                    
                                     {logo ? (
                                         <img 
                                             src={`${TMDB_IMAGE_BASE}${logo.file_path}`} 
                                             alt={title} 
-                                            className={`max-h-20 md:max-h-32 max-w-[70%] w-auto object-contain object-left drop-shadow-2xl mb-2 origin-bottom-left -ml-1.5 transition-all duration-700 ease-in-out transform ${videoLoaded ? 'scale-90 opacity-70 translate-y-20 group-hover/hero:scale-100 group-hover/hero:opacity-100 group-hover/hero:translate-y-0' : 'scale-100 opacity-100 translate-y-0'}`}
+                                            className={`max-h-16 md:max-h-24 max-w-[60%] w-auto object-contain object-left drop-shadow-2xl mb-1 origin-bottom-left -ml-1 transition-all duration-700 ease-in-out transform ${videoLoaded ? 'scale-90 opacity-70 translate-y-10 group-hover/hero:scale-100 group-hover/hero:opacity-100 group-hover/hero:translate-y-0' : 'scale-100 opacity-100 translate-y-0'}`}
                                         />
                                     ) : (
-                                        <h2 className={`text-3xl md:text-6xl font-extrabold text-white leading-tight drop-shadow-lg transition-all duration-700 ease-in-out ${videoLoaded ? 'opacity-80 translate-y-12 group-hover/hero:opacity-100 group-hover/hero:translate-y-0' : 'opacity-100 translate-y-0'}`}>{title}</h2>
+                                        <h2 className={`text-3xl md:text-5xl font-extrabold text-white leading-tight drop-shadow-lg transition-all duration-700 ease-in-out ${videoLoaded ? 'opacity-80 translate-y-8 group-hover/hero:opacity-100 group-hover/hero:translate-y-0' : 'opacity-100 translate-y-0'}`}>{title}</h2>
                                     )}
                                     
-                                    {/* Metadata & Socials - Fades out completely on idle if video is playing */}
-                                    <div className={`space-y-4 transition-all duration-700 ease-in-out origin-bottom ${videoLoaded ? 'opacity-0 -translate-y-4 group-hover/hero:opacity-100 group-hover/hero:translate-y-0' : 'opacity-100 translate-y-0'}`}>
-                                        <div className="flex flex-wrap items-center gap-4 text-white/90 text-sm font-medium">
-                                            {ratingLabel !== 'NR' && (
-                                                <span className={`px-2 py-0.5 rounded text-xs font-bold shadow-lg ${ratingColor}`}>{ratingLabel}</span>
-                                            )}
-                                            <span className="flex items-center gap-2"><Calendar size={14} className={accentText}/> {displayData.release_date?.split('-')[0] || displayData.first_air_date?.split('-')[0] || 'TBA'}</span>
-                                            <span className="flex items-center gap-2"><Clock size={14} className={accentText}/> {runtime}</span>
-                                            {displayData.vote_average && <span className="flex items-center gap-2"><Star size={14} className="text-yellow-500" fill="currentColor"/> {displayData.vote_average.toFixed(1)}</span>}
-                                        </div>
-                                        
-                                        {/* Social Handles */}
-                                        <div className="flex items-center gap-3">
-                                            {displayData.external_ids?.imdb_id && <SocialLink url={`https://www.imdb.com/title/${displayData.external_ids.imdb_id}`} icon={Film} color="text-yellow-400"/>}
-                                            {displayData.external_ids?.instagram_id && <SocialLink url={`https://instagram.com/${displayData.external_ids.instagram_id}`} icon={Instagram} color="text-pink-400"/>}
-                                            {displayData.external_ids?.twitter_id && <SocialLink url={`https://twitter.com/${displayData.external_ids.twitter_id}`} icon={Twitter} color="text-blue-400"/>}
-                                            {displayData.external_ids?.facebook_id && <SocialLink url={`https://facebook.com/${displayData.external_ids.facebook_id}`} icon={Facebook} color="text-blue-600"/>}
-                                            {displayData.homepage && <SocialLink url={displayData.homepage} icon={Globe} color="text-green-400"/>}
-                                        </div>
+                                    {/* Metadata */}
+                                    <div className={`flex flex-wrap items-center gap-4 text-white/90 text-xs md:text-sm font-medium transition-all duration-700 ease-in-out origin-bottom ${videoLoaded ? 'opacity-0 -translate-y-2 group-hover/hero:opacity-100 group-hover/hero:translate-y-0' : 'opacity-100 translate-y-0'}`}>
+                                        {ratingLabel !== 'NR' && (
+                                            <span className={`px-2 py-0.5 rounded text-[10px] md:text-xs font-bold shadow-lg ${ratingColor}`}>{ratingLabel}</span>
+                                        )}
+                                        <span className="flex items-center gap-2"><Calendar size={14} className={accentText}/> {displayData.release_date?.split('-')[0] || displayData.first_air_date?.split('-')[0] || 'TBA'}</span>
+                                        <span className="flex items-center gap-2"><Clock size={14} className={accentText}/> {runtime}</span>
+                                        {displayData.vote_average && <span className="flex items-center gap-2"><Star size={14} className="text-yellow-500" fill="currentColor"/> {displayData.vote_average.toFixed(1)}</span>}
                                     </div>
 
-                                    <div className="flex flex-wrap gap-3 mt-2">
+                                    {/* Primary Actions */}
+                                    <div className="flex flex-wrap gap-3 mt-1">
                                         {isExclusive && (
                                             <button 
                                                 onClick={handleWatchClick} 
-                                                className={`font-bold py-2.5 px-6 md:py-3 md:px-8 text-sm md:text-base rounded-xl transition-all flex items-center gap-2 active:scale-95 shadow-xl hover:shadow-2xl ${isGoldTheme ? 'bg-gradient-to-r from-amber-600 to-amber-500 text-black shadow-amber-900/40' : 'bg-red-600 hover:bg-red-700 text-white'}`}
+                                                className={`font-bold py-3 px-8 text-sm md:text-base rounded-xl transition-all flex items-center gap-2 active:scale-95 shadow-xl hover:shadow-2xl ${isGoldTheme ? 'bg-gradient-to-r from-amber-600 to-amber-500 text-black shadow-amber-900/40' : 'bg-red-600 hover:bg-red-700 text-white'}`}
                                             >
                                                 <PlayCircle size={20} fill="currentColor" />
                                                 Watch Now
                                             </button>
                                         )}
-                                        <button onClick={() => details?.videos?.results?.[0] && window.open(`https://www.youtube.com/watch?v=${details.videos.results[0].key}`)} className="glass hover:bg-white/10 text-white font-bold py-2.5 px-5 md:py-3 md:px-6 text-sm md:text-base rounded-xl transition-all flex items-center gap-2 active:scale-95"><Play size={18} /> Trailer</button>
-                                        <div className="flex gap-2">
-                                            <button onClick={() => onToggleWatchlist(displayData)} className={`p-2.5 md:p-3 rounded-xl border transition-colors ${isWatchlisted ? `${accentBgLow} ${accentBorder} ${accentText}` : 'glass hover:bg-white/10 text-white/70'}`}><Bookmark size={20} fill={isWatchlisted ? "currentColor" : "none"} /></button>
-                                            <button onClick={() => onToggleFavorite(displayData)} className={`p-2.5 md:p-3 rounded-xl border transition-colors ${isFavorite ? `${accentBgLow} ${accentBorder} ${accentText}` : 'glass hover:bg-white/10 text-white/70'}`}><Heart size={20} fill={isFavorite ? "currentColor" : "none"} /></button>
-                                            <button onClick={handleShare} className={`p-2.5 md:p-3 rounded-xl glass hover:bg-white/10 transition-colors ${copied ? 'text-green-400' : 'text-white/70'}`}><Share2 size={20} /></button>
-                                        </div>
+                                        <button onClick={() => details?.videos?.results?.[0] && window.open(`https://www.youtube.com/watch?v=${details.videos.results[0].key}`)} className="glass hover:bg-white/10 text-white font-bold py-3 px-6 text-sm md:text-base rounded-xl transition-all flex items-center gap-2 active:scale-95"><Play size={18} /> Trailer</button>
                                     </div>
                                  </div>
                              )}
                         </div>
 
-                        <div className="max-w-7xl mx-auto w-full p-6 md:p-10 flex flex-col gap-8">
+                        {/* Content Section */}
+                        <div className="max-w-7xl mx-auto w-full p-6 md:p-10 flex flex-col gap-8 -mt-6 relative z-20">
+                            {/* Secondary Actions Bar */}
+                            <div className="flex items-center justify-between gap-4 overflow-x-auto hide-scrollbar pb-2">
+                                <div className="flex gap-3">
+                                    <button onClick={() => onToggleWatchlist(displayData)} className={`flex items-center gap-2 px-4 py-2.5 rounded-lg border text-xs font-bold transition-all active:scale-95 ${isWatchlisted ? `${accentBgLow} ${accentBorder} ${accentText}` : 'glass hover:bg-white/10 text-white/70 border-white/10'}`}>
+                                        <Bookmark size={16} fill={isWatchlisted ? "currentColor" : "none"} /> <span>Watchlist</span>
+                                    </button>
+                                    <button onClick={() => onToggleFavorite(displayData)} className={`flex items-center gap-2 px-4 py-2.5 rounded-lg border text-xs font-bold transition-all active:scale-95 ${isFavorite ? `${accentBgLow} ${accentBorder} ${accentText}` : 'glass hover:bg-white/10 text-white/70 border-white/10'}`}>
+                                        <Heart size={16} fill={isFavorite ? "currentColor" : "none"} /> <span>Favorite</span>
+                                    </button>
+                                    <button onClick={handleShare} className={`flex items-center gap-2 px-4 py-2.5 rounded-lg border text-xs font-bold transition-all active:scale-95 ${copied ? 'bg-green-500/20 border-green-500/50 text-green-400' : 'glass hover:bg-white/10 text-white/70 border-white/10'}`}>
+                                        <Share2 size={16} /> <span>{copied ? 'Copied' : 'Share'}</span>
+                                    </button>
+                                </div>
+                                {/* Social Handles moved here */}
+                                <div className="flex items-center gap-2 ml-auto shrink-0">
+                                    {displayData.external_ids?.imdb_id && <SocialLink url={`https://www.imdb.com/title/${displayData.external_ids.imdb_id}`} icon={Film} color="text-yellow-400"/>}
+                                    {displayData.external_ids?.instagram_id && <SocialLink url={`https://instagram.com/${displayData.external_ids.instagram_id}`} icon={Instagram} color="text-pink-400"/>}
+                                    {displayData.external_ids?.twitter_id && <SocialLink url={`https://twitter.com/${displayData.external_ids.twitter_id}`} icon={Twitter} color="text-blue-400"/>}
+                                    {displayData.external_ids?.facebook_id && <SocialLink url={`https://facebook.com/${displayData.external_ids.facebook_id}`} icon={Facebook} color="text-blue-600"/>}
+                                    {displayData.homepage && <SocialLink url={displayData.homepage} icon={Globe} color="text-green-400"/>}
+                                </div>
+                            </div>
+
                             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                                 <div className="lg:col-span-2 space-y-6">
                                     <div>
