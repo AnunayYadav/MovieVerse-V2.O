@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Search, Film, Menu, TrendingUp, Tv, Ghost, Calendar, Star, X, Sparkles, Settings, Globe, BarChart3, Bookmark, Heart, Folder, Languages, Filter, ChevronDown, Info, Plus, Cloud, CloudOff, Clock, Bell, History, User, Users, Tag, Layers, Dice5, Crown, Loader2, Radio } from 'lucide-react';
+import { Search, Film, Menu, TrendingUp, Tv, Ghost, Calendar, Star, X, Sparkles, Settings, Globe, BarChart3, Bookmark, Heart, Folder, Languages, Filter, ChevronDown, Info, Plus, Cloud, CloudOff, Clock, Bell, History, User, Users, Tag, Layers, Dice5, Crown, Loader2, Radio, LayoutGrid, Award, Baby, Clapperboard } from 'lucide-react';
 import { Movie, UserProfile, GENRES_MAP, GENRES_LIST, INDIAN_LANGUAGES, MaturityRating, Keyword } from './types';
 import { LogoLoader, MovieSkeleton, MovieCard, PersonCard, PosterMarquee, TMDB_BASE_URL, TMDB_BACKDROP_BASE, HARDCODED_TMDB_KEY, HARDCODED_GEMINI_KEY, getTmdbKey, getGeminiKey } from './components/Shared';
 import { MoviePage } from './components/MovieDetails';
@@ -808,9 +808,42 @@ export default function App() {
             <div className="hidden md:flex items-center gap-1">
                 <button onClick={() => { resetFilters(); setSelectedCategory("All"); }} className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-300 hover:scale-105 active:scale-95 ${selectedCategory === "All" && !activeKeyword && !tmdbCollectionId ? "bg-white text-black font-bold" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>Home</button>
                 <button onClick={() => { resetFilters(); setSelectedCategory("TV Shows"); }} className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-300 hover:scale-105 active:scale-95 ${selectedCategory === "TV Shows" ? "bg-white text-black font-bold" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>TV Shows</button>
-                <button onClick={() => { resetFilters(); setSelectedCategory("Anime"); }} className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-300 hover:scale-105 active:scale-95 ${selectedCategory === "Anime" ? "bg-white text-black font-bold" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>Anime</button>
-                <button onClick={() => { resetFilters(); setSelectedCategory("People"); }} className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-300 hover:scale-105 active:scale-95 ${selectedCategory === "People" ? "bg-white text-black font-bold" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>People</button>
                 <button onClick={() => { resetFilters(); setSelectedCategory("LiveTV"); }} className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-300 hover:scale-105 active:scale-95 flex items-center gap-1 ${selectedCategory === "LiveTV" ? "bg-white text-black font-bold" : "text-gray-400 hover:text-white hover:bg-white/5"}`}> <Radio size={12}/> Live TV</button>
+                
+                {/* NEW BROWSE MEGA-MENU */}
+                <div className="relative group z-50">
+                    <button className="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium text-gray-400 hover:text-white hover:bg-white/5 transition-all outline-none">
+                        <LayoutGrid size={16} />
+                        <span>Browse</span>
+                    </button>
+                    
+                    <div className="absolute top-full left-0 mt-2 w-[280px] bg-[#0f0f0f]/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl p-4 hidden group-hover:grid grid-cols-3 gap-2 animate-in fade-in slide-in-from-top-2 duration-200">
+                        <div className="col-span-3 pb-2 mb-1 border-b border-white/5">
+                            <span className="text-[10px] font-bold text-white/40 uppercase tracking-wider">Browse By</span>
+                        </div>
+                        
+                        {[
+                            { label: "People", icon: Users, action: () => { resetFilters(); setSelectedCategory("People"); } },
+                            { label: "Anime", icon: Ghost, action: () => { resetFilters(); setSelectedCategory("Anime"); } },
+                            { label: "Awards", icon: Award, action: () => { resetFilters(); setSortOption("vote_average.desc"); setSelectedCategory("All"); } },
+                            { label: "Family", icon: Baby, action: () => { resetFilters(); setSelectedCategory("Family"); } },
+                            { label: "Genres", icon: Clapperboard, action: () => setIsSidebarOpen(true) },
+                            { label: "India", icon: Globe, action: () => { resetFilters(); setSelectedRegion("IN"); } },
+                            { label: "Select", icon: Sparkles, action: () => { resetFilters(); setCurrentCollection('90s'); } },
+                            { label: "Trend", icon: TrendingUp, action: () => { resetFilters(); setSortOption("popularity.desc"); setSelectedCategory("All"); } },
+                            { label: "Coming", icon: Calendar, action: () => { resetFilters(); setFilterPeriod("future"); } },
+                        ].map((item) => (
+                            <button 
+                                key={item.label}
+                                onClick={item.action}
+                                className="flex flex-col items-center justify-center gap-2 p-3 rounded-xl bg-white/5 hover:bg-white/10 hover:scale-105 transition-all active:scale-95 group/item"
+                            >
+                                <item.icon size={20} className="text-gray-400 group-hover/item:text-white transition-colors" />
+                                <span className="text-[10px] font-medium text-gray-400 group-hover/item:text-white transition-colors">{item.label}</span>
+                            </button>
+                        ))}
+                    </div>
+                </div>
             </div>
             </div>
             
