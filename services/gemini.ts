@@ -93,12 +93,12 @@ export const generateSmartRecommendations = async (query: string): Promise<{ mov
 
       const ai = new GoogleGenAI({ apiKey });
       const prompt = `
-        Act as a premium movie recommendation engine. The user searched for: "${query}".
+        Act as a premium media recommendation engine. The user searched for: "${query}".
         
-        1.  **Analyze Intent**: Is it a specific movie title, a genre (e.g., "90s action"), a mood (e.g., "sad movies"), or a plot?
-        2.  **Exact Match Priority**: IF the query looks like a specific movie name (e.g. "Inception", "The Godfather"), your FIRST recommendation MUST be that exact movie.
-        3.  **Select Best Fits**: Identify 15-20 specific, distinct, and popular movie titles that best match this query. 
-        4.  **Prioritize Popularity**: Prefer well-known or critically acclaimed movies.
+        1.  **Analyze Intent**: Is it a specific title, a genre (e.g., "90s action"), a mood (e.g., "sad movies"), or a plot?
+        2.  **Exact Match Priority**: IF the query looks like a specific Movie or TV Show name (e.g. "Inception", "Breaking Bad"), your FIRST recommendation MUST be that exact title.
+        3.  **Select Best Fits**: Identify 15-20 specific, distinct, and popular titles (Movies OR TV Shows) that best match this query. 
+        4.  **Prioritize Popularity**: Prefer well-known or critically acclaimed content.
         5.  **Context**: Provide a very brief, fun one-sentence reason for this selection.
       `;
 
@@ -167,9 +167,9 @@ export const getSearchSuggestions = async (query: string): Promise<string[]> => 
 
       const ai = new GoogleGenAI({ apiKey });
       const prompt = `
-        The user is typing in a movie search bar: "${query}".
+        The user is typing in a media search bar: "${query}".
         Suggest 5 concise, relevant auto-complete options.
-        These should be high-quality search terms (e.g. "Christopher Nolan best movies", "Romantic comedies from the 2000s", "Inception").
+        These should be high-quality search terms (e.g. "Christopher Nolan best movies", "Romantic comedies", "Breaking Bad", "Inception").
       `;
       
       const response = await ai.models.generateContent({

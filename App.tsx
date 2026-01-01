@@ -519,44 +519,45 @@ export default function App() {
             } else if (pageNum === 1) {
                  try {
                      const [stdRes, aiRecs] = await Promise.all([
-                         fetch(`${TMDB_BASE_URL}/search/movie?api_key=${apiKey}&query=${encodeURIComponent(searchQuery)}&include_adult=false`, { signal: controller.signal }),
+                         fetch(`${TMDB_BASE_URL}/search/multi?api_key=${apiKey}&query=${encodeURIComponent(searchQuery)}&include_adult=false`, { signal: controller.signal }),
                          generateSmartRecommendations(searchQuery)
                      ]);
                      
                      if (controller.signal.aborted) return;
 
                      const stdData = await stdRes.json();
-                     const stdMovies = (stdData.results || []).filter((m: any) => m.poster_path);
+                     const stdResults = (stdData.results || []).filter((m: any) => m.poster_path && (m.media_type === 'movie' || m.media_type === 'tv'));
 
                      if (aiRecs && aiRecs.movies && aiRecs.movies.length > 0) {
                           setAiContextReason(aiRecs.reason);
                           const aiMoviePromises = aiRecs.movies.map(title => 
-                             fetchWithRetry(`${TMDB_BASE_URL}/search/movie?api_key=${apiKey}&query=${encodeURIComponent(title)}`, controller.signal)
+                             fetchWithRetry(`${TMDB_BASE_URL}/search/multi?api_key=${apiKey}&query=${encodeURIComponent(title)}`, controller.signal)
                              .then(r => r.ok ? r.json() : {})
-                             .then((d: any) => d.results?.[0]) 
+                             .then((d: any) => d.results?.find((item: any) => (item.media_type === 'movie' || item.media_type === 'tv') && item.poster_path)) 
                              .catch(e => null)
                           );
                           const aiMoviesRaw = await Promise.all(aiMoviePromises);
-                          const aiMovies = aiMoviesRaw.filter((m: any) => m && m.poster_path);
-                          const topStd = stdMovies.slice(0, 3);
+                          const aiMovies = aiMoviesRaw.filter((m: any) => m);
+                          
+                          const topStd = stdResults.slice(0, 3);
                           const aiFiltered = aiMovies.filter((aim: any) => !topStd.some((std: any) => std.id === aim.id));
                           const combined = [...topStd, ...aiFiltered];
                           const uniqueMovies = Array.from(new Map(combined.map((m: any) => [m.id, m])).values()) as Movie[];
-                          const normalized = uniqueMovies.map((m: any) => ({ ...m, media_type: 'movie' }));
-                          setMovies(normalized);
+                          
+                          setMovies(uniqueMovies);
                           setLoading(false);
                           setHasMore(false);
                           return; 
                      }
-                     endpoint = "/search/movie";
+                     endpoint = "/search/multi";
                      params.set("query", searchQuery);
                  } catch (e: any) { 
                      if (e.name !== 'AbortError') console.error("Hybrid Search failed", e); 
-                     endpoint = "/search/movie";
+                     endpoint = "/search/multi";
                      params.set("query", searchQuery);
                  }
             } else {
-                endpoint = "/search/movie";
+                endpoint = "/search/multi";
                 params.set("query", searchQuery);
             }
         }
@@ -622,7 +623,11 @@ export default function App() {
         if (selectedCategory === "People") {
             // Keep people as is
         } else {
+             if (endpoint.includes("/search/multi")) {
+                 results = results.filter((m: any) => m.media_type === 'movie' || m.media_type === 'tv');
+             }
              results = results.filter((m: any) => m.poster_path);
+             
              if (selectedCategory === "TV Shows" || selectedCategory === "Anime") {
                 results = results.map((m: any) => ({ ...m, media_type: 'tv', title: m.name, release_date: m.first_air_date }));
             }
