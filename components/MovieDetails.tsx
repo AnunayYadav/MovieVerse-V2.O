@@ -1,6 +1,6 @@
 
-import React, { useState, useEffect, Suspense } from 'react';
-import { X, Calendar, Clock, Star, Play, Bookmark, Heart, Share2, ListPlus, Tv, Clapperboard, User, Lightbulb, Sparkles, Loader2, Check, DollarSign, TrendingUp, Tag, Layers, MessageCircle, Scale, Globe, Facebook, Instagram, Twitter, Film, PlayCircle, Minimize2, Eye, Lock, ChevronDown, Zap, Quote, Shield, ArrowLeft } from 'lucide-react';
+import React, { useState, useEffect, Suspense, useRef } from 'react';
+import { X, Calendar, Clock, Star, Play, Bookmark, Heart, Share2, ListPlus, Tv, Clapperboard, User, Lightbulb, Sparkles, Loader2, Check, DollarSign, TrendingUp, Tag, Layers, MessageCircle, Scale, Globe, Facebook, Instagram, Twitter, Film, PlayCircle, Minimize2, Eye, Lock, ChevronDown, Zap, Quote, Shield, ArrowLeft, Volume2, VolumeX } from 'lucide-react';
 import { Movie, MovieDetails, Season, UserProfile, Keyword, Review } from '../types';
 import { TMDB_BASE_URL, TMDB_IMAGE_BASE, TMDB_BACKDROP_BASE, formatCurrency, ImageLightbox } from '../components/Shared';
 import { generateTrivia, getSimilarMoviesAI } from '../services/gemini';
@@ -88,6 +88,10 @@ export const MoviePage: React.FC<MoviePageProps> = ({
     
     // State to handle smooth video transition
     const [videoLoaded, setVideoLoaded] = useState(false);
+    
+    // Mute State & Ref for YouTube Control
+    const [isMuted, setIsMuted] = useState(true);
+    const iframeRef = useRef<HTMLIFrameElement>(null);
 
     const isExclusive = userProfile.canWatch === true;
     const isGoldTheme = isExclusive && userProfile.theme !== 'default';
@@ -118,6 +122,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
         setSeasonData(null);
         setShowPlayer(false);
         setVideoLoaded(false); // Reset video state on movie change
+        setIsMuted(true); // Reset mute state
         setPlayParams({ season: 1, episode: 1 });
     }, [movie.id, apiKey, movie.media_type]);
 
@@ -166,6 +171,19 @@ export const MoviePage: React.FC<MoviePageProps> = ({
             setCopied(true);
             setTimeout(() => setCopied(false), 2000);
         });
+    };
+
+    const toggleMute = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (iframeRef.current && iframeRef.current.contentWindow) {
+            const newMuted = !isMuted;
+            setIsMuted(newMuted);
+            iframeRef.current.contentWindow.postMessage(JSON.stringify({
+                'event': 'command',
+                'func': newMuted ? 'mute' : 'unMute',
+                'args': []
+            }), '*');
+        }
     };
 
     const displayData = { ...movie, ...details } as MovieDetails;
@@ -268,6 +286,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                     {trailer && (
                                         <div className="absolute inset-0 w-full h-full pointer-events-none">
                                             <iframe
+                                                ref={iframeRef}
                                                 src={`https://www.youtube.com/embed/${trailer.key}?autoplay=1&mute=1&controls=0&loop=1&playlist=${trailer.key}&showinfo=0&rel=0&iv_load_policy=3&modestbranding=1&playsinline=1&enablejsapi=1&origin=${window.location.origin}`}
                                                 // Responsive scaling: 
                                                 // Mobile: w-[350%] to zoom into 16:9 video on portrait screen (eliminates black bars).
@@ -296,45 +315,58 @@ export const MoviePage: React.FC<MoviePageProps> = ({
 
                                     {/* Single Unified Vignette: Fades to 25% opacity on idle, 100% on hover ONLY if video is loaded. Else stays fully visible. */}
                                     <div className={`absolute -inset-1 bg-gradient-to-t from-[#0a0a0a] via-[#0a0a0a]/50 to-transparent transition-opacity duration-700 ease-in-out pointer-events-none ${videoLoaded ? 'opacity-25 group-hover/hero:opacity-100' : 'opacity-100'}`}></div>
+                                 
+                                    {/* Mute Button - Positioned bottom right of the hero image area, avoiding text */}
+                                    {trailer && videoLoaded && (
+                                        <button 
+                                            onClick={toggleMute}
+                                            className="absolute bottom-6 right-6 z-30 p-3 bg-black/30 hover:bg-white/10 backdrop-blur-md border border-white/10 rounded-full text-white transition-all active:scale-95 group/mute hidden md:flex"
+                                            title={isMuted ? "Unmute" : "Mute"}
+                                        >
+                                            {isMuted ? <VolumeX size={20} strokeWidth={1.5} /> : <Volume2 size={20} strokeWidth={1.5} />}
+                                        </button>
+                                    )}
                                  </div>
                              )}
                              
                              {!showPlayer && (
-                                 <div className="absolute bottom-0 left-0 w-full px-6 pb-2 md:px-10 md:pb-4 flex flex-col gap-4 animate-in slide-in-from-bottom-4 duration-700 delay-100 z-10">
-                                    <button onClick={onClose} className="md:hidden absolute top-[-55vh] left-0 flex items-center gap-2 text-white/80 bg-black/40 backdrop-blur-md px-3 py-1.5 rounded-full text-xs border border-white/10"><ArrowLeft size={14}/> Back</button>
-                                    
-                                    {logo ? (
-                                        <img 
-                                            src={`${TMDB_IMAGE_BASE}${logo.file_path}`} 
-                                            alt={title} 
-                                            className={`max-h-16 md:max-h-24 max-w-[55%] w-auto object-contain object-left drop-shadow-2xl mb-1 origin-bottom-left -ml-1 transition-all duration-700 ease-in-out transform ${videoLoaded ? 'scale-90 opacity-70 translate-y-10 group-hover/hero:scale-100 group-hover/hero:opacity-100 group-hover/hero:translate-y-0' : 'scale-100 opacity-100 translate-y-0'}`}
-                                        />
-                                    ) : (
-                                        <h2 className={`text-3xl md:text-5xl font-extrabold text-white leading-tight drop-shadow-lg transition-all duration-700 ease-in-out ${videoLoaded ? 'opacity-80 translate-y-8 group-hover/hero:opacity-100 group-hover/hero:translate-y-0' : 'opacity-100 translate-y-0'}`}>{title}</h2>
-                                    )}
-                                    
-                                    {/* Metadata */}
-                                    <div className={`flex flex-wrap items-center gap-4 text-white/90 text-xs md:text-sm font-medium transition-all duration-700 ease-in-out origin-bottom ${videoLoaded ? 'opacity-0 -translate-y-2 group-hover/hero:opacity-100 group-hover/hero:translate-y-0' : 'opacity-100 translate-y-0'}`}>
-                                        {ratingLabel !== 'NR' && (
-                                            <span className={`px-2 py-0.5 rounded text-[10px] md:text-xs font-bold shadow-lg ${ratingColor}`}>{ratingLabel}</span>
+                                 <div className="absolute bottom-0 left-0 w-full px-6 pb-2 md:px-10 md:pb-4 flex flex-col gap-4 animate-in slide-in-from-bottom-4 duration-700 delay-100 z-10 pointer-events-none">
+                                    <div className="pointer-events-auto w-full">
+                                        <button onClick={onClose} className="md:hidden absolute top-[-55vh] left-0 flex items-center gap-2 text-white/80 bg-black/40 backdrop-blur-md px-3 py-1.5 rounded-full text-xs border border-white/10"><ArrowLeft size={14}/> Back</button>
+                                        
+                                        {logo ? (
+                                            <img 
+                                                src={`${TMDB_IMAGE_BASE}${logo.file_path}`} 
+                                                alt={title} 
+                                                className={`max-h-16 md:max-h-24 max-w-[55%] w-auto object-contain object-left drop-shadow-2xl mb-1 origin-bottom-left -ml-1 transition-all duration-700 ease-in-out transform ${videoLoaded ? 'scale-90 opacity-70 translate-y-10 group-hover/hero:scale-100 group-hover/hero:opacity-100 group-hover/hero:translate-y-0' : 'scale-100 opacity-100 translate-y-0'}`}
+                                            />
+                                        ) : (
+                                            <h2 className={`text-3xl md:text-5xl font-extrabold text-white leading-tight drop-shadow-lg transition-all duration-700 ease-in-out ${videoLoaded ? 'opacity-80 translate-y-8 group-hover/hero:opacity-100 group-hover/hero:translate-y-0' : 'opacity-100 translate-y-0'}`}>{title}</h2>
                                         )}
-                                        <span className="flex items-center gap-2"><Calendar size={14} className={accentText}/> {displayData.release_date?.split('-')[0] || displayData.first_air_date?.split('-')[0] || 'TBA'}</span>
-                                        <span className="flex items-center gap-2"><Clock size={14} className={accentText}/> {runtime}</span>
-                                        {displayData.vote_average && <span className="flex items-center gap-2"><Star size={14} className="text-yellow-500" fill="currentColor"/> {displayData.vote_average.toFixed(1)}</span>}
-                                    </div>
+                                        
+                                        {/* Metadata */}
+                                        <div className={`flex flex-wrap items-center gap-4 text-white/90 text-xs md:text-sm font-medium transition-all duration-700 ease-in-out origin-bottom ${videoLoaded ? 'opacity-0 -translate-y-2 group-hover/hero:opacity-100 group-hover/hero:translate-y-0' : 'opacity-100 translate-y-0'}`}>
+                                            {ratingLabel !== 'NR' && (
+                                                <span className={`px-2 py-0.5 rounded text-[10px] md:text-xs font-bold shadow-lg ${ratingColor}`}>{ratingLabel}</span>
+                                            )}
+                                            <span className="flex items-center gap-2"><Calendar size={14} className={accentText}/> {displayData.release_date?.split('-')[0] || displayData.first_air_date?.split('-')[0] || 'TBA'}</span>
+                                            <span className="flex items-center gap-2"><Clock size={14} className={accentText}/> {runtime}</span>
+                                            {displayData.vote_average && <span className="flex items-center gap-2"><Star size={14} className="text-yellow-500" fill="currentColor"/> {displayData.vote_average.toFixed(1)}</span>}
+                                        </div>
 
-                                    {/* Primary Actions */}
-                                    <div className="flex flex-wrap gap-3 mt-2">
-                                        {isExclusive && (
-                                            <button 
-                                                onClick={handleWatchClick} 
-                                                className={`font-bold py-3 px-8 text-sm md:text-base rounded-xl transition-all flex items-center gap-2 active:scale-95 shadow-xl hover:shadow-2xl ${isGoldTheme ? 'bg-gradient-to-r from-amber-600 to-amber-500 text-black shadow-amber-900/40' : 'bg-red-600 hover:bg-red-700 text-white'}`}
-                                            >
-                                                <PlayCircle size={20} fill="currentColor" />
-                                                Watch Now
-                                            </button>
-                                        )}
-                                        <button onClick={() => details?.videos?.results?.[0] && window.open(`https://www.youtube.com/watch?v=${details.videos.results[0].key}`)} className="glass hover:bg-white/10 text-white font-bold py-3 px-6 text-sm md:text-base rounded-xl transition-all flex items-center gap-2 active:scale-95"><Play size={18} /> Trailer</button>
+                                        {/* Primary Actions */}
+                                        <div className="flex flex-wrap gap-3 mt-2">
+                                            {isExclusive && (
+                                                <button 
+                                                    onClick={handleWatchClick} 
+                                                    className={`font-bold py-3 px-8 text-sm md:text-base rounded-xl transition-all flex items-center gap-2 active:scale-95 shadow-xl hover:shadow-2xl ${isGoldTheme ? 'bg-gradient-to-r from-amber-600 to-amber-500 text-black shadow-amber-900/40' : 'bg-red-600 hover:bg-red-700 text-white'}`}
+                                                >
+                                                    <PlayCircle size={20} fill="currentColor" />
+                                                    Watch Now
+                                                </button>
+                                            )}
+                                            <button onClick={() => details?.videos?.results?.[0] && window.open(`https://www.youtube.com/watch?v=${details.videos.results[0].key}`)} className="glass hover:bg-white/10 text-white font-bold py-3 px-6 text-sm md:text-base rounded-xl transition-all flex items-center gap-2 active:scale-95"><Play size={18} /> Trailer</button>
+                                        </div>
                                     </div>
                                  </div>
                              )}
