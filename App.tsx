@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Search, Film, Menu, TrendingUp, Tv, Ghost, Calendar, Star, X, Sparkles, Settings, Globe, BarChart3, Bookmark, Heart, Folder, Languages, Filter, ChevronDown, Info, Plus, Cloud, CloudOff, Clock, Bell, History, Users, Tag, Dice5, Crown, Radio, LayoutGrid, Award, Baby, Clapperboard, ChevronRight } from 'lucide-react';
+import { Search, Film, Menu, TrendingUp, Tv, Ghost, Calendar, Star, X, Sparkles, Settings, Globe, BarChart3, Bookmark, Heart, Folder, Languages, Filter, ChevronDown, Info, Plus, Cloud, CloudOff, Clock, Bell, History, Users, Tag, Dice5, Crown, Radio, LayoutGrid, Award, Baby, Clapperboard, ChevronRight, PlayCircle } from 'lucide-react';
 import { Movie, UserProfile, GENRES_MAP, GENRES_LIST, INDIAN_LANGUAGES, MaturityRating, Keyword } from './types';
 import { LogoLoader, MovieSkeleton, MovieCard, PersonCard, PosterMarquee, TMDB_BASE_URL, TMDB_BACKDROP_BASE, HARDCODED_TMDB_KEY, HARDCODED_GEMINI_KEY, getTmdbKey, getGeminiKey } from './components/Shared';
 import { MoviePage } from './components/MovieDetails';
@@ -501,7 +501,7 @@ export default function App() {
          return; 
     }
     // Skip fetching for static pages that manage their own content or don't use the standard movie list
-    if (selectedCategory === "CineAnalytics" || selectedCategory === "LiveTV" || selectedCategory === "Genres") return;
+    if (selectedCategory === "CineAnalytics" || selectedCategory === "LiveTV" || selectedCategory === "Genres" || selectedCategory === "Collections") return;
     
     if (selectedCategory.startsWith("Custom:")) { 
         const listName = selectedCategory.replace("Custom:", ""); 
@@ -555,6 +555,7 @@ export default function App() {
                 params.delete("certification.lte");
                 params.set("query", searchQuery);
             } else if (pageNum === 1) {
+                 // ... existing hybrid search code ...
                  try {
                      const [stdRes, aiRecs] = await Promise.all([
                          fetch(`${TMDB_BASE_URL}/search/multi?api_key=${apiKey}&query=${encodeURIComponent(searchQuery)}&include_adult=false`, { signal: controller.signal }),
@@ -606,7 +607,7 @@ export default function App() {
             const sortedParts = parts.sort((a: any, b: any) => new Date(a.release_date || "").getTime() - new Date(b.release_date || "").getTime());
             setMovies(sortedParts);
             setLoading(false);
-            setHasMore(false); // Collections usually small enough for one page
+            setHasMore(false); 
             return;
         }
         else if (activeKeyword) {
@@ -622,13 +623,6 @@ export default function App() {
         else if (selectedCategory === "People") {
             endpoint = "/person/popular";
         }
-        else if (selectedCategory === "ForYou") {
-             params.set("sort_by", "popularity.desc");
-             if (userProfile.genres && userProfile.genres.length > 0) {
-                 const genreIds = userProfile.genres.map(g => GENRES_MAP[g]).filter(Boolean).join("|");
-                 if (genreIds) params.append("with_genres", genreIds);
-             }
-        }
         else if (selectedCategory === "TV Shows") {
             endpoint = "/discover/tv";
             params.append("sort_by", sortOption === 'relevance' ? 'popularity.desc' : sortOption);
@@ -639,6 +633,23 @@ export default function App() {
             params.set("with_genres", "16");
             params.set("with_original_language", "ja");
             params.append("sort_by", "popularity.desc");
+        }
+        else if (selectedCategory === "Family") {
+            params.append("with_genres", "10751");
+            params.append("sort_by", "popularity.desc");
+        }
+        else if (selectedCategory === "Awards") {
+            params.set("sort_by", "vote_average.desc");
+            params.append("vote_count.gte", "1000");
+        }
+        else if (selectedCategory === "India") {
+            params.append("with_origin_country", "IN");
+            params.append("sort_by", "popularity.desc");
+        }
+        else if (selectedCategory === "Coming") {
+            const today = new Date().toISOString().split('T')[0];
+            params.set("sort_by", "popularity.desc");
+            params.append("primary_release_date.gte", today);
         }
         else {
              params.append("sort_by", sortOption === 'relevance' ? 'popularity.desc' : sortOption);
@@ -677,7 +688,7 @@ export default function App() {
             setMovies(prev => [...prev, ...finalResults]);
         } else {
             setMovies(finalResults);
-            if (!currentCollection && !activeKeyword && !tmdbCollectionId && selectedCategory !== "People" && finalResults.length > 0 && !searchQuery) {
+            if (!currentCollection && !activeKeyword && !tmdbCollectionId && !["People", "Anime", "Family", "Awards", "India", "Coming", "Collections", "Genres"].includes(selectedCategory) && finalResults.length > 0 && !searchQuery) {
                 setFeaturedMovie(finalResults.find((m: Movie) => m.backdrop_path) || finalResults[0]);
             } else {
                 setFeaturedMovie(null);
@@ -824,9 +835,10 @@ export default function App() {
   const getPageTitle = () => {
       if (selectedCategory === "LiveTV") return "Live TV";
       if (selectedCategory === "Genres") return "Genres";
+      if (selectedCategory === "Collections") return "Collections";
       if (tmdbCollectionId) return "Collection View";
       if (activeKeyword) return `Tag: ${activeKeyword.name}`;
-      if (currentCollection) return "Curated Collection";
+      if (currentCollection) return DEFAULT_COLLECTIONS[currentCollection]?.title || "Curated Collection";
       if (searchQuery) return `Results: ${searchQuery}`;
       return selectedCategory === "All" ? "Trending Now" : selectedCategory;
   }
@@ -835,12 +847,48 @@ export default function App() {
   const isHomeView = selectedCategory === "All" && !activeKeyword && !tmdbCollectionId && !currentCollection && filterPeriod === "all" && sortOption === "popularity.desc" && selectedRegion === "Global" && selectedLanguage === "All" && !searchQuery;
   const isTVView = selectedCategory === "TV Shows" && !searchQuery;
   const isLiveView = selectedCategory === "LiveTV" && !searchQuery;
-  // Browse is active if we are displaying content but NOT in one of the standard main views and NOT in a user library view.
-  const isLibraryView = ['Watchlist', 'Favorites', 'History', 'CineAnalytics'].includes(selectedCategory) || selectedCategory.startsWith('Custom:');
-  const isBrowseView = !isHomeView && !isTVView && !isLiveView && !isLibraryView && !searchQuery;
+  
+  // Dynamic Label Logic
+  const getBrowseLabel = () => {
+      if (selectedCategory === "Genres") return "Genres";
+      if (selectedCategory === "People") return "People";
+      if (selectedCategory === "Anime") return "Anime";
+      if (selectedCategory === "Family") return "Family";
+      if (selectedCategory === "Collections") return "Collections";
+      if (currentCollection) return "Collection";
+      if (selectedCategory === "India") return "India";
+      if (selectedCategory === "Coming") return "Coming Soon";
+      if (selectedCategory === "Awards") return "Awards";
+      return "Browse";
+  };
+  
+  const activeBrowseLabel = getBrowseLabel();
+  const isBrowseActive = activeBrowseLabel !== "Browse" || (!isHomeView && !isTVView && !isLiveView && !selectedCategory.startsWith("Watchlist") && !selectedCategory.startsWith("Favorites") && !selectedCategory.startsWith("History") && !selectedCategory.startsWith("Custom") && !selectedCategory.startsWith("CineAnalytics") && !searchQuery);
 
   // Filter Genres based on search
   const filteredGenres = GENRES_LIST.filter(g => g.toLowerCase().includes(genreSearch.toLowerCase()));
+
+  // Render Page Header Helper
+  const renderPageHeader = (title: string, subtitle: string, showSearch = false) => (
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-6">
+           <div>
+               <h1 className="text-4xl md:text-5xl font-black text-white tracking-tight">{title}</h1>
+               <p className="text-white/50 mt-2 text-sm">{subtitle}</p>
+           </div>
+           {showSearch && (
+               <div className="relative w-full md:w-80 group">
+                   <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30 group-focus-within:text-white transition-colors" size={18} />
+                   <input 
+                       type="text" 
+                       value={genreSearch} 
+                       onChange={(e) => setGenreSearch(e.target.value)} 
+                       placeholder={`Search ${title}...`}
+                       className="w-full bg-white/5 border border-white/10 rounded-full py-3.5 pl-12 pr-6 text-sm text-white focus:outline-none focus:bg-white/10 focus:border-white/20 transition-all placeholder-white/20 shadow-lg" 
+                   />
+               </div>
+           )}
+      </div>
+  );
 
   return (
     <div className="min-h-screen bg-[#030303] text-white font-sans selection:bg-amber-500/30 selection:text-white">
@@ -865,14 +913,13 @@ export default function App() {
                 <button onClick={() => { resetFilters(); setSelectedCategory("TV Shows"); }} className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-300 hover:scale-105 active:scale-95 ${isTVView ? "bg-white text-black font-bold" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>TV Shows</button>
                 <button onClick={() => { resetFilters(); setSelectedCategory("LiveTV"); }} className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-300 hover:scale-105 active:scale-95 flex items-center gap-1 ${isLiveView ? "bg-white text-black font-bold" : "text-gray-400 hover:text-white hover:bg-white/5"}`}> <Radio size={12}/> Live TV</button>
                 
-                {/* NEW BROWSE MEGA-MENU */}
+                {/* DYNAMIC BROWSE BUTTON */}
                 <div className="relative group z-50">
-                    <button className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium transition-all outline-none ${isBrowseView ? "bg-white text-black font-bold" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>
+                    <button className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium transition-all outline-none ${isBrowseActive ? "bg-white text-black font-bold" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>
                         <LayoutGrid size={16} />
-                        <span>Browse</span>
+                        <span>{activeBrowseLabel}</span>
                     </button>
                     
-                    {/* Added padding-top (pt-4) to bridge the gap for hover state */}
                     <div className="absolute top-full left-0 pt-4 w-[280px] hidden group-hover:block animate-in fade-in slide-in-from-top-2 duration-200">
                         <div className="bg-[#0f0f0f]/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl p-4 grid grid-cols-3 gap-2">
                             <div className="col-span-3 pb-2 mb-1 border-b border-white/5">
@@ -882,21 +929,21 @@ export default function App() {
                             {[
                                 { label: "People", icon: Users, action: () => { resetFilters(); setSelectedCategory("People"); } },
                                 { label: "Anime", icon: Ghost, action: () => { resetFilters(); setSelectedCategory("Anime"); } },
-                                { label: "Awards", icon: Award, action: () => { resetFilters(); setSortOption("vote_average.desc"); setSelectedCategory("All"); } },
+                                { label: "Awards", icon: Award, action: () => { resetFilters(); setSelectedCategory("Awards"); } },
                                 { label: "Family", icon: Baby, action: () => { resetFilters(); setSelectedCategory("Family"); } },
                                 { label: "Genres", icon: Clapperboard, action: () => { resetFilters(); setSelectedCategory("Genres"); } },
-                                { label: "India", icon: Globe, action: () => { resetFilters(); setSelectedCategory("All"); setSelectedRegion("IN"); } },
-                                { label: "Select", icon: Sparkles, action: () => { resetFilters(); setCurrentCollection('90s'); setSelectedCategory("Collection"); } },
+                                { label: "India", icon: Globe, action: () => { resetFilters(); setSelectedCategory("India"); } },
+                                { label: "Select", icon: Sparkles, action: () => { resetFilters(); setSelectedCategory("Collections"); } },
                                 { label: "Trend", icon: TrendingUp, action: resetToHome },
-                                { label: "Coming", icon: Calendar, action: () => { resetFilters(); setSelectedCategory("All"); setFilterPeriod("future"); } },
+                                { label: "Coming", icon: Calendar, action: () => { resetFilters(); setSelectedCategory("Coming"); } },
                             ].map((item) => (
                                 <button 
                                     key={item.label}
                                     onClick={item.action}
                                     className="flex flex-col items-center justify-center gap-2 p-3 rounded-xl bg-white/5 hover:bg-white/10 hover:scale-105 transition-all active:scale-95 group/item"
                                 >
-                                    <item.icon size={20} className="text-gray-400 group-hover/item:text-white transition-colors" />
-                                    <span className="text-[10px] font-medium text-gray-400 group-hover/item:text-white transition-colors">{item.label}</span>
+                                    <item.icon size={20} className={`transition-colors ${selectedCategory === item.label ? 'text-white' : 'text-gray-400 group-hover/item:text-white'}`} />
+                                    <span className={`text-[10px] font-medium transition-colors ${selectedCategory === item.label ? 'text-white' : 'text-gray-400 group-hover/item:text-white'}`}>{item.label}</span>
                                 </button>
                             ))}
                         </div>
@@ -1048,23 +1095,7 @@ export default function App() {
            ) : selectedCategory === "Genres" ? (
                // DEDICATED GENRES PAGE
                <div className="p-8 md:p-12 animate-in fade-in slide-in-from-bottom-4">
-                   <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-6">
-                       <div>
-                           <h1 className="text-4xl md:text-5xl font-black text-white tracking-tight">Genres</h1>
-                           <p className="text-white/50 mt-2 text-sm">Explore movies and TV shows by your favorite categories.</p>
-                       </div>
-                       <div className="relative w-full md:w-80 group">
-                           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30 group-focus-within:text-white transition-colors" size={18} />
-                           <input 
-                               type="text" 
-                               value={genreSearch} 
-                               onChange={(e) => setGenreSearch(e.target.value)} 
-                               placeholder="Search genre..." 
-                               className="w-full bg-white/5 border border-white/10 rounded-full py-3.5 pl-12 pr-6 text-sm text-white focus:outline-none focus:bg-white/10 focus:border-white/20 transition-all placeholder-white/20 shadow-lg" 
-                           />
-                       </div>
-                   </div>
-
+                   {renderPageHeader("Genres", "Explore movies and TV shows by your favorite categories.", true)}
                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
                        {filteredGenres.map(genre => {
                            const colorClass = GENRE_COLORS[genre] || "from-gray-700 to-black";
@@ -1076,15 +1107,11 @@ export default function App() {
                                >
                                    <div className={`absolute inset-0 bg-gradient-to-br ${colorClass} opacity-80 group-hover:opacity-100 transition-opacity duration-500`}></div>
                                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent"></div>
-                                   
-                                   {/* Decorative Circle */}
                                    <div className="absolute -top-10 -right-10 w-32 h-32 bg-white/10 rounded-full blur-2xl group-hover:bg-white/20 transition-colors duration-500"></div>
-
                                    <div className="absolute bottom-0 left-0 p-6 w-full">
                                        <h3 className="text-xl md:text-2xl font-black text-white mb-1 group-hover:translate-x-1 transition-transform duration-300">{genre}</h3>
                                        <div className="h-0.5 w-8 bg-white/50 rounded-full group-hover:w-16 transition-all duration-500"></div>
                                    </div>
-                                   
                                    <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-x-4 group-hover:translate-x-0">
                                        <div className="bg-black/30 backdrop-blur-md p-2 rounded-full border border-white/10">
                                            <ChevronRight size={16} className="text-white"/>
@@ -1100,8 +1127,70 @@ export default function App() {
                        )}
                    </div>
                </div>
+           ) : selectedCategory === "Collections" ? (
+               // DEDICATED COLLECTIONS OVERVIEW PAGE
+               <div className="p-8 md:p-12 animate-in fade-in slide-in-from-bottom-4">
+                   {renderPageHeader("Collections", "Hand-picked curations for every mood and moment.")}
+                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                       {Object.keys(DEFAULT_COLLECTIONS).map(key => {
+                           const col = DEFAULT_COLLECTIONS[key];
+                           return (
+                               <div 
+                                   key={key}
+                                   onClick={() => handleCollectionClick(key)}
+                                   className="group relative h-64 rounded-3xl overflow-hidden cursor-pointer shadow-xl transition-all duration-500 hover:scale-[1.02] hover:shadow-2xl hover:shadow-white/5"
+                               >
+                                   <img src={col.backdrop} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110 opacity-70 group-hover:opacity-100" alt={col.title} />
+                                   <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent"></div>
+                                   <div className="absolute bottom-0 left-0 p-8 w-full">
+                                       <div className="text-3xl mb-2 filter drop-shadow-lg">{col.icon}</div>
+                                       <h3 className="text-2xl font-black text-white mb-2">{col.title}</h3>
+                                       <p className="text-sm text-gray-300 line-clamp-2">{col.description}</p>
+                                   </div>
+                               </div>
+                           );
+                       })}
+                   </div>
+               </div>
            ) : (
                <>
+                   {/* Standard or Category Views */}
+                   {/* Render a fancy header for specific browse categories that are NOT the home page */}
+                   {["Anime", "Family", "Awards", "India", "Coming", "People"].includes(selectedCategory) && (
+                        <div className="relative w-full overflow-hidden">
+                            <div className="absolute inset-0 bg-gradient-to-b from-black/80 to-[#030303] z-10"></div>
+                            <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1574267432553-4b4628081c31?q=80&w=2000&auto=format&fit=crop')] bg-cover bg-center opacity-20"></div>
+                            
+                            <div className="relative z-20 p-8 md:p-12 pb-0">
+                                <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 mb-8 border-b border-white/10 pb-8">
+                                    <div>
+                                        <div className="flex items-center gap-3 mb-2">
+                                            {selectedCategory === "Anime" && <span className="text-4xl">⛩️</span>}
+                                            {selectedCategory === "Family" && <span className="text-4xl">👨‍👩‍👧‍👦</span>}
+                                            {selectedCategory === "Awards" && <span className="text-4xl">🏆</span>}
+                                            {selectedCategory === "India" && <span className="text-4xl">🇮🇳</span>}
+                                            {selectedCategory === "Coming" && <span className="text-4xl">📅</span>}
+                                            {selectedCategory === "People" && <span className="text-4xl">🌟</span>}
+                                            <h1 className="text-4xl md:text-6xl font-black text-white tracking-tight">{selectedCategory === "Coming" ? "Coming Soon" : selectedCategory}</h1>
+                                        </div>
+                                        <p className="text-lg text-white/50 max-w-2xl font-light">
+                                            {selectedCategory === "Anime" && "Journey into the extraordinary world of Japanese animation."}
+                                            {selectedCategory === "Family" && "Safe, fun, and heartwarming entertainment for all ages."}
+                                            {selectedCategory === "Awards" && "Critically acclaimed masterpieces and award-winning cinema."}
+                                            {selectedCategory === "India" && "Experience the vibrant colors, drama, and music of Indian cinema."}
+                                            {selectedCategory === "Coming" && "Get a sneak peek at the most anticipated releases."}
+                                            {selectedCategory === "People" && "Discover the stars, directors, and creators behind the magic."}
+                                        </p>
+                                    </div>
+                                    <div className="flex items-center gap-2 text-sm font-bold bg-white/5 border border-white/10 px-4 py-2 rounded-full">
+                                        <span className="text-white">{movies.length}+</span>
+                                        <span className="text-gray-500">Results</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                   )}
+
                    {!searchQuery && selectedCategory === "All" && !currentCollection && filterPeriod === "all" && featuredMovie && ( 
                        <div className="relative w-full h-[60vh] min-h-[500px] md:h-[80vh] group overflow-hidden">
                            <div className="absolute inset-0 bg-black">
@@ -1128,7 +1217,7 @@ export default function App() {
                        </div> 
                    )}
 
-                   {/* Preset Collection Header */}
+                   {/* Preset Collection Header (Single Collection View) */}
                    {currentCollection && DEFAULT_COLLECTIONS[currentCollection] && (
                       <div className="relative w-full h-[40vh] md:h-[50vh] overflow-hidden">
                           <img src={DEFAULT_COLLECTIONS[currentCollection].backdrop} className="w-full h-full object-cover animate-in fade-in duration-700" alt={DEFAULT_COLLECTIONS[currentCollection].title} />
