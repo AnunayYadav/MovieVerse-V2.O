@@ -230,13 +230,15 @@ export const MoviePage: React.FC<MoviePageProps> = ({
             {viewingImage && <ImageLightbox src={viewingImage} onClose={() => setViewingImage(null)} />}
             
             <div className="relative w-full min-h-screen flex flex-col">
-                <button 
-                    onClick={onClose} 
-                    className="fixed top-6 left-6 z-[120] bg-black/40 hover:bg-white/10 backdrop-blur-md px-4 py-2 rounded-full text-white/80 hover:text-white transition-all hover:scale-105 active:scale-95 border border-white/5 flex items-center gap-2 group"
-                >
-                    <ArrowLeft size={20} />
-                    <span className="hidden md:inline font-bold text-sm">Back</span>
-                </button>
+                {!showPlayer && (
+                    <button 
+                        onClick={onClose} 
+                        className="fixed top-6 left-6 z-[120] bg-black/40 hover:bg-white/10 backdrop-blur-md px-4 py-2 rounded-full text-white/80 hover:text-white transition-all hover:scale-105 active:scale-95 border border-white/5 flex items-center gap-2 group"
+                    >
+                        <ArrowLeft size={20} />
+                        <span className="hidden md:inline font-bold text-sm">Back</span>
+                    </button>
+                )}
                 
                 {loading && !details ? (
                     <div className="h-screen flex flex-col items-center justify-center gap-4">

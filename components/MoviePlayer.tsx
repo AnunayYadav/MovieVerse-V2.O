@@ -117,18 +117,8 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
       className="w-full h-full flex flex-col bg-black relative group/player select-none overflow-hidden"
     >
        {/* Overlay Container */}
-       <div className="absolute top-0 left-0 right-0 z-[100] p-6 flex items-center gap-4 opacity-0 group-hover/player:opacity-100 transition-opacity duration-300 pointer-events-none bg-gradient-to-b from-black/90 via-black/20 to-transparent">
+       <div className="absolute top-0 left-0 right-0 z-[100] p-6 flex items-center justify-between gap-4 opacity-0 group-hover/player:opacity-100 transition-opacity duration-300 pointer-events-none bg-gradient-to-b from-black/90 via-black/20 to-transparent">
           
-          <div className="pointer-events-auto">
-              <button 
-                onClick={onClose}
-                className="bg-black/40 hover:bg-amber-600 text-white p-2 rounded-lg transition-all shadow-lg active:scale-95 h-10 w-10 flex items-center justify-center shrink-0 border border-white/10"
-                title="Back to Movie Details"
-              >
-                <ArrowLeft size={20}/>
-              </button>
-          </div>
-
           <div className="flex items-center gap-3 pointer-events-auto">
             {showEpisodeControls && (
                 <div className="flex items-center gap-2">
@@ -150,6 +140,16 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                     </div>
                 </div>
             )}
+          </div>
+
+          <div className="pointer-events-auto">
+              <button 
+                onClick={onClose}
+                className="bg-black/40 hover:bg-red-600 text-white p-2 rounded-lg transition-all shadow-lg active:scale-95 h-10 w-10 flex items-center justify-center shrink-0 border border-white/10"
+                title="Close Player"
+              >
+                <X size={20}/>
+              </button>
           </div>
        </div>
 
