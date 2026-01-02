@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Search, Film, Menu, TrendingUp, Tv, Ghost, Calendar, Star, X, Sparkles, Settings, Globe, BarChart3, Bookmark, Heart, Folder, Languages, Filter, ChevronDown, Info, Plus, Cloud, CloudOff, Clock, Bell, History, Users, Tag, Dice5, Crown, Radio, LayoutGrid, Award, Baby, Clapperboard } from 'lucide-react';
+import { Search, Film, Menu, TrendingUp, Tv, Ghost, Calendar, Star, X, Sparkles, Settings, Globe, BarChart3, Bookmark, Heart, Folder, Languages, Filter, ChevronDown, Info, Plus, Cloud, CloudOff, Clock, Bell, History, Users, Tag, Dice5, Crown, Radio, LayoutGrid, Award, Baby, Clapperboard, ChevronRight } from 'lucide-react';
 import { Movie, UserProfile, GENRES_MAP, GENRES_LIST, INDIAN_LANGUAGES, MaturityRating, Keyword } from './types';
 import { LogoLoader, MovieSkeleton, MovieCard, PersonCard, PosterMarquee, TMDB_BASE_URL, TMDB_BACKDROP_BASE, HARDCODED_TMDB_KEY, HARDCODED_GEMINI_KEY, getTmdbKey, getGeminiKey } from './components/Shared';
 import { MoviePage } from './components/MovieDetails';
@@ -18,6 +18,29 @@ const DEFAULT_COLLECTIONS: any = {
   "90s": { title: "90s Nostalgia", params: { "primary_release_date.gte": "1990-01-01", "primary_release_date.lte": "1999-12-31", sort_by: "vote_average.desc", "vote_count.gte": 200 }, icon: "📼", backdrop: "https://images.unsplash.com/photo-1595769816263-9b910be24d5f?q=80&w=2079&auto=format&fit=crop", description: "Golden era of melodies, romance, and indie cinema." },
   "south_mass": { title: "South Mass", params: { with_genres: "28", with_original_language: "te|ta|kn", sort_by: "popularity.desc" }, icon: "🔥", backdrop: "https://images.unsplash.com/photo-1536440136628-849c177e76a1?q=80&w=2000&auto=format&fit=crop", description: "High-octane action from the southern powerhouse." },
   "korean": { title: "K-Wave", params: { with_original_language: "ko", sort_by: "popularity.desc" }, icon: "🇰🇷", backdrop: "https://images.unsplash.com/photo-1517154421773-0529f29ea451?q=80&w=2000&auto=format&fit=crop", description: "Thrillers, Romance, and Drama from South Korea." },
+};
+
+// Colors for the Genre Cards
+const GENRE_COLORS: Record<string, string> = {
+    "Action": "from-red-600 to-red-900",
+    "Adventure": "from-orange-500 to-orange-800",
+    "Animation": "from-pink-500 to-rose-800",
+    "Comedy": "from-yellow-500 to-yellow-800",
+    "Crime": "from-slate-700 to-slate-900",
+    "Documentary": "from-emerald-600 to-emerald-900",
+    "Drama": "from-purple-600 to-purple-900",
+    "Family": "from-cyan-500 to-blue-800",
+    "Fantasy": "from-indigo-500 to-indigo-900",
+    "History": "from-amber-700 to-amber-950",
+    "Horror": "from-gray-800 to-black",
+    "Music": "from-fuchsia-600 to-fuchsia-900",
+    "Mystery": "from-violet-800 to-black",
+    "Romance": "from-rose-500 to-pink-900",
+    "Sci-Fi": "from-teal-600 to-teal-900",
+    "TV Movie": "from-blue-600 to-blue-900",
+    "Thriller": "from-zinc-800 to-black",
+    "War": "from-stone-600 to-stone-800",
+    "Western": "from-orange-800 to-brown-900"
 };
 
 export default function App() {
@@ -61,6 +84,9 @@ export default function App() {
   const [selectedRegion, setSelectedRegion] = useState("Global");
   const [selectedLanguage, setSelectedLanguage] = useState("All");
   const [maturityRating, setMaturityRating] = useState<MaturityRating>('NC-17');
+  
+  // Genre Page State
+  const [genreSearch, setGenreSearch] = useState("");
 
   // Local Storage State
   const [watchlist, setWatchlist] = useState<Movie[]>([]);
@@ -474,7 +500,9 @@ export default function App() {
          setHasMore(false); 
          return; 
     }
-    if (selectedCategory === "CineAnalytics" || selectedCategory === "LiveTV") return;
+    // Skip fetching for static pages that manage their own content or don't use the standard movie list
+    if (selectedCategory === "CineAnalytics" || selectedCategory === "LiveTV" || selectedCategory === "Genres") return;
+    
     if (selectedCategory.startsWith("Custom:")) { 
         const listName = selectedCategory.replace("Custom:", ""); 
         setMovies(sortMovies(customListsRef.current[listName] || [], sortOption)); 
@@ -795,6 +823,7 @@ export default function App() {
 
   const getPageTitle = () => {
       if (selectedCategory === "LiveTV") return "Live TV";
+      if (selectedCategory === "Genres") return "Genres";
       if (tmdbCollectionId) return "Collection View";
       if (activeKeyword) return `Tag: ${activeKeyword.name}`;
       if (currentCollection) return "Curated Collection";
@@ -809,6 +838,9 @@ export default function App() {
   // Browse is active if we are displaying content but NOT in one of the standard main views and NOT in a user library view.
   const isLibraryView = ['Watchlist', 'Favorites', 'History', 'CineAnalytics'].includes(selectedCategory) || selectedCategory.startsWith('Custom:');
   const isBrowseView = !isHomeView && !isTVView && !isLiveView && !isLibraryView && !searchQuery;
+
+  // Filter Genres based on search
+  const filteredGenres = GENRES_LIST.filter(g => g.toLowerCase().includes(genreSearch.toLowerCase()));
 
   return (
     <div className="min-h-screen bg-[#030303] text-white font-sans selection:bg-amber-500/30 selection:text-white">
@@ -852,7 +884,7 @@ export default function App() {
                                 { label: "Anime", icon: Ghost, action: () => { resetFilters(); setSelectedCategory("Anime"); } },
                                 { label: "Awards", icon: Award, action: () => { resetFilters(); setSortOption("vote_average.desc"); setSelectedCategory("All"); } },
                                 { label: "Family", icon: Baby, action: () => { resetFilters(); setSelectedCategory("Family"); } },
-                                { label: "Genres", icon: Clapperboard, action: () => setIsSidebarOpen(true) },
+                                { label: "Genres", icon: Clapperboard, action: () => { resetFilters(); setSelectedCategory("Genres"); } },
                                 { label: "India", icon: Globe, action: () => { resetFilters(); setSelectedCategory("All"); setSelectedRegion("IN"); } },
                                 { label: "Select", icon: Sparkles, action: () => { resetFilters(); setCurrentCollection('90s'); setSelectedCategory("Collection"); } },
                                 { label: "Trend", icon: TrendingUp, action: resetToHome },
@@ -1013,6 +1045,61 @@ export default function App() {
                <AnalyticsDashboard watchedMovies={watched} watchlist={watchlist} favorites={favorites} apiKey={apiKey} onMovieClick={setSelectedMovie} />
            ) : selectedCategory === "LiveTV" ? (
                <LiveTV userProfile={userProfile} />
+           ) : selectedCategory === "Genres" ? (
+               // DEDICATED GENRES PAGE
+               <div className="p-8 md:p-12 animate-in fade-in slide-in-from-bottom-4">
+                   <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-6">
+                       <div>
+                           <h1 className="text-4xl md:text-5xl font-black text-white tracking-tight">Genres</h1>
+                           <p className="text-white/50 mt-2 text-sm">Explore movies and TV shows by your favorite categories.</p>
+                       </div>
+                       <div className="relative w-full md:w-80 group">
+                           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30 group-focus-within:text-white transition-colors" size={18} />
+                           <input 
+                               type="text" 
+                               value={genreSearch} 
+                               onChange={(e) => setGenreSearch(e.target.value)} 
+                               placeholder="Search genre..." 
+                               className="w-full bg-white/5 border border-white/10 rounded-full py-3.5 pl-12 pr-6 text-sm text-white focus:outline-none focus:bg-white/10 focus:border-white/20 transition-all placeholder-white/20 shadow-lg" 
+                           />
+                       </div>
+                   </div>
+
+                   <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
+                       {filteredGenres.map(genre => {
+                           const colorClass = GENRE_COLORS[genre] || "from-gray-700 to-black";
+                           return (
+                               <div 
+                                   key={genre}
+                                   onClick={() => { resetFilters(); setSelectedCategory(genre); }}
+                                   className={`relative h-40 md:h-48 rounded-2xl overflow-hidden cursor-pointer group shadow-2xl transition-all duration-500 hover:scale-[1.02] hover:shadow-white/5`}
+                               >
+                                   <div className={`absolute inset-0 bg-gradient-to-br ${colorClass} opacity-80 group-hover:opacity-100 transition-opacity duration-500`}></div>
+                                   <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent"></div>
+                                   
+                                   {/* Decorative Circle */}
+                                   <div className="absolute -top-10 -right-10 w-32 h-32 bg-white/10 rounded-full blur-2xl group-hover:bg-white/20 transition-colors duration-500"></div>
+
+                                   <div className="absolute bottom-0 left-0 p-6 w-full">
+                                       <h3 className="text-xl md:text-2xl font-black text-white mb-1 group-hover:translate-x-1 transition-transform duration-300">{genre}</h3>
+                                       <div className="h-0.5 w-8 bg-white/50 rounded-full group-hover:w-16 transition-all duration-500"></div>
+                                   </div>
+                                   
+                                   <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-x-4 group-hover:translate-x-0">
+                                       <div className="bg-black/30 backdrop-blur-md p-2 rounded-full border border-white/10">
+                                           <ChevronRight size={16} className="text-white"/>
+                                       </div>
+                                   </div>
+                               </div>
+                           );
+                       })}
+                       {filteredGenres.length === 0 && (
+                           <div className="col-span-full py-20 text-center text-white/30">
+                               <p className="text-lg">No genres found matching "{genreSearch}"</p>
+                           </div>
+                       )}
+                   </div>
+               </div>
            ) : (
                <>
                    {!searchQuery && selectedCategory === "All" && !currentCollection && filterPeriod === "all" && featuredMovie && ( 
