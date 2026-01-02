@@ -20,7 +20,7 @@ const DEFAULT_COLLECTIONS: any = {
   "korean": { title: "K-Wave", params: { with_original_language: "ko", sort_by: "popularity.desc" }, icon: "🇰🇷", backdrop: "https://images.unsplash.com/photo-1517154421773-0529f29ea451?q=80&w=2000&auto=format&fit=crop", description: "Thrillers, Romance, and Drama from South Korea." },
 };
 
-// TMDB Collection IDs for popular franchises
+// TMDB Collection IDs for popular franchises (Global + Indian)
 const FRANCHISE_IDS = [
     86311,   // Marvel Cinematic Universe
     10,      // Star Wars
@@ -30,10 +30,18 @@ const FRANCHISE_IDS = [
     295,     // Pirates of the Caribbean
     645,     // James Bond
     558216,  // MonsterVerse
-    1060085, // YRF Spy Universe
+    1060085, // YRF Spy Universe (Pathaan/Tiger)
     119,     // Lord of the Rings
     87359,   // Mission Impossible
     52984,   // Batman (Nolan)
+    472535,  // Baahubali Collection
+    712282,  // KGF Collection
+    894562,  // Lokesh Cinematic Universe (Vikram/Kaithi)
+    1060096, // Cop Universe (Rohit Shetty)
+    125584,  // Golmaal Collection
+    1629,    // Dhoom Collection
+    254298,  // Housefull Collection
+    531241,  // Spider-Verse
 ];
 
 const COUNTRY_OPTIONS = [
@@ -389,6 +397,11 @@ export default function App() {
       }
   }, [watchlist, favorites, watched, customLists, userProfile, isCloudSync, isAuthenticated, apiKey, geminiKey, dataLoaded, searchHistory, maturityRating, appRegion]);
 
+  // Refetch when filters that affect query params change
+  useEffect(() => {
+      fetchMovies(1, false);
+  }, [selectedCategory, comingFilter, selectedRegion, filterPeriod, selectedLanguage, sortOption, activeCountry, activeKeyword, tmdbCollectionId]);
+
   const checkUnreadNotifications = async () => {
       try {
           const notifs = await getNotifications();
@@ -545,7 +558,7 @@ export default function App() {
          return; 
     }
     // Skip fetching for static pages 
-    if (["CineAnalytics", "LiveTV", "Genres", "Collections", "Countries", "Franchise"].includes(selectedCategory) && !activeCountry && selectedCategory !== "Franchise") return;
+    if (["CineAnalytics", "LiveTV", "Genres", "Collections", "Countries", "Franchise"].includes(selectedCategory) && !activeCountry && selectedCategory !== "Franchise" && selectedCategory !== "Coming") return;
     
     if (selectedCategory.startsWith("Custom:")) { 
         const listName = selectedCategory.replace("Custom:", ""); 
@@ -568,7 +581,6 @@ export default function App() {
     setAiContextReason(null);
 
     let maxCertification = maturityRating;
-    // ... Certification logic omitted for brevity, keeping existing ...
 
     try {
         let endpoint = "/discover/movie";
@@ -576,11 +588,16 @@ export default function App() {
             api_key: apiKey,
             page: pageNum.toString(),
             language: "en-US",
-            region: appRegion,
             include_adult: "false",
-            certification_country: "US",
-            "certification.lte": maxCertification
         });
+
+        // Apply default region/cert filters for standard categories to avoid bad quality results
+        // But SKIP for 'Coming' to ensure global results
+        if (selectedCategory !== "Coming" && selectedCategory !== "People") {
+             if (appRegion) params.append("region", appRegion);
+             params.append("certification_country", "US");
+             params.append("certification.lte", maxCertification);
+        }
 
         if (searchQuery) {
             // ... Search Logic ...
@@ -620,13 +637,6 @@ export default function App() {
         } 
         else if (selectedCategory === "People") {
             endpoint = "/person/popular";
-            // Fetch multiple pages for Alphabetical Sort on client side
-            // We'll fetch 5 pages roughly
-            if (pageNum === 1) {
-                // Special handling for alphabetical people view
-                // We'll fetch page 1 here, but the component will handle fetching more if needed
-                // actually, for simplicity in this change, let's just fetch popular
-            }
         }
         else if (selectedCategory === "Franchise") {
             // Fetch details for all predefined franchise IDs
@@ -672,12 +682,41 @@ export default function App() {
             params.append("sort_by", "popularity.desc");
         }
         else if (selectedCategory === "Coming") {
-            const today = new Date().toISOString().split('T')[0];
-            const nextYear = new Date();
-            nextYear.setFullYear(nextYear.getFullYear() + 2);
-            params.set("primary_release_date.gte", today);
-            params.set("primary_release_date.lte", nextYear.toISOString().split('T')[0]);
-            params.set("sort_by", "primary_release_date.asc");
+            // GLOBAL COMING SOON LOGIC
+            const today = new Date();
+            const todayStr = today.toISOString().split('T')[0];
+            
+            // Remove any potential US-centric filters that might have slipped in
+            params.delete("region");
+            params.delete("certification_country");
+            
+            if (comingFilter === 'today') {
+                params.set("primary_release_date.gte", todayStr);
+                params.set("primary_release_date.lte", todayStr);
+            } else if (comingFilter === 'announced') {
+                const farFuture = new Date();
+                farFuture.setFullYear(farFuture.getFullYear() + 2);
+                const nearFuture = new Date();
+                nearFuture.setMonth(nearFuture.getMonth() + 3);
+                
+                params.set("primary_release_date.gte", nearFuture.toISOString().split('T')[0]);
+                params.set("primary_release_date.lte", farFuture.toISOString().split('T')[0]);
+            } else {
+                // Upcoming (default) - Next 3 months
+                const future = new Date();
+                future.setMonth(future.getMonth() + 3);
+                params.set("primary_release_date.gte", todayStr);
+                params.set("primary_release_date.lte", future.toISOString().split('T')[0]);
+            }
+            
+            // Sort by popularity ensures big movies (Hollywood AND Indian) show up first
+            // rather than obscure low-budget films releasing tomorrow.
+            params.set("sort_by", "popularity.desc"); 
+            
+            // If explicit Indian region selected, restrict to IN content
+            if (selectedRegion === "IN") {
+                params.set("with_origin_country", "IN");
+            }
         }
         else {
              params.append("sort_by", sortOption === 'relevance' ? 'popularity.desc' : sortOption);
@@ -728,6 +767,8 @@ export default function App() {
             }
         }
         
+        // For Coming Soon, we must sort by release date for the timeline view to work correctly
+        // even though we fetched by popularity to get good movies.
         const finalResults = (selectedCategory === "Coming") 
             ? results.sort((a: Movie, b: Movie) => new Date(a.release_date || "").getTime() - new Date(b.release_date || "").getTime())
             : (selectedCategory === "People" ? results : sortMovies(results, sortOption));
@@ -751,7 +792,7 @@ export default function App() {
     } finally {
         if (!controller.signal.aborted) setLoading(false);
     }
-  }, [apiKey, searchQuery, selectedCategory, sortOption, appRegion, currentCollection, filterPeriod, selectedLanguage, selectedRegion, userProfile, maturityRating, sortMovies, tmdbCollectionId, activeKeyword, activeCountry]);
+  }, [apiKey, searchQuery, selectedCategory, sortOption, appRegion, currentCollection, filterPeriod, selectedLanguage, selectedRegion, userProfile, maturityRating, sortMovies, tmdbCollectionId, activeKeyword, activeCountry, comingFilter]);
 
   // ... Debounced Search & Suggestions Effects (Keep as is) ...
   useEffect(() => {
@@ -1391,6 +1432,7 @@ export default function App() {
            ) : (
                <>
                    {/* Standard or Category Views */}
+                   {/* ... (Existing Code for Standard Views) ... */}
                    {/* Render a fancy header for specific browse categories that are NOT the home page */}
                    {["Anime", "Family", "Awards", "India", "Coming", "People", "Countries"].includes(selectedCategory) && activeCountry && (
                         <div className="relative w-full overflow-hidden">
