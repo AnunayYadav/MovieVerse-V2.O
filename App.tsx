@@ -20,16 +20,20 @@ const DEFAULT_COLLECTIONS: any = {
   "korean": { title: "K-Wave", params: { with_original_language: "ko", sort_by: "popularity.desc" }, icon: "🇰🇷", backdrop: "https://images.unsplash.com/photo-1517154421773-0529f29ea451?q=80&w=2000&auto=format&fit=crop", description: "Thrillers, Romance, and Drama from South Korea." },
 };
 
-const FRANCHISES = [
-    { id: 86311, name: "Marvel Universe", image: "https://image.tmdb.org/t/p/w1280/mdfO7J7L4jJfW5bX2905s6J3pX2.jpg" },
-    { id: 115575, name: "DC Extended Universe", image: "https://image.tmdb.org/t/p/w1280/doi UtGzknA9F0eMlgB3A7Zl1Z.jpg" }, // Note: paths might need checking, using generic if fails
-    { id: 10, name: "Star Wars", image: "https://image.tmdb.org/t/p/w1280/d8duYyyC9JTLYGWap1oPBV5vpN.jpg" },
-    { id: 1241, name: "Harry Potter", image: "https://image.tmdb.org/t/p/w1280/hZkgoQYus5vegHoetLkCJzb17zJ.jpg" },
-    { id: 1060085, name: "YRF Spy Universe", image: "https://image.tmdb.org/t/p/w1280/g1S63Zc37BGFk238bVq2v2T6Z2.jpg" }, // Pathaan/Tiger
-    { id: 558216, name: "MonsterVerse", image: "https://image.tmdb.org/t/p/w1280/zH7tDZ5V9q1Y9J7bX9l1q7Z9.jpg" },
-    { id: 9485, name: "Fast & Furious", image: "https://image.tmdb.org/t/p/w1280/z3ioibdjWZOHEFtXjY9eQ2OQ.jpg" },
-    { id: 295, name: "Pirates of the Caribbean", image: "https://image.tmdb.org/t/p/w1280/z8lnkq3d5x2qGZ9.jpg" },
-    { id: 645, name: "James Bond", image: "https://image.tmdb.org/t/p/w1280/6t8esQ9QcNoViY9.jpg" },
+// TMDB Collection IDs for popular franchises
+const FRANCHISE_IDS = [
+    86311,   // Marvel Cinematic Universe
+    10,      // Star Wars
+    1241,    // Harry Potter
+    115575,  // DC Extended Universe
+    9485,    // Fast & Furious
+    295,     // Pirates of the Caribbean
+    645,     // James Bond
+    558216,  // MonsterVerse
+    1060085, // YRF Spy Universe
+    119,     // Lord of the Rings
+    87359,   // Mission Impossible
+    52984,   // Batman (Nolan)
 ];
 
 const COUNTRY_OPTIONS = [
@@ -90,6 +94,7 @@ export default function App() {
   const [dataLoaded, setDataLoaded] = useState(false); // Safety lock for syncing
 
   const [movies, setMovies] = useState<Movie[]>([]);
+  const [franchiseList, setFranchiseList] = useState<any[]>([]); // New state for Franchise objects
   const [searchQuery, setSearchQuery] = useState("");
   const [searchSuggestions, setSearchSuggestions] = useState<string[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -540,7 +545,7 @@ export default function App() {
          return; 
     }
     // Skip fetching for static pages 
-    if (["CineAnalytics", "LiveTV", "Genres", "Collections", "Countries", "Franchise"].includes(selectedCategory) && !activeCountry) return;
+    if (["CineAnalytics", "LiveTV", "Genres", "Collections", "Countries", "Franchise"].includes(selectedCategory) && !activeCountry && selectedCategory !== "Franchise") return;
     
     if (selectedCategory.startsWith("Custom:")) { 
         const listName = selectedCategory.replace("Custom:", ""); 
@@ -622,6 +627,20 @@ export default function App() {
                 // We'll fetch page 1 here, but the component will handle fetching more if needed
                 // actually, for simplicity in this change, let's just fetch popular
             }
+        }
+        else if (selectedCategory === "Franchise") {
+            // Fetch details for all predefined franchise IDs
+            const promises = FRANCHISE_IDS.map(id =>
+                fetchWithRetry(`${TMDB_BASE_URL}/collection/${id}?api_key=${apiKey}`, controller.signal)
+                .then(r => r.json())
+                .catch(() => null)
+            );
+            const data = await Promise.all(promises);
+            // Filter out failures
+            setFranchiseList(data.filter(d => d && d.id));
+            setLoading(false);
+            setHasMore(false);
+            return; // Exit early, we have our data
         }
         else if (selectedCategory === "TV Shows") {
             endpoint = "/discover/tv";
@@ -1203,20 +1222,30 @@ export default function App() {
                <div className="p-8 md:p-12 animate-in fade-in slide-in-from-bottom-4">
                    {renderPageHeader("Franchises", "Dive into the world's biggest cinematic universes.")}
                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                       {FRANCHISES.map(franchise => (
+                       {franchiseList.map(franchise => (
                            <div 
                                key={franchise.id}
                                onClick={() => handleTmdbCollectionClick(franchise.id)}
                                className="group relative h-64 rounded-3xl overflow-hidden cursor-pointer shadow-xl transition-all duration-500 hover:scale-[1.02] hover:shadow-2xl hover:shadow-white/5"
                            >
-                               <img src={franchise.image} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110 opacity-70 group-hover:opacity-100" alt={franchise.name} />
-                               <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent"></div>
+                               <img 
+                                   src={franchise.backdrop_path ? `${TMDB_BACKDROP_BASE}${franchise.backdrop_path}` : "https://placehold.co/600x400?text=No+Image"} 
+                                   className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110 opacity-70 group-hover:opacity-100" 
+                                   alt={franchise.name} 
+                               />
+                               <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent"></div>
                                <div className="absolute bottom-0 left-0 p-8 w-full">
-                                   <h3 className="text-2xl font-black text-white mb-1 drop-shadow-lg">{franchise.name}</h3>
+                                   <h3 className="text-2xl font-black text-white mb-1 drop-shadow-lg leading-tight">{franchise.name}</h3>
+                                   <p className="text-xs text-gray-300 line-clamp-2 mb-2 opacity-80">{franchise.overview}</p>
                                    <div className="h-1 w-12 bg-red-600 rounded-full group-hover:w-24 transition-all duration-500"></div>
                                </div>
                            </div>
                        ))}
+                       {franchiseList.length === 0 && loading && (
+                           <div className="col-span-full h-64 flex items-center justify-center">
+                                <div className="animate-pulse text-white/50 text-sm">Loading franchises...</div>
+                           </div>
+                       )}
                    </div>
                </div>
            ) : selectedCategory === "Countries" && !activeCountry ? (
