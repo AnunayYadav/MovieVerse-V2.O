@@ -1,8 +1,7 @@
-
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Search, Film, Menu, TrendingUp, Tv, Ghost, Calendar, Star, X, Sparkles, Settings, Globe, BarChart3, Bookmark, Heart, Folder, Languages, Filter, ChevronDown, Info, Plus, Cloud, CloudOff, Clock, Bell, History, Users, Tag, Dice5, Crown, Radio, LayoutGrid, Award, Baby, Clapperboard, ChevronRight, PlayCircle } from 'lucide-react';
+import { Search, Film, Menu, TrendingUp, Tv, Ghost, Calendar, Star, X, Sparkles, Settings, Globe, BarChart3, Bookmark, Heart, Folder, Languages, Filter, ChevronDown, Info, Plus, Cloud, CloudOff, Clock, Bell, History, Users, Tag, Dice5, Crown, Radio, LayoutGrid, Award, Baby, Clapperboard, ChevronRight, PlayCircle, Megaphone, CalendarDays } from 'lucide-react';
 import { Movie, UserProfile, GENRES_MAP, GENRES_LIST, INDIAN_LANGUAGES, MaturityRating, Keyword } from './types';
-import { LogoLoader, MovieSkeleton, MovieCard, PersonCard, PosterMarquee, TMDB_BASE_URL, TMDB_BACKDROP_BASE, HARDCODED_TMDB_KEY, HARDCODED_GEMINI_KEY, getTmdbKey, getGeminiKey } from './components/Shared';
+import { LogoLoader, MovieSkeleton, MovieCard, PersonCard, PosterMarquee, TMDB_BASE_URL, TMDB_BACKDROP_BASE, TMDB_IMAGE_BASE, HARDCODED_TMDB_KEY, HARDCODED_GEMINI_KEY, getTmdbKey, getGeminiKey } from './components/Shared';
 import { MoviePage } from './components/MovieDetails';
 import { AnalyticsDashboard } from './components/Analytics';
 import { ProfilePage, ListSelectionModal, PersonPage, AIRecommendationModal, NotificationModal, ComparisonModal } from './components/Modals';
@@ -85,8 +84,9 @@ export default function App() {
   const [selectedLanguage, setSelectedLanguage] = useState("All");
   const [maturityRating, setMaturityRating] = useState<MaturityRating>('NC-17');
   
-  // Genre Page State
+  // Genre & Coming Soon Page State
   const [genreSearch, setGenreSearch] = useState("");
+  const [comingFilter, setComingFilter] = useState("upcoming"); // 'today', 'upcoming', 'announced'
 
   // Local Storage State
   const [watchlist, setWatchlist] = useState<Movie[]>([]);
@@ -648,8 +648,12 @@ export default function App() {
         }
         else if (selectedCategory === "Coming") {
             const today = new Date().toISOString().split('T')[0];
-            params.set("sort_by", "popularity.desc");
-            params.append("primary_release_date.gte", today);
+            const nextYear = new Date();
+            nextYear.setFullYear(nextYear.getFullYear() + 2);
+            // Ensure we get future movies sorted by date
+            params.set("primary_release_date.gte", today);
+            params.set("primary_release_date.lte", nextYear.toISOString().split('T')[0]);
+            params.set("sort_by", "primary_release_date.asc");
         }
         else {
              params.append("sort_by", sortOption === 'relevance' ? 'popularity.desc' : sortOption);
@@ -682,7 +686,10 @@ export default function App() {
             }
         }
         
-        const finalResults = selectedCategory === "People" ? results : sortMovies(results, sortOption);
+        // For Coming Soon, we might need manual sorting if API doesn't fully respect it for all regions
+        const finalResults = (selectedCategory === "Coming") 
+            ? results.sort((a: Movie, b: Movie) => new Date(a.release_date || "").getTime() - new Date(b.release_date || "").getTime())
+            : (selectedCategory === "People" ? results : sortMovies(results, sortOption));
 
         if (isLoadMore) {
             setMovies(prev => [...prev, ...finalResults]);
@@ -803,6 +810,21 @@ export default function App() {
     if (node) observer.current.observe(node);
   }, [loading, hasMore]);
 
+  // Group Movies by Date for Coming Soon Timeline
+  const groupMoviesByDate = (movieList: Movie[]) => {
+      const groups: Record<string, Movie[]> = {};
+      movieList.forEach(m => {
+          const date = m.release_date || "TBA";
+          if (!groups[date]) groups[date] = [];
+          groups[date].push(m);
+      });
+      return Object.entries(groups).sort((a, b) => {
+          if (a[0] === "TBA") return 1;
+          if (b[0] === "TBA") return -1;
+          return a[0].localeCompare(b[0]);
+      });
+  };
+
   if (authChecking) {
       return <div className="fixed inset-0 bg-black flex items-center justify-center"><LogoLoader /></div>;
   }
@@ -816,7 +838,7 @@ export default function App() {
             onClose={() => setIsSettingsOpen(false)} 
             apiKey={apiKey} 
             setApiKey={(k) => saveSettings(k)} 
-            geminiKey={geminiKey}
+            geminiKey={geminiKey} 
             setGeminiKey={(k) => saveGeminiKey(k)}
             maturityRating={maturityRating}
             setMaturityRating={setMaturityRating}
@@ -836,6 +858,7 @@ export default function App() {
       if (selectedCategory === "LiveTV") return "Live TV";
       if (selectedCategory === "Genres") return "Genres";
       if (selectedCategory === "Collections") return "Collections";
+      if (selectedCategory === "Coming") return "Coming Soon";
       if (tmdbCollectionId) return "Collection View";
       if (activeKeyword) return `Tag: ${activeKeyword.name}`;
       if (currentCollection) return DEFAULT_COLLECTIONS[currentCollection]?.title || "Curated Collection";
@@ -848,22 +871,8 @@ export default function App() {
   const isTVView = selectedCategory === "TV Shows" && !searchQuery;
   const isLiveView = selectedCategory === "LiveTV" && !searchQuery;
   
-  // Dynamic Label Logic
-  const getBrowseLabel = () => {
-      if (selectedCategory === "Genres") return "Genres";
-      if (selectedCategory === "People") return "People";
-      if (selectedCategory === "Anime") return "Anime";
-      if (selectedCategory === "Family") return "Family";
-      if (selectedCategory === "Collections") return "Collections";
-      if (currentCollection) return "Collection";
-      if (selectedCategory === "India") return "India";
-      if (selectedCategory === "Coming") return "Coming Soon";
-      if (selectedCategory === "Awards") return "Awards";
-      return "Browse";
-  };
-  
-  const activeBrowseLabel = getBrowseLabel();
-  const isBrowseActive = activeBrowseLabel !== "Browse" || (!isHomeView && !isTVView && !isLiveView && !selectedCategory.startsWith("Watchlist") && !selectedCategory.startsWith("Favorites") && !selectedCategory.startsWith("History") && !selectedCategory.startsWith("Custom") && !selectedCategory.startsWith("CineAnalytics") && !searchQuery);
+  // Highlight "Browse" if a sub-category is selected
+  const isBrowseActive = !isHomeView && !isTVView && !isLiveView && !selectedCategory.startsWith("Watchlist") && !selectedCategory.startsWith("Favorites") && !selectedCategory.startsWith("History") && !selectedCategory.startsWith("Custom") && !selectedCategory.startsWith("CineAnalytics") && !searchQuery;
 
   // Filter Genres based on search
   const filteredGenres = GENRES_LIST.filter(g => g.toLowerCase().includes(genreSearch.toLowerCase()));
@@ -917,7 +926,7 @@ export default function App() {
                 <div className="relative group z-50">
                     <button className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium transition-all outline-none ${isBrowseActive ? "bg-white text-black font-bold" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>
                         <LayoutGrid size={16} />
-                        <span>{activeBrowseLabel}</span>
+                        <span>Browse</span>
                     </button>
                     
                     <div className="absolute top-full left-0 pt-4 w-[280px] hidden group-hover:block animate-in fade-in slide-in-from-top-2 duration-200">
@@ -1032,7 +1041,7 @@ export default function App() {
                <div className="mb-6 md:hidden">
                     <div className="relative">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40" size={16} />
-                        <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} onKeyDown={(e) => { if(e.key === 'Enter') handleSearchSubmit(searchQuery); }} placeholder="Search..." className={`w-full bg-white/5 border border-white/10 rounded-xl py-3 pl-10 text-sm text-white focus:outline-none focus:bg-white/5 transition-colors ${isGoldTheme ? 'focus:border-amber-500' : 'focus:border-red-600'}`} />
+                        <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} onKeyDown={(e) => { if(e.key === 'Enter') handleSearchSubmit(searchQuery); }} placeholder="Search..." className={`w-full bg-white/5 border border-white/10 rounded-xl py-3 pl-10 text-sm text-white focus:outline-none focus:bg-white/10 transition-colors ${isGoldTheme ? 'focus:border-amber-500' : 'focus:border-red-600'}`} />
                     </div>
                </div>
 
@@ -1150,6 +1159,88 @@ export default function App() {
                                </div>
                            );
                        })}
+                   </div>
+               </div>
+           ) : selectedCategory === "Coming" ? (
+               // COMING SOON TIMELINE PAGE
+               <div className="p-6 md:p-8 animate-in fade-in slide-in-from-bottom-4 flex flex-col lg:flex-row gap-8">
+                   {/* Sidebar Filters */}
+                   <div className="w-full lg:w-64 shrink-0 space-y-6">
+                       <div className="bg-[#0f0f0f] rounded-2xl p-5 border border-white/10 sticky top-24">
+                           <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2"><CalendarDays size={18}/> Schedule</h3>
+                           <div className="space-y-1">
+                               {['today', 'upcoming', 'announced'].map(opt => (
+                                   <button 
+                                       key={opt}
+                                       onClick={() => setComingFilter(opt)}
+                                       className={`w-full text-left px-4 py-3 rounded-xl text-sm font-bold transition-all flex items-center gap-3 ${comingFilter === opt ? 'bg-purple-600 text-white shadow-lg' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
+                                   >
+                                       {opt === 'today' && <LayoutGrid size={16}/>}
+                                       {opt === 'upcoming' && <Calendar size={16}/>}
+                                       {opt === 'announced' && <Megaphone size={16}/>}
+                                       <span className="capitalize">{opt}</span>
+                                   </button>
+                               ))}
+                           </div>
+                       </div>
+                   </div>
+
+                   {/* Timeline Feed */}
+                   <div className="flex-1 space-y-12">
+                       {groupMoviesByDate(movies).map(([date, dateMovies]) => {
+                           const d = new Date(date);
+                           const isTBA = date === "TBA";
+                           return (
+                               <div key={date} className="animate-in slide-in-from-right-4 duration-500">
+                                   <div className="flex flex-col md:flex-row gap-6">
+                                       {/* Date Badge */}
+                                       <div className="w-full md:w-24 shrink-0 flex md:flex-col items-center md:items-start gap-2 md:gap-0">
+                                           {!isTBA ? (
+                                               <>
+                                                   <div className="text-xs font-bold text-gray-500 uppercase tracking-widest">{d.toLocaleDateString('en-US', { weekday: 'short' })}</div>
+                                                   <div className="text-4xl font-black text-white leading-none md:mb-1">{d.getDate()}</div>
+                                                   <div className="text-sm font-bold text-gray-400 uppercase">{d.toLocaleDateString('en-US', { month: 'short' })}</div>
+                                               </>
+                                           ) : (
+                                               <span className="text-lg font-bold text-gray-500">TBA</span>
+                                           )}
+                                           <div className="h-px w-full md:w-px md:h-full bg-gradient-to-r md:bg-gradient-to-b from-transparent via-white/10 to-transparent flex-1 mt-2 md:mt-4 md:mx-auto"></div>
+                                       </div>
+
+                                       {/* Movies Grid */}
+                                       <div className="flex-1 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+                                           {dateMovies.map(movie => (
+                                               <div 
+                                                   key={movie.id} 
+                                                   onClick={() => setSelectedMovie(movie)}
+                                                   className="group cursor-pointer relative"
+                                               >
+                                                   <div className="aspect-[2/3] rounded-xl overflow-hidden bg-gray-900 mb-3 relative shadow-lg transition-all duration-300 group-hover:scale-105 group-hover:shadow-2xl">
+                                                       <img 
+                                                           src={movie.poster_path ? `${TMDB_IMAGE_BASE}${movie.poster_path}` : "https://placehold.co/300x450/111/333?text=Poster"} 
+                                                           alt={movie.title} 
+                                                           className="w-full h-full object-cover"
+                                                           loading="lazy"
+                                                       />
+                                                       <div className="absolute top-2 right-2 bg-orange-600/90 backdrop-blur-sm text-white text-[10px] font-bold px-2 py-0.5 rounded-md flex items-center gap-1">
+                                                           <TrendingUp size={10}/> {Math.round(movie.popularity)}
+                                                       </div>
+                                                   </div>
+                                                   <h4 className="text-white font-bold text-sm leading-tight group-hover:text-purple-400 transition-colors">{movie.title}</h4>
+                                                   <p className="text-gray-500 text-xs mt-1 line-clamp-1">{movie.overview}</p>
+                                               </div>
+                                           ))}
+                                       </div>
+                                   </div>
+                               </div>
+                           );
+                       })}
+                       {movies.length === 0 && !loading && (
+                           <div className="text-center py-20 text-gray-500">
+                               <Calendar size={48} className="mx-auto mb-4 opacity-30"/>
+                               <p>No upcoming releases found for this filter.</p>
+                           </div>
+                       )}
                    </div>
                </div>
            ) : (
