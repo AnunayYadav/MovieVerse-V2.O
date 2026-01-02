@@ -20,29 +20,6 @@ const DEFAULT_COLLECTIONS: any = {
   "korean": { title: "K-Wave", params: { with_original_language: "ko", sort_by: "popularity.desc" }, icon: "🇰🇷", backdrop: "https://images.unsplash.com/photo-1517154421773-0529f29ea451?q=80&w=2000&auto=format&fit=crop", description: "Thrillers, Romance, and Drama from South Korea." },
 };
 
-const COUNTRY_OPTIONS = [
-    { code: "US", name: "United States", flag: "🇺🇸" },
-    { code: "GB", name: "United Kingdom", flag: "🇬🇧" },
-    { code: "KR", name: "South Korea", flag: "🇰🇷" },
-    { code: "JP", name: "Japan", flag: "🇯🇵" },
-    { code: "IN", name: "India", flag: "🇮🇳" },
-    { code: "FR", name: "France", flag: "🇫🇷" },
-    { code: "CN", name: "China", flag: "🇨🇳" },
-    { code: "ES", name: "Spain", flag: "🇪🇸" },
-    { code: "DE", name: "Germany", flag: "🇩🇪" },
-    { code: "IT", name: "Italy", flag: "🇮🇹" },
-    { code: "CA", name: "Canada", flag: "🇨🇦" },
-    { code: "AU", name: "Australia", flag: "🇦🇺" },
-    { code: "MX", name: "Mexico", flag: "🇲🇽" },
-    { code: "BR", name: "Brazil", flag: "🇧🇷" },
-    { code: "TR", name: "Turkey", flag: "🇹🇷" },
-    { code: "TH", name: "Thailand", flag: "🇹🇭" },
-    { code: "HK", name: "Hong Kong", flag: "🇭🇰" },
-    { code: "RU", name: "Russia", flag: "🇷🇺" },
-    { code: "SE", name: "Sweden", flag: "🇸🇪" },
-    { code: "NO", name: "Norway", flag: "🇳🇴" },
-];
-
 export default function App() {
   const [apiKey, setApiKey] = useState(getTmdbKey());
   const [geminiKey, setGeminiKey] = useState(getGeminiKey());
@@ -73,7 +50,6 @@ export default function App() {
   const [currentCollection, setCurrentCollection] = useState<string | null>(null);
   const [tmdbCollectionId, setTmdbCollectionId] = useState<number | null>(null);
   const [activeKeyword, setActiveKeyword] = useState<Keyword | null>(null);
-  const [activeCountry, setActiveCountry] = useState<{ code: string, name: string } | null>(null);
   
   const [filterPeriod, setFilterPeriod] = useState("all");
   const [selectedLanguage, setSelectedLanguage] = useState("All");
@@ -312,7 +288,6 @@ export default function App() {
                }
 
                if (selectedLanguage !== 'All') params.append("with_original_language", selectedLanguage);
-               if (activeCountry) params.append("region", activeCountry.code);
 
                const res = await fetch(`${url}?${params.toString()}`);
                const data = await res.json();
@@ -332,7 +307,7 @@ export default function App() {
       } finally {
           setLoading(false);
       }
-  }, [apiKey, currentCollection, tmdbCollectionId, searchQuery, selectedCategory, sortOption, activeKeyword, filterPeriod, selectedLanguage, activeCountry, comingFilter]);
+  }, [apiKey, currentCollection, tmdbCollectionId, searchQuery, selectedCategory, sortOption, activeKeyword, filterPeriod, selectedLanguage, comingFilter]);
 
   useEffect(() => {
       fetchMovies(1, false);
