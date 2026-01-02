@@ -1,4 +1,3 @@
-
 export interface Movie {
   id: number;
   title: string;
@@ -216,6 +215,7 @@ export interface UserProfile {
   enableHistory?: boolean; // Toggle for history recording
   // Synced Preferences
   maturityRating?: MaturityRating;
+  region?: string;
 }
 
 export interface AIAnalysisResult {

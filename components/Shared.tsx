@@ -44,8 +44,17 @@ export const getGeminiKey = (): string => {
 
 // --- UTILITIES ---
 
-export const formatCurrency = (value: number | undefined) => {
+export const formatCurrency = (value: number | undefined, region: string = 'US') => {
     if (!value || value === 0) return "N/A";
+    
+    if (region === 'IN') {
+        const inrValue = value * 84;
+        if (inrValue >= 10000000) {
+            return `₹${(inrValue / 10000000).toFixed(2)} Cr`;
+        }
+        return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(inrValue);
+    }
+  
     return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(value);
 };
 

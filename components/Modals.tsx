@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { UserCircle, X, ListPlus, Plus, Check, Loader2, Film, AlertCircle, BrainCircuit, Search, Star, RefreshCcw, Bell, CheckCheck, Inbox, Heart, PaintBucket, Upload, Facebook, Instagram, Twitter, Globe, Scale, DollarSign, Clock, Trophy, ChevronRight, ChevronDown, Calendar, ArrowUp, ArrowDown, TrendingUp, History, ArrowLeft, MoreHorizontal, Dice5, Sparkles } from 'lucide-react';
+import { UserCircle, X, ListPlus, Plus, Check, Loader2, Film, AlertCircle, BrainCircuit, Search, Star, RefreshCcw, Bell, CheckCheck, Inbox, Heart, PaintBucket, Upload, Facebook, Instagram, Twitter, Globe, Scale, DollarSign, Clock, Trophy, ChevronRight, ChevronDown, Calendar, ArrowUp, ArrowDown, TrendingUp, History, ArrowLeft, MoreHorizontal, Dice5 } from 'lucide-react';
 import { UserProfile, Movie, GENRES_LIST, PersonDetails, AppNotification, MovieDetails } from '../types';
 import { TMDB_BASE_URL, TMDB_IMAGE_BASE, formatCurrency } from './Shared';
 import { generateSmartRecommendations } from '../services/gemini';
@@ -360,14 +360,14 @@ const FilmographyModal: React.FC<FilmographyModalProps> = ({ isOpen, onClose, pe
     );
 };
 
-// LIST SELECTION MODAL
-export interface ListModalProps {
+// LIST SELECTION MODAL (Keep as Modal)
+interface ListModalProps {
     isOpen: boolean;
     onClose: () => void;
     movie: Movie | null;
     customLists: Record<string, Movie[]>;
-    onCreateList: (name: string, movie: Movie) => void;
-    onAddToList: (name: string, movie: Movie) => void;
+    onCreateList: (name: string, m: Movie) => void;
+    onAddToList: (name: string, m: Movie) => void;
 }
 
 export const ListSelectionModal: React.FC<ListModalProps> = ({ isOpen, onClose, movie, customLists, onCreateList, onAddToList }) => {
@@ -394,7 +394,7 @@ export const ListSelectionModal: React.FC<ListModalProps> = ({ isOpen, onClose, 
     );
 };
 
-// COMPARISON MODAL
+// COMPARISON MODAL (Keep as Modal)
 interface ComparisonModalProps {
     isOpen: boolean;
     onClose: () => void;
@@ -546,11 +546,11 @@ export const ComparisonModal: React.FC<ComparisonModalProps> = ({ isOpen, onClos
                         <div className="mt-12 space-y-8 max-w-3xl mx-auto">
                             <div className="space-y-2">
                                 <p className="text-center text-xs font-bold text-gray-500 uppercase tracking-widest flex items-center justify-center gap-2"><DollarSign size={14}/> Budget</p>
-                                <ComparisonBar val1={movie1.budget} val2={movie2.budget} max={Math.max(movie1.budget, movie2.budget) * 1.2} format={(v) => formatCurrency(v)} />
+                                <ComparisonBar val1={movie1.budget} val2={movie2.budget} max={Math.max(movie1.budget, movie2.budget) * 1.2} format={(v) => formatCurrency(v, 'US')} />
                             </div>
                             <div className="space-y-2">
                                 <p className="text-center text-xs font-bold text-gray-500 uppercase tracking-widest flex items-center justify-center gap-2"><Trophy size={14}/> Box Office</p>
-                                <ComparisonBar val1={movie1.revenue} val2={movie2.revenue} max={Math.max(movie1.revenue, movie2.revenue) * 1.2} format={(v) => formatCurrency(v)} />
+                                <ComparisonBar val1={movie1.revenue} val2={movie2.revenue} max={Math.max(movie1.revenue, movie2.revenue) * 1.2} format={(v) => formatCurrency(v, 'US')} />
                             </div>
                             <div className="space-y-2">
                                 <p className="text-center text-xs font-bold text-gray-500 uppercase tracking-widest flex items-center justify-center gap-2"><Star size={14}/> User Rating</p>
@@ -617,90 +617,69 @@ export const PersonPage: React.FC<PersonPageProps> = ({ personId, onClose, apiKe
                     <img 
                         src={details.profile_path ? `${TMDB_IMAGE_BASE}${details.profile_path}` : "https://placehold.co/300x450/333/FFF?text=No+Image"} 
                         alt={details.name} 
-                        className="w-48 rounded-xl shadow-2xl border border-white/10 mb-6 object-cover aspect-[2/3] animate-in zoom-in duration-500"
+                        className="w-48 rounded-xl shadow-2xl border border-white/10 mb-6 object-cover aspect-[2/3] animate-in fade-in zoom-in duration-500" 
                     />
-                    <h2 className="text-2xl font-bold text-white mb-1">{details.name}</h2>
-                    <p className="text-red-400 font-bold uppercase text-xs tracking-widest mb-4">{details.known_for_department}</p>
                     
-                    <div className="flex gap-3 mb-8">
-                        {details.external_ids?.instagram_id && <SocialLink url={`https://instagram.com/${details.external_ids.instagram_id}`} icon={Instagram} color="text-pink-500"/>}
+                    <h2 className="text-2xl font-bold text-white mb-1">{details.name}</h2>
+                    <p className="text-red-400 text-xs font-bold tracking-wider uppercase mb-6">{details.known_for_department}</p>
+
+                    {/* Social Links */}
+                    <div className="flex justify-center gap-3 mb-6">
+                        {details.external_ids?.imdb_id && <SocialLink url={`https://www.imdb.com/name/${details.external_ids.imdb_id}`} icon={Film} color="text-yellow-400"/>}
+                        {details.external_ids?.instagram_id && <SocialLink url={`https://instagram.com/${details.external_ids.instagram_id}`} icon={Instagram} color="text-pink-400"/>}
                         {details.external_ids?.twitter_id && <SocialLink url={`https://twitter.com/${details.external_ids.twitter_id}`} icon={Twitter} color="text-blue-400"/>}
                         {details.external_ids?.facebook_id && <SocialLink url={`https://facebook.com/${details.external_ids.facebook_id}`} icon={Facebook} color="text-blue-600"/>}
                         {details.homepage && <SocialLink url={details.homepage} icon={Globe} color="text-green-400"/>}
                     </div>
 
-                    <div className="w-full space-y-4 text-left bg-white/5 p-4 rounded-xl border border-white/5">
-                        <div>
-                            <p className="text-[10px] text-gray-500 font-bold uppercase mb-0.5">Born</p>
-                            <p className="text-sm text-gray-200 font-medium">{details.birthday ? new Date(details.birthday).toLocaleDateString() : 'N/A'}</p>
-                        </div>
-                        <div>
-                            <p className="text-[10px] text-gray-500 font-bold uppercase mb-0.5">Place of Birth</p>
-                            <p className="text-sm text-gray-200 font-medium">{details.place_of_birth || 'N/A'}</p>
-                        </div>
+                    <div className="space-y-3 w-full text-left">
+                      <div className="bg-white/5 p-3 rounded-xl border border-white/5"><span className="text-white/40 block text-[10px] uppercase font-bold tracking-wider mb-0.5">Born</span><span className="text-white font-medium text-sm">{details.birthday || 'N/A'}</span></div>
+                      <div className="bg-white/5 p-3 rounded-xl border border-white/5"><span className="text-white/40 block text-[10px] uppercase font-bold tracking-wider mb-0.5">Place of Birth</span><span className="text-white font-medium text-sm">{details.place_of_birth || 'N/A'}</span></div>
                     </div>
                   </div>
 
                   {/* Right Column: Bio & Credits */}
-                  <div className="flex-1 p-6 md:p-10 lg:overflow-y-auto">
-                      <div className="max-w-4xl mx-auto">
-                          <div className="mb-10">
-                              <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2"><UserCircle size={20} className="text-red-500"/> Biography</h3>
-                              <p className="text-gray-300 text-sm leading-relaxed whitespace-pre-line font-light">
-                                  {details.biography || "No biography available."}
-                              </p>
+                  <div className="flex-1 p-6 lg:p-10">
+                    <h3 className="text-xl font-bold text-white mb-3">Biography</h3>
+                    <p className="text-gray-300 text-sm leading-relaxed mb-8 whitespace-pre-line max-w-4xl">{details.biography || "No biography available."}</p>
+                    
+                    <div className="flex items-center justify-between mb-5">
+                        <h3 className="text-lg font-bold text-white flex items-center gap-2"><Film size={18} className="text-red-500"/> Known For</h3>
+                        <button 
+                            onClick={() => setShowFilmography(true)}
+                            className="px-4 py-2 bg-white/5 hover:bg-white/10 rounded-lg text-xs font-bold text-white border border-white/10 transition-all active:scale-95"
+                        >
+                            View Full Filmography
+                        </button>
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-4">
+                        {details.combined_credits?.cast?.sort((a: any,b: any) => b.popularity - a.popularity).slice(0, 10).map((movie: Movie) => (
+                          <div key={movie.id} onClick={() => onMovieClick(movie)} className="cursor-pointer group">
+                            <div className="aspect-[2/3] rounded-lg overflow-hidden mb-2 relative border border-white/5 shadow-lg"><img src={movie.poster_path ? `${TMDB_IMAGE_BASE}${movie.poster_path}` : "https://placehold.co/100x150"} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 ease-out" alt={movie.title || movie.name} /></div>
+                            <p className="text-xs font-bold text-white truncate group-hover:text-red-400 transition-colors">{movie.title || movie.name}</p>
+                            <p className="text-[10px] text-gray-500 mt-0.5">{movie.release_date?.split('-')[0] || movie.first_air_date?.split('-')[0]}</p>
                           </div>
-
-                          <div>
-                              <div className="flex items-center justify-between mb-6">
-                                  <h3 className="text-xl font-bold text-white flex items-center gap-2"><Film size={20} className="text-red-500"/> Known For</h3>
-                                  <button onClick={() => setShowFilmography(true)} className="text-xs font-bold text-gray-400 hover:text-white flex items-center gap-1 hover:underline transition-all">View All <ChevronRight size={14}/></button>
-                              </div>
-                              
-                              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                                  {details.combined_credits.cast
-                                      .sort((a, b) => (b.popularity || 0) - (a.popularity || 0))
-                                      .slice(0, 10)
-                                      .map((credit, idx) => (
-                                          <div key={`${credit.id}-${idx}`} className="group cursor-pointer" onClick={() => { onClose(); onMovieClick(credit); }}>
-                                              <div className="aspect-[2/3] rounded-lg overflow-hidden bg-white/5 mb-2 relative border border-white/5 transition-all duration-300 group-hover:scale-105 group-hover:border-white/20 group-hover:shadow-lg">
-                                                  <img 
-                                                      src={credit.poster_path ? `${TMDB_IMAGE_BASE}${credit.poster_path}` : "https://placehold.co/300x450/333/FFF?text=Movie"} 
-                                                      alt={credit.title || credit.name} 
-                                                      className="w-full h-full object-cover"
-                                                      loading="lazy"
-                                                  />
-                                                  <div className="absolute inset-0 bg-black/20 group-hover:bg-transparent transition-colors"></div>
-                                              </div>
-                                              <p className="text-xs font-bold text-gray-300 group-hover:text-white truncate transition-colors">{credit.title || credit.name}</p>
-                                              <p className="text-[10px] text-gray-500 truncate">{credit.release_date?.split('-')[0] || credit.first_air_date?.split('-')[0]}</p>
-                                          </div>
-                                      ))
-                                  }
-                              </div>
-                          </div>
-                      </div>
+                        ))}
+                     </div>
                   </div>
              </div>
-          ) : (
-              <div className="h-screen flex items-center justify-center text-gray-500">Person not found.</div>
-          )}
-
-          {showFilmography && details && (
-              <FilmographyModal 
-                  isOpen={showFilmography} 
-                  onClose={() => setShowFilmography(false)} 
-                  personId={personId} 
-                  personName={details.name} 
-                  apiKey={apiKey}
-                  onMovieClick={(m) => { onClose(); onMovieClick(m); }}
-              />
-          )}
+          ) : null}
+        
+        {details && (
+            <FilmographyModal 
+                isOpen={showFilmography}
+                onClose={() => setShowFilmography(false)}
+                personId={personId}
+                personName={details.name}
+                apiKey={apiKey}
+                onMovieClick={onMovieClick}
+            />
+        )}
       </div>
     );
 };
 
-// AI RECOMMENDATION MODAL
+// AI RECOMMENDATION MODAL (Keep as Modal)
 interface AIRecommendationModalProps {
     isOpen: boolean;
     onClose: () => void;
@@ -709,117 +688,110 @@ interface AIRecommendationModalProps {
 
 export const AIRecommendationModal: React.FC<AIRecommendationModalProps> = ({ isOpen, onClose, apiKey }) => {
     const [query, setQuery] = useState("");
-    const [recommendations, setRecommendations] = useState<string[]>([]);
+    const [results, setResults] = useState<any>(null);
     const [loading, setLoading] = useState(false);
-    const [aiReason, setAiReason] = useState("");
-    const [hydratedMovies, setHydratedMovies] = useState<Movie[]>([]);
-
-    useEffect(() => {
-        if (!isOpen) {
-            setQuery("");
-            setRecommendations([]);
-            setAiReason("");
-            setHydratedMovies([]);
-        }
-    }, [isOpen]);
-
-    const handleSearch = async () => {
-        if (!query.trim() || !apiKey) return;
-        setLoading(true);
-        setHydratedMovies([]);
-        
-        try {
-            const result = await generateSmartRecommendations(query);
-            setRecommendations(result.movies);
-            setAiReason(result.reason);
-
-            // Hydrate movies
-            const promises = result.movies.map(title => 
-                fetch(`${TMDB_BASE_URL}/search/multi?api_key=${apiKey}&query=${encodeURIComponent(title)}`)
-                .then(r => r.json())
-                .then(d => d.results?.find((m: any) => m.media_type === 'movie' || m.media_type === 'tv'))
+    const [aiContext, setAiContext] = useState("");
+  
+    const handleRecommend = async () => {
+      if (!query.trim()) return;
+      setLoading(true);
+      setResults(null);
+      setAiContext("");
+      
+      try {
+         const geminiResponse = await generateSmartRecommendations(query);
+         if (geminiResponse && geminiResponse.movies) {
+              setAiContext(geminiResponse.reason);
+              const searches = geminiResponse.movies.map(title => 
+                fetch(`${TMDB_BASE_URL}/search/movie?api_key=${apiKey}&query=${encodeURIComponent(title)}&include_adult=false`)
+                .then(r => { if(!r.ok) throw new Error("Fetch failed"); return r.json(); })
+                .then(d => d.results?.[0])
                 .catch(() => null)
-            );
-            
-            const movies = await Promise.all(promises);
-            setHydratedMovies(movies.filter(Boolean));
-
-        } catch (e) {
-            console.error("AI Search Failed", e);
-        } finally {
-            setLoading(false);
-        }
+              );
+              const fetchedMovies = (await Promise.all(searches)).filter(Boolean);
+              if (fetchedMovies.length > 0) { setResults(fetchedMovies); } 
+              else { setResults(null); setAiContext("Gemini tried its best but couldn't find it in the DB."); }
+         }
+      } catch(e) { console.error(e); }
+      setLoading(false);
     };
 
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-[140] flex items-center justify-center p-4 bg-black/90 backdrop-blur-xl animate-in fade-in duration-300">
-            <div className="glass-panel w-full max-w-4xl rounded-3xl p-8 shadow-2xl relative overflow-hidden flex flex-col max-h-[85vh]">
-                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 animate-pulse"></div>
-                <button onClick={onClose} className="absolute top-6 right-6 text-gray-400 hover:text-white p-2 hover:bg-white/10 rounded-full transition-colors"><X size={24}/></button>
-                
-                <div className="text-center mb-8">
-                    <div className="inline-flex p-3 rounded-full bg-gradient-to-br from-blue-500/20 to-purple-500/20 mb-4 border border-white/5">
-                        <Sparkles size={32} className="text-blue-400"/>
-                    </div>
-                    <h2 className="text-3xl font-black text-white mb-2 tracking-tight">AI Discovery Engine</h2>
-                    <p className="text-gray-400 text-sm">Describe exactly what you're looking for. The AI understands nuance, plot, and vibe.</p>
-                </div>
-
-                <div className="relative mb-8 max-w-2xl mx-auto w-full">
-                    <BrainCircuit size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-blue-500 animate-pulse"/>
-                    <input 
-                        type="text" 
-                        value={query}
-                        onChange={(e) => setQuery(e.target.value)}
-                        onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                        placeholder="e.g. 'Cyberpunk movies with a philosophical twist like Blade Runner'..." 
-                        className="w-full bg-black/50 border border-white/10 rounded-2xl py-4 pl-12 pr-4 text-white placeholder-gray-600 focus:outline-none focus:border-blue-500/50 focus:bg-white/5 transition-all shadow-inner"
-                        autoFocus
-                    />
-                    {loading && <div className="absolute right-4 top-1/2 -translate-y-1/2"><Loader2 className="animate-spin text-blue-500" size={20}/></div>}
-                </div>
-
-                {aiReason && (
-                    <div className="mb-6 p-4 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-200 text-sm italic text-center animate-in fade-in slide-in-from-bottom-2">
-                        "{aiReason}"
-                    </div>
-                )}
-
-                <div className="flex-1 overflow-y-auto custom-scrollbar p-2 -mx-2">
-                    {hydratedMovies.length > 0 ? (
-                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-                            {hydratedMovies.map((movie, idx) => (
-                                <div key={idx} className="group relative rounded-xl overflow-hidden cursor-pointer bg-white/5 animate-in zoom-in duration-500" style={{ animationDelay: `${idx * 50}ms` }}>
-                                    <div className="aspect-[2/3] overflow-hidden relative">
-                                        <img 
-                                            src={movie.poster_path ? `${TMDB_IMAGE_BASE}${movie.poster_path}` : "https://placehold.co/300x450"} 
-                                            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110 opacity-80 group-hover:opacity-100" 
-                                            alt={movie.title}
-                                        />
-                                        <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-80"></div>
-                                        <div className="absolute bottom-0 left-0 p-3 w-full">
-                                            <h4 className="font-bold text-white text-xs line-clamp-2 leading-tight">{movie.title || movie.name}</h4>
-                                            <p className="text-[10px] text-gray-400 mt-1">{movie.release_date?.split('-')[0] || movie.first_air_date?.split('-')[0]}</p>
-                                        </div>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    ) : !loading && query && (
-                        <div className="h-full flex flex-col items-center justify-center text-gray-500 opacity-50 pb-10">
-                            <Search size={48} className="mb-4"/>
-                            <p>Ready to discover.</p>
-                        </div>
-                    )}
-                </div>
-            </div>
-        </div>
+      <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-black/80 backdrop-blur-xl animate-in fade-in duration-300">
+         <div className="glass-panel w-full max-w-lg rounded-2xl p-6 shadow-2xl relative max-h-[80vh] flex flex-col border border-white/10 animate-in zoom-in-95 slide-in-from-bottom-5 duration-300 ease-out">
+          <button onClick={onClose} className="absolute top-4 left-4 text-gray-400 hover:text-white hover:scale-110 active:scale-95 transition-all"><ArrowLeft size={24}/></button>
+          <div className="text-center mb-8 flex-shrink-0 mt-2">
+              <div className="w-16 h-16 bg-gradient-to-br from-red-600 to-red-900 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-red-900/40 rotate-3 transition-transform duration-700 hover:rotate-6 hover:scale-105">
+                  <BrainCircuit size={32} className="text-white" />
+              </div>
+              <h2 className="text-2xl font-bold mb-1 text-white tracking-tight">AI Movie Finder</h2>
+              <p className="text-white/50 text-sm">Describe your mood, specific plots, or abstract ideas.</p>
+          </div>
+          
+          {!results && !loading && ( 
+              <div className="space-y-4 flex-shrink-0">
+                  <div className="relative group">
+                      <div className="absolute inset-0 bg-gradient-to-r from-red-600 to-red-900 rounded-xl blur opacity-25 group-hover:opacity-40 transition-opacity duration-500"></div>
+                      <div className="relative flex items-center">
+                        <input 
+                            type="text" 
+                            value={query} 
+                            onChange={(e) => setQuery(e.target.value)} 
+                            placeholder="e.g. 'Space movies that feel lonely'..." 
+                            className="w-full bg-[#0a0a0a] border border-white/10 rounded-xl p-4 pr-12 text-white focus:outline-none focus:border-white/30 transition-all placeholder-gray-600"
+                            onKeyDown={(e) => { if(e.key === 'Enter') { handleRecommend(); }}} 
+                            autoFocus 
+                        />
+                        <button onClick={handleRecommend} className="absolute right-2 p-2 bg-white/10 hover:bg-white/20 rounded-lg text-white transition-all active:scale-95">
+                            <Search size={20} />
+                        </button>
+                      </div>
+                  </div>
+              </div> 
+          )}
+          
+          {loading && (
+              <div className="h-48 flex flex-col items-center justify-center space-y-4 flex-shrink-0 animate-in fade-in">
+                  <Loader2 size={40} className="animate-spin text-red-500"/>
+                  <p className="text-red-300 text-sm font-medium animate-pulse">Analyzing cinematic universe...</p>
+              </div>
+          )}
+          
+          {results && ( 
+              <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 -mr-2 animate-in slide-in-from-bottom-2 duration-500">
+                  {aiContext && (
+                      <div className="bg-red-500/10 border border-red-500/20 p-3 rounded-xl mb-4">
+                          <p className="text-xs text-red-200 italic leading-relaxed">AI: "{aiContext}"</p>
+                      </div>
+                  )}
+                  <div className="space-y-3">
+                      {Array.isArray(results) ? results.map((res: Movie, idx) => (
+                          <div key={idx} className="glass p-3 rounded-xl flex gap-4 transition-all hover:bg-white/10 group cursor-pointer" onClick={() => {}}>
+                              <img src={res.poster_path ? `${TMDB_IMAGE_BASE}${res.poster_path}` : "https://placehold.co/100x150"} className="w-14 h-20 object-cover rounded-lg shadow-lg shrink-0 group-hover:scale-105 transition-transform duration-300" alt="Result"/>
+                              <div className="flex-1 min-w-0 py-1">
+                                  <h3 className="text-sm font-bold mb-1 truncate text-white">{res.title || res.original_title}</h3>
+                                  <div className="flex items-center gap-2 mb-1.5">
+                                      <span className="text-[10px] bg-white/10 text-gray-300 px-1.5 py-0.5 rounded">{res.release_date?.split('-')[0] || 'TBA'}</span>
+                                      <span className="text-[10px] text-gray-400 flex items-center gap-1"><Star size={10} className="text-yellow-500" /> {res.vote_average?.toFixed(1)}</span>
+                                  </div>
+                                  <p className="text-gray-400 text-xs line-clamp-2 leading-relaxed">{res.overview}</p>
+                              </div>
+                          </div>
+                      )) : (
+                          <div className="text-center py-8 text-gray-400"><p>No valid results found.</p></div>
+                      )}
+                  </div>
+                  <button onClick={() => { setResults(null); setQuery(""); }} className="w-full mt-4 text-sm font-bold py-3 bg-white/5 hover:bg-white/10 text-white rounded-xl transition-all active:scale-95">Search Again</button>
+              </div> 
+          )}
+         </div>
+      </div>
     );
 };
 
-// NOTIFICATION MODAL
+// NOTIFICATION MODAL (Keep as Modal)
 interface NotificationModalProps {
     isOpen: boolean;
     onClose: () => void;
@@ -829,55 +801,90 @@ interface NotificationModalProps {
 
 export const NotificationModal: React.FC<NotificationModalProps> = ({ isOpen, onClose, onUpdate, userProfile }) => {
     const [notifications, setNotifications] = useState<AppNotification[]>([]);
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(false);
     const isExclusive = userProfile?.canWatch === true;
     const isGoldTheme = isExclusive && userProfile?.theme !== 'default';
 
     useEffect(() => {
         if (isOpen) {
-            setLoading(true);
-            getNotifications().then(data => {
-                setNotifications(data);
-                setLoading(false);
-                markNotificationsRead().then(() => onUpdate?.());
-            });
+            loadNotifications();
         }
-    }, [isOpen, onUpdate]);
+    }, [isOpen]);
+
+    const loadNotifications = async () => {
+        setLoading(true);
+        const data = await getNotifications();
+        setNotifications(data);
+        setLoading(false);
+    };
+
+    const handleMarkAllRead = async () => {
+        // Optimistic Update
+        setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+        await markNotificationsRead();
+        onUpdate?.();
+    };
 
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-[120] flex justify-end">
-            <div className="absolute inset-0 bg-black/50 backdrop-blur-sm transition-opacity" onClick={onClose}></div>
-            <div className="relative w-full max-w-sm h-full bg-[#0a0a0a] border-l border-white/10 shadow-2xl animate-in slide-in-from-right duration-300 flex flex-col">
-                <div className="p-5 border-b border-white/10 flex justify-between items-center bg-black/20">
-                    <h3 className="font-bold text-white flex items-center gap-2"><Bell size={18} className={isGoldTheme ? "text-amber-500" : "text-red-500"}/> Notifications</h3>
-                    <button onClick={onClose} className="p-1.5 hover:bg-white/10 rounded-full text-gray-400 hover:text-white transition-colors"><X size={18}/></button>
+        <div className="fixed top-16 right-4 md:right-20 z-[90] w-80 animate-in slide-in-from-top-2 fade-in zoom-in-95 duration-200">
+            <div className="glass-panel rounded-xl overflow-hidden shadow-2xl border border-white/10">
+                <div className="p-4 border-b border-white/5 flex justify-between items-center bg-black/40">
+                    <div className="flex items-center gap-3">
+                        <button onClick={onClose} className="text-gray-400 hover:text-white transition-colors hover:scale-110 active:scale-95"><ArrowLeft size={18}/></button>
+                        <h3 className="text-sm font-bold text-white flex items-center gap-2"><Bell size={14} className={isGoldTheme ? "text-amber-500" : "text-red-500"}/> Notifications</h3>
+                    </div>
+                    <div className="flex items-center gap-3">
+                         <button 
+                            onClick={loadNotifications} 
+                            disabled={loading}
+                            className={`text-gray-400 hover:text-white transition-colors hover:rotate-180 duration-500 ${loading ? 'animate-spin' : ''}`}
+                            title="Refresh"
+                        >
+                            <RefreshCcw size={14}/>
+                        </button>
+                    </div>
                 </div>
                 
-                <div className="flex-1 overflow-y-auto custom-scrollbar p-2">
+                <div className="max-h-80 overflow-y-auto custom-scrollbar min-h-[150px]">
                     {loading ? (
-                        <div className="flex justify-center py-10"><Loader2 className={`animate-spin ${isGoldTheme ? "text-amber-500" : "text-red-500"}`}/></div>
+                         <div className="flex flex-col items-center justify-center h-40 gap-3">
+                            <Loader2 size={24} className={`animate-spin ${isGoldTheme ? 'text-amber-500' : 'text-red-500'}`}/>
+                            <p className="text-xs text-gray-500 font-medium">Checking updates...</p>
+                         </div>
                     ) : notifications.length === 0 ? (
-                        <div className="flex flex-col items-center justify-center h-64 text-gray-500 opacity-50">
-                            <Inbox size={48} className="mb-2"/>
-                            <p className="text-xs">No notifications yet.</p>
+                        <div className="h-40 flex flex-col items-center justify-center text-gray-500 animate-in fade-in">
+                            <Inbox size={24} className="mb-2 opacity-50"/>
+                            <p className="text-xs">All caught up!</p>
                         </div>
                     ) : (
-                        <div className="space-y-2">
-                            {notifications.map(n => (
-                                <div key={n.id} className={`p-4 rounded-xl border transition-all ${n.read ? 'bg-white/5 border-white/5 text-gray-400' : `bg-white/10 ${isGoldTheme ? 'border-amber-500/30' : 'border-red-500/30'} text-white shadow-lg`}`}>
-                                    <div className="flex justify-between items-start gap-3 mb-1">
-                                        <h4 className="font-bold text-sm leading-tight">{n.title}</h4>
-                                        <span className="text-[10px] opacity-50 whitespace-nowrap">{n.time}</span>
-                                    </div>
-                                    <p className="text-xs opacity-80 leading-relaxed">{n.message}</p>
+                        notifications.map(n => (
+                            <div key={n.id} className={`p-4 border-b border-white/5 hover:bg-white/5 transition-colors ${!n.read ? 'bg-white/5' : ''}`}>
+                                <div className="flex justify-between items-start mb-1 gap-2">
+                                    <p className={`text-sm leading-snug ${!n.read ? 'text-white font-bold' : 'text-gray-300'}`}>{n.title}</p>
+                                    {!n.read && <div className={`w-2 h-2 rounded-full mt-1.5 shrink-0 animate-pulse ${isGoldTheme ? 'bg-amber-500' : 'bg-red-500'}`}></div>}
                                 </div>
-                            ))}
-                        </div>
+                                <p className="text-xs text-gray-400 mb-1 line-clamp-2">{n.message}</p>
+                                <p className="text-[10px] text-gray-600">{n.time}</p>
+                            </div>
+                        ))
                     )}
                 </div>
+                
+                {!loading && notifications.some(n => !n.read) && (
+                    <div className="p-3 text-center bg-black/40 border-t border-white/5">
+                        <button 
+                            onClick={handleMarkAllRead}
+                            className={`text-xs transition-colors flex items-center justify-center gap-1 w-full hover:underline ${isGoldTheme ? 'text-amber-400 hover:text-amber-300' : 'text-red-400 hover:text-red-300'}`}
+                        >
+                            <CheckCheck size={12}/> Mark all as read
+                        </button>
+                    </div>
+                )}
             </div>
+            {/* Click outside listener overlay */}
+            <div className="fixed inset-0 -z-10" onClick={onClose}></div>
         </div>
     );
 };
