@@ -1,5 +1,6 @@
+
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { X, AlertCircle, Loader2, Play, Pause, Volume2, VolumeX, Maximize, Minimize, Radio } from 'lucide-react';
+import { X, AlertCircle, Loader2, Play, Pause, Volume2, VolumeX, Maximize, Minimize, Radio, ArrowLeft } from 'lucide-react';
 import { LiveChannel } from '../types';
 
 interface LiveTVPlayerProps {
@@ -168,7 +169,13 @@ export const LiveTVPlayer: React.FC<LiveTVPlayerProps> = ({ channel, onClose, is
             onMouseLeave={() => isPlaying && setShowControls(false)}
         >
             {/* Header / Top Overlay */}
-            <div className={`absolute top-0 left-0 right-0 p-6 z-20 flex justify-between items-start bg-gradient-to-b from-black/90 via-black/40 to-transparent transition-opacity duration-300 ${showControls ? 'opacity-100' : 'opacity-0'}`}>
+            <div className={`absolute top-0 left-0 right-0 p-6 z-20 flex items-center gap-4 bg-gradient-to-b from-black/90 via-black/40 to-transparent transition-opacity duration-300 ${showControls ? 'opacity-100' : 'opacity-0'}`}>
+                <button 
+                    onClick={onClose} 
+                    className="bg-black/40 hover:bg-white/10 p-2 rounded-full text-white transition-colors backdrop-blur-md border border-white/10 hover:border-white/30 active:scale-95"
+                >
+                    <ArrowLeft size={20}/>
+                </button>
                 <div className="flex items-center gap-4">
                     <div className="w-10 h-10 bg-white/10 rounded-lg p-1 backdrop-blur-md border border-white/10 flex items-center justify-center">
                          {channel.logo ? (
@@ -182,12 +189,6 @@ export const LiveTVPlayer: React.FC<LiveTVPlayerProps> = ({ channel, onClose, is
                         {channel.group && <p className="text-xs text-white/70">{channel.group}</p>}
                     </div>
                 </div>
-                <button 
-                    onClick={onClose} 
-                    className="bg-black/40 hover:bg-white/10 p-2 rounded-full text-white transition-colors backdrop-blur-md border border-white/10 hover:border-white/30 active:scale-95"
-                >
-                    <X size={20}/>
-                </button>
             </div>
 
             {/* Video Area */}

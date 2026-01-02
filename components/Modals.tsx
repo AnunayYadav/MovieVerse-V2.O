@@ -113,12 +113,12 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ isOpen, onClose, profi
       <div className="fixed inset-0 z-[100] bg-[#0a0a0a] overflow-y-auto animate-in slide-in-from-bottom-10 duration-500">
          <div className="max-w-4xl mx-auto min-h-screen flex flex-col p-6 md:p-8">
              {/* Header */}
-             <div className="flex justify-between items-center mb-8">
+             <div className="flex items-center gap-4 mb-8">
+                 <button onClick={onClose} className="text-white/80 hover:text-white transition-colors bg-white/5 p-2 rounded-full hover:bg-white/10 hover:scale-105 active:scale-95"><ArrowLeft size={24}/></button>
                  <div>
                     <h2 className="text-2xl font-bold text-white flex items-center gap-3"><UserCircle size={28} className="text-red-500"/> Edit Profile</h2>
                     <p className="text-xs text-gray-400 mt-1">Update your persona and viewing preferences.</p>
                  </div>
-                 <button onClick={onClose} className="text-white/80 hover:text-white transition-colors bg-white/5 p-2 rounded-full hover:bg-white/10 hover:scale-105 active:scale-95"><X size={20}/></button>
              </div>
              
              <div className="flex-1">
@@ -288,11 +288,14 @@ const FilmographyModal: React.FC<FilmographyModalProps> = ({ isOpen, onClose, pe
         <div className="fixed inset-0 z-[130] bg-[#0a0a0a] animate-in slide-in-from-right-10 duration-500">
             <div className="flex flex-col h-screen">
                 <div className="p-6 border-b border-white/10 flex justify-between items-center bg-black/40">
-                    <div>
-                        <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                            <Film className="text-red-500" size={20}/> {personName}
-                        </h2>
-                        <p className="text-xs text-gray-400 mt-0.5">Full Filmography</p>
+                    <div className="flex items-center gap-4">
+                        <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-full transition-colors bg-white/5 border border-white/5"><ArrowLeft size={18}/></button>
+                        <div>
+                            <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                                <Film className="text-red-500" size={20}/> {personName}
+                            </h2>
+                            <p className="text-xs text-gray-400 mt-0.5">Full Filmography</p>
+                        </div>
                     </div>
                     <div className="flex items-center gap-3">
                         <div className="relative group">
@@ -313,7 +316,6 @@ const FilmographyModal: React.FC<FilmographyModalProps> = ({ isOpen, onClose, pe
                                 ))}
                             </div>
                         </div>
-                        <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-full transition-colors bg-white/5 border border-white/5"><X size={18}/></button>
                     </div>
                 </div>
 
@@ -375,7 +377,12 @@ export const ListSelectionModal: React.FC<ListModalProps> = ({ isOpen, onClose, 
     return (
       <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-black/80 backdrop-blur-xl animate-in fade-in duration-300">
         <div className="glass-panel w-full max-w-sm rounded-2xl p-6 shadow-2xl animate-in zoom-in-95 slide-in-from-bottom-5 duration-300 ease-out">
-          <div className="flex justify-between items-center mb-6"><h3 className="text-lg font-bold text-white flex items-center gap-2"><ListPlus size={20} className="text-red-500"/> Add to List</h3><button onClick={onClose} className="text-gray-400 hover:text-white hover:bg-white/10 p-1.5 rounded-full transition-colors active:scale-95"><X size={20}/></button></div>
+          <div className="flex justify-between items-center mb-6">
+              <div className="flex items-center gap-3">
+                  <button onClick={onClose} className="text-gray-400 hover:text-white hover:bg-white/10 p-1.5 rounded-full transition-colors active:scale-95"><ArrowLeft size={20}/></button>
+                  <h3 className="text-lg font-bold text-white flex items-center gap-2"><ListPlus size={20} className="text-red-500"/> Add to List</h3>
+              </div>
+          </div>
           <div className="space-y-4">
             <div className="flex gap-2"><input type="text" value={newListName} onChange={(e) => setNewListName(e.target.value)} placeholder="New List Name..." className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-sm text-white focus:border-red-500 focus:outline-none transition-all"/><button onClick={handleCreate} className="bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded-xl transition-all active:scale-95"><Plus size={18}/></button></div>
             <div className="max-h-60 overflow-y-auto space-y-2 custom-scrollbar">
@@ -463,8 +470,10 @@ export const ComparisonModal: React.FC<ComparisonModalProps> = ({ isOpen, onClos
         <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-black/90 backdrop-blur-xl animate-in fade-in duration-300">
             <div className="glass-panel w-full max-w-5xl rounded-2xl overflow-hidden shadow-2xl relative flex flex-col max-h-[90vh]">
                 <div className="p-6 border-b border-white/10 flex justify-between items-center bg-black/40">
-                    <h2 className="text-xl font-bold text-white flex items-center gap-2"><Scale className="text-red-500"/> Movie Face-Off</h2>
-                    <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-full transition-colors"><X size={20}/></button>
+                    <div className="flex items-center gap-4">
+                        <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-full transition-colors"><ArrowLeft size={20}/></button>
+                        <h2 className="text-xl font-bold text-white flex items-center gap-2"><Scale className="text-red-500"/> Movie Face-Off</h2>
+                    </div>
                 </div>
 
                 <div className="flex-1 overflow-y-auto custom-scrollbar p-6">
@@ -594,8 +603,7 @@ export const PersonPage: React.FC<PersonPageProps> = ({ personId, onClose, apiKe
   
     return (
       <div className="fixed inset-0 z-[100] bg-[#0a0a0a] overflow-y-auto custom-scrollbar animate-in slide-in-from-bottom-10 duration-500">
-        <button onClick={onClose} className="fixed top-6 right-6 z-[120] bg-black/40 hover:bg-white/10 backdrop-blur-md p-2 rounded-full text-white/80 hover:text-white transition-all hover:scale-110 active:scale-95 border border-white/5"><X size={20} /></button>
-        <button onClick={onClose} className="md:hidden fixed top-6 left-6 z-[120] bg-black/40 hover:bg-white/10 backdrop-blur-md px-3 py-1.5 rounded-full text-white flex items-center gap-2 border border-white/5 text-xs"><ArrowLeft size={14}/> Back</button>
+        <button onClick={onClose} className="fixed top-6 left-6 z-[120] bg-black/40 hover:bg-white/10 backdrop-blur-md px-4 py-2 rounded-full text-white flex items-center gap-2 border border-white/5 text-sm font-bold active:scale-95 transition-all"><ArrowLeft size={20}/> Back</button>
 
           {loading ? (
              <div className="h-screen flex items-center justify-center flex-col gap-4">
@@ -713,7 +721,7 @@ export const AIRecommendationModal: React.FC<AIRecommendationModalProps> = ({ is
     return (
       <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-black/80 backdrop-blur-xl animate-in fade-in duration-300">
          <div className="glass-panel w-full max-w-lg rounded-2xl p-6 shadow-2xl relative max-h-[80vh] flex flex-col border border-white/10 animate-in zoom-in-95 slide-in-from-bottom-5 duration-300 ease-out">
-          <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-white hover:scale-110 active:scale-95 transition-all"><X size={20}/></button>
+          <button onClick={onClose} className="absolute top-4 left-4 text-gray-400 hover:text-white hover:scale-110 active:scale-95 transition-all"><ArrowLeft size={24}/></button>
           <div className="text-center mb-8 flex-shrink-0 mt-2">
               <div className="w-16 h-16 bg-gradient-to-br from-red-600 to-red-900 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-red-900/40 rotate-3 transition-transform duration-700 hover:rotate-6 hover:scale-105">
                   <BrainCircuit size={32} className="text-white" />
@@ -823,7 +831,10 @@ export const NotificationModal: React.FC<NotificationModalProps> = ({ isOpen, on
         <div className="fixed top-16 right-4 md:right-20 z-[90] w-80 animate-in slide-in-from-top-2 fade-in zoom-in-95 duration-200">
             <div className="glass-panel rounded-xl overflow-hidden shadow-2xl border border-white/10">
                 <div className="p-4 border-b border-white/5 flex justify-between items-center bg-black/40">
-                    <h3 className="text-sm font-bold text-white flex items-center gap-2"><Bell size={14} className={isGoldTheme ? "text-amber-500" : "text-red-500"}/> Notifications</h3>
+                    <div className="flex items-center gap-3">
+                        <button onClick={onClose} className="text-gray-400 hover:text-white transition-colors hover:scale-110 active:scale-95"><ArrowLeft size={18}/></button>
+                        <h3 className="text-sm font-bold text-white flex items-center gap-2"><Bell size={14} className={isGoldTheme ? "text-amber-500" : "text-red-500"}/> Notifications</h3>
+                    </div>
                     <div className="flex items-center gap-3">
                          <button 
                             onClick={loadNotifications} 
@@ -833,7 +844,6 @@ export const NotificationModal: React.FC<NotificationModalProps> = ({ isOpen, on
                         >
                             <RefreshCcw size={14}/>
                         </button>
-                        <button onClick={onClose} className="text-gray-400 hover:text-white transition-colors hover:scale-110 active:scale-95"><X size={16}/></button>
                     </div>
                 </div>
                 

@@ -169,10 +169,12 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                   {/* Sidebar */}
                   <div className="w-full md:w-64 bg-black/40 border-r border-white/5 p-5 flex flex-col shrink-0">
                       <div className="flex justify-between items-center mb-8">
-                          <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                              <Settings className={isGoldTheme ? "text-amber-500" : "text-red-500"} size={24}/> <span>Settings</span>
-                          </h2>
-                          <button onClick={onClose} className="md:hidden text-gray-400 hover:text-white p-2 bg-white/5 rounded-full"><X size={18}/></button>
+                          <div className="flex items-center gap-3">
+                              <button onClick={onClose} className="md:hidden text-gray-400 hover:text-white p-2 bg-white/5 rounded-full"><ArrowLeft size={18}/></button>
+                              <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                                  <Settings className={isGoldTheme ? "text-amber-500" : "text-red-500"} size={24}/> <span>Settings</span>
+                              </h2>
+                          </div>
                       </div>
                       
                       <div className="flex md:flex-col gap-1 flex-1 overflow-x-auto md:overflow-visible pb-4 md:pb-0 hide-scrollbar">

@@ -230,9 +230,12 @@ export const MoviePage: React.FC<MoviePageProps> = ({
             {viewingImage && <ImageLightbox src={viewingImage} onClose={() => setViewingImage(null)} />}
             
             <div className="relative w-full min-h-screen flex flex-col">
-                <button onClick={onClose} className="fixed top-6 right-6 z-[120] bg-black/40 hover:bg-white/10 backdrop-blur-md p-2 rounded-full text-white/80 hover:text-white transition-all hover:scale-110 active:scale-95 border border-white/5 group">
-                    <X size={20} />
-                    <span className="absolute right-full mr-3 top-1/2 -translate-y-1/2 bg-black/80 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">Close Details</span>
+                <button 
+                    onClick={onClose} 
+                    className="fixed top-6 left-6 z-[120] bg-black/40 hover:bg-white/10 backdrop-blur-md px-4 py-2 rounded-full text-white/80 hover:text-white transition-all hover:scale-105 active:scale-95 border border-white/5 flex items-center gap-2 group"
+                >
+                    <ArrowLeft size={20} />
+                    <span className="hidden md:inline font-bold text-sm">Back</span>
                 </button>
                 
                 {loading && !details ? (
@@ -299,7 +302,6 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                              {!showPlayer && (
                                  <div className="absolute bottom-0 left-0 w-full px-6 pb-8 md:px-10 md:pb-12 flex flex-col gap-6 animate-in slide-in-from-bottom-4 duration-700 delay-100 z-10 pointer-events-none">
                                     <div className="pointer-events-auto w-full">
-                                        <button onClick={onClose} className="md:hidden absolute top-[-55vh] left-0 flex items-center gap-2 text-white/80 bg-black/40 backdrop-blur-md px-3 py-1.5 rounded-full text-xs border border-white/10"><ArrowLeft size={14}/> Back</button>
                                         
                                         {logo ? (
                                             <img 

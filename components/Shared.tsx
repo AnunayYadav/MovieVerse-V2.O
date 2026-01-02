@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Film, Star, Eye, Download, X, Check } from 'lucide-react';
+import { Film, Star, Eye, Download, X, Check, ArrowLeft } from 'lucide-react';
 import { Movie } from '../types';
 
 export const TMDB_BASE_URL = "https://api.themoviedb.org/3";
@@ -166,9 +166,10 @@ export const ImageLightbox = ({ src, onClose }: { src: string, onClose: () => vo
       <div className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-xl flex items-center justify-center p-4 animate-in fade-in zoom-in-95 duration-300" onClick={onClose}>
          <button 
            onClick={(e) => { e.stopPropagation(); onClose(); }}
-           className="absolute top-6 right-6 text-white/50 hover:text-white bg-white/5 hover:bg-white/10 p-3 rounded-full transition-all hover:scale-110 active:scale-95"
+           className="absolute top-6 left-6 text-white hover:text-red-500 bg-white/5 hover:bg-white/10 p-3 rounded-full transition-all hover:scale-110 active:scale-95 flex items-center gap-2 group"
          >
-           <X size={24}/>
+           <ArrowLeft size={24}/>
+           <span className="hidden md:inline font-bold text-sm">Back</span>
          </button>
          <div 
            className="relative max-w-full max-h-full flex flex-col items-center animate-in slide-in-from-bottom-5 duration-500"
