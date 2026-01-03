@@ -576,13 +576,12 @@ export default function App() {
         const isStrictFilter = !isAdult || maturityRating !== 'NC-17';
 
         // DETERMINE IF WE ARE IN GENERAL DISCOVERY MODE
-        const isGeneralDiscovery = !activeCountry && !activeKeyword && !tmdbCollectionId && !currentCollection && !["People", "Coming", "Franchise"].includes(selectedCategory);
+        const isGeneralDiscovery = !activeCountry && !activeKeyword && !tmdbCollectionId && !currentCollection && !["People", "Franchise"].includes(selectedCategory);
 
         if (isGeneralDiscovery) {
              if (appRegion) params.append("region", appRegion);
              
-             // Only force US certification logic if strict filtering is required.
-             // Otherwise, for adults with NC-17 access, allow international/unrated content.
+             // Apply maturity filters if strict filtering is required
              if (isStrictFilter) {
                  params.append("certification_country", "US"); 
                  params.append("certification.lte", maturityRating);
@@ -665,24 +664,26 @@ export default function App() {
             params.append("sort_by", "popularity.desc");
         }
         else if (selectedCategory === "Coming") {
+            // Updated Logic: Use standard pagination with release date sorting
+            // This ensures movies load in date order (Date 1 -> Date 2 -> etc) naturally as you scroll
             const today = new Date();
             const todayStr = today.toISOString().split('T')[0];
-            params.delete("region"); params.delete("certification_country");
+            const future = new Date(); 
+            future.setFullYear(future.getFullYear() + 2); // Show 2 years out max
+
+            params.delete("region"); // Allow global coming soon if maturity settings permit
             
-            if (comingFilter === 'today') {
-                params.set("primary_release_date.gte", todayStr);
-                params.set("primary_release_date.lte", todayStr);
-            } else if (comingFilter === 'announced') {
-                const nearFuture = new Date(); nearFuture.setMonth(nearFuture.getMonth() + 3);
-                const farFuture = new Date(); farFuture.setFullYear(farFuture.getFullYear() + 2);
-                params.set("primary_release_date.gte", nearFuture.toISOString().split('T')[0]);
-                params.set("primary_release_date.lte", farFuture.toISOString().split('T')[0]);
-            } else {
-                const future = new Date(); future.setMonth(future.getMonth() + 3);
-                params.set("primary_release_date.gte", todayStr);
-                params.set("primary_release_date.lte", future.toISOString().split('T')[0]);
+            // Re-apply maturity filter if strict (handled by general logic above, but double check we don't clear it)
+            // If not strict, we can see international upcoming releases too
+            if (!isStrictFilter) {
+               params.delete("certification_country");
+               params.delete("certification.lte");
             }
-            params.set("sort_by", "primary_release_date.asc"); // STRICT DATE SORT
+
+            params.set("primary_release_date.gte", todayStr);
+            params.set("primary_release_date.lte", future.toISOString().split('T')[0]);
+            params.set("sort_by", "primary_release_date.asc");
+            
             if (selectedRegion === "IN") params.set("with_origin_country", "IN");
         }
         else {
@@ -705,6 +706,7 @@ export default function App() {
              if (selectedCategory === "TV Shows" || selectedCategory === "Anime") results = results.map((m: any) => ({ ...m, media_type: 'tv', title: m.name, release_date: m.first_air_date }));
         }
         
+        // No client-side sorting for Coming, rely on API date sort
         const finalResults = (selectedCategory === "Coming") ? results : (selectedCategory === "People" ? results : sortMovies(results, sortOption));
 
         if (isLoadMore) {
@@ -1051,35 +1053,17 @@ export default function App() {
            ) : selectedCategory === "Coming" ? (
                <div className="animate-in fade-in slide-in-from-bottom-4">
                    <HeroSection />
-                   <div className="p-6 md:p-8 flex flex-col lg:flex-row gap-8">
-                       <div className="w-full lg:w-72 shrink-0 space-y-6">
-                           <div className="bg-white/5 backdrop-blur-md rounded-2xl p-6 border border-white/10 sticky top-24 shadow-xl">
-                               <h3 className="text-lg font-bold text-white mb-6 flex items-center gap-2"><CalendarDays size={18}/> Schedule</h3>
-                               <div className="space-y-2">
-                                   {['today', 'upcoming', 'announced'].map(opt => (
-                                       <button key={opt} onClick={() => setComingFilter(opt)} className={`w-full text-left px-4 py-4 rounded-xl text-sm font-bold transition-all flex items-center justify-between group ${comingFilter === opt ? (isGoldTheme ? 'bg-amber-500 text-black shadow-lg shadow-amber-500/20' : 'bg-red-600 text-white shadow-lg shadow-red-900/30') : 'bg-black/20 text-gray-400 hover:bg-white/5 hover:text-white'}`}>
-                                           <div className="flex items-center gap-3">
-                                               {opt === 'today' && <LayoutGrid size={16}/>}
-                                               {opt === 'upcoming' && <Calendar size={16}/>}
-                                               {opt === 'announced' && <Megaphone size={16}/>}
-                                               <span className="capitalize">{opt}</span>
-                                           </div>
-                                           {comingFilter === opt && <ChevronRight size={14} className="animate-in slide-in-from-left-2"/>}
-                                       </button>
-                                   ))}
-                               </div>
-                           </div>
-                       </div>
-                       <div className="flex-1 space-y-12">
-                           {groupMoviesByDate(movies).map(([date, dateMovies]) => {
+                   <div className="p-6 md:p-8">
+                       <div className="space-y-12">
+                           {groupMoviesByDate(movies).map(([date, dateMovies], groupIndex, groupsArray) => {
                                const d = new Date(date);
                                const isTBA = date === "TBA";
                                return (
                                    <div key={date} className="animate-in slide-in-from-right-4 duration-500 group/timeline">
                                        <div className="flex flex-col md:flex-row gap-6">
-                                           <div className="w-full md:w-28 shrink-0 flex md:flex-col items-center md:items-start gap-2 md:gap-0">
+                                           <div className="w-full md:w-28 shrink-0 flex md:flex-col items-center md:items-start gap-2 md:gap-0 sticky top-24 self-start h-fit z-10">
                                                {!isTBA ? (
-                                                   <div className={`p-4 rounded-2xl border bg-black/40 backdrop-blur-sm text-center min-w-[90px] ${isGoldTheme ? 'border-amber-500/20' : 'border-white/10'}`}>
+                                                   <div className={`p-4 rounded-2xl border bg-black/60 backdrop-blur-md text-center min-w-[90px] shadow-lg ${isGoldTheme ? 'border-amber-500/20' : 'border-white/10'}`}>
                                                        <div className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">{d.toLocaleDateString('en-US', { weekday: 'short' })}</div>
                                                        <div className={`text-4xl font-black leading-none mb-1 ${isGoldTheme ? 'text-amber-500' : 'text-white'}`}>{d.getDate()}</div>
                                                        <div className="text-xs font-bold text-gray-400 uppercase">{d.toLocaleDateString('en-US', { month: 'short' })}</div>
@@ -1089,25 +1073,41 @@ export default function App() {
                                                )}
                                                <div className="hidden md:block w-px bg-gradient-to-b from-white/20 to-transparent flex-1 mx-auto mt-4 h-full min-h-[50px]"></div>
                                            </div>
-                                           <div className="flex-1 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-                                               {dateMovies.map(movie => (
-                                                   <div key={movie.id} onClick={() => setSelectedMovie(movie)} className="group cursor-pointer relative">
-                                                       <div className="aspect-[2/3] rounded-xl overflow-hidden bg-gray-900 mb-3 relative shadow-lg transition-all duration-300 group-hover:scale-105 group-hover:shadow-2xl group-hover:-translate-y-1">
-                                                           <img src={movie.poster_path ? `${TMDB_IMAGE_BASE}${movie.poster_path}` : "https://placehold.co/300x450/111/333?text=Poster"} alt={movie.title} className="w-full h-full object-cover" loading="lazy" />
-                                                           <div className="absolute top-2 right-2 bg-black/60 backdrop-blur-md text-white text-[10px] font-bold px-2 py-1 rounded-lg flex items-center gap-1 border border-white/10">
-                                                               <TrendingUp size={10} className="text-green-400"/> {Math.round(movie.popularity)}
+                                           
+                                           <div className="flex-1">
+                                               {/* Date Header for Mobile */}
+                                               <div className="md:hidden mb-4 pb-2 border-b border-white/5">
+                                                   <span className="text-lg font-bold text-white">{!isTBA ? d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }) : "Coming Soon"}</span>
+                                               </div>
+
+                                               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                                                   {dateMovies.map((movie, movieIndex) => {
+                                                       const isLastItem = groupIndex === groupsArray.length - 1 && movieIndex === dateMovies.length - 1;
+                                                       return (
+                                                           <div key={movie.id} ref={isLastItem ? lastMovieElementRef : null} onClick={() => setSelectedMovie(movie)} className="group cursor-pointer relative">
+                                                               <div className="aspect-[2/3] rounded-xl overflow-hidden bg-gray-900 mb-3 relative shadow-lg transition-all duration-300 group-hover:scale-105 group-hover:shadow-2xl group-hover:-translate-y-1">
+                                                                   <img src={movie.poster_path ? `${TMDB_IMAGE_BASE}${movie.poster_path}` : "https://placehold.co/300x450/111/333?text=Poster"} alt={movie.title} className="w-full h-full object-cover" loading="lazy" />
+                                                                   <div className="absolute top-2 right-2 bg-black/60 backdrop-blur-md text-white text-[10px] font-bold px-2 py-1 rounded-lg flex items-center gap-1 border border-white/10">
+                                                                       <TrendingUp size={10} className="text-green-400"/> {Math.round(movie.popularity)}
+                                                                   </div>
+                                                               </div>
+                                                               <h4 className={`font-bold text-sm leading-tight transition-colors line-clamp-1 ${accentHoverText} text-gray-200`}>{movie.title}</h4>
+                                                               <p className="text-gray-500 text-xs mt-1 line-clamp-1">{movie.overview || "Plot unavailable"}</p>
                                                            </div>
-                                                       </div>
-                                                       <h4 className={`font-bold text-sm leading-tight transition-colors line-clamp-1 ${accentHoverText} text-gray-200`}>{movie.title}</h4>
-                                                       <p className="text-gray-500 text-xs mt-1 line-clamp-1">{movie.overview || "Plot unavailable"}</p>
-                                                   </div>
-                                               ))}
+                                                       );
+                                                   })}
+                                               </div>
                                            </div>
                                        </div>
                                    </div>
                                );
                            })}
                            {movies.length === 0 && !loading && ( <div className="text-center py-20 text-gray-500 flex flex-col items-center"> <Calendar size={48} className="mb-4 opacity-30"/> <p>No upcoming releases found for this period.</p> </div> )}
+                           {loading && (
+                               <div className="flex justify-center py-8">
+                                   <Loader2 className="animate-spin text-white/50" size={32}/>
+                               </div>
+                           )}
                        </div>
                    </div>
                </div>
