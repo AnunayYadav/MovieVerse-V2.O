@@ -20,67 +20,68 @@ const DEFAULT_COLLECTIONS: any = {
   "korean": { title: "K-Wave", params: { with_original_language: "ko", sort_by: "popularity.desc" }, icon: "🇰🇷", backdrop: "https://image.tmdb.org/t/p/original/7CAl1uP0r6qfK325603665.jpg", description: "Thrillers, Romance, and Drama from South Korea." },
 };
 
-// Expanded Franchise List for Endless Scrolling - Real TMDB Collection IDs
+// Expanded Franchise List - Real TMDB Collection IDs
+// Using a large static list allows us to paginate locally without needing a specialized "list franchises" API endpoint which doesn't exist on TMDB
 const FRANCHISE_IDS = [
-    86311,   // Marvel Cinematic Universe
-    10,      // Star Wars
-    1241,    // Harry Potter
+    86311,   // The Avengers Collection
+    131292,  // Iron Man Collection
+    131296,  // Thor Collection
+    131295,  // Captain America Collection
     115575,  // DC Extended Universe
-    131292,  // Iron Man
-    131296,  // Thor
-    131295,  // Captain America
-    86311,   // The Avengers
-    9485,    // Fast & Furious
-    295,     // Pirates of the Caribbean
-    645,     // James Bond
+    10,      // Star Wars Collection
+    1241,    // Harry Potter Collection
     558216,  // MonsterVerse (Godzilla/Kong)
-    1060085, // YRF Spy Universe (Pathaan/Tiger)
-    119,     // Lord of the Rings
-    87359,   // Mission Impossible
-    52984,   // Batman (Nolan Dark Knight)
-    472535,  // Baahubali
-    712282,  // KGF
-    894562,  // Lokesh Cinematic Universe (Vikram/Kaithi)
-    1060096, // Rohit Shetty Cop Universe
-    531241,  // Spider-Verse (Animated)
-    10194,   // Toy Story
-    2150,    // Shrek
-    8354,    // Ice Age
-    86066,   // Despicable Me / Minions
-    77816,   // Kung Fu Panda
-    10593,   // Madagascar
-    163313,  // How to Train Your Dragon
-    8265,    // Cars
-    748,     // X-Men
-    131635,  // Hunger Games
-    33514,   // Twilight
-    8650,    // Transformers
-    84,      // Indiana Jones
-    1575,    // Rocky
-    472761,  // Creed
-    3573,    // Bourne
-    115570,  // Star Trek
-    328,     // Jurassic Park
-    8091,    // Alien
-    8093,    // Predator
-    528,     // Terminator
-    2344,    // Matrix
-    403374,  // John Wick
-    1570,    // Die Hard
-    2155,    // Lethal Weapon
-    262,     // Rush Hour
-    3260,    // Men in Black
-    1639,    // Ghostbusters
-    264,     // Back to the Future
-    1733,    // Planet of the Apes
-    373722,  // Godzilla (Classic)
-    250329,  // The Conjuring
-    207923,  // Insidious
-    2289,    // Saw
-    2661,    // Scream
-    2656,    // Halloween
-    2342,    // Friday the 13th
-    2660,    // Nightmare on Elm Street
+    1060085, // YRF Spy Universe (Tiger/Pathaan/War)
+    894562,  // Lokesh Cinematic Universe (Vikram/Kaithi/Leo)
+    1060096, // Cop Universe (Singham/Simmba)
+    9485,    // The Fast and the Furious Collection
+    295,     // Pirates of the Caribbean Collection
+    645,     // James Bond Collection
+    119,     // The Lord of the Rings Collection
+    121,     // The Hobbit Collection
+    87359,   // Mission: Impossible Collection
+    52984,   // The Dark Knight Collection
+    472535,  // Baahubali Collection
+    712282,  // K.G.F Collection
+    531241,  // Spider-Man (Spider-Verse) Collection
+    10194,   // Toy Story Collection
+    2150,    // Shrek Collection
+    8354,    // Ice Age Collection
+    86066,   // Despicable Me Collection
+    77816,   // Kung Fu Panda Collection
+    10593,   // Madagascar Collection
+    163313,  // How to Train Your Dragon Collection
+    8265,    // Cars Collection
+    748,     // X-Men Collection
+    131635,  // The Hunger Games Collection
+    33514,   // The Twilight Saga
+    8650,    // Transformers Collection
+    84,      // Indiana Jones Collection
+    1575,    // Rocky Collection
+    472761,  // Creed Collection
+    3573,    // The Bourne Collection
+    115570,  // Star Trek (Reboot) Collection
+    328,     // Jurassic Park Collection
+    8091,    // Alien Collection
+    8093,    // Predator Collection
+    528,     // The Terminator Collection
+    2344,    // The Matrix Collection
+    403374,  // John Wick Collection
+    1570,    // Die Hard Collection
+    2155,    // Lethal Weapon Collection
+    262,     // Rush Hour Collection
+    3260,    // Men in Black Collection
+    1639,    // Ghostbusters Collection
+    264,     // Back to the Future Collection
+    1733,    // Planet of the Apes (Reboot) Collection
+    373722,  // Godzilla (Classic) Collection
+    250329,  // The Conjuring Collection
+    207923,  // Insidious Collection
+    2289,    // Saw Collection
+    2661,    // Scream Collection
+    2656,    // Halloween Collection
+    2342,    // Friday the 13th Collection
+    2660,    // A Nightmare on Elm Street Collection
     912503   // Astraverse (Brahmastra)
 ];
 
