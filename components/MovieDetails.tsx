@@ -27,6 +27,50 @@ interface MoviePageProps {
     appRegion?: string;
 }
 
+const MovieDetailsSkeleton = () => (
+    <div className="w-full min-h-screen flex flex-col bg-[#0a0a0a]">
+        {/* Hero Skeleton */}
+        <div className="relative h-[65vh] w-full bg-white/5 overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full animate-[shimmer_1.5s_infinite]" />
+            <div className="absolute bottom-0 left-0 w-full px-10 pb-12 space-y-6">
+                <div className="h-16 bg-white/10 rounded-lg w-1/2"></div>
+                <div className="flex gap-4">
+                    <div className="h-6 bg-white/10 rounded w-24"></div>
+                    <div className="h-6 bg-white/10 rounded w-24"></div>
+                    <div className="h-6 bg-white/10 rounded w-24"></div>
+                </div>
+            </div>
+        </div>
+        {/* Content Skeleton */}
+        <div className="max-w-7xl mx-auto w-full px-10 py-10 grid grid-cols-1 lg:grid-cols-3 gap-10">
+            <div className="lg:col-span-2 space-y-10">
+                <div className="space-y-3">
+                    <div className="h-4 bg-white/5 rounded w-full"></div>
+                    <div className="h-4 bg-white/5 rounded w-5/6"></div>
+                    <div className="h-4 bg-white/5 rounded w-4/6"></div>
+                </div>
+                <div className="flex gap-6 overflow-hidden">
+                    {[...Array(6)].map((_, i) => (
+                        <div key={i} className="flex flex-col items-center gap-3 shrink-0">
+                            <div className="w-20 h-20 rounded-full bg-white/5"></div>
+                            <div className="h-3 bg-white/5 rounded w-16"></div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+            <div className="space-y-6">
+                <div className="h-40 bg-white/5 rounded-2xl"></div>
+                <div className="h-40 bg-white/5 rounded-2xl"></div>
+            </div>
+        </div>
+        <style>{`
+            @keyframes shimmer {
+                100% { transform: translateX(100%); }
+            }
+        `}</style>
+    </div>
+);
+
 const ReviewCard: React.FC<{ review: Review }> = ({ review }) => {
     const [expanded, setExpanded] = useState(false);
     const isLong = review.content.length > 300;
@@ -223,7 +267,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
     const SocialLink = ({ url, icon: Icon, color }: { url?: string, icon: any, color: string }) => {
         if (!url) return null;
         return (
-            <a href={url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className={`p-2 rounded-full hover:bg-white/10 transition-all hover:scale-110 ${color}`}>
+            <a href={url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className={`p-2 rounded-full hover:bg-white/10 transition-all hover:scale-110 opacity-70 hover:opacity-100 ${color}`}>
                 <Icon size={18} />
             </a>
         );
@@ -245,10 +289,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                 )}
                 
                 {loading && !details ? (
-                    <div className="h-screen flex flex-col items-center justify-center gap-4">
-                        <Loader2 className={`animate-spin ${accentText}`} size={48}/>
-                        <p className="text-gray-500 text-sm animate-pulse">Loading Movie Details...</p>
-                    </div>
+                    <MovieDetailsSkeleton />
                 ) : (
                     <div className="flex flex-col">
                         {/* HERO SECTION */}
@@ -365,7 +406,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                 </div>
                                 
                                 {/* Social Handles - Clean Look */}
-                                <div className="flex items-center gap-1 ml-auto shrink-0">
+                                <div className="flex items-center gap-2 ml-auto shrink-0">
                                     {displayData.external_ids?.imdb_id && <SocialLink url={`https://www.imdb.com/title/${displayData.external_ids.imdb_id}`} icon={Film} color="text-yellow-400"/>}
                                     {displayData.external_ids?.instagram_id && <SocialLink url={`https://instagram.com/${displayData.external_ids.instagram_id}`} icon={Instagram} color="text-pink-400"/>}
                                     {displayData.external_ids?.twitter_id && <SocialLink url={`https://twitter.com/${displayData.external_ids.twitter_id}`} icon={Twitter} color="text-blue-400"/>}
@@ -402,25 +443,29 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                             {cast.length > 0 && (
                                                 <div>
                                                     <h3 className="text-white font-bold text-lg mb-4">Top Cast</h3>
-                                                    <div className="flex overflow-x-auto gap-6 pb-4 hide-scrollbar items-start">
-                                                        {cast.map(person => (
-                                                            <div key={person.id} onClick={() => onPersonClick(person.id)} className="flex flex-col items-center gap-2 min-w-[80px] cursor-pointer group">
-                                                                <div className="w-20 h-20 rounded-full overflow-hidden border-2 border-transparent group-hover:border-white/20 transition-all shadow-lg relative bg-white/5">
-                                                                    <img src={person.profile_path ? `${TMDB_IMAGE_BASE}${person.profile_path}` : "https://placehold.co/150x150?text=?"} alt={person.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"/>
+                                                    <div className="flex items-center gap-2">
+                                                        <div className="flex overflow-x-auto gap-6 pb-4 hide-scrollbar items-start flex-1">
+                                                            {cast.map(person => (
+                                                                <div key={person.id} onClick={() => onPersonClick(person.id)} className="flex flex-col items-center gap-2 min-w-[80px] cursor-pointer group">
+                                                                    <div className="w-20 h-20 rounded-full overflow-hidden border-2 border-transparent group-hover:border-white/20 transition-all shadow-lg relative bg-white/5">
+                                                                        <img src={person.profile_path ? `${TMDB_IMAGE_BASE}${person.profile_path}` : "https://placehold.co/150x150?text=?"} alt={person.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"/>
+                                                                    </div>
+                                                                    <div className="text-center w-full">
+                                                                        <p className="text-[11px] font-bold text-white leading-tight group-hover:text-red-400 transition-colors line-clamp-2">{person.name}</p>
+                                                                        <p className="text-[9px] text-gray-500 line-clamp-1 mt-0.5">{person.character}</p>
+                                                                    </div>
                                                                 </div>
-                                                                <div className="text-center w-full">
-                                                                    <p className="text-[11px] font-bold text-white leading-tight group-hover:text-red-400 transition-colors line-clamp-2">{person.name}</p>
-                                                                    <p className="text-[9px] text-gray-500 line-clamp-1 mt-0.5">{person.character}</p>
-                                                                </div>
-                                                            </div>
-                                                        ))}
-                                                        {/* Arrow for "more" view illusion */}
-                                                        <div className="flex flex-col items-center justify-center min-w-[80px] h-20 group cursor-pointer" onClick={() => setActiveTab('cast')}>
-                                                            <div className="w-12 h-12 rounded-full border border-white/10 flex items-center justify-center text-white/50 group-hover:text-white group-hover:bg-white/10 transition-colors">
-                                                                <ChevronRight size={20}/>
-                                                            </div>
-                                                            <span className="text-[10px] text-gray-500 mt-2 font-bold group-hover:text-white">View All</span>
+                                                            ))}
                                                         </div>
+                                                        <button 
+                                                            onClick={() => setActiveTab('cast')}
+                                                            className="flex flex-col items-center justify-center min-w-[60px] h-20 group shrink-0"
+                                                        >
+                                                            <div className="w-10 h-10 rounded-full border border-white/10 flex items-center justify-center text-white/50 group-hover:text-white group-hover:bg-white/10 transition-colors">
+                                                                <ChevronRight size={18}/>
+                                                            </div>
+                                                            <span className="text-[9px] text-gray-500 mt-2 font-bold group-hover:text-white">View All</span>
+                                                        </button>
                                                     </div>
                                                 </div>
                                             )}
@@ -429,22 +474,33 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                             {crew.length > 0 && (
                                                 <div>
                                                     <h3 className="text-white font-bold text-lg mb-4">Crew</h3>
-                                                    <div className="flex overflow-x-auto gap-6 pb-4 hide-scrollbar items-start">
-                                                        {crew.map((person, idx) => (
-                                                            <div key={`${person.id}-${idx}`} className="flex flex-col items-center gap-2 min-w-[80px] group">
-                                                                <div className="w-16 h-16 rounded-full overflow-hidden border border-white/5 bg-white/5 grayscale group-hover:grayscale-0 transition-all shadow-lg relative flex items-center justify-center">
-                                                                    {person.profile_path ? (
-                                                                        <img src={`${TMDB_IMAGE_BASE}${person.profile_path}`} alt={person.name} className="w-full h-full object-cover"/>
-                                                                    ) : (
-                                                                        <span className="text-[10px] font-bold text-gray-500">{person.name.charAt(0)}</span>
-                                                                    )}
+                                                    <div className="flex items-center gap-2">
+                                                        <div className="flex overflow-x-auto gap-6 pb-4 hide-scrollbar items-start flex-1">
+                                                            {crew.map((person, idx) => (
+                                                                <div key={`${person.id}-${idx}`} className="flex flex-col items-center gap-2 min-w-[80px] group">
+                                                                    <div className="w-16 h-16 rounded-full overflow-hidden border border-white/5 bg-white/5 grayscale group-hover:grayscale-0 transition-all shadow-lg relative flex items-center justify-center">
+                                                                        {person.profile_path ? (
+                                                                            <img src={`${TMDB_IMAGE_BASE}${person.profile_path}`} alt={person.name} className="w-full h-full object-cover"/>
+                                                                        ) : (
+                                                                            <span className="text-[10px] font-bold text-gray-500">{person.name.charAt(0)}</span>
+                                                                        )}
+                                                                    </div>
+                                                                    <div className="text-center w-full">
+                                                                        <p className="text-[10px] font-bold text-white leading-tight">{person.name}</p>
+                                                                        <p className="text-[9px] text-gray-500 mt-0.5">{person.job}</p>
+                                                                    </div>
                                                                 </div>
-                                                                <div className="text-center w-full">
-                                                                    <p className="text-[10px] font-bold text-white leading-tight">{person.name}</p>
-                                                                    <p className="text-[9px] text-gray-500 mt-0.5">{person.job}</p>
+                                                            ))}
+                                                        </div>
+                                                        {crew.length > 6 && (
+                                                            <button 
+                                                                className="flex flex-col items-center justify-center min-w-[60px] h-16 group shrink-0"
+                                                            >
+                                                                <div className="w-9 h-9 rounded-full border border-white/10 flex items-center justify-center text-white/50 group-hover:text-white group-hover:bg-white/10 transition-colors">
+                                                                    <ChevronRight size={16}/>
                                                                 </div>
-                                                            </div>
-                                                        ))}
+                                                            </button>
+                                                        )}
                                                     </div>
                                                 </div>
                                             )}
