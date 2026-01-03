@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, Suspense, useRef } from 'react';
-import { X, Calendar, Clock, Star, Play, Bookmark, Heart, Share2, Clapperboard, Sparkles, Loader2, Tag, MessageCircle, Globe, Facebook, Instagram, Twitter, Film, PlayCircle, Eye, Volume2, VolumeX, Users, ArrowLeft, Lightbulb, DollarSign, Trophy, Tv, Check } from 'lucide-react';
+import { X, Calendar, Clock, Star, Play, Bookmark, Heart, Share2, Clapperboard, Sparkles, Loader2, Tag, MessageCircle, Globe, Facebook, Instagram, Twitter, Film, PlayCircle, Eye, Volume2, VolumeX, Users, ArrowLeft, Lightbulb, DollarSign, Trophy, Tv, Check, Mic2, Video, PenTool } from 'lucide-react';
 import { Movie, MovieDetails, Season, UserProfile, Keyword, Review, CastMember, CrewMember } from '../types';
 import { TMDB_BASE_URL, TMDB_IMAGE_BASE, TMDB_BACKDROP_BASE, formatCurrency, ImageLightbox } from '../components/Shared';
 import { generateTrivia } from '../services/gemini';
@@ -172,6 +172,10 @@ export const MoviePage: React.FC<MoviePageProps> = ({
     const title = displayData.title || displayData.name;
     const runtime = displayData.runtime ? `${Math.floor(displayData.runtime/60)}h ${displayData.runtime%60}m` : (displayData.episode_run_time?.[0] ? `${displayData.episode_run_time[0]}m / ep` : "N/A");
     
+    const releaseDate = displayData.release_date 
+        ? new Date(displayData.release_date).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' })
+        : (displayData.first_air_date ? new Date(displayData.first_air_date).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' }) : 'TBA');
+
     let director = { name: "Unknown", id: 0, profile_path: null as string | null };
     if (isTv && displayData.created_by && displayData.created_by.length > 0) {
         director = { ...displayData.created_by[0] };
@@ -182,6 +186,13 @@ export const MoviePage: React.FC<MoviePageProps> = ({
     }
 
     const cast = displayData.credits?.cast?.slice(0, 15) || [];
+    // Filter important crew
+    const crew = displayData.credits?.crew?.filter(c => 
+        ['Director', 'Screenplay', 'Writer', 'Story', 'Original Music Composer', 'Director of Photography'].includes(c.job)
+    ).reduce((unique: any[], item: any) => {
+        return unique.some((x: any) => x.id === item.id) ? unique : [...unique, item];
+    }, []).slice(0, 8) || [];
+
     const mediaImages = displayData.images?.backdrops?.slice(0, 12) || [];
     const similarMovies = displayData.similar?.results?.slice(0, 6) || [];
     const keywords = displayData.keywords?.keywords || displayData.keywords?.results || [];
@@ -259,10 +270,11 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                  <div className="absolute inset-0 w-full h-full overflow-hidden">
                                     {trailer && (
                                         <div className="absolute inset-0 w-full h-full pointer-events-none">
+                                            {/* ZOOOMED TRAILER: scale-150 to remove black bars */}
                                             <iframe
                                                 ref={iframeRef}
                                                 src={`https://www.youtube.com/embed/${trailer.key}?autoplay=1&mute=1&controls=0&loop=1&playlist=${trailer.key}&showinfo=0&rel=0&iv_load_policy=3&modestbranding=1&playsinline=1&enablejsapi=1&origin=${window.location.origin}`}
-                                                className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none transition-opacity duration-1000 ease-in-out w-[350%] h-[150%] md:w-full md:h-full md:scale-[1.25] ${videoLoaded ? 'opacity-60' : 'opacity-0'}`}
+                                                className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none transition-opacity duration-1000 ease-in-out w-[120vw] h-[120vh] min-w-full min-h-full scale-150 ${videoLoaded ? 'opacity-60' : 'opacity-0'}`}
                                                 allow="autoplay; encrypted-media; gyroscope; picture-in-picture"
                                                 title="Background Trailer"
                                                 loading="lazy"
@@ -299,7 +311,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                         
                                         <div className={`flex flex-wrap items-center gap-4 text-white/90 text-xs md:text-sm font-medium transition-all duration-700 ease-in-out origin-bottom ${videoLoaded ? 'opacity-0 group-hover/hero:opacity-100' : 'opacity-100'}`}>
                                             {ratingLabel !== 'NR' && <span className={`px-2 py-0.5 rounded text-[10px] md:text-xs font-bold shadow-lg ${ratingColor}`}>{ratingLabel}</span>}
-                                            <span className="flex items-center gap-2"><Calendar size={14} className={accentText}/> {displayData.release_date?.split('-')[0] || displayData.first_air_date?.split('-')[0] || 'TBA'}</span>
+                                            <span className="flex items-center gap-2"><Calendar size={14} className={accentText}/> {releaseDate}</span>
                                             <span className="flex items-center gap-2"><Clock size={14} className={accentText}/> {runtime}</span>
                                             {displayData.vote_average && <span className="flex items-center gap-2"><Star size={14} className="text-yellow-500" fill="currentColor"/> {displayData.vote_average.toFixed(1)}</span>}
                                         </div>
@@ -319,22 +331,38 @@ export const MoviePage: React.FC<MoviePageProps> = ({
 
                         {/* CONTENT TABS */}
                         <div className="max-w-7xl mx-auto w-full px-6 py-8 md:p-10 -mt-6 relative z-20">
-                            {/* Action Bar */}
+                            {/* Action Bar - CLEAN LOOK (Icons only mainly) */}
                             <div className="flex items-center justify-between gap-4 overflow-x-auto hide-scrollbar pb-6">
-                                <div className="flex gap-3">
-                                    <button onClick={() => onToggleWatchlist(displayData)} className={`flex items-center gap-2 px-4 py-2.5 rounded-lg border text-xs font-bold transition-all active:scale-95 ${isWatchlisted ? `${accentBgLow} ${accentBorder} ${accentText}` : 'glass hover:bg-white/10 text-white/70 border-white/10'}`}>
-                                        <Bookmark size={16} fill={isWatchlisted ? "currentColor" : "none"} /> <span>Watchlist</span>
+                                <div className="flex gap-6">
+                                    <button onClick={() => onToggleWatchlist(displayData)} className="group flex flex-col items-center gap-1 active:scale-95 transition-all">
+                                        <div className={`p-2.5 rounded-full transition-colors ${isWatchlisted ? 'bg-white text-black' : 'bg-white/5 hover:bg-white/20 text-white'}`}>
+                                            <Bookmark size={20} fill={isWatchlisted ? "currentColor" : "none"} /> 
+                                        </div>
+                                        <span className="text-[10px] font-bold text-gray-400 group-hover:text-white transition-colors">Watchlist</span>
                                     </button>
-                                    <button onClick={() => onToggleFavorite(displayData)} className={`flex items-center gap-2 px-4 py-2.5 rounded-lg border text-xs font-bold transition-all active:scale-95 ${isFavorite ? `${accentBgLow} ${accentBorder} ${accentText}` : 'glass hover:bg-white/10 text-white/70 border-white/10'}`}>
-                                        <Heart size={16} fill={isFavorite ? "currentColor" : "none"} /> <span>Favorite</span>
+                                    
+                                    <button onClick={() => onToggleFavorite(displayData)} className="group flex flex-col items-center gap-1 active:scale-95 transition-all">
+                                        <div className={`p-2.5 rounded-full transition-colors ${isFavorite ? 'bg-white text-red-600' : 'bg-white/5 hover:bg-white/20 text-white'}`}>
+                                            <Heart size={20} fill={isFavorite ? "currentColor" : "none"} />
+                                        </div>
+                                        <span className="text-[10px] font-bold text-gray-400 group-hover:text-white transition-colors">Favorite</span>
                                     </button>
-                                    <button onClick={handleShare} className={`flex items-center gap-2 px-4 py-2.5 rounded-lg border text-xs font-bold transition-all active:scale-95 ${copied ? 'bg-green-500/20 border-green-500/50 text-green-400' : 'glass hover:bg-white/10 text-white/70 border-white/10'}`}>
-                                        <Share2 size={16} /> <span>{copied ? 'Copied' : 'Share'}</span>
+
+                                    <button onClick={handleShare} className="group flex flex-col items-center gap-1 active:scale-95 transition-all">
+                                        <div className={`p-2.5 rounded-full transition-colors ${copied ? 'bg-green-500 text-black' : 'bg-white/5 hover:bg-white/20 text-white'}`}>
+                                            <Share2 size={20} />
+                                        </div>
+                                        <span className="text-[10px] font-bold text-gray-400 group-hover:text-white transition-colors">{copied ? 'Copied' : 'Share'}</span>
                                     </button>
-                                    <button onClick={() => onCompare?.(displayData)} className="glass hover:bg-white/10 text-white/70 border-white/10 flex items-center gap-2 px-4 py-2.5 rounded-lg border text-xs font-bold transition-all active:scale-95">
-                                        <ArrowLeft size={16} className="rotate-45"/> Compare
+
+                                    <button onClick={() => onCompare?.(displayData)} className="group flex flex-col items-center gap-1 active:scale-95 transition-all">
+                                        <div className="p-2.5 rounded-full bg-white/5 hover:bg-white/20 text-white transition-colors">
+                                            <ArrowLeft size={20} className="rotate-45"/>
+                                        </div>
+                                        <span className="text-[10px] font-bold text-gray-400 group-hover:text-white transition-colors">Compare</span>
                                     </button>
                                 </div>
+                                
                                 <div className="flex items-center gap-2 ml-auto shrink-0">
                                     {displayData.external_ids?.imdb_id && <SocialLink url={`https://www.imdb.com/title/${displayData.external_ids.imdb_id}`} icon={Film} color="text-yellow-400"/>}
                                     {displayData.external_ids?.instagram_id && <SocialLink url={`https://instagram.com/${displayData.external_ids.instagram_id}`} icon={Instagram} color="text-pink-400"/>}
@@ -345,7 +373,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
 
                             {/* Tabs Header */}
                             <div className="flex gap-6 border-b border-white/10 mb-8">
-                                {['overview', 'cast', 'reviews', 'media'].map(tab => (
+                                {['overview', 'reviews', 'media'].map(tab => (
                                     <button
                                         key={tab}
                                         onClick={() => setActiveTab(tab)}
@@ -359,30 +387,53 @@ export const MoviePage: React.FC<MoviePageProps> = ({
 
                             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                                 {/* MAIN CONTENT AREA (Left 2/3) */}
-                                <div className="lg:col-span-2 space-y-8">
+                                <div className="lg:col-span-2 space-y-10">
                                     
                                     {activeTab === 'overview' && (
-                                        <div className="space-y-8 animate-in fade-in">
+                                        <div className="space-y-10 animate-in fade-in">
                                             <div>
                                                 <h3 className="text-white font-bold text-lg mb-3">Plot Summary</h3>
-                                                <p className="text-gray-300 text-sm leading-relaxed">{displayData.overview || "No synopsis available."}</p>
+                                                <p className="text-gray-300 text-sm leading-relaxed whitespace-pre-line">{displayData.overview || "No synopsis available."}</p>
                                             </div>
 
-                                            {/* Top Billed Cast Preview */}
+                                            {/* Cast Section - Circular */}
                                             {cast.length > 0 && (
                                                 <div>
-                                                    <div className="flex items-center justify-between mb-4">
-                                                        <h3 className="text-white font-bold text-lg">Top Billed Cast</h3>
-                                                        <button onClick={() => setActiveTab('cast')} className={`text-xs font-bold hover:underline ${accentText}`}>View All</button>
-                                                    </div>
-                                                    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
-                                                        {cast.slice(0, 5).map(person => (
-                                                            <div key={person.id} onClick={() => onPersonClick(person.id)} className="cursor-pointer group text-center">
-                                                                <div className="aspect-[3/4] rounded-lg overflow-hidden mb-2 relative bg-white/5">
-                                                                    <img src={person.profile_path ? `${TMDB_IMAGE_BASE}${person.profile_path}` : "https://placehold.co/150x200?text=No+Img"} alt={person.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"/>
+                                                    <h3 className="text-white font-bold text-lg mb-4">Top Cast</h3>
+                                                    <div className="flex flex-wrap gap-6">
+                                                        {cast.map(person => (
+                                                            <div key={person.id} onClick={() => onPersonClick(person.id)} className="flex flex-col items-center gap-2 w-20 cursor-pointer group">
+                                                                <div className="w-20 h-20 rounded-full overflow-hidden border-2 border-white/5 group-hover:border-white/20 transition-all shadow-lg relative">
+                                                                    <img src={person.profile_path ? `${TMDB_IMAGE_BASE}${person.profile_path}` : "https://placehold.co/150x150?text=?"} alt={person.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"/>
                                                                 </div>
-                                                                <p className="text-xs font-bold text-white truncate">{person.name}</p>
-                                                                <p className="text-[10px] text-gray-500 truncate">{person.character}</p>
+                                                                <div className="text-center">
+                                                                    <p className="text-[11px] font-bold text-white leading-tight group-hover:text-red-400 transition-colors line-clamp-2">{person.name}</p>
+                                                                    <p className="text-[9px] text-gray-500 line-clamp-1">{person.character}</p>
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {/* Crew Section - Circular */}
+                                            {crew.length > 0 && (
+                                                <div>
+                                                    <h3 className="text-white font-bold text-lg mb-4">Crew</h3>
+                                                    <div className="flex flex-wrap gap-6">
+                                                        {crew.map((person, idx) => (
+                                                            <div key={`${person.id}-${idx}`} className="flex flex-col items-center gap-2 w-20 group">
+                                                                <div className="w-16 h-16 rounded-full overflow-hidden border border-white/5 bg-white/5 grayscale group-hover:grayscale-0 transition-all shadow-lg relative flex items-center justify-center">
+                                                                    {person.profile_path ? (
+                                                                        <img src={`${TMDB_IMAGE_BASE}${person.profile_path}`} alt={person.name} className="w-full h-full object-cover"/>
+                                                                    ) : (
+                                                                        <span className="text-[10px] font-bold text-gray-500">{person.name.charAt(0)}</span>
+                                                                    )}
+                                                                </div>
+                                                                <div className="text-center">
+                                                                    <p className="text-[10px] font-bold text-white leading-tight">{person.name}</p>
+                                                                    <p className="text-[9px] text-gray-500">{person.job}</p>
+                                                                </div>
                                                             </div>
                                                         ))}
                                                     </div>
@@ -406,20 +457,28 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                     </div>
                                                 </div>
                                             </div>
-                                        </div>
-                                    )}
 
-                                    {activeTab === 'cast' && (
-                                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 animate-in fade-in">
-                                            {cast.map(person => (
-                                                <div key={person.id} onClick={() => onPersonClick(person.id)} className="flex items-center gap-3 p-3 rounded-xl bg-white/5 hover:bg-white/10 transition-colors cursor-pointer border border-white/5">
-                                                    <img src={person.profile_path ? `${TMDB_IMAGE_BASE}${person.profile_path}` : "https://placehold.co/100x100?text=?"} alt={person.name} className="w-12 h-12 rounded-full object-cover"/>
-                                                    <div className="min-w-0">
-                                                        <p className="text-xs font-bold text-white truncate">{person.name}</p>
-                                                        <p className="text-[10px] text-gray-400 truncate">{person.character}</p>
+                                            {/* Similar Movies - Moved here */}
+                                            {(similarMovies.length > 0) && (
+                                                <div>
+                                                    <h4 className="text-white font-bold text-lg mb-4 flex items-center gap-2"><Sparkles size={18} className="text-amber-500"/> Similar Vibes</h4>
+                                                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                                                        {similarMovies.map(m => (
+                                                            <div key={m.id} className="cursor-pointer group aspect-[2/3] rounded-xl overflow-hidden relative shadow-lg bg-gray-900" onClick={() => onSwitchMovie(m)}>
+                                                                <img src={`${TMDB_IMAGE_BASE}${m.poster_path}`} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" alt={m.title} loading="lazy"/>
+                                                                <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-60"></div>
+                                                                <div className="absolute bottom-0 left-0 p-3 w-full">
+                                                                    <p className="text-xs font-bold text-white line-clamp-1">{m.title || m.original_title}</p>
+                                                                    <div className="flex items-center justify-between mt-1">
+                                                                        <span className="text-[10px] text-gray-400">{m.release_date?.split('-')[0]}</span>
+                                                                        <span className="text-[10px] text-yellow-500 flex items-center gap-0.5"><Star size={8} fill="currentColor"/> {m.vote_average.toFixed(1)}</span>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        ))}
                                                     </div>
                                                 </div>
-                                            ))}
+                                            )}
                                         </div>
                                     )}
 
@@ -469,10 +528,10 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                 <div className="space-y-6">
                                     {/* Info Grid */}
                                     <div className="bg-white/5 rounded-2xl p-5 border border-white/5 space-y-4">
-                                        <div><p className="text-gray-500 text-[10px] uppercase font-bold mb-1">Director</p><p className="text-white font-medium text-sm">{director.name}</p></div>
-                                        <div><p className="text-gray-500 text-[10px] uppercase font-bold mb-1">Status</p><p className={`text-sm font-medium ${displayData.status === 'Released' ? 'text-green-400' : 'text-yellow-400'}`}>{displayData.status}</p></div>
-                                        {displayData.budget > 0 && <div><p className="text-gray-500 text-[10px] uppercase font-bold mb-1">Budget</p><p className="text-white font-mono text-xs">{formatCurrency(displayData.budget)}</p></div>}
-                                        {displayData.revenue > 0 && <div><p className="text-gray-500 text-[10px] uppercase font-bold mb-1">Revenue</p><p className="text-green-400 font-mono text-xs">{formatCurrency(displayData.revenue)}</p></div>}
+                                        <div><p className="text-gray-500 text-[10px] uppercase font-bold mb-1 flex items-center gap-2"><Mic2 size={10}/> Director</p><p className="text-white font-medium text-sm">{director.name}</p></div>
+                                        <div><p className="text-gray-500 text-[10px] uppercase font-bold mb-1 flex items-center gap-2"><Check size={10}/> Status</p><p className={`text-sm font-medium ${displayData.status === 'Released' ? 'text-green-400' : 'text-yellow-400'}`}>{displayData.status}</p></div>
+                                        {displayData.budget > 0 && <div><p className="text-gray-500 text-[10px] uppercase font-bold mb-1 flex items-center gap-2"><DollarSign size={10}/> Budget</p><p className="text-white font-mono text-xs">{formatCurrency(displayData.budget)}</p></div>}
+                                        {displayData.revenue > 0 && <div><p className="text-gray-500 text-[10px] uppercase font-bold mb-1 flex items-center gap-2"><Trophy size={10}/> Revenue</p><p className="text-green-400 font-mono text-xs">{formatCurrency(displayData.revenue)}</p></div>}
                                     </div>
 
                                     {/* Watch Providers */}
@@ -521,24 +580,6 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                             <img src={`${TMDB_BACKDROP_BASE}${displayData.belongs_to_collection.backdrop_path}`} className="w-full h-full object-cover opacity-60 group-hover:opacity-100 transition-opacity" alt="Collection"/>
                                             <div className="absolute inset-0 flex items-center justify-center bg-black/40 group-hover:bg-black/20 transition-colors">
                                                 <p className="text-white font-bold text-sm shadow-black drop-shadow-md text-center px-2">Part of the {displayData.belongs_to_collection.name}</p>
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    {/* Similar Movies */}
-                                    {(similarMovies.length > 0) && (
-                                        <div>
-                                            <h4 className="text-white font-bold text-sm mb-4 flex items-center gap-2"><Sparkles size={14} className="text-amber-500"/> Similar Vibes</h4>
-                                            <div className="grid grid-cols-2 gap-3">
-                                                {similarMovies.map(m => (
-                                                    <div key={m.id} className="cursor-pointer group aspect-[2/3] rounded-lg overflow-hidden relative shadow-lg" onClick={() => onSwitchMovie(m)}>
-                                                        <img src={`${TMDB_IMAGE_BASE}${m.poster_path}`} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" alt={m.title}/>
-                                                        <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-60"></div>
-                                                        <div className="absolute bottom-0 left-0 p-2 w-full">
-                                                            <p className="text-[10px] font-bold text-white text-center line-clamp-1">{m.title || m.original_title}</p>
-                                                        </div>
-                                                    </div>
-                                                ))}
                                             </div>
                                         </div>
                                     )}
