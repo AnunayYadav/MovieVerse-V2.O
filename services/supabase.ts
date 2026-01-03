@@ -1,5 +1,6 @@
+
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { Movie, UserProfile, AppNotification } from '../types';
+import { Movie, UserProfile, AppNotification, UserSettings } from '../types';
 import { safeEnv } from '../components/Shared';
 
 let supabaseInstance: SupabaseClient | null = null;
@@ -72,11 +73,6 @@ export const signOut = async () => {
 };
 
 // --- DATABASE SYNC ---
-
-export interface UserSettings {
-    tmdbKey?: string;
-    geminiKey?: string;
-}
 
 export interface UserData {
     watchlist: Movie[];

@@ -1,3 +1,4 @@
+
 export interface Movie {
   id: number;
   title: string;
@@ -202,6 +203,12 @@ export interface Provider {
   provider_id: number;
   provider_name: string;
   logo_path: string;
+}
+
+export interface UserSettings {
+    tmdbKey?: string;
+    geminiKey?: string;
+    consumetUrl?: string; // URL for self-hosted Consumet API
 }
 
 export interface UserProfile {
