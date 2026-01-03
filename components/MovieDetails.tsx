@@ -478,7 +478,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                         <div className="flex overflow-x-auto gap-6 pb-4 hide-scrollbar items-start flex-1">
                                                             {crew.map((person, idx) => (
                                                                 <div key={`${person.id}-${idx}`} className="flex flex-col items-center gap-2 min-w-[80px] group">
-                                                                    <div className="w-16 h-16 rounded-full overflow-hidden border border-white/5 bg-white/5 grayscale group-hover:grayscale-0 transition-all shadow-lg relative flex items-center justify-center">
+                                                                    <div className="w-16 h-16 rounded-full overflow-hidden border border-white/5 bg-white/5 transition-all shadow-lg relative flex items-center justify-center">
                                                                         {person.profile_path ? (
                                                                             <img src={`${TMDB_IMAGE_BASE}${person.profile_path}`} alt={person.name} className="w-full h-full object-cover"/>
                                                                         ) : (
