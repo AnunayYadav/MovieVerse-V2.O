@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, Suspense, useRef } from 'react';
-import { X, Calendar, Clock, Star, Play, Bookmark, Heart, Share2, Clapperboard, Sparkles, Loader2, Tag, MessageCircle, Globe, Facebook, Instagram, Twitter, Film, PlayCircle, Eye, Volume2, VolumeX, Users, ArrowLeft, Lightbulb, DollarSign, Trophy, Tv, Check, Mic2, Video, PenTool } from 'lucide-react';
+import { X, Calendar, Clock, Star, Play, Bookmark, Heart, Share2, Clapperboard, Sparkles, Loader2, Tag, MessageCircle, Globe, Facebook, Instagram, Twitter, Film, PlayCircle, Eye, Volume2, VolumeX, Users, ArrowLeft, Lightbulb, DollarSign, Trophy, Tv, Check, Mic2, Video, PenTool, ChevronRight } from 'lucide-react';
 import { Movie, MovieDetails, Season, UserProfile, Keyword, Review, CastMember, CrewMember } from '../types';
 import { TMDB_BASE_URL, TMDB_IMAGE_BASE, TMDB_BACKDROP_BASE, formatCurrency, ImageLightbox } from '../components/Shared';
 import { generateTrivia } from '../services/gemini';
@@ -172,6 +172,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
     const title = displayData.title || displayData.name;
     const runtime = displayData.runtime ? `${Math.floor(displayData.runtime/60)}h ${displayData.runtime%60}m` : (displayData.episode_run_time?.[0] ? `${displayData.episode_run_time[0]}m / ep` : "N/A");
     
+    // Formatting full date
     const releaseDate = displayData.release_date 
         ? new Date(displayData.release_date).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' })
         : (displayData.first_air_date ? new Date(displayData.first_air_date).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' }) : 'TBA');
@@ -191,7 +192,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
         ['Director', 'Screenplay', 'Writer', 'Story', 'Original Music Composer', 'Director of Photography'].includes(c.job)
     ).reduce((unique: any[], item: any) => {
         return unique.some((x: any) => x.id === item.id) ? unique : [...unique, item];
-    }, []).slice(0, 8) || [];
+    }, []).slice(0, 10) || [];
 
     const mediaImages = displayData.images?.backdrops?.slice(0, 12) || [];
     const similarMovies = displayData.similar?.results?.slice(0, 6) || [];
@@ -222,8 +223,8 @@ export const MoviePage: React.FC<MoviePageProps> = ({
     const SocialLink = ({ url, icon: Icon, color }: { url?: string, icon: any, color: string }) => {
         if (!url) return null;
         return (
-            <a href={url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className={`p-2 rounded-full bg-white/5 hover:bg-white/20 backdrop-blur-md transition-all hover:scale-110 border border-white/5 ${color}`}>
-                <Icon size={14} />
+            <a href={url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className={`p-2 rounded-full hover:bg-white/10 transition-all hover:scale-110 ${color}`}>
+                <Icon size={18} />
             </a>
         );
     };
@@ -270,11 +271,11 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                  <div className="absolute inset-0 w-full h-full overflow-hidden">
                                     {trailer && (
                                         <div className="absolute inset-0 w-full h-full pointer-events-none">
-                                            {/* ZOOOMED TRAILER: scale-150 to remove black bars */}
+                                            {/* ZOOOMED TRAILER: scale-150 to remove black bars completely */}
                                             <iframe
                                                 ref={iframeRef}
                                                 src={`https://www.youtube.com/embed/${trailer.key}?autoplay=1&mute=1&controls=0&loop=1&playlist=${trailer.key}&showinfo=0&rel=0&iv_load_policy=3&modestbranding=1&playsinline=1&enablejsapi=1&origin=${window.location.origin}`}
-                                                className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none transition-opacity duration-1000 ease-in-out w-[120vw] h-[120vh] min-w-full min-h-full scale-150 ${videoLoaded ? 'opacity-60' : 'opacity-0'}`}
+                                                className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none transition-opacity duration-1000 ease-in-out w-full h-full min-w-[120%] min-h-[120%] scale-150 ${videoLoaded ? 'opacity-60' : 'opacity-0'}`}
                                                 allow="autoplay; encrypted-media; gyroscope; picture-in-picture"
                                                 title="Background Trailer"
                                                 loading="lazy"
@@ -331,39 +332,40 @@ export const MoviePage: React.FC<MoviePageProps> = ({
 
                         {/* CONTENT TABS */}
                         <div className="max-w-7xl mx-auto w-full px-6 py-8 md:p-10 -mt-6 relative z-20">
-                            {/* Action Bar - CLEAN LOOK (Icons only mainly) */}
+                            {/* Action Bar - CLEAN LOOK (Icons only, no border) */}
                             <div className="flex items-center justify-between gap-4 overflow-x-auto hide-scrollbar pb-6">
                                 <div className="flex gap-6">
-                                    <button onClick={() => onToggleWatchlist(displayData)} className="group flex flex-col items-center gap-1 active:scale-95 transition-all">
-                                        <div className={`p-2.5 rounded-full transition-colors ${isWatchlisted ? 'bg-white text-black' : 'bg-white/5 hover:bg-white/20 text-white'}`}>
-                                            <Bookmark size={20} fill={isWatchlisted ? "currentColor" : "none"} /> 
+                                    <button onClick={() => onToggleWatchlist(displayData)} className="group flex flex-col items-center gap-1 active:scale-95 transition-all outline-none">
+                                        <div className={`p-2 rounded-full transition-colors ${isWatchlisted ? 'text-white' : 'text-gray-400 group-hover:text-white'}`}>
+                                            <Bookmark size={24} fill={isWatchlisted ? "currentColor" : "none"} /> 
                                         </div>
-                                        <span className="text-[10px] font-bold text-gray-400 group-hover:text-white transition-colors">Watchlist</span>
+                                        <span className="text-[10px] font-bold text-gray-500 group-hover:text-white transition-colors">Watchlist</span>
                                     </button>
                                     
-                                    <button onClick={() => onToggleFavorite(displayData)} className="group flex flex-col items-center gap-1 active:scale-95 transition-all">
-                                        <div className={`p-2.5 rounded-full transition-colors ${isFavorite ? 'bg-white text-red-600' : 'bg-white/5 hover:bg-white/20 text-white'}`}>
-                                            <Heart size={20} fill={isFavorite ? "currentColor" : "none"} />
+                                    <button onClick={() => onToggleFavorite(displayData)} className="group flex flex-col items-center gap-1 active:scale-95 transition-all outline-none">
+                                        <div className={`p-2 rounded-full transition-colors ${isFavorite ? 'text-red-500' : 'text-gray-400 group-hover:text-white'}`}>
+                                            <Heart size={24} fill={isFavorite ? "currentColor" : "none"} />
                                         </div>
-                                        <span className="text-[10px] font-bold text-gray-400 group-hover:text-white transition-colors">Favorite</span>
+                                        <span className="text-[10px] font-bold text-gray-500 group-hover:text-white transition-colors">Favorite</span>
                                     </button>
 
-                                    <button onClick={handleShare} className="group flex flex-col items-center gap-1 active:scale-95 transition-all">
-                                        <div className={`p-2.5 rounded-full transition-colors ${copied ? 'bg-green-500 text-black' : 'bg-white/5 hover:bg-white/20 text-white'}`}>
-                                            <Share2 size={20} />
+                                    <button onClick={handleShare} className="group flex flex-col items-center gap-1 active:scale-95 transition-all outline-none">
+                                        <div className={`p-2 rounded-full transition-colors ${copied ? 'text-green-500' : 'text-gray-400 group-hover:text-white'}`}>
+                                            <Share2 size={24} />
                                         </div>
-                                        <span className="text-[10px] font-bold text-gray-400 group-hover:text-white transition-colors">{copied ? 'Copied' : 'Share'}</span>
+                                        <span className="text-[10px] font-bold text-gray-500 group-hover:text-white transition-colors">{copied ? 'Copied' : 'Share'}</span>
                                     </button>
 
-                                    <button onClick={() => onCompare?.(displayData)} className="group flex flex-col items-center gap-1 active:scale-95 transition-all">
-                                        <div className="p-2.5 rounded-full bg-white/5 hover:bg-white/20 text-white transition-colors">
-                                            <ArrowLeft size={20} className="rotate-45"/>
+                                    <button onClick={() => onCompare?.(displayData)} className="group flex flex-col items-center gap-1 active:scale-95 transition-all outline-none">
+                                        <div className="p-2 rounded-full text-gray-400 group-hover:text-white transition-colors">
+                                            <ArrowLeft size={24} className="rotate-45"/>
                                         </div>
-                                        <span className="text-[10px] font-bold text-gray-400 group-hover:text-white transition-colors">Compare</span>
+                                        <span className="text-[10px] font-bold text-gray-500 group-hover:text-white transition-colors">Compare</span>
                                     </button>
                                 </div>
                                 
-                                <div className="flex items-center gap-2 ml-auto shrink-0">
+                                {/* Social Handles - Clean Look */}
+                                <div className="flex items-center gap-1 ml-auto shrink-0">
                                     {displayData.external_ids?.imdb_id && <SocialLink url={`https://www.imdb.com/title/${displayData.external_ids.imdb_id}`} icon={Film} color="text-yellow-400"/>}
                                     {displayData.external_ids?.instagram_id && <SocialLink url={`https://instagram.com/${displayData.external_ids.instagram_id}`} icon={Instagram} color="text-pink-400"/>}
                                     {displayData.external_ids?.twitter_id && <SocialLink url={`https://twitter.com/${displayData.external_ids.twitter_id}`} icon={Twitter} color="text-blue-400"/>}
@@ -396,33 +398,40 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                 <p className="text-gray-300 text-sm leading-relaxed whitespace-pre-line">{displayData.overview || "No synopsis available."}</p>
                                             </div>
 
-                                            {/* Cast Section - Circular */}
+                                            {/* Cast Section - Horizontal Scroll & Circular */}
                                             {cast.length > 0 && (
                                                 <div>
                                                     <h3 className="text-white font-bold text-lg mb-4">Top Cast</h3>
-                                                    <div className="flex flex-wrap gap-6">
+                                                    <div className="flex overflow-x-auto gap-6 pb-4 hide-scrollbar items-start">
                                                         {cast.map(person => (
-                                                            <div key={person.id} onClick={() => onPersonClick(person.id)} className="flex flex-col items-center gap-2 w-20 cursor-pointer group">
-                                                                <div className="w-20 h-20 rounded-full overflow-hidden border-2 border-white/5 group-hover:border-white/20 transition-all shadow-lg relative">
+                                                            <div key={person.id} onClick={() => onPersonClick(person.id)} className="flex flex-col items-center gap-2 min-w-[80px] cursor-pointer group">
+                                                                <div className="w-20 h-20 rounded-full overflow-hidden border-2 border-transparent group-hover:border-white/20 transition-all shadow-lg relative bg-white/5">
                                                                     <img src={person.profile_path ? `${TMDB_IMAGE_BASE}${person.profile_path}` : "https://placehold.co/150x150?text=?"} alt={person.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"/>
                                                                 </div>
-                                                                <div className="text-center">
+                                                                <div className="text-center w-full">
                                                                     <p className="text-[11px] font-bold text-white leading-tight group-hover:text-red-400 transition-colors line-clamp-2">{person.name}</p>
-                                                                    <p className="text-[9px] text-gray-500 line-clamp-1">{person.character}</p>
+                                                                    <p className="text-[9px] text-gray-500 line-clamp-1 mt-0.5">{person.character}</p>
                                                                 </div>
                                                             </div>
                                                         ))}
+                                                        {/* Arrow for "more" view illusion */}
+                                                        <div className="flex flex-col items-center justify-center min-w-[80px] h-20 group cursor-pointer" onClick={() => setActiveTab('cast')}>
+                                                            <div className="w-12 h-12 rounded-full border border-white/10 flex items-center justify-center text-white/50 group-hover:text-white group-hover:bg-white/10 transition-colors">
+                                                                <ChevronRight size={20}/>
+                                                            </div>
+                                                            <span className="text-[10px] text-gray-500 mt-2 font-bold group-hover:text-white">View All</span>
+                                                        </div>
                                                     </div>
                                                 </div>
                                             )}
 
-                                            {/* Crew Section - Circular */}
+                                            {/* Crew Section - Horizontal Scroll & Circular */}
                                             {crew.length > 0 && (
                                                 <div>
                                                     <h3 className="text-white font-bold text-lg mb-4">Crew</h3>
-                                                    <div className="flex flex-wrap gap-6">
+                                                    <div className="flex overflow-x-auto gap-6 pb-4 hide-scrollbar items-start">
                                                         {crew.map((person, idx) => (
-                                                            <div key={`${person.id}-${idx}`} className="flex flex-col items-center gap-2 w-20 group">
+                                                            <div key={`${person.id}-${idx}`} className="flex flex-col items-center gap-2 min-w-[80px] group">
                                                                 <div className="w-16 h-16 rounded-full overflow-hidden border border-white/5 bg-white/5 grayscale group-hover:grayscale-0 transition-all shadow-lg relative flex items-center justify-center">
                                                                     {person.profile_path ? (
                                                                         <img src={`${TMDB_IMAGE_BASE}${person.profile_path}`} alt={person.name} className="w-full h-full object-cover"/>
@@ -430,9 +439,9 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                                         <span className="text-[10px] font-bold text-gray-500">{person.name.charAt(0)}</span>
                                                                     )}
                                                                 </div>
-                                                                <div className="text-center">
+                                                                <div className="text-center w-full">
                                                                     <p className="text-[10px] font-bold text-white leading-tight">{person.name}</p>
-                                                                    <p className="text-[9px] text-gray-500">{person.job}</p>
+                                                                    <p className="text-[9px] text-gray-500 mt-0.5">{person.job}</p>
                                                                 </div>
                                                             </div>
                                                         ))}
