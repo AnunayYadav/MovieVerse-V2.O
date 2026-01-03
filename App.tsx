@@ -701,18 +701,6 @@ export default function App() {
     if (node) observer.current.observe(node);
   }, [loading, hasMore]);
 
-  const groupPeopleByLetter = (peopleList: Movie[]) => {
-      const groups: Record<string, Movie[]> = {};
-      peopleList.forEach(p => { 
-          const name = p.name || p.title || "Unknown"; // Fallback
-          const firstLetter = name.charAt(0).toUpperCase(); 
-          const key = /[A-Z]/.test(firstLetter) ? firstLetter : '#'; 
-          if (!groups[key]) groups[key] = []; 
-          groups[key].push(p); 
-      });
-      return Object.keys(groups).sort().reduce((obj: Record<string, Movie[]>, key) => { obj[key] = groups[key]; return obj; }, {} as Record<string, Movie[]>);
-  };
-
   const groupMoviesByDate = (movieList: Movie[]) => {
       const groups: Record<string, Movie[]> = {};
       movieList.forEach(m => { const date = m.release_date || "TBA"; if (!groups[date]) groups[date] = []; groups[date].push(m); });
@@ -995,50 +983,21 @@ export default function App() {
            ) : selectedCategory === "People" && !searchQuery ? (
                <div className="animate-in fade-in slide-in-from-bottom-4">
                    <HeroSection />
-                   <div className="p-6 md:p-8 flex gap-6 relative">
-                       <div className="hidden md:flex flex-col gap-1 w-12 shrink-0 sticky top-24 h-fit max-h-[calc(100vh-8rem)] overflow-y-auto hide-scrollbar items-center py-4 bg-white/5 rounded-full border border-white/5 backdrop-blur-md z-30">
-                           {Object.keys(groupPeopleByLetter(movies)).map(letter => ( <a key={letter} href={`#section-${letter}`} className="w-8 h-8 flex items-center justify-center text-xs font-bold text-gray-400 hover:text-white hover:bg-white/20 rounded-full transition-all">{letter}</a> ))}
-                       </div>
-                       <div className="flex-1 min-h-[50vh]">
-                           {movies.length === 0 && loading ? (
-                               // Initial Loading State
-                               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-                                   {[...Array(20)].map((_, i) => (
-                                       <div key={i} className="aspect-[2/3] rounded-xl bg-white/5 animate-pulse relative overflow-hidden">
-                                            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full animate-[shimmer_1.5s_infinite]"></div>
-                                       </div>
-                                   ))}
+                   <div className="p-8 md:p-12">
+                       {renderPageHeader("Popular People", "Discover the actors and visionaries.", true)}
+                       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6">
+                           {movies.map((person, idx) => (
+                               <div key={`${person.id}-${idx}`} ref={idx === movies.length - 1 ? lastMovieElementRef : null} className="animate-in fade-in zoom-in-95 duration-500">
+                                   <PersonCard person={person} onClick={(id) => setSelectedPersonId(id)} />
                                </div>
-                           ) : (
-                               <div className="space-y-12">
-                                   {Object.entries(groupPeopleByLetter(movies)).map(([letter, people]) => (
-                                       <div key={letter} id={`section-${letter}`} className="scroll-mt-24">
-                                           <div className="flex items-center gap-4 mb-6"><span className="text-4xl font-black text-white/10">{letter}</span><div className="h-px bg-white/10 flex-1"></div></div>
-                                           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-                                               {people.map(person => ( <PersonCard key={person.id} person={person} onClick={(id) => setSelectedPersonId(id)} /> ))}
-                                           </div>
-                                       </div>
-                                   ))}
-                                   
-                                   {/* Infinite Scroll Trigger & Loader */}
-                                   <div ref={lastMovieElementRef} className="py-8 w-full">
-                                        {loading && (
-                                            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-                                                {[...Array(5)].map((_, i) => (
-                                                    <div key={i} className="aspect-[2/3] rounded-xl bg-white/5 animate-pulse relative overflow-hidden">
-                                                            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full animate-[shimmer_1.5s_infinite]"></div>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        )}
-                                   </div>
-
-                                   {movies.length === 0 && !loading && (
-                                       <div className="text-center py-20 text-gray-500">No people found.</div>
-                                   )}
+                           ))}
+                           {loading && [...Array(10)].map((_, i) => (
+                               <div key={`skel-${i}`} className="aspect-[2/3] rounded-xl bg-white/5 animate-pulse relative overflow-hidden">
+                                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full animate-[shimmer_1.5s_infinite]"></div>
                                </div>
-                           )}
+                           ))}
                        </div>
+                       {!loading && movies.length === 0 && <div className="text-center py-20 text-gray-500">No people found.</div>}
                    </div>
                </div>
            ) : selectedCategory === "Coming" ? (
