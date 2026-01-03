@@ -647,25 +647,6 @@ export default function App() {
              else if (filterPeriod === "thisYear") { params.append("primary_release_year", new Date().getFullYear().toString()); }
         }
 
-        if (selectedCategory === "People" && pageNum === 1) {
-             const requests = [1, 2, 3].map(p => 
-                fetchWithRetry(`${TMDB_BASE_URL}${endpoint}?${params.toString()}&page=${p}`, controller.signal)
-                    .then(r => r.json())
-                    .catch(err => { console.warn(`People fetch page ${p} failed`, err); return null; })
-             );
-             
-             const results = await Promise.all(requests);
-             const allPeople = results
-                .filter(r => r && r.results)
-                .flatMap(r => r.results || []);
-             
-             const uniquePeople = Array.from(new Map(allPeople.map((p: any) => [p.id, p])).values()) as Movie[];
-             setMovies(uniquePeople); 
-             setHasMore(false); // Simplifying pagination for people
-             setLoading(false); 
-             return;
-        }
-
         const res = await fetchWithRetry(`${TMDB_BASE_URL}${endpoint}?${params.toString()}`, controller.signal);
         const data = await res.json();
         let results = data.results || [];
@@ -678,8 +659,13 @@ export default function App() {
         
         const finalResults = (selectedCategory === "Coming") ? results : (selectedCategory === "People" ? results : sortMovies(results, sortOption));
 
-        if (isLoadMore) setMovies(prev => [...prev, ...finalResults]);
-        else {
+        if (isLoadMore) {
+            setMovies(prev => {
+                const existingIds = new Set(prev.map(m => m.id));
+                const uniqueNew = finalResults.filter((m: Movie) => !existingIds.has(m.id));
+                return [...prev, ...uniqueNew];
+            });
+        } else {
             setMovies(finalResults);
             if (!activeCountry && !activeKeyword && !tmdbCollectionId && !["People", "Anime", "Family", "Awards", "India", "Coming", "Collections", "Genres", "Countries", "Franchise"].includes(selectedCategory) && finalResults.length > 0 && !searchQuery) {
                 setFeaturedMovie(finalResults.find((m: Movie) => m.backdrop_path) || finalResults[0]);
@@ -1014,7 +1000,8 @@ export default function App() {
                            {Object.keys(groupPeopleByLetter(movies)).map(letter => ( <a key={letter} href={`#section-${letter}`} className="w-8 h-8 flex items-center justify-center text-xs font-bold text-gray-400 hover:text-white hover:bg-white/20 rounded-full transition-all">{letter}</a> ))}
                        </div>
                        <div className="flex-1 min-h-[50vh]">
-                           {loading ? (
+                           {movies.length === 0 && loading ? (
+                               // Initial Loading State
                                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
                                    {[...Array(20)].map((_, i) => (
                                        <div key={i} className="aspect-[2/3] rounded-xl bg-white/5 animate-pulse relative overflow-hidden">
@@ -1032,6 +1019,20 @@ export default function App() {
                                            </div>
                                        </div>
                                    ))}
+                                   
+                                   {/* Infinite Scroll Trigger & Loader */}
+                                   <div ref={lastMovieElementRef} className="py-8 w-full">
+                                        {loading && (
+                                            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                                                {[...Array(5)].map((_, i) => (
+                                                    <div key={i} className="aspect-[2/3] rounded-xl bg-white/5 animate-pulse relative overflow-hidden">
+                                                            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full animate-[shimmer_1.5s_infinite]"></div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                   </div>
+
                                    {movies.length === 0 && !loading && (
                                        <div className="text-center py-20 text-gray-500">No people found.</div>
                                    )}
