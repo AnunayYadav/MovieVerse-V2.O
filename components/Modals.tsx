@@ -6,6 +6,51 @@ import { TMDB_BASE_URL, TMDB_IMAGE_BASE, formatCurrency, MovieSkeleton } from '.
 import { generateSmartRecommendations } from '../services/gemini';
 import { getNotifications, markNotificationsRead } from '../services/supabase';
 
+// AGE VERIFICATION MODAL (Uncloseable)
+interface AgeVerificationModalProps {
+    isOpen: boolean;
+    onSave: (age: string) => void;
+}
+
+export const AgeVerificationModal: React.FC<AgeVerificationModalProps> = ({ isOpen, onSave }) => {
+    const [age, setAge] = useState("");
+    
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 z-[200] bg-black/95 backdrop-blur-md flex items-center justify-center p-4">
+            <div className="bg-[#121212] p-8 rounded-2xl w-full max-w-md text-center border border-red-600/30 shadow-2xl animate-in zoom-in-95 duration-300">
+                <div className="w-16 h-16 bg-red-600/20 rounded-full flex items-center justify-center mx-auto mb-6 text-red-500">
+                    <UserCircle size={32} />
+                </div>
+                <h2 className="text-2xl font-bold text-white mb-2">Age Verification Required</h2>
+                <p className="text-gray-400 mb-8 text-sm leading-relaxed">
+                    To provide personalized recommendations and ensure appropriate content content (18+), please confirm your age to continue.
+                </p>
+                <div className="relative mb-6">
+                    <input 
+                        type="number" 
+                        value={age} 
+                        onChange={(e) => setAge(e.target.value)} 
+                        placeholder="Enter your age (e.g. 24)"
+                        className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-4 text-white focus:border-red-600 focus:outline-none text-center text-lg font-bold placeholder-white/20 transition-colors"
+                        min="10"
+                        max="120"
+                        autoFocus
+                    />
+                </div>
+                <button 
+                    onClick={() => { if(age && !isNaN(parseInt(age)) && parseInt(age) > 0) onSave(age); }}
+                    disabled={!age}
+                    className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-4 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98] shadow-lg shadow-red-900/20"
+                >
+                    Continue to MovieVerse
+                </button>
+            </div>
+        </div>
+    );
+};
+
 // PROFILE PAGE
 interface ProfilePageProps {
     isOpen: boolean;

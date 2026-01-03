@@ -5,7 +5,7 @@ import { Movie, UserProfile, GENRES_MAP, GENRES_LIST, INDIAN_LANGUAGES, Maturity
 import { LogoLoader, MovieSkeleton, MovieCard, PersonCard, PosterMarquee, TMDB_BASE_URL, TMDB_BACKDROP_BASE, TMDB_IMAGE_BASE, HARDCODED_TMDB_KEY, HARDCODED_GEMINI_KEY, getTmdbKey, getGeminiKey } from './components/Shared';
 import { MoviePage } from './components/MovieDetails';
 import { AnalyticsDashboard } from './components/Analytics';
-import { ProfilePage, ListSelectionModal, PersonPage, AIRecommendationModal, NotificationModal, ComparisonModal } from './components/Modals';
+import { ProfilePage, ListSelectionModal, PersonPage, AIRecommendationModal, NotificationModal, ComparisonModal, AgeVerificationModal } from './components/Modals';
 import { SettingsPage } from './components/SettingsModal';
 import { generateSmartRecommendations, getSearchSuggestions } from './services/gemini';
 import { LoginPage } from './components/LoginPage';
@@ -183,6 +183,8 @@ export default function App() {
   const [userProfile, setUserProfile] = useState<UserProfile>({ name: "Guest", age: "", genres: [], enableHistory: true });
   const [hasUnread, setHasUnread] = useState(false);
   const [lastNotificationId, setLastNotificationId] = useState<string | null>(null);
+  
+  const [isAgeModalOpen, setIsAgeModalOpen] = useState(false);
 
   // Refs for Internal Lists
   const watchlistRef = useRef<Movie[]>([]);
@@ -381,6 +383,32 @@ export default function App() {
     return () => { if (authListener) authListener.unsubscribe(); };
   }, [resetAuthState]);
 
+  // Mandatory Age Check Effect
+  useEffect(() => {
+      if (isAuthenticated && dataLoaded) {
+          if (!userProfile.age) {
+              setIsAgeModalOpen(true);
+          } else {
+              setIsAgeModalOpen(false);
+          }
+      }
+  }, [isAuthenticated, userProfile.age, dataLoaded]);
+
+  const handleAgeSave = (newAge: string) => {
+      const updatedProfile = { ...userProfile, age: newAge };
+      setUserProfile(updatedProfile);
+      localStorage.setItem('movieverse_profile', JSON.stringify(updatedProfile));
+      if (isCloudSync) {
+          syncUserData({
+              watchlist, favorites, watched, customLists,
+              profile: { ...updatedProfile, maturityRating, region: appRegion },
+              settings: { tmdbKey: apiKey, geminiKey: geminiKey },
+              searchHistory: searchHistory
+          });
+      }
+      setIsAgeModalOpen(false);
+  };
+
   useEffect(() => {
       if (isCloudSync && isAuthenticated && dataLoaded) {
           const timeoutId = setTimeout(() => {
@@ -397,7 +425,7 @@ export default function App() {
 
   useEffect(() => {
       fetchMovies(1, false);
-  }, [selectedCategory, comingFilter, selectedRegion, filterPeriod, selectedLanguage, sortOption, activeCountry, activeKeyword, tmdbCollectionId]);
+  }, [selectedCategory, comingFilter, selectedRegion, filterPeriod, selectedLanguage, sortOption, activeCountry, activeKeyword, tmdbCollectionId, userProfile.age]);
 
   const checkUnreadNotifications = async () => {
       try {
@@ -528,26 +556,41 @@ export default function App() {
     setLoading(true);
     setAiContextReason(null);
 
-    let maxCertification = maturityRating;
+    // Calculate Adult/Age Logic
+    const userAge = parseInt(userProfile.age || "0");
+    const isAdult = !isNaN(userAge) && userAge >= 18;
+    const includeAdultParam = isAdult ? "true" : "false";
 
     try {
         let endpoint = "/discover/movie";
-        const params = new URLSearchParams({ api_key: apiKey, page: pageNum.toString(), language: "en-US", include_adult: "false" });
+        const params = new URLSearchParams({ 
+            api_key: apiKey, 
+            page: pageNum.toString(), 
+            language: "en-US", 
+            include_adult: includeAdultParam 
+        });
+
+        // Determine if strict filtering is needed
+        // STRICT: If user is < 18 OR user explicitly chose a restricted maturity rating (e.g. PG-13) in settings
+        // RELAXED: If user is >= 18 AND maturity rating is set to max 'NC-17' (default for adults usually)
+        const isStrictFilter = !isAdult || maturityRating !== 'NC-17';
 
         // DETERMINE IF WE ARE IN GENERAL DISCOVERY MODE
-        // We only apply region/certification filtering for generic browsing to ensure safety/relevance.
-        // For specific lookups (Countries, Collections, Keywords, Franchises), we show ALL results to avoid hiding international content.
         const isGeneralDiscovery = !activeCountry && !activeKeyword && !tmdbCollectionId && !currentCollection && !["People", "Coming", "Franchise"].includes(selectedCategory);
 
         if (isGeneralDiscovery) {
              if (appRegion) params.append("region", appRegion);
-             params.append("certification_country", "US"); // Only filter by US certs for general browsing to match maturity settings
-             params.append("certification.lte", maxCertification);
+             
+             // Only force US certification logic if strict filtering is required.
+             // Otherwise, for adults with NC-17 access, allow international/unrated content.
+             if (isStrictFilter) {
+                 params.append("certification_country", "US"); 
+                 params.append("certification.lte", maturityRating);
+             }
         }
 
         if (searchQuery) {
             endpoint = selectedCategory === "People" ? "/search/person" : "/search/multi";
-            // Ensure search doesn't get filtered
             params.delete("certification_country");
             params.delete("certification.lte");
             params.set("query", searchQuery);
@@ -573,7 +616,6 @@ export default function App() {
             endpoint = "/person/popular";
         }
         else if (selectedCategory === "Franchise") {
-            // Infinite Scroll for Franchises: Fetch 12 at a time
             const ITEMS_PER_PAGE = 12;
             const start = (pageNum - 1) * ITEMS_PER_PAGE;
             const end = start + ITEMS_PER_PAGE;
@@ -1178,6 +1220,8 @@ export default function App() {
            )}
         </main>
       </div>
+
+      <AgeVerificationModal isOpen={isAgeModalOpen} onSave={handleAgeSave} />
 
       {selectedMovie && ( <MoviePage movie={selectedMovie} onClose={() => setSelectedMovie(null)} apiKey={apiKey} onPersonClick={setSelectedPersonId} onToggleWatchlist={(m) => toggleList(watchlist, setWatchlist, 'movieverse_watchlist', m)} isWatchlisted={watchlist.some(m => m.id === selectedMovie.id)} onToggleFavorite={(m) => toggleList(favorites, setFavorites, 'movieverse_favorites', m)} isFavorite={favorites.some(m => m.id === selectedMovie.id)} onToggleWatched={handleToggleWatched} isWatched={watched.some(m => m.id === selectedMovie.id)} onSwitchMovie={setSelectedMovie} onOpenListModal={(m) => { setListModalMovie(m); setIsListModalOpen(true); }} userProfile={userProfile} onKeywordClick={handleKeywordClick} onCollectionClick={handleTmdbCollectionClick} onCompare={(m) => { setIsComparisonOpen(true); setComparisonBaseMovie(m); }} appRegion={appRegion} /> )}
       <ListSelectionModal isOpen={isListModalOpen} onClose={() => setIsListModalOpen(false)} movie={listModalMovie} customLists={customLists} onCreateList={createCustomList} onAddToList={addToCustomList} />
