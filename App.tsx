@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Search, Film, Menu, TrendingUp, Tv, Ghost, Calendar, Star, X, Sparkles, Settings, Globe, BarChart3, Bookmark, Heart, Folder, Languages, Filter, ChevronDown, Info, Plus, Cloud, CloudOff, Clock, Bell, History, Users, Tag, Dice5, Crown, Radio, LayoutGrid, Award, Baby, Clapperboard, ChevronRight, PlayCircle, Megaphone, CalendarDays, Compass, Home, Map, Loader2 } from 'lucide-react';
+import { Search, Film, Menu, TrendingUp, Tv, Ghost, Calendar, Star, X, Sparkles, Settings, Globe, BarChart3, Bookmark, Heart, Folder, Languages, Filter, ChevronDown, Info, Plus, Cloud, CloudOff, Clock, Bell, History, Users, Tag, Dice5, Crown, Radio, LayoutGrid, Award, Baby, Clapperboard, ChevronRight, PlayCircle, Megaphone, CalendarDays, Compass, Home, Map } from 'lucide-react';
 import { Movie, UserProfile, GENRES_MAP, GENRES_LIST, INDIAN_LANGUAGES, MaturityRating, Keyword } from './types';
 import { LogoLoader, MovieSkeleton, MovieCard, PersonCard, PosterMarquee, TMDB_BASE_URL, TMDB_BACKDROP_BASE, TMDB_IMAGE_BASE, HARDCODED_TMDB_KEY, HARDCODED_GEMINI_KEY, getTmdbKey, getGeminiKey } from './components/Shared';
 import { MoviePage } from './components/MovieDetails';
@@ -13,76 +13,35 @@ import { getSupabase, syncUserData, fetchUserData, signOut, getNotifications, tr
 import { LiveTV } from './components/LiveTV';
 
 const DEFAULT_COLLECTIONS: any = {
-  "srk": { title: "King Khan", params: { with_cast: "35742", sort_by: "popularity.desc" }, icon: "👑", backdrop: "https://image.tmdb.org/t/p/original/2uiMdrO15s597M3E27az2Z2gSgD.jpg", description: "The Badshah of Bollywood. Romance, Action, and Charm." },
-  "rajini": { title: "Thalaivar", params: { with_cast: "3223", sort_by: "popularity.desc" }, icon: "🕶️", backdrop: "https://image.tmdb.org/t/p/original/m8125601132601726.jpg", description: "Mass, Style, and Swag. The One and Only Super Star." },
-  "90s": { title: "90s Nostalgia", params: { "primary_release_date.gte": "1990-01-01", "primary_release_date.lte": "1999-12-31", sort_by: "vote_average.desc", "vote_count.gte": 200 }, icon: "📼", backdrop: "https://image.tmdb.org/t/p/original/yF1eOkaYvwy45m42pSycYYFuPka.jpg", description: "Golden era of melodies, romance, and indie cinema." },
-  "south_mass": { title: "South Mass", params: { with_genres: "28", with_original_language: "te|ta|kn", sort_by: "popularity.desc" }, icon: "🔥", backdrop: "https://image.tmdb.org/t/p/original/1E5baAaEse26fej7uHcjOgEE2t2.jpg", description: "High-octane action from the southern powerhouse." },
-  "korean": { title: "K-Wave", params: { with_original_language: "ko", sort_by: "popularity.desc" }, icon: "🇰🇷", backdrop: "https://image.tmdb.org/t/p/original/7CAl1uP0r6qfK325603665.jpg", description: "Thrillers, Romance, and Drama from South Korea." },
+  "srk": { title: "King Khan", params: { with_cast: "35742", sort_by: "popularity.desc" }, icon: "👑", backdrop: "https://images.unsplash.com/photo-1562821680-894c1395f725?q=80&w=2000&auto=format&fit=crop", description: "The Badshah of Bollywood. Romance, Action, and Charm." },
+  "rajini": { title: "Thalaivar", params: { with_cast: "3223", sort_by: "popularity.desc" }, icon: "🕶️", backdrop: "https://images.unsplash.com/photo-1560183207-667b5210708d?q=80&w=2000&auto=format&fit=crop", description: "Mass, Style, and Swag. The One and Only Super Star." },
+  "90s": { title: "90s Nostalgia", params: { "primary_release_date.gte": "1990-01-01", "primary_release_date.lte": "1999-12-31", sort_by: "vote_average.desc", "vote_count.gte": 200 }, icon: "📼", backdrop: "https://images.unsplash.com/photo-1595769816263-9b910be24d5f?q=80&w=2079&auto=format&fit=crop", description: "Golden era of melodies, romance, and indie cinema." },
+  "south_mass": { title: "South Mass", params: { with_genres: "28", with_original_language: "te|ta|kn", sort_by: "popularity.desc" }, icon: "🔥", backdrop: "https://images.unsplash.com/photo-1536440136628-849c177e76a1?q=80&w=2000&auto=format&fit=crop", description: "High-octane action from the southern powerhouse." },
+  "korean": { title: "K-Wave", params: { with_original_language: "ko", sort_by: "popularity.desc" }, icon: "🇰🇷", backdrop: "https://images.unsplash.com/photo-1517154421773-0529f29ea451?q=80&w=2000&auto=format&fit=crop", description: "Thrillers, Romance, and Drama from South Korea." },
 };
 
-// Expanded Franchise List - Real TMDB Collection IDs
-// Using a large static list allows us to paginate locally without needing a specialized "list franchises" API endpoint which doesn't exist on TMDB
+// TMDB Collection IDs for popular franchises (Global + Indian)
 const FRANCHISE_IDS = [
-    86311,   // The Avengers Collection
-    131292,  // Iron Man Collection
-    131296,  // Thor Collection
-    131295,  // Captain America Collection
+    86311,   // Marvel Cinematic Universe
+    10,      // Star Wars
+    1241,    // Harry Potter
     115575,  // DC Extended Universe
-    10,      // Star Wars Collection
-    1241,    // Harry Potter Collection
-    558216,  // MonsterVerse (Godzilla/Kong)
-    1060085, // YRF Spy Universe (Tiger/Pathaan/War)
-    894562,  // Lokesh Cinematic Universe (Vikram/Kaithi/Leo)
-    1060096, // Cop Universe (Singham/Simmba)
-    9485,    // The Fast and the Furious Collection
-    295,     // Pirates of the Caribbean Collection
-    645,     // James Bond Collection
-    119,     // The Lord of the Rings Collection
-    121,     // The Hobbit Collection
-    87359,   // Mission: Impossible Collection
-    52984,   // The Dark Knight Collection
+    9485,    // Fast & Furious
+    295,     // Pirates of the Caribbean
+    645,     // James Bond
+    558216,  // MonsterVerse
+    1060085, // YRF Spy Universe (Pathaan/Tiger)
+    119,     // Lord of the Rings
+    87359,   // Mission Impossible
+    52984,   // Batman (Nolan)
     472535,  // Baahubali Collection
-    712282,  // K.G.F Collection
-    531241,  // Spider-Man (Spider-Verse) Collection
-    10194,   // Toy Story Collection
-    2150,    // Shrek Collection
-    8354,    // Ice Age Collection
-    86066,   // Despicable Me Collection
-    77816,   // Kung Fu Panda Collection
-    10593,   // Madagascar Collection
-    163313,  // How to Train Your Dragon Collection
-    8265,    // Cars Collection
-    748,     // X-Men Collection
-    131635,  // The Hunger Games Collection
-    33514,   // The Twilight Saga
-    8650,    // Transformers Collection
-    84,      // Indiana Jones Collection
-    1575,    // Rocky Collection
-    472761,  // Creed Collection
-    3573,    // The Bourne Collection
-    115570,  // Star Trek (Reboot) Collection
-    328,     // Jurassic Park Collection
-    8091,    // Alien Collection
-    8093,    // Predator Collection
-    528,     // The Terminator Collection
-    2344,    // The Matrix Collection
-    403374,  // John Wick Collection
-    1570,    // Die Hard Collection
-    2155,    // Lethal Weapon Collection
-    262,     // Rush Hour Collection
-    3260,    // Men in Black Collection
-    1639,    // Ghostbusters Collection
-    264,     // Back to the Future Collection
-    1733,    // Planet of the Apes (Reboot) Collection
-    373722,  // Godzilla (Classic) Collection
-    250329,  // The Conjuring Collection
-    207923,  // Insidious Collection
-    2289,    // Saw Collection
-    2661,    // Scream Collection
-    2656,    // Halloween Collection
-    2342,    // Friday the 13th Collection
-    2660,    // A Nightmare on Elm Street Collection
-    912503   // Astraverse (Brahmastra)
+    712282,  // KGF Collection
+    894562,  // Lokesh Cinematic Universe (Vikram/Kaithi)
+    1060096, // Cop Universe (Rohit Shetty)
+    125584,  // Golmaal Collection
+    1629,    // Dhoom Collection
+    254298,  // Housefull Collection
+    531241,  // Spider-Verse
 ];
 
 const COUNTRY_OPTIONS = [
@@ -108,6 +67,7 @@ const COUNTRY_OPTIONS = [
     { code: "NO", name: "Norway", flag: "🇳🇴" },
 ];
 
+// Colors for the Genre Cards
 const GENRE_COLORS: Record<string, string> = {
     "Action": "from-red-600 to-red-900",
     "Adventure": "from-orange-500 to-orange-800",
@@ -139,10 +99,10 @@ export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [authChecking, setAuthChecking] = useState(true);
   const [isCloudSync, setIsCloudSync] = useState(false);
-  const [dataLoaded, setDataLoaded] = useState(false); 
+  const [dataLoaded, setDataLoaded] = useState(false); // Safety lock for syncing
 
   const [movies, setMovies] = useState<Movie[]>([]);
-  const [franchiseList, setFranchiseList] = useState<any[]>([]); 
+  const [franchiseList, setFranchiseList] = useState<any[]>([]); // New state for Franchise objects
   const [searchQuery, setSearchQuery] = useState("");
   const [searchSuggestions, setSearchSuggestions] = useState<string[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -163,9 +123,10 @@ export default function App() {
   const [sortOption, setSortOption] = useState("popularity.desc");
   const [appRegion, setAppRegion] = useState("US");
   
-  const [currentCollection, setCurrentCollection] = useState<string | null>(null);
-  const [tmdbCollectionId, setTmdbCollectionId] = useState<number | null>(null);
-  const [activeKeyword, setActiveKeyword] = useState<Keyword | null>(null);
+  // Advanced State for Deep Discovery
+  const [currentCollection, setCurrentCollection] = useState<string | null>(null); // For Preset Collections
+  const [tmdbCollectionId, setTmdbCollectionId] = useState<number | null>(null); // For TMDB Collection ID
+  const [activeKeyword, setActiveKeyword] = useState<Keyword | null>(null); // For Keyword Filtering
   const [activeCountry, setActiveCountry] = useState<{ code: string, name: string } | null>(null);
   
   const [filterPeriod, setFilterPeriod] = useState("all");
@@ -173,6 +134,7 @@ export default function App() {
   const [selectedLanguage, setSelectedLanguage] = useState("All");
   const [maturityRating, setMaturityRating] = useState<MaturityRating>('NC-17');
   
+  // Genre & Coming Soon Page State
   const [genreSearch, setGenreSearch] = useState("");
   const [comingFilter, setComingFilter] = useState("upcoming"); // 'today', 'upcoming', 'announced'
 
@@ -185,17 +147,19 @@ export default function App() {
   const [hasUnread, setHasUnread] = useState(false);
   const [lastNotificationId, setLastNotificationId] = useState<string | null>(null);
 
-  // Refs for Internal Lists
+  // Refs for Internal Lists to prevent re-fetching/scrolling when toggling items
   const watchlistRef = useRef<Movie[]>([]);
   const favoritesRef = useRef<Movie[]>([]);
   const watchedRef = useRef<Movie[]>([]);
   const customListsRef = useRef<Record<string, Movie[]>>({});
 
+  // Sync refs with state
   useEffect(() => { watchlistRef.current = watchlist; }, [watchlist]);
   useEffect(() => { favoritesRef.current = favorites; }, [favorites]);
   useEffect(() => { watchedRef.current = watched; }, [watched]);
   useEffect(() => { customListsRef.current = customLists; }, [customLists]);
 
+  // Update displayed movies ONLY if we are currently viewing that specific list
   useEffect(() => {
       if (selectedCategory === "Watchlist") setMovies(watchlist);
       if (selectedCategory === "Favorites") setMovies(favorites);
@@ -206,6 +170,7 @@ export default function App() {
       }
   }, [watchlist, favorites, watched, customLists, selectedCategory]);
 
+  // Modals
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isListModalOpen, setIsListModalOpen] = useState(false);
   const [listModalMovie, setListModalMovie] = useState<Movie | null>(null);
@@ -217,9 +182,12 @@ export default function App() {
   
   const abortControllerRef = useRef<AbortController | null>(null);
 
+  // Premium & Theme Check
   const isExclusive = userProfile.canWatch === true;
+  // If user is exclusive, default to gold unless specifically set to 'default'
   const isGoldTheme = isExclusive && userProfile.theme !== 'default';
   
+  // Dynamic Styles
   const accentText = isGoldTheme ? "text-amber-500" : "text-red-600";
   const accentBg = isGoldTheme ? "bg-amber-500" : "bg-red-600";
   const accentBorder = isGoldTheme ? "border-amber-500" : "border-red-600";
@@ -227,6 +195,7 @@ export default function App() {
   const accentBgLow = isGoldTheme ? "bg-amber-500/20" : "bg-red-600/20";
   const featuredBadge = isGoldTheme ? "bg-gradient-to-r from-amber-400 to-amber-600 text-black shadow-[0_0_20px_rgba(245,158,11,0.6)]" : "bg-red-600 text-white shadow-[0_0_20px_rgba(220,38,38,0.6)]";
 
+  // Define Reset Logic
   const resetAuthState = useCallback(() => {
     localStorage.removeItem('movieverse_auth');
     setIsAuthenticated(false);
@@ -253,6 +222,7 @@ export default function App() {
       setActiveCountry(null);
   };
   
+  // Reset all view states to default Home
   const resetToHome = () => {
       resetFilters();
       setSelectedCategory("All");
@@ -262,14 +232,18 @@ export default function App() {
       setSelectedLanguage("All");
   };
 
+  // --- AUTH & INITIALIZATION ---
   useEffect(() => {
     let authListener: any = null;
+
     const initApp = async () => {
       try {
         setApiKey(getTmdbKey());
         setGeminiKey(getGeminiKey());
+
         const savedHistory = localStorage.getItem('movieverse_search_history');
         if (savedHistory) setSearchHistory(JSON.parse(savedHistory));
+
         const loadLocalState = () => {
              const savedWatchlist = localStorage.getItem('movieverse_watchlist');
              if (savedWatchlist) setWatchlist(JSON.parse(savedWatchlist));
@@ -283,11 +257,13 @@ export default function App() {
              if (savedProfile) setUserProfile(JSON.parse(savedProfile));
              setDataLoaded(true);
         };
+
         const handleSessionFound = async (session: any) => {
              setIsAuthenticated(true);
              try {
                 const cloudData = await fetchUserData();
                 let profileToSet = { name: "Guest", age: "", genres: [], enableHistory: true } as UserProfile;
+
                 if (cloudData) {
                     setWatchlist(cloudData.watchlist);
                     setFavorites(cloudData.favorites);
@@ -296,9 +272,11 @@ export default function App() {
                     setSearchHistory(cloudData.searchHistory || []);
                     if (cloudData.profile) {
                         profileToSet = cloudData.profile;
+                        // Restore synced settings
                         if (profileToSet.maturityRating) setMaturityRating(profileToSet.maturityRating);
                         if (profileToSet.region) setAppRegion(profileToSet.region);
                     }
+                    
                     if (cloudData.settings) {
                         if (cloudData.settings.tmdbKey && !getTmdbKey()) {
                             setApiKey(cloudData.settings.tmdbKey);
@@ -313,6 +291,7 @@ export default function App() {
                 } else {
                     setIsCloudSync(true);
                 }
+                
                 const meta = session.user.user_metadata;
                 if (meta) {
                     if (profileToSet.name === "Guest" || !profileToSet.name) {
@@ -324,13 +303,16 @@ export default function App() {
                 }
                 setUserProfile(profileToSet);
              } catch (err) {
-                 console.error("Cloud fetch error", err);
+                 console.error("Cloud fetch error - Sync Disabled to protect data", err);
                  loadLocalState();
              }
+             
              setDataLoaded(true);
              setAuthChecking(false);
         };
+
         const supabase = getSupabase();
+        
         if (supabase) {
             const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
                 if (event === 'SIGNED_IN' && session) {
@@ -341,6 +323,7 @@ export default function App() {
                 }
             });
             authListener = subscription;
+
             try {
                 const { data: { session } } = await supabase.auth.getSession();
                 if (session) {
@@ -354,6 +337,7 @@ export default function App() {
                     setAuthChecking(false);
                 }
             } catch (supaError) {
+                console.warn("Supabase session check failed", supaError);
                 const localAuth = localStorage.getItem('movieverse_auth');
                 if (localAuth) {
                     loadLocalState();
@@ -369,25 +353,42 @@ export default function App() {
             }
             setAuthChecking(false);
         }
+
         const params = new URLSearchParams(window.location.search);
         const movieId = params.get('movie');
         if (movieId && getTmdbKey()) {
-            fetch(`${TMDB_BASE_URL}/movie/${movieId}?api_key=${getTmdbKey()}`).then(res => res.ok ? res.json() : null).then(data => { if(data?.id) setSelectedMovie(data); });
+            fetch(`${TMDB_BASE_URL}/movie/${movieId}?api_key=${getTmdbKey()}`)
+            .then(res => res.ok ? res.json() : null)
+            .then(data => { if(data?.id) setSelectedMovie(data); });
         }
+
       } catch (criticalError) {
+          console.error("Critical Init Error", criticalError);
           setAuthChecking(false);
       }
     };
+
     initApp();
-    return () => { if (authListener) authListener.unsubscribe(); };
+
+    return () => {
+        if (authListener) authListener.unsubscribe();
+    };
   }, [resetAuthState]);
 
+  // Sync Logic
   useEffect(() => {
       if (isCloudSync && isAuthenticated && dataLoaded) {
           const timeoutId = setTimeout(() => {
               syncUserData({
-                  watchlist, favorites, watched, customLists,
-                  profile: { ...userProfile, maturityRating, region: appRegion },
+                  watchlist,
+                  favorites,
+                  watched,
+                  customLists,
+                  profile: {
+                    ...userProfile,
+                    maturityRating,
+                    region: appRegion
+                  },
                   settings: { tmdbKey: apiKey, geminiKey: geminiKey },
                   searchHistory: searchHistory
               });
@@ -396,6 +397,7 @@ export default function App() {
       }
   }, [watchlist, favorites, watched, customLists, userProfile, isCloudSync, isAuthenticated, apiKey, geminiKey, dataLoaded, searchHistory, maturityRating, appRegion]);
 
+  // Refetch when filters that affect query params change
   useEffect(() => {
       fetchMovies(1, false);
   }, [selectedCategory, comingFilter, selectedRegion, filterPeriod, selectedLanguage, sortOption, activeCountry, activeKeyword, tmdbCollectionId]);
@@ -404,12 +406,19 @@ export default function App() {
       try {
           const notifs = await getNotifications();
           setHasUnread(notifs.some(n => !n.read));
+          
           const latest = notifs[0];
           if (latest && !latest.read) {
-              if (lastNotificationId && latest.id !== lastNotificationId) triggerSystemNotification(latest.title, latest.message);
-              if (lastNotificationId !== latest.id) setLastNotificationId(latest.id);
+              if (lastNotificationId && latest.id !== lastNotificationId) {
+                  triggerSystemNotification(latest.title, latest.message);
+              }
+              if (lastNotificationId !== latest.id) {
+                  setLastNotificationId(latest.id);
+              }
           }
-      } catch (e) {}
+      } catch (e) {
+          console.error("Failed to check notifications", e);
+      }
   };
 
   useEffect(() => {
@@ -419,6 +428,7 @@ export default function App() {
           return () => clearInterval(interval);
       }
   }, [isAuthenticated, lastNotificationId]);
+
 
   const handleLogin = (profileData?: UserProfile) => {
     localStorage.setItem('movieverse_auth', 'true');
@@ -430,19 +440,41 @@ export default function App() {
   };
 
   const handleLogout = async () => {
-    try { await signOut(); await new Promise((resolve) => setTimeout(resolve, 500)); } catch (e) {} finally { resetAuthState(); window.location.reload(); }
+    try {
+        const logoutPromise = signOut();
+        const timeoutPromise = new Promise((resolve) => setTimeout(resolve, 2000));
+        await Promise.race([logoutPromise, timeoutPromise]);
+    } catch (e) {
+        console.error("Sign out error", e);
+    } finally {
+        resetAuthState();
+        window.location.reload();
+    }
   };
 
   const saveSettings = (newTmdb: string) => {
-    if (!newTmdb || newTmdb === HARDCODED_TMDB_KEY) { localStorage.removeItem('movieverse_tmdb_key'); setApiKey(HARDCODED_TMDB_KEY); } else { setApiKey(newTmdb); localStorage.setItem('movieverse_tmdb_key', newTmdb); }
+    if (!newTmdb || newTmdb === HARDCODED_TMDB_KEY) {
+        localStorage.removeItem('movieverse_tmdb_key');
+        setApiKey(HARDCODED_TMDB_KEY);
+    } else {
+        setApiKey(newTmdb);
+        localStorage.setItem('movieverse_tmdb_key', newTmdb);
+    }
   };
 
   const saveGeminiKey = (newGemini: string) => {
-    if (!newGemini || newGemini === HARDCODED_GEMINI_KEY) { localStorage.removeItem('movieverse_gemini_key'); setGeminiKey(HARDCODED_GEMINI_KEY); } else { setGeminiKey(newGemini); localStorage.setItem('movieverse_gemini_key', newGemini); }
+    if (!newGemini || newGemini === HARDCODED_GEMINI_KEY) {
+        localStorage.removeItem('movieverse_gemini_key');
+        setGeminiKey(HARDCODED_GEMINI_KEY);
+    } else {
+        setGeminiKey(newGemini);
+        localStorage.setItem('movieverse_gemini_key', newGemini);
+    }
   };
 
   const addToSearchHistory = (query: string) => {
-      if (!query.trim() || userProfile.enableHistory === false) return;
+      if (!query.trim()) return;
+      if (userProfile.enableHistory === false) return; 
       const newHistory = [query, ...searchHistory.filter(h => h !== query)].slice(0, 10);
       setSearchHistory(newHistory);
       localStorage.setItem('movieverse_search_history', JSON.stringify(newHistory));
@@ -513,19 +545,38 @@ export default function App() {
   const fetchMovies = useCallback(async (pageNum: number = 1, isLoadMore = false) => {
     if (!apiKey) return;
     
-    if (["Watchlist", "Favorites", "History"].includes(selectedCategory) || selectedCategory.startsWith("Custom:")) {
-         const list = selectedCategory === "Watchlist" ? watchlistRef.current : selectedCategory === "Favorites" ? favoritesRef.current : selectedCategory === "History" ? watchedRef.current : customListsRef.current[selectedCategory.replace("Custom:", "")] || [];
-         setMovies(sortMovies(list, sortOption)); 
-         setFeaturedMovie(selectedCategory === "Watchlist" ? list[0] : null); 
-         setHasMore(false); return; 
+    // Static lists Logic
+    const internalListMap: Record<string, Movie[]> = {
+        "Watchlist": watchlistRef.current,
+        "Favorites": favoritesRef.current,
+        "History": watchedRef.current
+    };
+    if (internalListMap[selectedCategory]) {
+         setMovies(sortMovies(internalListMap[selectedCategory], sortOption)); 
+         setFeaturedMovie(selectedCategory === "Watchlist" ? watchlistRef.current[0] : null); 
+         setHasMore(false); 
+         return; 
     }
-    if (["CineAnalytics", "LiveTV", "Genres", "Collections", "Countries"].includes(selectedCategory) && !activeCountry) return;
+    // Skip fetching for static pages 
+    if (["CineAnalytics", "LiveTV", "Genres", "Collections", "Countries", "Franchise"].includes(selectedCategory) && !activeCountry && selectedCategory !== "Franchise" && selectedCategory !== "Coming") return;
+    
+    if (selectedCategory.startsWith("Custom:")) { 
+        const listName = selectedCategory.replace("Custom:", ""); 
+        setMovies(sortMovies(customListsRef.current[listName] || [], sortOption)); 
+        setFeaturedMovie(null); 
+        setHasMore(false); 
+        return; 
+    }
 
-    if (abortControllerRef.current) abortControllerRef.current.abort();
+    if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+    }
     const controller = new AbortController();
     abortControllerRef.current = controller;
 
-    if (pageNum === 1) setMovies([]);
+    if (pageNum === 1) {
+        setMovies([]);
+    }
     setLoading(true);
     setAiContextReason(null);
 
@@ -533,8 +584,15 @@ export default function App() {
 
     try {
         let endpoint = "/discover/movie";
-        const params = new URLSearchParams({ api_key: apiKey, page: pageNum.toString(), language: "en-US", include_adult: "false" });
+        const params = new URLSearchParams({
+            api_key: apiKey,
+            page: pageNum.toString(),
+            language: "en-US",
+            include_adult: "false",
+        });
 
+        // Apply default region/cert filters for standard categories to avoid bad quality results
+        // But SKIP for 'Coming' to ensure global results
         if (selectedCategory !== "Coming" && selectedCategory !== "People") {
              if (appRegion) params.append("region", appRegion);
              params.append("certification_country", "US");
@@ -542,17 +600,30 @@ export default function App() {
         }
 
         if (searchQuery) {
-            endpoint = selectedCategory === "People" ? "/search/person" : "/search/multi";
-            params.delete("certification_country");
-            params.delete("certification.lte");
-            params.set("query", searchQuery);
+            // ... Search Logic ...
+            if (selectedCategory === "People") {
+                endpoint = "/search/person";
+                params.delete("certification_country");
+                params.delete("certification.lte");
+                params.set("query", searchQuery);
+            } else if (pageNum === 1) {
+                 // Hybrid Search Logic ...
+                 endpoint = "/search/multi";
+                 params.set("query", searchQuery);
+            } else {
+                endpoint = "/search/multi";
+                params.set("query", searchQuery);
+            }
         }
         else if (tmdbCollectionId) {
             const res = await fetchWithRetry(`${TMDB_BASE_URL}/collection/${tmdbCollectionId}?api_key=${apiKey}`, controller.signal);
             const data = await res.json();
-            const sortedParts = (data.parts || []).sort((a: any, b: any) => new Date(a.release_date || "").getTime() - new Date(b.release_date || "").getTime());
+            const parts = data.parts || [];
+            const sortedParts = parts.sort((a: any, b: any) => new Date(a.release_date || "").getTime() - new Date(b.release_date || "").getTime());
             setMovies(sortedParts);
-            setLoading(false); setHasMore(false); return;
+            setLoading(false);
+            setHasMore(false); 
+            return;
         }
         else if (activeKeyword) {
             endpoint = "/discover/movie";
@@ -568,27 +639,18 @@ export default function App() {
             endpoint = "/person/popular";
         }
         else if (selectedCategory === "Franchise") {
-            // Infinite Scroll for Franchises: Fetch 12 at a time
-            const ITEMS_PER_PAGE = 12;
-            const start = (pageNum - 1) * ITEMS_PER_PAGE;
-            const end = start + ITEMS_PER_PAGE;
-            const idsToFetch = FRANCHISE_IDS.slice(start, end);
-            
-            if (idsToFetch.length === 0) {
-                if (pageNum === 1) setFranchiseList([]);
-                setLoading(false); setHasMore(false); return;
-            }
-
-            const promises = idsToFetch.map(id => fetchWithRetry(`${TMDB_BASE_URL}/collection/${id}?api_key=${apiKey}`, controller.signal).then(r => r.json()).catch(() => null));
+            // Fetch details for all predefined franchise IDs
+            const promises = FRANCHISE_IDS.map(id =>
+                fetchWithRetry(`${TMDB_BASE_URL}/collection/${id}?api_key=${apiKey}`, controller.signal)
+                .then(r => r.json())
+                .catch(() => null)
+            );
             const data = await Promise.all(promises);
-            const valid = data.filter(d => d && d.id);
-            
-            if (isLoadMore) setFranchiseList(prev => [...prev, ...valid]);
-            else setFranchiseList(valid);
-            
-            setHasMore(end < FRANCHISE_IDS.length);
+            // Filter out failures
+            setFranchiseList(data.filter(d => d && d.id));
             setLoading(false);
-            return;
+            setHasMore(false);
+            return; // Exit early, we have our data
         }
         else if (selectedCategory === "TV Shows") {
             endpoint = "/discover/tv";
@@ -610,115 +672,279 @@ export default function App() {
             params.append("vote_count.gte", "1000");
         }
         else if (activeCountry) {
+            // Country Filter
             params.append("with_origin_country", activeCountry.code);
             params.append("sort_by", "popularity.desc");
         }
         else if (selectedCategory === "India") {
+             // Fallback if older state persists
             params.append("with_origin_country", "IN");
             params.append("sort_by", "popularity.desc");
         }
         else if (selectedCategory === "Coming") {
+            // GLOBAL COMING SOON LOGIC
             const today = new Date();
             const todayStr = today.toISOString().split('T')[0];
-            params.delete("region"); params.delete("certification_country");
+            
+            // Remove any potential US-centric filters that might have slipped in
+            params.delete("region");
+            params.delete("certification_country");
             
             if (comingFilter === 'today') {
                 params.set("primary_release_date.gte", todayStr);
                 params.set("primary_release_date.lte", todayStr);
             } else if (comingFilter === 'announced') {
-                const nearFuture = new Date(); nearFuture.setMonth(nearFuture.getMonth() + 3);
-                const farFuture = new Date(); farFuture.setFullYear(farFuture.getFullYear() + 2);
+                const farFuture = new Date();
+                farFuture.setFullYear(farFuture.getFullYear() + 2);
+                const nearFuture = new Date();
+                nearFuture.setMonth(nearFuture.getMonth() + 3);
+                
                 params.set("primary_release_date.gte", nearFuture.toISOString().split('T')[0]);
                 params.set("primary_release_date.lte", farFuture.toISOString().split('T')[0]);
             } else {
-                const future = new Date(); future.setMonth(future.getMonth() + 3);
+                // Upcoming (default) - Next 3 months
+                const future = new Date();
+                future.setMonth(future.getMonth() + 3);
                 params.set("primary_release_date.gte", todayStr);
                 params.set("primary_release_date.lte", future.toISOString().split('T')[0]);
             }
-            params.set("sort_by", "primary_release_date.asc"); // STRICT DATE SORT
-            if (selectedRegion === "IN") params.set("with_origin_country", "IN");
+            
+            // Sort by popularity ensures big movies (Hollywood AND Indian) show up first
+            // rather than obscure low-budget films releasing tomorrow.
+            params.set("sort_by", "popularity.desc"); 
+            
+            // If explicit Indian region selected, restrict to IN content
+            if (selectedRegion === "IN") {
+                params.set("with_origin_country", "IN");
+            }
         }
         else {
              params.append("sort_by", sortOption === 'relevance' ? 'popularity.desc' : sortOption);
              if (sortOption === "revenue.desc") params.append("vote_count.gte", "300");
+             
              if (selectedCategory !== "All" && GENRES_MAP[selectedCategory]) params.append("with_genres", GENRES_MAP[selectedCategory].toString());
              if (selectedRegion === "IN") params.append("with_origin_country", "IN");
              if (selectedLanguage !== "All") params.append("with_original_language", selectedLanguage);
-             if (filterPeriod === "future") { params.set("sort_by", "popularity.desc"); params.append("primary_release_date.gte", new Date().toISOString().split('T')[0]); }
+
+             const today = new Date().toISOString().split('T')[0];
+             if (filterPeriod === "future") { params.set("sort_by", "popularity.desc"); params.append("primary_release_date.gte", today); }
              else if (filterPeriod === "thisYear") { params.append("primary_release_year", new Date().getFullYear().toString()); }
         }
 
+        // Special handling for People to get more data for sorting
         if (selectedCategory === "People" && pageNum === 1) {
-             const requests = [1,2,3,4,5].map(p => fetchWithRetry(`${TMDB_BASE_URL}${endpoint}?${params.toString()}&page=${p}`, controller.signal).then(r => r.json()));
-             const results = await Promise.all(requests);
-             const allPeople = results.flatMap(r => r.results || []);
-             const uniquePeople = Array.from(new Map(allPeople.map((p: any) => [p.id, p])).values()) as Movie[];
-             setMovies(uniquePeople); setHasMore(false); setLoading(false); return;
+             const [p1, p2, p3, p4, p5] = await Promise.all([
+                 fetchWithRetry(`${TMDB_BASE_URL}${endpoint}?${params.toString()}&page=1`, controller.signal).then(r => r.json()),
+                 fetchWithRetry(`${TMDB_BASE_URL}${endpoint}?${params.toString()}&page=2`, controller.signal).then(r => r.json()),
+                 fetchWithRetry(`${TMDB_BASE_URL}${endpoint}?${params.toString()}&page=3`, controller.signal).then(r => r.json()),
+                 fetchWithRetry(`${TMDB_BASE_URL}${endpoint}?${params.toString()}&page=4`, controller.signal).then(r => r.json()),
+                 fetchWithRetry(`${TMDB_BASE_URL}${endpoint}?${params.toString()}&page=5`, controller.signal).then(r => r.json()),
+             ]);
+             const allPeople = [...(p1.results||[]), ...(p2.results||[]), ...(p3.results||[]), ...(p4.results||[]), ...(p5.results||[])];
+             // Remove duplicates
+             const uniquePeople = Array.from(new Map(allPeople.map(p => [p.id, p])).values()) as Movie[];
+             setMovies(uniquePeople);
+             setHasMore(false); // We fetched a batch, disable infinite scroll for this view to simplify alphabetical grouping logic
+             setLoading(false);
+             return;
         }
 
         const res = await fetchWithRetry(`${TMDB_BASE_URL}${endpoint}?${params.toString()}`, controller.signal);
         const data = await res.json();
+        
         let results = data.results || [];
 
-        if (selectedCategory !== "People") {
-             if (endpoint.includes("/search/multi")) results = results.filter((m: any) => m.media_type === 'movie' || m.media_type === 'tv');
+        if (selectedCategory === "People") {
+            // Keep people as is (for load more or search)
+        } else {
+             if (endpoint.includes("/search/multi")) {
+                 results = results.filter((m: any) => m.media_type === 'movie' || m.media_type === 'tv');
+             }
              results = results.filter((m: any) => m.poster_path);
-             if (selectedCategory === "TV Shows" || selectedCategory === "Anime") results = results.map((m: any) => ({ ...m, media_type: 'tv', title: m.name, release_date: m.first_air_date }));
+             
+             if (selectedCategory === "TV Shows" || selectedCategory === "Anime") {
+                results = results.map((m: any) => ({ ...m, media_type: 'tv', title: m.name, release_date: m.first_air_date }));
+            }
         }
         
-        const finalResults = (selectedCategory === "Coming") ? results : (selectedCategory === "People" ? results : sortMovies(results, sortOption));
+        // For Coming Soon, we must sort by release date for the timeline view to work correctly
+        // even though we fetched by popularity to get good movies.
+        const finalResults = (selectedCategory === "Coming") 
+            ? results.sort((a: Movie, b: Movie) => new Date(a.release_date || "").getTime() - new Date(b.release_date || "").getTime())
+            : (selectedCategory === "People" ? results : sortMovies(results, sortOption));
 
-        if (isLoadMore) setMovies(prev => [...prev, ...finalResults]);
-        else {
+        if (isLoadMore) {
+            setMovies(prev => [...prev, ...finalResults]);
+        } else {
             setMovies(finalResults);
+            // Feature movie logic
             if (!activeCountry && !activeKeyword && !tmdbCollectionId && !["People", "Anime", "Family", "Awards", "India", "Coming", "Collections", "Genres", "Countries", "Franchise"].includes(selectedCategory) && finalResults.length > 0 && !searchQuery) {
                 setFeaturedMovie(finalResults.find((m: Movie) => m.backdrop_path) || finalResults[0]);
-            } else setFeaturedMovie(null);
+            } else {
+                setFeaturedMovie(null);
+            }
         }
         setHasMore(data.page < data.total_pages);
-    } catch (error: any) { if (error.name !== 'AbortError') console.error("Fetch Logic Error:", error); } finally { if (!controller.signal.aborted) setLoading(false); }
+    } catch (error: any) {
+        if (error.name !== 'AbortError') {
+             console.error("Fetch Logic Error:", error);
+        }
+    } finally {
+        if (!controller.signal.aborted) setLoading(false);
+    }
   }, [apiKey, searchQuery, selectedCategory, sortOption, appRegion, currentCollection, filterPeriod, selectedLanguage, selectedRegion, userProfile, maturityRating, sortMovies, tmdbCollectionId, activeKeyword, activeCountry, comingFilter]);
 
-  useEffect(() => { const timeout = setTimeout(() => fetchMovies(1, false), searchQuery ? 800 : 300); return () => clearTimeout(timeout); }, [fetchMovies, searchQuery]);
-  useEffect(() => { const fetchSuggestions = async () => { if (searchQuery.length > 3) { try { const sugs = await getSearchSuggestions(searchQuery); setSearchSuggestions(sugs); setShowSuggestions(true); } catch (e) { console.error(e); } } }; const timeout = setTimeout(fetchSuggestions, 500); return () => clearTimeout(timeout); }, [searchQuery]);
+  // ... Debounced Search & Suggestions Effects (Keep as is) ...
+  useEffect(() => {
+     const timeout = setTimeout(() => {
+         fetchMovies(1, false);
+     }, searchQuery ? 800 : 300); 
+     return () => clearTimeout(timeout);
+  }, [fetchMovies, searchQuery]);
 
-  const handleLoadMore = () => { const nextPage = page + 1; setPage(nextPage); fetchMovies(nextPage, true); };
-  const handleCollectionClick = (key: string) => { resetFilters(); setCurrentCollection(key); setSelectedCategory("Collection"); setIsSidebarOpen(false); };
-  const handleTmdbCollectionClick = (id: number) => { setSelectedMovie(null); resetFilters(); setTmdbCollectionId(id); setSelectedCategory("Deep Dive"); };
-  const handleKeywordClick = (keyword: Keyword) => { setSelectedMovie(null); resetFilters(); setActiveKeyword(keyword); setSelectedCategory("Deep Dive"); };
-  const handleCountryClick = (country: { code: string, name: string }) => { resetFilters(); setActiveCountry(country); setSelectedCategory("Countries"); };
-  const handleSearchSubmit = (query: string) => { resetFilters(); setSearchQuery(query); addToSearchHistory(query); setShowSuggestions(false); };
-  const handleSuggestionClick = (suggestion: string) => { handleSearchSubmit(suggestion); };
+  useEffect(() => {
+      const fetchSuggestions = async () => {
+          if (searchQuery.length > 3) {
+              try {
+                  const sugs = await getSearchSuggestions(searchQuery);
+                  setSearchSuggestions(sugs);
+                  setShowSuggestions(true);
+              } catch (e) { console.error(e); }
+          }
+      };
+      const timeout = setTimeout(fetchSuggestions, 500);
+      return () => clearTimeout(timeout);
+  }, [searchQuery]);
+
+  const handleLoadMore = () => {
+      const nextPage = page + 1;
+      setPage(nextPage);
+      fetchMovies(nextPage, true);
+  };
+
+  const handleCollectionClick = (key: string) => {
+      resetFilters();
+      setCurrentCollection(key);
+      setSelectedCategory("Collection");
+      setIsSidebarOpen(false);
+  };
+
+  const handleTmdbCollectionClick = (id: number) => {
+      setSelectedMovie(null);
+      resetFilters();
+      setTmdbCollectionId(id);
+      setSelectedCategory("Deep Dive");
+  };
+
+  const handleKeywordClick = (keyword: Keyword) => {
+      setSelectedMovie(null);
+      resetFilters();
+      setActiveKeyword(keyword);
+      setSelectedCategory("Deep Dive");
+  };
+
+  const handleCountryClick = (country: { code: string, name: string }) => {
+      resetFilters();
+      setActiveCountry(country);
+      // We don't set selectedCategory to 'Countries' here because we want to trigger the API fetch 
+      // which looks for `activeCountry` state. We can keep it or change it to trigger the view.
+      // Let's keep SelectedCategory as 'Countries' but handle the View logic to show movies if activeCountry is set.
+      setSelectedCategory("Countries"); 
+  };
+
+  const handleSearchSubmit = (query: string) => {
+      resetFilters();
+      setSearchQuery(query);
+      addToSearchHistory(query);
+      setShowSuggestions(false);
+  };
+
+  const handleSuggestionClick = (suggestion: string) => {
+      handleSearchSubmit(suggestion);
+  };
   
   const handleFeelingLucky = () => {
-      setIsSidebarOpen(false); resetFilters(); setLoading(true);
+      setIsSidebarOpen(false);
+      resetFilters();
+      setLoading(true);
       const randomPage = Math.floor(Math.random() * 50) + 1;
-      const params = new URLSearchParams({ api_key: apiKey, page: randomPage.toString(), sort_by: "vote_average.desc", "vote_count.gte": "500", include_adult: "false" });
-      fetch(`${TMDB_BASE_URL}/discover/movie?${params.toString()}`).then(r => r.json()).then(d => { if (d.results && d.results.length > 0) { const randomMovie = d.results[Math.floor(Math.random() * d.results.length)]; setSelectedMovie(randomMovie); setLoading(false); } else setLoading(false); }).catch(() => setLoading(false));
+      const params = new URLSearchParams({
+          api_key: apiKey,
+          page: randomPage.toString(),
+          sort_by: "vote_average.desc",
+          "vote_count.gte": "500",
+          include_adult: "false"
+      });
+      fetch(`${TMDB_BASE_URL}/discover/movie?${params.toString()}`)
+        .then(r => r.json())
+        .then(d => {
+            if (d.results && d.results.length > 0) {
+                const randomMovie = d.results[Math.floor(Math.random() * d.results.length)];
+                setSelectedMovie(randomMovie);
+                setLoading(false);
+            } else {
+                setLoading(false);
+            }
+        })
+        .catch(() => setLoading(false));
   };
   
   const observer = useRef<IntersectionObserver | null>(null);
   const lastMovieElementRef = useCallback((node: HTMLDivElement) => {
     if (loading) return;
     if (observer.current) observer.current.disconnect();
-    observer.current = new IntersectionObserver(entries => { if (entries[0].isIntersecting && hasMore) handleLoadMore(); });
+    observer.current = new IntersectionObserver(entries => {
+      if (entries[0].isIntersecting && hasMore) {
+         handleLoadMore();
+      }
+    });
     if (node) observer.current.observe(node);
   }, [loading, hasMore]);
 
+  // Group People Alphabetically
   const groupPeopleByLetter = (peopleList: Movie[]) => {
       const groups: Record<string, Movie[]> = {};
-      peopleList.forEach(p => { const firstLetter = (p.name || "Unknown").charAt(0).toUpperCase(); const key = /[A-Z]/.test(firstLetter) ? firstLetter : '#'; if (!groups[key]) groups[key] = []; groups[key].push(p); });
-      return Object.keys(groups).sort().reduce((obj: Record<string, Movie[]>, key) => { obj[key] = groups[key]; return obj; }, {} as Record<string, Movie[]>);
+      peopleList.forEach(p => {
+          const firstLetter = (p.name || "Unknown").charAt(0).toUpperCase();
+          const key = /[A-Z]/.test(firstLetter) ? firstLetter : '#';
+          if (!groups[key]) groups[key] = [];
+          groups[key].push(p);
+      });
+      
+      // Explicit typing to fix 'map does not exist on type unknown' error
+      return Object.keys(groups).sort().reduce((obj: Record<string, Movie[]>, key) => {
+          obj[key] = groups[key];
+          return obj;
+      }, {} as Record<string, Movie[]>);
   };
 
+  // Group Movies by Date for Coming Soon Timeline
   const groupMoviesByDate = (movieList: Movie[]) => {
       const groups: Record<string, Movie[]> = {};
-      movieList.forEach(m => { const date = m.release_date || "TBA"; if (!groups[date]) groups[date] = []; groups[date].push(m); });
-      return Object.entries(groups).sort((a, b) => { if (a[0] === "TBA") return 1; if (b[0] === "TBA") return -1; return a[0].localeCompare(b[0]); });
+      movieList.forEach(m => {
+          const date = m.release_date || "TBA";
+          if (!groups[date]) groups[date] = [];
+          groups[date].push(m);
+      });
+      return Object.entries(groups).sort((a, b) => {
+          if (a[0] === "TBA") return 1;
+          if (b[0] === "TBA") return -1;
+          return a[0].localeCompare(b[0]);
+      });
   };
 
-  if (authChecking) return <div className="fixed inset-0 bg-black flex items-center justify-center"><LogoLoader /></div>;
-  if (!isAuthenticated) return (<> <LoginPage onLogin={handleLogin} onOpenSettings={() => setIsSettingsOpen(true)} /> <SettingsPage isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} apiKey={apiKey} setApiKey={(k) => saveSettings(k)} geminiKey={geminiKey} setGeminiKey={(k) => saveGeminiKey(k)} maturityRating={maturityRating} setMaturityRating={setMaturityRating} profile={userProfile} onUpdateProfile={setUserProfile} onLogout={handleLogout} searchHistory={searchHistory} setSearchHistory={(h) => { setSearchHistory(h); localStorage.setItem('movieverse_search_history', JSON.stringify(h)); }} watchedMovies={watched} setWatchedMovies={(m) => { setWatched(m); localStorage.setItem('movieverse_watched', JSON.stringify(m)); }} /> </>);
+  if (authChecking) {
+      return <div className="fixed inset-0 bg-black flex items-center justify-center"><LogoLoader /></div>;
+  }
+
+  if (!isAuthenticated) {
+      return (
+        <>
+          <LoginPage onLogin={handleLogin} onOpenSettings={() => setIsSettingsOpen(true)} />
+          <SettingsPage isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} apiKey={apiKey} setApiKey={(k) => saveSettings(k)} geminiKey={geminiKey} setGeminiKey={(k) => saveGeminiKey(k)} maturityRating={maturityRating} setMaturityRating={setMaturityRating} profile={userProfile} onUpdateProfile={setUserProfile} onLogout={handleLogout} searchHistory={searchHistory} setSearchHistory={(h) => { setSearchHistory(h); localStorage.setItem('movieverse_search_history', JSON.stringify(h)); }} watchedMovies={watched} setWatchedMovies={(m) => { setWatched(m); localStorage.setItem('movieverse_watched', JSON.stringify(m)); }} />
+        </>
+      );
+  }
 
   const getPageTitle = () => {
       if (selectedCategory === "LiveTV") return "Live TV";
@@ -734,62 +960,41 @@ export default function App() {
       return selectedCategory === "All" ? "Trending Now" : selectedCategory;
   }
 
+  // Determine active view state for Navbar highlighting
   const isHomeView = selectedCategory === "All" && !activeKeyword && !tmdbCollectionId && !currentCollection && filterPeriod === "all" && sortOption === "popularity.desc" && selectedRegion === "Global" && selectedLanguage === "All" && !searchQuery;
   const isLiveView = selectedCategory === "LiveTV" && !searchQuery;
+  
+  // Highlight "Browse" if a sub-category is selected
   const isBrowseActive = !isHomeView && !isLiveView && !selectedCategory.startsWith("Watchlist") && !selectedCategory.startsWith("Favorites") && !selectedCategory.startsWith("History") && !selectedCategory.startsWith("Custom") && !selectedCategory.startsWith("CineAnalytics") && !searchQuery;
+
+  // Filter Genres based on search
   const filteredGenres = GENRES_LIST.filter(g => g.toLowerCase().includes(genreSearch.toLowerCase()));
 
-  // HERO CONFIGURATION
-  const HERO_CONFIG: Record<string, { title: string, subtitle: string, bg: string, icon?: any }> = {
-      "Anime": { title: "Anime World", subtitle: "Journey into the extraordinary world of Japanese animation.", bg: "https://image.tmdb.org/t/p/original/bSXfU4zoMDtHrnrPgeacQXGLhcD.jpg", icon: Ghost },
-      "People": { title: "The Stars", subtitle: "Discover the actors, directors, and visionaries behind the magic.", bg: "https://image.tmdb.org/t/p/original/8rpDcsfLJypbO6vREc0547OTqEv.jpg", icon: Users },
-      "Awards": { title: "Award Winners", subtitle: "Critically acclaimed masterpieces and cinema history.", bg: "https://image.tmdb.org/t/p/original/tmU7GeKVybMWFButWEGl2M4GeiP.jpg", icon: Award },
-      "Family": { title: "Family Time", subtitle: "Safe, fun, and heartwarming entertainment for all ages.", bg: "https://image.tmdb.org/t/p/original/3P52oz9HPQWxcwHOwxtyrVV1LKi.jpg", icon: Baby },
-      "Genres": { title: "Explore Genres", subtitle: "Find your vibe from Action to Western.", bg: "https://image.tmdb.org/t/p/original/628Dep6AxEtDxjZoGP78TsOxYbK.jpg", icon: Clapperboard },
-      "Countries": { title: "Global Cinema", subtitle: "Travel the world through the lens of film.", bg: "https://image.tmdb.org/t/p/original/5wDBVictj4wUYZ31gR5FGvpCZy8.jpg", icon: Map },
-      "Franchise": { title: "Cinematic Universes", subtitle: "Binge-worthy collections and legendary sagas.", bg: "https://image.tmdb.org/t/p/original/cJr7KBu6n8xqYgtLG1w9qY1p3uk.jpg", icon: Sparkles },
-      "TV Shows": { title: "TV Series", subtitle: "Episodic entertainment to keep you hooked.", bg: "https://image.tmdb.org/t/p/original/9faGSFi5jam6pDWGNd0p8JcJgXQ.jpg", icon: Tv },
-      "Coming": { title: "Coming Soon", subtitle: "Get a sneak peek at the most anticipated releases.", bg: "https://image.tmdb.org/t/p/original/uDgy6hyPd82kOHh6I95FLtLnj6p.jpg", icon: Calendar }
-  };
-
+  // Render Page Header Helper
   const renderPageHeader = (title: string, subtitle: string, showSearch = false) => (
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-6">
-           <div><h1 className="text-4xl md:text-5xl font-black text-white tracking-tight">{title}</h1><p className="text-white/50 mt-2 text-sm">{subtitle}</p></div>
+           <div>
+               <h1 className="text-4xl md:text-5xl font-black text-white tracking-tight">{title}</h1>
+               <p className="text-white/50 mt-2 text-sm">{subtitle}</p>
+           </div>
            {showSearch && (
                <div className="relative w-full md:w-80 group">
                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30 group-focus-within:text-white transition-colors" size={18} />
-                   <input type="text" value={genreSearch} onChange={(e) => setGenreSearch(e.target.value)} placeholder={`Search ${title}...`} className="w-full bg-white/5 border border-white/10 rounded-full py-3.5 pl-12 pr-6 text-sm text-white focus:outline-none focus:bg-white/10 focus:border-white/20 transition-all placeholder-white/20 shadow-lg" />
+                   <input 
+                       type="text" 
+                       value={genreSearch} 
+                       onChange={(e) => setGenreSearch(e.target.value)} 
+                       placeholder={`Search ${title}...`}
+                       className="w-full bg-white/5 border border-white/10 rounded-full py-3.5 pl-12 pr-6 text-sm text-white focus:outline-none focus:bg-white/10 focus:border-white/20 transition-all placeholder-white/20 shadow-lg" 
+                   />
                </div>
            )}
       </div>
   );
 
-  const HeroSection = () => {
-      const config = HERO_CONFIG[selectedCategory] || (activeCountry ? { title: activeCountry.name, subtitle: `Explore top movies and shows from ${activeCountry.name}.`, bg: "https://image.tmdb.org/t/p/original/5wDBVictj4wUYZ31gR5FGvpCZy8.jpg", icon: Map } : null);
-      if (!config) return null;
-      
-      const Icon = config.icon || Film;
-
-      return (
-        <div className="relative w-full overflow-hidden mb-8">
-            <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/80 to-[#030303] z-10"></div>
-            <div className={`absolute inset-0 bg-cover bg-center opacity-30 transform scale-105 transition-transform duration-[20s] ease-in-out`} style={{ backgroundImage: `url(${config.bg})` }}></div>
-            <div className="relative z-20 p-8 md:p-16 flex flex-col justify-end min-h-[400px]">
-                <div className="flex items-center gap-4 mb-4 animate-in slide-in-from-bottom-5 duration-700">
-                    <div className={`p-4 rounded-2xl backdrop-blur-md shadow-2xl border border-white/10 ${isGoldTheme ? 'bg-amber-500/20 text-amber-400' : 'bg-red-600/20 text-red-500'}`}>
-                        <Icon size={32} />
-                    </div>
-                    <div className="h-px bg-white/20 w-24"></div>
-                </div>
-                <h1 className="text-5xl md:text-7xl font-black text-white tracking-tighter mb-4 drop-shadow-2xl animate-in slide-in-from-bottom-5 duration-700 delay-100">{config.title}</h1>
-                <p className="text-lg md:text-xl text-gray-200 max-w-2xl font-light leading-relaxed drop-shadow-lg animate-in slide-in-from-bottom-5 duration-700 delay-200">{config.subtitle}</p>
-            </div>
-        </div>
-      );
-  };
-
   return (
     <div className="min-h-screen bg-[#030303] text-white font-sans selection:bg-amber-500/30 selection:text-white">
+      {/* Navbar */}
       <nav className={`fixed top-0 left-0 right-0 z-[60] bg-black/70 backdrop-blur-xl border-b h-16 flex items-center justify-center px-4 md:px-6 transition-all duration-300 ${isGoldTheme ? 'border-amber-500/10' : 'border-white/5'}`}>
         <div className="flex items-center justify-between w-full max-w-7xl">
             <div className="flex items-center gap-4 md:gap-6">
@@ -806,16 +1011,43 @@ export default function App() {
             </div>
             
             <div className="hidden md:flex items-center gap-1">
-                <button onClick={resetToHome} className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-300 hover:scale-105 active:scale-95 flex items-center gap-2 ${isHomeView ? "bg-white text-black font-bold" : "text-gray-400 hover:text-white hover:bg-white/5"}`}><Home size={14} /> Home</button>
-                <button onClick={() => { resetToHome(); handleFeelingLucky(); }} className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-300 hover:scale-105 active:scale-95 flex items-center gap-2 text-gray-400 hover:text-white hover:bg-white/5`}><Compass size={14} /> Explore</button>
+                <button onClick={resetToHome} className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-300 hover:scale-105 active:scale-95 flex items-center gap-2 ${isHomeView ? "bg-white text-black font-bold" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>
+                    <Home size={14} /> Home
+                </button>
+                <button onClick={() => { resetToHome(); handleFeelingLucky(); }} className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-300 hover:scale-105 active:scale-95 flex items-center gap-2 text-gray-400 hover:text-white hover:bg-white/5`}>
+                    <Compass size={14} /> Explore
+                </button>
                 <button onClick={() => { resetFilters(); setSelectedCategory("LiveTV"); }} className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-300 hover:scale-105 active:scale-95 flex items-center gap-1 ${isLiveView ? "bg-white text-black font-bold" : "text-gray-400 hover:text-white hover:bg-white/5"}`}> <Radio size={12}/> Live TV</button>
+                
+                {/* DYNAMIC BROWSE BUTTON */}
                 <div className="relative group z-50">
-                    <button className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium transition-all outline-none ${isBrowseActive ? "bg-white text-black font-bold" : "text-gray-400 hover:text-white hover:bg-white/5"}`}><LayoutGrid size={16} /><span>Browse</span></button>
+                    <button className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium transition-all outline-none ${isBrowseActive ? "bg-white text-black font-bold" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>
+                        <LayoutGrid size={16} />
+                        <span>Browse</span>
+                    </button>
+                    
                     <div className="absolute top-full left-0 pt-4 w-[280px] hidden group-hover:block animate-in fade-in slide-in-from-top-2 duration-200">
                         <div className="bg-[#0f0f0f]/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl p-4 grid grid-cols-3 gap-2">
-                            <div className="col-span-3 pb-2 mb-1 border-b border-white/5"><span className="text-[10px] font-bold text-white/40 uppercase tracking-wider">Browse By</span></div>
-                            {[ { label: "People", icon: Users }, { label: "Anime", icon: Ghost }, { label: "Awards", icon: Award }, { label: "Family", icon: Baby }, { label: "Genres", icon: Clapperboard }, { label: "Countries", icon: Map }, { label: "Franchise", icon: Sparkles }, { label: "TV Shows", icon: Tv }, { label: "Coming", icon: Calendar } ].map((item) => (
-                                <button key={item.label} onClick={() => { resetFilters(); setSelectedCategory(item.label); }} className="flex flex-col items-center justify-center gap-2 p-3 rounded-xl bg-white/5 hover:bg-white/10 hover:scale-105 transition-all active:scale-95 group/item">
+                            <div className="col-span-3 pb-2 mb-1 border-b border-white/5">
+                                <span className="text-[10px] font-bold text-white/40 uppercase tracking-wider">Browse By</span>
+                            </div>
+                            
+                            {[
+                                { label: "People", icon: Users, action: () => { resetFilters(); setSelectedCategory("People"); } },
+                                { label: "Anime", icon: Ghost, action: () => { resetFilters(); setSelectedCategory("Anime"); } },
+                                { label: "Awards", icon: Award, action: () => { resetFilters(); setSelectedCategory("Awards"); } },
+                                { label: "Family", icon: Baby, action: () => { resetFilters(); setSelectedCategory("Family"); } },
+                                { label: "Genres", icon: Clapperboard, action: () => { resetFilters(); setSelectedCategory("Genres"); } },
+                                { label: "Countries", icon: Map, action: () => { resetFilters(); setSelectedCategory("Countries"); } },
+                                { label: "Franchise", icon: Sparkles, action: () => { resetFilters(); setSelectedCategory("Franchise"); } },
+                                { label: "TV Shows", icon: Tv, action: () => { resetFilters(); setSelectedCategory("TV Shows"); } },
+                                { label: "Coming", icon: Calendar, action: () => { resetFilters(); setSelectedCategory("Coming"); } },
+                            ].map((item) => (
+                                <button 
+                                    key={item.label}
+                                    onClick={item.action}
+                                    className="flex flex-col items-center justify-center gap-2 p-3 rounded-xl bg-white/5 hover:bg-white/10 hover:scale-105 transition-all active:scale-95 group/item"
+                                >
                                     <item.icon size={20} className={`transition-colors ${selectedCategory === item.label ? 'text-white' : 'text-gray-400 group-hover/item:text-white'}`} />
                                     <span className={`text-[10px] font-medium transition-colors ${selectedCategory === item.label ? 'text-white' : 'text-gray-400 group-hover/item:text-white'}`}>{item.label}</span>
                                 </button>
@@ -825,10 +1057,20 @@ export default function App() {
                 </div>
             </div>
             </div>
+            
             <div className="flex-1 max-w-md mx-4 relative hidden md:block group z-[70]">
             <div className={`absolute inset-0 bg-gradient-to-r rounded-full blur-md opacity-0 group-hover:opacity-100 transition-opacity duration-500 ${isGoldTheme ? 'from-amber-500/20 to-yellow-900/20' : 'from-red-500/20 to-gray-500/20'}`}></div>
             <Search className={`absolute left-4 top-1/2 -translate-y-1/2 transition-colors duration-300 ${loading && searchQuery ? `${accentText} animate-pulse` : "text-white/50 group-focus-within:text-white"}`} size={16} />
-            <input type="text" placeholder="Search movies, people, genres..." className={`w-full bg-black/40 border backdrop-blur-md rounded-full py-2.5 pl-11 pr-10 text-sm focus:outline-none transition-all duration-300 text-white placeholder-white/30 ${loading && searchQuery ? "border-opacity-50" : "border-white/10 focus:bg-white/5 focus:shadow-[0_0_15px_rgba(255,255,255,0.1)]"} ${isGoldTheme ? 'focus:border-amber-500/50' : 'focus:border-white/30'}`} value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} onFocus={() => setShowSuggestions(true)} onBlur={() => setTimeout(() => setShowSuggestions(false), 200)} onKeyDown={(e) => { if(e.key === 'Enter') handleSearchSubmit(searchQuery); }} />
+            <input 
+                type="text" 
+                placeholder="Search movies, people, genres..."
+                className={`w-full bg-black/40 border backdrop-blur-md rounded-full py-2.5 pl-11 pr-10 text-sm focus:outline-none transition-all duration-300 text-white placeholder-white/30 ${loading && searchQuery ? "border-opacity-50" : "border-white/10 focus:bg-white/5 focus:shadow-[0_0_15px_rgba(255,255,255,0.1)]"} ${isGoldTheme ? 'focus:border-amber-500/50' : 'focus:border-white/30'}`} 
+                value={searchQuery} 
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onFocus={() => setShowSuggestions(true)}
+                onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+                onKeyDown={(e) => { if(e.key === 'Enter') handleSearchSubmit(searchQuery); }}
+            />
             {showSuggestions && (searchSuggestions.length > 0 || (searchHistory.length > 0 && !searchQuery)) && (
                 <div className="absolute top-full left-0 right-0 mt-2 bg-[#0f0f0f]/95 border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-[100] backdrop-blur-xl animate-in fade-in slide-in-from-top-2 duration-200">
                     {!searchQuery && searchHistory.length > 0 && (
@@ -836,21 +1078,50 @@ export default function App() {
                             <p className="px-4 py-2 text-[10px] text-white/40 font-bold uppercase tracking-wider">Recent Searches</p>
                             {searchHistory.slice(0, 4).map((s, i) => (
                                 <div key={`hist-${i}`} className="flex items-center justify-between px-4 py-3 text-sm hover:bg-white/10 text-gray-300 hover:text-white transition-colors cursor-pointer group/item" onMouseDown={(e) => { e.preventDefault(); handleSearchSubmit(s); }}>
-                                    <div className="flex items-center gap-3"><Clock size={14} className="text-white/30 group-hover/item:text-white/50"/>{s}</div>
-                                    <button onMouseDown={(e) => removeFromSearchHistory(e, s)} className={`p-1 hover:bg-white/20 rounded-full text-white/20 transition-colors ${isGoldTheme ? 'hover:text-amber-400' : 'hover:text-red-400'}`}><X size={14}/></button>
+                                    <div className="flex items-center gap-3">
+                                        <Clock size={14} className="text-white/30 group-hover/item:text-white/50"/>
+                                        {s}
+                                    </div>
+                                    <button 
+                                        onMouseDown={(e) => removeFromSearchHistory(e, s)}
+                                        className={`p-1 hover:bg-white/20 rounded-full text-white/20 transition-colors ${isGoldTheme ? 'hover:text-amber-400' : 'hover:text-red-400'}`}
+                                    >
+                                        <X size={14}/>
+                                    </button>
                                 </div>
                             ))}
                         </div>
                     )}
-                    {searchQuery && searchSuggestions.map((s, i) => ( <button key={i} onMouseDown={(e) => { e.preventDefault(); handleSuggestionClick(s); }} className="w-full text-left px-4 py-3 text-sm hover:bg-white/10 text-gray-300 hover:text-white flex items-center gap-3 border-b border-white/5 last:border-0 transition-colors"><Search size={14} className="text-white/40"/> {s}</button> ))}
+                    
+                    {searchQuery && searchSuggestions.map((s, i) => (
+                        <button 
+                            key={i} 
+                            onMouseDown={(e) => { e.preventDefault(); handleSuggestionClick(s); }}
+                            className="w-full text-left px-4 py-3 text-sm hover:bg-white/10 text-gray-300 hover:text-white flex items-center gap-3 border-b border-white/5 last:border-0 transition-colors"
+                        >
+                            <Search size={14} className="text-white/40"/> {s}
+                        </button>
+                    ))}
                 </div>
             )}
             </div>
+            
             <div className="flex items-center gap-2 md:gap-4">
                 {isCloudSync && <div className="hidden md:flex items-center text-green-500 text-xs gap-1 animate-in fade-in"><Cloud size={14}/></div>}
                 {!isCloudSync && isAuthenticated && <div className="hidden md:flex items-center text-gray-600 text-xs gap-1 animate-in fade-in"><CloudOff size={14}/></div>}
-                <button onClick={() => setIsNotificationOpen(true)} className="relative text-gray-400 hover:text-white transition-colors hover:scale-110 active:scale-95 duration-300"><Bell size={20}/>{hasUnread && (<span className={`absolute -top-1 -right-1 w-2 h-2 rounded-full animate-pulse ${isGoldTheme ? 'bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.8)]' : 'bg-red-600 shadow-[0_0_8px_rgba(220,38,38,0.8)]'}`}></span>)}</button>
-                <button onClick={() => setIsProfileOpen(true)} className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white shadow-lg transition-transform overflow-hidden duration-300 hover:scale-105 ${userProfile.avatarBackground || (isGoldTheme ? 'bg-gradient-to-br from-amber-500 to-yellow-900 shadow-amber-900/40' : 'bg-gradient-to-br from-red-600 to-red-900 shadow-red-900/40')}`}>{userProfile.avatar ? (<img key={userProfile.avatar} src={userProfile.avatar} alt={userProfile.name} className="w-full h-full object-cover" />) : (userProfile.name.charAt(0).toUpperCase())}</button>
+                <button onClick={() => setIsNotificationOpen(true)} className="relative text-gray-400 hover:text-white transition-colors hover:scale-110 active:scale-95 duration-300">
+                    <Bell size={20}/>
+                    {hasUnread && (
+                        <span className={`absolute -top-1 -right-1 w-2 h-2 rounded-full animate-pulse ${isGoldTheme ? 'bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.8)]' : 'bg-red-600 shadow-[0_0_8px_rgba(220,38,38,0.8)]'}`}></span>
+                    )}
+                </button>
+                <button onClick={() => setIsProfileOpen(true)} className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white shadow-lg transition-transform overflow-hidden duration-300 hover:scale-105 ${userProfile.avatarBackground || (isGoldTheme ? 'bg-gradient-to-br from-amber-500 to-yellow-900 shadow-amber-900/40' : 'bg-gradient-to-br from-red-600 to-red-900 shadow-red-900/40')}`}>
+                    {userProfile.avatar ? (
+                        <img key={userProfile.avatar} src={userProfile.avatar} alt={userProfile.name} className="w-full h-full object-cover" />
+                    ) : (
+                        userProfile.name.charAt(0).toUpperCase()
+                    )}
+                </button>
                 <button onClick={() => setIsSettingsOpen(true)} className="text-gray-400 hover:text-white transition-all hover:rotate-90 duration-500"><Settings size={20} /></button>
             </div>
         </div>
@@ -863,12 +1134,14 @@ export default function App() {
                    <div className="flex items-center gap-2"><Film size={24} className={accentText} /><span className="text-xl font-bold">Menu</span></div>
                    <button onClick={() => setIsSidebarOpen(false)} className="p-2 hover:bg-white/10 rounded-full transition-colors active:scale-95"><X size={20}/></button>
                </div>
+               
                <div className="mb-6 md:hidden">
                     <div className="relative">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40" size={16} />
                         <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} onKeyDown={(e) => { if(e.key === 'Enter') handleSearchSubmit(searchQuery); }} placeholder="Search..." className={`w-full bg-white/5 border border-white/10 rounded-xl py-3 pl-10 text-sm text-white focus:outline-none focus:bg-white/10 transition-colors ${isGoldTheme ? 'focus:border-amber-500' : 'focus:border-red-600'}`} />
                     </div>
                </div>
+
                <div className="space-y-6">
                    <div className="space-y-1">
                         <p className="text-xs font-bold text-white/40 uppercase tracking-wider mb-2 px-2">Discover</p>
@@ -880,6 +1153,7 @@ export default function App() {
                         <button onClick={() => { resetFilters(); setSortOption("vote_average.desc"); setSelectedCategory("All"); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 hover:translate-x-1 ${sortOption === "vote_average.desc" && selectedCategory === "All" ? `${accentBgLow} ${accentText}` : 'text-gray-400 hover:text-white hover:bg-white/5'}`}><Star size={18}/> Top Rated</button>
                         <button onClick={handleFeelingLucky} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 text-purple-400 hover:text-purple-300 hover:bg-purple-500/10 group"><Dice5 size={18} className="group-hover:rotate-180 transition-transform duration-500"/> I'm Feeling Lucky</button>
                    </div>
+
                    <div className="space-y-1">
                        <p className="text-xs font-bold text-white/40 uppercase tracking-wider mb-2 px-2">Library</p>
                        <button onClick={() => { resetFilters(); setSelectedCategory("Watchlist"); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 hover:translate-x-1 ${selectedCategory === "Watchlist" ? `${accentBgLow} ${accentText}` : 'text-gray-400 hover:text-white hover:bg-white/5'}`}><Bookmark size={18}/> Watchlist <span className="ml-auto text-xs opacity-50">{watchlist.length}</span></button>
@@ -887,197 +1161,317 @@ export default function App() {
                        <button onClick={() => { resetFilters(); setSelectedCategory("Favorites"); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 hover:translate-x-1 ${selectedCategory === "Favorites" ? `${accentBgLow} ${accentText}` : 'text-gray-400 hover:text-white hover:bg-white/5'}`}><Heart size={18}/> Favorites <span className="ml-auto text-xs opacity-50">{favorites.length}</span></button>
                        <button onClick={() => { resetFilters(); setSelectedCategory("CineAnalytics"); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 hover:translate-x-1 ${selectedCategory === "CineAnalytics" ? `${accentBgLow} ${accentText}` : 'text-gray-400 hover:text-white hover:bg-white/5'}`}><BarChart3 size={18}/> Analytics</button>
                    </div>
+                   
                    {Object.keys(customLists).length > 0 && (
                        <div className="space-y-1">
                            <p className="text-xs font-bold text-white/40 uppercase tracking-wider mb-2 px-2">My Lists</p>
-                           {Object.keys(customLists).map(listName => ( <button key={listName} onClick={() => { resetFilters(); setSelectedCategory(`Custom:${listName}`); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 hover:translate-x-1 ${selectedCategory === `Custom:${listName}` ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}><Folder size={18} /> {listName} <span className="ml-auto text-xs opacity-50">{customLists[listName].length}</span></button> ))}
+                           {Object.keys(customLists).map(listName => ( 
+                                <button key={listName} onClick={() => { resetFilters(); setSelectedCategory(`Custom:${listName}`); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 hover:translate-x-1 ${selectedCategory === `Custom:${listName}` ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}><Folder size={18} /> {listName} <span className="ml-auto text-xs opacity-50">{customLists[listName].length}</span></button> 
+                            ))}
                        </div>
                    )}
+                   
                    <div className="space-y-2">
                         <p className="text-xs font-bold text-white/40 uppercase tracking-wider mb-2 px-2">Genres</p>
                         <div className="flex flex-wrap gap-2 px-2">
                             {GENRES_LIST.map(genre => (
-                                <button key={genre} onClick={() => { resetFilters(); setSelectedCategory(genre); setFilterPeriod("all"); setIsSidebarOpen(false); }} className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all duration-300 hover:scale-105 active:scale-95 ${selectedCategory === genre ? `${accentBg} text-white ${accentBorder} shadow-md` : 'bg-white/5 border-white/5 text-gray-400 hover:text-white hover:border-white/20'}`}>{genre}</button>
+                                <button 
+                                    key={genre}
+                                    onClick={() => { resetFilters(); setSelectedCategory(genre); setFilterPeriod("all"); setIsSidebarOpen(false); }}
+                                    className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all duration-300 hover:scale-105 active:scale-95 ${selectedCategory === genre ? `${accentBg} text-white ${accentBorder} shadow-md` : 'bg-white/5 border-white/5 text-gray-400 hover:text-white hover:border-white/20'}`}
+                                >
+                                    {genre}
+                                </button>
                             ))}
                         </div>
                    </div>
                </div>
            </div>
-           <div className={`absolute top-0 left-full w-screen h-full bg-black/50 backdrop-blur-sm transition-opacity duration-500 ${isSidebarOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`} onClick={() => setIsSidebarOpen(false)}></div>
+           <div 
+             className={`absolute top-0 left-full w-screen h-full bg-black/50 backdrop-blur-sm transition-opacity duration-500 ${isSidebarOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`} 
+             onClick={() => setIsSidebarOpen(false)}
+           ></div>
         </aside>
 
         <main className="flex-1 min-h-[calc(100vh-4rem)] w-full">
-           {selectedCategory === "CineAnalytics" ? ( <AnalyticsDashboard watchedMovies={watched} watchlist={watchlist} favorites={favorites} apiKey={apiKey} onMovieClick={setSelectedMovie} /> ) : selectedCategory === "LiveTV" ? ( <LiveTV userProfile={userProfile} /> ) : selectedCategory === "Genres" ? (
-               <div className="animate-in fade-in slide-in-from-bottom-4">
-                   <HeroSection />
-                   <div className="p-8 md:p-12">
-                       {renderPageHeader("All Genres", "Find your vibe.", true)}
-                       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
-                           {filteredGenres.map(genre => {
-                               const colorClass = GENRE_COLORS[genre] || "from-gray-700 to-black";
-                               return (
-                                   <div key={genre} onClick={() => { resetFilters(); setSelectedCategory(genre); }} className={`relative h-40 md:h-48 rounded-2xl overflow-hidden cursor-pointer group shadow-2xl transition-all duration-500 hover:scale-[1.02] hover:shadow-white/5`}>
-                                       <div className={`absolute inset-0 bg-gradient-to-br ${colorClass} opacity-80 group-hover:opacity-100 transition-opacity duration-500`}></div>
-                                       <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent"></div>
-                                       <div className="absolute -top-10 -right-10 w-32 h-32 bg-white/10 rounded-full blur-2xl group-hover:bg-white/20 transition-colors duration-500"></div>
-                                       <div className="absolute bottom-0 left-0 p-6 w-full">
-                                           <h3 className="text-xl md:text-2xl font-black text-white mb-1 group-hover:translate-x-1 transition-transform duration-300">{genre}</h3>
-                                           <div className="h-0.5 w-8 bg-white/50 rounded-full group-hover:w-16 transition-all duration-500"></div>
+           {selectedCategory === "CineAnalytics" ? (
+               <AnalyticsDashboard watchedMovies={watched} watchlist={watchlist} favorites={favorites} apiKey={apiKey} onMovieClick={setSelectedMovie} />
+           ) : selectedCategory === "LiveTV" ? (
+               <LiveTV userProfile={userProfile} />
+           ) : selectedCategory === "Genres" ? (
+               // DEDICATED GENRES PAGE
+               <div className="p-8 md:p-12 animate-in fade-in slide-in-from-bottom-4">
+                   {renderPageHeader("Genres", "Explore movies and TV shows by your favorite categories.", true)}
+                   <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
+                       {filteredGenres.map(genre => {
+                           const colorClass = GENRE_COLORS[genre] || "from-gray-700 to-black";
+                           return (
+                               <div 
+                                   key={genre}
+                                   onClick={() => { resetFilters(); setSelectedCategory(genre); }}
+                                   className={`relative h-40 md:h-48 rounded-2xl overflow-hidden cursor-pointer group shadow-2xl transition-all duration-500 hover:scale-[1.02] hover:shadow-white/5`}
+                               >
+                                   <div className={`absolute inset-0 bg-gradient-to-br ${colorClass} opacity-80 group-hover:opacity-100 transition-opacity duration-500`}></div>
+                                   <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent"></div>
+                                   <div className="absolute -top-10 -right-10 w-32 h-32 bg-white/10 rounded-full blur-2xl group-hover:bg-white/20 transition-colors duration-500"></div>
+                                   <div className="absolute bottom-0 left-0 p-6 w-full">
+                                       <h3 className="text-xl md:text-2xl font-black text-white mb-1 group-hover:translate-x-1 transition-transform duration-300">{genre}</h3>
+                                       <div className="h-0.5 w-8 bg-white/50 rounded-full group-hover:w-16 transition-all duration-500"></div>
+                                   </div>
+                                   <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-x-4 group-hover:translate-x-0">
+                                       <div className="bg-black/30 backdrop-blur-md p-2 rounded-full border border-white/10">
+                                           <ChevronRight size={16} className="text-white"/>
                                        </div>
                                    </div>
-                               );
-                           })}
-                       </div>
+                               </div>
+                           );
+                       })}
+                       {filteredGenres.length === 0 && (
+                           <div className="col-span-full py-20 text-center text-white/30">
+                               <p className="text-lg">No genres found matching "{genreSearch}"</p>
+                           </div>
+                       )}
                    </div>
                </div>
            ) : selectedCategory === "Collections" ? (
-               <div className="animate-in fade-in slide-in-from-bottom-4">
-                   <HeroSection />
-                   <div className="p-8 md:p-12">
-                       {renderPageHeader("Collections", "Hand-picked curations for every mood.")}
-                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                           {Object.keys(DEFAULT_COLLECTIONS).map(key => {
-                               const col = DEFAULT_COLLECTIONS[key];
-                               return (
-                                   <div key={key} onClick={() => handleCollectionClick(key)} className="group relative h-64 rounded-3xl overflow-hidden cursor-pointer shadow-xl transition-all duration-500 hover:scale-[1.02] hover:shadow-2xl hover:shadow-white/5">
-                                       <img src={col.backdrop} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110 opacity-70 group-hover:opacity-100" alt={col.title} />
-                                       <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent"></div>
-                                       <div className="absolute bottom-0 left-0 p-8 w-full">
-                                           <div className="text-3xl mb-2 filter drop-shadow-lg">{col.icon}</div>
-                                           <h3 className="text-2xl font-black text-white mb-2">{col.title}</h3>
-                                           <p className="text-sm text-gray-300 line-clamp-2">{col.description}</p>
-                                       </div>
+               // DEDICATED COLLECTIONS OVERVIEW PAGE
+               <div className="p-8 md:p-12 animate-in fade-in slide-in-from-bottom-4">
+                   {renderPageHeader("Collections", "Hand-picked curations for every mood and moment.")}
+                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                       {Object.keys(DEFAULT_COLLECTIONS).map(key => {
+                           const col = DEFAULT_COLLECTIONS[key];
+                           return (
+                               <div 
+                                   key={key}
+                                   onClick={() => handleCollectionClick(key)}
+                                   className="group relative h-64 rounded-3xl overflow-hidden cursor-pointer shadow-xl transition-all duration-500 hover:scale-[1.02] hover:shadow-2xl hover:shadow-white/5"
+                               >
+                                   <img src={col.backdrop} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110 opacity-70 group-hover:opacity-100" alt={col.title} />
+                                   <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent"></div>
+                                   <div className="absolute bottom-0 left-0 p-8 w-full">
+                                       <div className="text-3xl mb-2 filter drop-shadow-lg">{col.icon}</div>
+                                       <h3 className="text-2xl font-black text-white mb-2">{col.title}</h3>
+                                       <p className="text-sm text-gray-300 line-clamp-2">{col.description}</p>
                                    </div>
-                               );
-                           })}
-                       </div>
+                               </div>
+                           );
+                       })}
                    </div>
                </div>
            ) : selectedCategory === "Franchise" ? (
-               <div className="animate-in fade-in slide-in-from-bottom-4">
-                   <HeroSection />
-                   <div className="p-8 md:p-12">
-                       {renderPageHeader("Cinematic Universes", "Binge-worthy collections.")}
-                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                           {franchiseList.map(franchise => (
-                               <div key={franchise.id} onClick={() => handleTmdbCollectionClick(franchise.id)} className="group relative h-64 rounded-3xl overflow-hidden cursor-pointer shadow-xl transition-all duration-500 hover:scale-[1.02] hover:shadow-2xl hover:shadow-white/5">
-                                   <img src={franchise.backdrop_path ? `${TMDB_BACKDROP_BASE}${franchise.backdrop_path}` : "https://placehold.co/600x400?text=No+Image"} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110 opacity-70 group-hover:opacity-100" alt={franchise.name} />
-                                   <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent"></div>
-                                   <div className="absolute bottom-0 left-0 p-8 w-full">
-                                       <h3 className="text-2xl font-black text-white mb-1 drop-shadow-lg leading-tight">{franchise.name}</h3>
-                                       <p className="text-xs text-gray-300 line-clamp-2 mb-2 opacity-80">{franchise.overview}</p>
-                                       <div className="h-1 w-12 bg-red-600 rounded-full group-hover:w-24 transition-all duration-500"></div>
-                                   </div>
+               // DEDICATED FRANCHISE OVERVIEW PAGE
+               <div className="p-8 md:p-12 animate-in fade-in slide-in-from-bottom-4">
+                   {renderPageHeader("Franchises", "Dive into the world's biggest cinematic universes.")}
+                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                       {franchiseList.map(franchise => (
+                           <div 
+                               key={franchise.id}
+                               onClick={() => handleTmdbCollectionClick(franchise.id)}
+                               className="group relative h-64 rounded-3xl overflow-hidden cursor-pointer shadow-xl transition-all duration-500 hover:scale-[1.02] hover:shadow-2xl hover:shadow-white/5"
+                           >
+                               <img 
+                                   src={franchise.backdrop_path ? `${TMDB_BACKDROP_BASE}${franchise.backdrop_path}` : "https://placehold.co/600x400?text=No+Image"} 
+                                   className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110 opacity-70 group-hover:opacity-100" 
+                                   alt={franchise.name} 
+                               />
+                               <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent"></div>
+                               <div className="absolute bottom-0 left-0 p-8 w-full">
+                                   <h3 className="text-2xl font-black text-white mb-1 drop-shadow-lg leading-tight">{franchise.name}</h3>
+                                   <p className="text-xs text-gray-300 line-clamp-2 mb-2 opacity-80">{franchise.overview}</p>
+                                   <div className="h-1 w-12 bg-red-600 rounded-full group-hover:w-24 transition-all duration-500"></div>
                                </div>
-                           ))}
-                           {loading && ( <div className="col-span-full h-32 flex items-center justify-center"> <Loader2 className="animate-spin text-white/50" /> </div> )}
-                       </div>
-                       {hasMore && !loading && ( <div className="h-10" ref={lastMovieElementRef}></div> )}
+                           </div>
+                       ))}
+                       {franchiseList.length === 0 && loading && (
+                           <div className="col-span-full h-64 flex items-center justify-center">
+                                <div className="animate-pulse text-white/50 text-sm">Loading franchises...</div>
+                           </div>
+                       )}
                    </div>
                </div>
            ) : selectedCategory === "Countries" && !activeCountry ? (
-               <div className="animate-in fade-in slide-in-from-bottom-4">
-                   <HeroSection />
-                   <div className="p-8 md:p-12">
-                       {renderPageHeader("Countries", "Discover cinema from around the globe.", true)}
-                       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                           {COUNTRY_OPTIONS.filter(c => c.name.toLowerCase().includes(genreSearch.toLowerCase())).map(country => (
-                               <div key={country.code} onClick={() => handleCountryClick(country)} className="bg-white/5 hover:bg-white/10 border border-white/5 rounded-2xl p-6 flex flex-col items-center justify-center cursor-pointer transition-all duration-300 hover:scale-105 active:scale-95 group">
-                                   <span className="text-4xl mb-3 filter drop-shadow-lg transform group-hover:scale-110 transition-transform">{country.flag}</span>
-                                   <span className="text-sm font-bold text-white text-center">{country.name}</span>
-                               </div>
-                           ))}
-                       </div>
+               // COUNTRIES OVERVIEW PAGE
+               <div className="p-8 md:p-12 animate-in fade-in slide-in-from-bottom-4">
+                   {renderPageHeader("Countries", "Discover cinema from around the globe.", true)}
+                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                       {COUNTRY_OPTIONS.filter(c => c.name.toLowerCase().includes(genreSearch.toLowerCase())).map(country => (
+                           <div 
+                               key={country.code}
+                               onClick={() => handleCountryClick(country)}
+                               className="bg-white/5 hover:bg-white/10 border border-white/5 rounded-2xl p-6 flex flex-col items-center justify-center cursor-pointer transition-all duration-300 hover:scale-105 active:scale-95 group"
+                           >
+                               <span className="text-4xl mb-3 filter drop-shadow-lg transform group-hover:scale-110 transition-transform">{country.flag}</span>
+                               <span className="text-sm font-bold text-white text-center">{country.name}</span>
+                           </div>
+                       ))}
                    </div>
                </div>
            ) : selectedCategory === "People" && !searchQuery ? (
-               <div className="animate-in fade-in slide-in-from-bottom-4">
-                   <HeroSection />
-                   <div className="p-6 md:p-8 flex gap-6 h-[calc(100vh-100px)] overflow-hidden">
-                       <div className="hidden md:flex flex-col gap-1 w-12 shrink-0 h-full overflow-y-auto hide-scrollbar sticky top-0 items-center py-4 bg-white/5 rounded-full">
-                           {Object.keys(groupPeopleByLetter(movies)).map(letter => ( <a key={letter} href={`#section-${letter}`} className="w-8 h-8 flex items-center justify-center text-xs font-bold text-gray-400 hover:text-white hover:bg-white/20 rounded-full transition-all">{letter}</a> ))}
-                       </div>
-                       <div className="flex-1 overflow-y-auto custom-scrollbar pb-20 pr-2">
-                           <div className="space-y-12">
-                               {Object.entries(groupPeopleByLetter(movies)).map(([letter, people]) => (
-                                   <div key={letter} id={`section-${letter}`} className="scroll-mt-32">
-                                       <div className="flex items-center gap-4 mb-6"><span className="text-4xl font-black text-white/10">{letter}</span><div className="h-px bg-white/10 flex-1"></div></div>
-                                       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-                                           {people.map(person => ( <PersonCard key={person.id} person={person} onClick={(id) => setSelectedPersonId(id)} /> ))}
-                                       </div>
+               // ALPHABETICAL PEOPLE VIEW
+               <div className="p-6 md:p-8 animate-in fade-in slide-in-from-bottom-4 flex gap-6 h-[calc(100vh-100px)] overflow-hidden">
+                   {/* Alphabet Sidebar */}
+                   <div className="hidden md:flex flex-col gap-1 w-12 shrink-0 h-full overflow-y-auto hide-scrollbar sticky top-0 items-center py-4 bg-white/5 rounded-full">
+                       {Object.keys(groupPeopleByLetter(movies)).map(letter => (
+                           <a 
+                               key={letter} 
+                               href={`#section-${letter}`} 
+                               className="w-8 h-8 flex items-center justify-center text-xs font-bold text-gray-400 hover:text-white hover:bg-white/20 rounded-full transition-all"
+                           >
+                               {letter}
+                           </a>
+                       ))}
+                   </div>
+                   
+                   {/* Main Grid */}
+                   <div className="flex-1 overflow-y-auto custom-scrollbar pb-20 pr-2">
+                       {renderPageHeader("Popular People", "The stars, directors, and creators behind the magic.")}
+                       
+                       <div className="space-y-12">
+                           {Object.entries(groupPeopleByLetter(movies)).map(([letter, people]) => (
+                               <div key={letter} id={`section-${letter}`} className="scroll-mt-32">
+                                   <div className="flex items-center gap-4 mb-6">
+                                       <span className="text-4xl font-black text-white/10">{letter}</span>
+                                       <div className="h-px bg-white/10 flex-1"></div>
                                    </div>
-                               ))}
-                           </div>
+                                   <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                                       {people.map(person => (
+                                           <PersonCard 
+                                               key={person.id}
+                                               person={person}
+                                               onClick={(id) => setSelectedPersonId(id)}
+                                           />
+                                       ))}
+                                   </div>
+                               </div>
+                           ))}
                        </div>
                    </div>
                </div>
            ) : selectedCategory === "Coming" ? (
-               <div className="animate-in fade-in slide-in-from-bottom-4">
-                   <HeroSection />
-                   <div className="p-6 md:p-8 flex flex-col lg:flex-row gap-8">
-                       <div className="w-full lg:w-72 shrink-0 space-y-6">
-                           <div className="bg-white/5 backdrop-blur-md rounded-2xl p-6 border border-white/10 sticky top-24 shadow-xl">
-                               <h3 className="text-lg font-bold text-white mb-6 flex items-center gap-2"><CalendarDays size={18}/> Schedule</h3>
-                               <div className="space-y-2">
-                                   {['today', 'upcoming', 'announced'].map(opt => (
-                                       <button key={opt} onClick={() => setComingFilter(opt)} className={`w-full text-left px-4 py-4 rounded-xl text-sm font-bold transition-all flex items-center justify-between group ${comingFilter === opt ? (isGoldTheme ? 'bg-amber-500 text-black shadow-lg shadow-amber-500/20' : 'bg-red-600 text-white shadow-lg shadow-red-900/30') : 'bg-black/20 text-gray-400 hover:bg-white/5 hover:text-white'}`}>
-                                           <div className="flex items-center gap-3">
-                                               {opt === 'today' && <LayoutGrid size={16}/>}
-                                               {opt === 'upcoming' && <Calendar size={16}/>}
-                                               {opt === 'announced' && <Megaphone size={16}/>}
-                                               <span className="capitalize">{opt}</span>
-                                           </div>
-                                           {comingFilter === opt && <ChevronRight size={14} className="animate-in slide-in-from-left-2"/>}
-                                       </button>
-                                   ))}
-                               </div>
+               // COMING SOON TIMELINE PAGE
+               <div className="p-6 md:p-8 animate-in fade-in slide-in-from-bottom-4 flex flex-col lg:flex-row gap-8">
+                   {/* Sidebar Filters */}
+                   <div className="w-full lg:w-64 shrink-0 space-y-6">
+                       <div className="bg-[#0f0f0f] rounded-2xl p-5 border border-white/10 sticky top-24">
+                           <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2"><CalendarDays size={18}/> Schedule</h3>
+                           <div className="space-y-1">
+                               {['today', 'upcoming', 'announced'].map(opt => (
+                                   <button 
+                                       key={opt}
+                                       onClick={() => setComingFilter(opt)}
+                                       className={`w-full text-left px-4 py-3 rounded-xl text-sm font-bold transition-all flex items-center gap-3 ${comingFilter === opt ? 'bg-purple-600 text-white shadow-lg' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
+                                   >
+                                       {opt === 'today' && <LayoutGrid size={16}/>}
+                                       {opt === 'upcoming' && <Calendar size={16}/>}
+                                       {opt === 'announced' && <Megaphone size={16}/>}
+                                       <span className="capitalize">{opt}</span>
+                                   </button>
+                               ))}
                            </div>
                        </div>
-                       <div className="flex-1 space-y-12">
-                           {groupMoviesByDate(movies).map(([date, dateMovies]) => {
-                               const d = new Date(date);
-                               const isTBA = date === "TBA";
-                               return (
-                                   <div key={date} className="animate-in slide-in-from-right-4 duration-500 group/timeline">
-                                       <div className="flex flex-col md:flex-row gap-6">
-                                           <div className="w-full md:w-28 shrink-0 flex md:flex-col items-center md:items-start gap-2 md:gap-0">
-                                               {!isTBA ? (
-                                                   <div className={`p-4 rounded-2xl border bg-black/40 backdrop-blur-sm text-center min-w-[90px] ${isGoldTheme ? 'border-amber-500/20' : 'border-white/10'}`}>
-                                                       <div className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">{d.toLocaleDateString('en-US', { weekday: 'short' })}</div>
-                                                       <div className={`text-4xl font-black leading-none mb-1 ${isGoldTheme ? 'text-amber-500' : 'text-white'}`}>{d.getDate()}</div>
-                                                       <div className="text-xs font-bold text-gray-400 uppercase">{d.toLocaleDateString('en-US', { month: 'short' })}</div>
-                                                   </div>
-                                               ) : (
-                                                   <span className="text-lg font-bold text-gray-500 p-4">TBA</span>
-                                               )}
-                                               <div className="hidden md:block w-px bg-gradient-to-b from-white/20 to-transparent flex-1 mx-auto mt-4 h-full min-h-[50px]"></div>
-                                           </div>
-                                           <div className="flex-1 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-                                               {dateMovies.map(movie => (
-                                                   <div key={movie.id} onClick={() => setSelectedMovie(movie)} className="group cursor-pointer relative">
-                                                       <div className="aspect-[2/3] rounded-xl overflow-hidden bg-gray-900 mb-3 relative shadow-lg transition-all duration-300 group-hover:scale-105 group-hover:shadow-2xl group-hover:-translate-y-1">
-                                                           <img src={movie.poster_path ? `${TMDB_IMAGE_BASE}${movie.poster_path}` : "https://placehold.co/300x450/111/333?text=Poster"} alt={movie.title} className="w-full h-full object-cover" loading="lazy" />
-                                                           <div className="absolute top-2 right-2 bg-black/60 backdrop-blur-md text-white text-[10px] font-bold px-2 py-1 rounded-lg flex items-center gap-1 border border-white/10">
-                                                               <TrendingUp size={10} className="text-green-400"/> {Math.round(movie.popularity)}
-                                                           </div>
+                   </div>
+
+                   {/* Timeline Feed */}
+                   <div className="flex-1 space-y-12">
+                       {groupMoviesByDate(movies).map(([date, dateMovies]) => {
+                           const d = new Date(date);
+                           const isTBA = date === "TBA";
+                           return (
+                               <div key={date} className="animate-in slide-in-from-right-4 duration-500">
+                                   <div className="flex flex-col md:flex-row gap-6">
+                                       {/* Date Badge */}
+                                       <div className="w-full md:w-24 shrink-0 flex md:flex-col items-center md:items-start gap-2 md:gap-0">
+                                           {!isTBA ? (
+                                               <>
+                                                   <div className="text-xs font-bold text-gray-500 uppercase tracking-widest">{d.toLocaleDateString('en-US', { weekday: 'short' })}</div>
+                                                   <div className="text-4xl font-black text-white leading-none md:mb-1">{d.getDate()}</div>
+                                                   <div className="text-sm font-bold text-gray-400 uppercase">{d.toLocaleDateString('en-US', { month: 'short' })}</div>
+                                               </>
+                                           ) : (
+                                               <span className="text-lg font-bold text-gray-500">TBA</span>
+                                           )}
+                                           <div className="h-px w-full md:w-px md:h-full bg-gradient-to-r md:bg-gradient-to-b from-transparent via-white/10 to-transparent flex-1 mt-2 md:mt-4 md:mx-auto"></div>
+                                       </div>
+
+                                       {/* Movies Grid */}
+                                       <div className="flex-1 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+                                           {dateMovies.map(movie => (
+                                               <div 
+                                                   key={movie.id} 
+                                                   onClick={() => setSelectedMovie(movie)}
+                                                   className="group cursor-pointer relative"
+                                               >
+                                                   <div className="aspect-[2/3] rounded-xl overflow-hidden bg-gray-900 mb-3 relative shadow-lg transition-all duration-300 group-hover:scale-105 group-hover:shadow-2xl">
+                                                       <img 
+                                                           src={movie.poster_path ? `${TMDB_IMAGE_BASE}${movie.poster_path}` : "https://placehold.co/300x450/111/333?text=Poster"} 
+                                                           alt={movie.title} 
+                                                           className="w-full h-full object-cover"
+                                                           loading="lazy"
+                                                       />
+                                                       <div className="absolute top-2 right-2 bg-orange-600/90 backdrop-blur-sm text-white text-[10px] font-bold px-2 py-0.5 rounded-md flex items-center gap-1">
+                                                           <TrendingUp size={10}/> {Math.round(movie.popularity)}
                                                        </div>
-                                                       <h4 className={`font-bold text-sm leading-tight transition-colors line-clamp-1 ${accentHoverText} text-gray-200`}>{movie.title}</h4>
-                                                       <p className="text-gray-500 text-xs mt-1 line-clamp-1">{movie.overview || "Plot unavailable"}</p>
                                                    </div>
-                                               ))}
-                                           </div>
+                                                   <h4 className="text-white font-bold text-sm leading-tight group-hover:text-purple-400 transition-colors">{movie.title}</h4>
+                                                   <p className="text-gray-500 text-xs mt-1 line-clamp-1">{movie.overview}</p>
+                                               </div>
+                                           ))}
                                        </div>
                                    </div>
-                               );
-                           })}
-                           {movies.length === 0 && !loading && ( <div className="text-center py-20 text-gray-500 flex flex-col items-center"> <Calendar size={48} className="mb-4 opacity-30"/> <p>No upcoming releases found for this period.</p> </div> )}
-                       </div>
+                               </div>
+                           );
+                       })}
+                       {movies.length === 0 && !loading && (
+                           <div className="text-center py-20 text-gray-500">
+                               <Calendar size={48} className="mx-auto mb-4 opacity-30"/>
+                               <p>No upcoming releases found for this filter.</p>
+                           </div>
+                       )}
                    </div>
                </div>
            ) : (
                <>
-                   {["Anime", "Family", "Awards", "India", "TV Shows"].includes(selectedCategory) && <HeroSection />}
-                   
+                   {/* Standard or Category Views */}
+                   {/* ... (Existing Code for Standard Views) ... */}
+                   {/* Render a fancy header for specific browse categories that are NOT the home page */}
+                   {["Anime", "Family", "Awards", "India", "Coming", "People", "Countries"].includes(selectedCategory) && activeCountry && (
+                        <div className="relative w-full overflow-hidden">
+                            <div className="absolute inset-0 bg-gradient-to-b from-black/80 to-[#030303] z-10"></div>
+                            <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1574267432553-4b4628081c31?q=80&w=2000&auto=format&fit=crop')] bg-cover bg-center opacity-20"></div>
+                            
+                            <div className="relative z-20 p-8 md:p-12 pb-0">
+                                <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 mb-8 border-b border-white/10 pb-8">
+                                    <div>
+                                        <div className="flex items-center gap-3 mb-2">
+                                            {selectedCategory === "Anime" && <span className="text-4xl">⛩️</span>}
+                                            {selectedCategory === "Family" && <span className="text-4xl">👨‍👩‍👧‍👦</span>}
+                                            {selectedCategory === "Awards" && <span className="text-4xl">🏆</span>}
+                                            {selectedCategory === "India" && <span className="text-4xl">🇮🇳</span>}
+                                            {selectedCategory === "Coming" && <span className="text-4xl">📅</span>}
+                                            {selectedCategory === "People" && <span className="text-4xl">🌟</span>}
+                                            {activeCountry && <span className="text-4xl">{COUNTRY_OPTIONS.find(c => c.code === activeCountry.code)?.flag}</span>}
+                                            <h1 className="text-4xl md:text-6xl font-black text-white tracking-tight">
+                                                {selectedCategory === "Coming" ? "Coming Soon" : activeCountry ? activeCountry.name : selectedCategory}
+                                            </h1>
+                                        </div>
+                                        <p className="text-lg text-white/50 max-w-2xl font-light">
+                                            {selectedCategory === "Anime" && "Journey into the extraordinary world of Japanese animation."}
+                                            {selectedCategory === "Family" && "Safe, fun, and heartwarming entertainment for all ages."}
+                                            {selectedCategory === "Awards" && "Critically acclaimed masterpieces and award-winning cinema."}
+                                            {selectedCategory === "Coming" && "Get a sneak peek at the most anticipated releases."}
+                                            {selectedCategory === "People" && "Discover the stars, directors, and creators behind the magic."}
+                                            {activeCountry && `Explore top movies and shows from ${activeCountry.name}.`}
+                                        </p>
+                                    </div>
+                                    <div className="flex items-center gap-2 text-sm font-bold bg-white/5 border border-white/10 px-4 py-2 rounded-full">
+                                        <span className="text-white">{movies.length}+</span>
+                                        <span className="text-gray-500">Results</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                   )}
+
                    {!searchQuery && selectedCategory === "All" && !currentCollection && filterPeriod === "all" && featuredMovie && ( 
                        <div className="relative w-full h-[60vh] min-h-[500px] md:h-[80vh] group overflow-hidden">
                            <div className="absolute inset-0 bg-black">
@@ -1104,6 +1498,7 @@ export default function App() {
                        </div> 
                    )}
 
+                   {/* Preset Collection Header (Single Collection View) */}
                    {currentCollection && DEFAULT_COLLECTIONS[currentCollection] && (
                       <div className="relative w-full h-[40vh] md:h-[50vh] overflow-hidden">
                           <img src={DEFAULT_COLLECTIONS[currentCollection].backdrop} className="w-full h-full object-cover animate-in fade-in duration-700" alt={DEFAULT_COLLECTIONS[currentCollection].title} />
@@ -1129,10 +1524,18 @@ export default function App() {
                                          <button className="flex items-center gap-2 bg-white/5 hover:bg-white/10 px-3 py-1.5 rounded-lg text-xs font-medium transition-all active:scale-95 border border-white/5"><Filter size={14} /> Sort <ChevronDown size={12} className="group-hover:rotate-180 transition-transform duration-300"/></button>
                                          <div className="absolute left-0 top-full pt-2 w-40 hidden group-hover:block z-[60] animate-in slide-in-from-top-2 duration-200">
                                              <div className="glass-panel p-1 rounded-lg">
-                                                 {[ { l: "Popular", v: "popularity.desc" }, { l: "Top Rated", v: "vote_average.desc" }, { l: "Newest", v: "primary_release_date.desc" }, { l: "Oldest", v: "primary_release_date.asc" } ].map(opt => ( <button key={opt.v} onClick={() => setSortOption(opt.v)} className={`w-full text-left px-3 py-2 text-xs rounded-md hover:bg-white/10 transition-colors ${sortOption === opt.v ? accentText : 'text-gray-400'}`}>{opt.l}</button> ))}
+                                                 {[
+                                                     { l: "Popular", v: "popularity.desc" }, 
+                                                     { l: "Top Rated", v: "vote_average.desc" }, 
+                                                     { l: "Newest", v: "primary_release_date.desc" }, 
+                                                     { l: "Oldest", v: "primary_release_date.asc" }
+                                                 ].map(opt => (
+                                                     <button key={opt.v} onClick={() => setSortOption(opt.v)} className={`w-full text-left px-3 py-2 text-xs rounded-md hover:bg-white/10 transition-colors ${sortOption === opt.v ? accentText : 'text-gray-400'}`}>{opt.l}</button>
+                                                 ))}
                                              </div>
                                          </div>
                                     </div>
+
                                     <div className="relative group shrink-0 z-50">
                                          <button className="flex items-center gap-2 bg-white/5 hover:bg-white/10 px-3 py-1.5 rounded-lg text-xs font-medium transition-all active:scale-95 border border-white/5"><Globe size={14} /> {selectedRegion === 'IN' ? 'India' : 'Global'} <ChevronDown size={12} className="group-hover:rotate-180 transition-transform duration-300"/></button>
                                          <div className="absolute right-0 top-full pt-2 w-32 hidden group-hover:block z-[60] animate-in slide-in-from-top-2 duration-200">
@@ -1142,6 +1545,7 @@ export default function App() {
                                              </div>
                                          </div>
                                     </div>
+
                                     <div className="relative group shrink-0 z-50">
                                          <button className="flex items-center gap-2 bg-white/5 hover:bg-white/10 px-3 py-1.5 rounded-lg text-xs font-medium transition-all active:scale-95 border border-white/5"><Languages size={14} /> {INDIAN_LANGUAGES.find(l => l.code === selectedLanguage)?.name.split(' ')[0] || 'All'} <ChevronDown size={12} className="group-hover:rotate-180 transition-transform duration-300"/></button>
                                          <div className="absolute right-0 top-full pt-2 w-48 hidden group-hover:block z-[60] animate-in slide-in-from-top-2 duration-200">
@@ -1155,43 +1559,155 @@ export default function App() {
                             </div>
                        </div>
                        
+                       {/* Contextual Headers */}
                        {aiContextReason && searchQuery && (
                            <div className={`flex items-center gap-3 border p-4 rounded-xl backdrop-blur-md animate-in fade-in slide-in-from-top-2 duration-500 ${isGoldTheme ? 'bg-amber-900/10 border-amber-500/20' : 'bg-red-900/10 border-red-500/20'}`}>
                                <div className={`p-2 rounded-lg animate-pulse ${isGoldTheme ? 'bg-amber-500/10 text-amber-400' : 'bg-red-500/10 text-red-400'}`}><Sparkles size={18}/></div>
-                               <div><p className={`text-xs font-bold uppercase tracking-wider mb-0.5 ${isGoldTheme ? 'text-amber-400' : 'text-red-400'}`}>AI Search Analysis</p><p className="text-sm text-gray-200 italic">"{aiContextReason}"</p></div>
+                               <div>
+                                   <p className={`text-xs font-bold uppercase tracking-wider mb-0.5 ${isGoldTheme ? 'text-amber-400' : 'text-red-400'}`}>AI Search Analysis</p>
+                                   <p className="text-sm text-gray-200 italic">"{aiContextReason}"</p>
+                               </div>
                            </div>
                        )}
 
-                       {activeKeyword && ( <div className="flex items-center justify-between bg-white/5 border border-white/5 p-6 rounded-2xl animate-in fade-in slide-in-from-top-2"><div><p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1 flex items-center gap-2"><Tag size={12}/> Tag Explorer</p><h2 className="text-3xl font-bold text-white">{activeKeyword.name}</h2></div><button onClick={resetFilters} className={`text-xs font-bold transition-colors ${isGoldTheme ? 'text-amber-400 hover:text-amber-300' : 'text-red-400 hover:text-red-300'}`}>Clear Filter</button></div> )}
+                       {/* Keyword Header */}
+                       {activeKeyword && (
+                           <div className="flex items-center justify-between bg-white/5 border border-white/5 p-6 rounded-2xl animate-in fade-in slide-in-from-top-2">
+                               <div>
+                                   <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1 flex items-center gap-2"><Tag size={12}/> Tag Explorer</p>
+                                   <h2 className="text-3xl font-bold text-white">{activeKeyword.name}</h2>
+                               </div>
+                               <button onClick={resetFilters} className={`text-xs font-bold transition-colors ${isGoldTheme ? 'text-amber-400 hover:text-amber-300' : 'text-red-400 hover:text-red-300'}`}>Clear Filter</button>
+                           </div>
+                       )}
 
                        <PosterMarquee movies={!searchQuery && selectedCategory === "All" && !currentCollection && movies.length > 0 ? movies : []} onMovieClick={setSelectedMovie} />
 
                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-x-4 gap-y-8 animate-in fade-in duration-700">
                            {movies.map((movie, idx) => (
                                <div key={`${movie.id}-${idx}`} ref={idx === movies.length - 1 ? lastMovieElementRef : null} className="animate-in fade-in zoom-in-95 duration-500" style={{ animationDelay: `${idx * 50}ms` }}>
-                                    {selectedCategory !== "People" && ( <MovieCard movie={movie} onClick={setSelectedMovie} isWatched={watched.some(m => m.id === movie.id)} onToggleWatched={handleToggleWatched} /> )}
+                                    {/* Usually we only render movies here, people have their own section above */}
+                                    {selectedCategory !== "People" && (
+                                        <MovieCard 
+                                            movie={movie} 
+                                            onClick={setSelectedMovie} 
+                                            isWatched={watched.some(m => m.id === movie.id)} 
+                                            onToggleWatched={handleToggleWatched} 
+                                        />
+                                    )}
                                </div>
                            ))}
                            {loading && [...Array(12)].map((_, i) => <MovieSkeleton key={`skel-${i}`} />)}
                        </div>
 
-                       {!loading && movies.length === 0 && ( <div className="text-center py-20 opacity-50 flex flex-col items-center animate-in fade-in zoom-in"> <Ghost size={48} className="mb-4 text-white/20"/> <p>No results found. Try adjusting filters.</p> </div> )}
+                       {!loading && movies.length === 0 && (
+                           <div className="text-center py-20 opacity-50 flex flex-col items-center animate-in fade-in zoom-in">
+                               <Ghost size={48} className="mb-4 text-white/20"/>
+                               <p>No results found. Try adjusting filters.</p>
+                           </div>
+                       )}
 
-                       {!apiKey && !loading && ( <div className={`mt-12 bg-gradient-to-r border rounded-2xl p-6 flex items-center justify-between backdrop-blur-md animate-in slide-in-from-bottom-5 ${isGoldTheme ? 'from-amber-900/20 to-gray-900/20 border-amber-500/20' : 'from-red-900/20 to-gray-900/20 border-white/10'}`}> <div className="flex items-center gap-4"> <div className={`p-3 rounded-full ${isGoldTheme ? 'bg-amber-500/10 text-amber-500' : 'bg-red-500/10 text-red-500'}`}><Info size={24}/></div> <div> <h3 className="font-bold text-white">Demo Mode Active</h3> <p className="text-sm text-gray-400">Add your TMDB API Key in settings to unlock full access.</p> </div> </div> <button onClick={() => setIsSettingsOpen(true)} className="px-6 py-2 bg-white text-black font-bold rounded-lg hover:bg-gray-200 transition-all active:scale-95">Add Key</button> </div> )}
+                       {!apiKey && !loading && (
+                           <div className={`mt-12 bg-gradient-to-r border rounded-2xl p-6 flex items-center justify-between backdrop-blur-md animate-in slide-in-from-bottom-5 ${isGoldTheme ? 'from-amber-900/20 to-gray-900/20 border-amber-500/20' : 'from-red-900/20 to-gray-900/20 border-white/10'}`}>
+                               <div className="flex items-center gap-4">
+                                   <div className={`p-3 rounded-full ${isGoldTheme ? 'bg-amber-500/10 text-amber-500' : 'bg-red-500/10 text-red-500'}`}><Info size={24}/></div>
+                                   <div>
+                                       <h3 className="font-bold text-white">Demo Mode Active</h3>
+                                       <p className="text-sm text-gray-400">Add your TMDB API Key in settings to unlock full access.</p>
+                                   </div>
+                               </div>
+                               <button onClick={() => setIsSettingsOpen(true)} className="px-6 py-2 bg-white text-black font-bold rounded-lg hover:bg-gray-200 transition-all active:scale-95">Add Key</button>
+                           </div>
+                       )}
                    </div>
                </>
            )}
         </main>
       </div>
 
-      {selectedMovie && ( <MoviePage movie={selectedMovie} onClose={() => setSelectedMovie(null)} apiKey={apiKey} onPersonClick={setSelectedPersonId} onToggleWatchlist={(m) => toggleList(watchlist, setWatchlist, 'movieverse_watchlist', m)} isWatchlisted={watchlist.some(m => m.id === selectedMovie.id)} onToggleFavorite={(m) => toggleList(favorites, setFavorites, 'movieverse_favorites', m)} isFavorite={favorites.some(m => m.id === selectedMovie.id)} onToggleWatched={handleToggleWatched} isWatched={watched.some(m => m.id === selectedMovie.id)} onSwitchMovie={setSelectedMovie} onOpenListModal={(m) => { setListModalMovie(m); setIsListModalOpen(true); }} userProfile={userProfile} onKeywordClick={handleKeywordClick} onCollectionClick={handleTmdbCollectionClick} onCompare={(m) => { setIsComparisonOpen(true); setComparisonBaseMovie(m); }} /> )}
-      <ListSelectionModal isOpen={isListModalOpen} onClose={() => setIsListModalOpen(false)} movie={listModalMovie} customLists={customLists} onCreateList={createCustomList} onAddToList={addToCustomList} />
-      <ProfilePage isOpen={isProfileOpen} onClose={() => setIsProfileOpen(false)} profile={userProfile} onSave={(p) => { setUserProfile(p); localStorage.setItem('movieverse_profile', JSON.stringify(p)); }} />
-      <PersonPage personId={selectedPersonId || 0} onClose={() => setSelectedPersonId(null)} apiKey={apiKey} onMovieClick={(m) => { setSelectedPersonId(null); setTimeout(() => setSelectedMovie(m), 300); }} />
-      <AIRecommendationModal isOpen={isAIModalOpen} onClose={() => setIsAIModalOpen(false)} apiKey={apiKey} />
-      <ComparisonModal isOpen={isComparisonOpen} onClose={() => setIsComparisonOpen(false)} baseMovie={comparisonBaseMovie} apiKey={apiKey} />
-      <SettingsPage isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} apiKey={apiKey} setApiKey={(k) => saveSettings(k)} geminiKey={geminiKey} setGeminiKey={(k) => saveGeminiKey(k)} maturityRating={maturityRating} setMaturityRating={setMaturityRating} profile={userProfile} onUpdateProfile={setUserProfile} onLogout={handleLogout} searchHistory={searchHistory} setSearchHistory={(h) => { setSearchHistory(h); localStorage.setItem('movieverse_search_history', JSON.stringify(h)); }} watchedMovies={watched} setWatchedMovies={(m) => { setWatched(m); localStorage.setItem('movieverse_watched', JSON.stringify(m)); }} />
-      <NotificationModal isOpen={isNotificationOpen} onClose={() => setIsNotificationOpen(false)} onUpdate={checkUnreadNotifications} userProfile={userProfile} />
+      {selectedMovie && (
+          <MoviePage 
+            movie={selectedMovie} 
+            onClose={() => setSelectedMovie(null)} 
+            apiKey={apiKey} 
+            onPersonClick={setSelectedPersonId}
+            onToggleWatchlist={(m) => toggleList(watchlist, setWatchlist, 'movieverse_watchlist', m)}
+            isWatchlisted={watchlist.some(m => m.id === selectedMovie.id)}
+            onToggleFavorite={(m) => toggleList(favorites, setFavorites, 'movieverse_favorites', m)}
+            isFavorite={favorites.some(m => m.id === selectedMovie.id)}
+            onToggleWatched={handleToggleWatched}
+            isWatched={watched.some(m => m.id === selectedMovie.id)}
+            onSwitchMovie={setSelectedMovie}
+            onOpenListModal={(m) => { setListModalMovie(m); setIsListModalOpen(true); }}
+            appRegion={appRegion}
+            userProfile={userProfile}
+            onKeywordClick={handleKeywordClick}
+            onCollectionClick={handleTmdbCollectionClick}
+            onCompare={(m) => { setIsComparisonOpen(true); setComparisonBaseMovie(m); }}
+          />
+      )}
+
+      <ListSelectionModal 
+        isOpen={isListModalOpen} 
+        onClose={() => setIsListModalOpen(false)} 
+        movie={listModalMovie} 
+        customLists={customLists} 
+        onCreateList={createCustomList} 
+        onAddToList={addToCustomList} 
+      />
+
+      <ProfilePage 
+        isOpen={isProfileOpen} 
+        onClose={() => setIsProfileOpen(false)} 
+        profile={userProfile} 
+        onSave={(p) => { setUserProfile(p); localStorage.setItem('movieverse_profile', JSON.stringify(p)); }} 
+      />
+
+      <PersonPage 
+        personId={selectedPersonId || 0} 
+        onClose={() => setSelectedPersonId(null)} 
+        apiKey={apiKey} 
+        onMovieClick={(m) => { setSelectedPersonId(null); setTimeout(() => setSelectedMovie(m), 300); }} 
+      />
+
+      <AIRecommendationModal 
+        isOpen={isAIModalOpen} 
+        onClose={() => setIsAIModalOpen(false)} 
+        apiKey={apiKey} 
+      />
+      
+      <ComparisonModal
+        isOpen={isComparisonOpen}
+        onClose={() => setIsComparisonOpen(false)}
+        baseMovie={comparisonBaseMovie}
+        apiKey={apiKey}
+      />
+
+      <SettingsPage 
+        isOpen={isSettingsOpen} 
+        onClose={() => setIsSettingsOpen(false)} 
+        apiKey={apiKey} 
+        setApiKey={(k) => saveSettings(k)} 
+        geminiKey={geminiKey}
+        setGeminiKey={(k) => saveGeminiKey(k)}
+        maturityRating={maturityRating}
+        setMaturityRating={setMaturityRating}
+        profile={userProfile}
+        onUpdateProfile={setUserProfile}
+        onLogout={handleLogout}
+        searchHistory={searchHistory}
+        setSearchHistory={(h) => { setSearchHistory(h); localStorage.setItem('movieverse_search_history', JSON.stringify(h)); }}
+        watchedMovies={watched}
+        setWatchedMovies={(m) => { setWatched(m); localStorage.setItem('movieverse_watched', JSON.stringify(m)); }}
+      />
+      
+      <NotificationModal 
+        isOpen={isNotificationOpen} 
+        onClose={() => setIsNotificationOpen(false)} 
+        onUpdate={checkUnreadNotifications}
+        userProfile={userProfile}
+      />
+      
       {!apiKey && loading && <div className="fixed inset-0 z-[100] bg-black"><LogoLoader /></div>}
     </div>
   );
