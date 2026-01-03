@@ -71,6 +71,59 @@ const MovieDetailsSkeleton = () => (
     </div>
 );
 
+const CastCrewModal = ({ isOpen, onClose, type, data, onPersonClick }: { isOpen: boolean, onClose: () => void, type: 'cast' | 'crew', data: any[], onPersonClick: (id: number) => void }) => {
+    if (!isOpen) return null;
+    
+    // Deduplicate crew by ID for cleaner list, keeping the first occurrence
+    const uniqueData = type === 'crew' 
+        ? data.reduce((acc: any[], current: any) => {
+            const x = acc.find(item => item.id === current.id);
+            return !x ? acc.concat([current]) : acc;
+          }, [])
+        : data;
+
+    return (
+        <div className="fixed inset-0 z-[150] bg-black/95 backdrop-blur-xl animate-in fade-in duration-300 flex justify-center overflow-y-auto">
+            <div className="relative w-full max-w-7xl p-6 md:p-10 min-h-screen">
+                <button 
+                    onClick={onClose} 
+                    className="fixed top-6 right-6 md:right-10 z-[160] p-3 bg-white/10 hover:bg-white/20 rounded-full text-white transition-colors hover:rotate-90 duration-300"
+                >
+                    <X size={24}/>
+                </button>
+                
+                <h2 className="text-3xl md:text-4xl font-bold text-white mb-8 flex items-center gap-4 mt-8 md:mt-0">
+                    <Users size={32} className="text-red-500"/> 
+                    Full {type === 'cast' ? 'Cast' : 'Crew'} 
+                    <span className="text-xl text-gray-500 font-medium">({uniqueData.length})</span>
+                </h2>
+
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6 pb-20">
+                    {uniqueData.map((person: any, idx: number) => (
+                        <div 
+                            key={`${person.id}-${idx}`} 
+                            onClick={() => { onClose(); onPersonClick(person.id); }} 
+                            className="flex flex-col items-center gap-3 group cursor-pointer p-4 rounded-2xl hover:bg-white/5 transition-colors border border-transparent hover:border-white/5"
+                        >
+                            <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-full overflow-hidden border-2 border-white/10 group-hover:border-white/30 transition-all shadow-lg relative bg-white/5">
+                                {person.profile_path ? (
+                                    <img src={`${TMDB_IMAGE_BASE}${person.profile_path}`} alt={person.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"/>
+                                ) : (
+                                    <div className="w-full h-full flex items-center justify-center text-2xl font-bold text-white/20">{person.name.charAt(0)}</div>
+                                )}
+                            </div>
+                            <div className="text-center w-full">
+                                <p className="text-sm font-bold text-white group-hover:text-red-400 transition-colors line-clamp-1">{person.name}</p>
+                                <p className="text-xs text-gray-500 line-clamp-1 mt-0.5">{type === 'cast' ? person.character : person.job}</p>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        </div>
+    );
+};
+
 const ReviewCard: React.FC<{ review: Review }> = ({ review }) => {
     const [expanded, setExpanded] = useState(false);
     const isLong = review.content.length > 300;
@@ -127,6 +180,10 @@ export const MoviePage: React.FC<MoviePageProps> = ({
     const [viewingImage, setViewingImage] = useState<string | null>(null);
     const [showPlayer, setShowPlayer] = useState(false);
     const [playParams, setPlayParams] = useState({ season: 1, episode: 1 });
+    
+    // Modal State
+    const [isCastModalOpen, setCastModalOpen] = useState(false);
+    const [castModalType, setCastModalType] = useState<'cast' | 'crew'>('cast');
     
     const [videoLoaded, setVideoLoaded] = useState(false);
     const [isMuted, setIsMuted] = useState(true);
@@ -272,6 +329,9 @@ export const MoviePage: React.FC<MoviePageProps> = ({
             </a>
         );
     };
+
+    const openCastModal = () => { setCastModalType('cast'); setCastModalOpen(true); };
+    const openCrewModal = () => { setCastModalType('crew'); setCastModalOpen(true); };
 
     return (
         <div className="fixed inset-0 z-[100] bg-[#0a0a0a] overflow-y-auto custom-scrollbar animate-in slide-in-from-right-10 duration-500">
@@ -458,7 +518,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                             ))}
                                                         </div>
                                                         <button 
-                                                            onClick={() => setActiveTab('cast')}
+                                                            onClick={openCastModal}
                                                             className="flex flex-col items-center justify-center min-w-[60px] h-20 group shrink-0"
                                                         >
                                                             <div className="w-10 h-10 rounded-full border border-white/10 flex items-center justify-center text-white/50 group-hover:text-white group-hover:bg-white/10 transition-colors">
@@ -492,8 +552,9 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                                 </div>
                                                             ))}
                                                         </div>
-                                                        {crew.length > 6 && (
+                                                        {displayData.credits?.crew && displayData.credits.crew.length > 10 && (
                                                             <button 
+                                                                onClick={openCrewModal}
                                                                 className="flex flex-col items-center justify-center min-w-[60px] h-16 group shrink-0"
                                                             >
                                                                 <div className="w-9 h-9 rounded-full border border-white/10 flex items-center justify-center text-white/50 group-hover:text-white group-hover:bg-white/10 transition-colors">
@@ -654,6 +715,14 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                     </div>
                 )}
             </div>
+            {/* Modal Render */}
+            <CastCrewModal 
+                isOpen={isCastModalOpen} 
+                onClose={() => setCastModalOpen(false)} 
+                type={castModalType}
+                data={castModalType === 'cast' ? (displayData.credits?.cast || []) : (displayData.credits?.crew || [])}
+                onPersonClick={onPersonClick}
+            />
         </div>
     );
 };
