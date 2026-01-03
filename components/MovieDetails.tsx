@@ -18,7 +18,6 @@ interface MoviePageProps {
     onOpenListModal: (m: Movie) => void;
     onToggleFavorite: (m: Movie) => void;
     isFavorite: boolean;
-    appRegion: string;
     isWatched: boolean;
     onToggleWatched: (m: Movie) => void;
     userProfile: UserProfile;
@@ -68,7 +67,7 @@ const ReviewCard: React.FC<{ review: Review }> = ({ review }) => {
 
 export const MoviePage: React.FC<MoviePageProps> = ({ 
     movie, onClose, apiKey, onPersonClick, onToggleWatchlist, isWatchlisted, 
-    onSwitchMovie, onOpenListModal, onToggleFavorite, isFavorite, appRegion, isWatched, onToggleWatched, userProfile,
+    onSwitchMovie, onOpenListModal, onToggleFavorite, isFavorite, isWatched, onToggleWatched, userProfile,
     onKeywordClick, onCollectionClick, onCompare
 }) => {
     const [details, setDetails] = useState<MovieDetails | null>(null);
@@ -252,7 +251,8 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                  <div className="absolute inset-0 z-50 animate-in fade-in duration-700 bg-black">
                                      <Suspense fallback={<div className="w-full h-full flex items-center justify-center bg-black"><Loader2 className="animate-spin text-red-600" size={40}/></div>}>
                                          <MoviePlayer 
-                                            tmdbId={displayData.id} 
+                                            tmdbId={displayData.id}
+                                            title={title} 
                                             onClose={() => setShowPlayer(false)} 
                                             mediaType={isTv ? 'tv' : 'movie'} 
                                             isAnime={isAnime || false} 
@@ -367,194 +367,11 @@ export const MoviePage: React.FC<MoviePageProps> = ({
 
                             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                                 <div className="lg:col-span-2 space-y-6">
-                                    <div>
-                                        <h3 className="text-xl font-bold text-white mb-3">Synopsis</h3>
-                                        <p className="text-gray-300 leading-relaxed text-sm md:text-base font-light">{displayData.overview}</p>
-                                    </div>
-                                    
-                                    {/* Action Tabs */}
-                                    <div className="flex gap-6 border-b border-white/10 mb-4 overflow-x-auto hide-scrollbar sticky top-0 bg-[#0a0a0a] z-40 py-2">
-                                        <button onClick={() => setActiveTab("details")} className={`pb-2 text-xs font-bold tracking-wide transition-all ${activeTab === "details" ? `${accentText} border-b-2 ${accentBorder}` : "text-white/50 hover:text-white"}`}>DETAILS</button>
-                                        {(isTv || isAnime) && <button onClick={() => setActiveTab("episodes")} className={`pb-2 text-xs font-bold tracking-wide transition-all ${activeTab === "episodes" ? `${accentText} border-b-2 ${accentBorder}` : "text-white/50 hover:text-white"}`}>EPISODES</button>}
-                                        <button onClick={() => setActiveTab("reviews")} className={`pb-2 text-xs font-bold tracking-wide transition-all ${activeTab === "reviews" ? `${accentText} border-b-2 ${accentBorder}` : "text-white/50 hover:text-white"}`}>REVIEWS</button>
-                                        <button onClick={() => setActiveTab("media")} className={`pb-2 text-xs font-bold tracking-wide transition-all ${activeTab === "media" ? `${accentText} border-b-2 ${accentBorder}` : "text-white/50 hover:text-white"}`}>MEDIA</button>
-                                    </div>
-
-                                    <div className="min-h-[300px]">
-                                        {activeTab === "details" && (
-                                            <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2">
-                                                
-                                                {/* Keywords */}
-                                                {keywords.length > 0 && (
-                                                    <div className="space-y-3">
-                                                        <h4 className="text-sm font-bold text-white/50 uppercase tracking-widest flex items-center gap-2">
-                                                            <Tag size={14} /> Story Tags
-                                                        </h4>
-                                                        <div className="flex flex-wrap gap-2">
-                                                            {keywords.map(kw => (
-                                                                <button 
-                                                                    key={kw.id} 
-                                                                    onClick={() => onKeywordClick(kw)} 
-                                                                    className="px-3 py-1.5 text-xs font-medium bg-white/5 border border-white/5 rounded-lg text-gray-300 hover:text-white hover:bg-white/10 hover:border-white/20 transition-all active:scale-95"
-                                                                >
-                                                                    #{kw.name}
-                                                                </button>
-                                                            ))}
-                                                        </div>
-                                                    </div>
-                                                )}
-
-                                                {/* Cast & Crew - Redesigned */}
-                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                                    
-                                                    {/* Director / Creator */}
-                                                    <div className="bg-white/5 border border-white/5 rounded-2xl p-5 hover:bg-white/[0.07] transition-colors">
-                                                        <h4 className="text-xs font-bold text-white/50 uppercase tracking-widest mb-4 flex items-center gap-2">
-                                                            <Clapperboard size={14}/> {isTv ? "Creators" : "Director"}
-                                                        </h4>
-                                                        <div className="flex items-center gap-4">
-                                                            <div className="w-14 h-14 rounded-full bg-black/50 overflow-hidden border border-white/10 flex items-center justify-center shrink-0">
-                                                                {director.profile_path ? (
-                                                                    <img src={`${TMDB_IMAGE_BASE}${director.profile_path}`} className="w-full h-full object-cover" alt={director.name}/>
-                                                                ) : (
-                                                                    <span className="text-lg font-bold text-white/30">{director.name?.[0]}</span>
-                                                                )}
-                                                            </div>
-                                                            <div>
-                                                                <button onClick={() => onPersonClick(director.id)} className="text-base font-bold text-white hover:text-amber-500 transition-colors text-left block">
-                                                                    {director.name}
-                                                                </button>
-                                                                <p className="text-xs text-gray-500 mt-0.5">Visionary</p>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-
-                                                    {/* Top Billed Cast */}
-                                                    <div className="bg-white/5 border border-white/5 rounded-2xl p-5 hover:bg-white/[0.07] transition-colors">
-                                                         <h4 className="text-xs font-bold text-white/50 uppercase tracking-widest mb-4 flex items-center gap-2">
-                                                            <Users size={14}/> Top Cast
-                                                        </h4>
-                                                        <div className="flex flex-col gap-3">
-                                                            {cast.slice(0, 3).map((c) => (
-                                                                <div key={c.id} className="flex items-center gap-3 group cursor-pointer" onClick={() => onPersonClick(c.id)}>
-                                                                    <div className="w-10 h-10 rounded-full bg-black/50 overflow-hidden border border-white/10 shrink-0">
-                                                                        {c.profile_path ? (
-                                                                            <img src={`${TMDB_IMAGE_BASE}${c.profile_path}`} className="w-full h-full object-cover group-hover:scale-110 transition-transform" alt={c.name}/>
-                                                                        ) : (
-                                                                            <div className="w-full h-full flex items-center justify-center text-xs font-bold text-white/30">{c.name[0]}</div>
-                                                                        )}
-                                                                    </div>
-                                                                    <div className="min-w-0">
-                                                                        <p className="text-sm font-bold text-gray-200 group-hover:text-white transition-colors truncate">{c.name}</p>
-                                                                        <p className="text-[10px] text-gray-500 truncate">{c.character}</p>
-                                                                    </div>
-                                                                </div>
-                                                            ))}
-                                                            {cast.length > 3 && (
-                                                                <div className="pl-13 ml-12">
-                                                                    <p className="text-xs text-gray-500 italic">+ {cast.length - 3} more</p>
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                    </div>
-                                                </div>
-
-                                                {/* Trivia Card - Modernized */}
-                                                <div className={`relative overflow-hidden rounded-2xl border p-1 group transition-all duration-500 ${isGoldTheme ? 'bg-gradient-to-br from-amber-500/10 to-black border-amber-500/20 hover:border-amber-500/40' : 'bg-gradient-to-br from-purple-500/10 to-black border-purple-500/20 hover:border-purple-500/40'}`}>
-                                                    <div className="bg-[#0a0a0a]/80 backdrop-blur-xl rounded-xl p-5 h-full relative z-10">
-                                                        {!trivia ? (
-                                                            <div className="flex items-center justify-between gap-4">
-                                                                <div className="flex items-center gap-4">
-                                                                    <div className={`p-3 rounded-full ${isGoldTheme ? 'bg-amber-500/10 text-amber-500' : 'bg-purple-500/10 text-purple-400'}`}>
-                                                                        <Sparkles size={20} className="animate-pulse"/>
-                                                                    </div>
-                                                                    <div>
-                                                                        <h4 className="text-sm font-bold text-white">Did you know?</h4>
-                                                                        <p className="text-xs text-gray-400">Generate AI-powered trivia about this title.</p>
-                                                                    </div>
-                                                                </div>
-                                                                <button 
-                                                                    onClick={handleGenerateTrivia} 
-                                                                    disabled={loadingTrivia}
-                                                                    className={`px-4 py-2 rounded-lg text-xs font-bold transition-all active:scale-95 flex items-center gap-2 ${isGoldTheme ? 'bg-amber-500 text-black hover:bg-amber-400' : 'bg-purple-600 text-white hover:bg-purple-500'}`}
-                                                                >
-                                                                    {loadingTrivia ? <Loader2 size={14} className="animate-spin"/> : "Reveal Fact"}
-                                                                </button>
-                                                            </div>
-                                                        ) : (
-                                                            <div className="animate-in fade-in zoom-in duration-300">
-                                                                <div className="flex gap-4">
-                                                                    <div className={`shrink-0 mt-1 ${isGoldTheme ? 'text-amber-500' : 'text-purple-400'}`}>
-                                                                        <Lightbulb size={20} fill="currentColor"/>
-                                                                    </div>
-                                                                    <p className="text-sm text-gray-200 leading-relaxed italic font-medium">"{trivia}"</p>
-                                                                </div>
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                    {/* Background Glow Effect */}
-                                                    <div className={`absolute top-0 right-0 w-32 h-32 blur-[60px] rounded-full opacity-20 group-hover:opacity-40 transition-opacity duration-700 pointer-events-none ${isGoldTheme ? 'bg-amber-500' : 'bg-purple-600'}`}></div>
-                                                </div>
-                                            </div>
-                                        )}
-
-                                        {activeTab === "episodes" && (
-                                            <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2">
-                                                <div className="flex overflow-x-auto pb-2 gap-2 hide-scrollbar">
-                                                    {details?.seasons?.map(s => (<button key={s.id} onClick={() => setSelectedSeason(s.season_number)} className={`px-4 py-2 rounded-full text-xs font-bold border transition-all whitespace-nowrap ${selectedSeason === s.season_number ? 'bg-amber-500 text-black border-amber-500' : 'border-white/10 text-gray-400 hover:text-white'}`}>{s.name}</button>))}
-                                                </div>
-                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                                    {seasonData?.episodes?.map(ep => (
-                                                        <div key={ep.id} className="flex gap-3 p-3 rounded-xl bg-white/5 hover:bg-white/10 transition-colors cursor-pointer border border-white/5 group" onClick={handleWatchClick}>
-                                                            <div className="w-28 aspect-video bg-black rounded-lg overflow-hidden shrink-0 relative"><img src={`${TMDB_IMAGE_BASE}${ep.still_path}`} className="w-full h-full object-cover opacity-60 group-hover:opacity-40 transition-opacity"/><Play size={16} className="absolute inset-0 m-auto text-white opacity-0 group-hover:opacity-100 scale-90 group-hover:scale-100 transition-all"/></div>
-                                                            <div>
-                                                                <h4 className="text-white font-bold text-xs mb-1 line-clamp-1">E{ep.episode_number}: {ep.name}</h4>
-                                                                <p className="text-gray-500 text-[10px] mb-1">{ep.air_date}</p>
-                                                                <p className="text-gray-400 text-[10px] line-clamp-2">{ep.overview}</p>
-                                                            </div>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                        )}
-
-                                        {activeTab === "reviews" && (
-                                            <div className="space-y-3 animate-in fade-in slide-in-from-bottom-2">
-                                                {details?.reviews?.results && details.reviews.results.length > 0 ? (
-                                                    details.reviews.results.map((review: Review) => (
-                                                        <ReviewCard key={review.id} review={review} />
-                                                    ))
-                                                ) : (
-                                                    <div className="text-center py-10 text-gray-500 bg-white/5 rounded-2xl border border-white/5">
-                                                        <MessageCircle size={32} className="mx-auto mb-2 opacity-30"/>
-                                                        <p className="text-xs">No reviews available yet.</p>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        )}
-
-                                        {activeTab === "media" && (
-                                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 animate-in fade-in slide-in-from-bottom-2">
-                                                {mediaImages.map((img, idx) => (
-                                                    <div key={idx} className="aspect-video rounded-lg overflow-hidden cursor-pointer relative group" onClick={() => setViewingImage(`${TMDB_BACKDROP_BASE}${img.file_path}`)}>
-                                                        <img src={`${TMDB_IMAGE_BASE}${img.file_path}`} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"/>
-                                                        <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                                            <Eye size={20} className="text-white"/>
-                                                        </div>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-
-                                {/* Sidebar Column */}
-                                <div className="space-y-6">
                                     <div className="bg-white/5 rounded-2xl p-5 border border-white/5">
                                         <h4 className="text-white/40 text-[10px] uppercase font-bold mb-3 tracking-wider">Financials</h4>
                                         <div className="space-y-3">
-                                            <div><p className="text-gray-400 text-[10px] mb-0.5">Budget</p><p className="text-white font-mono text-sm">{formatCurrency(displayData.budget, appRegion)}</p></div>
-                                            <div><p className="text-gray-400 text-[10px] mb-0.5">Revenue</p><p className="text-green-400 font-mono text-sm">{formatCurrency(displayData.revenue, appRegion)}</p></div>
+                                            <div><p className="text-gray-400 text-[10px] mb-0.5">Budget</p><p className="text-white font-mono text-sm">{formatCurrency(displayData.budget)}</p></div>
+                                            <div><p className="text-gray-400 text-[10px] mb-0.5">Revenue</p><p className="text-green-400 font-mono text-sm">{formatCurrency(displayData.revenue)}</p></div>
                                         </div>
                                     </div>
 
