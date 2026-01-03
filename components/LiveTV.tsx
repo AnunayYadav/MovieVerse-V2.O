@@ -145,6 +145,17 @@ const COUNTRIES = [
     { id: 'YE', name: 'Yemen', icon: '🇾🇪' }
 ];
 
+const ChannelSkeleton = () => (
+    <div className="relative aspect-video bg-white/5 rounded-xl overflow-hidden border border-white/5">
+        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full animate-[shimmer_1.5s_infinite]"></div>
+        <div className="absolute inset-0 flex flex-col items-center justify-center p-4">
+            <div className="w-12 h-12 rounded-lg bg-white/10 mb-3"></div>
+            <div className="h-3 w-24 bg-white/10 rounded mb-2"></div>
+            <div className="h-2 w-16 bg-white/10 rounded"></div>
+        </div>
+    </div>
+);
+
 export const LiveTV: React.FC<LiveTVProps> = ({ userProfile }) => {
     const [activeCategory, setActiveCategory] = useState('news');
     const [selectedCountry, setSelectedCountry] = useState('ALL');
@@ -309,17 +320,17 @@ export const LiveTV: React.FC<LiveTVProps> = ({ userProfile }) => {
                     </div>
                     
                     <div className="flex flex-col md:flex-row gap-4 w-full xl:w-auto">
-                        {/* Country Dropdown */}
+                        {/* Country Dropdown - Cleaner */}
                         <div className="relative z-50" ref={dropdownRef}>
                             <button 
                                 onClick={() => setIsCountryDropdownOpen(!isCountryDropdownOpen)}
-                                className={`w-full md:w-56 flex items-center justify-between px-4 py-3 rounded-xl border transition-all ${isGoldTheme ? 'bg-amber-900/10 border-amber-500/30 text-amber-100 hover:border-amber-500/50' : 'bg-white/5 border-white/10 text-white hover:bg-white/10'}`}
+                                className="w-full md:w-56 flex items-center justify-between px-4 py-3 rounded-xl bg-white/5 hover:bg-white/10 transition-all active:scale-95"
                             >
                                 <div className="flex items-center gap-3">
                                     <span className="text-lg">{activeCountryObj.icon}</span>
                                     <span className="text-sm font-bold truncate">{activeCountryObj.name}</span>
                                 </div>
-                                <ChevronDown size={16} className={`transition-transform duration-300 ${isCountryDropdownOpen ? 'rotate-180' : ''}`}/>
+                                <ChevronDown size={16} className={`transition-transform duration-300 text-white/50 ${isCountryDropdownOpen ? 'rotate-180' : ''}`}/>
                             </button>
 
                             {isCountryDropdownOpen && (
@@ -348,7 +359,7 @@ export const LiveTV: React.FC<LiveTVProps> = ({ userProfile }) => {
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
                                 placeholder="Find a channel..." 
-                                className={`w-full bg-white/5 border border-white/10 rounded-xl py-3 pl-10 pr-4 text-sm focus:outline-none focus:bg-white/10 transition-colors ${isGoldTheme ? 'focus:border-amber-500' : 'focus:border-red-600'}`}
+                                className={`w-full bg-white/5 border border-transparent hover:border-white/10 rounded-xl py-3 pl-10 pr-4 text-sm focus:outline-none focus:bg-white/10 transition-colors ${isGoldTheme ? 'focus:border-amber-500/30' : 'focus:border-red-600/30'}`}
                             />
                         </div>
                     </div>
@@ -360,10 +371,10 @@ export const LiveTV: React.FC<LiveTVProps> = ({ userProfile }) => {
                         <button
                             key={cat.id}
                             onClick={() => setActiveCategory(cat.id)}
-                            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold whitespace-nowrap transition-all active:scale-95 border ${
+                            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold whitespace-nowrap transition-all active:scale-95 ${
                                 activeCategory === cat.id 
-                                ? `${isGoldTheme ? 'bg-amber-500 text-black border-amber-500' : 'bg-white text-black border-white'} shadow-lg` 
-                                : 'bg-white/5 border-transparent text-gray-400 hover:bg-white/10 hover:text-white hover:border-white/10'
+                                ? `${isGoldTheme ? 'bg-amber-500 text-black shadow-lg shadow-amber-500/20' : 'bg-white text-black shadow-lg shadow-white/20'}` 
+                                : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white'
                             }`}
                         >
                             <span>{cat.icon}</span> {cat.name}
@@ -373,8 +384,8 @@ export const LiveTV: React.FC<LiveTVProps> = ({ userProfile }) => {
 
                 {loading ? (
                     <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                        {[...Array(10)].map((_, i) => (
-                            <div key={i} className="aspect-video bg-white/5 rounded-xl animate-pulse border border-white/5"></div>
+                        {[...Array(15)].map((_, i) => (
+                            <ChannelSkeleton key={i} />
                         ))}
                     </div>
                 ) : error ? (

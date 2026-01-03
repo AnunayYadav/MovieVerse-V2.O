@@ -69,9 +69,9 @@ export const LogoLoader = () => (
 );
 
 export const MovieSkeleton = () => (
-  <div className="group relative bg-white/5 rounded-xl overflow-hidden border border-white/5 aspect-[2/3] animate-pulse">
+  <div className="group relative bg-white/5 rounded-xl overflow-hidden aspect-[2/3]">
     <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full animate-[shimmer_1.5s_infinite]" />
-    <div className="absolute bottom-0 left-0 w-full p-4 space-y-2">
+    <div className="absolute bottom-0 left-0 w-full p-4 space-y-3">
       <div className="h-4 bg-white/10 rounded-full w-3/4" />
       <div className="flex justify-between">
         <div className="h-3 bg-white/10 rounded-full w-1/3" />
@@ -119,7 +119,7 @@ export const PosterMarquee = React.memo(({ movies, onMovieClick }: { movies: Mov
                className="flex-shrink-0 w-32 md:w-48 mx-3 cursor-pointer group relative transition-all duration-500 ease-out hover:scale-105 hover:z-10"
                onClick={() => onMovieClick(movie)}
              >
-                <div className="aspect-[2/3] rounded-xl overflow-hidden shadow-2xl border border-white/10 group-hover:border-red-500/30 group-hover:shadow-[0_0_25px_rgba(220,38,38,0.3)] transition-all duration-500">
+                <div className="aspect-[2/3] rounded-xl overflow-hidden shadow-2xl group-hover:shadow-[0_0_25px_rgba(220,38,38,0.3)] transition-all duration-500">
                     <img 
                       src={movie.poster_path ? `${TMDB_IMAGE_BASE}${movie.poster_path}` : (movie.poster || "https://placehold.co/300x450/333/FFF?text=Movie")} 
                       alt={movie.title || "Movie"} 
@@ -175,7 +175,7 @@ export const ImageLightbox = ({ src, onClose }: { src: string, onClose: () => vo
            className="relative max-w-full max-h-full flex flex-col items-center animate-in slide-in-from-bottom-5 duration-500"
            onClick={(e) => e.stopPropagation()} 
          >
-            <img src={src} className="max-w-full max-h-[85vh] rounded-lg shadow-2xl border border-white/10" alt="Full size" />
+            <img src={src} className="max-w-full max-h-[85vh] rounded-lg shadow-2xl" alt="Full size" />
             <button onClick={handleDownload} className="mt-6 glass px-8 py-3 rounded-full font-bold text-sm flex items-center gap-2 hover:bg-white/20 transition-all text-white active:scale-95">
                 <Download size={16}/> Download High-Res
             </button>
@@ -205,7 +205,7 @@ export const MovieCard = React.forwardRef<HTMLDivElement, MovieCardProps>(({ mov
     return (
       <div 
         ref={ref}
-        className="group relative rounded-xl overflow-hidden cursor-pointer transition-all duration-500 ease-[cubic-bezier(0.33,1,0.68,1)] hover:z-20 hover:scale-[1.03] hover:shadow-[0_10px_40px_rgba(220,38,38,0.25)] hover:ring-1 hover:ring-white/20"
+        className="group relative rounded-xl overflow-hidden cursor-pointer transition-all duration-500 ease-[cubic-bezier(0.33,1,0.68,1)] hover:z-20 hover:scale-[1.03] hover:shadow-[0_10px_40px_rgba(0,0,0,0.5)]"
         onClick={() => onClick(movie)}
       >
         <div className="aspect-[2/3] overflow-hidden bg-white/5 relative">
@@ -234,14 +234,14 @@ export const MovieCard = React.forwardRef<HTMLDivElement, MovieCardProps>(({ mov
           </div>
         </div>
 
-        {/* Action Buttons */}
+        {/* Action Buttons - Clean Icon Only */}
         <div className="absolute top-2 right-2 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-x-4 group-hover:translate-x-0 z-30">
              <button 
                onClick={(e) => { e.stopPropagation(); onToggleWatched(movie); }}
-               className={`p-2 rounded-full backdrop-blur-md shadow-lg border border-white/10 transition-all hover:scale-110 active:scale-95 ${isWatched ? 'bg-green-500/80 text-white' : 'bg-black/40 text-white/70 hover:bg-white hover:text-black'}`}
+               className={`p-2 rounded-full backdrop-blur-md shadow-lg transition-all hover:scale-110 active:scale-95 ${isWatched ? 'text-green-400 bg-black/60' : 'text-white/80 bg-black/40 hover:bg-white hover:text-black'}`}
                title={isWatched ? "Mark Unwatched" : "Mark Watched"}
             >
-               {isWatched ? <Check size={14} strokeWidth={3} /> : <Eye size={14} />}
+               {isWatched ? <Check size={16} strokeWidth={3} /> : <Eye size={16} />}
             </button>
         </div>
       </div>
@@ -249,7 +249,7 @@ export const MovieCard = React.forwardRef<HTMLDivElement, MovieCardProps>(({ mov
 });
 
 interface PersonCardProps {
-    person: Movie; // Reusing Movie interface for person as it has profile_path and name
+    person: Movie; 
     onClick: (p: any) => void;
 }
 
@@ -263,10 +263,10 @@ export const PersonCard = React.forwardRef<HTMLDivElement, PersonCardProps>(({ p
     return (
         <div 
             ref={ref}
-            className="group relative rounded-xl overflow-hidden cursor-pointer transition-all duration-500 hover:scale-105 hover:z-20 hover:shadow-xl hover:ring-1 hover:ring-white/20"
+            className="group relative rounded-full md:rounded-xl overflow-hidden cursor-pointer transition-all duration-500 hover:scale-105 hover:z-20 hover:shadow-xl"
             onClick={() => onClick(person.id)}
         >
-            <div className="aspect-[2/3] overflow-hidden bg-white/5 relative">
+            <div className="aspect-square md:aspect-[2/3] overflow-hidden bg-white/5 relative">
                 <img 
                     src={imageUrl} 
                     alt={person.name} 
@@ -274,9 +274,9 @@ export const PersonCard = React.forwardRef<HTMLDivElement, PersonCardProps>(({ p
                     className="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-110"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-80" />
-                <div className="absolute bottom-0 left-0 w-full p-4">
-                     <h3 className="text-white font-bold text-lg leading-tight mb-1">{person.name}</h3>
-                     <p className="text-red-400 text-xs font-medium uppercase tracking-wider">{person.known_for_department || "Artist"}</p>
+                <div className="absolute bottom-0 left-0 w-full p-4 text-center md:text-left">
+                     <h3 className="text-white font-bold text-xs md:text-lg leading-tight mb-1 line-clamp-1">{person.name}</h3>
+                     <p className="text-red-400 text-[10px] md:text-xs font-medium uppercase tracking-wider hidden md:block">{person.known_for_department || "Artist"}</p>
                 </div>
             </div>
         </div>

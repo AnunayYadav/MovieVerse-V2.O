@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { UserCircle, X, ListPlus, Plus, Check, Loader2, Film, AlertCircle, BrainCircuit, Search, Star, RefreshCcw, Bell, CheckCheck, Inbox, Heart, PaintBucket, Upload, Facebook, Instagram, Twitter, Globe, Scale, DollarSign, Clock, Trophy, ChevronRight, ChevronDown, Calendar, ArrowUp, ArrowDown, TrendingUp, History, ArrowLeft, MoreHorizontal, Dice5 } from 'lucide-react';
 import { UserProfile, Movie, GENRES_LIST, PersonDetails, AppNotification, MovieDetails } from '../types';
-import { TMDB_BASE_URL, TMDB_IMAGE_BASE, formatCurrency } from './Shared';
+import { TMDB_BASE_URL, TMDB_IMAGE_BASE, formatCurrency, MovieSkeleton } from './Shared';
 import { generateSmartRecommendations } from '../services/gemini';
 import { getNotifications, markNotificationsRead } from '../services/supabase';
 
@@ -160,11 +160,11 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ isOpen, onClose, profi
                             </div>
 
                             <div className="grid grid-cols-2 gap-3">
-                                <button type="button" onClick={() => fileInputRef.current?.click()} className="py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-xs font-bold text-white transition-all flex items-center justify-center gap-2 group active:scale-95">
+                                <button type="button" onClick={() => fileInputRef.current?.click()} className="py-3 bg-white/5 hover:bg-white/10 border border-white/5 rounded-xl text-xs font-bold text-white transition-all flex items-center justify-center gap-2 group active:scale-95">
                                     <Upload size={16} className="group-hover:-translate-y-0.5 transition-transform"/> Upload Photo
                                     <input type="file" ref={fileInputRef} onChange={handleFileUpload} accept="image/*" className="hidden" />
                                 </button>
-                                <button type="button" onClick={() => selectAvatar(AVATARS[Math.floor(Math.random() * AVATARS.length)].seed)} className="py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-xs font-bold text-white transition-all flex items-center justify-center gap-2 group active:scale-95">
+                                <button type="button" onClick={() => selectAvatar(AVATARS[Math.floor(Math.random() * AVATARS.length)].seed)} className="py-3 bg-white/5 hover:bg-white/10 border border-white/5 rounded-xl text-xs font-bold text-white transition-all flex items-center justify-center gap-2 group active:scale-95">
                                     <Dice5 size={16} className="group-hover:rotate-180 transition-transform duration-500"/> Randomize
                                 </button>
                             </div>
@@ -175,14 +175,14 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ isOpen, onClose, profi
                                 <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider ml-1">Display Name</label>
                                 <div className="relative group">
                                     <UserCircle size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30 group-focus-within:text-white transition-colors duration-300"/>
-                                    <input type="text" value={name} onChange={(e) => setName(e.target.value)} className={`w-full bg-white/5 border border-white/10 rounded-xl py-3 pl-11 pr-4 text-white focus:bg-white/10 focus:outline-none transition-all duration-300 text-sm hover:border-white/20 ${isGoldTheme ? 'focus:border-amber-500' : 'focus:border-red-500'}`} placeholder="Your Name" />
+                                    <input type="text" value={name} onChange={(e) => setName(e.target.value)} className={`w-full bg-white/5 border border-white/5 rounded-xl py-3 pl-11 pr-4 text-white focus:bg-white/10 focus:outline-none transition-all duration-300 text-sm hover:bg-white/10 ${isGoldTheme ? 'focus:border-amber-500' : 'focus:border-red-500'}`} placeholder="Your Name" />
                                 </div>
                             </div>
                             <div className="space-y-1.5">
                                 <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider ml-1">Age</label>
                                 <div className="relative group">
                                     <UserCircle size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30 group-focus-within:text-white transition-colors duration-300"/>
-                                    <input type="number" value={age} min="10" max="120" onChange={(e) => { const val = parseInt(e.target.value); if (!e.target.value || (val >= 0 && val <= 130)) { setAge(e.target.value); }}} className={`w-full bg-white/5 border border-white/10 rounded-xl py-3 pl-11 pr-4 text-white focus:bg-white/10 focus:outline-none transition-all duration-300 text-sm hover:border-white/20 ${isGoldTheme ? 'focus:border-amber-500' : 'focus:border-red-500'}`} placeholder="10-120" />
+                                    <input type="number" value={age} min="10" max="120" onChange={(e) => { const val = parseInt(e.target.value); if (!e.target.value || (val >= 0 && val <= 130)) { setAge(e.target.value); }}} className={`w-full bg-white/5 border border-white/5 rounded-xl py-3 pl-11 pr-4 text-white focus:bg-white/10 focus:outline-none transition-all duration-300 text-sm hover:bg-white/10 ${isGoldTheme ? 'focus:border-amber-500' : 'focus:border-red-500'}`} placeholder="10-120" />
                                 </div>
                             </div>
                         </div>
@@ -204,7 +204,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ isOpen, onClose, profi
                                     <button 
                                     key={genre}
                                     onClick={() => toggleGenre(genre)}
-                                    className={`px-3 py-2 rounded-xl text-xs font-bold transition-all duration-300 border flex items-center gap-1.5 active:scale-95 ${selectedGenres.includes(genre) ? (isGoldTheme ? 'bg-amber-500 border-amber-500 text-black shadow-lg shadow-amber-500/30' : 'bg-red-600 border-red-600 text-white shadow-lg shadow-red-900/30') : 'bg-black/40 border-white/10 text-gray-400 hover:border-white/30 hover:text-white hover:bg-white/5'}`}
+                                    className={`px-3 py-2 rounded-xl text-xs font-bold transition-all duration-300 border flex items-center gap-1.5 active:scale-95 ${selectedGenres.includes(genre) ? (isGoldTheme ? 'bg-amber-500 border-amber-500 text-black shadow-lg shadow-amber-500/30' : 'bg-red-600 border-red-600 text-white shadow-lg shadow-red-900/30') : 'bg-black/40 border-white/5 text-gray-400 hover:text-white hover:bg-white/5'}`}
                                     >
                                         {genre}
                                         {selectedGenres.includes(genre) && <Check size={12} className="animate-in zoom-in duration-200"/>}
@@ -321,9 +321,8 @@ const FilmographyModal: React.FC<FilmographyModalProps> = ({ isOpen, onClose, pe
 
                 <div className="flex-1 overflow-y-auto custom-scrollbar p-6 bg-[#0a0a0a]">
                     {loading ? (
-                        <div className="h-full flex items-center justify-center flex-col gap-4">
-                            <Loader2 size={32} className="animate-spin text-red-500"/>
-                            <p className="text-gray-500 text-xs">Loading filmography...</p>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                            {[...Array(12)].map((_, i) => <MovieSkeleton key={i} />)}
                         </div>
                     ) : movies.length === 0 ? (
                         <div className="h-full flex items-center justify-center text-gray-500">No movies found.</div>
@@ -335,7 +334,7 @@ const FilmographyModal: React.FC<FilmographyModalProps> = ({ isOpen, onClose, pe
                                     onClick={() => { onClose(); onMovieClick(movie); }}
                                     className="group cursor-pointer relative"
                                 >
-                                    <div className="aspect-[2/3] rounded-lg overflow-hidden bg-white/5 mb-2 relative border border-white/5 transition-all duration-300 group-hover:scale-105 group-hover:border-white/20 group-hover:shadow-lg group-hover:z-10">
+                                    <div className="aspect-[2/3] rounded-lg overflow-hidden bg-white/5 mb-2 relative border border-white/5 transition-all duration-300 group-hover:scale-105 group-hover:shadow-lg group-hover:z-10">
                                         <img 
                                             src={`${TMDB_IMAGE_BASE}${movie.poster_path}`} 
                                             alt={movie.title} 
@@ -466,6 +465,16 @@ export const ComparisonModal: React.FC<ComparisonModalProps> = ({ isOpen, onClos
         );
     };
 
+    const MovieSkeletonColumn = () => (
+        <div className="flex-1 flex flex-col items-center gap-4">
+            <div className="w-48 aspect-[2/3] bg-white/5 rounded-xl animate-pulse relative overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full animate-[shimmer_1.5s_infinite]"></div>
+            </div>
+            <div className="h-6 w-32 bg-white/5 rounded animate-pulse"></div>
+            <div className="h-4 w-16 bg-white/5 rounded animate-pulse"></div>
+        </div>
+    );
+
     return (
         <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-black/90 backdrop-blur-xl animate-in fade-in duration-300">
             <div className="glass-panel w-full max-w-5xl rounded-2xl overflow-hidden shadow-2xl relative flex flex-col max-h-[90vh]">
@@ -480,7 +489,7 @@ export const ComparisonModal: React.FC<ComparisonModalProps> = ({ isOpen, onClos
                     <div className="flex flex-col md:flex-row gap-8">
                         {/* Movie 1 */}
                         <div className="flex-1 flex flex-col items-center text-center">
-                            {loading1 ? <Loader2 className="animate-spin text-red-500"/> : movie1 && (
+                            {loading1 ? <MovieSkeletonColumn/> : movie1 && (
                                 <>
                                     <img src={movie1.poster_path ? `${TMDB_IMAGE_BASE}${movie1.poster_path}` : "https://placehold.co/200x300"} className="w-48 rounded-xl shadow-lg border-2 border-red-500/50 mb-4 object-cover" alt={movie1.title}/>
                                     <h3 className="text-xl font-bold text-white mb-1">{movie1.title}</h3>
@@ -526,7 +535,7 @@ export const ComparisonModal: React.FC<ComparisonModalProps> = ({ isOpen, onClos
 
                         {/* Movie 2 */}
                         <div className="flex-1 flex flex-col items-center text-center">
-                            {loading2 ? <Loader2 className="animate-spin text-blue-500"/> : movie2 ? (
+                            {loading2 ? <MovieSkeletonColumn/> : movie2 ? (
                                 <>
                                     <img src={movie2.poster_path ? `${TMDB_IMAGE_BASE}${movie2.poster_path}` : "https://placehold.co/200x300"} className="w-48 rounded-xl shadow-lg border-2 border-blue-500/50 mb-4 object-cover" alt={movie2.title}/>
                                     <h3 className="text-xl font-bold text-white mb-1">{movie2.title}</h3>
@@ -543,7 +552,7 @@ export const ComparisonModal: React.FC<ComparisonModalProps> = ({ isOpen, onClos
 
                     {/* Stats Comparison */}
                     {movie1 && movie2 && (
-                        <div className="mt-12 space-y-8 max-w-3xl mx-auto">
+                        <div className="mt-12 space-y-8 max-w-3xl mx-auto animate-in slide-in-from-bottom-4">
                             <div className="space-y-2">
                                 <p className="text-center text-xs font-bold text-gray-500 uppercase tracking-widest flex items-center justify-center gap-2"><DollarSign size={14}/> Budget</p>
                                 <ComparisonBar val1={movie1.budget} val2={movie2.budget} max={Math.max(movie1.budget, movie2.budget) * 1.2} format={(v) => formatCurrency(v, 'US')} />
@@ -607,7 +616,7 @@ export const PersonPage: React.FC<PersonPageProps> = ({ personId, onClose, apiKe
 
           {loading ? (
              <div className="h-screen flex items-center justify-center flex-col gap-4">
-                 <Loader2 className="animate-spin text-red-500" size={48}/>
+                 <div className="w-20 h-20 rounded-full border-4 border-white/5 border-t-red-600 animate-spin"></div>
                  <p className="text-gray-500 text-sm animate-pulse">Loading Details...</p>
              </div>
           ) : details ? (
@@ -753,9 +762,18 @@ export const AIRecommendationModal: React.FC<AIRecommendationModalProps> = ({ is
           )}
           
           {loading && (
-              <div className="h-48 flex flex-col items-center justify-center space-y-4 flex-shrink-0 animate-in fade-in">
-                  <Loader2 size={40} className="animate-spin text-red-500"/>
-                  <p className="text-red-300 text-sm font-medium animate-pulse">Analyzing cinematic universe...</p>
+              <div className="flex flex-col gap-4 animate-in fade-in mt-4">
+                  {[...Array(3)].map((_, i) => (
+                      <div key={i} className="flex gap-4 p-3 rounded-xl bg-white/5 relative overflow-hidden">
+                          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full animate-[shimmer_1s_infinite]"></div>
+                          <div className="w-14 h-20 bg-white/10 rounded-lg shrink-0"></div>
+                          <div className="flex-1 space-y-2 py-2">
+                              <div className="h-4 bg-white/10 rounded w-3/4"></div>
+                              <div className="h-3 bg-white/10 rounded w-1/2"></div>
+                          </div>
+                      </div>
+                  ))}
+                  <p className="text-center text-xs text-gray-500 animate-pulse mt-2">Consulting the neural network...</p>
               </div>
           )}
           
@@ -849,9 +867,16 @@ export const NotificationModal: React.FC<NotificationModalProps> = ({ isOpen, on
                 
                 <div className="max-h-80 overflow-y-auto custom-scrollbar min-h-[150px]">
                     {loading ? (
-                         <div className="flex flex-col items-center justify-center h-40 gap-3">
-                            <Loader2 size={24} className={`animate-spin ${isGoldTheme ? 'text-amber-500' : 'text-red-500'}`}/>
-                            <p className="text-xs text-gray-500 font-medium">Checking updates...</p>
+                         <div className="p-4 space-y-3">
+                             {[...Array(3)].map((_,i) => (
+                                 <div key={i} className="space-y-2">
+                                     <div className="flex justify-between">
+                                         <div className="h-3 bg-white/10 rounded w-1/3 animate-pulse"></div>
+                                         <div className="h-2 bg-white/10 rounded w-10 animate-pulse"></div>
+                                     </div>
+                                     <div className="h-2 bg-white/10 rounded w-3/4 animate-pulse"></div>
+                                 </div>
+                             ))}
                          </div>
                     ) : notifications.length === 0 ? (
                         <div className="h-40 flex flex-col items-center justify-center text-gray-500 animate-in fade-in">

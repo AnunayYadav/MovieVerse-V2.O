@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { BarChart3, PieChart, BrainCircuit, Sparkles, User, Lightbulb, Users, Loader2, Calendar, Film } from 'lucide-react';
 import { Movie, AIAnalysisResult } from '../types';
@@ -124,19 +125,35 @@ export const AnalyticsDashboard: React.FC<AnalyticsProps> = ({ watchedMovies, wa
                 <div className="bg-gradient-to-br from-red-900/20 to-black/20 border border-red-500/50 p-6 rounded-2xl">
                     <h3 className="text-white font-bold mb-4 flex items-center gap-2"><BrainCircuit size={18} className="text-red-400"/> AI Analyst</h3>
                     
-                    {!aiAnalysis ? (
+                    {!aiAnalysis && !loadingAi && (
                         <div className="text-center py-12">
                             <p className="text-gray-400 text-sm mb-4">Unlock deep insights into your viewing psychology.</p>
                             <button 
                               onClick={handleAiAnalysis} 
-                              disabled={loadingAi}
-                              className="bg-red-600 text-white font-bold py-3 px-8 rounded-full hover:bg-red-700 transition-colors disabled:opacity-50 flex items-center gap-2 mx-auto"
+                              className="bg-red-600 text-white font-bold py-3 px-8 rounded-full hover:bg-red-700 transition-colors flex items-center gap-2 mx-auto active:scale-95 shadow-lg shadow-red-900/40"
                             >
-                                {loadingAi ? <Loader2 className="animate-spin"/> : <Sparkles size={16}/>}
-                                {loadingAi ? "Analyzing History..." : "Generate Full Report"}
+                                <Sparkles size={16}/> Generate Full Report
                             </button>
                         </div>
-                    ) : (
+                    )}
+
+                    {loadingAi && (
+                        <div className="py-8 space-y-4">
+                            <div className="h-6 w-1/3 bg-white/10 rounded animate-pulse mb-6"></div>
+                            <div className="space-y-2">
+                                <div className="h-4 w-full bg-white/10 rounded animate-pulse"></div>
+                                <div className="h-4 w-5/6 bg-white/10 rounded animate-pulse"></div>
+                                <div className="h-4 w-4/6 bg-white/10 rounded animate-pulse"></div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-4 mt-6">
+                                <div className="h-20 bg-white/10 rounded-lg animate-pulse"></div>
+                                <div className="h-20 bg-white/10 rounded-lg animate-pulse"></div>
+                            </div>
+                            <p className="text-center text-xs text-red-400 font-bold tracking-widest uppercase animate-pulse pt-4">Analyzing patterns...</p>
+                        </div>
+                    )}
+
+                    {aiAnalysis && (
                         <div className="space-y-5 animate-in fade-in">
                             <div className="flex items-center justify-between">
                                 <div>

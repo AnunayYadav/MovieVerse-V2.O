@@ -805,11 +805,11 @@ export default function App() {
             </div>
             
             <div className="hidden md:flex items-center gap-1">
-                <button onClick={resetToHome} className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-300 hover:scale-105 active:scale-95 flex items-center gap-2 ${isHomeView ? "bg-white text-black font-bold" : "text-gray-400 hover:text-white hover:bg-white/5"}`}><Home size={14} /> Home</button>
-                <button onClick={() => { resetToHome(); handleFeelingLucky(); }} className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-300 hover:scale-105 active:scale-95 flex items-center gap-2 text-gray-400 hover:text-white hover:bg-white/5`}><Compass size={14} /> Explore</button>
-                <button onClick={() => { resetFilters(); setSelectedCategory("LiveTV"); }} className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-300 hover:scale-105 active:scale-95 flex items-center gap-1 ${isLiveView ? "bg-white text-black font-bold" : "text-gray-400 hover:text-white hover:bg-white/5"}`}> <Radio size={12}/> Live TV</button>
+                <button onClick={resetToHome} className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all duration-300 hover:scale-105 active:scale-95 flex items-center gap-2 ${isHomeView ? "text-white" : "text-gray-400 hover:text-white hover:bg-white/5"}`}><Home size={16} /> Home</button>
+                <button onClick={() => { resetToHome(); handleFeelingLucky(); }} className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all duration-300 hover:scale-105 active:scale-95 flex items-center gap-2 text-gray-400 hover:text-white hover:bg-white/5`}><Compass size={16} /> Explore</button>
+                <button onClick={() => { resetFilters(); setSelectedCategory("LiveTV"); }} className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all duration-300 hover:scale-105 active:scale-95 flex items-center gap-2 ${isLiveView ? "text-white" : "text-gray-400 hover:text-white hover:bg-white/5"}`}> <Radio size={16}/> Live TV</button>
                 <div className="relative group z-50">
-                    <button className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium transition-all outline-none ${isBrowseActive ? "bg-white text-black font-bold" : "text-gray-400 hover:text-white hover:bg-white/5"}`}><LayoutGrid size={16} /><span>Browse</span></button>
+                    <button className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold transition-all outline-none ${isBrowseActive ? "text-white" : "text-gray-400 hover:text-white hover:bg-white/5"}`}><LayoutGrid size={16} /><span>Browse</span></button>
                     <div className="absolute top-full left-0 pt-4 w-[280px] hidden group-hover:block animate-in fade-in slide-in-from-top-2 duration-200">
                         <div className="bg-[#0f0f0f]/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl p-4 grid grid-cols-3 gap-2">
                             <div className="col-span-3 pb-2 mb-1 border-b border-white/5"><span className="text-[10px] font-bold text-white/40 uppercase tracking-wider">Browse By</span></div>
@@ -969,7 +969,7 @@ export default function App() {
                                    </div>
                                </div>
                            ))}
-                           {loading && ( <div className="col-span-full h-32 flex items-center justify-center"> <Loader2 className="animate-spin text-white/50" /> </div> )}
+                           {loading && ( <div className="col-span-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"> {[...Array(3)].map((_,i) => <div key={i} className="h-64 rounded-3xl bg-white/5 animate-pulse relative overflow-hidden"><div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full animate-[shimmer_1.5s_infinite]"></div></div>)} </div> )}
                        </div>
                        {hasMore && !loading && ( <div className="h-10" ref={lastMovieElementRef}></div> )}
                    </div>
@@ -1097,7 +1097,7 @@ export default function App() {
                                <p className="text-gray-300 text-sm md:text-lg line-clamp-3 md:line-clamp-3 max-w-2xl leading-relaxed">{featuredMovie.overview}</p>
                                <div className="flex flex-wrap gap-4 mt-2">
                                    <button onClick={() => setSelectedMovie(featuredMovie)} className="bg-white text-black hover:bg-gray-200 font-bold py-3 px-8 rounded-xl flex items-center gap-2 transition-all active:scale-95 hover:scale-105"><Info size={20}/> More Info</button>
-                                   <button onClick={() => toggleList(watchlist, setWatchlist, 'movieverse_watchlist', featuredMovie)} className="bg-white/20 backdrop-blur-md hover:bg-white/30 text-white font-bold py-3 px-6 rounded-xl flex items-center gap-2 transition-all border border-white/10 active:scale-95 hover:scale-105"><Plus size={20}/> My List</button>
+                                   <button onClick={() => toggleList(watchlist, setWatchlist, 'movieverse_watchlist', featuredMovie)} className="bg-white/20 backdrop-blur-md hover:bg-white/30 text-white font-bold py-3 px-6 rounded-xl flex items-center gap-2 transition-all active:scale-95 hover:scale-105"><Plus size={20}/> My List</button>
                                </div>
                            </div>
                        </div> 
@@ -1125,7 +1125,7 @@ export default function App() {
                                 <div className="flex items-center gap-2 shrink-0 overflow-visible pb-1 md:pb-0 w-full md:w-auto flex-wrap md:flex-nowrap">
                                     <div className="h-8 w-px bg-white/10 mx-1 hidden md:block"></div>
                                     <div className="relative group shrink-0 z-50">
-                                         <button className="flex items-center gap-2 bg-white/5 hover:bg-white/10 px-3 py-1.5 rounded-lg text-xs font-medium transition-all active:scale-95 border border-white/5"><Filter size={14} /> Sort <ChevronDown size={12} className="group-hover:rotate-180 transition-transform duration-300"/></button>
+                                         <button className="flex items-center gap-2 bg-white/5 hover:bg-white/10 px-3 py-1.5 rounded-lg text-xs font-medium transition-all active:scale-95"><Filter size={14} /> Sort <ChevronDown size={12} className="group-hover:rotate-180 transition-transform duration-300"/></button>
                                          <div className="absolute left-0 top-full pt-2 w-40 hidden group-hover:block z-[60] animate-in slide-in-from-top-2 duration-200">
                                              <div className="glass-panel p-1 rounded-lg">
                                                  {[ { l: "Popular", v: "popularity.desc" }, { l: "Top Rated", v: "vote_average.desc" }, { l: "Newest", v: "primary_release_date.desc" }, { l: "Oldest", v: "primary_release_date.asc" } ].map(opt => ( <button key={opt.v} onClick={() => setSortOption(opt.v)} className={`w-full text-left px-3 py-2 text-xs rounded-md hover:bg-white/10 transition-colors ${sortOption === opt.v ? accentText : 'text-gray-400'}`}>{opt.l}</button> ))}
@@ -1133,7 +1133,7 @@ export default function App() {
                                          </div>
                                     </div>
                                     <div className="relative group shrink-0 z-50">
-                                         <button className="flex items-center gap-2 bg-white/5 hover:bg-white/10 px-3 py-1.5 rounded-lg text-xs font-medium transition-all active:scale-95 border border-white/5"><Globe size={14} /> {selectedRegion === 'IN' ? 'India' : 'Global'} <ChevronDown size={12} className="group-hover:rotate-180 transition-transform duration-300"/></button>
+                                         <button className="flex items-center gap-2 bg-white/5 hover:bg-white/10 px-3 py-1.5 rounded-lg text-xs font-medium transition-all active:scale-95"><Globe size={14} /> {selectedRegion === 'IN' ? 'India' : 'Global'} <ChevronDown size={12} className="group-hover:rotate-180 transition-transform duration-300"/></button>
                                          <div className="absolute right-0 top-full pt-2 w-32 hidden group-hover:block z-[60] animate-in slide-in-from-top-2 duration-200">
                                              <div className="glass-panel p-1 rounded-lg">
                                                  <button onClick={() => setSelectedRegion("Global")} className="w-full text-left px-3 py-2 text-xs rounded-md text-gray-400 hover:bg-white/10 hover:text-white transition-colors">Global</button>
@@ -1142,7 +1142,7 @@ export default function App() {
                                          </div>
                                     </div>
                                     <div className="relative group shrink-0 z-50">
-                                         <button className="flex items-center gap-2 bg-white/5 hover:bg-white/10 px-3 py-1.5 rounded-lg text-xs font-medium transition-all active:scale-95 border border-white/5"><Languages size={14} /> {INDIAN_LANGUAGES.find(l => l.code === selectedLanguage)?.name.split(' ')[0] || 'All'} <ChevronDown size={12} className="group-hover:rotate-180 transition-transform duration-300"/></button>
+                                         <button className="flex items-center gap-2 bg-white/5 hover:bg-white/10 px-3 py-1.5 rounded-lg text-xs font-medium transition-all active:scale-95"><Languages size={14} /> {INDIAN_LANGUAGES.find(l => l.code === selectedLanguage)?.name.split(' ')[0] || 'All'} <ChevronDown size={12} className="group-hover:rotate-180 transition-transform duration-300"/></button>
                                          <div className="absolute right-0 top-full pt-2 w-48 hidden group-hover:block z-[60] animate-in slide-in-from-top-2 duration-200">
                                              <div className="glass-panel p-1 rounded-lg max-h-60 overflow-y-auto custom-scrollbar">
                                                  <button onClick={() => setSelectedLanguage("All")} className="w-full text-left px-3 py-2 text-xs rounded-md text-gray-400 hover:bg-white/10 hover:text-white transition-colors">All Languages</button>
