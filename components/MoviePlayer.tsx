@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { ChevronRight, ChevronLeft, X, Film, Tv, Ghost, Search, List, ChevronDown, Loader2, ArrowLeft, AlertCircle } from 'lucide-react';
+import { ChevronRight, ChevronLeft, X, Film, Tv, Ghost, Search, List, ChevronDown, Loader2, ArrowLeft } from 'lucide-react';
 import { Season, Episode } from '../types';
 import { TMDB_BASE_URL } from './Shared';
 
@@ -13,11 +13,10 @@ interface MoviePlayerProps {
   initialSeason?: number;
   initialEpisode?: number;
   apiKey: string;
-  title: string;
 }
 
 export const MoviePlayer: React.FC<MoviePlayerProps> = ({ 
-  tmdbId, onClose, mediaType, isAnime, initialSeason = 1, initialEpisode = 1, apiKey, title
+  tmdbId, onClose, mediaType, isAnime, initialSeason = 1, initialEpisode = 1, apiKey
 }) => {
   const [season, setSeason] = useState(initialSeason);
   const [episode, setEpisode] = useState(initialEpisode);
@@ -31,12 +30,6 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   const [loadingMetadata, setLoadingMetadata] = useState(false);
   const [epSearchQuery, setEpSearchQuery] = useState("");
   const [showSeasonDropdown, setShowSeasonDropdown] = useState(false);
-
-  // Consumet State
-  const [streamUrl, setStreamUrl] = useState<string | null>(null);
-  const [consumetError, setConsumetError] = useState<string | null>(null);
-  const [loadingStream, setLoadingStream] = useState(false);
-  const videoRef = useRef<HTMLVideoElement>(null);
 
   const showEpisodeControls = mediaType === 'tv' || isAnime;
 
@@ -72,101 +65,6 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     fetchMetadata();
   }, [tmdbId, apiKey, showEpisodeControls, season]);
 
-  // Consumet Stream Fetcher
-  useEffect(() => {
-      if (isAnime) {
-          fetchConsumetStream();
-      } else {
-          setStreamUrl(null);
-      }
-  }, [isAnime, season, episode, title]);
-
-  const fetchConsumetStream = async () => {
-      setLoadingStream(true);
-      setConsumetError(null);
-      setStreamUrl(null);
-
-      try {
-          // 1. Search for the anime using Anilist meta provider
-          // We assume "Season X" helps narrow it down if searching
-          let searchQuery = title;
-          // Simple heuristic: If season > 1, try to append it, though titles vary wildly
-          // Often searching the base title returns the main series, which is season 1
-          
-          const searchRes = await fetch(`https://api.consumet.org/meta/anilist/${encodeURIComponent(searchQuery)}?page=1`);
-          const searchData = await searchRes.json();
-          
-          if (!searchData.results || searchData.results.length === 0) {
-              throw new Error("Anime not found in database.");
-          }
-
-          const animeId = searchData.results[0].id; // Best match
-
-          // 2. Get Episode List
-          const infoRes = await fetch(`https://api.consumet.org/meta/anilist/info/${animeId}`);
-          const infoData = await infoRes.json();
-
-          // 3. Find the episode ID
-          // Anilist episodes are usually absolute or flat.
-          // We need to map (Season, Episode) to an index.
-          // Simple logic: If season 1, take episode index.
-          // If season > 1, this gets complicated.
-          // Fallback: Just try to find matching number.
-          
-          // Note: This is a simplified mapping. Complex anime logic requires MAL/Anilist sync.
-          // We assume the user wants the episode number relative to the fetched series.
-          const targetEp = infoData.episodes?.find((e: any) => e.number === episode);
-          
-          if (!targetEp) {
-              throw new Error("Episode not found.");
-          }
-
-          // 4. Get Stream
-          const watchRes = await fetch(`https://api.consumet.org/meta/anilist/watch/${targetEp.id}`);
-          const watchData = await watchRes.json();
-          
-          const m3u8Source = watchData.sources?.find((s: any) => s.quality === "default" || s.quality === "auto") || watchData.sources?.[0];
-
-          if (m3u8Source) {
-              setStreamUrl(m3u8Source.url);
-          } else {
-              throw new Error("No stream sources available.");
-          }
-
-      } catch (err: any) {
-          console.warn("Consumet Fetch Error", err);
-          setConsumetError("Stream unavailable via API. Switching to fallback.");
-          setStreamUrl(null); // Will trigger fallback to iframe
-      } finally {
-          setLoadingStream(false);
-      }
-  };
-
-  // HLS Player Effect
-  useEffect(() => {
-      const video = videoRef.current;
-      if (!video || !streamUrl) return;
-
-      const Hls = (window as any).Hls;
-      let hls: any;
-
-      if (Hls && Hls.isSupported()) {
-          hls = new Hls();
-          hls.loadSource(streamUrl);
-          hls.attachMedia(video);
-          hls.on(Hls.Events.MANIFEST_PARSED, () => {
-              video.play().catch(console.error);
-          });
-      } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-          video.src = streamUrl;
-          video.play().catch(console.error);
-      }
-
-      return () => {
-          if (hls) hls.destroy();
-      };
-  }, [streamUrl]);
-
   const handleSeasonChange = async (sNum: number) => {
       setSeason(sNum);
       setShowSeasonDropdown(false);
@@ -184,10 +82,11 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   };
 
   const getEmbedUrl = () => {
-    // Fallback vidsrc.cc Implementation
+    // If it's a TV show or Anime series, include season/episode
     if (mediaType === 'tv' || (isAnime && mediaType !== 'movie')) {
         return `https://vidsrc.cc/v2/embed/tv/${tmdbId}/${season}/${episode}`;
     }
+    // Movies
     return `https://vidsrc.cc/v2/embed/movie/${tmdbId}`;
   };
 
@@ -320,37 +219,16 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
        )}
 
       <div className="flex-1 relative w-full h-full z-0 overflow-hidden bg-black">
-        {loadingStream ? (
-            <div className="absolute inset-0 flex flex-col items-center justify-center text-white z-10">
-                <Loader2 size={48} className="animate-spin text-amber-500 mb-4"/>
-                <p className="font-bold text-sm tracking-widest uppercase animate-pulse">Connecting to Anime Stream...</p>
-            </div>
-        ) : streamUrl ? (
-            <video 
-                ref={videoRef}
-                className="w-full h-full object-contain"
-                controls
-                autoPlay
-            />
-        ) : (
-            <>
-                {isAnime && consumetError && (
-                    <div className="absolute top-20 left-1/2 -translate-x-1/2 z-20 bg-black/80 backdrop-blur text-white px-4 py-2 rounded-full border border-red-500/30 flex items-center gap-2 text-xs">
-                        <AlertCircle size={14} className="text-red-500"/> {consumetError}
-                    </div>
-                )}
-                <iframe 
-                    key={`${mediaType}-${isAnime}-${season}-${episode}`} 
-                    src={getEmbedUrl()}
-                    className="w-full h-full absolute inset-0 bg-black"
-                    title="Media Player"
-                    frameBorder="0"
-                    allow="autoplay; fullscreen; picture-in-picture"
-                    allowFullScreen
-                    sandbox="allow-forms allow-pointer-lock allow-same-origin allow-scripts allow-top-navigation"
-                />
-            </>
-        )}
+        <iframe 
+            key={`${mediaType}-${isAnime}-${season}-${episode}`} 
+            src={getEmbedUrl()}
+            className="w-full h-full absolute inset-0 bg-black"
+            title="Media Player"
+            frameBorder="0"
+            allow="autoplay; fullscreen; picture-in-picture"
+            allowFullScreen
+            sandbox="allow-forms allow-pointer-lock allow-same-origin allow-scripts allow-top-navigation"
+        />
       </div>
     </div>
   );

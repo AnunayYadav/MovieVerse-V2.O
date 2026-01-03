@@ -208,7 +208,6 @@ export interface Provider {
 export interface UserSettings {
     tmdbKey?: string;
     geminiKey?: string;
-    consumetUrl?: string; // URL for self-hosted Consumet API
 }
 
 export interface UserProfile {

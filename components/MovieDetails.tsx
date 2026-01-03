@@ -252,7 +252,6 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                      <Suspense fallback={<div className="w-full h-full flex items-center justify-center bg-black"><Loader2 className="animate-spin text-red-600" size={40}/></div>}>
                                          <MoviePlayer 
                                             tmdbId={displayData.id}
-                                            title={title} 
                                             onClose={() => setShowPlayer(false)} 
                                             mediaType={isTv ? 'tv' : 'movie'} 
                                             isAnime={isAnime || false} 

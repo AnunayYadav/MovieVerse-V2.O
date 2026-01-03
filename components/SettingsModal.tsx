@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { UserCircle, X, Check, Settings, ShieldCheck, RefreshCcw, HelpCircle, FileText, Lock, LogOut, Calendar, Mail, User, BrainCircuit, Pencil, CheckCheck, Loader2, ChevronDown, Fingerprint, Copy, Crown, History, Trash2, Search, Clock, ArrowLeft, Server } from 'lucide-react';
+import { UserCircle, X, Check, Settings, ShieldCheck, RefreshCcw, HelpCircle, FileText, Lock, LogOut, Calendar, Mail, User, BrainCircuit, Pencil, CheckCheck, Loader2, ChevronDown, Fingerprint, Copy, Crown, History, Trash2, Search, Clock, ArrowLeft } from 'lucide-react';
 import { UserProfile, MaturityRating, Movie } from '../types';
 import { getSupabase, submitSupportTicket } from '../services/supabase';
 import { TMDB_IMAGE_BASE } from './Shared';
@@ -12,8 +12,6 @@ interface SettingsPageProps {
     setApiKey: (key: string) => void;
     geminiKey: string;
     setGeminiKey: (key: string) => void;
-    consumetUrl?: string;
-    setConsumetUrl?: (url: string) => void;
     maturityRating: MaturityRating;
     setMaturityRating: (r: MaturityRating) => void;
     profile: UserProfile;
@@ -26,22 +24,19 @@ interface SettingsPageProps {
 }
 
 export const SettingsPage: React.FC<SettingsPageProps> = ({ 
-    isOpen, onClose, apiKey, setApiKey, geminiKey, setGeminiKey, consumetUrl = "https://api.consumet.org", setConsumetUrl, maturityRating, setMaturityRating, profile, onUpdateProfile, onLogout,
+    isOpen, onClose, apiKey, setApiKey, geminiKey, setGeminiKey, maturityRating, setMaturityRating, profile, onUpdateProfile, onLogout,
     searchHistory = [], setSearchHistory, watchedMovies = [], setWatchedMovies
 }) => {
     // Check if custom keys are stored
     const hasCustomTmdb = !!localStorage.getItem('movieverse_tmdb_key');
     const hasCustomGemini = !!localStorage.getItem('movieverse_gemini_key');
-    const hasCustomConsumet = !!localStorage.getItem('movieverse_consumet_url');
 
     const [inputKey, setInputKey] = useState(apiKey || "");
     const [inputGemini, setInputGemini] = useState(geminiKey || "");
-    const [inputConsumet, setInputConsumet] = useState(consumetUrl || "");
     const [activeTab, setActiveTab] = useState("account");
 
     const [isEditingTmdb, setIsEditingTmdb] = useState(false);
     const [isEditingGemini, setIsEditingGemini] = useState(false);
-    const [isEditingConsumet, setIsEditingConsumet] = useState(false);
 
     // Enhanced Account State
     const [userEmail, setUserEmail] = useState("");
@@ -68,10 +63,8 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
         if (isOpen) {
             setInputKey(hasCustomTmdb ? apiKey : "");
             setInputGemini(hasCustomGemini ? geminiKey : "");
-            setInputConsumet(hasCustomConsumet ? consumetUrl : "https://api.consumet.org");
             setIsEditingTmdb(hasCustomTmdb);
             setIsEditingGemini(hasCustomGemini);
-            setIsEditingConsumet(hasCustomConsumet);
             
             // Fetch real user data
             const fetchUser = async () => {
@@ -99,12 +92,11 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
             };
             fetchUser();
         }
-    }, [isOpen, apiKey, geminiKey, consumetUrl, hasCustomTmdb, hasCustomGemini, hasCustomConsumet, profile]);
+    }, [isOpen, apiKey, geminiKey, hasCustomTmdb, hasCustomGemini, profile]);
 
     const handleSave = () => {
         setApiKey(isEditingTmdb ? inputKey : ""); 
         setGeminiKey(isEditingGemini ? inputGemini : "");
-        if (setConsumetUrl) setConsumetUrl(isEditingConsumet ? inputConsumet : "https://api.consumet.org");
         onClose();
     };
 
@@ -220,7 +212,6 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                           
                           {activeTab === 'account' && (
                               <div className="space-y-6 animate-in fade-in slide-in-from-right-4">
-                                  {/* Account Content (same as before) */}
                                   <div>
                                     <h3 className="text-2xl font-bold text-white mb-6">My Profile</h3>
                                     <div className={`flex items-center gap-6 p-6 rounded-3xl border mb-8 ${isGoldTheme ? 'bg-gradient-to-br from-amber-900/10 to-transparent border-amber-500/20' : 'bg-gradient-to-br from-white/5 to-transparent border-white/5'}`}>
@@ -407,49 +398,311 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                                         </div>
                                         <p className="text-[10px] text-gray-500">Required for Smart Recommendations and Analytics.</p>
                                       </div>
-
-                                      <div className="space-y-2">
-                                        <div className="flex justify-between items-center">
-                                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">Consumet API URL <Server size={12} className="text-purple-400"/></label>
-                                            {!isEditingConsumet && <span className="text-[10px] text-purple-400 font-bold bg-purple-500/10 px-2 py-0.5 rounded-full border border-purple-500/20 flex items-center gap-1"><ShieldCheck size={10}/> Active</span>}
-                                        </div>
-                                        <div className="flex gap-2">
-                                            <div className="relative flex-1 group">
-                                                <input 
-                                                    type="text" 
-                                                    value={isEditingConsumet ? inputConsumet : consumetUrl} 
-                                                    onChange={(e) => isEditingConsumet && setInputConsumet(e.target.value)} 
-                                                    disabled={!isEditingConsumet}
-                                                    className={`w-full border rounded-xl p-3 focus:outline-none transition-all text-xs font-mono ${
-                                                        isEditingConsumet 
-                                                        ? "bg-white/5 border-white/10 text-white focus:border-purple-500 focus:bg-white/10" 
-                                                        : "bg-white/5 border-transparent text-gray-500 cursor-not-allowed select-none"
-                                                    }`} 
-                                                    placeholder="https://api.consumet.org"
-                                                />
-                                            </div>
-                                            
-                                            {isEditingConsumet ? (
-                                                <button 
-                                                    onClick={() => { setIsEditingConsumet(false); setInputConsumet("https://api.consumet.org"); }} 
-                                                    className={`p-3 rounded-xl border transition-colors ${isGoldTheme ? 'bg-amber-500/10 hover:bg-amber-500/20 border-amber-500/20 text-amber-400 hover:text-amber-300' : 'bg-red-500/10 hover:bg-red-500/20 border-red-500/20 text-red-400 hover:text-red-300'}`}
-                                                    title="Reset to Default"
-                                                >
-                                                    <RefreshCcw size={16}/>
-                                                </button>
-                                            ) : (
-                                                <button 
-                                                    onClick={() => { setIsEditingConsumet(true); setInputConsumet(consumetUrl || ""); }} 
-                                                    className="bg-white/5 hover:bg-white/10 border border-white/10 p-3 rounded-xl text-gray-400 hover:text-white transition-colors" 
-                                                    title="Edit URL"
-                                                >
-                                                    <Pencil size={16}/>
-                                                </button>
-                                            )}
-                                        </div>
-                                        <p className="text-[10px] text-gray-500">For Anime streaming. Point to your self-hosted Consumet instance (e.g., http://localhost:3000).</p>
-                                      </div>
                                   </div>
                                   
                                   <div className="pt-8">
-                                    <button onClick={handleSave} className="w-
+                                    <button onClick={handleSave} className="w-full bg-white text-black font-bold py-3 rounded-xl transition-all hover:bg-gray-200 active:scale-[0.98] shadow-xl text-sm">Save Changes</button>
+                                  </div>
+                              </div>
+                          )}
+
+                          {activeTab === 'history' && (
+                              <div className="space-y-6 animate-in fade-in slide-in-from-right-4 h-full flex flex-col">
+                                  <div className="flex items-center justify-between pb-4 border-b border-white/10">
+                                      <div>
+                                          <h3 className="text-2xl font-bold text-white mb-1">Manage History</h3>
+                                          <p className="text-xs text-gray-400">Control what is saved to your account.</p>
+                                      </div>
+                                      <div className="flex items-center gap-3 bg-white/5 px-4 py-2 rounded-xl border border-white/5">
+                                          <span className="text-[10px] font-bold text-white uppercase tracking-wider">{profile.enableHistory !== false ? 'Recording' : 'Paused'}</span>
+                                          <button 
+                                            onClick={handleToggleHistory}
+                                            className={`relative w-10 h-5 rounded-full transition-colors duration-300 ${profile.enableHistory !== false ? (isGoldTheme ? 'bg-amber-500' : 'bg-green-500') : 'bg-white/20'}`}
+                                          >
+                                              <div className={`absolute top-1 left-1 bg-white w-3 h-3 rounded-full transition-transform duration-300 shadow-md ${profile.enableHistory !== false ? 'translate-x-5' : 'translate-x-0'}`}></div>
+                                          </button>
+                                      </div>
+                                  </div>
+
+                                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 flex-1 overflow-hidden min-h-0">
+                                      {/* Search History Column */}
+                                      <div className="flex flex-col min-h-0">
+                                          <div className="flex justify-between items-center mb-4">
+                                              <h4 className="font-bold text-white flex items-center gap-2 text-base"><Search size={16} className="text-blue-400"/> Search History</h4>
+                                              {searchHistory.length > 0 && (
+                                                  <button onClick={handleClearSearchHistory} className={`text-[10px] uppercase font-bold tracking-wider hover:underline transition-colors ${accentText}`}>Clear</button>
+                                              )}
+                                          </div>
+                                          <div className="bg-white/5 rounded-2xl border border-white/5 flex-1 overflow-y-auto custom-scrollbar p-2">
+                                              {searchHistory.length === 0 ? (
+                                                  <div className="h-full flex flex-col items-center justify-center text-gray-500 opacity-50 p-6 text-center">
+                                                      <Search size={24} className="mb-2"/>
+                                                      <p className="text-xs">No recent searches</p>
+                                                  </div>
+                                              ) : (
+                                                  searchHistory.map((query, idx) => (
+                                                      <div key={`${query}-${idx}`} className="flex items-center justify-between p-3 hover:bg-white/5 rounded-xl group transition-colors mb-1">
+                                                          <div className="flex items-center gap-3 overflow-hidden">
+                                                              <Clock size={14} className="text-gray-500 shrink-0"/>
+                                                              <span className="text-xs text-gray-300 truncate font-medium">{query}</span>
+                                                          </div>
+                                                          <button onClick={() => handleRemoveSearchItem(query)} className="text-gray-600 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all p-1.5 rounded-full hover:bg-white/10">
+                                                              <X size={14}/>
+                                                          </button>
+                                                      </div>
+                                                  ))
+                                              )}
+                                          </div>
+                                      </div>
+
+                                      {/* Watch History Column */}
+                                      <div className="flex flex-col min-h-0">
+                                          <div className="flex justify-between items-center mb-4">
+                                              <h4 className="font-bold text-white flex items-center gap-2 text-base"><History size={16} className={isGoldTheme ? "text-amber-400" : "text-red-400"}/> Watch History</h4>
+                                              {watchedMovies.length > 0 && (
+                                                  <button onClick={handleClearWatchHistory} className={`text-[10px] uppercase font-bold tracking-wider hover:underline transition-colors ${accentText}`}>Clear</button>
+                                              )}
+                                          </div>
+                                          <div className="bg-white/5 rounded-2xl border border-white/5 flex-1 overflow-y-auto custom-scrollbar p-2">
+                                              {watchedMovies.length === 0 ? (
+                                                  <div className="h-full flex flex-col items-center justify-center text-gray-500 opacity-50 p-6 text-center">
+                                                      <History size={24} className="mb-2"/>
+                                                      <p className="text-xs">No watch history</p>
+                                                  </div>
+                                              ) : (
+                                                  watchedMovies.slice().reverse().map((movie) => (
+                                                      <div key={movie.id} className="flex items-center gap-3 p-2 hover:bg-white/5 rounded-xl group transition-colors relative mb-1">
+                                                          <img 
+                                                              src={movie.poster_path ? `${TMDB_IMAGE_BASE}${movie.poster_path}` : "https://placehold.co/50x75"} 
+                                                              alt={movie.title}
+                                                              className="w-10 h-14 object-cover rounded-lg shadow-sm"
+                                                          />
+                                                          <div className="flex-1 min-w-0">
+                                                              <p className={`text-xs font-bold text-gray-200 line-clamp-1 ${accentHoverText}`}>{movie.title || movie.name}</p>
+                                                              <p className="text-[10px] text-gray-500">{movie.release_date?.split('-')[0] || 'Unknown'}</p>
+                                                          </div>
+                                                          <button 
+                                                              onClick={() => handleRemoveWatchItem(movie.id)} 
+                                                              className="absolute right-3 top-1/2 -translate-y-1/2 bg-black/50 p-1.5 rounded-full text-white/50 hover:text-red-500 hover:bg-white opacity-0 group-hover:opacity-100 transition-all scale-90 hover:scale-100"
+                                                              title="Remove from history"
+                                                          >
+                                                              <Trash2 size={14}/>
+                                                          </button>
+                                                      </div>
+                                                  ))
+                                              )}
+                                          </div>
+                                      </div>
+                                  </div>
+                              </div>
+                          )}
+
+                          {activeTab === 'restrictions' && (
+                              <div className="space-y-6 animate-in fade-in slide-in-from-right-4 max-w-2xl">
+                                  <h3 className="text-2xl font-bold text-white mb-2">Content Restrictions</h3>
+                                  <p className="text-xs text-gray-400 mb-6 bg-white/5 p-4 rounded-xl border border-white/5 leading-relaxed">
+                                    Set the maximum maturity rating for content displayed in this profile. Titles exceeding this rating will be hidden from search results and recommendations.
+                                  </p>
+                                  <div className="space-y-3">
+                                      {['G', 'PG', 'PG-13', 'R', 'NC-17'].map((rate) => (
+                                          <button 
+                                            key={rate} 
+                                            onClick={() => setMaturityRating(rate as MaturityRating)}
+                                            className={`w-full flex items-center justify-between p-4 rounded-xl transition-all border ${maturityRating === rate ? (isGoldTheme ? 'bg-amber-600/20 border-amber-500/50 text-white' : 'bg-red-600/20 border-red-500/50 text-white') : 'bg-white/5 border-transparent text-gray-400 hover:text-white hover:bg-white/10'}`}
+                                          >
+                                              <div className="flex items-center gap-3">
+                                                  <span className={`w-10 h-10 rounded-lg flex items-center justify-center text-xs font-bold shadow-lg ${maturityRating === rate ? (isGoldTheme ? 'bg-amber-600 text-black' : 'bg-red-600 text-white') : 'bg-white/10 text-gray-500'}`}>{rate}</span>
+                                                  <span className="font-bold text-sm">Rated {rate}</span>
+                                              </div>
+                                              {maturityRating === rate && <div className={`rounded-full p-1 ${isGoldTheme ? 'bg-amber-600 text-black' : 'bg-red-600 text-white'}`}><Check size={14}/></div>}
+                                          </button>
+                                      ))}
+                                  </div>
+                              </div>
+                          )}
+
+                          {activeTab === 'help' && (
+                              <div className="space-y-8 animate-in fade-in slide-in-from-right-4 h-full flex flex-col max-w-3xl">
+                                  <h3 className="text-2xl font-bold text-white mb-4">Help Center</h3>
+                                  <div className="space-y-6">
+                                      <div className="bg-white/5 rounded-2xl border border-white/5 overflow-hidden">
+                                          <h4 className="font-bold text-white p-5 flex items-center gap-3 border-b border-white/5 text-base"><HelpCircle size={18} className="text-yellow-400"/> Frequently Asked Questions</h4>
+                                          <div>
+                                              {FAQs.map((faq, i) => (
+                                                  <div key={i} className="border-b border-white/5 last:border-0">
+                                                      <button 
+                                                        onClick={() => setExpandedFaq(expandedFaq === i ? null : i)}
+                                                        className="w-full flex justify-between items-center p-4 text-left hover:bg-white/5 transition-colors"
+                                                      >
+                                                          <span className="text-xs font-bold text-gray-200 pr-4">{faq.q}</span>
+                                                          <ChevronDown size={16} className={`text-gray-500 transition-transform duration-300 ${expandedFaq === i ? 'rotate-180' : ''}`}/>
+                                                      </button>
+                                                      <div className={`overflow-hidden transition-all duration-300 bg-black/20 ${expandedFaq === i ? 'max-h-40 opacity-100' : 'max-h-0 opacity-0'}`}>
+                                                          <p className="p-4 pt-1 text-xs text-gray-400 leading-relaxed">{faq.a}</p>
+                                                      </div>
+                                                  </div>
+                                              ))}
+                                          </div>
+                                      </div>
+                                      <div className="bg-white/5 p-6 rounded-2xl border border-white/5">
+                                          <h4 className="font-bold text-white text-base mb-4 flex items-center gap-3"><FileText size={18} className="text-blue-400"/> Contact Support</h4>
+                                          <div className="space-y-4">
+                                              <div>
+                                                  <label className="text-[10px] font-bold text-gray-500 uppercase mb-1 block">Subject</label>
+                                                  <div className="relative">
+                                                      <select 
+                                                          value={supportSubject} 
+                                                          onChange={(e) => setSupportSubject(e.target.value)}
+                                                          className={`w-full bg-[#0a0a0a] border border-white/10 rounded-xl px-4 py-3 text-xs text-gray-200 focus:bg-white/5 focus:outline-none appearance-none transition-colors ${isGoldTheme ? 'focus:border-amber-500' : 'focus:border-red-600'}`}
+                                                      >
+                                                          <option className="bg-[#0a0a0a] text-gray-200">General Inquiry</option>
+                                                          <option className="bg-[#0a0a0a] text-gray-200">Bug Report</option>
+                                                          <option className="bg-[#0a0a0a] text-gray-200">Feature Request</option>
+                                                          <option className="bg-[#0a0a0a] text-gray-200">Account Issue</option>
+                                                      </select>
+                                                      <ChevronDown size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none"/>
+                                                  </div>
+                                              </div>
+                                              <div>
+                                                  <label className="text-[10px] font-bold text-gray-500 uppercase mb-1 block">Message</label>
+                                                  <textarea 
+                                                      value={supportMessage}
+                                                      onChange={(e) => setSupportMessage(e.target.value)}
+                                                      className={`w-full bg-[#0a0a0a] border border-white/10 rounded-xl p-4 text-xs text-white focus:bg-white/5 focus:outline-none mb-1 resize-none h-32 transition-colors placeholder-gray-600 ${isGoldTheme ? 'focus:border-amber-500' : 'focus:border-red-600'}`}
+                                                      placeholder="Describe your issue in detail..."
+                                                  ></textarea>
+                                              </div>
+                                              {sentSuccess ? (
+                                                  <div className="w-full bg-green-500/20 border border-green-500/30 text-green-400 font-bold py-3 rounded-xl flex items-center justify-center gap-2 animate-in fade-in text-xs">
+                                                      <CheckCheck size={16}/> Message Sent Successfully!
+                                                  </div>
+                                              ) : (
+                                                  <button 
+                                                      onClick={handleSendSupport} 
+                                                      disabled={sending || !supportMessage.trim()}
+                                                      className="w-full bg-white text-black font-bold py-3 rounded-xl transition-all hover:bg-gray-200 flex items-center justify-center gap-2 disabled:opacity-50 active:scale-[0.98] shadow-lg text-sm"
+                                                  >
+                                                      {sending ? <Loader2 size={16} className="animate-spin"/> : "Submit Ticket"}
+                                                      {sending && "Sending..."}
+                                                  </button>
+                                              )}
+                                          </div>
+                                      </div>
+                                  </div>
+                              </div>
+                          )}
+
+                          {activeTab === 'legal' && (
+                              <div className="space-y-6 animate-in fade-in slide-in-from-right-4 h-full flex flex-col max-w-4xl">
+                                  <h3 className={`text-2xl font-bold text-white mb-4 flex items-center gap-3`}>
+                                      <ShieldCheck size={24} className={isGoldTheme ? "text-amber-500" : "text-red-500"}/> Legal Center
+                                  </h3>
+                                  
+                                  <div className="flex-1 space-y-10 text-xs text-gray-300 leading-relaxed pb-8">
+                                      
+                                      {/* TMDB Attribution - Prominent as requested for compliance */}
+                                      <div className="bg-gradient-to-br from-[#0d253f] to-[#01b4e4] rounded-2xl p-0.5 border border-white/10 shadow-lg">
+                                          <div className="bg-black/90 rounded-[14px] p-6 h-full backdrop-blur-sm">
+                                              <h4 className="text-white font-bold text-lg mb-3 flex items-center gap-3">Data Attribution</h4>
+                                              <div className="flex flex-col md:flex-row gap-6 items-center md:items-start">
+                                                  <img 
+                                                      src="https://www.themoviedb.org/assets/2/v4/logos/v2/blue_square_2-d537fb228cf3ded904ef09b136fe3fec72548ebc1fea3fbbd1ad9e36364db38b.svg" 
+                                                      className="w-24 h-24 shrink-0" 
+                                                      alt="The Movie Database (TMDB)" 
+                                                  />
+                                                  <div className="space-y-3">
+                                                      <p className="text-gray-200 font-medium text-sm">
+                                                          This product uses the TMDB API but is not endorsed or certified by TMDB.
+                                                      </p>
+                                                      <p className="text-xs text-gray-400">
+                                                          MovieVerse AI acknowledges and credits The Movie Database (TMDB) as the source of movie and TV show metadata, images, and other related content displayed within this application.
+                                                      </p>
+                                                  </div>
+                                              </div>
+                                          </div>
+                                      </div>
+
+                                      {/* Terms of Service */}
+                                      <section>
+                                          <h4 className="text-white font-bold text-lg mb-4 pb-2 border-b border-white/10 text-blue-400">Terms of Service</h4>
+                                          <div className="space-y-4 text-gray-400 text-xs">
+                                              <div>
+                                                  <h5 className="text-white font-bold mb-1 text-sm">1. Acceptance of Terms</h5>
+                                                  <p>By accessing and using MovieVerse AI ("the Application"), you accept and agree to be bound by the terms and provision of this agreement. In addition, when using this Application's particular services, you shall be subject to any posted guidelines or rules applicable to such services.</p>
+                                              </div>
+                                              <div>
+                                                  <h5 className="text-white font-bold mb-1 text-sm">2. Disclaimer of Warranties</h5>
+                                                  <p>The Application is provided "as is" and "as available" without any representation or warranty, express or implied. MovieVerse AI does not warrant that the service will be uninterrupted or error-free. The content is for informational purposes only.</p>
+                                              </div>
+                                              <div>
+                                                  <h5 className="text-white font-bold mb-1 text-sm">3. Content Policy</h5>
+                                                  <p>MovieVerse AI functions strictly as a discovery tool. We do not host, upload, stream, or index any video files. All media assets (posters, backdrops) are provided by third-party APIs. We are not responsible for the accuracy or legality of content provided by third-party sources.</p>
+                                              </div>
+                                              <div>
+                                                  <h5 className="text-white font-bold mb-1 text-sm">4. User Conduct</h5>
+                                                  <p>You agree not to use the Application for any unlawful purpose or any purpose prohibited under this clause. You agree not to use the Application in any way that could damage the Application, the services, or the general business of MovieVerse AI.</p>
+                                              </div>
+                                              <div>
+                                                  <h5 className="text-white font-bold mb-1 text-sm">5. Termination</h5>
+                                                  <p>We may terminate your access to the Application, without cause or notice, which may result in the forfeiture and destruction of all information associated with your account.</p>
+                                              </div>
+                                          </div>
+                                      </section>
+
+                                      {/* Privacy Policy */}
+                                      <section>
+                                          <h4 className="text-white font-bold text-lg mb-4 pb-2 border-b border-white/10 text-green-400">Privacy Policy</h4>
+                                          <div className="space-y-4 text-gray-400 text-xs">
+                                              <div>
+                                                  <h5 className="text-white font-bold mb-1 text-sm">1. Information Collection</h5>
+                                                  <p>We collect information you provide directly to us. For example, we collect information when you create an account, update your profile, or communicate with us. The types of information we may collect include your name, email address, and viewing preferences.</p>
+                                              </div>
+                                              <div>
+                                                  <h5 className="text-white font-bold mb-1 text-sm">2. Use of Information</h5>
+                                                  <p>We use the information we collect to provide, maintain, and improve our services, such as to personalize the content you see (e.g., "AI Recommendations") and to facilitate synchronization across devices.</p>
+                                              </div>
+                                              <div>
+                                                  <h5 className="text-white font-bold mb-1 text-sm">3. Local Storage & Cookies</h5>
+                                                  <p>We use local storage technology to store your preferences (API keys, watchlist, settings) directly on your device for a seamless experience. If you use cloud sync features, this data is encrypted and stored in our database.</p>
+                                              </div>
+                                              <div>
+                                                  <h5 className="text-white font-bold mb-1 text-sm">4. Third-Party Services</h5>
+                                                  <p>This Application uses services provided by Google (Gemini AI), TMDB (Metadata), and Supabase (Authentication/DB). Please refer to their respective privacy policies for information on how they handle data.</p>
+                                              </div>
+                                          </div>
+                                      </section>
+
+                                      {/* Additional Acknowledgments */}
+                                      <section>
+                                          <h4 className="text-white font-bold text-lg mb-4 pb-2 border-b border-white/10">Acknowledgments</h4>
+                                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                              <div className="bg-white/5 p-4 rounded-2xl border border-white/5 flex items-center gap-3">
+                                                   <div className="bg-white p-2 rounded-xl"><BrainCircuit className="text-blue-600" size={24}/></div>
+                                                   <div>
+                                                       <h6 className="font-bold text-white text-base">Google Gemini</h6>
+                                                       <p className="text-xs text-gray-400">Powered by Gemini Pro models for intelligent analysis and recommendations.</p>
+                                                   </div>
+                                              </div>
+                                              <div className="bg-white/5 p-4 rounded-2xl border border-white/5 flex items-center gap-3">
+                                                   <div className="bg-black p-2 rounded-xl text-white font-bold text-base w-10 h-10 flex items-center justify-center">L</div>
+                                                   <div>
+                                                       <h6 className="font-bold text-white text-base">Lucide React</h6>
+                                                       <p className="text-xs text-gray-400">Beautiful, consistent iconography used throughout the interface.</p>
+                                                   </div>
+                                              </div>
+                                          </div>
+                                      </section>
+                                      
+                                      <div className="pt-8 mt-6 border-t border-white/10 text-center pb-20">
+                                          <p className="text-xs text-gray-500">Last Updated: January 2025</p>
+                                          <p className="text-xs text-gray-600 mt-1">MovieVerse AI © 2025. All Rights Reserved.</p>
+                                      </div>
+                                  </div>
+                              </div>
+                          )}
+                      </div>
+                  </div>
+             </div>
+        </div>
+    );
+};
