@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Search, Film, Menu, TrendingUp, Tv, Ghost, Calendar, Star, X, Sparkles, Settings, Globe, BarChart3, Bookmark, Heart, Folder, Languages, Filter, ChevronDown, Info, Plus, Cloud, CloudOff, Clock, Bell, History, Users, Tag, Dice5, Crown, Radio, LayoutGrid, Award, Baby, Clapperboard, ChevronRight, PlayCircle, Megaphone, CalendarDays, Compass, Home, Map, Loader2 } from 'lucide-react';
 import { Movie, UserProfile, GENRES_MAP, GENRES_LIST, INDIAN_LANGUAGES, MaturityRating, Keyword } from './types';
@@ -19,29 +20,33 @@ const DEFAULT_COLLECTIONS: any = {
   "korean": { title: "K-Wave", params: { with_original_language: "ko", sort_by: "popularity.desc" }, icon: "🇰🇷", backdrop: "https://image.tmdb.org/t/p/original/7CAl1uP0r6qfK325603665.jpg", description: "Thrillers, Romance, and Drama from South Korea." },
 };
 
-// Expanded Franchise List for Endless Scrolling
+// Expanded Franchise List for Endless Scrolling - Real TMDB Collection IDs
 const FRANCHISE_IDS = [
     86311,   // Marvel Cinematic Universe
     10,      // Star Wars
     1241,    // Harry Potter
     115575,  // DC Extended Universe
+    131292,  // Iron Man
+    131296,  // Thor
+    131295,  // Captain America
+    86311,   // The Avengers
     9485,    // Fast & Furious
     295,     // Pirates of the Caribbean
     645,     // James Bond
-    558216,  // MonsterVerse
-    1060085, // YRF Spy Universe
+    558216,  // MonsterVerse (Godzilla/Kong)
+    1060085, // YRF Spy Universe (Pathaan/Tiger)
     119,     // Lord of the Rings
     87359,   // Mission Impossible
-    52984,   // Batman (Nolan)
+    52984,   // Batman (Nolan Dark Knight)
     472535,  // Baahubali
     712282,  // KGF
-    894562,  // Lokesh Cinematic Universe
-    1060096, // Cop Universe
-    531241,  // Spider-Verse
+    894562,  // Lokesh Cinematic Universe (Vikram/Kaithi)
+    1060096, // Rohit Shetty Cop Universe
+    531241,  // Spider-Verse (Animated)
     10194,   // Toy Story
     2150,    // Shrek
     8354,    // Ice Age
-    86066,   // Despicable Me
+    86066,   // Despicable Me / Minions
     77816,   // Kung Fu Panda
     10593,   // Madagascar
     163313,  // How to Train Your Dragon
