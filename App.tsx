@@ -79,7 +79,7 @@ const FRANCHISE_IDS = [
     2289,    // Saw Collection
     2661,    // Scream Collection
     2656,    // Halloween Collection
-    2342,    // Friday the 13th Collection
+    2342,    // Friday the13th Collection
     2660,    // A Nightmare on Elm Street Collection
     912503   // Astraverse (Brahmastra)
 ];
@@ -559,7 +559,9 @@ export default function App() {
     // Calculate Adult/Age Logic
     const userAge = parseInt(userProfile.age || "0");
     const isAdult = !isNaN(userAge) && userAge >= 18;
-    const includeAdultParam = isAdult ? "true" : "false";
+    // CRITICAL FIX: Always force include_adult to false to prevent nudity/pornography
+    // TMDB 'include_adult' is specifically for pornography, not rated R content.
+    const includeAdultParam = "false";
 
     try {
         let endpoint = "/discover/movie";
@@ -665,7 +667,6 @@ export default function App() {
         }
         else if (selectedCategory === "Coming") {
             // Updated Logic: Use standard pagination with release date sorting
-            // This ensures movies load in date order (Date 1 -> Date 2 -> etc) naturally as you scroll
             const today = new Date();
             const todayStr = today.toISOString().split('T')[0];
             const future = new Date(); 
