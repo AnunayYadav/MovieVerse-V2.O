@@ -534,14 +534,20 @@ export default function App() {
         let endpoint = "/discover/movie";
         const params = new URLSearchParams({ api_key: apiKey, page: pageNum.toString(), language: "en-US", include_adult: "false" });
 
-        if (selectedCategory !== "Coming" && selectedCategory !== "People") {
+        // DETERMINE IF WE ARE IN GENERAL DISCOVERY MODE
+        // We only apply region/certification filtering for generic browsing to ensure safety/relevance.
+        // For specific lookups (Countries, Collections, Keywords, Franchises), we show ALL results to avoid hiding international content.
+        const isGeneralDiscovery = !activeCountry && !activeKeyword && !tmdbCollectionId && !currentCollection && !["People", "Coming", "Franchise"].includes(selectedCategory);
+
+        if (isGeneralDiscovery) {
              if (appRegion) params.append("region", appRegion);
-             params.append("certification_country", "US");
+             params.append("certification_country", "US"); // Only filter by US certs for general browsing to match maturity settings
              params.append("certification.lte", maxCertification);
         }
 
         if (searchQuery) {
             endpoint = selectedCategory === "People" ? "/search/person" : "/search/multi";
+            // Ensure search doesn't get filtered
             params.delete("certification_country");
             params.delete("certification.lte");
             params.set("query", searchQuery);
