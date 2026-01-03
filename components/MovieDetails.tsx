@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, Suspense, useRef } from 'react';
-import { X, Calendar, Clock, Star, Play, Bookmark, Heart, Share2, Clapperboard, Sparkles, Loader2, Tag, MessageCircle, Globe, Facebook, Instagram, Twitter, Film, PlayCircle, Eye, Volume2, VolumeX, Users, ArrowLeft, Lightbulb, DollarSign, Trophy } from 'lucide-react';
-import { Movie, MovieDetails, Season, UserProfile, Keyword, Review } from '../types';
+import { X, Calendar, Clock, Star, Play, Bookmark, Heart, Share2, Clapperboard, Sparkles, Loader2, Tag, MessageCircle, Globe, Facebook, Instagram, Twitter, Film, PlayCircle, Eye, Volume2, VolumeX, Users, ArrowLeft, Lightbulb, DollarSign, Trophy, Tv, Check } from 'lucide-react';
+import { Movie, MovieDetails, Season, UserProfile, Keyword, Review, CastMember, CrewMember } from '../types';
 import { TMDB_BASE_URL, TMDB_IMAGE_BASE, TMDB_BACKDROP_BASE, formatCurrency, ImageLightbox } from '../components/Shared';
 import { generateTrivia } from '../services/gemini';
 
@@ -24,6 +24,7 @@ interface MoviePageProps {
     onKeywordClick: (keyword: Keyword) => void;
     onCollectionClick: (collectionId: number) => void;
     onCompare?: (m: Movie) => void;
+    appRegion?: string;
 }
 
 const ReviewCard: React.FC<{ review: Review }> = ({ review }) => {
@@ -68,14 +69,14 @@ const ReviewCard: React.FC<{ review: Review }> = ({ review }) => {
 export const MoviePage: React.FC<MoviePageProps> = ({ 
     movie, onClose, apiKey, onPersonClick, onToggleWatchlist, isWatchlisted, 
     onSwitchMovie, onOpenListModal, onToggleFavorite, isFavorite, isWatched, onToggleWatched, userProfile,
-    onKeywordClick, onCollectionClick, onCompare
+    onKeywordClick, onCollectionClick, onCompare, appRegion = "US"
 }) => {
     const [details, setDetails] = useState<MovieDetails | null>(null);
     const [loading, setLoading] = useState(false);
     const [trivia, setTrivia] = useState("");
     const [loadingTrivia, setLoadingTrivia] = useState(false);
     const [copied, setCopied] = useState(false);
-    const [activeTab, setActiveTab] = useState("details");
+    const [activeTab, setActiveTab] = useState("overview");
     const [selectedSeason, setSelectedSeason] = useState(1);
     const [seasonData, setSeasonData] = useState<Season | null>(null);
     const [loadingSeason, setLoadingSeason] = useState(false);
@@ -83,10 +84,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
     const [showPlayer, setShowPlayer] = useState(false);
     const [playParams, setPlayParams] = useState({ season: 1, episode: 1 });
     
-    // State to handle smooth video transition
     const [videoLoaded, setVideoLoaded] = useState(false);
-    
-    // Mute State & Ref for YouTube Control
     const [isMuted, setIsMuted] = useState(true);
     const iframeRef = useRef<HTMLIFrameElement>(null);
 
@@ -94,6 +92,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
     const isGoldTheme = isExclusive && userProfile.theme !== 'default';
 
     const accentText = isGoldTheme ? "text-amber-500" : "text-red-500";
+    const accentBg = isGoldTheme ? "bg-amber-500" : "bg-red-500";
     const accentBgLow = isGoldTheme ? "bg-amber-500/20" : "bg-red-500/20";
     const accentBorder = isGoldTheme ? "border-amber-500" : "border-red-500";
 
@@ -113,11 +112,11 @@ export const MoviePage: React.FC<MoviePageProps> = ({
             })
             .catch(() => setLoading(false));
         setTrivia("");
-        setActiveTab("details");
+        setActiveTab("overview");
         setSeasonData(null);
         setShowPlayer(false);
-        setVideoLoaded(false); // Reset video state on movie change
-        setIsMuted(true); // Reset mute state
+        setVideoLoaded(false); 
+        setIsMuted(true); 
         setPlayParams({ season: 1, episode: 1 });
     }, [movie.id, apiKey, movie.media_type]);
 
@@ -173,7 +172,6 @@ export const MoviePage: React.FC<MoviePageProps> = ({
     const title = displayData.title || displayData.name;
     const runtime = displayData.runtime ? `${Math.floor(displayData.runtime/60)}h ${displayData.runtime%60}m` : (displayData.episode_run_time?.[0] ? `${displayData.episode_run_time[0]}m / ep` : "N/A");
     
-    // Improved Director Logic to catch Profile Path
     let director = { name: "Unknown", id: 0, profile_path: null as string | null };
     if (isTv && displayData.created_by && displayData.created_by.length > 0) {
         director = { ...displayData.created_by[0] };
@@ -183,19 +181,15 @@ export const MoviePage: React.FC<MoviePageProps> = ({
         if (dir) director = { name: dir.name, id: dir.id, profile_path: dir.profile_path };
     }
 
-    const cast = displayData.credits?.cast?.slice(0, 12) || [];
+    const cast = displayData.credits?.cast?.slice(0, 15) || [];
     const mediaImages = displayData.images?.backdrops?.slice(0, 12) || [];
-    // Use TMDB Similar Movies primarily
     const similarMovies = displayData.similar?.results?.slice(0, 6) || [];
     const keywords = displayData.keywords?.keywords || displayData.keywords?.results || [];
+    const providers = displayData["watch/providers"]?.results?.[appRegion] || displayData["watch/providers"]?.results?.["US"];
 
-    // Find the best logo: prefer English, fallback to first available
     const logo = displayData.images?.logos?.find((l) => l.iso_639_1 === 'en') || displayData.images?.logos?.[0];
-
-    // Find Trailer for background
     const trailer = displayData.videos?.results?.find(v => v.type === 'Trailer' && v.site === 'YouTube') || displayData.videos?.results?.find(v => v.site === 'YouTube');
 
-    // Certification Logic
     const getRating = () => {
         if (isTv) {
              const usRating = displayData.content_ratings?.results?.find(r => r.iso_3166_1 === 'US');
@@ -203,7 +197,6 @@ export const MoviePage: React.FC<MoviePageProps> = ({
         }
         const usRelease = displayData.release_dates?.results?.find(r => r.iso_3166_1 === 'US');
         if (usRelease) {
-            // Prioritize theatrical/digital releases that have a certification
             const cert = usRelease.release_dates.find(x => x.certification)?.certification;
             return cert || 'NR';
         }
@@ -246,6 +239,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                     </div>
                 ) : (
                     <div className="flex flex-col">
+                        {/* HERO SECTION */}
                         <div className="relative h-[65vh] md:h-[65vh] w-full shrink-0 bg-black overflow-hidden group/hero">
                              {showPlayer ? (
                                  <div className="absolute inset-0 z-50 animate-in fade-in duration-700 bg-black">
@@ -272,9 +266,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                 allow="autoplay; encrypted-media; gyroscope; picture-in-picture"
                                                 title="Background Trailer"
                                                 loading="lazy"
-                                                onLoad={() => {
-                                                    setTimeout(() => setVideoLoaded(true), 1500);
-                                                }}
+                                                onLoad={() => { setTimeout(() => setVideoLoaded(true), 1500); }}
                                             />
                                         </div>
                                     )}
@@ -289,11 +281,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                     <div className={`absolute -inset-1 bg-gradient-to-t from-[#0a0a0a] via-[#0a0a0a]/50 to-transparent transition-opacity duration-700 ease-in-out pointer-events-none ${videoLoaded ? 'opacity-25 group-hover/hero:opacity-100' : 'opacity-100'}`}></div>
                                  
                                     {trailer && videoLoaded && (
-                                        <button 
-                                            onClick={toggleMute}
-                                            className="absolute bottom-6 right-6 z-30 p-3 bg-black/30 hover:bg-white/10 backdrop-blur-md border border-white/10 rounded-full text-white transition-all active:scale-95 group/mute hidden md:flex"
-                                            title={isMuted ? "Unmute" : "Mute"}
-                                        >
+                                        <button onClick={toggleMute} className="absolute bottom-6 right-6 z-30 p-3 bg-black/30 hover:bg-white/10 backdrop-blur-md border border-white/10 rounded-full text-white transition-all active:scale-95 group/mute hidden md:flex" title={isMuted ? "Unmute" : "Mute"}>
                                             {isMuted ? <VolumeX size={20} strokeWidth={1.5} /> : <Volume2 size={20} strokeWidth={1.5} />}
                                         </button>
                                     )}
@@ -303,21 +291,14 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                              {!showPlayer && (
                                  <div className="absolute bottom-0 left-0 w-full px-6 pb-8 md:px-10 md:pb-12 flex flex-col gap-6 animate-in slide-in-from-bottom-4 duration-700 delay-100 z-10 pointer-events-none">
                                     <div className="pointer-events-auto w-full">
-                                        
                                         {logo ? (
-                                            <img 
-                                                src={`${TMDB_IMAGE_BASE}${logo.file_path}`} 
-                                                alt={title} 
-                                                className={`max-h-16 md:max-h-24 max-w-[55%] w-auto object-contain object-left drop-shadow-2xl mb-4 origin-bottom-left -ml-1 transition-all duration-700 ease-in-out transform ${videoLoaded ? 'scale-90 opacity-70 group-hover/hero:scale-100 group-hover/hero:opacity-100' : 'scale-100 opacity-100'}`}
-                                            />
+                                            <img src={`${TMDB_IMAGE_BASE}${logo.file_path}`} alt={title} className={`max-h-16 md:max-h-24 max-w-[55%] w-auto object-contain object-left drop-shadow-2xl mb-4 origin-bottom-left -ml-1 transition-all duration-700 ease-in-out transform ${videoLoaded ? 'scale-90 opacity-70 group-hover/hero:scale-100 group-hover/hero:opacity-100' : 'scale-100 opacity-100'}`}/>
                                         ) : (
                                             <h2 className={`text-3xl md:text-5xl font-extrabold text-white leading-tight drop-shadow-lg mb-4 transition-all duration-700 ease-in-out ${videoLoaded ? 'opacity-80 group-hover/hero:opacity-100' : 'opacity-100'}`}>{title}</h2>
                                         )}
                                         
                                         <div className={`flex flex-wrap items-center gap-4 text-white/90 text-xs md:text-sm font-medium transition-all duration-700 ease-in-out origin-bottom ${videoLoaded ? 'opacity-0 group-hover/hero:opacity-100' : 'opacity-100'}`}>
-                                            {ratingLabel !== 'NR' && (
-                                                <span className={`px-2 py-0.5 rounded text-[10px] md:text-xs font-bold shadow-lg ${ratingColor}`}>{ratingLabel}</span>
-                                            )}
+                                            {ratingLabel !== 'NR' && <span className={`px-2 py-0.5 rounded text-[10px] md:text-xs font-bold shadow-lg ${ratingColor}`}>{ratingLabel}</span>}
                                             <span className="flex items-center gap-2"><Calendar size={14} className={accentText}/> {displayData.release_date?.split('-')[0] || displayData.first_air_date?.split('-')[0] || 'TBA'}</span>
                                             <span className="flex items-center gap-2"><Clock size={14} className={accentText}/> {runtime}</span>
                                             {displayData.vote_average && <span className="flex items-center gap-2"><Star size={14} className="text-yellow-500" fill="currentColor"/> {displayData.vote_average.toFixed(1)}</span>}
@@ -325,12 +306,8 @@ export const MoviePage: React.FC<MoviePageProps> = ({
 
                                         <div className="flex flex-wrap gap-3 mt-4">
                                             {isExclusive && (
-                                                <button 
-                                                    onClick={handleWatchClick} 
-                                                    className={`font-bold py-3 px-8 text-sm md:text-base rounded-xl transition-all flex items-center gap-2 active:scale-95 shadow-xl hover:shadow-2xl ${isGoldTheme ? 'bg-gradient-to-r from-amber-600 to-amber-500 text-black shadow-amber-900/40' : 'bg-red-600 hover:bg-red-700 text-white'}`}
-                                                >
-                                                    <PlayCircle size={20} fill="currentColor" />
-                                                    Watch Now
+                                                <button onClick={handleWatchClick} className={`font-bold py-3 px-8 text-sm md:text-base rounded-xl transition-all flex items-center gap-2 active:scale-95 shadow-xl hover:shadow-2xl ${isGoldTheme ? 'bg-gradient-to-r from-amber-600 to-amber-500 text-black shadow-amber-900/40' : 'bg-red-600 hover:bg-red-700 text-white'}`}>
+                                                    <PlayCircle size={20} fill="currentColor" /> Watch Now
                                                 </button>
                                             )}
                                             <button onClick={() => details?.videos?.results?.[0] && window.open(`https://www.youtube.com/watch?v=${details.videos.results[0].key}`)} className="glass hover:bg-white/10 text-white font-bold py-3 px-6 text-sm md:text-base rounded-xl transition-all flex items-center gap-2 active:scale-95"><Play size={18} /> Trailer</button>
@@ -340,10 +317,10 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                              )}
                         </div>
 
-                        {/* Content Section */}
-                        <div className="max-w-7xl mx-auto w-full px-6 py-8 md:p-10 flex flex-col gap-8 -mt-6 relative z-20">
-                            {/* Secondary Actions Bar */}
-                            <div className="flex items-center justify-between gap-4 overflow-x-auto hide-scrollbar pb-2">
+                        {/* CONTENT TABS */}
+                        <div className="max-w-7xl mx-auto w-full px-6 py-8 md:p-10 -mt-6 relative z-20">
+                            {/* Action Bar */}
+                            <div className="flex items-center justify-between gap-4 overflow-x-auto hide-scrollbar pb-6">
                                 <div className="flex gap-3">
                                     <button onClick={() => onToggleWatchlist(displayData)} className={`flex items-center gap-2 px-4 py-2.5 rounded-lg border text-xs font-bold transition-all active:scale-95 ${isWatchlisted ? `${accentBgLow} ${accentBorder} ${accentText}` : 'glass hover:bg-white/10 text-white/70 border-white/10'}`}>
                                         <Bookmark size={16} fill={isWatchlisted ? "currentColor" : "none"} /> <span>Watchlist</span>
@@ -354,36 +331,211 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                     <button onClick={handleShare} className={`flex items-center gap-2 px-4 py-2.5 rounded-lg border text-xs font-bold transition-all active:scale-95 ${copied ? 'bg-green-500/20 border-green-500/50 text-green-400' : 'glass hover:bg-white/10 text-white/70 border-white/10'}`}>
                                         <Share2 size={16} /> <span>{copied ? 'Copied' : 'Share'}</span>
                                     </button>
+                                    <button onClick={() => onCompare?.(displayData)} className="glass hover:bg-white/10 text-white/70 border-white/10 flex items-center gap-2 px-4 py-2.5 rounded-lg border text-xs font-bold transition-all active:scale-95">
+                                        <ArrowLeft size={16} className="rotate-45"/> Compare
+                                    </button>
                                 </div>
                                 <div className="flex items-center gap-2 ml-auto shrink-0">
                                     {displayData.external_ids?.imdb_id && <SocialLink url={`https://www.imdb.com/title/${displayData.external_ids.imdb_id}`} icon={Film} color="text-yellow-400"/>}
                                     {displayData.external_ids?.instagram_id && <SocialLink url={`https://instagram.com/${displayData.external_ids.instagram_id}`} icon={Instagram} color="text-pink-400"/>}
                                     {displayData.external_ids?.twitter_id && <SocialLink url={`https://twitter.com/${displayData.external_ids.twitter_id}`} icon={Twitter} color="text-blue-400"/>}
-                                    {displayData.external_ids?.facebook_id && <SocialLink url={`https://facebook.com/${displayData.external_ids.facebook_id}`} icon={Facebook} color="text-blue-600"/>}
                                     {displayData.homepage && <SocialLink url={displayData.homepage} icon={Globe} color="text-green-400"/>}
                                 </div>
                             </div>
 
+                            {/* Tabs Header */}
+                            <div className="flex gap-6 border-b border-white/10 mb-8">
+                                {['overview', 'cast', 'reviews', 'media'].map(tab => (
+                                    <button
+                                        key={tab}
+                                        onClick={() => setActiveTab(tab)}
+                                        className={`pb-4 text-sm font-bold capitalize transition-all relative ${activeTab === tab ? 'text-white' : 'text-gray-500 hover:text-gray-300'}`}
+                                    >
+                                        {tab}
+                                        {activeTab === tab && <div className={`absolute bottom-0 left-0 w-full h-0.5 ${isGoldTheme ? 'bg-amber-500' : 'bg-red-600'}`}></div>}
+                                    </button>
+                                ))}
+                            </div>
+
                             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                                <div className="lg:col-span-2 space-y-6">
-                                    <div className="bg-white/5 rounded-2xl p-5 border border-white/5">
-                                        <h4 className="text-white/40 text-[10px] uppercase font-bold mb-3 tracking-wider">Financials</h4>
-                                        <div className="space-y-3">
-                                            <div><p className="text-gray-400 text-[10px] mb-0.5">Budget</p><p className="text-white font-mono text-sm">{formatCurrency(displayData.budget)}</p></div>
-                                            <div><p className="text-gray-400 text-[10px] mb-0.5">Revenue</p><p className="text-green-400 font-mono text-sm">{formatCurrency(displayData.revenue)}</p></div>
+                                {/* MAIN CONTENT AREA (Left 2/3) */}
+                                <div className="lg:col-span-2 space-y-8">
+                                    
+                                    {activeTab === 'overview' && (
+                                        <div className="space-y-8 animate-in fade-in">
+                                            <div>
+                                                <h3 className="text-white font-bold text-lg mb-3">Plot Summary</h3>
+                                                <p className="text-gray-300 text-sm leading-relaxed">{displayData.overview || "No synopsis available."}</p>
+                                            </div>
+
+                                            {/* Top Billed Cast Preview */}
+                                            {cast.length > 0 && (
+                                                <div>
+                                                    <div className="flex items-center justify-between mb-4">
+                                                        <h3 className="text-white font-bold text-lg">Top Billed Cast</h3>
+                                                        <button onClick={() => setActiveTab('cast')} className={`text-xs font-bold hover:underline ${accentText}`}>View All</button>
+                                                    </div>
+                                                    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
+                                                        {cast.slice(0, 5).map(person => (
+                                                            <div key={person.id} onClick={() => onPersonClick(person.id)} className="cursor-pointer group text-center">
+                                                                <div className="aspect-[3/4] rounded-lg overflow-hidden mb-2 relative bg-white/5">
+                                                                    <img src={person.profile_path ? `${TMDB_IMAGE_BASE}${person.profile_path}` : "https://placehold.co/150x200?text=No+Img"} alt={person.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"/>
+                                                                </div>
+                                                                <p className="text-xs font-bold text-white truncate">{person.name}</p>
+                                                                <p className="text-[10px] text-gray-500 truncate">{person.character}</p>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {/* AI Trivia */}
+                                            <div className={`p-5 rounded-2xl border transition-colors relative overflow-hidden ${isGoldTheme ? 'bg-amber-900/10 border-amber-500/20' : 'bg-red-900/10 border-red-900/30'}`}>
+                                                <div className="flex items-start gap-4 relative z-10">
+                                                    <div className={`p-2 rounded-lg ${isGoldTheme ? 'bg-amber-500/20 text-amber-500' : 'bg-red-500/20 text-red-500'}`}><Lightbulb size={20}/></div>
+                                                    <div className="flex-1">
+                                                        <h4 className={`text-sm font-bold mb-1 ${isGoldTheme ? 'text-amber-500' : 'text-red-400'}`}>AI Fun Fact</h4>
+                                                        {loadingTrivia ? (
+                                                            <div className="flex items-center gap-2 text-xs text-gray-400"><Loader2 size={12} className="animate-spin"/> Generating trivia...</div>
+                                                        ) : (
+                                                            <p className="text-xs text-gray-300 leading-relaxed">{trivia || "Discover hidden details about this title."}</p>
+                                                        )}
+                                                        {!trivia && !loadingTrivia && (
+                                                            <button onClick={handleGenerateTrivia} className="mt-2 text-[10px] font-bold uppercase tracking-wider hover:underline opacity-60 hover:opacity-100 transition-opacity">Generate Now</button>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
                                         </div>
+                                    )}
+
+                                    {activeTab === 'cast' && (
+                                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 animate-in fade-in">
+                                            {cast.map(person => (
+                                                <div key={person.id} onClick={() => onPersonClick(person.id)} className="flex items-center gap-3 p-3 rounded-xl bg-white/5 hover:bg-white/10 transition-colors cursor-pointer border border-white/5">
+                                                    <img src={person.profile_path ? `${TMDB_IMAGE_BASE}${person.profile_path}` : "https://placehold.co/100x100?text=?"} alt={person.name} className="w-12 h-12 rounded-full object-cover"/>
+                                                    <div className="min-w-0">
+                                                        <p className="text-xs font-bold text-white truncate">{person.name}</p>
+                                                        <p className="text-[10px] text-gray-400 truncate">{person.character}</p>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+
+                                    {activeTab === 'reviews' && (
+                                        <div className="space-y-4 animate-in fade-in">
+                                            {displayData.reviews?.results && displayData.reviews.results.length > 0 ? (
+                                                displayData.reviews.results.map(review => <ReviewCard key={review.id} review={review} />)
+                                            ) : (
+                                                <div className="text-center py-10 text-gray-500"><MessageCircle size={32} className="mx-auto mb-2 opacity-30"/><p>No reviews yet.</p></div>
+                                            )}
+                                        </div>
+                                    )}
+
+                                    {activeTab === 'media' && (
+                                        <div className="space-y-8 animate-in fade-in">
+                                            {/* Videos */}
+                                            {displayData.videos?.results && displayData.videos.results.length > 0 && (
+                                                <div>
+                                                    <h3 className="text-white font-bold text-sm mb-4 flex items-center gap-2"><PlayCircle size={16} className={accentText}/> Videos</h3>
+                                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                                        {displayData.videos.results.slice(0, 4).map(video => (
+                                                            <div key={video.id} className="group relative aspect-video rounded-xl overflow-hidden cursor-pointer" onClick={() => window.open(`https://youtube.com/watch?v=${video.key}`)}>
+                                                                <img src={`https://img.youtube.com/vi/${video.key}/mqdefault.jpg`} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" alt={video.name}/>
+                                                                <div className="absolute inset-0 flex items-center justify-center"><div className="bg-black/50 p-3 rounded-full group-hover:bg-red-600 transition-colors"><Play size={20} fill="white" className="text-white"/></div></div>
+                                                                <div className="absolute bottom-0 left-0 w-full p-2 bg-gradient-to-t from-black to-transparent text-[10px] font-bold text-white truncate">{video.name}</div>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
+                                            {/* Images */}
+                                            {mediaImages.length > 0 && (
+                                                <div>
+                                                    <h3 className="text-white font-bold text-sm mb-4 flex items-center gap-2"><Film size={16} className={accentText}/> Backdrops</h3>
+                                                    <div className="grid grid-cols-2 gap-3">
+                                                        {mediaImages.map((img, i) => (
+                                                            <img key={i} src={`${TMDB_IMAGE_BASE}${img.file_path}`} className="rounded-lg cursor-zoom-in hover:opacity-80 transition-opacity" onClick={() => setViewingImage(`${TMDB_BACKDROP_BASE}${img.file_path}`)} alt="Backdrop"/>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* SIDEBAR INFO (Right 1/3) */}
+                                <div className="space-y-6">
+                                    {/* Info Grid */}
+                                    <div className="bg-white/5 rounded-2xl p-5 border border-white/5 space-y-4">
+                                        <div><p className="text-gray-500 text-[10px] uppercase font-bold mb-1">Director</p><p className="text-white font-medium text-sm">{director.name}</p></div>
+                                        <div><p className="text-gray-500 text-[10px] uppercase font-bold mb-1">Status</p><p className={`text-sm font-medium ${displayData.status === 'Released' ? 'text-green-400' : 'text-yellow-400'}`}>{displayData.status}</p></div>
+                                        {displayData.budget > 0 && <div><p className="text-gray-500 text-[10px] uppercase font-bold mb-1">Budget</p><p className="text-white font-mono text-xs">{formatCurrency(displayData.budget)}</p></div>}
+                                        {displayData.revenue > 0 && <div><p className="text-gray-500 text-[10px] uppercase font-bold mb-1">Revenue</p><p className="text-green-400 font-mono text-xs">{formatCurrency(displayData.revenue)}</p></div>}
                                     </div>
 
+                                    {/* Watch Providers */}
+                                    {providers && (providers.flatrate || providers.rent || providers.buy) && (
+                                        <div className="bg-white/5 rounded-2xl p-5 border border-white/5">
+                                            <h4 className="text-white font-bold text-xs uppercase tracking-wider mb-4 flex items-center gap-2"><Tv size={14}/> Where to Watch</h4>
+                                            {providers.flatrate && (
+                                                <div className="mb-4 last:mb-0">
+                                                    <p className="text-[10px] text-gray-400 mb-2">Stream</p>
+                                                    <div className="flex flex-wrap gap-2">
+                                                        {providers.flatrate.map((p: any) => (
+                                                            <img key={p.provider_id} src={`${TMDB_IMAGE_BASE}${p.logo_path}`} className="w-8 h-8 rounded-lg" title={p.provider_name} alt={p.provider_name}/>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
+                                            {providers.rent && (
+                                                <div>
+                                                    <p className="text-[10px] text-gray-400 mb-2">Rent / Buy</p>
+                                                    <div className="flex flex-wrap gap-2">
+                                                        {providers.rent.map((p: any) => (
+                                                            <img key={p.provider_id} src={`${TMDB_IMAGE_BASE}${p.logo_path}`} className="w-8 h-8 rounded-lg" title={p.provider_name} alt={p.provider_name}/>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
+                                            <p className="text-[9px] text-gray-600 mt-3 text-right">Powered by JustWatch</p>
+                                        </div>
+                                    )}
+
+                                    {/* Keywords / Tags */}
+                                    {keywords.length > 0 && (
+                                        <div className="flex flex-wrap gap-2">
+                                            {keywords.slice(0, 10).map(k => (
+                                                <button key={k.id} onClick={() => onKeywordClick(k)} className="px-2.5 py-1 bg-white/5 hover:bg-white/10 rounded-lg text-[10px] text-gray-300 border border-white/5 transition-colors">#{k.name}</button>
+                                            ))}
+                                        </div>
+                                    )}
+
+                                    {/* Collection Link */}
+                                    {displayData.belongs_to_collection && (
+                                        <div 
+                                            onClick={() => onCollectionClick(displayData.belongs_to_collection!.id)}
+                                            className="cursor-pointer group relative h-24 rounded-xl overflow-hidden border border-white/10"
+                                        >
+                                            <img src={`${TMDB_BACKDROP_BASE}${displayData.belongs_to_collection.backdrop_path}`} className="w-full h-full object-cover opacity-60 group-hover:opacity-100 transition-opacity" alt="Collection"/>
+                                            <div className="absolute inset-0 flex items-center justify-center bg-black/40 group-hover:bg-black/20 transition-colors">
+                                                <p className="text-white font-bold text-sm shadow-black drop-shadow-md text-center px-2">Part of the {displayData.belongs_to_collection.name}</p>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Similar Movies */}
                                     {(similarMovies.length > 0) && (
                                         <div>
                                             <h4 className="text-white font-bold text-sm mb-4 flex items-center gap-2"><Sparkles size={14} className="text-amber-500"/> Similar Vibes</h4>
                                             <div className="grid grid-cols-2 gap-3">
                                                 {similarMovies.map(m => (
                                                     <div key={m.id} className="cursor-pointer group aspect-[2/3] rounded-lg overflow-hidden relative shadow-lg" onClick={() => onSwitchMovie(m)}>
-                                                        <img src={`${TMDB_IMAGE_BASE}${m.poster_path}`} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"/>
+                                                        <img src={`${TMDB_IMAGE_BASE}${m.poster_path}`} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" alt={m.title}/>
                                                         <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-60"></div>
                                                         <div className="absolute bottom-0 left-0 p-2 w-full">
-                                                            <p className="text-[10px] font-bold text-white text-center line-clamp-1">{m.title}</p>
+                                                            <p className="text-[10px] font-bold text-white text-center line-clamp-1">{m.title || m.original_title}</p>
                                                         </div>
                                                     </div>
                                                 ))}
