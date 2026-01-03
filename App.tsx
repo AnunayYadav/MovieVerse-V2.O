@@ -648,11 +648,22 @@ export default function App() {
         }
 
         if (selectedCategory === "People" && pageNum === 1) {
-             const requests = [1,2,3,4,5].map(p => fetchWithRetry(`${TMDB_BASE_URL}${endpoint}?${params.toString()}&page=${p}`, controller.signal).then(r => r.json()));
+             const requests = [1, 2, 3].map(p => 
+                fetchWithRetry(`${TMDB_BASE_URL}${endpoint}?${params.toString()}&page=${p}`, controller.signal)
+                    .then(r => r.json())
+                    .catch(err => { console.warn(`People fetch page ${p} failed`, err); return null; })
+             );
+             
              const results = await Promise.all(requests);
-             const allPeople = results.flatMap(r => r.results || []);
+             const allPeople = results
+                .filter(r => r && r.results)
+                .flatMap(r => r.results || []);
+             
              const uniquePeople = Array.from(new Map(allPeople.map((p: any) => [p.id, p])).values()) as Movie[];
-             setMovies(uniquePeople); setHasMore(false); setLoading(false); return;
+             setMovies(uniquePeople); 
+             setHasMore(false); // Simplifying pagination for people
+             setLoading(false); 
+             return;
         }
 
         const res = await fetchWithRetry(`${TMDB_BASE_URL}${endpoint}?${params.toString()}`, controller.signal);
@@ -706,7 +717,13 @@ export default function App() {
 
   const groupPeopleByLetter = (peopleList: Movie[]) => {
       const groups: Record<string, Movie[]> = {};
-      peopleList.forEach(p => { const firstLetter = (p.name || "Unknown").charAt(0).toUpperCase(); const key = /[A-Z]/.test(firstLetter) ? firstLetter : '#'; if (!groups[key]) groups[key] = []; groups[key].push(p); });
+      peopleList.forEach(p => { 
+          const name = p.name || p.title || "Unknown"; // Fallback
+          const firstLetter = name.charAt(0).toUpperCase(); 
+          const key = /[A-Z]/.test(firstLetter) ? firstLetter : '#'; 
+          if (!groups[key]) groups[key] = []; 
+          groups[key].push(p); 
+      });
       return Object.keys(groups).sort().reduce((obj: Record<string, Movie[]>, key) => { obj[key] = groups[key]; return obj; }, {} as Record<string, Movie[]>);
   };
 
