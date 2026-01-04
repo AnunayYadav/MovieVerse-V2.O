@@ -44,7 +44,7 @@ export const AgeVerificationModal: React.FC<AgeVerificationModalProps> = ({ isOp
                     disabled={!age}
                     className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-4 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98] shadow-lg shadow-red-900/20"
                 >
-                    Continue to Fliqra
+                    Continue to MovieVerse
                 </button>
             </div>
         </div>
@@ -711,7 +711,7 @@ export const PersonPage: React.FC<PersonPageProps> = ({ personId, onClose, apiKe
                           <div key={movie.id} onClick={() => onMovieClick(movie)} className="cursor-pointer group">
                             <div className="aspect-[2/3] rounded-lg overflow-hidden mb-2 relative border border-white/5 shadow-lg"><img src={movie.poster_path ? `${TMDB_IMAGE_BASE}${movie.poster_path}` : "https://placehold.co/100x150"} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 ease-out" alt={movie.title || movie.name} /></div>
                             <p className="text-xs font-bold text-white truncate group-hover:text-red-400 transition-colors">{movie.title || movie.name}</p>
-                            <p className="text-xs text-gray-500 mt-0.5">{movie.release_date?.split('-')[0] || movie.first_air_date?.split('-')[0]}</p>
+                            <p className="text-[10px] text-gray-500 mt-0.5">{movie.release_date?.split('-')[0] || movie.first_air_date?.split('-')[0]}</p>
                           </div>
                         ))}
                      </div>
@@ -789,88 +789,84 @@ export const AIRecommendationModal: React.FC<AIRecommendationModalProps> = ({ is
                   <div className="relative group">
                       <div className="absolute inset-0 bg-gradient-to-r from-red-600 to-red-900 rounded-xl blur opacity-25 group-hover:opacity-40 transition-opacity duration-500"></div>
                       <div className="relative flex items-center">
-                        <Search className="absolute left-4 text-white/50" size={20}/>
                         <input 
-                           type="text" 
-                           value={query}
-                           onChange={(e) => setQuery(e.target.value)}
-                           onKeyDown={(e) => e.key === 'Enter' && handleRecommend()}
-                           placeholder="e.g. 'Mind-bending sci-fi like Inception'"
-                           className="w-full bg-[#0a0a0a] border border-white/10 rounded-xl py-4 pl-12 pr-4 text-white focus:outline-none focus:border-red-500 transition-colors placeholder-gray-600 shadow-inner"
-                           autoFocus
+                            type="text" 
+                            value={query} 
+                            onChange={(e) => setQuery(e.target.value)} 
+                            placeholder="e.g. 'Space movies that feel lonely'..." 
+                            className="w-full bg-[#0a0a0a] border border-white/10 rounded-xl p-4 pr-12 text-white focus:outline-none focus:border-white/30 transition-all placeholder-gray-600"
+                            onKeyDown={(e) => { if(e.key === 'Enter') { handleRecommend(); }}} 
+                            autoFocus 
                         />
+                        <button onClick={handleRecommend} className="absolute right-2 p-2 bg-white/10 hover:bg-white/20 rounded-lg text-white transition-all active:scale-95">
+                            <Search size={20} />
+                        </button>
                       </div>
                   </div>
-                  <div className="flex gap-2 flex-wrap justify-center">
-                      {["Movies about time travel", "Sad romance movies", "Underdog sports stories", "Cyberpunk thrillers"].map(suggestion => (
-                          <button key={suggestion} onClick={() => { setQuery(suggestion); setTimeout(handleRecommend, 0); }} className="px-3 py-1.5 bg-white/5 hover:bg-white/10 rounded-lg text-xs text-gray-400 hover:text-white transition-colors border border-white/5">
-                              {suggestion}
-                          </button>
-                      ))}
-                  </div>
-                  <button 
-                      onClick={handleRecommend}
-                      disabled={!query.trim()}
-                      className="w-full bg-white text-black font-bold py-4 rounded-xl hover:bg-gray-200 transition-all active:scale-[0.98] shadow-xl flex items-center justify-center gap-2 mt-4 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                      <BrainCircuit size={20}/> Get Recommendations
-                  </button>
-              </div>
+              </div> 
           )}
-
+          
           {loading && (
-              <div className="flex-1 flex flex-col items-center justify-center p-8 space-y-4">
-                  <div className="w-16 h-16 border-4 border-red-600/30 border-t-red-600 rounded-full animate-spin"></div>
-                  <p className="text-red-400 font-bold animate-pulse text-sm uppercase tracking-widest">Analyzing Request...</p>
-                  <p className="text-gray-500 text-xs text-center max-w-xs">Connecting to Gemini AI neural network to find the perfect matches.</p>
-              </div>
-          )}
-
-          {results && (
-              <div className="flex-1 overflow-y-auto custom-scrollbar mt-2 -mx-2 px-2">
-                  <div className="bg-white/5 border border-white/10 rounded-xl p-4 mb-4">
-                      <div className="flex gap-3">
-                          <div className="bg-red-500/10 p-2 rounded-lg h-fit"><BrainCircuit size={16} className="text-red-500"/></div>
-                          <div>
-                              <p className="text-xs font-bold text-red-400 uppercase mb-1">AI Analysis</p>
-                              <p className="text-sm text-gray-300 italic">"{aiContext}"</p>
+              <div className="flex flex-col gap-4 animate-in fade-in mt-4">
+                  {[...Array(3)].map((_, i) => (
+                      <div key={i} className="flex gap-4 p-3 rounded-xl bg-white/5 relative overflow-hidden">
+                          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full animate-[shimmer_1s_infinite]"></div>
+                          <div className="w-14 h-20 bg-white/10 rounded-lg shrink-0"></div>
+                          <div className="flex-1 space-y-2 py-2">
+                              <div className="h-4 bg-white/10 rounded w-3/4"></div>
+                              <div className="h-3 bg-white/10 rounded w-1/2"></div>
                           </div>
                       </div>
-                  </div>
-                  <div className="space-y-3">
-                       {results.map((m: any) => (
-                           <div key={m.id} className="flex gap-3 bg-black/40 hover:bg-white/5 p-3 rounded-xl border border-white/5 transition-colors cursor-pointer group" onClick={() => { window.location.href = `/?movie=${m.id}`; onClose(); }}>
-                               <img src={m.poster_path ? `${TMDB_IMAGE_BASE}${m.poster_path}` : "https://placehold.co/50x75"} className="w-12 h-18 object-cover rounded-md shadow-sm" alt={m.title}/>
-                               <div className="flex-1">
-                                   <h4 className="font-bold text-white text-sm group-hover:text-red-400 transition-colors line-clamp-1">{m.title}</h4>
-                                   <p className="text-xs text-gray-500 mb-1">{m.release_date?.split('-')[0]}</p>
-                                   <p className="text-[10px] text-gray-400 line-clamp-2">{m.overview}</p>
-                               </div>
-                               <ChevronRight size={16} className="text-gray-600 self-center group-hover:text-white transition-colors"/>
-                           </div>
-                       ))}
-                  </div>
-                  <button onClick={() => { setResults(null); setQuery(""); }} className="w-full mt-4 py-3 bg-white/10 hover:bg-white/20 text-white font-bold rounded-xl transition-colors text-sm">
-                      Start Over
-                  </button>
+                  ))}
+                  <p className="text-center text-xs text-gray-500 animate-pulse mt-2">Consulting the neural network...</p>
               </div>
+          )}
+          
+          {results && ( 
+              <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 -mr-2 animate-in slide-in-from-bottom-2 duration-500">
+                  {aiContext && (
+                      <div className="bg-red-500/10 border border-red-500/20 p-3 rounded-xl mb-4">
+                          <p className="text-xs text-red-200 italic leading-relaxed">AI: "{aiContext}"</p>
+                      </div>
+                  )}
+                  <div className="space-y-3">
+                      {Array.isArray(results) ? results.map((res: Movie, idx) => (
+                          <div key={idx} className="glass p-3 rounded-xl flex gap-4 transition-all hover:bg-white/10 group cursor-pointer" onClick={() => {}}>
+                              <img src={res.poster_path ? `${TMDB_IMAGE_BASE}${res.poster_path}` : "https://placehold.co/100x150"} className="w-14 h-20 object-cover rounded-lg shadow-lg shrink-0 group-hover:scale-105 transition-transform duration-300" alt="Result"/>
+                              <div className="flex-1 min-w-0 py-1">
+                                  <h3 className="text-sm font-bold mb-1 truncate text-white">{res.title || res.original_title}</h3>
+                                  <div className="flex items-center gap-2 mb-1.5">
+                                      <span className="text-[10px] bg-white/10 text-gray-300 px-1.5 py-0.5 rounded">{res.release_date?.split('-')[0] || 'TBA'}</span>
+                                      <span className="text-[10px] text-gray-400 flex items-center gap-1"><Star size={10} className="text-yellow-500" /> {res.vote_average?.toFixed(1)}</span>
+                                  </div>
+                                  <p className="text-gray-400 text-xs line-clamp-2 leading-relaxed">{res.overview}</p>
+                              </div>
+                          </div>
+                      )) : (
+                          <div className="text-center py-8 text-gray-400"><p>No valid results found.</p></div>
+                      )}
+                  </div>
+                  <button onClick={() => { setResults(null); setQuery(""); }} className="w-full mt-4 text-sm font-bold py-3 bg-white/5 hover:bg-white/10 text-white rounded-xl transition-all active:scale-95">Search Again</button>
+              </div> 
           )}
          </div>
       </div>
     );
 };
 
-// NOTIFICATION MODAL
+// NOTIFICATION MODAL (Keep as Modal)
 interface NotificationModalProps {
     isOpen: boolean;
     onClose: () => void;
-    onUpdate: () => void;
-    userProfile: UserProfile;
+    onUpdate?: () => void;
+    userProfile?: UserProfile;
 }
 
 export const NotificationModal: React.FC<NotificationModalProps> = ({ isOpen, onClose, onUpdate, userProfile }) => {
     const [notifications, setNotifications] = useState<AppNotification[]>([]);
     const [loading, setLoading] = useState(false);
+    const isExclusive = userProfile?.canWatch === true;
+    const isGoldTheme = isExclusive && userProfile?.theme !== 'default';
 
     useEffect(() => {
         if (isOpen) {
@@ -885,56 +881,80 @@ export const NotificationModal: React.FC<NotificationModalProps> = ({ isOpen, on
         setLoading(false);
     };
 
-    const handleMarkRead = async () => {
+    const handleMarkAllRead = async () => {
+        // Optimistic Update
+        setNotifications(prev => prev.map(n => ({ ...n, read: true })));
         await markNotificationsRead();
-        await loadNotifications();
-        onUpdate();
+        onUpdate?.();
     };
 
     if (!isOpen) return null;
 
-    const isGoldTheme = userProfile.canWatch && userProfile.theme !== 'default';
-
     return (
-        <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-black/80 backdrop-blur-xl animate-in fade-in duration-300">
-             <div className="glass-panel w-full max-w-md rounded-2xl p-6 shadow-2xl relative max-h-[80vh] flex flex-col border border-white/10 animate-in zoom-in-95 slide-in-from-bottom-5 duration-300 ease-out">
-                <div className="flex justify-between items-center mb-6">
-                    <h3 className="text-xl font-bold text-white flex items-center gap-2">
-                        <Bell size={20} className={isGoldTheme ? "text-amber-500" : "text-red-500"}/> Notifications
-                    </h3>
-                    <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-full transition-colors"><X size={20}/></button>
+        <div className="fixed top-16 right-4 md:right-20 z-[90] w-80 animate-in slide-in-from-top-2 fade-in zoom-in-95 duration-200">
+            <div className="glass-panel rounded-xl overflow-hidden shadow-2xl border border-white/10">
+                <div className="p-4 border-b border-white/5 flex justify-between items-center bg-black/40">
+                    <div className="flex items-center gap-3">
+                        <button onClick={onClose} className="text-gray-400 hover:text-white transition-colors hover:scale-110 active:scale-95"><ArrowLeft size={18}/></button>
+                        <h3 className="text-sm font-bold text-white flex items-center gap-2"><Bell size={14} className={isGoldTheme ? "text-amber-500" : "text-red-500"}/> Notifications</h3>
+                    </div>
+                    <div className="flex items-center gap-3">
+                         <button 
+                            onClick={loadNotifications} 
+                            disabled={loading}
+                            className={`text-gray-400 hover:text-white transition-colors hover:rotate-180 duration-500 ${loading ? 'animate-spin' : ''}`}
+                            title="Refresh"
+                        >
+                            <RefreshCcw size={14}/>
+                        </button>
+                    </div>
                 </div>
-
-                <div className="flex-1 overflow-y-auto custom-scrollbar space-y-3 mb-4">
+                
+                <div className="max-h-80 overflow-y-auto custom-scrollbar min-h-[150px]">
                     {loading ? (
-                        <div className="py-10 flex justify-center"><Loader2 className="animate-spin text-white/50" size={24}/></div>
+                         <div className="p-4 space-y-3">
+                             {[...Array(3)].map((_,i) => (
+                                 <div key={i} className="space-y-2">
+                                     <div className="flex justify-between">
+                                         <div className="h-3 bg-white/10 rounded w-1/3 animate-pulse"></div>
+                                         <div className="h-2 bg-white/10 rounded w-10 animate-pulse"></div>
+                                     </div>
+                                     <div className="h-2 bg-white/10 rounded w-3/4 animate-pulse"></div>
+                                 </div>
+                             ))}
+                         </div>
                     ) : notifications.length === 0 ? (
-                        <div className="py-10 text-center text-gray-500 flex flex-col items-center">
-                            <Inbox size={32} className="mb-2 opacity-50"/>
-                            <p className="text-sm">No notifications yet.</p>
+                        <div className="h-40 flex flex-col items-center justify-center text-gray-500 animate-in fade-in">
+                            <Inbox size={24} className="mb-2 opacity-50"/>
+                            <p className="text-xs">All caught up!</p>
                         </div>
                     ) : (
                         notifications.map(n => (
-                            <div key={n.id} className={`p-4 rounded-xl border transition-all ${n.read ? 'bg-white/5 border-transparent opacity-60' : 'bg-white/10 border-white/10'}`}>
-                                <div className="flex justify-between items-start mb-1">
-                                    <h4 className="font-bold text-white text-sm">{n.title}</h4>
-                                    <span className="text-[10px] text-gray-400">{n.time}</span>
+                            <div key={n.id} className={`p-4 border-b border-white/5 hover:bg-white/5 transition-colors ${!n.read ? 'bg-white/5' : ''}`}>
+                                <div className="flex justify-between items-start mb-1 gap-2">
+                                    <p className={`text-sm leading-snug ${!n.read ? 'text-white font-bold' : 'text-gray-300'}`}>{n.title}</p>
+                                    {!n.read && <div className={`w-2 h-2 rounded-full mt-1.5 shrink-0 animate-pulse ${isGoldTheme ? 'bg-amber-500' : 'bg-red-500'}`}></div>}
                                 </div>
-                                <p className="text-xs text-gray-300 leading-relaxed">{n.message}</p>
+                                <p className="text-xs text-gray-400 mb-1 line-clamp-2">{n.message}</p>
+                                <p className="text-[10px] text-gray-600">{n.time}</p>
                             </div>
                         ))
                     )}
                 </div>
                 
-                {notifications.some(n => !n.read) && (
-                    <button 
-                        onClick={handleMarkRead}
-                        className={`w-full py-3 font-bold rounded-xl transition-colors flex items-center justify-center gap-2 active:scale-95 text-sm ${isGoldTheme ? 'bg-amber-500 text-black hover:bg-amber-400' : 'bg-white text-black hover:bg-gray-200'}`}
-                    >
-                        <CheckCheck size={16}/> Mark all as read
-                    </button>
+                {!loading && notifications.some(n => !n.read) && (
+                    <div className="p-3 text-center bg-black/40 border-t border-white/5">
+                        <button 
+                            onClick={handleMarkAllRead}
+                            className={`text-xs transition-colors flex items-center justify-center gap-1 w-full hover:underline ${isGoldTheme ? 'text-amber-400 hover:text-amber-300' : 'text-red-400 hover:text-red-300'}`}
+                        >
+                            <CheckCheck size={12}/> Mark all as read
+                        </button>
+                    </div>
                 )}
-             </div>
+            </div>
+            {/* Click outside listener overlay */}
+            <div className="fixed inset-0 -z-10" onClick={onClose}></div>
         </div>
     );
 };
