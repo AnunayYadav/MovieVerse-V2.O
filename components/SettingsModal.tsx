@@ -346,7 +346,32 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                           {activeTab === 'history' && <div><h3 className="text-2xl font-bold text-white mb-4">Manage History</h3><button onClick={handleClearSearchHistory} className="text-sm text-red-500 hover:underline">Clear Search</button></div>}
                           {activeTab === 'restrictions' && <div><h3 className="text-2xl font-bold text-white mb-4">Content Restrictions</h3><p className="text-sm text-gray-400">Manage maturity settings.</p></div>}
                           {activeTab === 'help' && <div><h3 className="text-2xl font-bold text-white mb-4">Help Center</h3><p className="text-sm text-gray-400">Contact support or view FAQ.</p></div>}
-                          {activeTab === 'legal' && <div><h3 className="text-2xl font-bold text-white mb-4">Legal</h3><p className="text-sm text-gray-400">Terms and Privacy.</p></div>}
+                          {activeTab === 'legal' && (
+                              <div className="space-y-6 animate-in fade-in slide-in-from-right-4 h-full flex flex-col max-w-4xl">
+                                  <h3 className={`text-2xl font-bold text-white mb-4 flex items-center gap-3`}>
+                                      <ShieldCheck size={24} className={accentText}/> Legal Center
+                                  </h3>
+                                  <div className="flex-1 space-y-10 text-xs text-gray-300 leading-relaxed pb-8">
+                                      <div className="bg-gradient-to-br from-[#0d253f] to-[#01b4e4] rounded-2xl p-0.5 border border-white/10 shadow-lg">
+                                          <div className="bg-black/90 rounded-[14px] p-6 h-full backdrop-blur-sm">
+                                              <h4 className="text-white font-bold text-lg mb-3 flex items-center gap-3">Data Attribution</h4>
+                                              <div className="flex flex-col md:flex-row gap-6 items-center md:items-start">
+                                                  <img src="https://www.themoviedb.org/assets/2/v4/logos/v2/blue_square_2-d537fb228cf3ded904ef09b136fe3fec72548ebc1fea3fbbd1ad9e36364db38b.svg" className="w-24 h-24 shrink-0" alt="The Movie Database (TMDB)" />
+                                                  <div className="space-y-3">
+                                                      <p className="text-gray-200 font-medium text-sm">This product uses the TMDB API but is not endorsed or certified by TMDB.</p>
+                                                      <p className="text-xs text-gray-400">MovieVerse acknowledges and credits The Movie Database (TMDB) as the source of movie and TV show metadata.</p>
+                                                  </div>
+                                              </div>
+                                          </div>
+                                      </div>
+                                      
+                                      <div className="pt-8 mt-6 border-t border-white/10 text-center pb-20">
+                                          <p className="text-xs text-gray-500">Last Updated: January 2025</p>
+                                          <p className="text-xs text-gray-600 mt-1">MovieVerse © 2025. All Rights Reserved.</p>
+                                      </div>
+                                  </div>
+                              </div>
+                          )}
                       </div>
                   </div>
              </div>

@@ -665,6 +665,7 @@ export default function App() {
         }
         
         // STRICT UNHINGED FILTERING
+        // Only show items where `adult` property is strictly true
         if (isUnhingedMode) {
             results = results.filter((m: any) => m.adult === true);
         }
