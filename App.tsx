@@ -22,66 +22,7 @@ const DEFAULT_COLLECTIONS: any = {
 
 // Expanded Franchise List for Endless Scrolling - Real TMDB Collection IDs
 const FRANCHISE_IDS = [
-    86311,   // The Avengers Collection
-    131292,  // Iron Man Collection
-    131296,  // Thor Collection
-    131295,  // Captain America Collection
-    115575,  // DC Extended Universe
-    10,      // Star Wars Collection
-    1241,    // Harry Potter Collection
-    558216,  // MonsterVerse (Godzilla/Kong)
-    1060085, // YRF Spy Universe (Tiger/Pathaan/War)
-    894562,  // Lokesh Cinematic Universe (Vikram/Kaithi/Leo)
-    1060096, // Cop Universe (Singham/Simmba)
-    9485,    // The Fast and the Furious Collection
-    295,     // Pirates of the Caribbean Collection
-    645,     // James Bond Collection
-    119,     // The Lord of the Rings Collection
-    121,     // The Hobbit Collection
-    87359,   // Mission: Impossible Collection
-    52984,   // The Dark Knight Collection
-    472535,  // Baahubali Collection
-    712282,  // K.G.F Collection
-    531241,  // Spider-Man (Spider-Verse) Collection
-    10194,   // Toy Story Collection
-    2150,    // Shrek Collection
-    8354,    // Ice Age Collection
-    86066,   // Despicable Me Collection
-    77816,   // Kung Fu Panda Collection
-    10593,   // Madagascar Collection
-    163313,  // How to Train Your Dragon Collection
-    8265,    // Cars Collection
-    748,     // X-Men Collection
-    131635,  // The Hunger Games Collection
-    33514,   // The Twilight Saga
-    8650,    // Transformers Collection
-    84,      // Indiana Jones Collection
-    1575,    // Rocky Collection
-    472761,  // Creed Collection
-    3573,    // The Bourne Collection
-    115570,  // Star Trek (Reboot) Collection
-    328,     // Jurassic Park Collection
-    8091,    // Alien Collection
-    8093,    // Predator Collection
-    528,     // The Terminator Collection
-    2344,    // The Matrix Collection
-    403374,  // John Wick Collection
-    1570,    // Die Hard Collection
-    2155,    // Lethal Weapon Collection
-    262,     // Rush Hour Collection
-    3260,    // Men in Black Collection
-    1639,    // Ghostbusters Collection
-    264,     // Back to the Future Collection
-    1733,    // Planet of the Apes (Reboot) Collection
-    373722,  // Godzilla (Classic) Collection
-    250329,  // The Conjuring Collection
-    207923,  // Insidious Collection
-    2289,    // Saw Collection
-    2661,    // Scream Collection
-    2656,    // Halloween Collection
-    2342,    // Friday the13th Collection
-    2660,    // A Nightmare on Elm Street Collection
-    912503   // Astraverse (Brahmastra)
+    86311, 131292, 131296, 131295, 115575, 10, 1241, 558216, 1060085, 894562, 1060096, 9485, 295, 645, 119, 121, 87359, 52984, 472535, 712282, 531241, 10194, 2150, 8354, 86066, 77816, 10593, 163313, 8265, 748, 131635, 33514, 8650, 84, 1575, 472761, 3573, 115570, 328, 8091, 8093, 528, 2344, 403374, 1570, 2155, 262, 3260, 1639, 264, 1733, 373722, 250329, 207923, 2289, 2661, 2656, 2342, 2660, 912503
 ];
 
 const COUNTRY_OPTIONS = [
@@ -173,7 +114,7 @@ export default function App() {
   const [maturityRating, setMaturityRating] = useState<MaturityRating>('NC-17');
   
   const [genreSearch, setGenreSearch] = useState("");
-  const [comingFilter, setComingFilter] = useState("upcoming"); // 'today', 'upcoming', 'announced'
+  const [comingFilter, setComingFilter] = useState("upcoming");
 
   // Secret Mode State
   const [isUnhingedMode, setIsUnhingedMode] = useState(false);
@@ -224,14 +165,14 @@ export default function App() {
   const isExclusive = userProfile.canWatch === true;
   const isGoldTheme = isExclusive && userProfile.theme !== 'default';
   
-  // Theme Logic - Override if Unhinged
-  const accentText = isUnhingedMode ? "text-fuchsia-500" : (isGoldTheme ? "text-amber-500" : "text-red-600");
-  const accentBg = isUnhingedMode ? "bg-fuchsia-600" : (isGoldTheme ? "bg-amber-500" : "bg-red-600");
-  const accentBorder = isUnhingedMode ? "border-fuchsia-500" : (isGoldTheme ? "border-amber-500" : "border-red-600");
-  const accentHoverText = isUnhingedMode ? "group-hover:text-fuchsia-400" : (isGoldTheme ? "group-hover:text-amber-400" : "group-hover:text-red-400");
-  const accentBgLow = isUnhingedMode ? "bg-fuchsia-500/20" : (isGoldTheme ? "bg-amber-500/20" : "bg-red-600/20");
+  // UNHINGED THEME OVERRIDES
+  const accentText = isUnhingedMode ? "text-purple-500" : (isGoldTheme ? "text-amber-500" : "text-red-600");
+  const accentBg = isUnhingedMode ? "bg-purple-600" : (isGoldTheme ? "bg-amber-500" : "bg-red-600");
+  const accentBorder = isUnhingedMode ? "border-purple-500" : (isGoldTheme ? "border-amber-500" : "border-red-600");
+  const accentHoverText = isUnhingedMode ? "group-hover:text-purple-400" : (isGoldTheme ? "group-hover:text-amber-400" : "group-hover:text-red-400");
+  const accentBgLow = isUnhingedMode ? "bg-purple-500/20" : (isGoldTheme ? "bg-amber-500/20" : "bg-red-600/20");
   const featuredBadge = isUnhingedMode 
-    ? "bg-gradient-to-r from-fuchsia-500 to-purple-600 text-white shadow-[0_0_20px_rgba(217,70,239,0.6)]" 
+    ? "bg-gradient-to-r from-purple-500 to-fuchsia-600 text-white shadow-[0_0_20px_rgba(217,70,239,0.6)]" 
     : (isGoldTheme ? "bg-gradient-to-r from-amber-400 to-amber-600 text-black shadow-[0_0_20px_rgba(245,158,11,0.6)]" : "bg-red-600 text-white shadow-[0_0_20px_rgba(220,38,38,0.6)]");
 
   const resetAuthState = useCallback(() => {
@@ -270,9 +211,14 @@ export default function App() {
       setSelectedLanguage("All");
   };
 
-  const exitUnhingedMode = () => {
-      setIsUnhingedMode(false);
-      resetToHome();
+  const toggleUnhingedMode = () => {
+      if (isUnhingedMode) {
+          setIsUnhingedMode(false);
+          resetToHome();
+      } else {
+          setIsUnhingedMode(true);
+          resetToHome();
+      }
   };
 
   useEffect(() => {
@@ -552,6 +498,7 @@ export default function App() {
   const fetchMovies = useCallback(async (pageNum: number = 1, isLoadMore = false) => {
     if (!apiKey) return;
     
+    // Skip if local lists
     if (["Watchlist", "Favorites", "History"].includes(selectedCategory) || selectedCategory.startsWith("Custom:")) {
          const list = selectedCategory === "Watchlist" ? watchlistRef.current : selectedCategory === "Favorites" ? favoritesRef.current : selectedCategory === "History" ? watchedRef.current : customListsRef.current[selectedCategory.replace("Custom:", "")] || [];
          setMovies(sortMovies(list, sortOption)); 
@@ -568,12 +515,7 @@ export default function App() {
     setLoading(true);
     setAiContextReason(null);
 
-    // Calculate Adult/Age Logic
-    const userAge = parseInt(userProfile.age || "0");
-    const isAdult = !isNaN(userAge) && userAge >= 18;
-    
-    // UNHINGED LOGIC: If secret mode is active, FORCE adult content.
-    // Otherwise, FORCE false.
+    // UNHINGED LOGIC: STRICT
     const includeAdultParam = isUnhingedMode ? "true" : "false";
 
     try {
@@ -585,20 +527,13 @@ export default function App() {
             include_adult: includeAdultParam 
         });
 
-        // Determine if strict filtering is needed
-        // STRICT: If user is < 18 OR user explicitly chose a restricted maturity rating (e.g. PG-13) in settings
-        // RELAXED: If user is >= 18 AND maturity rating is set to max 'NC-17' (default for adults usually)
-        // UNHINGED: Bypass all.
-        const isStrictFilter = !isUnhingedMode && (!isAdult || maturityRating !== 'NC-17');
+        const isStrictFilter = !isUnhingedMode && (maturityRating !== 'NC-17');
 
-        // DETERMINE IF WE ARE IN GENERAL DISCOVERY MODE
         const isGeneralDiscovery = !activeCountry && !activeKeyword && !tmdbCollectionId && !currentCollection && !["People", "Franchise"].includes(selectedCategory);
 
         if (isGeneralDiscovery) {
-             if (appRegion) params.append("region", appRegion);
+             if (appRegion && !isUnhingedMode) params.append("region", appRegion);
              
-             // Apply maturity filters if strict filtering is required
-             // In UNHINGED mode, these are purposefully omitted.
              if (isStrictFilter) {
                  params.append("certification_country", "US"); 
                  params.append("certification.lte", maturityRating);
@@ -607,9 +542,19 @@ export default function App() {
 
         if (searchQuery) {
             endpoint = selectedCategory === "People" ? "/search/person" : "/search/multi";
-            params.delete("certification_country");
-            params.delete("certification.lte");
+            if (isUnhingedMode) {
+                // In unhinged mode, search should find everything
+                params.delete("certification_country");
+                params.delete("certification.lte");
+            }
             params.set("query", searchQuery);
+        }
+        else if (isUnhingedMode) {
+            // Force discover specific to unhinged if no search
+            endpoint = "/discover/movie";
+            params.append("sort_by", "popularity.desc");
+            // NOTE: TMDB doesn't allow filtering for ONLY adult content easily.
+            // We rely on client-side filter for strict "no other movie" rule.
         }
         else if (tmdbCollectionId) {
             const res = await fetchWithRetry(`${TMDB_BASE_URL}/collection/${tmdbCollectionId}?api_key=${apiKey}`, controller.signal);
@@ -681,13 +626,12 @@ export default function App() {
             params.append("sort_by", "popularity.desc");
         }
         else if (selectedCategory === "Coming") {
-            // Updated Logic: Use standard pagination with release date sorting
             const today = new Date();
             const todayStr = today.toISOString().split('T')[0];
             const future = new Date(); 
-            future.setFullYear(future.getFullYear() + 2); // Show 2 years out max
+            future.setFullYear(future.getFullYear() + 2); 
 
-            params.delete("region"); // Allow global coming soon if maturity settings permit
+            params.delete("region"); 
             
             if (!isStrictFilter) {
                params.delete("certification_country");
@@ -720,7 +664,11 @@ export default function App() {
              if (selectedCategory === "TV Shows" || selectedCategory === "Anime") results = results.map((m: any) => ({ ...m, media_type: 'tv', title: m.name, release_date: m.first_air_date }));
         }
         
-        // No client-side sorting for Coming, rely on API date sort
+        // STRICT UNHINGED FILTERING
+        if (isUnhingedMode) {
+            results = results.filter((m: any) => m.adult === true);
+        }
+
         const finalResults = (selectedCategory === "Coming") ? results : (selectedCategory === "People" ? results : sortMovies(results, sortOption));
 
         if (isLoadMore) {
@@ -772,8 +720,86 @@ export default function App() {
   };
 
   if (authChecking) return <div className="fixed inset-0 bg-black flex items-center justify-center"><LogoLoader /></div>;
-  if (!isAuthenticated) return (<> <LoginPage onLogin={handleLogin} onOpenSettings={() => setIsSettingsOpen(true)} /> <SettingsPage isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} apiKey={apiKey} setApiKey={(k) => saveSettings(k)} geminiKey={geminiKey} setGeminiKey={(k) => saveGeminiKey(k)} maturityRating={maturityRating} setMaturityRating={setMaturityRating} profile={userProfile} onUpdateProfile={setUserProfile} onLogout={handleLogout} searchHistory={searchHistory} setSearchHistory={(h) => { setSearchHistory(h); localStorage.setItem('movieverse_search_history', JSON.stringify(h)); }} watchedMovies={watched} setWatchedMovies={(m) => { setWatched(m); localStorage.setItem('movieverse_watched', JSON.stringify(m)); }} onEnterUnhingedMode={() => setIsUnhingedMode(true)} /> </>);
+  if (!isAuthenticated) return (<> <LoginPage onLogin={handleLogin} onOpenSettings={() => setIsSettingsOpen(true)} /> <SettingsPage isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} apiKey={apiKey} setApiKey={(k) => saveSettings(k)} geminiKey={geminiKey} setGeminiKey={(k) => saveGeminiKey(k)} maturityRating={maturityRating} setMaturityRating={setMaturityRating} profile={userProfile} onUpdateProfile={setUserProfile} onLogout={handleLogout} searchHistory={searchHistory} setSearchHistory={(h) => { setSearchHistory(h); localStorage.setItem('movieverse_search_history', JSON.stringify(h)); }} watchedMovies={watched} setWatchedMovies={(m) => { setWatched(m); localStorage.setItem('movieverse_watched', JSON.stringify(m)); }} onToggleUnhingedMode={toggleUnhingedMode} isUnhingedMode={isUnhingedMode} /> </>);
 
+  // UNHINGED RENDER BRANCH
+  if (isUnhingedMode) {
+      return (
+          <div className="min-h-screen bg-[#05000a] text-white font-mono selection:bg-purple-500/30 selection:text-white flex flex-col">
+              {/* Unhinged Header */}
+              <div className="flex items-center justify-between p-6 border-b border-purple-900/30 bg-black/60 backdrop-blur-xl sticky top-0 z-50">
+                  <div className="flex items-center gap-3">
+                      <Skull size={32} className="text-purple-600 animate-pulse"/>
+                      <h1 className="text-2xl font-black tracking-tighter text-purple-500 uppercase drop-shadow-[0_0_10px_rgba(168,85,247,0.5)]">MovieVerse <span className="text-white">Unhinged</span></h1>
+                  </div>
+                  <div className="flex items-center gap-4">
+                      <div className="relative group">
+                          <input 
+                              type="text" 
+                              value={searchQuery}
+                              onChange={(e) => setSearchQuery(e.target.value)}
+                              placeholder="Search..."
+                              className="bg-purple-900/10 border border-purple-500/30 rounded-lg px-4 py-2 text-sm text-purple-200 focus:outline-none focus:border-purple-500 focus:bg-purple-900/20 transition-all w-64 placeholder-purple-700"
+                              onKeyDown={(e) => { if(e.key === 'Enter') handleSearchSubmit(searchQuery); }}
+                          />
+                          <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-purple-500/50" size={16}/>
+                      </div>
+                      <button onClick={toggleUnhingedMode} className="bg-red-900/20 hover:bg-red-900/40 text-red-500 border border-red-900/50 px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all hover:scale-105 active:scale-95 flex items-center gap-2">
+                          <EyeOff size={14}/> Exit Mode
+                      </button>
+                      <button onClick={() => setIsSettingsOpen(true)} className="text-purple-700 hover:text-purple-400 transition-colors">
+                          <Settings size={20}/>
+                      </button>
+                  </div>
+              </div>
+
+              {/* Unhinged Content Grid */}
+              <div className="flex-1 p-8 overflow-y-auto custom-scrollbar">
+                  {loading ? (
+                      <div className="h-full flex items-center justify-center flex-col gap-4">
+                          <Loader2 className="animate-spin text-purple-600" size={48}/>
+                          <p className="text-purple-800 font-bold animate-pulse tracking-[0.2em] text-xs">LOADING RESTRICTED CONTENT</p>
+                      </div>
+                  ) : movies.length === 0 ? (
+                      <div className="h-full flex flex-col items-center justify-center text-purple-900/50 gap-4">
+                          <Skull size={64} className="opacity-20"/>
+                          <p className="text-purple-500/50 font-bold uppercase tracking-widest text-sm">No explicit content found.</p>
+                          <p className="text-purple-800/30 text-xs max-w-md text-center">TMDB API strictly limits access to adult content. Try specific search terms if available in the database.</p>
+                      </div>
+                  ) : (
+                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6">
+                          {movies.map((movie, idx) => (
+                              <div key={`${movie.id}-${idx}`} onClick={() => setSelectedMovie(movie)} className="group cursor-pointer relative bg-purple-900/5 rounded-lg overflow-hidden border border-purple-900/20 hover:border-purple-500/50 transition-all hover:shadow-[0_0_30px_rgba(168,85,247,0.2)]">
+                                  <div className="aspect-[2/3] relative">
+                                      {movie.poster_path ? (
+                                          <img src={`${TMDB_IMAGE_BASE}${movie.poster_path}`} alt={movie.title} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity grayscale group-hover:grayscale-0 duration-500"/>
+                                      ) : (
+                                          <div className="w-full h-full flex items-center justify-center bg-black text-purple-900 font-bold text-4xl">?</div>
+                                      )}
+                                      <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-90"></div>
+                                      <div className="absolute bottom-0 left-0 p-3 w-full">
+                                          <h3 className="text-purple-200 font-bold text-sm leading-tight line-clamp-2 group-hover:text-purple-400 transition-colors">{movie.title}</h3>
+                                          <div className="flex justify-between items-center mt-1">
+                                              <span className="text-[10px] text-purple-600 font-bold">{movie.release_date?.split('-')[0]}</span>
+                                              <span className="text-[10px] text-red-500 font-bold border border-red-900/50 px-1 rounded bg-black">18+</span>
+                                          </div>
+                                      </div>
+                                  </div>
+                              </div>
+                          ))}
+                      </div>
+                  )}
+                  {hasMore && !loading && <div ref={lastMovieElementRef} className="h-20"/>}
+              </div>
+
+              {/* Modals needed for functionality */}
+              {selectedMovie && ( <MoviePage movie={selectedMovie} onClose={() => setSelectedMovie(null)} apiKey={apiKey} onPersonClick={setSelectedPersonId} onToggleWatchlist={(m) => toggleList(watchlist, setWatchlist, 'movieverse_watchlist', m)} isWatchlisted={watchlist.some(m => m.id === selectedMovie.id)} onToggleFavorite={(m) => toggleList(favorites, setFavorites, 'movieverse_favorites', m)} isFavorite={favorites.some(m => m.id === selectedMovie.id)} onToggleWatched={handleToggleWatched} isWatched={watched.some(m => m.id === selectedMovie.id)} onSwitchMovie={setSelectedMovie} onOpenListModal={(m) => { setListModalMovie(m); setIsListModalOpen(true); }} userProfile={userProfile} onKeywordClick={handleKeywordClick} onCollectionClick={handleTmdbCollectionClick} onCompare={(m) => { setIsComparisonOpen(true); setComparisonBaseMovie(m); }} appRegion={appRegion} /> )}
+              <SettingsPage isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} apiKey={apiKey} setApiKey={(k) => saveSettings(k)} geminiKey={geminiKey} setGeminiKey={(k) => saveGeminiKey(k)} maturityRating={maturityRating} setMaturityRating={setMaturityRating} profile={userProfile} onUpdateProfile={setUserProfile} onLogout={handleLogout} searchHistory={searchHistory} setSearchHistory={(h) => { setSearchHistory(h); localStorage.setItem('movieverse_search_history', JSON.stringify(h)); }} watchedMovies={watched} setWatchedMovies={(m) => { setWatched(m); localStorage.setItem('movieverse_watched', JSON.stringify(m)); }} onToggleUnhingedMode={toggleUnhingedMode} isUnhingedMode={isUnhingedMode} />
+          </div>
+      );
+  }
+
+  // --- STANDARD RENDER ---
   const getPageTitle = () => {
       if (selectedCategory === "LiveTV") return "Live TV";
       if (selectedCategory === "Genres") return "Genres";
@@ -845,21 +871,18 @@ export default function App() {
   return (
     <div className={`min-h-screen bg-[#030303] text-white font-sans selection:bg-amber-500/30 selection:text-white ${isUnhingedMode ? 'selection:bg-fuchsia-500/30' : ''}`}>
       <nav className={`fixed top-0 left-0 right-0 z-[60] bg-black/70 backdrop-blur-xl border-b h-16 flex items-center justify-center px-4 md:px-6 transition-all duration-300 ${isUnhingedMode ? 'border-fuchsia-500/10' : (isGoldTheme ? 'border-amber-500/10' : 'border-white/5')}`}>
+        {/* Standard Navigation Render Logic */}
         <div className="flex items-center justify-between w-full max-w-7xl">
             <div className="flex items-center gap-4 md:gap-6">
             <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="md:hidden p-2 hover:bg-white/10 rounded-full transition-colors active:scale-95"><Menu size={20} /></button>
-            <div className="flex items-center gap-3 cursor-pointer group" onClick={() => isUnhingedMode ? exitUnhingedMode() : resetToHome()}>
+            <div className="flex items-center gap-3 cursor-pointer group" onClick={() => resetToHome()}>
                     <div className="relative transform rotate-45 transition-transform duration-500 group-hover:rotate-12">
-                        {isUnhingedMode ? (
-                            <Skull size={28} className="text-fuchsia-500 -rotate-45 animate-pulse" />
-                        ) : (
-                            <Dice4 size={28} className="text-red-600 -rotate-45" />
-                        )}
-                        <div className={`absolute inset-0 blur-lg opacity-50 group-hover:opacity-80 transition-opacity duration-500 ${isUnhingedMode ? 'bg-fuchsia-600' : (isGoldTheme ? 'bg-amber-500' : 'bg-red-600')}`}></div>
+                        {isGoldTheme ? <Dice4 size={28} className="text-amber-500 -rotate-45" /> : <Dice4 size={28} className="text-red-600 -rotate-45" />}
+                        <div className={`absolute inset-0 blur-lg opacity-50 group-hover:opacity-80 transition-opacity duration-500 ${isGoldTheme ? 'bg-amber-500' : 'bg-red-600'}`}></div>
                     </div>
                     <div className="flex flex-col leading-none">
-                        <span className={`text-xl font-black tracking-tight hidden sm:block lowercase ${isUnhingedMode ? 'text-fuchsia-500 animate-pulse' : 'text-white'}`}>fliqra {isUnhingedMode && "unhinged"}</span>
-                        {isExclusive && !isUnhingedMode && <span className={`text-[9px] uppercase tracking-[0.2em] font-bold hidden sm:block animate-pulse ${isGoldTheme ? 'text-amber-500' : 'text-red-600'}`}>Exclusive</span>}
+                        <span className="text-xl font-black tracking-tight hidden sm:block lowercase text-white">movieverse</span>
+                        {isExclusive && <span className={`text-[9px] uppercase tracking-[0.2em] font-bold hidden sm:block animate-pulse ${isGoldTheme ? 'text-amber-500' : 'text-red-600'}`}>Exclusive</span>}
                     </div>
             </div>
             
@@ -884,9 +907,9 @@ export default function App() {
             </div>
             </div>
             <div className="flex-1 max-w-md mx-4 relative hidden md:block group z-[70]">
-            <div className={`absolute inset-0 bg-gradient-to-r rounded-full blur-md opacity-0 group-hover:opacity-100 transition-opacity duration-500 ${isUnhingedMode ? 'from-fuchsia-500/20 to-purple-900/20' : (isGoldTheme ? 'from-amber-500/20 to-yellow-900/20' : 'from-red-500/20 to-gray-500/20')}`}></div>
+            <div className={`absolute inset-0 bg-gradient-to-r rounded-full blur-md opacity-0 group-hover:opacity-100 transition-opacity duration-500 ${isGoldTheme ? 'from-amber-500/20 to-yellow-900/20' : 'from-red-500/20 to-gray-500/20'}`}></div>
             <Search className={`absolute left-4 top-1/2 -translate-y-1/2 transition-colors duration-300 ${loading && searchQuery ? `${accentText} animate-pulse` : "text-white/50 group-focus-within:text-white"}`} size={16} />
-            <input type="text" placeholder="Search movies, people, genres..." className={`w-full bg-black/40 border backdrop-blur-md rounded-full py-2.5 pl-11 pr-10 text-sm focus:outline-none transition-all duration-300 text-white placeholder-white/30 ${loading && searchQuery ? "border-opacity-50" : "border-white/10 focus:bg-white/5 focus:shadow-[0_0_15px_rgba(255,255,255,0.1)]"} ${isUnhingedMode ? 'focus:border-fuchsia-500/50' : (isGoldTheme ? 'focus:border-amber-500/50' : 'focus:border-white/30')}`} value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} onFocus={() => setShowSuggestions(true)} onBlur={() => setTimeout(() => setShowSuggestions(false), 200)} onKeyDown={(e) => { if(e.key === 'Enter') handleSearchSubmit(searchQuery); }} />
+            <input type="text" placeholder="Search movies, people, genres..." className={`w-full bg-black/40 border backdrop-blur-md rounded-full py-2.5 pl-11 pr-10 text-sm focus:outline-none transition-all duration-300 text-white placeholder-white/30 ${loading && searchQuery ? "border-opacity-50" : "border-white/10 focus:bg-white/5 focus:shadow-[0_0_15px_rgba(255,255,255,0.1)]"} ${isGoldTheme ? 'focus:border-amber-500/50' : 'focus:border-white/30'}`} value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} onFocus={() => setShowSuggestions(true)} onBlur={() => setTimeout(() => setShowSuggestions(false), 200)} onKeyDown={(e) => { if(e.key === 'Enter') handleSearchSubmit(searchQuery); }} />
             {showSuggestions && (searchSuggestions.length > 0 || (searchHistory.length > 0 && !searchQuery)) && (
                 <div className="absolute top-full left-0 right-0 mt-2 bg-[#0f0f0f]/95 border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-[100] backdrop-blur-xl animate-in fade-in slide-in-from-top-2 duration-200">
                     {!searchQuery && searchHistory.length > 0 && (
@@ -905,11 +928,6 @@ export default function App() {
             )}
             </div>
             <div className="flex items-center gap-2 md:gap-4">
-                {isUnhingedMode && (
-                    <button onClick={exitUnhingedMode} className="text-xs bg-red-600/20 text-red-400 border border-red-500/30 px-2 py-1 rounded-md font-bold uppercase tracking-wider hover:bg-red-600/40 transition-colors flex items-center gap-1">
-                        <EyeOff size={12}/> Exit
-                    </button>
-                )}
                 {isCloudSync && <div className="hidden md:flex items-center text-green-500 text-xs gap-1 animate-in fade-in"><Cloud size={14}/></div>}
                 {!isCloudSync && isAuthenticated && <div className="hidden md:flex items-center text-gray-600 text-xs gap-1 animate-in fade-in"><CloudOff size={14}/></div>}
                 <button onClick={() => setIsNotificationOpen(true)} className="relative text-gray-400 hover:text-white transition-colors hover:scale-110 active:scale-95 duration-300"><Bell size={20}/>{hasUnread && (<span className={`absolute -top-1 -right-1 w-2 h-2 rounded-full animate-pulse ${isGoldTheme ? 'bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.8)]' : 'bg-red-600 shadow-[0_0_8px_rgba(220,38,38,0.8)]'}`}></span>)}</button>
@@ -919,7 +937,9 @@ export default function App() {
         </div>
       </nav>
 
+      {/* Main Layout */}
       <div className="flex pt-16">
+        {/* Sidebar */}
         <aside className={`fixed top-0 left-0 h-full w-72 bg-black/80 backdrop-blur-2xl border-r border-white/10 z-[60] transform transition-transform duration-500 cubic-bezier(0.4, 0, 0.2, 1) ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
            <div className="p-6 h-full overflow-y-auto custom-scrollbar">
                <div className="flex justify-between items-center mb-8">
@@ -1255,7 +1275,7 @@ export default function App() {
       <PersonPage personId={selectedPersonId || 0} onClose={() => setSelectedPersonId(null)} apiKey={apiKey} onMovieClick={(m) => { setSelectedPersonId(null); setTimeout(() => setSelectedMovie(m), 300); }} />
       <AIRecommendationModal isOpen={isAIModalOpen} onClose={() => setIsAIModalOpen(false)} apiKey={apiKey} />
       <ComparisonModal isOpen={isComparisonOpen} onClose={() => setIsComparisonOpen(false)} baseMovie={comparisonBaseMovie} apiKey={apiKey} />
-      <SettingsPage isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} apiKey={apiKey} setApiKey={(k) => saveSettings(k)} geminiKey={geminiKey} setGeminiKey={(k) => saveGeminiKey(k)} maturityRating={maturityRating} setMaturityRating={setMaturityRating} profile={userProfile} onUpdateProfile={setUserProfile} onLogout={handleLogout} searchHistory={searchHistory} setSearchHistory={(h) => { setSearchHistory(h); localStorage.setItem('movieverse_search_history', JSON.stringify(h)); }} watchedMovies={watched} setWatchedMovies={(m) => { setWatched(m); localStorage.setItem('movieverse_watched', JSON.stringify(m)); }} onEnterUnhingedMode={() => setIsUnhingedMode(true)} />
+      <SettingsPage isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} apiKey={apiKey} setApiKey={(k) => saveSettings(k)} geminiKey={geminiKey} setGeminiKey={(k) => saveGeminiKey(k)} maturityRating={maturityRating} setMaturityRating={setMaturityRating} profile={userProfile} onUpdateProfile={setUserProfile} onLogout={handleLogout} searchHistory={searchHistory} setSearchHistory={(h) => { setSearchHistory(h); localStorage.setItem('movieverse_search_history', JSON.stringify(h)); }} watchedMovies={watched} setWatchedMovies={(m) => { setWatched(m); localStorage.setItem('movieverse_watched', JSON.stringify(m)); }} onToggleUnhingedMode={toggleUnhingedMode} isUnhingedMode={isUnhingedMode} />
       <NotificationModal isOpen={isNotificationOpen} onClose={() => setIsNotificationOpen(false)} onUpdate={checkUnreadNotifications} userProfile={userProfile} />
       {!apiKey && loading && <div className="fixed inset-0 z-[100] bg-black"><LogoLoader /></div>}
     </div>
