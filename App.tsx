@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Search, Film, Menu, TrendingUp, Tv, Ghost, Calendar, Star, X, Sparkles, Settings, Globe, BarChart3, Bookmark, Heart, Folder, Languages, Filter, ChevronDown, Info, Plus, Cloud, CloudOff, Clock, Bell, History, Users, Tag, Dice5, Crown, Radio, LayoutGrid, Award, Baby, Clapperboard, ChevronRight, PlayCircle, Megaphone, CalendarDays, Compass, Home, Map, Loader2 } from 'lucide-react';
+import { Search, Film, Menu, TrendingUp, Tv, Ghost, Calendar, Star, X, Sparkles, Settings, Globe, BarChart3, Bookmark, Heart, Folder, Languages, Filter, ChevronDown, Info, Plus, Cloud, CloudOff, Clock, Bell, History, Users, Tag, Dice5, Crown, Radio, LayoutGrid, Award, Baby, Clapperboard, ChevronRight, PlayCircle, Megaphone, CalendarDays, Compass, Home, Map, Loader2, Dice4, Skull, EyeOff } from 'lucide-react';
 import { Movie, UserProfile, GENRES_MAP, GENRES_LIST, INDIAN_LANGUAGES, MaturityRating, Keyword } from './types';
 import { LogoLoader, MovieSkeleton, MovieCard, PersonCard, PosterMarquee, TMDB_BASE_URL, TMDB_BACKDROP_BASE, TMDB_IMAGE_BASE, HARDCODED_TMDB_KEY, HARDCODED_GEMINI_KEY, getTmdbKey, getGeminiKey } from './components/Shared';
 import { MoviePage } from './components/MovieDetails';
@@ -175,6 +175,9 @@ export default function App() {
   const [genreSearch, setGenreSearch] = useState("");
   const [comingFilter, setComingFilter] = useState("upcoming"); // 'today', 'upcoming', 'announced'
 
+  // Secret Mode State
+  const [isUnhingedMode, setIsUnhingedMode] = useState(false);
+
   // Local Storage State
   const [watchlist, setWatchlist] = useState<Movie[]>([]);
   const [favorites, setFavorites] = useState<Movie[]>([]);
@@ -221,12 +224,15 @@ export default function App() {
   const isExclusive = userProfile.canWatch === true;
   const isGoldTheme = isExclusive && userProfile.theme !== 'default';
   
-  const accentText = isGoldTheme ? "text-amber-500" : "text-red-600";
-  const accentBg = isGoldTheme ? "bg-amber-500" : "bg-red-600";
-  const accentBorder = isGoldTheme ? "border-amber-500" : "border-red-600";
-  const accentHoverText = isGoldTheme ? "group-hover:text-amber-400" : "group-hover:text-red-400";
-  const accentBgLow = isGoldTheme ? "bg-amber-500/20" : "bg-red-600/20";
-  const featuredBadge = isGoldTheme ? "bg-gradient-to-r from-amber-400 to-amber-600 text-black shadow-[0_0_20px_rgba(245,158,11,0.6)]" : "bg-red-600 text-white shadow-[0_0_20px_rgba(220,38,38,0.6)]";
+  // Theme Logic - Override if Unhinged
+  const accentText = isUnhingedMode ? "text-fuchsia-500" : (isGoldTheme ? "text-amber-500" : "text-red-600");
+  const accentBg = isUnhingedMode ? "bg-fuchsia-600" : (isGoldTheme ? "bg-amber-500" : "bg-red-600");
+  const accentBorder = isUnhingedMode ? "border-fuchsia-500" : (isGoldTheme ? "border-amber-500" : "border-red-600");
+  const accentHoverText = isUnhingedMode ? "group-hover:text-fuchsia-400" : (isGoldTheme ? "group-hover:text-amber-400" : "group-hover:text-red-400");
+  const accentBgLow = isUnhingedMode ? "bg-fuchsia-500/20" : (isGoldTheme ? "bg-amber-500/20" : "bg-red-600/20");
+  const featuredBadge = isUnhingedMode 
+    ? "bg-gradient-to-r from-fuchsia-500 to-purple-600 text-white shadow-[0_0_20px_rgba(217,70,239,0.6)]" 
+    : (isGoldTheme ? "bg-gradient-to-r from-amber-400 to-amber-600 text-black shadow-[0_0_20px_rgba(245,158,11,0.6)]" : "bg-red-600 text-white shadow-[0_0_20px_rgba(220,38,38,0.6)]");
 
   const resetAuthState = useCallback(() => {
     localStorage.removeItem('movieverse_auth');
@@ -234,6 +240,7 @@ export default function App() {
     setIsCloudSync(false);
     setDataLoaded(false);
     setIsSettingsOpen(false);
+    setIsUnhingedMode(false); // Reset secret mode on logout
     setWatchlist([]);
     setFavorites([]);
     setWatched([]);
@@ -261,6 +268,11 @@ export default function App() {
       setFilterPeriod("all");
       setSelectedRegion("Global");
       setSelectedLanguage("All");
+  };
+
+  const exitUnhingedMode = () => {
+      setIsUnhingedMode(false);
+      resetToHome();
   };
 
   useEffect(() => {
@@ -425,7 +437,7 @@ export default function App() {
 
   useEffect(() => {
       fetchMovies(1, false);
-  }, [selectedCategory, comingFilter, selectedRegion, filterPeriod, selectedLanguage, sortOption, activeCountry, activeKeyword, tmdbCollectionId, userProfile.age]);
+  }, [selectedCategory, comingFilter, selectedRegion, filterPeriod, selectedLanguage, sortOption, activeCountry, activeKeyword, tmdbCollectionId, userProfile.age, isUnhingedMode]);
 
   const checkUnreadNotifications = async () => {
       try {
@@ -559,9 +571,10 @@ export default function App() {
     // Calculate Adult/Age Logic
     const userAge = parseInt(userProfile.age || "0");
     const isAdult = !isNaN(userAge) && userAge >= 18;
-    // CRITICAL FIX: Always force include_adult to false to prevent nudity/pornography
-    // TMDB 'include_adult' is specifically for pornography, not rated R content.
-    const includeAdultParam = "false";
+    
+    // UNHINGED LOGIC: If secret mode is active, FORCE adult content.
+    // Otherwise, FORCE false.
+    const includeAdultParam = isUnhingedMode ? "true" : "false";
 
     try {
         let endpoint = "/discover/movie";
@@ -575,7 +588,8 @@ export default function App() {
         // Determine if strict filtering is needed
         // STRICT: If user is < 18 OR user explicitly chose a restricted maturity rating (e.g. PG-13) in settings
         // RELAXED: If user is >= 18 AND maturity rating is set to max 'NC-17' (default for adults usually)
-        const isStrictFilter = !isAdult || maturityRating !== 'NC-17';
+        // UNHINGED: Bypass all.
+        const isStrictFilter = !isUnhingedMode && (!isAdult || maturityRating !== 'NC-17');
 
         // DETERMINE IF WE ARE IN GENERAL DISCOVERY MODE
         const isGeneralDiscovery = !activeCountry && !activeKeyword && !tmdbCollectionId && !currentCollection && !["People", "Franchise"].includes(selectedCategory);
@@ -584,6 +598,7 @@ export default function App() {
              if (appRegion) params.append("region", appRegion);
              
              // Apply maturity filters if strict filtering is required
+             // In UNHINGED mode, these are purposefully omitted.
              if (isStrictFilter) {
                  params.append("certification_country", "US"); 
                  params.append("certification.lte", maturityRating);
@@ -674,8 +689,6 @@ export default function App() {
 
             params.delete("region"); // Allow global coming soon if maturity settings permit
             
-            // Re-apply maturity filter if strict (handled by general logic above, but double check we don't clear it)
-            // If not strict, we can see international upcoming releases too
             if (!isStrictFilter) {
                params.delete("certification_country");
                params.delete("certification.lte");
@@ -724,7 +737,7 @@ export default function App() {
         }
         setHasMore(data.page < data.total_pages);
     } catch (error: any) { if (error.name !== 'AbortError') console.error("Fetch Logic Error:", error); } finally { if (!controller.signal.aborted) setLoading(false); }
-  }, [apiKey, searchQuery, selectedCategory, sortOption, appRegion, currentCollection, filterPeriod, selectedLanguage, selectedRegion, userProfile, maturityRating, sortMovies, tmdbCollectionId, activeKeyword, activeCountry, comingFilter]);
+  }, [apiKey, searchQuery, selectedCategory, sortOption, appRegion, currentCollection, filterPeriod, selectedLanguage, selectedRegion, userProfile, maturityRating, sortMovies, tmdbCollectionId, activeKeyword, activeCountry, comingFilter, isUnhingedMode]);
 
   useEffect(() => { const timeout = setTimeout(() => fetchMovies(1, false), searchQuery ? 800 : 300); return () => clearTimeout(timeout); }, [fetchMovies, searchQuery]);
   useEffect(() => { const fetchSuggestions = async () => { if (searchQuery.length > 3) { try { const sugs = await getSearchSuggestions(searchQuery); setSearchSuggestions(sugs); setShowSuggestions(true); } catch (e) { console.error(e); } } }; const timeout = setTimeout(fetchSuggestions, 500); return () => clearTimeout(timeout); }, [searchQuery]);
@@ -740,7 +753,7 @@ export default function App() {
   const handleFeelingLucky = () => {
       setIsSidebarOpen(false); resetFilters(); setLoading(true);
       const randomPage = Math.floor(Math.random() * 50) + 1;
-      const params = new URLSearchParams({ api_key: apiKey, page: randomPage.toString(), sort_by: "vote_average.desc", "vote_count.gte": "500", include_adult: "false" });
+      const params = new URLSearchParams({ api_key: apiKey, page: randomPage.toString(), sort_by: "vote_average.desc", "vote_count.gte": "500", include_adult: isUnhingedMode ? "true" : "false" });
       fetch(`${TMDB_BASE_URL}/discover/movie?${params.toString()}`).then(r => r.json()).then(d => { if (d.results && d.results.length > 0) { const randomMovie = d.results[Math.floor(Math.random() * d.results.length)]; setSelectedMovie(randomMovie); setLoading(false); } else setLoading(false); }).catch(() => setLoading(false));
   };
   
@@ -830,19 +843,23 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#030303] text-white font-sans selection:bg-amber-500/30 selection:text-white">
-      <nav className={`fixed top-0 left-0 right-0 z-[60] bg-black/70 backdrop-blur-xl border-b h-16 flex items-center justify-center px-4 md:px-6 transition-all duration-300 ${isGoldTheme ? 'border-amber-500/10' : 'border-white/5'}`}>
+    <div className={`min-h-screen bg-[#030303] text-white font-sans selection:bg-amber-500/30 selection:text-white ${isUnhingedMode ? 'selection:bg-fuchsia-500/30' : ''}`}>
+      <nav className={`fixed top-0 left-0 right-0 z-[60] bg-black/70 backdrop-blur-xl border-b h-16 flex items-center justify-center px-4 md:px-6 transition-all duration-300 ${isUnhingedMode ? 'border-fuchsia-500/10' : (isGoldTheme ? 'border-amber-500/10' : 'border-white/5')}`}>
         <div className="flex items-center justify-between w-full max-w-7xl">
             <div className="flex items-center gap-4 md:gap-6">
             <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="md:hidden p-2 hover:bg-white/10 rounded-full transition-colors active:scale-95"><Menu size={20} /></button>
-            <div className="flex items-center gap-2 cursor-pointer group" onClick={resetToHome}>
-                    <div className="relative">
-                        <Film size={24} className={`${accentText} relative z-10 transition-transform duration-500 group-hover:rotate-12`} />
-                        <div className={`absolute inset-0 blur-lg opacity-50 group-hover:opacity-80 transition-opacity duration-500 ${isGoldTheme ? 'bg-amber-500' : 'bg-red-600'}`}></div>
+            <div className="flex items-center gap-3 cursor-pointer group" onClick={() => isUnhingedMode ? exitUnhingedMode() : resetToHome()}>
+                    <div className="relative transform rotate-45 transition-transform duration-500 group-hover:rotate-12">
+                        {isUnhingedMode ? (
+                            <Skull size={28} className="text-fuchsia-500 -rotate-45 animate-pulse" />
+                        ) : (
+                            <Dice4 size={28} className="text-red-600 -rotate-45" />
+                        )}
+                        <div className={`absolute inset-0 blur-lg opacity-50 group-hover:opacity-80 transition-opacity duration-500 ${isUnhingedMode ? 'bg-fuchsia-600' : (isGoldTheme ? 'bg-amber-500' : 'bg-red-600')}`}></div>
                     </div>
                     <div className="flex flex-col leading-none">
-                        <span className="text-lg font-bold tracking-tight text-white hidden sm:block">Movie<span className={accentText}>Verse</span></span>
-                        {isExclusive && <span className={`text-[9px] uppercase tracking-[0.2em] font-bold hidden sm:block animate-pulse ${isGoldTheme ? 'text-amber-500' : 'text-red-600'}`}>Exclusive</span>}
+                        <span className={`text-xl font-black tracking-tight hidden sm:block lowercase ${isUnhingedMode ? 'text-fuchsia-500 animate-pulse' : 'text-white'}`}>fliqra {isUnhingedMode && "unhinged"}</span>
+                        {isExclusive && !isUnhingedMode && <span className={`text-[9px] uppercase tracking-[0.2em] font-bold hidden sm:block animate-pulse ${isGoldTheme ? 'text-amber-500' : 'text-red-600'}`}>Exclusive</span>}
                     </div>
             </div>
             
@@ -867,9 +884,9 @@ export default function App() {
             </div>
             </div>
             <div className="flex-1 max-w-md mx-4 relative hidden md:block group z-[70]">
-            <div className={`absolute inset-0 bg-gradient-to-r rounded-full blur-md opacity-0 group-hover:opacity-100 transition-opacity duration-500 ${isGoldTheme ? 'from-amber-500/20 to-yellow-900/20' : 'from-red-500/20 to-gray-500/20'}`}></div>
+            <div className={`absolute inset-0 bg-gradient-to-r rounded-full blur-md opacity-0 group-hover:opacity-100 transition-opacity duration-500 ${isUnhingedMode ? 'from-fuchsia-500/20 to-purple-900/20' : (isGoldTheme ? 'from-amber-500/20 to-yellow-900/20' : 'from-red-500/20 to-gray-500/20')}`}></div>
             <Search className={`absolute left-4 top-1/2 -translate-y-1/2 transition-colors duration-300 ${loading && searchQuery ? `${accentText} animate-pulse` : "text-white/50 group-focus-within:text-white"}`} size={16} />
-            <input type="text" placeholder="Search movies, people, genres..." className={`w-full bg-black/40 border backdrop-blur-md rounded-full py-2.5 pl-11 pr-10 text-sm focus:outline-none transition-all duration-300 text-white placeholder-white/30 ${loading && searchQuery ? "border-opacity-50" : "border-white/10 focus:bg-white/5 focus:shadow-[0_0_15px_rgba(255,255,255,0.1)]"} ${isGoldTheme ? 'focus:border-amber-500/50' : 'focus:border-white/30'}`} value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} onFocus={() => setShowSuggestions(true)} onBlur={() => setTimeout(() => setShowSuggestions(false), 200)} onKeyDown={(e) => { if(e.key === 'Enter') handleSearchSubmit(searchQuery); }} />
+            <input type="text" placeholder="Search movies, people, genres..." className={`w-full bg-black/40 border backdrop-blur-md rounded-full py-2.5 pl-11 pr-10 text-sm focus:outline-none transition-all duration-300 text-white placeholder-white/30 ${loading && searchQuery ? "border-opacity-50" : "border-white/10 focus:bg-white/5 focus:shadow-[0_0_15px_rgba(255,255,255,0.1)]"} ${isUnhingedMode ? 'focus:border-fuchsia-500/50' : (isGoldTheme ? 'focus:border-amber-500/50' : 'focus:border-white/30')}`} value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} onFocus={() => setShowSuggestions(true)} onBlur={() => setTimeout(() => setShowSuggestions(false), 200)} onKeyDown={(e) => { if(e.key === 'Enter') handleSearchSubmit(searchQuery); }} />
             {showSuggestions && (searchSuggestions.length > 0 || (searchHistory.length > 0 && !searchQuery)) && (
                 <div className="absolute top-full left-0 right-0 mt-2 bg-[#0f0f0f]/95 border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-[100] backdrop-blur-xl animate-in fade-in slide-in-from-top-2 duration-200">
                     {!searchQuery && searchHistory.length > 0 && (
@@ -888,6 +905,11 @@ export default function App() {
             )}
             </div>
             <div className="flex items-center gap-2 md:gap-4">
+                {isUnhingedMode && (
+                    <button onClick={exitUnhingedMode} className="text-xs bg-red-600/20 text-red-400 border border-red-500/30 px-2 py-1 rounded-md font-bold uppercase tracking-wider hover:bg-red-600/40 transition-colors flex items-center gap-1">
+                        <EyeOff size={12}/> Exit
+                    </button>
+                )}
                 {isCloudSync && <div className="hidden md:flex items-center text-green-500 text-xs gap-1 animate-in fade-in"><Cloud size={14}/></div>}
                 {!isCloudSync && isAuthenticated && <div className="hidden md:flex items-center text-gray-600 text-xs gap-1 animate-in fade-in"><CloudOff size={14}/></div>}
                 <button onClick={() => setIsNotificationOpen(true)} className="relative text-gray-400 hover:text-white transition-colors hover:scale-110 active:scale-95 duration-300"><Bell size={20}/>{hasUnread && (<span className={`absolute -top-1 -right-1 w-2 h-2 rounded-full animate-pulse ${isGoldTheme ? 'bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.8)]' : 'bg-red-600 shadow-[0_0_8px_rgba(220,38,38,0.8)]'}`}></span>)}</button>
@@ -901,7 +923,7 @@ export default function App() {
         <aside className={`fixed top-0 left-0 h-full w-72 bg-black/80 backdrop-blur-2xl border-r border-white/10 z-[60] transform transition-transform duration-500 cubic-bezier(0.4, 0, 0.2, 1) ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
            <div className="p-6 h-full overflow-y-auto custom-scrollbar">
                <div className="flex justify-between items-center mb-8">
-                   <div className="flex items-center gap-2"><Film size={24} className={accentText} /><span className="text-xl font-bold">Menu</span></div>
+                   <div className="flex items-center gap-2"><Dice4 size={24} className={`${accentText} transform rotate-45`} /><span className="text-xl font-bold lowercase">Menu</span></div>
                    <button onClick={() => setIsSidebarOpen(false)} className="p-2 hover:bg-white/10 rounded-full transition-colors active:scale-95"><X size={20}/></button>
                </div>
                <div className="mb-6 md:hidden">
@@ -1125,7 +1147,10 @@ export default function App() {
                            </div>
                            <div className="absolute bottom-0 left-0 p-6 md:p-12 w-full md:w-2/3 flex flex-col gap-4 md:gap-6 z-10 animate-in slide-in-from-bottom-10 duration-1000 ease-out">
                                <div className={`w-fit px-3 py-1 rounded-full text-[10px] md:text-xs font-bold animate-pulse flex items-center gap-2 ${featuredBadge}`}>
-                                   {isGoldTheme && <Crown size={12} fill="currentColor"/>} #1 FEATURED
+                                   {isUnhingedMode 
+                                     ? <><Skull size={12} fill="currentColor"/> UNHINGED MODE</>
+                                     : (isGoldTheme ? <><Crown size={12} fill="currentColor"/> #1 FEATURED</> : <>#1 FEATURED</>)
+                                   }
                                </div>
                                <h1 className="text-4xl md:text-7xl font-black text-white leading-none drop-shadow-2xl tracking-tight">{featuredMovie.title || featuredMovie.original_title}</h1>
                                <div className="flex items-center gap-3 text-sm font-medium text-white/80">
@@ -1230,7 +1255,7 @@ export default function App() {
       <PersonPage personId={selectedPersonId || 0} onClose={() => setSelectedPersonId(null)} apiKey={apiKey} onMovieClick={(m) => { setSelectedPersonId(null); setTimeout(() => setSelectedMovie(m), 300); }} />
       <AIRecommendationModal isOpen={isAIModalOpen} onClose={() => setIsAIModalOpen(false)} apiKey={apiKey} />
       <ComparisonModal isOpen={isComparisonOpen} onClose={() => setIsComparisonOpen(false)} baseMovie={comparisonBaseMovie} apiKey={apiKey} />
-      <SettingsPage isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} apiKey={apiKey} setApiKey={(k) => saveSettings(k)} geminiKey={geminiKey} setGeminiKey={(k) => saveGeminiKey(k)} maturityRating={maturityRating} setMaturityRating={setMaturityRating} profile={userProfile} onUpdateProfile={setUserProfile} onLogout={handleLogout} searchHistory={searchHistory} setSearchHistory={(h) => { setSearchHistory(h); localStorage.setItem('movieverse_search_history', JSON.stringify(h)); }} watchedMovies={watched} setWatchedMovies={(m) => { setWatched(m); localStorage.setItem('movieverse_watched', JSON.stringify(m)); }} />
+      <SettingsPage isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} apiKey={apiKey} setApiKey={(k) => saveSettings(k)} geminiKey={geminiKey} setGeminiKey={(k) => saveGeminiKey(k)} maturityRating={maturityRating} setMaturityRating={setMaturityRating} profile={userProfile} onUpdateProfile={setUserProfile} onLogout={handleLogout} searchHistory={searchHistory} setSearchHistory={(h) => { setSearchHistory(h); localStorage.setItem('movieverse_search_history', JSON.stringify(h)); }} watchedMovies={watched} setWatchedMovies={(m) => { setWatched(m); localStorage.setItem('movieverse_watched', JSON.stringify(m)); }} onEnterUnhingedMode={() => setIsUnhingedMode(true)} />
       <NotificationModal isOpen={isNotificationOpen} onClose={() => setIsNotificationOpen(false)} onUpdate={checkUnreadNotifications} userProfile={userProfile} />
       {!apiKey && loading && <div className="fixed inset-0 z-[100] bg-black"><LogoLoader /></div>}
     </div>

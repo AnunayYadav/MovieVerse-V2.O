@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { UserCircle, X, Check, Settings, ShieldCheck, RefreshCcw, HelpCircle, FileText, Lock, LogOut, Calendar, Mail, User, BrainCircuit, Pencil, CheckCheck, Loader2, ChevronDown, Fingerprint, Copy, Crown, History, Trash2, Search, Clock, ArrowLeft } from 'lucide-react';
+import { UserCircle, X, Check, Settings, ShieldCheck, RefreshCcw, HelpCircle, FileText, Lock, LogOut, Calendar, Mail, User, BrainCircuit, Pencil, CheckCheck, Loader2, ChevronDown, Fingerprint, Copy, Crown, History, Trash2, Search, Clock, ArrowLeft, Skull } from 'lucide-react';
 import { UserProfile, MaturityRating, Movie } from '../types';
 import { getSupabase, submitSupportTicket } from '../services/supabase';
 import { TMDB_IMAGE_BASE } from './Shared';
@@ -21,11 +21,12 @@ interface SettingsPageProps {
     setSearchHistory?: (h: string[]) => void;
     watchedMovies?: Movie[];
     setWatchedMovies?: (m: Movie[]) => void;
+    onEnterUnhingedMode?: () => void; // New prop
 }
 
 export const SettingsPage: React.FC<SettingsPageProps> = ({ 
     isOpen, onClose, apiKey, setApiKey, geminiKey, setGeminiKey, maturityRating, setMaturityRating, profile, onUpdateProfile, onLogout,
-    searchHistory = [], setSearchHistory, watchedMovies = [], setWatchedMovies
+    searchHistory = [], setSearchHistory, watchedMovies = [], setWatchedMovies, onEnterUnhingedMode
 }) => {
     // Check if custom keys are stored
     const hasCustomTmdb = !!localStorage.getItem('movieverse_tmdb_key');
@@ -78,13 +79,13 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                         setProvider(user.app_metadata.provider || "Email");
                     } else {
                         // Guest Fallback
-                        setUserEmail("guest@movieverse.ai");
+                        setUserEmail("guest@fliqra.com");
                         setUserId("guest-session-" + Math.floor(Math.random() * 10000));
                         setJoinDate("Just Now");
                         setProvider("Local Session");
                     }
                 } else {
-                     setUserEmail("guest@movieverse.ai");
+                     setUserEmail("guest@fliqra.com");
                      setUserId("guest-session-" + Math.floor(Math.random() * 10000));
                      setJoinDate("Just Now");
                      setProvider("Local Session");
@@ -145,11 +146,19 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
         setSending(false);
     };
 
+    // Secret Trigger Logic
+    const handleAgeDoubleClick = () => {
+        if (profile.isUnhinged && onEnterUnhingedMode) {
+            onEnterUnhingedMode();
+            onClose();
+        }
+    };
+
     const FAQs = [
         { q: "How do I verify my email?", a: "Check your inbox for a confirmation link. If not found, check spam." },
         { q: "Is this service free?", a: "Yes, this is a demonstration app using public APIs for educational purposes." },
         { q: "Where does the data come from?", a: "We use the TMDB API for movie metadata and Google Gemini for AI features." },
-        { q: "Can I watch movies here?", a: "No, MovieVerse AI is purely a discovery and tracking platform. We do not host or stream any video content." }
+        { q: "Can I watch movies here?", a: "No, Fliqra is purely a discovery and tracking platform. We do not host or stream any video content." }
     ];
 
     if (!isOpen) return null;
@@ -264,7 +273,10 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                                             <p className="text-white font-bold text-sm">{joinDate}</p>
                                         </div>
                                         
-                                        <div className={`p-5 rounded-2xl border transition-colors ${isGoldTheme ? 'bg-amber-900/5 border-amber-500/10 hover:border-amber-500/30' : 'bg-white/5 border-white/5 hover:border-white/10'}`}>
+                                        <div 
+                                            onDoubleClick={handleAgeDoubleClick}
+                                            className={`p-5 rounded-2xl border transition-colors cursor-default select-none ${isGoldTheme ? 'bg-amber-900/5 border-amber-500/10 hover:border-amber-500/30' : 'bg-white/5 border-white/5 hover:border-white/10'}`}
+                                        >
                                             <div className="flex items-center gap-3 mb-2">
                                                 <div className="p-2 bg-green-500/10 rounded-lg text-green-400"><User size={16}/></div>
                                                 <span className="text-[10px] font-bold text-white/40 uppercase tracking-wider">Age</span>
@@ -288,9 +300,11 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                                   </div>
                               </div>
                           )}
-
+                          
+                          {/* ... rest of the component remains the same ... */}
                           {activeTab === 'general' && (
                               <div className="space-y-6 animate-in fade-in slide-in-from-right-4 max-w-2xl">
+                                  {/* ... existing General settings code ... */}
                                   <h3 className="text-2xl font-bold text-white mb-6">General Settings</h3>
                                   
                                   <div className="space-y-5">
@@ -313,7 +327,8 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                                               </button>
                                           </div>
                                       )}
-
+                                      
+                                      {/* ... API Keys inputs here (omitted for brevity, keep existing) ... */}
                                       <div className="space-y-2">
                                         <div className="flex justify-between items-center">
                                             <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">TMDB API Key</label>
@@ -408,6 +423,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
 
                           {activeTab === 'history' && (
                               <div className="space-y-6 animate-in fade-in slide-in-from-right-4 h-full flex flex-col">
+                                  {/* ... History component logic remains the same ... */}
                                   <div className="flex items-center justify-between pb-4 border-b border-white/10">
                                       <div>
                                           <h3 className="text-2xl font-bold text-white mb-1">Manage History</h3>
@@ -423,7 +439,6 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                                           </button>
                                       </div>
                                   </div>
-
                                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 flex-1 overflow-hidden min-h-0">
                                       {/* Search History Column */}
                                       <div className="flex flex-col min-h-0">
@@ -523,6 +538,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
 
                           {activeTab === 'help' && (
                               <div className="space-y-8 animate-in fade-in slide-in-from-right-4 h-full flex flex-col max-w-3xl">
+                                  {/* ... Help component logic remains the same ... */}
                                   <h3 className="text-2xl font-bold text-white mb-4">Help Center</h3>
                                   <div className="space-y-6">
                                       <div className="bg-white/5 rounded-2xl border border-white/5 overflow-hidden">
@@ -594,6 +610,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
 
                           {activeTab === 'legal' && (
                               <div className="space-y-6 animate-in fade-in slide-in-from-right-4 h-full flex flex-col max-w-4xl">
+                                  {/* ... Legal component logic remains the same ... */}
                                   <h3 className={`text-2xl font-bold text-white mb-4 flex items-center gap-3`}>
                                       <ShieldCheck size={24} className={isGoldTheme ? "text-amber-500" : "text-red-500"}/> Legal Center
                                   </h3>
@@ -615,7 +632,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                                                           This product uses the TMDB API but is not endorsed or certified by TMDB.
                                                       </p>
                                                       <p className="text-xs text-gray-400">
-                                                          MovieVerse AI acknowledges and credits The Movie Database (TMDB) as the source of movie and TV show metadata, images, and other related content displayed within this application.
+                                                          Fliqra acknowledges and credits The Movie Database (TMDB) as the source of movie and TV show metadata, images, and other related content displayed within this application.
                                                       </p>
                                                   </div>
                                               </div>
@@ -628,19 +645,19 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                                           <div className="space-y-4 text-gray-400 text-xs">
                                               <div>
                                                   <h5 className="text-white font-bold mb-1 text-sm">1. Acceptance of Terms</h5>
-                                                  <p>By accessing and using MovieVerse AI ("the Application"), you accept and agree to be bound by the terms and provision of this agreement. In addition, when using this Application's particular services, you shall be subject to any posted guidelines or rules applicable to such services.</p>
+                                                  <p>By accessing and using Fliqra ("the Application"), you accept and agree to be bound by the terms and provision of this agreement. In addition, when using this Application's particular services, you shall be subject to any posted guidelines or rules applicable to such services.</p>
                                               </div>
                                               <div>
                                                   <h5 className="text-white font-bold mb-1 text-sm">2. Disclaimer of Warranties</h5>
-                                                  <p>The Application is provided "as is" and "as available" without any representation or warranty, express or implied. MovieVerse AI does not warrant that the service will be uninterrupted or error-free. The content is for informational purposes only.</p>
+                                                  <p>The Application is provided "as is" and "as available" without any representation or warranty, express or implied. Fliqra does not warrant that the service will be uninterrupted or error-free. The content is for informational purposes only.</p>
                                               </div>
                                               <div>
                                                   <h5 className="text-white font-bold mb-1 text-sm">3. Content Policy</h5>
-                                                  <p>MovieVerse AI functions strictly as a discovery tool. We do not host, upload, stream, or index any video files. All media assets (posters, backdrops) are provided by third-party APIs. We are not responsible for the accuracy or legality of content provided by third-party sources.</p>
+                                                  <p>Fliqra functions strictly as a discovery tool. We do not host, upload, stream, or index any video files. All media assets (posters, backdrops) are provided by third-party APIs. We are not responsible for the accuracy or legality of content provided by third-party sources.</p>
                                               </div>
                                               <div>
                                                   <h5 className="text-white font-bold mb-1 text-sm">4. User Conduct</h5>
-                                                  <p>You agree not to use the Application for any unlawful purpose or any purpose prohibited under this clause. You agree not to use the Application in any way that could damage the Application, the services, or the general business of MovieVerse AI.</p>
+                                                  <p>You agree not to use the Application for any unlawful purpose or any purpose prohibited under this clause. You agree not to use the Application in any way that could damage the Application, the services, or the general business of Fliqra.</p>
                                               </div>
                                               <div>
                                                   <h5 className="text-white font-bold mb-1 text-sm">5. Termination</h5>
@@ -695,7 +712,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                                       
                                       <div className="pt-8 mt-6 border-t border-white/10 text-center pb-20">
                                           <p className="text-xs text-gray-500">Last Updated: January 2025</p>
-                                          <p className="text-xs text-gray-600 mt-1">MovieVerse AI © 2025. All Rights Reserved.</p>
+                                          <p className="text-xs text-gray-600 mt-1">Fliqra © 2025. All Rights Reserved.</p>
                                       </div>
                                   </div>
                               </div>
