@@ -78,13 +78,13 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                         setProvider(user.app_metadata.provider || "Email");
                     } else {
                         // Guest Fallback
-                        setUserEmail("guest@movieverse.ai");
+                        setUserEmail("guest@fliqra.com");
                         setUserId("guest-session-" + Math.floor(Math.random() * 10000));
                         setJoinDate("Just Now");
                         setProvider("Local Session");
                     }
                 } else {
-                     setUserEmail("guest@movieverse.ai");
+                     setUserEmail("guest@fliqra.com");
                      setUserId("guest-session-" + Math.floor(Math.random() * 10000));
                      setJoinDate("Just Now");
                      setProvider("Local Session");
@@ -149,7 +149,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
         { q: "How do I verify my email?", a: "Check your inbox for a confirmation link. If not found, check spam." },
         { q: "Is this service free?", a: "Yes, this is a demonstration app using public APIs for educational purposes." },
         { q: "Where does the data come from?", a: "We use the TMDB API for movie metadata and Google Gemini for AI features." },
-        { q: "Can I watch movies here?", a: "No, MovieVerse AI is purely a discovery and tracking platform. We do not host or stream any video content." }
+        { q: "Can I watch movies here?", a: "No, Fliqra is purely a discovery and tracking platform. We do not host or stream any video content." }
     ];
 
     if (!isOpen) return null;
@@ -615,7 +615,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                                                           This product uses the TMDB API but is not endorsed or certified by TMDB.
                                                       </p>
                                                       <p className="text-xs text-gray-400">
-                                                          MovieVerse AI acknowledges and credits The Movie Database (TMDB) as the source of movie and TV show metadata, images, and other related content displayed within this application.
+                                                          Fliqra acknowledges and credits The Movie Database (TMDB) as the source of movie and TV show metadata, images, and other related content displayed within this application.
                                                       </p>
                                                   </div>
                                               </div>
@@ -628,19 +628,19 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                                           <div className="space-y-4 text-gray-400 text-xs">
                                               <div>
                                                   <h5 className="text-white font-bold mb-1 text-sm">1. Acceptance of Terms</h5>
-                                                  <p>By accessing and using MovieVerse AI ("the Application"), you accept and agree to be bound by the terms and provision of this agreement. In addition, when using this Application's particular services, you shall be subject to any posted guidelines or rules applicable to such services.</p>
+                                                  <p>By accessing and using Fliqra ("the Application"), you accept and agree to be bound by the terms and provision of this agreement. In addition, when using this Application's particular services, you shall be subject to any posted guidelines or rules applicable to such services.</p>
                                               </div>
                                               <div>
                                                   <h5 className="text-white font-bold mb-1 text-sm">2. Disclaimer of Warranties</h5>
-                                                  <p>The Application is provided "as is" and "as available" without any representation or warranty, express or implied. MovieVerse AI does not warrant that the service will be uninterrupted or error-free. The content is for informational purposes only.</p>
+                                                  <p>The Application is provided "as is" and "as available" without any representation or warranty, express or implied. Fliqra does not warrant that the service will be uninterrupted or error-free. The content is for informational purposes only.</p>
                                               </div>
                                               <div>
                                                   <h5 className="text-white font-bold mb-1 text-sm">3. Content Policy</h5>
-                                                  <p>MovieVerse AI functions strictly as a discovery tool. We do not host, upload, stream, or index any video files. All media assets (posters, backdrops) are provided by third-party APIs. We are not responsible for the accuracy or legality of content provided by third-party sources.</p>
+                                                  <p>Fliqra functions strictly as a discovery tool. We do not host, upload, stream, or index any video files. All media assets (posters, backdrops) are provided by third-party APIs. We are not responsible for the accuracy or legality of content provided by third-party sources.</p>
                                               </div>
                                               <div>
                                                   <h5 className="text-white font-bold mb-1 text-sm">4. User Conduct</h5>
-                                                  <p>You agree not to use the Application for any unlawful purpose or any purpose prohibited under this clause. You agree not to use the Application in any way that could damage the Application, the services, or the general business of MovieVerse AI.</p>
+                                                  <p>You agree not to use the Application for any unlawful purpose or any purpose prohibited under this clause. You agree not to use the Application in any way that could damage the Application, the services, or the general business of Fliqra.</p>
                                               </div>
                                               <div>
                                                   <h5 className="text-white font-bold mb-1 text-sm">5. Termination</h5>
@@ -695,7 +695,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                                       
                                       <div className="pt-8 mt-6 border-t border-white/10 text-center pb-20">
                                           <p className="text-xs text-gray-500">Last Updated: January 2025</p>
-                                          <p className="text-xs text-gray-600 mt-1">MovieVerse AI © 2025. All Rights Reserved.</p>
+                                          <p className="text-xs text-gray-600 mt-1">Fliqra © 2025. All Rights Reserved.</p>
                                       </div>
                                   </div>
                               </div>

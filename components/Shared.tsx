@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Film, Star, Eye, Download, X, Check, ArrowLeft } from 'lucide-react';
+import { Film, Star, Eye, Download, X, Check, ArrowLeft, Dice4 } from 'lucide-react';
 import { Movie } from '../types';
 
 export const TMDB_BASE_URL = "https://api.themoviedb.org/3";
@@ -62,9 +62,11 @@ export const LogoLoader = () => (
   <div className="flex flex-col items-center justify-center gap-4 animate-in fade-in zoom-in duration-700 py-20">
     <div className="relative">
       <div className="absolute inset-0 bg-red-600 blur-2xl opacity-20 animate-pulse rounded-full"></div>
-      <Film size={48} className="text-red-600 animate-[spin_3s_linear_infinite] relative z-10 drop-shadow-[0_0_15px_rgba(220,38,38,0.5)]" />
+      <div className="relative z-10 transform rotate-45">
+          <Dice4 size={48} className="text-red-600 animate-pulse drop-shadow-[0_0_15px_rgba(220,38,38,0.5)]" />
+      </div>
     </div>
-    <p className="text-white/80 text-xs font-bold tracking-[0.3em] animate-pulse">LOADING MOVIEVERSE</p>
+    <p className="text-white/80 text-xs font-bold tracking-[0.3em] animate-pulse">LOADING FLIQRA</p>
   </div>
 );
 

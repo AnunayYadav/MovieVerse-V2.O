@@ -1,5 +1,6 @@
+
 import React, { useState } from 'react';
-import { Film, Eye, EyeOff, Mail, Loader2, User, Calendar, ArrowRight, ChevronLeft, Check, AlertTriangle } from 'lucide-react';
+import { Eye, EyeOff, Mail, Loader2, User, Calendar, ArrowRight, ChevronLeft, Check, AlertTriangle, Dice4 } from 'lucide-react';
 import { TMDB_IMAGE_BASE } from './Shared';
 import { GENRES_LIST, UserProfile } from '../types';
 import { signInWithGoogle, signInWithEmail, signUpWithEmail, getSupabase } from '../services/supabase';
@@ -155,9 +156,11 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onOpenSettings })
       <div className="relative z-10 w-full max-w-md p-4 animate-in fade-in zoom-in duration-300">
          <div className="bg-[#050505]/85 backdrop-blur-xl border border-white/10 rounded-3xl p-8 shadow-2xl relative overflow-hidden">
             <div className="text-center mb-8">
-               <div className="inline-flex items-center gap-2 mb-4">
-                  <Film size={32} className="text-red-600" />
-                  <span className="text-2xl font-bold tracking-tight text-white">Movie<span className="text-red-600">Verse</span></span>
+               <div className="inline-flex items-center gap-3 mb-4">
+                  <div className="transform rotate-45">
+                      <Dice4 size={32} className="text-red-600 -rotate-45" />
+                  </div>
+                  <span className="text-3xl font-black tracking-tight text-white lowercase">fliqra</span>
                </div>
                
                <h2 className="text-xl font-bold text-white mb-2">
@@ -374,7 +377,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onOpenSettings })
       
       {/* Footer / Copyright */}
       <div className="absolute bottom-6 text-center w-full z-10 pointer-events-none">
-          <p className="text-white/20 text-xs">© 2025 MovieVerse AI. All rights reserved.</p>
+          <p className="text-white/20 text-xs">© 2025 Fliqra. All rights reserved.</p>
       </div>
 
       <style>{`
