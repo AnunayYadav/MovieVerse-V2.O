@@ -13,10 +13,11 @@ interface MoviePlayerProps {
   initialSeason?: number;
   initialEpisode?: number;
   apiKey: string;
+  server?: string;
 }
 
 export const MoviePlayer: React.FC<MoviePlayerProps> = ({ 
-  tmdbId, onClose, mediaType, isAnime, initialSeason = 1, initialEpisode = 1, apiKey
+  tmdbId, onClose, mediaType, isAnime, initialSeason = 1, initialEpisode = 1, apiKey, server = 'server1'
 }) => {
   const [season, setSeason] = useState(initialSeason);
   const [episode, setEpisode] = useState(initialEpisode);
@@ -82,7 +83,15 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   };
 
   const getEmbedUrl = () => {
-    // If it's a TV show or Anime series, include season/episode
+    // Server 2: VidFast
+    if (server === 'server2') {
+         if (mediaType === 'tv' || (isAnime && mediaType !== 'movie')) {
+             return `https://vidfast.pro/tv/${tmdbId}/${season}/${episode}`;
+         }
+         return `https://vidfast.pro/movie/${tmdbId}`;
+    }
+
+    // Default Server 1: VidSrc
     if (mediaType === 'tv' || (isAnime && mediaType !== 'movie')) {
         return `https://vidsrc.cc/v2/embed/tv/${tmdbId}/${season}/${episode}`;
     }
@@ -220,7 +229,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
 
       <div className="flex-1 relative w-full h-full z-0 overflow-hidden bg-black">
         <iframe 
-            key={`${mediaType}-${isAnime}-${season}-${episode}`} 
+            key={`${mediaType}-${isAnime}-${season}-${episode}-${server}`} 
             src={getEmbedUrl()}
             className="w-full h-full absolute inset-0 bg-black"
             title="Media Player"
