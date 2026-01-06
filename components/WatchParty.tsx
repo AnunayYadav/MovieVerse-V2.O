@@ -303,29 +303,45 @@ export const WatchPartySection: React.FC<WatchPartyProps> = ({ userProfile, apiK
         const cmd = payload.command;
         const time = payload.time;
 
-        // Helper to send "shotgun" style messages to ensure compatibility
         const sendMultiFormat = (messageObj: any) => {
             // 1. Raw Object
             win.postMessage(messageObj, '*');
             // 2. Stringified JSON
-            try {
-                win.postMessage(JSON.stringify(messageObj), '*');
-            } catch(e) {}
+            try { win.postMessage(JSON.stringify(messageObj), '*'); } catch(e) {}
+        };
+
+        // Helper helpers for specific actions
+        const sendSeek = (t: number) => {
+             // Standard formats
+             sendMultiFormat({ type: 'seek', time: t });
+             sendMultiFormat({ type: 'seek', value: t });
+             sendMultiFormat({ event: 'seek', time: t });
+             sendMultiFormat({ command: 'seek', time: t });
+             // Inferred VidSrc specific
+             sendMultiFormat({ type: 'PLAYER_COMMAND', data: { event: 'seek', time: t } });
+        };
+
+        const sendAction = (action: string) => {
+             sendMultiFormat({ type: action });
+             sendMultiFormat({ event: action });
+             sendMultiFormat({ command: action });
+             win.postMessage(action, '*');
+             // Inferred VidSrc specific
+             sendMultiFormat({ type: 'PLAYER_COMMAND', data: { event: action } });
         };
 
         if (cmd === 'seek') {
-            // Common variations for seek
-            sendMultiFormat({ type: 'seek', time: time });
-            sendMultiFormat({ type: 'seek', value: time });
-            sendMultiFormat({ event: 'seek', time: time });
-            sendMultiFormat({ command: 'seek', time: time });
-        } else if (cmd === 'play' || cmd === 'pause') {
-            // Common variations for play/pause
-            sendMultiFormat({ type: cmd });
-            sendMultiFormat({ event: cmd });
-            sendMultiFormat({ command: cmd });
-            // Plain string
-            win.postMessage(cmd, '*');
+            sendSeek(time);
+        } else if (cmd === 'play') {
+            // Important: If play comes with a specific time, force a seek first to sync up
+            if (typeof time === 'number' && time > 0) {
+                sendSeek(time);
+            }
+            // Send play command with a slight delay to ensure seek registers, and immediately
+            sendAction('play');
+            setTimeout(() => sendAction('play'), 150);
+        } else if (cmd === 'pause') {
+            sendAction('pause');
         }
     };
 
