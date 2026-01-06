@@ -208,7 +208,7 @@ export const WatchPartySection: React.FC<WatchPartyProps> = ({ userProfile, apiK
         };
     }, [view, currentRoom, isHost, supabase]);
 
-    // --- VIDFAST POSTMESSAGE INTEGRATION ---
+    // --- PLAYER POSTMESSAGE INTEGRATION ---
 
     const handleIncomingPlayerCommand = (payload: any) => {
         if (!iframeRef.current) return;
@@ -222,6 +222,7 @@ export const WatchPartySection: React.FC<WatchPartyProps> = ({ userProfile, apiK
 
         switch (payload.command) {
             case 'play':
+                // Attempt standard HTML5 or API command if supported
                 win.postMessage({ command: 'play' }, '*');
                 break;
             case 'pause':
@@ -239,9 +240,7 @@ export const WatchPartySection: React.FC<WatchPartyProps> = ({ userProfile, apiK
         if (view !== 'room' || !isHost) return;
 
         const handleMessage = (event: MessageEvent) => {
-            // Filter origin if strictly needed, but VidFast domains vary.
-            // if (!event.origin.includes('vidfast')) return; 
-            
+            // General player event handling logic
             if (event.data?.type === 'PLAYER_EVENT') {
                 const { event: playerEvent, currentTime } = event.data.data;
                 
@@ -292,12 +291,12 @@ export const WatchPartySection: React.FC<WatchPartyProps> = ({ userProfile, apiK
     // --- RENDER HELPERS ---
 
     const getEmbedUrl = (movie: Movie) => {
-        // Corrected VidFast URLs without /embed path segment
+        // Use VidSrc as it's the reliable default from MoviePlayer
         if (movie.media_type === 'tv') {
-            // Default to S1E1 for simplicity in MVP
-            return `https://vidfast.pro/tv/${movie.id}/1/1`;
+            // Default to S1E1 for simplicity in MVP Watch Party
+            return `https://vidsrc.cc/v2/embed/tv/${movie.id}/1/1`;
         }
-        return `https://vidfast.pro/movie/${movie.id}`;
+        return `https://vidsrc.cc/v2/embed/movie/${movie.id}`;
     };
 
     return (
@@ -472,7 +471,8 @@ export const WatchPartySection: React.FC<WatchPartyProps> = ({ userProfile, apiK
                                 className="w-full h-full"
                                 frameBorder="0"
                                 allowFullScreen
-                                allow="autoplay; fullscreen"
+                                allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
+                                sandbox="allow-forms allow-pointer-lock allow-same-origin allow-scripts allow-top-navigation"
                             />
                         </div>
 
