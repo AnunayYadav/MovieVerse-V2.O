@@ -435,7 +435,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                     </button>
                                                     
                                                     {showServerMenu && (
-                                                         <div className="absolute top-full left-0 mt-2 w-48 bg-[#1a1a1a] border border-white/10 rounded-xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                                                         <div className="absolute bottom-full left-0 mb-2 w-48 bg-[#1a1a1a] border border-white/10 rounded-xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 origin-bottom-left z-[100]">
                                                             <button onClick={() => handleWatchClick('server1')} className="w-full text-left px-4 py-3 text-sm hover:bg-white/10 text-white flex items-center gap-2 border-b border-white/5">
                                                                 <span>Server 1</span> <span className="text-[10px] bg-white/10 text-gray-400 px-1.5 py-0.5 rounded">Default</span>
                                                             </button>
