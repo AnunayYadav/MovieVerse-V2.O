@@ -94,9 +94,8 @@ export const WatchPartySection: React.FC<WatchPartyProps> = ({ userProfile, apiK
     const [viewers, setViewers] = useState(1);
     const [isHost, setIsHost] = useState(false);
     const [syncStatus, setSyncStatus] = useState<string>("");
-    const [hostCurrentTime, setHostCurrentTime] = useState(0); // Track host time for manual sync
+    const [hostCurrentTime, setHostCurrentTime] = useState(0); 
     
-    // New: Chat sidebar toggle for mobile
     const [showMobileChat, setShowMobileChat] = useState(false);
 
     const supabase = getSupabase();
@@ -141,7 +140,6 @@ export const WatchPartySection: React.FC<WatchPartyProps> = ({ userProfile, apiK
         }
     }, [view]);
 
-    // Search Movies for Creation
     useEffect(() => {
         if (movieSearch.length > 2) {
             const timeout = setTimeout(() => {
@@ -296,22 +294,17 @@ export const WatchPartySection: React.FC<WatchPartyProps> = ({ userProfile, apiK
 
     const handleIncomingPlayerCommand = (payload: any) => {
         if (!iframeRef.current) return;
-        setSyncStatus(`${payload.command.toUpperCase()} from Host`);
+        setSyncStatus(`Sync: ${payload.command.toUpperCase()}`);
         setTimeout(() => setSyncStatus(""), 2000);
 
         const win = iframeRef.current.contentWindow;
         if (!win) return;
 
-        switch (payload.command) {
-            case 'play': 
-                win.postMessage({ type: 'play' }, '*'); 
-                break;
-            case 'pause': 
-                win.postMessage({ type: 'pause' }, '*'); 
-                break;
-            case 'seek': 
-                win.postMessage({ type: 'seek', time: payload.time }, '*'); 
-                break;
+        // Try both standard patterns since input format isn't strictly documented
+        if (payload.command === 'seek') {
+            win.postMessage({ type: 'seek', time: payload.time }, '*');
+        } else {
+            win.postMessage({ type: payload.command }, '*');
         }
     };
 
@@ -320,23 +313,31 @@ export const WatchPartySection: React.FC<WatchPartyProps> = ({ userProfile, apiK
         if (view !== 'room' || !isHost || !currentRoom) return;
 
         const handleMessage = (event: MessageEvent) => {
-            // Relaxed check to allow vidsrc.cc subdomains if they exist
-            if (!event.origin.includes('vidsrc.cc')) return;
+            // Strictly check for VidSrc origin variants
+            if (event.origin !== 'https://vidsrc.cc' && event.origin !== 'https://vidsrc.me' && !event.origin.includes('vidsrc')) return;
             
-            if (event.data && event.data.type === 'PLAYER_EVENT') {
-                const data = event.data.data || {};
-                const eventType = data.event;
-                const currentTime = data.currentTime;
+            // Handle potentially stringified JSON data
+            let data = event.data;
+            if (typeof data === 'string') {
+                try { data = JSON.parse(data); } catch(e) { return; }
+            }
+
+            if (data && data.type === 'PLAYER_EVENT' && data.data) {
+                const { event: eventType, currentTime } = data.data;
                 
-                // Track time locally for Host, but only broadcast on play/pause automatically to avoid network flooding
+                // Track time locally for Host
                 if (eventType === 'time') {
                     setHostCurrentTime(currentTime);
-                } else if (eventType === 'play' || eventType === 'pause') {
+                } 
+                // Only broadcast Play/Pause automatically. Seek is usually manual or implicit.
+                else if (eventType === 'play' || eventType === 'pause') {
                     channelRef.current?.send({ 
                         type: 'broadcast', 
                         event: 'player_action', 
                         payload: { command: eventType, time: currentTime } 
                     });
+                    setSyncStatus(`Host: ${eventType}`);
+                    setTimeout(() => setSyncStatus(""), 1000);
                 }
             }
         };
