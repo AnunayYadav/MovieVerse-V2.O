@@ -83,11 +83,11 @@ const CastCrewModal = ({ isOpen, onClose, type, data, onPersonClick }: { isOpen:
         : data;
 
     return (
-        <div className="fixed inset-0 z-[150] bg-black/95 backdrop-blur-xl animate-in fade-in duration-300 flex justify-center overflow-y-auto">
+        <div className="fixed inset-0 z-[250] bg-black/95 backdrop-blur-xl animate-in fade-in duration-300 flex justify-center overflow-y-auto">
             <div className="relative w-full max-w-7xl p-6 md:p-10 min-h-screen">
                 <button 
                     onClick={onClose} 
-                    className="fixed top-6 right-6 md:right-10 z-[160] p-3 bg-white/10 hover:bg-white/20 rounded-full text-white transition-colors hover:rotate-90 duration-300"
+                    className="fixed top-6 right-6 md:right-10 z-[260] p-3 bg-white/10 hover:bg-white/20 rounded-full text-white transition-colors hover:rotate-90 duration-300"
                 >
                     <X size={24}/>
                 </button>
@@ -341,10 +341,10 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                 {!showPlayer && (
                     <button 
                         onClick={onClose} 
-                        className="fixed top-6 left-6 md:left-10 z-[120] bg-black/40 hover:bg-white/10 backdrop-blur-md px-4 py-2 rounded-full text-white/80 hover:text-white transition-all hover:scale-105 active:scale-95 border border-white/5 flex items-center gap-2 group"
+                        className="fixed top-6 left-6 md:left-24 z-[210] p-3 rounded-full bg-black/50 md:bg-transparent hover:bg-white/10 transition-all active:scale-95 group"
+                        title="Back"
                     >
-                        <ArrowLeft size={20} />
-                        <span className="hidden md:inline font-bold text-sm">Back</span>
+                        <ArrowLeft size={24} className="text-white drop-shadow-md group-hover:scale-110 transition-transform"/>
                     </button>
                 )}
                 
