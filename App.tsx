@@ -685,14 +685,14 @@ export default function App() {
         <div className="relative w-full overflow-hidden mb-8">
             <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/80 to-[#030303] z-10"></div>
             <div className={`absolute inset-0 bg-cover bg-center opacity-30 transform scale-105 transition-transform duration-[20s] ease-in-out`} style={{ backgroundImage: `url(${config.bg})` }}></div>
-            <div className="relative z-20 p-8 md:p-16 flex flex-col justify-end min-h-[400px]">
+            <div className="relative z-20 p-8 md:p-16 flex flex-col justify-end min-h-[300px]">
                 <div className="flex items-center gap-4 mb-4 animate-in slide-in-from-bottom-5 duration-700">
                     <div className={`p-4 rounded-2xl backdrop-blur-md shadow-2xl border border-white/10 ${isGoldTheme ? 'bg-amber-500/20 text-amber-400' : 'bg-red-600/20 text-red-500'}`}>
                         <Icon size={32} />
                     </div>
                     <div className="h-px bg-white/20 w-24"></div>
                 </div>
-                <h1 className="text-5xl md:text-7xl font-black text-white tracking-tighter mb-4 drop-shadow-2xl animate-in slide-in-from-bottom-5 duration-700 delay-100">{config.title}</h1>
+                <h1 className="text-4xl md:text-6xl font-black text-white tracking-tighter mb-4 drop-shadow-2xl animate-in slide-in-from-bottom-5 duration-700 delay-100">{config.title}</h1>
                 <p className="text-lg md:text-xl text-gray-200 max-w-2xl font-light leading-relaxed drop-shadow-lg animate-in slide-in-from-bottom-5 duration-700 delay-200">{config.subtitle}</p>
             </div>
         </div>
@@ -720,153 +720,6 @@ export default function App() {
     if (selectedCategory === "LiveTV") {
       return <LiveTV userProfile={userProfile} />;
     }
-    if (selectedCategory === "Genres") {
-      return (
-        <div className="animate-in fade-in slide-in-from-bottom-4">
-          <HeroSection />
-          <div className="p-4 md:p-12">
-            {renderPageHeader("All Genres", "Find your vibe.", true)}
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
-              {filteredGenres.map(genre => {
-                const colorClass = GENRE_COLORS[genre] || "from-gray-700 to-black";
-                return (
-                  <div key={genre} onClick={() => { resetFilters(); setSelectedCategory(genre); }} className={`relative h-32 md:h-48 rounded-2xl overflow-hidden cursor-pointer group shadow-2xl transition-all duration-500 hover:scale-[1.02] hover:shadow-white/5`}>
-                    <div className={`absolute inset-0 bg-gradient-to-br ${colorClass} opacity-80 group-hover:opacity-100 transition-opacity duration-500`}></div>
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent"></div>
-                    <div className="absolute bottom-0 left-0 p-4 md:p-6 w-full">
-                      <h3 className="text-lg md:text-2xl font-black text-white mb-1 group-hover:translate-x-1 transition-transform duration-300">{genre}</h3>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-      );
-    }
-    if (selectedCategory === "Collections") {
-      return (
-        <div className="animate-in fade-in slide-in-from-bottom-4">
-          <HeroSection />
-          <div className="p-4 md:p-12">
-            {renderPageHeader("Collections", "Hand-picked curations for every mood.")}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {Object.keys(DEFAULT_COLLECTIONS).map(key => {
-                const col = DEFAULT_COLLECTIONS[key];
-                return (
-                  <div key={key} onClick={() => handleCollectionClick(key)} className="group relative h-48 md:h-64 rounded-3xl overflow-hidden cursor-pointer shadow-xl transition-all duration-500 hover:scale-[1.02] hover:shadow-2xl hover:shadow-white/5">
-                    <img src={col.backdrop} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110 opacity-70 group-hover:opacity-100" alt={col.title} />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent"></div>
-                    <div className="absolute bottom-0 left-0 p-6 md:p-8 w-full">
-                      <h3 className="text-xl md:text-2xl font-black text-white mb-1">{col.title}</h3>
-                      <p className="text-xs md:text-sm text-gray-300 line-clamp-2">{col.description}</p>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-      );
-    }
-    if (selectedCategory === "Countries" && !activeCountry) {
-      return (
-        <div className="animate-in fade-in slide-in-from-bottom-4">
-          <HeroSection />
-          <div className="p-4 md:p-12">
-            {renderPageHeader("Countries", "Discover cinema from around the globe.", true)}
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-              {COUNTRY_OPTIONS.filter(c => c.name.toLowerCase().includes(genreSearch.toLowerCase())).map(country => (
-                <div key={country.code} onClick={() => handleCountryClick(country)} className="bg-white/5 hover:bg-white/10 border border-white/5 rounded-2xl p-6 flex flex-col items-center justify-center cursor-pointer transition-all duration-300 hover:scale-105 active:scale-95 group">
-                  <span className="text-4xl mb-3 filter drop-shadow-lg transform group-hover:scale-110 transition-transform">{country.flag}</span>
-                  <span className="text-sm font-bold text-white text-center">{country.name}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      );
-    }
-    if (selectedCategory === "People" && !searchQuery) {
-      return (
-        <div className="animate-in fade-in slide-in-from-bottom-4">
-          <HeroSection />
-          <div className="p-4 md:p-12">
-            {renderPageHeader("Popular People", "Discover the actors and visionaries.", true)}
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6">
-              {movies.map((person, idx) => (
-                <div key={`${person.id}-${idx}`} ref={idx === movies.length - 1 ? lastMovieElementRef : null} className="animate-in fade-in zoom-in-95 duration-500">
-                  <PersonCard person={person} onClick={(id) => setSelectedPersonId(id)} />
-                </div>
-              ))}
-              {loading && [...Array(10)].map((_, i) => (
-                <div key={`skel-${i}`} className="aspect-[2/3] rounded-xl bg-white/5 animate-pulse relative overflow-hidden">
-                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full animate-[shimmer_1.5s_infinite]"></div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      );
-    }
-    if (selectedCategory === "Coming") {
-      return (
-        <div className="animate-in fade-in slide-in-from-bottom-4">
-          <HeroSection />
-          <div className="p-4 md:p-8">
-            <div className="space-y-12">
-              {groupMoviesByDate(movies).map(([date, dateMovies], groupIndex, groupsArray) => {
-                const d = new Date(date);
-                const isTBA = date === "TBA";
-                return (
-                  <div key={date} className="animate-in slide-in-from-right-4 duration-500 group/timeline">
-                    <div className="flex flex-col md:flex-row gap-6">
-                      <div className="w-full md:w-28 shrink-0 flex md:flex-col items-center md:items-start gap-2 md:gap-0 sticky top-24 self-start h-fit z-10">
-                        {!isTBA ? (
-                          <div className={`p-4 rounded-2xl border bg-black/60 backdrop-blur-md text-center min-w-[90px] shadow-lg ${isGoldTheme ? 'border-amber-500/20' : 'border-white/10'}`}>
-                            <div className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">{d.toLocaleDateString('en-US', { weekday: 'short' })}</div>
-                            <div className={`text-4xl font-black leading-none mb-1 ${isGoldTheme ? 'text-amber-500' : 'text-white'}`}>{d.getDate()}</div>
-                            <div className="text-xs font-bold text-gray-400 uppercase">{d.toLocaleDateString('en-US', { month: 'short' })}</div>
-                          </div>
-                        ) : (
-                          <span className="text-lg font-bold text-gray-500 p-4">TBA</span>
-                        )}
-                        <div className="hidden md:block w-px bg-gradient-to-b from-white/20 to-transparent flex-1 mx-auto mt-4 h-full min-h-[50px]"></div>
-                      </div>
-
-                      <div className="flex-1">
-                        <div className="md:hidden mb-4 pb-2 border-b border-white/5">
-                          <span className="text-lg font-bold text-white">{!isTBA ? d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }) : "Coming Soon"}</span>
-                        </div>
-
-                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-                          {dateMovies.map((movie, movieIndex) => {
-                            const isLastItem = groupIndex === groupsArray.length - 1 && movieIndex === dateMovies.length - 1;
-                            return (
-                              <div key={movie.id} ref={isLastItem ? lastMovieElementRef : null} onClick={() => setSelectedMovie(movie)} className="group cursor-pointer relative">
-                                <div className="aspect-[2/3] rounded-xl overflow-hidden bg-gray-900 mb-3 relative shadow-lg transition-all duration-300 group-hover:scale-105 group-hover:shadow-2xl group-hover:-translate-y-1">
-                                  <img src={movie.poster_path ? `${TMDB_IMAGE_BASE}${movie.poster_path}` : "https://placehold.co/300x450/111/333?text=Poster"} alt={movie.title} className="w-full h-full object-cover" loading="lazy" />
-                                  <div className="absolute top-2 right-2 bg-black/60 backdrop-blur-md text-white text-[10px] font-bold px-2 py-1 rounded-lg flex items-center gap-1 border border-white/10">
-                                    <TrendingUp size={10} className="text-green-400" /> {Math.round(movie.popularity)}
-                                  </div>
-                                </div>
-                                <h4 className={`font-bold text-sm leading-tight transition-colors line-clamp-1 ${accentHoverText} text-gray-200`}>{movie.title}</h4>
-                                <p className="text-gray-500 text-xs mt-1 line-clamp-1">{movie.overview || "Plot unavailable"}</p>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-              {movies.length === 0 && !loading && (<div className="text-center py-20 text-gray-500 flex flex-col items-center"> <Calendar size={48} className="mb-4 opacity-30" /> <p>No upcoming releases found for this period.</p> </div>)}
-            </div>
-          </div>
-        </div>
-      );
-    }
     
     // Default View (Home/Movies)
     return (
@@ -874,7 +727,7 @@ export default function App() {
         {["Anime", "Family", "Awards", "India", "TV Shows", "Franchise"].includes(selectedCategory) && <HeroSection />}
 
         {!searchQuery && selectedCategory === "All" && !currentCollection && filterPeriod === "all" && featuredMovie && (
-          <div className="relative w-full h-[60vh] min-h-[500px] md:h-[80vh] group overflow-hidden">
+          <div className="relative w-full h-[50vh] min-h-[400px] md:h-[60vh] group overflow-hidden">
             <div className="absolute inset-0 bg-black">
               <img src={featuredMovie.backdrop_path ? `${TMDB_BACKDROP_BASE}${featuredMovie.backdrop_path}` : "https://placehold.co/1200x600/111/333"} alt="Featured" className="w-full h-full object-cover opacity-80 transition-transform duration-[15s] ease-out group-hover:scale-110" />
               <div className="absolute inset-0 bg-gradient-to-t from-[#030303] via-[#030303]/20 to-transparent"></div>
@@ -884,23 +737,23 @@ export default function App() {
               <div className={`w-fit px-3 py-1 rounded-full text-[10px] md:text-xs font-bold animate-pulse flex items-center gap-2 ${featuredBadge}`}>
                 {isGoldTheme && <Crown size={12} fill="currentColor" />} #1 FEATURED
               </div>
-              <h1 className="text-4xl md:text-7xl font-black text-white leading-none drop-shadow-2xl tracking-tight">{featuredMovie.title || featuredMovie.original_title}</h1>
+              <h1 className="text-3xl md:text-6xl font-black text-white leading-none drop-shadow-2xl tracking-tight">{featuredMovie.title || featuredMovie.original_title}</h1>
               <div className="flex items-center gap-3 text-sm font-medium text-white/80">
                 <span className="text-green-400 font-bold">98% Match</span>
                 <span>{featuredMovie.release_date?.split('-')[0]}</span>
                 <span className="border border-white/30 px-1 rounded text-xs">HD</span>
               </div>
-              <p className="text-gray-300 text-sm md:text-lg line-clamp-3 md:line-clamp-3 max-w-2xl leading-relaxed">{featuredMovie.overview}</p>
+              <p className="text-gray-300 text-sm md:text-lg line-clamp-2 md:line-clamp-3 max-w-2xl leading-relaxed">{featuredMovie.overview}</p>
               <div className="flex flex-wrap gap-4 mt-2">
-                <button onClick={() => setSelectedMovie(featuredMovie)} className="bg-white text-black hover:bg-gray-200 font-bold py-3 px-8 rounded-xl flex items-center gap-2 transition-all active:scale-95 hover:scale-105"><Info size={20} /> More Info</button>
-                <button onClick={() => toggleList(watchlist, setWatchlist, 'movieverse_watchlist', featuredMovie)} className="bg-white/20 backdrop-blur-md hover:bg-white/30 text-white font-bold py-3 px-6 rounded-xl flex items-center gap-2 transition-all active:scale-95 hover:scale-105"><Plus size={20} /> My List</button>
+                <button onClick={() => setSelectedMovie(featuredMovie)} className="bg-white text-black hover:bg-gray-200 font-bold py-3 px-8 rounded-xl flex items-center gap-2 transition-all active:scale-95 hover:scale-105 text-xs md:text-sm"><Info size={20} /> More Info</button>
+                <button onClick={() => toggleList(watchlist, setWatchlist, 'movieverse_watchlist', featuredMovie)} className="bg-white/20 backdrop-blur-md hover:bg-white/30 text-white font-bold py-3 px-6 rounded-xl flex items-center gap-2 transition-all active:scale-95 hover:scale-105 text-xs md:text-sm"><Plus size={20} /> My List</button>
               </div>
             </div>
           </div>
         )}
 
         {currentCollection && DEFAULT_COLLECTIONS[currentCollection] && (
-          <div className="relative w-full h-[40vh] md:h-[50vh] overflow-hidden">
+          <div className="relative w-full h-[30vh] md:h-[40vh] overflow-hidden">
             <img src={DEFAULT_COLLECTIONS[currentCollection].backdrop} className="w-full h-full object-cover animate-in fade-in duration-700" alt={DEFAULT_COLLECTIONS[currentCollection].title} />
             <div className="absolute inset-0 bg-gradient-to-t from-[#030303] via-[#030303]/80 to-transparent"></div>
             <div className="absolute bottom-0 left-0 p-8 md:p-12 animate-in slide-in-from-bottom-5 duration-700">
@@ -911,7 +764,7 @@ export default function App() {
           </div>
         )}
 
-        <div className="px-4 md:px-12 py-8 space-y-8 relative z-10 -mt-10">
+        <div className="px-4 md:px-12 py-8 space-y-8 relative z-10 -mt-6">
           <div className="sticky top-20 z-50">
             <div className="glass-panel p-2 rounded-2xl flex flex-wrap md:flex-nowrap gap-4 md:items-center justify-between mb-8 z-30 relative overflow-visible shadow-2xl animate-in slide-in-from-top-5 duration-500">
               <div className="flex items-center gap-2 px-2 shrink-0 w-full md:w-auto overflow-hidden">
@@ -961,9 +814,9 @@ export default function App() {
 
           <PosterMarquee movies={!searchQuery && selectedCategory === "All" && !currentCollection && movies.length > 0 ? movies : []} onMovieClick={setSelectedMovie} />
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-x-4 gap-y-8 animate-in fade-in duration-700">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 gap-4 animate-in fade-in duration-700 w-full">
             {movies.map((movie, idx) => (
-              <div key={`${movie.id}-${idx}`} ref={idx === movies.length - 1 ? lastMovieElementRef : null} className="animate-in fade-in zoom-in-95 duration-500" style={{ animationDelay: `${idx * 50}ms` }}>
+              <div key={`${movie.id}-${idx}`} ref={idx === movies.length - 1 ? lastMovieElementRef : null} className="animate-in fade-in zoom-in-95 duration-500 w-full" style={{ animationDelay: `${idx * 50}ms` }}>
                 {selectedCategory !== "People" && (<MovieCard movie={movie} onClick={setSelectedMovie} isWatched={watched.some(m => m.id === movie.id)} onToggleWatched={handleToggleWatched} />)}
               </div>
             ))}
@@ -979,8 +832,8 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-black text-white font-sans selection:bg-amber-500/30 selection:text-white flex flex-col md:flex-row">
-      <nav className="hidden md:flex flex-col w-20 bg-black/95 border-r border-white/5 fixed left-0 top-0 bottom-0 z-50 items-center py-8 gap-8 backdrop-blur-xl overflow-y-auto hide-scrollbar">
+    <div className="min-h-screen bg-black text-white font-sans selection:bg-amber-500/30 selection:text-white flex flex-col md:flex-row overflow-x-hidden w-full">
+      <nav className="hidden md:flex flex-col w-20 bg-black/95 border-r border-white/5 fixed left-0 top-0 bottom-0 z-50 items-center py-8 gap-8 backdrop-blur-xl overflow-y-auto hide-scrollbar pb-8">
          <div className="flex flex-col items-center gap-8 w-full">
              <div className="cursor-pointer hover:scale-110 transition-transform duration-300" onClick={resetToHome}>
                  <Film size={28} className={accentText} strokeWidth={2.5} />
@@ -1025,7 +878,7 @@ export default function App() {
           </div>
       </div>
 
-      <main className="flex-1 md:ml-20 pb-24 md:pb-0 relative min-h-screen">
+      <main className="flex-1 md:ml-20 pb-24 md:pb-0 relative min-h-screen overflow-x-hidden">
            <div className={`sticky top-0 left-0 right-0 z-[60] bg-black/95 backdrop-blur-xl border-b border-white/10 transition-all duration-300 overflow-hidden ${isSearchActive ? 'max-h-24 opacity-100 py-4 px-6' : 'max-h-0 opacity-0 py-0'}`}>
                 <div className="relative max-w-3xl mx-auto flex items-center">
                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-white/50" size={20} />
