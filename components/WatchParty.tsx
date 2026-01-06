@@ -243,13 +243,13 @@ export const WatchPartySection: React.FC<WatchPartyProps> = ({ userProfile, apiK
 
     const handleSync = () => {
         if (!iframeRef.current || !channelRef.current) return;
-        // Use the tracked host time to sync everyone
+        // Broadcast the current host time to all viewers
         channelRef.current.send({ 
             type: 'broadcast', 
             event: 'player_action', 
             payload: { command: 'seek', time: hostCurrentTime } 
         });
-        setSyncStatus("Sync signal sent");
+        setSyncStatus("Syncing All Users...");
         setTimeout(() => setSyncStatus(""), 2000);
     };
 
@@ -303,32 +303,35 @@ export const WatchPartySection: React.FC<WatchPartyProps> = ({ userProfile, apiK
         if (!win) return;
 
         switch (payload.command) {
-            case 'play': win.postMessage({ type: 'play' }, '*'); break;
-            case 'pause': win.postMessage({ type: 'pause' }, '*'); break;
-            case 'seek': win.postMessage({ type: 'seek', value: payload.time }, '*'); break;
+            case 'play': 
+                win.postMessage({ type: 'play' }, '*'); 
+                break;
+            case 'pause': 
+                win.postMessage({ type: 'pause' }, '*'); 
+                break;
+            case 'seek': 
+                win.postMessage({ type: 'seek', time: payload.time }, '*'); 
+                break;
         }
     };
 
     // Listener for Host Actions (VidSrc -> React)
-    // Uses the official VidSrc player event structure
     useEffect(() => {
         if (view !== 'room' || !isHost || !currentRoom) return;
 
         const handleMessage = (event: MessageEvent) => {
-            // Strict origin check for security
-            if (event.origin !== 'https://vidsrc.cc') return;
+            // Relaxed check to allow vidsrc.cc subdomains if they exist
+            if (!event.origin.includes('vidsrc.cc')) return;
             
             if (event.data && event.data.type === 'PLAYER_EVENT') {
-                const { event: eventType, currentTime, tmdbId } = event.data.data;
+                const data = event.data.data || {};
+                const eventType = data.event;
+                const currentTime = data.currentTime;
                 
-                // Ensure ID matches current room movie to prevent cross-talk
-                if (String(tmdbId) !== String(currentRoom.movie_data.id)) return;
-
+                // Track time locally for Host, but only broadcast on play/pause automatically to avoid network flooding
                 if (eventType === 'time') {
-                    // Update local host state for manual sync, but don't auto-broadcast to avoid stutter
                     setHostCurrentTime(currentTime);
                 } else if (eventType === 'play' || eventType === 'pause') {
-                    // Broadcast state changes immediately
                     channelRef.current?.send({ 
                         type: 'broadcast', 
                         event: 'player_action', 
@@ -572,7 +575,7 @@ export const WatchPartySection: React.FC<WatchPartyProps> = ({ userProfile, apiK
                                     frameBorder="0"
                                     allowFullScreen
                                     allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
-                                    sandbox="allow-forms allow-pointer-lock allow-same-origin allow-scripts allow-top-navigation"
+                                    sandbox="allow-forms allow-pointer-lock allow-same-origin allow-scripts allow-top-navigation allow-popups allow-presentation"
                                 />
                             </div>
                             {/* Mobile Controls if Host */}
