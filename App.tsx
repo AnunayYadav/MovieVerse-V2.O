@@ -1,6 +1,5 @@
-
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Search, Film, Menu, TrendingUp, Tv, Ghost, Calendar, Star, X, Sparkles, Settings, Globe, BarChart3, Bookmark, Heart, Folder, Languages, Filter, ChevronDown, Info, Plus, Cloud, CloudOff, Clock, Bell, History, Users, Tag, Dice5, Crown, Radio, LayoutGrid, Award, Baby, Clapperboard, ChevronRight, PlayCircle, Megaphone, CalendarDays, Compass, Home, Map, Loader2 } from 'lucide-react';
+import { Search, Film, Menu, TrendingUp, Tv, Ghost, Calendar, Star, X, Sparkles, Settings, Globe, BarChart3, Bookmark, Heart, Folder, Languages, Filter, ChevronDown, Info, Plus, Cloud, CloudOff, Clock, Bell, History, Users, Tag, Dice5, Crown, Radio, LayoutGrid, Award, Baby, Clapperboard, ChevronRight, PlayCircle, Megaphone, CalendarDays, Compass, Home, Map, Loader2, MoreHorizontal, Download } from 'lucide-react';
 import { Movie, UserProfile, GENRES_MAP, GENRES_LIST, INDIAN_LANGUAGES, MaturityRating, Keyword } from './types';
 import { LogoLoader, MovieSkeleton, MovieCard, PersonCard, PosterMarquee, TMDB_BASE_URL, TMDB_BACKDROP_BASE, TMDB_IMAGE_BASE, HARDCODED_TMDB_KEY, HARDCODED_GEMINI_KEY, getTmdbKey, getGeminiKey } from './components/Shared';
 import { MoviePage } from './components/MovieDetails';
@@ -143,6 +142,7 @@ export default function App() {
   const [movies, setMovies] = useState<Movie[]>([]);
   const [franchiseList, setFranchiseList] = useState<any[]>([]); 
   const [searchQuery, setSearchQuery] = useState("");
+  const [isSearchActive, setIsSearchActive] = useState(false);
   const [searchSuggestions, setSearchSuggestions] = useState<string[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [searchHistory, setSearchHistory] = useState<string[]>([]);
@@ -151,8 +151,8 @@ export default function App() {
   const [selectedMovie, setSelectedMovie] = useState<Movie | null>(null);
   const [featuredMovie, setFeaturedMovie] = useState<Movie | null>(null);
   
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false); // New: for mobile "More" menu
   const [aiContextReason, setAiContextReason] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
@@ -173,7 +173,7 @@ export default function App() {
   const [maturityRating, setMaturityRating] = useState<MaturityRating>('NC-17');
   
   const [genreSearch, setGenreSearch] = useState("");
-  const [comingFilter, setComingFilter] = useState("upcoming"); // 'today', 'upcoming', 'announced'
+  const [comingFilter, setComingFilter] = useState("upcoming");
 
   // Local Storage State
   const [watchlist, setWatchlist] = useState<Movie[]>([]);
@@ -191,6 +191,7 @@ export default function App() {
   const favoritesRef = useRef<Movie[]>([]);
   const watchedRef = useRef<Movie[]>([]);
   const customListsRef = useRef<Record<string, Movie[]>>({});
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => { watchlistRef.current = watchlist; }, [watchlist]);
   useEffect(() => { favoritesRef.current = favorites; }, [favorites]);
@@ -248,6 +249,7 @@ export default function App() {
 
   const resetFilters = () => {
       setSearchQuery("");
+      setIsSearchActive(false);
       setCurrentCollection(null);
       setTmdbCollectionId(null);
       setActiveKeyword(null);
@@ -261,6 +263,12 @@ export default function App() {
       setFilterPeriod("all");
       setSelectedRegion("Global");
       setSelectedLanguage("All");
+  };
+
+  const handleSearchClick = () => {
+      resetFilters();
+      setIsSearchActive(true);
+      setTimeout(() => searchInputRef.current?.focus(), 100);
   };
 
   useEffect(() => {
@@ -559,8 +567,6 @@ export default function App() {
     // Calculate Adult/Age Logic
     const userAge = parseInt(userProfile.age || "0");
     const isAdult = !isNaN(userAge) && userAge >= 18;
-    // CRITICAL FIX: Always force include_adult to false to prevent nudity/pornography
-    // TMDB 'include_adult' is specifically for pornography, not rated R content.
     const includeAdultParam = "false";
 
     try {
@@ -572,18 +578,11 @@ export default function App() {
             include_adult: includeAdultParam 
         });
 
-        // Determine if strict filtering is needed
-        // STRICT: If user is < 18 OR user explicitly chose a restricted maturity rating (e.g. PG-13) in settings
-        // RELAXED: If user is >= 18 AND maturity rating is set to max 'NC-17' (default for adults usually)
         const isStrictFilter = !isAdult || maturityRating !== 'NC-17';
-
-        // DETERMINE IF WE ARE IN GENERAL DISCOVERY MODE
         const isGeneralDiscovery = !activeCountry && !activeKeyword && !tmdbCollectionId && !currentCollection && !["People", "Franchise"].includes(selectedCategory);
 
         if (isGeneralDiscovery) {
              if (appRegion) params.append("region", appRegion);
-             
-             // Apply maturity filters if strict filtering is required
              if (isStrictFilter) {
                  params.append("certification_country", "US"); 
                  params.append("certification.lte", maturityRating);
@@ -666,16 +665,12 @@ export default function App() {
             params.append("sort_by", "popularity.desc");
         }
         else if (selectedCategory === "Coming") {
-            // Updated Logic: Use standard pagination with release date sorting
             const today = new Date();
             const todayStr = today.toISOString().split('T')[0];
             const future = new Date(); 
-            future.setFullYear(future.getFullYear() + 2); // Show 2 years out max
+            future.setFullYear(future.getFullYear() + 2); 
 
-            params.delete("region"); // Allow global coming soon if maturity settings permit
-            
-            // Re-apply maturity filter if strict (handled by general logic above, but double check we don't clear it)
-            // If not strict, we can see international upcoming releases too
+            params.delete("region"); 
             if (!isStrictFilter) {
                params.delete("certification_country");
                params.delete("certification.lte");
@@ -707,7 +702,6 @@ export default function App() {
              if (selectedCategory === "TV Shows" || selectedCategory === "Anime") results = results.map((m: any) => ({ ...m, media_type: 'tv', title: m.name, release_date: m.first_air_date }));
         }
         
-        // No client-side sorting for Coming, rely on API date sort
         const finalResults = (selectedCategory === "Coming") ? results : (selectedCategory === "People" ? results : sortMovies(results, sortOption));
 
         if (isLoadMore) {
@@ -730,15 +724,15 @@ export default function App() {
   useEffect(() => { const fetchSuggestions = async () => { if (searchQuery.length > 3) { try { const sugs = await getSearchSuggestions(searchQuery); setSearchSuggestions(sugs); setShowSuggestions(true); } catch (e) { console.error(e); } } }; const timeout = setTimeout(fetchSuggestions, 500); return () => clearTimeout(timeout); }, [searchQuery]);
 
   const handleLoadMore = () => { const nextPage = page + 1; setPage(nextPage); fetchMovies(nextPage, true); };
-  const handleCollectionClick = (key: string) => { resetFilters(); setCurrentCollection(key); setSelectedCategory("Collection"); setIsSidebarOpen(false); };
+  const handleCollectionClick = (key: string) => { resetFilters(); setCurrentCollection(key); setSelectedCategory("Collection"); };
   const handleTmdbCollectionClick = (id: number) => { setSelectedMovie(null); resetFilters(); setTmdbCollectionId(id); setSelectedCategory("Deep Dive"); };
   const handleKeywordClick = (keyword: Keyword) => { setSelectedMovie(null); resetFilters(); setActiveKeyword(keyword); setSelectedCategory("Deep Dive"); };
   const handleCountryClick = (country: { code: string, name: string }) => { resetFilters(); setActiveCountry(country); setSelectedCategory("Countries"); };
-  const handleSearchSubmit = (query: string) => { resetFilters(); setSearchQuery(query); addToSearchHistory(query); setShowSuggestions(false); };
+  const handleSearchSubmit = (query: string) => { setSearchQuery(query); addToSearchHistory(query); setShowSuggestions(false); };
   const handleSuggestionClick = (suggestion: string) => { handleSearchSubmit(suggestion); };
   
   const handleFeelingLucky = () => {
-      setIsSidebarOpen(false); resetFilters(); setLoading(true);
+      resetFilters(); setLoading(true);
       const randomPage = Math.floor(Math.random() * 50) + 1;
       const params = new URLSearchParams({ api_key: apiKey, page: randomPage.toString(), sort_by: "vote_average.desc", "vote_count.gte": "500", include_adult: "false" });
       fetch(`${TMDB_BASE_URL}/discover/movie?${params.toString()}`).then(r => r.json()).then(d => { if (d.results && d.results.length > 0) { const randomMovie = d.results[Math.floor(Math.random() * d.results.length)]; setSelectedMovie(randomMovie); setLoading(false); } else setLoading(false); }).catch(() => setLoading(false));
@@ -777,7 +771,7 @@ export default function App() {
 
   const isHomeView = selectedCategory === "All" && !activeKeyword && !tmdbCollectionId && !currentCollection && filterPeriod === "all" && sortOption === "popularity.desc" && selectedRegion === "Global" && selectedLanguage === "All" && !searchQuery;
   const isLiveView = selectedCategory === "LiveTV" && !searchQuery;
-  const isBrowseActive = !isHomeView && !isLiveView && !selectedCategory.startsWith("Watchlist") && !selectedCategory.startsWith("Favorites") && !selectedCategory.startsWith("History") && !selectedCategory.startsWith("Custom") && !selectedCategory.startsWith("CineAnalytics") && !searchQuery;
+  const isBrowseActive = !isHomeView && !isLiveView && !selectedCategory.startsWith("Watchlist") && !selectedCategory.startsWith("Favorites") && !selectedCategory.startsWith("History") && !selectedCategory.startsWith("Custom") && !selectedCategory.startsWith("CineAnalytics") && !searchQuery && selectedCategory !== "Coming";
   const filteredGenres = GENRES_LIST.filter(g => g.toLowerCase().includes(genreSearch.toLowerCase()));
 
   // HERO CONFIGURATION
@@ -829,141 +823,138 @@ export default function App() {
       );
   };
 
+  // Nav Item Component
+  const NavItem = ({ icon: Icon, label, isActive, onClick, className }: any) => (
+      <button 
+        onClick={onClick}
+        className={`flex flex-col md:flex-row items-center md:gap-4 md:px-6 md:py-3 w-full relative group transition-all ${isActive ? 'text-white' : 'text-gray-500 hover:text-white'} ${className}`}
+      >
+          {/* Desktop Active Indicator */}
+          {isActive && <div className="hidden md:block absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-red-600 rounded-r-full shadow-[0_0_10px_rgba(220,38,38,0.5)]"></div>}
+          
+          <Icon size={24} className={`transition-transform duration-300 ${isActive ? 'scale-110' : 'group-hover:scale-105'} md:size-6`} strokeWidth={isActive ? 2.5 : 2} />
+          
+          {/* Mobile Label */}
+          <span className={`text-[10px] mt-1 md:hidden font-medium ${isActive ? 'text-white' : 'text-gray-500'}`}>{label}</span>
+          
+          {/* Desktop Tooltip */}
+          <span className="hidden md:group-hover:block absolute left-full ml-4 px-2 py-1 bg-white text-black text-xs font-bold rounded shadow-lg whitespace-nowrap z-[100] animate-in fade-in slide-in-from-left-2">
+              {label}
+          </span>
+      </button>
+  );
+
   return (
-    <div className="min-h-screen bg-[#030303] text-white font-sans selection:bg-amber-500/30 selection:text-white">
-      <nav className={`fixed top-0 left-0 right-0 z-[60] bg-black/70 backdrop-blur-xl border-b h-16 flex items-center justify-center px-4 md:px-6 transition-all duration-300 ${isGoldTheme ? 'border-amber-500/10' : 'border-white/5'}`}>
-        <div className="flex items-center justify-between w-full max-w-7xl">
-            <div className="flex items-center gap-4 md:gap-6">
-            <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="md:hidden p-2 hover:bg-white/10 rounded-full transition-colors active:scale-95"><Menu size={20} /></button>
-            <div className="flex items-center gap-2 cursor-pointer group" onClick={resetToHome}>
-                    <div className="relative">
-                        <Film size={24} className={`${accentText} relative z-10 transition-transform duration-500 group-hover:rotate-12`} />
-                        <div className={`absolute inset-0 blur-lg opacity-50 group-hover:opacity-80 transition-opacity duration-500 ${isGoldTheme ? 'bg-amber-500' : 'bg-red-600'}`}></div>
-                    </div>
-                    <div className="flex flex-col leading-none">
-                        <span className="text-lg font-bold tracking-tight text-white hidden sm:block">Movie<span className={accentText}>Verse</span></span>
-                        {isExclusive && <span className={`text-[9px] uppercase tracking-[0.2em] font-bold hidden sm:block animate-pulse ${isGoldTheme ? 'text-amber-500' : 'text-red-600'}`}>Exclusive</span>}
-                    </div>
-            </div>
-            
-            <div className="hidden md:flex items-center gap-1">
-                <button onClick={resetToHome} className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all duration-300 hover:scale-105 active:scale-95 flex items-center gap-2 ${isHomeView ? "text-white" : "text-gray-400 hover:text-white hover:bg-white/5"}`}><Home size={16} /> Home</button>
-                <button onClick={() => { resetToHome(); handleFeelingLucky(); }} className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all duration-300 hover:scale-105 active:scale-95 flex items-center gap-2 text-gray-400 hover:text-white hover:bg-white/5`}><Compass size={16} /> Explore</button>
-                <button onClick={() => { resetFilters(); setSelectedCategory("LiveTV"); }} className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all duration-300 hover:scale-105 active:scale-95 flex items-center gap-2 ${isLiveView ? "text-white" : "text-gray-400 hover:text-white hover:bg-white/5"}`}> <Radio size={16}/> Live TV</button>
-                <div className="relative group z-50">
-                    <button className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold transition-all outline-none ${isBrowseActive ? "text-white" : "text-gray-400 hover:text-white hover:bg-white/5"}`}><LayoutGrid size={16} /><span>Browse</span></button>
-                    <div className="absolute top-full left-0 pt-4 w-[280px] hidden group-hover:block animate-in fade-in slide-in-from-top-2 duration-200">
-                        <div className="bg-[#0f0f0f]/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl p-4 grid grid-cols-3 gap-2">
-                            <div className="col-span-3 pb-2 mb-1 border-b border-white/5"><span className="text-[10px] font-bold text-white/40 uppercase tracking-wider">Browse By</span></div>
-                            {[ { label: "People", icon: Users }, { label: "Anime", icon: Ghost }, { label: "Awards", icon: Award }, { label: "Family", icon: Baby }, { label: "Genres", icon: Clapperboard }, { label: "Countries", icon: Map }, { label: "Franchise", icon: Sparkles }, { label: "TV Shows", icon: Tv }, { label: "Coming", icon: Calendar } ].map((item) => (
-                                <button key={item.label} onClick={() => { resetFilters(); setSelectedCategory(item.label); }} className="flex flex-col items-center justify-center gap-2 p-3 rounded-xl bg-white/5 hover:bg-white/10 hover:scale-105 transition-all active:scale-95 group/item">
-                                    <item.icon size={20} className={`transition-colors ${selectedCategory === item.label ? 'text-white' : 'text-gray-400 group-hover/item:text-white'}`} />
-                                    <span className={`text-[10px] font-medium transition-colors ${selectedCategory === item.label ? 'text-white' : 'text-gray-400 group-hover/item:text-white'}`}>{item.label}</span>
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-                </div>
-            </div>
-            </div>
-            <div className="flex-1 max-w-md mx-4 relative hidden md:block group z-[70]">
-            <div className={`absolute inset-0 bg-gradient-to-r rounded-full blur-md opacity-0 group-hover:opacity-100 transition-opacity duration-500 ${isGoldTheme ? 'from-amber-500/20 to-yellow-900/20' : 'from-red-500/20 to-gray-500/20'}`}></div>
-            <Search className={`absolute left-4 top-1/2 -translate-y-1/2 transition-colors duration-300 ${loading && searchQuery ? `${accentText} animate-pulse` : "text-white/50 group-focus-within:text-white"}`} size={16} />
-            <input type="text" placeholder="Search movies, people, genres..." className={`w-full bg-black/40 border backdrop-blur-md rounded-full py-2.5 pl-11 pr-10 text-sm focus:outline-none transition-all duration-300 text-white placeholder-white/30 ${loading && searchQuery ? "border-opacity-50" : "border-white/10 focus:bg-white/5 focus:shadow-[0_0_15px_rgba(255,255,255,0.1)]"} ${isGoldTheme ? 'focus:border-amber-500/50' : 'focus:border-white/30'}`} value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} onFocus={() => setShowSuggestions(true)} onBlur={() => setTimeout(() => setShowSuggestions(false), 200)} onKeyDown={(e) => { if(e.key === 'Enter') handleSearchSubmit(searchQuery); }} />
-            {showSuggestions && (searchSuggestions.length > 0 || (searchHistory.length > 0 && !searchQuery)) && (
-                <div className="absolute top-full left-0 right-0 mt-2 bg-[#0f0f0f]/95 border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-[100] backdrop-blur-xl animate-in fade-in slide-in-from-top-2 duration-200">
-                    {!searchQuery && searchHistory.length > 0 && (
-                        <div className="border-b border-white/5 pb-1">
-                            <p className="px-4 py-2 text-[10px] text-white/40 font-bold uppercase tracking-wider">Recent Searches</p>
-                            {searchHistory.slice(0, 4).map((s, i) => (
-                                <div key={`hist-${i}`} className="flex items-center justify-between px-4 py-3 text-sm hover:bg-white/10 text-gray-300 hover:text-white transition-colors cursor-pointer group/item" onMouseDown={(e) => { e.preventDefault(); handleSearchSubmit(s); }}>
-                                    <div className="flex items-center gap-3"><Clock size={14} className="text-white/30 group-hover/item:text-white/50"/>{s}</div>
-                                    <button onMouseDown={(e) => removeFromSearchHistory(e, s)} className={`p-1 hover:bg-white/20 rounded-full text-white/20 transition-colors ${isGoldTheme ? 'hover:text-amber-400' : 'hover:text-red-400'}`}><X size={14}/></button>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-                    {searchQuery && searchSuggestions.map((s, i) => ( <button key={i} onMouseDown={(e) => { e.preventDefault(); handleSuggestionClick(s); }} className="w-full text-left px-4 py-3 text-sm hover:bg-white/10 text-gray-300 hover:text-white flex items-center gap-3 border-b border-white/5 last:border-0 transition-colors"><Search size={14} className="text-white/40"/> {s}</button> ))}
-                </div>
-            )}
-            </div>
-            <div className="flex items-center gap-2 md:gap-4">
-                {isCloudSync && <div className="hidden md:flex items-center text-green-500 text-xs gap-1 animate-in fade-in"><Cloud size={14}/></div>}
-                {!isCloudSync && isAuthenticated && <div className="hidden md:flex items-center text-gray-600 text-xs gap-1 animate-in fade-in"><CloudOff size={14}/></div>}
-                <button onClick={() => setIsNotificationOpen(true)} className="relative text-gray-400 hover:text-white transition-colors hover:scale-110 active:scale-95 duration-300"><Bell size={20}/>{hasUnread && (<span className={`absolute -top-1 -right-1 w-2 h-2 rounded-full animate-pulse ${isGoldTheme ? 'bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.8)]' : 'bg-red-600 shadow-[0_0_8px_rgba(220,38,38,0.8)]'}`}></span>)}</button>
-                <button onClick={() => setIsProfileOpen(true)} className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white shadow-lg transition-transform overflow-hidden duration-300 hover:scale-105 ${userProfile.avatarBackground || (isGoldTheme ? 'bg-gradient-to-br from-amber-500 to-yellow-900 shadow-amber-900/40' : 'bg-gradient-to-br from-red-600 to-red-900 shadow-red-900/40')}`}>{userProfile.avatar ? (<img key={userProfile.avatar} src={userProfile.avatar} alt={userProfile.name} className="w-full h-full object-cover" />) : (userProfile.name.charAt(0).toUpperCase())}</button>
-                <button onClick={() => setIsSettingsOpen(true)} className="text-gray-400 hover:text-white transition-all hover:rotate-90 duration-500"><Settings size={20} /></button>
-            </div>
-        </div>
+    <div className="min-h-screen bg-black text-white font-sans selection:bg-amber-500/30 selection:text-white flex flex-col md:flex-row">
+      
+      {/* --- DESKTOP LEFT SIDEBAR --- */}
+      <nav className="hidden md:flex flex-col w-20 bg-black/95 border-r border-white/5 fixed left-0 top-0 bottom-0 z-50 items-center py-8 gap-8 justify-between backdrop-blur-xl">
+         <div className="flex flex-col items-center gap-8 w-full">
+             {/* Logo */}
+             <div 
+                className="cursor-pointer hover:scale-110 transition-transform duration-300"
+                onClick={resetToHome}
+             >
+                 <Film size={28} className={accentText} strokeWidth={2.5} />
+             </div>
+
+             {/* Nav Items */}
+             <div className="flex flex-col gap-6 w-full items-center">
+                 <NavItem icon={Search} label="Search" isActive={isSearchActive} onClick={handleSearchClick} />
+                 <NavItem icon={Home} label="Home" isActive={isHomeView && !isSearchActive} onClick={() => { resetToHome(); setIsSearchActive(false); }} />
+                 <NavItem icon={TrendingUp} label="Explore" isActive={selectedCategory === "Franchise" || selectedCategory === "Collections"} onClick={() => { resetFilters(); setSelectedCategory("Collections"); }} />
+                 <NavItem icon={Tv} label="TV Shows" isActive={selectedCategory === "TV Shows"} onClick={() => { resetFilters(); setSelectedCategory("TV Shows"); }} />
+                 <NavItem icon={Clapperboard} label="Movies" isActive={selectedCategory === "Genres"} onClick={() => { resetFilters(); setSelectedCategory("Genres"); }} />
+                 <NavItem icon={Calendar} label="New & Popular" isActive={selectedCategory === "Coming"} onClick={() => { resetFilters(); setSelectedCategory("Coming"); }} />
+                 <NavItem icon={Plus} label="My List" isActive={selectedCategory === "Watchlist"} onClick={() => { resetFilters(); setSelectedCategory("Watchlist"); }} />
+             </div>
+         </div>
+
+         {/* Footer Items */}
+         <div className="flex flex-col gap-6 w-full items-center">
+             <button onClick={() => setIsNotificationOpen(true)} className="relative text-gray-500 hover:text-white transition-colors">
+                 <Bell size={24} />
+                 {hasUnread && <span className={`absolute top-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-black ${isGoldTheme ? 'bg-amber-500' : 'bg-red-600'}`}></span>}
+             </button>
+             <button onClick={() => setIsProfileOpen(true)} className="w-8 h-8 rounded-full overflow-hidden border-2 border-transparent hover:border-white transition-all">
+                 {userProfile.avatar ? <img src={userProfile.avatar} alt="Profile" className="w-full h-full object-cover"/> : <div className="w-full h-full bg-white/10 flex items-center justify-center text-xs font-bold">{userProfile.name.charAt(0)}</div>}
+             </button>
+             <button onClick={() => setIsSettingsOpen(true)} className="text-gray-500 hover:text-white transition-colors hover:rotate-90 duration-500">
+                 <Settings size={24} />
+             </button>
+         </div>
       </nav>
 
-      <div className="flex pt-16">
-        <aside className={`fixed top-0 left-0 h-full w-72 bg-black/80 backdrop-blur-2xl border-r border-white/10 z-[60] transform transition-transform duration-500 cubic-bezier(0.4, 0, 0.2, 1) ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-           <div className="p-6 h-full overflow-y-auto custom-scrollbar">
-               <div className="flex justify-between items-center mb-8">
-                   <div className="flex items-center gap-2"><Film size={24} className={accentText} /><span className="text-xl font-bold">Menu</span></div>
-                   <button onClick={() => setIsSidebarOpen(false)} className="p-2 hover:bg-white/10 rounded-full transition-colors active:scale-95"><X size={20}/></button>
-               </div>
-               <div className="mb-6 md:hidden">
-                    <div className="relative">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40" size={16} />
-                        <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} onKeyDown={(e) => { if(e.key === 'Enter') handleSearchSubmit(searchQuery); }} placeholder="Search..." className={`w-full bg-white/5 border border-white/10 rounded-xl py-3 pl-10 text-sm text-white focus:outline-none focus:bg-white/10 transition-colors ${isGoldTheme ? 'focus:border-amber-500' : 'focus:border-red-600'}`} />
-                    </div>
-               </div>
-               <div className="space-y-6">
-                   <div className="space-y-1">
-                        <p className="text-xs font-bold text-white/40 uppercase tracking-wider mb-2 px-2">Discover</p>
-                        <button onClick={() => { resetToHome(); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 hover:translate-x-1 ${isHomeView ? `${accentBgLow} ${accentText}` : 'text-gray-400 hover:text-white hover:bg-white/5'}`}><TrendingUp size={18}/> Trending Now</button>
-                        <button onClick={() => { resetFilters(); setSelectedCategory("LiveTV"); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 hover:translate-x-1 ${isLiveView ? `${accentBgLow} ${accentText}` : 'text-gray-400 hover:text-white hover:bg-white/5'}`}><Radio size={18}/> Live TV</button>
-                        <button onClick={() => { resetFilters(); setSelectedCategory("People"); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 hover:translate-x-1 ${selectedCategory === "People" ? `${accentBgLow} ${accentText}` : 'text-gray-400 hover:text-white hover:bg-white/5'}`}><Users size={18}/> Popular People</button>
-                        <button onClick={() => { resetFilters(); setSelectedCategory("TV Shows"); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 hover:translate-x-1 ${selectedCategory === "TV Shows" ? `${accentBgLow} ${accentText}` : 'text-gray-400 hover:text-white hover:bg-white/5'}`}><Tv size={18}/> TV Shows</button>
-                        <button onClick={() => { resetFilters(); setSelectedCategory("Anime"); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 hover:translate-x-1 ${selectedCategory === "Anime" ? `${accentBgLow} ${accentText}` : 'text-gray-400 hover:text-white hover:bg-white/5'}`}><Ghost size={18}/> Anime</button>
-                        <button onClick={() => { resetFilters(); setSortOption("vote_average.desc"); setSelectedCategory("All"); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 hover:translate-x-1 ${sortOption === "vote_average.desc" && selectedCategory === "All" ? `${accentBgLow} ${accentText}` : 'text-gray-400 hover:text-white hover:bg-white/5'}`}><Star size={18}/> Top Rated</button>
-                        <button onClick={handleFeelingLucky} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 text-purple-400 hover:text-purple-300 hover:bg-purple-500/10 group"><Dice5 size={18} className="group-hover:rotate-180 transition-transform duration-500"/> I'm Feeling Lucky</button>
-                   </div>
-                   <div className="space-y-1">
-                       <p className="text-xs font-bold text-white/40 uppercase tracking-wider mb-2 px-2">Library</p>
-                       <button onClick={() => { resetFilters(); setSelectedCategory("Watchlist"); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 hover:translate-x-1 ${selectedCategory === "Watchlist" ? `${accentBgLow} ${accentText}` : 'text-gray-400 hover:text-white hover:bg-white/5'}`}><Bookmark size={18}/> Watchlist <span className="ml-auto text-xs opacity-50">{watchlist.length}</span></button>
-                       <button onClick={() => { resetFilters(); setSelectedCategory("History"); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 hover:translate-x-1 ${selectedCategory === "History" ? `${accentBgLow} ${accentText}` : 'text-gray-400 hover:text-white hover:bg-white/5'}`}><History size={18}/> History <span className="ml-auto text-xs opacity-50">{watched.length}</span></button>
-                       <button onClick={() => { resetFilters(); setSelectedCategory("Favorites"); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 hover:translate-x-1 ${selectedCategory === "Favorites" ? `${accentBgLow} ${accentText}` : 'text-gray-400 hover:text-white hover:bg-white/5'}`}><Heart size={18}/> Favorites <span className="ml-auto text-xs opacity-50">{favorites.length}</span></button>
-                       <button onClick={() => { resetFilters(); setSelectedCategory("CineAnalytics"); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 hover:translate-x-1 ${selectedCategory === "CineAnalytics" ? `${accentBgLow} ${accentText}` : 'text-gray-400 hover:text-white hover:bg-white/5'}`}><BarChart3 size={18}/> Analytics</button>
-                   </div>
-                   {Object.keys(customLists).length > 0 && (
-                       <div className="space-y-1">
-                           <p className="text-xs font-bold text-white/40 uppercase tracking-wider mb-2 px-2">My Lists</p>
-                           {Object.keys(customLists).map(listName => ( <button key={listName} onClick={() => { resetFilters(); setSelectedCategory(`Custom:${listName}`); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 hover:translate-x-1 ${selectedCategory === `Custom:${listName}` ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}><Folder size={18} /> {listName} <span className="ml-auto text-xs opacity-50">{customLists[listName].length}</span></button> ))}
-                       </div>
-                   )}
-                   <div className="space-y-2">
-                        <p className="text-xs font-bold text-white/40 uppercase tracking-wider mb-2 px-2">Genres</p>
-                        <div className="flex flex-wrap gap-2 px-2">
-                            {GENRES_LIST.map(genre => (
-                                <button key={genre} onClick={() => { resetFilters(); setSelectedCategory(genre); setFilterPeriod("all"); setIsSidebarOpen(false); }} className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all duration-300 hover:scale-105 active:scale-95 ${selectedCategory === genre ? `${accentBg} text-white ${accentBorder} shadow-md` : 'bg-white/5 border-white/5 text-gray-400 hover:text-white hover:border-white/20'}`}>{genre}</button>
-                            ))}
-                        </div>
-                   </div>
-               </div>
-           </div>
-           <div className={`absolute top-0 left-full w-screen h-full bg-black/50 backdrop-blur-sm transition-opacity duration-500 ${isSidebarOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`} onClick={() => setIsSidebarOpen(false)}></div>
-        </aside>
+      {/* --- MOBILE TOP BAR --- */}
+      <div className="md:hidden fixed top-0 left-0 right-0 z-40 bg-gradient-to-b from-black/90 via-black/60 to-transparent p-4 flex justify-between items-center pointer-events-none h-20 transition-all duration-300">
+          <div className="flex items-center gap-2 pointer-events-auto" onClick={resetToHome}>
+              <Film size={24} className={accentText} />
+              <span className="font-bold text-lg tracking-tight">MovieVerse</span>
+          </div>
+          <div className="flex items-center gap-4 pointer-events-auto">
+              <button onClick={() => setIsNotificationOpen(true)} className="text-white relative">
+                  <Bell size={24} />
+                  {hasUnread && <span className="absolute top-0 right-0 w-2 h-2 bg-red-600 rounded-full"></span>}
+              </button>
+              <button onClick={() => setIsProfileOpen(true)} className="w-8 h-8 rounded-full overflow-hidden border border-white/20">
+                  {userProfile.avatar ? <img src={userProfile.avatar} alt="Profile" className="w-full h-full object-cover"/> : <div className="w-full h-full bg-white/10 flex items-center justify-center text-xs">{userProfile.name.charAt(0)}</div>}
+              </button>
+          </div>
+      </div>
 
-        <main className="flex-1 min-h-[calc(100vh-4rem)] w-full">
+      {/* --- MAIN CONTENT --- */}
+      <main className="flex-1 md:ml-20 pb-20 md:pb-0 relative min-h-screen">
+           {/* Search Overlay Header */}
+           <div className={`sticky top-0 left-0 right-0 z-[60] bg-black/95 backdrop-blur-xl border-b border-white/10 transition-all duration-300 overflow-hidden ${isSearchActive ? 'max-h-24 opacity-100 py-4 px-6' : 'max-h-0 opacity-0 py-0'}`}>
+                <div className="relative max-w-3xl mx-auto flex items-center">
+                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-white/50" size={20} />
+                    <input 
+                        ref={searchInputRef}
+                        type="text" 
+                        value={searchQuery} 
+                        onChange={(e) => { setSearchQuery(e.target.value); setIsSearchActive(true); }}
+                        onKeyDown={(e) => { if(e.key === 'Enter') handleSearchSubmit(searchQuery); }}
+                        placeholder="Search for movies, shows, people, genres..." 
+                        className="w-full bg-white/10 border border-white/10 rounded-full py-3.5 pl-12 pr-12 text-white focus:outline-none focus:bg-white/20 transition-all placeholder-white/30 font-medium"
+                    />
+                    {searchQuery && (
+                        <button onClick={() => { setSearchQuery(""); setIsSearchActive(false); }} className="absolute right-4 top-1/2 -translate-y-1/2 text-white/50 hover:text-white p-1">
+                            <X size={18}/>
+                        </button>
+                    )}
+                </div>
+                {/* Search Suggestions Dropdown */}
+                {showSuggestions && (searchSuggestions.length > 0 || (searchHistory.length > 0 && !searchQuery)) && (
+                    <div className="absolute top-full left-0 right-0 max-w-3xl mx-auto mt-2 bg-[#1a1a1a] border border-white/10 rounded-xl shadow-2xl overflow-hidden z-[70] animate-in fade-in slide-in-from-top-2">
+                        {!searchQuery && searchHistory.length > 0 && (
+                            <div className="border-b border-white/5 pb-1">
+                                <p className="px-4 py-2 text-[10px] text-white/40 font-bold uppercase tracking-wider">Recent</p>
+                                {searchHistory.slice(0, 3).map((s, i) => (
+                                    <button key={`hist-${i}`} onClick={() => handleSearchSubmit(s)} className="w-full text-left px-4 py-3 text-sm hover:bg-white/5 text-gray-300 flex items-center gap-3"><Clock size={14}/> {s}</button>
+                                ))}
+                            </div>
+                        )}
+                        {searchQuery && searchSuggestions.map((s, i) => ( 
+                            <button key={i} onClick={() => handleSuggestionClick(s)} className="w-full text-left px-4 py-3 text-sm hover:bg-white/5 text-gray-300 border-b border-white/5 last:border-0 flex items-center gap-3"><Search size={14}/> {s}</button> 
+                        ))}
+                    </div>
+                )}
+           </div>
+
            {selectedCategory === "CineAnalytics" ? ( <AnalyticsDashboard watchedMovies={watched} watchlist={watchlist} favorites={favorites} apiKey={apiKey} onMovieClick={setSelectedMovie} /> ) : selectedCategory === "LiveTV" ? ( <LiveTV userProfile={userProfile} /> ) : selectedCategory === "Genres" ? (
                <div className="animate-in fade-in slide-in-from-bottom-4">
                    <HeroSection />
-                   <div className="p-8 md:p-12">
+                   <div className="p-4 md:p-12">
                        {renderPageHeader("All Genres", "Find your vibe.", true)}
                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
                            {filteredGenres.map(genre => {
                                const colorClass = GENRE_COLORS[genre] || "from-gray-700 to-black";
                                return (
-                                   <div key={genre} onClick={() => { resetFilters(); setSelectedCategory(genre); }} className={`relative h-40 md:h-48 rounded-2xl overflow-hidden cursor-pointer group shadow-2xl transition-all duration-500 hover:scale-[1.02] hover:shadow-white/5`}>
+                                   <div key={genre} onClick={() => { resetFilters(); setSelectedCategory(genre); }} className={`relative h-32 md:h-48 rounded-2xl overflow-hidden cursor-pointer group shadow-2xl transition-all duration-500 hover:scale-[1.02] hover:shadow-white/5`}>
                                        <div className={`absolute inset-0 bg-gradient-to-br ${colorClass} opacity-80 group-hover:opacity-100 transition-opacity duration-500`}></div>
                                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent"></div>
-                                       <div className="absolute -top-10 -right-10 w-32 h-32 bg-white/10 rounded-full blur-2xl group-hover:bg-white/20 transition-colors duration-500"></div>
-                                       <div className="absolute bottom-0 left-0 p-6 w-full">
-                                           <h3 className="text-xl md:text-2xl font-black text-white mb-1 group-hover:translate-x-1 transition-transform duration-300">{genre}</h3>
-                                           <div className="h-0.5 w-8 bg-white/50 rounded-full group-hover:w-16 transition-all duration-500"></div>
+                                       <div className="absolute bottom-0 left-0 p-4 md:p-6 w-full">
+                                           <h3 className="text-lg md:text-2xl font-black text-white mb-1 group-hover:translate-x-1 transition-transform duration-300">{genre}</h3>
                                        </div>
                                    </div>
                                );
@@ -974,19 +965,18 @@ export default function App() {
            ) : selectedCategory === "Collections" ? (
                <div className="animate-in fade-in slide-in-from-bottom-4">
                    <HeroSection />
-                   <div className="p-8 md:p-12">
+                   <div className="p-4 md:p-12">
                        {renderPageHeader("Collections", "Hand-picked curations for every mood.")}
                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                            {Object.keys(DEFAULT_COLLECTIONS).map(key => {
                                const col = DEFAULT_COLLECTIONS[key];
                                return (
-                                   <div key={key} onClick={() => handleCollectionClick(key)} className="group relative h-64 rounded-3xl overflow-hidden cursor-pointer shadow-xl transition-all duration-500 hover:scale-[1.02] hover:shadow-2xl hover:shadow-white/5">
+                                   <div key={key} onClick={() => handleCollectionClick(key)} className="group relative h-48 md:h-64 rounded-3xl overflow-hidden cursor-pointer shadow-xl transition-all duration-500 hover:scale-[1.02] hover:shadow-2xl hover:shadow-white/5">
                                        <img src={col.backdrop} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110 opacity-70 group-hover:opacity-100" alt={col.title} />
                                        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent"></div>
-                                       <div className="absolute bottom-0 left-0 p-8 w-full">
-                                           <div className="text-3xl mb-2 filter drop-shadow-lg">{col.icon}</div>
-                                           <h3 className="text-2xl font-black text-white mb-2">{col.title}</h3>
-                                           <p className="text-sm text-gray-300 line-clamp-2">{col.description}</p>
+                                       <div className="absolute bottom-0 left-0 p-6 md:p-8 w-full">
+                                           <h3 className="text-xl md:text-2xl font-black text-white mb-1">{col.title}</h3>
+                                           <p className="text-xs md:text-sm text-gray-300 line-clamp-2">{col.description}</p>
                                        </div>
                                    </div>
                                );
@@ -994,32 +984,10 @@ export default function App() {
                        </div>
                    </div>
                </div>
-           ) : selectedCategory === "Franchise" ? (
-               <div className="animate-in fade-in slide-in-from-bottom-4">
-                   <HeroSection />
-                   <div className="p-8 md:p-12">
-                       {renderPageHeader("Cinematic Universes", "Binge-worthy collections.")}
-                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                           {franchiseList.map(franchise => (
-                               <div key={franchise.id} onClick={() => handleTmdbCollectionClick(franchise.id)} className="group relative h-64 rounded-3xl overflow-hidden cursor-pointer shadow-xl transition-all duration-500 hover:scale-[1.02] hover:shadow-2xl hover:shadow-white/5">
-                                   <img src={franchise.backdrop_path ? `${TMDB_BACKDROP_BASE}${franchise.backdrop_path}` : "https://placehold.co/600x400?text=No+Image"} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110 opacity-70 group-hover:opacity-100" alt={franchise.name} />
-                                   <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent"></div>
-                                   <div className="absolute bottom-0 left-0 p-8 w-full">
-                                       <h3 className="text-2xl font-black text-white mb-1 drop-shadow-lg leading-tight">{franchise.name}</h3>
-                                       <p className="text-xs text-gray-300 line-clamp-2 mb-2 opacity-80">{franchise.overview}</p>
-                                       <div className="h-1 w-12 bg-red-600 rounded-full group-hover:w-24 transition-all duration-500"></div>
-                                   </div>
-                               </div>
-                           ))}
-                           {loading && ( <div className="col-span-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"> {[...Array(3)].map((_,i) => <div key={i} className="h-64 rounded-3xl bg-white/5 animate-pulse relative overflow-hidden"><div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full animate-[shimmer_1.5s_infinite]"></div></div>)} </div> )}
-                       </div>
-                       {hasMore && !loading && ( <div className="h-10" ref={lastMovieElementRef}></div> )}
-                   </div>
-               </div>
            ) : selectedCategory === "Countries" && !activeCountry ? (
                <div className="animate-in fade-in slide-in-from-bottom-4">
                    <HeroSection />
-                   <div className="p-8 md:p-12">
+                   <div className="p-4 md:p-12">
                        {renderPageHeader("Countries", "Discover cinema from around the globe.", true)}
                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
                            {COUNTRY_OPTIONS.filter(c => c.name.toLowerCase().includes(genreSearch.toLowerCase())).map(country => (
@@ -1034,7 +1002,7 @@ export default function App() {
            ) : selectedCategory === "People" && !searchQuery ? (
                <div className="animate-in fade-in slide-in-from-bottom-4">
                    <HeroSection />
-                   <div className="p-8 md:p-12">
+                   <div className="p-4 md:p-12">
                        {renderPageHeader("Popular People", "Discover the actors and visionaries.", true)}
                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6">
                            {movies.map((person, idx) => (
@@ -1048,13 +1016,12 @@ export default function App() {
                                </div>
                            ))}
                        </div>
-                       {!loading && movies.length === 0 && <div className="text-center py-20 text-gray-500">No people found.</div>}
                    </div>
                </div>
            ) : selectedCategory === "Coming" ? (
                <div className="animate-in fade-in slide-in-from-bottom-4">
                    <HeroSection />
-                   <div className="p-6 md:p-8">
+                   <div className="p-4 md:p-8">
                        <div className="space-y-12">
                            {groupMoviesByDate(movies).map(([date, dateMovies], groupIndex, groupsArray) => {
                                const d = new Date(date);
@@ -1104,17 +1071,12 @@ export default function App() {
                                );
                            })}
                            {movies.length === 0 && !loading && ( <div className="text-center py-20 text-gray-500 flex flex-col items-center"> <Calendar size={48} className="mb-4 opacity-30"/> <p>No upcoming releases found for this period.</p> </div> )}
-                           {loading && (
-                               <div className="flex justify-center py-8">
-                                   <Loader2 className="animate-spin text-white/50" size={32}/>
-                               </div>
-                           )}
                        </div>
                    </div>
                </div>
            ) : (
                <>
-                   {["Anime", "Family", "Awards", "India", "TV Shows"].includes(selectedCategory) && <HeroSection />}
+                   {["Anime", "Family", "Awards", "India", "TV Shows", "Franchise"].includes(selectedCategory) && <HeroSection />}
                    
                    {!searchQuery && selectedCategory === "All" && !currentCollection && filterPeriod === "all" && featuredMovie && ( 
                        <div className="relative w-full h-[60vh] min-h-[500px] md:h-[80vh] group overflow-hidden">
@@ -1123,7 +1085,7 @@ export default function App() {
                                <div className="absolute inset-0 bg-gradient-to-t from-[#030303] via-[#030303]/20 to-transparent"></div>
                                <div className="absolute inset-0 bg-gradient-to-r from-[#030303] via-[#030303]/40 to-transparent"></div>
                            </div>
-                           <div className="absolute bottom-0 left-0 p-6 md:p-12 w-full md:w-2/3 flex flex-col gap-4 md:gap-6 z-10 animate-in slide-in-from-bottom-10 duration-1000 ease-out">
+                           <div className="absolute bottom-0 left-0 p-6 md:p-12 w-full md:w-2/3 flex flex-col gap-4 md:gap-6 z-10 animate-in slide-in-from-bottom-10 duration-1000 ease-out pb-24 md:pb-12">
                                <div className={`w-fit px-3 py-1 rounded-full text-[10px] md:text-xs font-bold animate-pulse flex items-center gap-2 ${featuredBadge}`}>
                                    {isGoldTheme && <Crown size={12} fill="currentColor"/>} #1 FEATURED
                                </div>
@@ -1215,11 +1177,71 @@ export default function App() {
 
                        {!loading && movies.length === 0 && ( <div className="text-center py-20 opacity-50 flex flex-col items-center animate-in fade-in zoom-in"> <Ghost size={48} className="mb-4 text-white/20"/> <p>No results found. Try adjusting filters.</p> </div> )}
 
-                       {!apiKey && !loading && ( <div className={`mt-12 bg-gradient-to-r border rounded-2xl p-6 flex items-center justify-between backdrop-blur-md animate-in slide-in-from-bottom-5 ${isGoldTheme ? 'from-amber-900/20 to-gray-900/20 border-amber-500/20' : 'from-red-900/20 to-gray-900/20 border-white/10'}`}> <div className="flex items-center gap-4"> <div className={`p-3 rounded-full ${isGoldTheme ? 'bg-amber-500/10 text-amber-500' : 'bg-red-500/10 text-red-500'}`}><Info size={24}/></div> <div> <h3 className="font-bold text-white">Demo Mode Active</h3> <p className="text-sm text-gray-400">Add your TMDB API Key in settings to unlock full access.</p> </div> </div> <button onClick={() => setIsSettingsOpen(true)} className="px-6 py-2 bg-white text-black font-bold rounded-lg hover:bg-gray-200 transition-all active:scale-95">Add Key</button> </div> )}
+                       {!apiKey && !loading && ( 
+                           <div className={`mt-12 bg-gradient-to-r border rounded-2xl p-6 flex items-center justify-between backdrop-blur-md animate-in slide-in-from-bottom-5 ${isGoldTheme ? 'from-amber-900/20 to-gray-900/20 border-amber-500/20' : 'from-red-900/20 to-gray-900/20 border-white/10'}`}> 
+                               <div className="flex items-center gap-4"> 
+                                   <div className={`p-3 rounded-full ${isGoldTheme ? 'bg-amber-500/10 text-amber-500' : 'bg-red-500/10 text-red-500'}`}>
+                                       <Info size={24}/>
+                                   </div> 
+                                   <div> 
+                                       <h3 className="font-bold text-white">Demo Mode Active</h3> 
+                                       <p className="text-sm text-gray-400">Add your TMDB API Key in settings to unlock full access.</p> 
+                                   </div> 
+                               </div> 
+                               <button onClick={() => setIsSettingsOpen(true)} className="px-6 py-2 bg-white text-black font-bold rounded-lg hover:bg-gray-200 transition-all active:scale-95">Add Key</button> 
+                           </div> 
+                       )}
                    </div>
                </>
            )}
         </main>
+
+        {/* --- MOBILE BOTTOM NAV --- */}
+        <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-[#0a0a0a]/95 backdrop-blur-xl border-t border-white/10 z-50 flex justify-around items-center h-20 pb-4 px-2 safe-area-pb">
+            <NavItem icon={Home} label="Home" isActive={isHomeView && !isSearchActive} onClick={() => { resetToHome(); setIsSearchActive(false); }} className="justify-center" />
+            <NavItem icon={Search} label="Search" isActive={isSearchActive} onClick={handleSearchClick} className="justify-center" />
+            <NavItem icon={Calendar} label="New & Hot" isActive={selectedCategory === "Coming"} onClick={() => { resetFilters(); setSelectedCategory("Coming"); }} className="justify-center" />
+            <NavItem icon={Download} label="Downloads" isActive={selectedCategory === "Watchlist"} onClick={() => { resetFilters(); setSelectedCategory("Watchlist"); }} className="justify-center" />
+            <button 
+                onClick={() => setIsMobileMenuOpen(true)} 
+                className="flex flex-col items-center gap-1 text-gray-500 hover:text-white transition-colors justify-center w-full relative"
+            >
+                <div className={`p-0.5 rounded-full border-2 ${isMobileMenuOpen ? 'border-white' : 'border-transparent'}`}>
+                    {userProfile.avatar ? <img src={userProfile.avatar} className="w-6 h-6 rounded-full object-cover" alt=""/> : <MoreHorizontal size={24}/>}
+                </div>
+                <span className="text-[10px] font-medium mt-0.5">More</span>
+            </button>
+        </nav>
+
+        {/* --- MOBILE MORE MENU --- */}
+        {isMobileMenuOpen && (
+            <div className="md:hidden fixed inset-0 z-[100] bg-black/95 animate-in slide-in-from-bottom-10 duration-300 flex flex-col">
+                <div className="flex justify-end p-4">
+                    <button onClick={() => setIsMobileMenuOpen(false)} className="p-2 bg-white/10 rounded-full text-white"><X size={24}/></button>
+                </div>
+                <div className="flex flex-col items-center gap-6 p-8 flex-1 overflow-y-auto">
+                    <div className="flex flex-col items-center mb-6">
+                        <div className="w-20 h-20 rounded-full overflow-hidden border-2 border-white/20 mb-3">
+                            {userProfile.avatar ? <img src={userProfile.avatar} className="w-full h-full object-cover" alt=""/> : <div className="w-full h-full bg-white/10 flex items-center justify-center text-xl font-bold">{userProfile.name.charAt(0)}</div>}
+                        </div>
+                        <h2 className="text-xl font-bold text-white">{userProfile.name}</h2>
+                        <button onClick={() => { setIsMobileMenuOpen(false); setIsProfileOpen(true); }} className="text-xs text-gray-400 mt-2 border border-white/20 px-3 py-1 rounded-full">Manage Profile</button>
+                    </div>
+                    
+                    <div className="w-full space-y-4">
+                        <button onClick={() => { setIsMobileMenuOpen(false); setIsNotificationOpen(true); }} className="w-full flex items-center gap-4 p-4 bg-white/5 rounded-xl text-lg font-bold text-white"><Bell size={24}/> Notifications {hasUnread && <span className="bg-red-600 w-2 h-2 rounded-full"></span>}</button>
+                        <button onClick={() => { setIsMobileMenuOpen(false); resetFilters(); setSelectedCategory("History"); }} className="w-full flex items-center gap-4 p-4 bg-white/5 rounded-xl text-lg font-bold text-white"><History size={24}/> Watch History</button>
+                        <button onClick={() => { setIsMobileMenuOpen(false); resetFilters(); setSelectedCategory("CineAnalytics"); }} className="w-full flex items-center gap-4 p-4 bg-white/5 rounded-xl text-lg font-bold text-white"><BarChart3 size={24}/> Analytics</button>
+                        <button onClick={() => { setIsMobileMenuOpen(false); setIsSettingsOpen(true); }} className="w-full flex items-center gap-4 p-4 bg-white/5 rounded-xl text-lg font-bold text-white"><Settings size={24}/> App Settings</button>
+                        <button onClick={() => { setIsMobileMenuOpen(false); resetFilters(); setSelectedCategory("LiveTV"); }} className="w-full flex items-center gap-4 p-4 bg-white/5 rounded-xl text-lg font-bold text-white"><Radio size={24}/> Live TV</button>
+                    </div>
+                    
+                    <div className="mt-auto w-full pt-8">
+                        <button onClick={handleLogout} className="w-full text-center py-4 text-red-500 font-bold border-t border-white/10">Sign Out</button>
+                    </div>
+                </div>
+            </div>
+        )}
       </div>
 
       <AgeVerificationModal isOpen={isAgeModalOpen} onSave={handleAgeSave} />
