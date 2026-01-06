@@ -6,7 +6,7 @@ import { TMDB_BASE_URL, TMDB_IMAGE_BASE, formatCurrency, MovieSkeleton } from '.
 import { generateSmartRecommendations } from '../services/gemini';
 import { getNotifications, markNotificationsRead } from '../services/supabase';
 
-// AGE VERIFICATION MODAL (Uncloseable)
+// AGE VERIFICATION MODAL (Uncloseable - Stays full screen over everything)
 interface AgeVerificationModalProps {
     isOpen: boolean;
     onSave: (age: string) => void;
@@ -155,7 +155,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ isOpen, onClose, profi
     if (!isOpen) return null;
   
     return (
-      <div className="fixed inset-0 z-[100] bg-[#0a0a0a] overflow-y-auto animate-in slide-in-from-bottom-10 duration-500">
+      <div className="fixed inset-0 z-[100] bg-[#0a0a0a] overflow-y-auto animate-in slide-in-from-bottom-10 duration-500 md:left-20">
          <div className="max-w-4xl mx-auto min-h-screen flex flex-col p-6 md:p-8">
              {/* Header */}
              <div className="flex items-center gap-4 mb-8">
@@ -330,7 +330,7 @@ const FilmographyModal: React.FC<FilmographyModalProps> = ({ isOpen, onClose, pe
     ];
 
     return (
-        <div className="fixed inset-0 z-[130] bg-[#0a0a0a] animate-in slide-in-from-right-10 duration-500">
+        <div className="fixed inset-0 z-[130] bg-[#0a0a0a] animate-in slide-in-from-right-10 duration-500 md:left-20">
             <div className="flex flex-col h-screen">
                 <div className="p-6 border-b border-white/10 flex justify-between items-center bg-black/40">
                     <div className="flex items-center gap-4">
@@ -656,7 +656,7 @@ export const PersonPage: React.FC<PersonPageProps> = ({ personId, onClose, apiKe
     };
   
     return (
-      <div className="fixed inset-0 z-[100] bg-[#0a0a0a] overflow-y-auto custom-scrollbar animate-in slide-in-from-bottom-10 duration-500">
+      <div className="fixed inset-0 z-[100] bg-[#0a0a0a] overflow-y-auto custom-scrollbar animate-in slide-in-from-bottom-10 duration-500 md:left-20">
         <button onClick={onClose} className="fixed top-6 left-6 z-[120] bg-black/40 hover:bg-white/10 backdrop-blur-md px-4 py-2 rounded-full text-white flex items-center gap-2 border border-white/5 text-sm font-bold active:scale-95 transition-all"><ArrowLeft size={20}/> Back</button>
 
           {loading ? (
@@ -733,7 +733,7 @@ export const PersonPage: React.FC<PersonPageProps> = ({ personId, onClose, apiKe
     );
 };
 
-// AI RECOMMENDATION MODAL (Keep as Modal)
+// AI RECOMMENDATION MODAL (Keep as Modal - Centered with backdrop, no sidebar shift needed as it floats)
 interface AIRecommendationModalProps {
     isOpen: boolean;
     onClose: () => void;
@@ -854,7 +854,7 @@ export const AIRecommendationModal: React.FC<AIRecommendationModalProps> = ({ is
     );
 };
 
-// NOTIFICATION MODAL (Keep as Modal)
+// NOTIFICATION MODAL (Keep as Modal - Corner float)
 interface NotificationModalProps {
     isOpen: boolean;
     onClose: () => void;

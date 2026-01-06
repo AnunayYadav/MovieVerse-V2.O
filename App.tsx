@@ -11,6 +11,7 @@ import { getSearchSuggestions } from './services/gemini';
 import { LoginPage } from './components/LoginPage';
 import { getSupabase, syncUserData, fetchUserData, signOut, getNotifications, triggerSystemNotification } from './services/supabase';
 import { LiveTV } from './components/LiveTV';
+import { WatchPartySection } from './components/WatchParty';
 
 const DEFAULT_COLLECTIONS: any = {
   "srk": { title: "King Khan", params: { with_cast: "35742", sort_by: "popularity.desc" }, icon: "👑", backdrop: "https://image.tmdb.org/t/p/original/2uiMdrO15s597M3E27az2Z2gSgD.jpg", description: "The Badshah of Bollywood. Romance, Action, and Charm." },
@@ -79,6 +80,7 @@ export default function App() {
   const [lastNotificationId, setLastNotificationId] = useState<string | null>(null);
   
   const [isAgeModalOpen, setIsAgeModalOpen] = useState(false);
+  const [isWatchPartyOpen, setIsWatchPartyOpen] = useState(false);
 
   const watchlistRef = useRef<Movie[]>([]);
   const favoritesRef = useRef<Movie[]>([]);
@@ -148,8 +150,21 @@ export default function App() {
       setActiveCountry(null);
   };
   
+  const closeAllModals = () => {
+      setSelectedMovie(null);
+      setIsSettingsOpen(false);
+      setIsProfileOpen(false);
+      setIsNotificationOpen(false);
+      setIsAIModalOpen(false);
+      setIsComparisonOpen(false);
+      setIsWatchPartyOpen(false);
+      setListModalMovie(null);
+      setSelectedPersonId(null);
+  };
+
   const resetToHome = () => {
       resetFilters();
+      closeAllModals();
       setSelectedCategory("All");
       setSortOption("popularity.desc");
       setFilterPeriod("all");
@@ -157,8 +172,15 @@ export default function App() {
       setSelectedLanguage("All");
   };
 
+  const handleNavClick = (category: string) => {
+      resetFilters();
+      closeAllModals();
+      setSelectedCategory(category);
+  };
+
   const handleSearchClick = () => {
       resetFilters();
+      closeAllModals();
       setIsSearchActive(true);
       setTimeout(() => searchInputRef.current?.focus(), 100);
   };
@@ -833,30 +855,31 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-black text-white font-sans selection:bg-amber-500/30 selection:text-white flex flex-col md:flex-row overflow-x-hidden w-full">
-      <nav className="hidden md:flex flex-col w-20 bg-black/95 border-r border-white/5 fixed left-0 top-0 bottom-0 z-50 items-center py-8 gap-8 backdrop-blur-xl overflow-y-auto hide-scrollbar pb-8">
+      <nav className="hidden md:flex flex-col w-20 bg-black/95 border-r border-white/5 fixed left-0 top-0 bottom-0 z-[200] items-center py-8 gap-8 backdrop-blur-xl overflow-y-auto hide-scrollbar pb-8">
          <div className="flex flex-col items-center gap-8 w-full">
              <div className="cursor-pointer hover:scale-110 transition-transform duration-300" onClick={resetToHome}>
                  <Film size={28} className={accentText} strokeWidth={2.5} />
              </div>
              <div className="flex flex-col gap-6 w-full items-center">
                  <NavItem icon={Search} label="Search" isActive={isSearchActive} onClick={handleSearchClick} />
-                 <NavItem icon={Home} label="Home" isActive={isHomeView && !isSearchActive} onClick={() => { resetToHome(); setIsSearchActive(false); }} />
-                 <NavItem icon={TrendingUp} label="Explore" isActive={selectedCategory === "Franchise" || selectedCategory === "Collections"} onClick={() => { resetFilters(); setSelectedCategory("Collections"); }} />
-                 <NavItem icon={Tv} label="TV Shows" isActive={selectedCategory === "TV Shows"} onClick={() => { resetFilters(); setSelectedCategory("TV Shows"); }} />
-                 <NavItem icon={Clapperboard} label="Movies" isActive={selectedCategory === "Genres"} onClick={() => { resetFilters(); setSelectedCategory("Genres"); }} />
-                 <NavItem icon={Calendar} label="New & Popular" isActive={selectedCategory === "Coming"} onClick={() => { resetFilters(); setSelectedCategory("Coming"); }} />
-                 <NavItem icon={Plus} label="My List" isActive={selectedCategory === "Watchlist"} onClick={() => { resetFilters(); setSelectedCategory("Watchlist"); }} />
+                 <NavItem icon={Home} label="Home" isActive={isHomeView && !isSearchActive} onClick={resetToHome} />
+                 <NavItem icon={TrendingUp} label="Explore" isActive={selectedCategory === "Franchise" || selectedCategory === "Collections"} onClick={() => handleNavClick("Collections")} />
+                 <NavItem icon={Tv} label="TV Shows" isActive={selectedCategory === "TV Shows"} onClick={() => handleNavClick("TV Shows")} />
+                 <NavItem icon={Clapperboard} label="Movies" isActive={selectedCategory === "Genres"} onClick={() => handleNavClick("Genres")} />
+                 <NavItem icon={Calendar} label="New & Popular" isActive={selectedCategory === "Coming"} onClick={() => handleNavClick("Coming")} />
+                 <NavItem icon={Plus} label="My List" isActive={selectedCategory === "Watchlist"} onClick={() => handleNavClick("Watchlist")} />
+                 <NavItem icon={Users} label="Party" isActive={isWatchPartyOpen} onClick={() => { handleNavClick("Party"); setIsWatchPartyOpen(true); }} />
              </div>
          </div>
          <div className="flex flex-col gap-6 w-full items-center mt-auto">
-             <button onClick={() => setIsNotificationOpen(true)} className="relative text-gray-500 hover:text-white transition-colors">
+             <button onClick={() => { closeAllModals(); setIsNotificationOpen(true); }} className="relative text-gray-500 hover:text-white transition-colors">
                  <Bell size={24} />
                  {hasUnread && <span className={`absolute top-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-black ${isGoldTheme ? 'bg-amber-500' : 'bg-red-600'}`}></span>}
              </button>
-             <button onClick={() => setIsProfileOpen(true)} className="w-8 h-8 rounded-full overflow-hidden border-2 border-transparent hover:border-white transition-all">
+             <button onClick={() => { closeAllModals(); setIsProfileOpen(true); }} className="w-8 h-8 rounded-full overflow-hidden border-2 border-transparent hover:border-white transition-all">
                  {userProfile.avatar ? <img src={userProfile.avatar} alt="Profile" className="w-full h-full object-cover"/> : <div className="w-full h-full bg-white/10 flex items-center justify-center text-xs font-bold">{userProfile.name.charAt(0)}</div>}
              </button>
-             <button onClick={() => setIsSettingsOpen(true)} className="text-gray-500 hover:text-white transition-colors hover:rotate-90 duration-500">
+             <button onClick={() => { closeAllModals(); setIsSettingsOpen(true); }} className="text-gray-500 hover:text-white transition-colors hover:rotate-90 duration-500">
                  <Settings size={24} />
              </button>
          </div>
@@ -918,10 +941,10 @@ export default function App() {
         </main>
 
         <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-[#0a0a0a]/95 backdrop-blur-xl border-t border-white/10 z-[80] flex justify-around items-center h-20 pb-4 px-2 safe-area-pb">
-            <NavItem icon={Home} label="Home" isActive={isHomeView && !isSearchActive} onClick={() => { resetToHome(); setIsSearchActive(false); }} className="justify-center" />
+            <NavItem icon={Home} label="Home" isActive={isHomeView && !isSearchActive} onClick={resetToHome} className="justify-center" />
             <NavItem icon={Search} label="Search" isActive={isSearchActive} onClick={handleSearchClick} className="justify-center" />
-            <NavItem icon={Calendar} label="New & Hot" isActive={selectedCategory === "Coming"} onClick={() => { resetFilters(); setSelectedCategory("Coming"); }} className="justify-center" />
-            <NavItem icon={Download} label="Downloads" isActive={selectedCategory === "Watchlist"} onClick={() => { resetFilters(); setSelectedCategory("Watchlist"); }} className="justify-center" />
+            <NavItem icon={Calendar} label="New & Hot" isActive={selectedCategory === "Coming"} onClick={() => handleNavClick("Coming")} className="justify-center" />
+            <NavItem icon={Download} label="Downloads" isActive={selectedCategory === "Watchlist"} onClick={() => handleNavClick("Watchlist")} className="justify-center" />
             <button 
                 onClick={() => setIsMobileMenuOpen(true)} 
                 className="flex flex-col items-center gap-1 text-gray-500 hover:text-white transition-colors justify-center w-full relative"
@@ -970,6 +993,7 @@ export default function App() {
         <PersonPage personId={selectedPersonId || 0} onClose={() => setSelectedPersonId(null)} apiKey={apiKey} onMovieClick={(m) => { setSelectedPersonId(null); setTimeout(() => setSelectedMovie(m), 300); }} />
         <AIRecommendationModal isOpen={isAIModalOpen} onClose={() => setIsAIModalOpen(false)} apiKey={apiKey} />
         <ComparisonModal isOpen={isComparisonOpen} onClose={() => setIsComparisonOpen(false)} baseMovie={comparisonBaseMovie} apiKey={apiKey} />
+        {isWatchPartyOpen && <WatchPartySection userProfile={userProfile} apiKey={apiKey} onClose={() => setIsWatchPartyOpen(false)} />}
         <SettingsPage isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} apiKey={apiKey} setApiKey={(k) => saveSettings(k)} geminiKey={geminiKey} setGeminiKey={(k) => saveGeminiKey(k)} maturityRating={maturityRating} setMaturityRating={setMaturityRating} profile={userProfile} onUpdateProfile={setUserProfile} onLogout={handleLogout} searchHistory={searchHistory} setSearchHistory={(h) => { setSearchHistory(h); localStorage.setItem('movieverse_search_history', JSON.stringify(h)); }} watchedMovies={watched} setWatchedMovies={(m) => { setWatched(m); localStorage.setItem('movieverse_watched', JSON.stringify(m)); }} />
         <NotificationModal isOpen={isNotificationOpen} onClose={() => setIsNotificationOpen(false)} onUpdate={checkUnreadNotifications} userProfile={userProfile} />
         {!apiKey && loading && <div className="fixed inset-0 z-[100] bg-black"><LogoLoader /></div>}

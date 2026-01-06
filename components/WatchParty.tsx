@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { Users, Lock, Unlock, Play, Plus, Search, MessageCircle, Send, X, Copy, Check, Film, Loader2, ArrowLeft, Eye, Globe, Trash2, StopCircle, RefreshCcw, History } from 'lucide-react';
 import { Movie, WatchPartyRoom, ChatMessage, UserProfile } from '../types';
@@ -416,7 +417,7 @@ export const WatchPartySection: React.FC<WatchPartyProps> = ({ userProfile, apiK
     };
 
     return (
-        <div className="fixed inset-0 z-[100] bg-[#050505] flex flex-col animate-in fade-in duration-300">
+        <div className="fixed inset-0 z-[100] bg-[#050505] flex flex-col animate-in fade-in duration-300 md:left-20">
             {/* Header */}
             <div className="h-16 border-b border-white/10 flex items-center justify-between px-4 md:px-6 bg-[#0a0a0a] shrink-0 z-50">
                 <div className="flex items-center gap-4">
@@ -536,161 +537,4 @@ export const WatchPartySection: React.FC<WatchPartyProps> = ({ userProfile, apiK
                             <div className="space-y-6">
                                 <div>
                                     <label className="text-xs font-bold text-gray-400 uppercase mb-2 block ml-1">Room Name</label>
-                                    <input type="text" value={createName} onChange={(e) => setCreateName(e.target.value)} className="w-full bg-black/50 border border-white/10 rounded-xl p-4 text-white focus:border-red-600 focus:outline-none transition-colors placeholder-gray-600" placeholder="e.g. Late Night Horror"/>
-                                </div>
-
-                                <div>
-                                    <label className="text-xs font-bold text-gray-400 uppercase mb-2 block ml-1">Select Content</label>
-                                    {selectedMovie ? (
-                                        <div className="flex items-center gap-4 bg-white/5 p-3 rounded-xl border border-white/10 animate-in fade-in">
-                                            <img src={selectedMovie.poster_path ? `${TMDB_IMAGE_BASE}${selectedMovie.poster_path}` : ""} className="w-12 h-16 object-cover rounded" alt=""/>
-                                            <div>
-                                                <p className="font-bold text-white">{selectedMovie.title || selectedMovie.name}</p>
-                                                <p className="text-xs text-gray-500">{selectedMovie.release_date?.split('-')[0]}</p>
-                                            </div>
-                                            <button onClick={() => setSelectedMovie(null)} className="ml-auto p-2 hover:bg-white/10 rounded-full text-gray-400 hover:text-white transition-colors"><X size={18}/></button>
-                                        </div>
-                                    ) : (
-                                        <div className="relative">
-                                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" size={18}/>
-                                            <input type="text" value={movieSearch} onChange={(e) => setMovieSearch(e.target.value)} className="w-full bg-black/50 border border-white/10 rounded-xl p-4 pl-12 text-white focus:border-red-600 focus:outline-none transition-colors placeholder-gray-600" placeholder="Search for a movie or show..."/>
-                                            {movieResults.length > 0 && (
-                                                <div className="absolute top-full left-0 right-0 mt-2 bg-[#1a1a1a] border border-white/10 rounded-xl max-h-60 overflow-y-auto z-50 shadow-xl animate-in zoom-in-95 duration-200">
-                                                    {movieResults.map(m => (
-                                                        <div key={m.id} onClick={() => { setSelectedMovie(m); setMovieSearch(""); }} className="flex items-center gap-3 p-3 hover:bg-white/10 cursor-pointer transition-colors border-b border-white/5 last:border-0">
-                                                            <img src={m.poster_path ? `${TMDB_IMAGE_BASE}${m.poster_path}` : ""} className="w-8 h-12 object-cover rounded" alt=""/>
-                                                            <div>
-                                                                <p className="text-sm font-bold text-white">{m.title || m.name}</p>
-                                                                <p className="text-xs text-gray-500">{m.release_date?.split('-')[0] || m.first_air_date?.split('-')[0]}</p>
-                                                            </div>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            )}
-                                        </div>
-                                    )}
-                                </div>
-
-                                <div className="flex gap-4">
-                                    <button onClick={() => setIsPrivate(!isPrivate)} className={`flex-1 p-4 rounded-xl border transition-all flex items-center justify-center gap-2 ${isPrivate ? 'bg-red-900/20 border-red-500 text-red-400' : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10'}`}>
-                                        <Lock size={18}/> Private Room
-                                    </button>
-                                    <button onClick={() => setIsPrivate(false)} className={`flex-1 p-4 rounded-xl border transition-all flex items-center justify-center gap-2 ${!isPrivate ? 'bg-green-900/20 border-green-500 text-green-400' : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10'}`}>
-                                        <Unlock size={18}/> Public Room
-                                    </button>
-                                </div>
-
-                                {isPrivate && (
-                                    <div className="animate-in fade-in slide-in-from-top-2">
-                                        <label className="text-xs font-bold text-gray-400 uppercase mb-2 block ml-1">Room Passkey</label>
-                                        <input type="text" value={passkey} onChange={(e) => setPasskey(e.target.value)} className="w-full bg-black/50 border border-white/10 rounded-xl p-4 text-white focus:border-red-600 focus:outline-none transition-colors placeholder-gray-600" placeholder="Set a secure key"/>
-                                    </div>
-                                )}
-
-                                <button onClick={handleCreateRoom} disabled={!createName || !selectedMovie || loading} className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-4 rounded-xl shadow-lg shadow-red-900/30 disabled:opacity-50 transition-all flex items-center justify-center gap-2 active:scale-95 mt-4">
-                                    {loading ? <Loader2 className="animate-spin"/> : "Launch Party"}
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                )}
-
-                {/* ROOM VIEW */}
-                {view === 'room' && currentRoom && (
-                    <div className="flex-1 flex flex-col md:flex-row h-full overflow-hidden relative">
-                        {/* Player Area */}
-                        <div className="flex-1 bg-black relative flex flex-col">
-                            <div className="flex-1 relative bg-black">
-                                {syncStatus && (
-                                    <div className="absolute top-6 left-1/2 -translate-x-1/2 bg-white/10 backdrop-blur-md border border-white/10 px-4 py-2 rounded-full text-xs font-bold text-white flex items-center gap-2 animate-in fade-in slide-in-from-top-4 z-50 pointer-events-none">
-                                        <Check size={12} className="text-green-400"/> {syncStatus}
-                                    </div>
-                                )}
-                                <iframe 
-                                    ref={iframeRef}
-                                    src={getEmbedUrl(currentRoom.movie_data)}
-                                    className="w-full h-full"
-                                    frameBorder="0"
-                                    allowFullScreen
-                                    allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
-                                />
-                            </div>
-                            {/* Mobile Controls if Host */}
-                            {isHost && (
-                                <div className="md:hidden h-14 bg-[#111] border-t border-white/10 flex items-center justify-around px-4">
-                                    <button onClick={handleSync} className="flex flex-col items-center gap-1 text-[10px] text-gray-400 hover:text-white">
-                                        <RefreshCcw size={18}/> Sync All
-                                    </button>
-                                    <div className="h-8 w-px bg-white/10"></div>
-                                    <button onClick={handleEndRoom} className="flex flex-col items-center gap-1 text-[10px] text-red-400 hover:text-red-300">
-                                        <StopCircle size={18}/> End Party
-                                    </button>
-                                </div>
-                            )}
-                        </div>
-
-                        {/* Sidebar: Chat & Info (Desktop: Right Side, Mobile: Overlay/Bottom) */}
-                        <div className={`md:w-80 lg:w-96 bg-[#111] border-l border-white/10 flex flex-col h-full absolute md:relative z-40 transition-transform duration-300 transform ${showMobileChat ? 'translate-x-0 w-full bg-black/95 backdrop-blur-xl' : 'translate-x-full md:translate-x-0 top-0 right-0 bottom-0'}`}>
-                            
-                            {/* Mobile Header for Chat */}
-                            <div className="md:hidden h-14 border-b border-white/10 flex items-center justify-between px-4">
-                                <h3 className="font-bold text-white">Party Chat</h3>
-                                <button onClick={() => setShowMobileChat(false)} className="text-gray-400"><X size={20}/></button>
-                            </div>
-
-                            <div className="p-4 border-b border-white/10 bg-[#161616]">
-                                <h3 className="font-bold text-white truncate">{currentRoom.name}</h3>
-                                <p className="text-xs text-gray-500 truncate mb-3">{currentRoom.movie_data.title || currentRoom.movie_data.name}</p>
-                                <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-2 text-xs text-gray-400 bg-white/5 px-2 py-1 rounded">
-                                        <Users size={12}/> {viewers} Online
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                        <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                                        <span className="text-[10px] font-bold text-green-500 uppercase tracking-wider">Connected</span>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-4 bg-[#0a0a0a]">
-                                {messages.length === 0 && (
-                                    <div className="h-full flex flex-col items-center justify-center text-gray-600 opacity-50 space-y-2">
-                                        <MessageCircle size={32}/>
-                                        <p className="text-xs italic">No messages yet. Say hi!</p>
-                                    </div>
-                                )}
-                                {messages.map(msg => (
-                                    <div key={msg.id} className={`flex flex-col ${msg.user_name === userProfile.name ? 'items-end' : 'items-start'} animate-in fade-in slide-in-from-bottom-2`}>
-                                        <div className="flex items-baseline gap-2 mb-1">
-                                            <span className={`text-[10px] font-bold ${msg.user_name === userProfile.name ? 'text-red-400' : 'text-gray-400'}`}>{msg.user_name}</span>
-                                            <span className="text-[9px] text-gray-600">{new Date(msg.timestamp).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span>
-                                        </div>
-                                        <div className={`px-3 py-2 rounded-2xl max-w-[85%] text-sm break-words ${msg.user_name === userProfile.name ? 'bg-red-600/20 border border-red-600/30 text-white rounded-tr-sm' : 'bg-white/10 border border-white/5 text-gray-200 rounded-tl-sm'}`}>
-                                            {msg.message}
-                                        </div>
-                                    </div>
-                                ))}
-                                <div ref={chatEndRef} />
-                            </div>
-
-                            <div className="p-4 border-t border-white/10 bg-[#161616]">
-                                <form onSubmit={(e) => { e.preventDefault(); sendMessage(); }} className="relative flex gap-2">
-                                    <input 
-                                        type="text" 
-                                        value={newMessage} 
-                                        onChange={(e) => setNewMessage(e.target.value)} 
-                                        placeholder="Type a message..." 
-                                        className="flex-1 bg-black/50 border border-white/10 rounded-xl py-3 pl-4 pr-4 text-sm text-white focus:border-red-600 focus:outline-none transition-colors placeholder-gray-600"
-                                    />
-                                    <button type="submit" disabled={!newMessage.trim()} className="bg-red-600 hover:bg-red-700 text-white p-3 rounded-xl disabled:opacity-50 disabled:bg-gray-800 transition-colors">
-                                        <Send size={18}/>
-                                    </button>
-                                </form>
-                            </div>
-                        </div>
-                    </div>
-                )}
-            </div>
-        </div>
-    );
-};
+                                    <input type="text" value={createName} onChange={(e) => setCreateName(e.target.value)} className="w-full bg-black/50 border border-white/10 rounded-xl p-4 text-white focus:border-red-600 focus:outline-none transition-colors placeholder-
