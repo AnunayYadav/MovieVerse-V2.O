@@ -11,7 +11,7 @@ interface WatchPartyProps {
     onClose: () => void;
 }
 
-const RoomCard = ({ room, onJoin }: { room: WatchPartyRoom; onJoin: (r: WatchPartyRoom) => void }) => (
+const RoomCard: React.FC<{ room: WatchPartyRoom; onJoin: (r: WatchPartyRoom) => void }> = ({ room, onJoin }) => (
     <div className="bg-white/5 border border-white/5 rounded-xl overflow-hidden hover:border-white/20 transition-all cursor-pointer group flex flex-col h-full" onClick={() => onJoin(room)}>
         <div className="relative aspect-video">
             <img src={room.movie_data.backdrop_path ? `${TMDB_IMAGE_BASE}${room.movie_data.backdrop_path}` : "https://placehold.co/400x225"} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" alt={room.name}/>
@@ -68,8 +68,6 @@ export const WatchPartySection: React.FC<WatchPartyProps> = ({ userProfile, apiK
     const fetchRooms = async () => {
         if (!supabase) return;
         setLoading(true);
-        // Assuming a table 'watch_parties' exists. If not, this might fail gracefully or return empty.
-        // Falls back to realtime discovery if no table (not implemented here for brevity, assuming DB).
         const { data, error } = await supabase
             .from('watch_parties')
             .select('*')
@@ -109,8 +107,11 @@ export const WatchPartySection: React.FC<WatchPartyProps> = ({ userProfile, apiK
         const { data: { user } } = await supabase.auth.getUser();
         const hostId = user?.id || `guest-${Date.now()}`;
 
+        // Generate simple 6-digit ID
+        const roomId = Math.floor(100000 + Math.random() * 900000).toString();
+
         const newRoom: WatchPartyRoom = {
-            id: crypto.randomUUID(),
+            id: roomId,
             name: createName,
             is_private: isPrivate,
             passkey: isPrivate ? passkey : undefined,
@@ -291,11 +292,12 @@ export const WatchPartySection: React.FC<WatchPartyProps> = ({ userProfile, apiK
     // --- RENDER HELPERS ---
 
     const getEmbedUrl = (movie: Movie) => {
+        // Corrected VidFast URLs without /embed path segment
         if (movie.media_type === 'tv') {
             // Default to S1E1 for simplicity in MVP
-            return `https://vidfast.pro/embed/tv/${movie.id}/1/1`;
+            return `https://vidfast.pro/tv/${movie.id}/1/1`;
         }
-        return `https://vidfast.pro/embed/movie/${movie.id}`;
+        return `https://vidfast.pro/movie/${movie.id}`;
     };
 
     return (
@@ -314,7 +316,7 @@ export const WatchPartySection: React.FC<WatchPartyProps> = ({ userProfile, apiK
                     <div className="flex items-center gap-4">
                         <div className="flex items-center gap-2 bg-white/5 px-3 py-1.5 rounded-lg border border-white/5 cursor-pointer hover:bg-white/10" onClick={() => navigator.clipboard.writeText(currentRoom.id)}>
                             <span className="text-xs text-gray-400">Room ID:</span>
-                            <span className="text-xs font-mono font-bold text-white">{currentRoom.id.slice(0,8)}...</span>
+                            <span className="text-xs font-mono font-bold text-white">{currentRoom.id}</span>
                             <Copy size={12} className="text-gray-500"/>
                         </div>
                         {isHost && <span className="text-xs font-bold text-amber-500 border border-amber-500/30 px-2 py-1 rounded bg-amber-500/10">HOST</span>}
@@ -336,7 +338,7 @@ export const WatchPartySection: React.FC<WatchPartyProps> = ({ userProfile, apiK
                                     <div className="space-y-3">
                                         <div className="relative">
                                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={16}/>
-                                            <input type="text" value={joinId} onChange={(e) => setJoinId(e.target.value)} placeholder="Enter Room ID" className="w-full bg-black/50 border border-white/10 rounded-xl py-3 pl-10 text-sm text-white focus:border-red-600 focus:outline-none"/>
+                                            <input type="text" value={joinId} onChange={(e) => setJoinId(e.target.value)} placeholder="Enter 6-digit Room ID" className="w-full bg-black/50 border border-white/10 rounded-xl py-3 pl-10 text-sm text-white focus:border-red-600 focus:outline-none"/>
                                         </div>
                                         {joinId && (
                                             <div className="relative animate-in slide-in-from-top-2">
