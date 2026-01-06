@@ -94,6 +94,7 @@ export const WatchPartySection: React.FC<WatchPartyProps> = ({ userProfile, apiK
     const [viewers, setViewers] = useState(1);
     const [isHost, setIsHost] = useState(false);
     const [syncStatus, setSyncStatus] = useState<string>("");
+    const [hostCurrentTime, setHostCurrentTime] = useState(0); // Track host time for manual sync
     
     // New: Chat sidebar toggle for mobile
     const [showMobileChat, setShowMobileChat] = useState(false);
@@ -108,7 +109,6 @@ export const WatchPartySection: React.FC<WatchPartyProps> = ({ userProfile, apiK
     const fetchRooms = async () => {
         if (!supabase) return;
         setLoading(true);
-        // Public active rooms
         const { data, error } = await supabase
             .from('watch_parties')
             .select('*')
@@ -166,7 +166,7 @@ export const WatchPartySection: React.FC<WatchPartyProps> = ({ userProfile, apiK
         
         const { data: { user } } = await supabase.auth.getUser();
         const hostId = user?.id || `guest-${Date.now()}`;
-        const roomId = Math.floor(100000 + Math.random() * 900000).toString(); // 6-digit ID
+        const roomId = Math.floor(100000 + Math.random() * 900000).toString();
 
         const newRoom: WatchPartyRoom = {
             id: roomId,
@@ -181,7 +181,6 @@ export const WatchPartySection: React.FC<WatchPartyProps> = ({ userProfile, apiK
         const { error } = await supabase.from('watch_parties').insert(newRoom);
         
         if (!error) {
-            // Local history update if needed immediately, but View change handles refetch
             setCurrentRoom(newRoom);
             setIsHost(true);
             setView('room');
@@ -226,8 +225,6 @@ export const WatchPartySection: React.FC<WatchPartyProps> = ({ userProfile, apiK
 
         await supabase.from('watch_parties').delete().eq('id', currentRoom.id);
         
-        // Notify others before closing?
-        // Ideally we send a message then close, but simplified here:
         channelRef.current?.send({
             type: 'broadcast',
             event: 'room_ended',
@@ -246,10 +243,12 @@ export const WatchPartySection: React.FC<WatchPartyProps> = ({ userProfile, apiK
 
     const handleSync = () => {
         if (!iframeRef.current || !channelRef.current) return;
-        // Host asks player for time (requires player to support request, or we just send a 'sync' command forcing everyone to a known state if we tracked it)
-        // With vidsrc, we can only SEND commands blindly usually unless we track state.
-        // Simple Sync: Send 'play' command to ensure everyone plays.
-        channelRef.current.send({ type: 'broadcast', event: 'player_action', payload: { command: 'play', time: 0 } }); // Time 0 is placeholder unless we track it
+        // Use the tracked host time to sync everyone
+        channelRef.current.send({ 
+            type: 'broadcast', 
+            event: 'player_action', 
+            payload: { command: 'seek', time: hostCurrentTime } 
+        });
         setSyncStatus("Sync signal sent");
         setTimeout(() => setSyncStatus(""), 2000);
     };
@@ -311,19 +310,25 @@ export const WatchPartySection: React.FC<WatchPartyProps> = ({ userProfile, apiK
     };
 
     // Listener for Host Actions (VidSrc -> React)
+    // Uses the official VidSrc player event structure
     useEffect(() => {
         if (view !== 'room' || !isHost || !currentRoom) return;
 
         const handleMessage = (event: MessageEvent) => {
+            // Strict origin check for security
             if (event.origin !== 'https://vidsrc.cc') return;
             
             if (event.data && event.data.type === 'PLAYER_EVENT') {
                 const { event: eventType, currentTime, tmdbId } = event.data.data;
                 
-                // Safety check ID
+                // Ensure ID matches current room movie to prevent cross-talk
                 if (String(tmdbId) !== String(currentRoom.movie_data.id)) return;
 
-                if (eventType === 'play' || eventType === 'pause') {
+                if (eventType === 'time') {
+                    // Update local host state for manual sync, but don't auto-broadcast to avoid stutter
+                    setHostCurrentTime(currentTime);
+                } else if (eventType === 'play' || eventType === 'pause') {
+                    // Broadcast state changes immediately
                     channelRef.current?.send({ 
                         type: 'broadcast', 
                         event: 'player_action', 
