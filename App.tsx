@@ -1,25 +1,15 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Search, Film, TrendingUp, Tv, Ghost, Calendar, Star, X, Sparkles, Settings, Globe, BarChart3, Bookmark, Heart, Languages, Filter, ChevronDown, Info, Plus, Clock, Bell, History, Tag, Crown, Radio, Clapperboard, Home, Map, Loader2, MoreHorizontal, Download, PlayCircle, LogOut, Users } from 'lucide-react';
+import { Search, Film, Tv, Ghost, Calendar, Star, X, Sparkles, Settings, Globe, Bookmark, Heart, Languages, Filter, ChevronDown, Info, Plus, Clock, Bell, History, Tag, Crown, Radio, Clapperboard, Home, Map, Loader2, MoreHorizontal, Download, PlayCircle, LogOut, Users } from 'lucide-react';
 import { Movie, UserProfile, GENRES_MAP, GENRES_LIST, INDIAN_LANGUAGES, MaturityRating, Keyword } from './types';
 import { LogoLoader, MovieSkeleton, MovieCard, PersonCard, PosterMarquee, TMDB_BASE_URL, TMDB_BACKDROP_BASE, TMDB_IMAGE_BASE, getTmdbKey, getGeminiKey } from './components/Shared';
 import { MoviePage } from './components/MovieDetails';
-import { AnalyticsDashboard } from './components/Analytics';
 import { ProfilePage, ListSelectionModal, PersonPage, AIRecommendationModal, NotificationModal, ComparisonModal, AgeVerificationModal } from './components/Modals';
 import { SettingsPage } from './components/SettingsModal';
 import { getSearchSuggestions } from './services/gemini';
 import { LoginPage } from './components/LoginPage';
 import { getSupabase, syncUserData, fetchUserData, signOut, getNotifications, triggerSystemNotification } from './services/supabase';
 import { LiveTV } from './components/LiveTV';
-import { WatchPartySection } from './components/WatchParty';
-
-const DEFAULT_COLLECTIONS: any = {
-  "srk": { title: "King Khan", params: { with_cast: "35742", sort_by: "popularity.desc" }, icon: "👑", backdrop: "https://image.tmdb.org/t/p/original/2uiMdrO15s597M3E27az2Z2gSgD.jpg", description: "The Badshah of Bollywood. Romance, Action, and Charm." },
-  "rajini": { title: "Thalaivar", params: { with_cast: "3223", sort_by: "popularity.desc" }, icon: "🕶️", backdrop: "https://image.tmdb.org/t/p/original/m8125601132601726.jpg", description: "Mass, Style, and Swag. The One and Only Super Star." },
-  "90s": { title: "90s Nostalgia", params: { "primary_release_date.gte": "1990-01-01", "primary_release_date.lte": "1999-12-31", sort_by: "vote_average.desc", "vote_count.gte": 200 }, icon: "📼", backdrop: "https://image.tmdb.org/t/p/original/yF1eOkaYvwy45m42pSycYYFuPka.jpg", description: "Golden era of melodies, romance, and indie cinema." },
-  "south_mass": { title: "South Mass", params: { with_genres: "28", with_original_language: "te|ta|kn", sort_by: "popularity.desc" }, icon: "🔥", backdrop: "https://image.tmdb.org/t/p/original/1E5baAaEse26fej7uHcjOgEE2t2.jpg", description: "High-octane action from the southern powerhouse." },
-  "korean": { title: "K-Wave", params: { with_original_language: "ko", sort_by: "popularity.desc" }, icon: "🇰🇷", backdrop: "https://image.tmdb.org/t/p/original/7CAl1uP0r6qfK325603665.jpg", description: "Thrillers, Romance, and Drama from South Korea." },
-};
 
 const FRANCHISE_IDS = [ 86311, 131292, 131296, 131295, 115575, 10, 1241, 558216, 1060085, 894562, 1060096, 9485, 295, 645, 119, 121, 87359, 52984, 472535, 712282, 531241, 10194, 2150, 8354, 86066, 77816, 10593, 163313, 8265, 748, 131635, 33514, 8650, 84, 1575, 472761, 3573, 115570, 328, 8091, 8093, 528, 2344, 403374, 1570, 2155, 262, 3260, 1639, 264, 1733, 373722, 250329, 207923, 2289, 2661, 2656, 2342, 2660, 912503 ];
 
@@ -58,7 +48,6 @@ export default function App() {
   const [sortOption, setSortOption] = useState("popularity.desc");
   const [appRegion, setAppRegion] = useState("US");
   
-  const [currentCollection, setCurrentCollection] = useState<string | null>(null);
   const [tmdbCollectionId, setTmdbCollectionId] = useState<number | null>(null);
   const [activeKeyword, setActiveKeyword] = useState<Keyword | null>(null);
   const [activeCountry, setActiveCountry] = useState<{ code: string, name: string } | null>(null);
@@ -80,7 +69,6 @@ export default function App() {
   const [lastNotificationId, setLastNotificationId] = useState<string | null>(null);
   
   const [isAgeModalOpen, setIsAgeModalOpen] = useState(false);
-  const [isWatchPartyOpen, setIsWatchPartyOpen] = useState(false);
 
   const watchlistRef = useRef<Movie[]>([]);
   const favoritesRef = useRef<Movie[]>([]);
@@ -144,7 +132,6 @@ export default function App() {
   const resetFilters = () => {
       setSearchQuery("");
       setIsSearchActive(false);
-      setCurrentCollection(null);
       setTmdbCollectionId(null);
       setActiveKeyword(null);
       setActiveCountry(null);
@@ -157,7 +144,6 @@ export default function App() {
       setIsNotificationOpen(false);
       setIsAIModalOpen(false);
       setIsComparisonOpen(false);
-      setIsWatchPartyOpen(false);
       setListModalMovie(null);
       setSelectedPersonId(null);
   };
@@ -460,7 +446,7 @@ export default function App() {
          setFeaturedMovie(selectedCategory === "Watchlist" ? list[0] : null); 
          setHasMore(false); return; 
     }
-    if (["CineAnalytics", "LiveTV", "Genres", "Collections", "Countries"].includes(selectedCategory) && !activeCountry) return;
+    if (["LiveTV", "Genres", "Countries"].includes(selectedCategory) && !activeCountry) return;
 
     if (abortControllerRef.current) abortControllerRef.current.abort();
     const controller = new AbortController();
@@ -484,7 +470,7 @@ export default function App() {
         });
 
         const isStrictFilter = !isAdult || maturityRating !== 'NC-17';
-        const isGeneralDiscovery = !activeCountry && !activeKeyword && !tmdbCollectionId && !currentCollection && !["People", "Franchise"].includes(selectedCategory);
+        const isGeneralDiscovery = !activeCountry && !activeKeyword && !tmdbCollectionId && !["People", "Franchise"].includes(selectedCategory);
 
         if (isGeneralDiscovery) {
              if (appRegion) params.append("region", appRegion);
@@ -512,11 +498,6 @@ export default function App() {
             params.append("with_keywords", activeKeyword.id.toString());
             params.append("sort_by", sortOption);
         }
-        else if (currentCollection && DEFAULT_COLLECTIONS[currentCollection]) {
-            const colParams = DEFAULT_COLLECTIONS[currentCollection].params;
-            Object.keys(colParams).forEach(key => params.append(key, colParams[key]));
-            if (selectedRegion === "IN" && !colParams.with_origin_country) params.append("with_origin_country", "IN");
-        } 
         else if (selectedCategory === "People") {
             endpoint = "/person/popular";
         }
@@ -617,19 +598,18 @@ export default function App() {
             });
         } else {
             setMovies(finalResults);
-            if (!activeCountry && !activeKeyword && !tmdbCollectionId && !["People", "Anime", "Family", "Awards", "India", "Coming", "Collections", "Genres", "Countries", "Franchise"].includes(selectedCategory) && finalResults.length > 0 && !searchQuery) {
+            if (!activeCountry && !activeKeyword && !tmdbCollectionId && !["People", "Anime", "Family", "Awards", "India", "Coming", "Genres", "Countries", "Franchise"].includes(selectedCategory) && finalResults.length > 0 && !searchQuery) {
                 setFeaturedMovie(finalResults.find((m: Movie) => m.backdrop_path) || finalResults[0]);
             } else setFeaturedMovie(null);
         }
         setHasMore(data.page < data.total_pages);
     } catch (error: any) { if (error.name !== 'AbortError') console.error("Fetch Logic Error:", error); } finally { if (!controller.signal.aborted) setLoading(false); }
-  }, [apiKey, searchQuery, selectedCategory, sortOption, appRegion, currentCollection, filterPeriod, selectedLanguage, selectedRegion, userProfile, maturityRating, sortMovies, tmdbCollectionId, activeKeyword, activeCountry, comingFilter]);
+  }, [apiKey, searchQuery, selectedCategory, sortOption, appRegion, filterPeriod, selectedLanguage, selectedRegion, userProfile, maturityRating, sortMovies, tmdbCollectionId, activeKeyword, activeCountry, comingFilter]);
 
   useEffect(() => { const timeout = setTimeout(() => fetchMovies(1, false), searchQuery ? 800 : 300); return () => clearTimeout(timeout); }, [fetchMovies, searchQuery]);
   useEffect(() => { const fetchSuggestions = async () => { if (searchQuery.length > 3) { try { const sugs = await getSearchSuggestions(searchQuery); setSearchSuggestions(sugs); setShowSuggestions(true); } catch (e) { console.error(e); } } }; const timeout = setTimeout(fetchSuggestions, 500); return () => clearTimeout(timeout); }, [searchQuery]);
 
   const handleLoadMore = () => { const nextPage = page + 1; setPage(nextPage); fetchMovies(nextPage, true); };
-  const handleCollectionClick = (key: string) => { resetFilters(); setCurrentCollection(key); setSelectedCategory("Collection"); };
   const handleTmdbCollectionClick = (id: number) => { setSelectedMovie(null); resetFilters(); setTmdbCollectionId(id); setSelectedCategory("Deep Dive"); };
   const handleKeywordClick = (keyword: Keyword) => { setSelectedMovie(null); resetFilters(); setActiveKeyword(keyword); setSelectedCategory("Deep Dive"); };
   const handleCountryClick = (country: { code: string, name: string }) => { resetFilters(); setActiveCountry(country); setSelectedCategory("Countries"); };
@@ -656,20 +636,18 @@ export default function App() {
   const getPageTitle = () => {
       if (selectedCategory === "LiveTV") return "Live TV";
       if (selectedCategory === "Genres") return "Genres";
-      if (selectedCategory === "Collections") return "Collections";
       if (selectedCategory === "Franchise") return "Franchises";
       if (selectedCategory === "Countries") return activeCountry ? activeCountry.name : "Countries";
       if (selectedCategory === "Coming") return "Coming Soon";
       if (tmdbCollectionId) return "Collection View";
       if (activeKeyword) return `Tag: ${activeKeyword.name}`;
-      if (currentCollection) return DEFAULT_COLLECTIONS[currentCollection]?.title || "Curated Collection";
       if (searchQuery) return `Results: ${searchQuery}`;
       return selectedCategory === "All" ? "Trending Now" : selectedCategory;
   }
 
-  const isHomeView = selectedCategory === "All" && !activeKeyword && !tmdbCollectionId && !currentCollection && filterPeriod === "all" && sortOption === "popularity.desc" && selectedRegion === "Global" && selectedLanguage === "All" && !searchQuery;
+  const isHomeView = selectedCategory === "All" && !activeKeyword && !tmdbCollectionId && filterPeriod === "all" && sortOption === "popularity.desc" && selectedRegion === "Global" && selectedLanguage === "All" && !searchQuery;
   const isLiveView = selectedCategory === "LiveTV" && !searchQuery;
-  const isBrowseActive = !isHomeView && !isLiveView && !selectedCategory.startsWith("Watchlist") && !selectedCategory.startsWith("Favorites") && !selectedCategory.startsWith("History") && !selectedCategory.startsWith("Custom") && !selectedCategory.startsWith("CineAnalytics") && !searchQuery && selectedCategory !== "Coming";
+  const isBrowseActive = !isHomeView && !isLiveView && !selectedCategory.startsWith("Watchlist") && !selectedCategory.startsWith("Favorites") && !selectedCategory.startsWith("History") && !selectedCategory.startsWith("Custom") && !searchQuery && selectedCategory !== "Coming";
   const filteredGenres = GENRES_LIST.filter(g => g.toLowerCase().includes(genreSearch.toLowerCase()));
 
   // HERO CONFIGURATION
@@ -736,9 +714,6 @@ export default function App() {
   );
 
   const renderContent = () => {
-    if (selectedCategory === "CineAnalytics") {
-      return <AnalyticsDashboard watchedMovies={watched} watchlist={watchlist} favorites={favorites} apiKey={apiKey} onMovieClick={setSelectedMovie} />;
-    }
     if (selectedCategory === "LiveTV") {
       return <LiveTV userProfile={userProfile} />;
     }
@@ -748,7 +723,7 @@ export default function App() {
       <>
         {["Anime", "Family", "Awards", "India", "TV Shows", "Franchise"].includes(selectedCategory) && <HeroSection />}
 
-        {!searchQuery && selectedCategory === "All" && !currentCollection && filterPeriod === "all" && featuredMovie && (
+        {!searchQuery && selectedCategory === "All" && filterPeriod === "all" && featuredMovie && (
           <div className="relative w-full h-[50vh] min-h-[400px] md:h-[60vh] group overflow-hidden">
             <div className="absolute inset-0 bg-black">
               <img src={featuredMovie.backdrop_path ? `${TMDB_BACKDROP_BASE}${featuredMovie.backdrop_path}` : "https://placehold.co/1200x600/111/333"} alt="Featured" className="w-full h-full object-cover opacity-80 transition-transform duration-[15s] ease-out group-hover:scale-110" />
@@ -770,18 +745,6 @@ export default function App() {
                 <button onClick={() => setSelectedMovie(featuredMovie)} className="bg-white text-black hover:bg-gray-200 font-bold py-3 px-8 rounded-xl flex items-center gap-2 transition-all active:scale-95 hover:scale-105 text-xs md:text-sm"><Info size={20} /> More Info</button>
                 <button onClick={() => toggleList(watchlist, setWatchlist, 'movieverse_watchlist', featuredMovie)} className="bg-white/20 backdrop-blur-md hover:bg-white/30 text-white font-bold py-3 px-6 rounded-xl flex items-center gap-2 transition-all active:scale-95 hover:scale-105 text-xs md:text-sm"><Plus size={20} /> My List</button>
               </div>
-            </div>
-          </div>
-        )}
-
-        {currentCollection && DEFAULT_COLLECTIONS[currentCollection] && (
-          <div className="relative w-full h-[30vh] md:h-[40vh] overflow-hidden">
-            <img src={DEFAULT_COLLECTIONS[currentCollection].backdrop} className="w-full h-full object-cover animate-in fade-in duration-700" alt={DEFAULT_COLLECTIONS[currentCollection].title} />
-            <div className="absolute inset-0 bg-gradient-to-t from-[#030303] via-[#030303]/80 to-transparent"></div>
-            <div className="absolute bottom-0 left-0 p-8 md:p-12 animate-in slide-in-from-bottom-5 duration-700">
-              <div className="flex items-center gap-2 text-yellow-400 font-bold tracking-widest uppercase text-sm mb-2"><span className="text-2xl">{DEFAULT_COLLECTIONS[currentCollection].icon}</span> Collection</div>
-              <h1 className="text-4xl md:text-6xl font-black text-white mb-4">{DEFAULT_COLLECTIONS[currentCollection].title}</h1>
-              <p className="text-white/70 max-w-xl text-lg">{DEFAULT_COLLECTIONS[currentCollection].description}</p>
             </div>
           </div>
         )}
@@ -834,7 +797,7 @@ export default function App() {
 
           {activeKeyword && (<div className="flex items-center justify-between bg-white/5 border border-white/5 p-6 rounded-2xl animate-in fade-in slide-in-from-top-2"><div><p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1 flex items-center gap-2"><Tag size={12} /> Tag Explorer</p><h2 className="text-3xl font-bold text-white">{activeKeyword.name}</h2></div><button onClick={resetFilters} className={`text-xs font-bold transition-colors ${isGoldTheme ? 'text-amber-400 hover:text-amber-300' : 'text-red-400 hover:text-red-300'}`}>Clear Filter</button></div>)}
 
-          <PosterMarquee movies={!searchQuery && selectedCategory === "All" && !currentCollection && movies.length > 0 ? movies : []} onMovieClick={setSelectedMovie} />
+          <PosterMarquee movies={!searchQuery && selectedCategory === "All" && movies.length > 0 ? movies : []} onMovieClick={setSelectedMovie} />
 
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 gap-4 animate-in fade-in duration-700 w-full">
             {movies.map((movie, idx) => (
@@ -863,12 +826,10 @@ export default function App() {
              <div className="flex flex-col gap-6 w-full items-center">
                  <NavItem icon={Search} label="Search" isActive={isSearchActive} onClick={handleSearchClick} />
                  <NavItem icon={Home} label="Home" isActive={isHomeView && !isSearchActive} onClick={resetToHome} />
-                 <NavItem icon={TrendingUp} label="Explore" isActive={selectedCategory === "Franchise" || selectedCategory === "Collections"} onClick={() => handleNavClick("Collections")} />
                  <NavItem icon={Tv} label="TV Shows" isActive={selectedCategory === "TV Shows"} onClick={() => handleNavClick("TV Shows")} />
                  <NavItem icon={Clapperboard} label="Movies" isActive={selectedCategory === "Genres"} onClick={() => handleNavClick("Genres")} />
                  <NavItem icon={Calendar} label="New & Popular" isActive={selectedCategory === "Coming"} onClick={() => handleNavClick("Coming")} />
                  <NavItem icon={Plus} label="My List" isActive={selectedCategory === "Watchlist"} onClick={() => handleNavClick("Watchlist")} />
-                 <NavItem icon={Users} label="Party" isActive={isWatchPartyOpen} onClick={() => { handleNavClick("Party"); setIsWatchPartyOpen(true); }} />
              </div>
          </div>
          <div className="flex flex-col gap-6 w-full items-center mt-auto">
@@ -973,7 +934,6 @@ export default function App() {
                     <div className="w-full space-y-4">
                         <button onClick={() => { setIsMobileMenuOpen(false); setIsNotificationOpen(true); }} className="w-full flex items-center gap-4 p-4 bg-white/5 rounded-xl text-lg font-bold text-white"><Bell size={24}/> Notifications {hasUnread && <span className="bg-red-600 w-2 h-2 rounded-full"></span>}</button>
                         <button onClick={() => { setIsMobileMenuOpen(false); resetFilters(); setSelectedCategory("History"); }} className="w-full flex items-center gap-4 p-4 bg-white/5 rounded-xl text-lg font-bold text-white"><History size={24}/> Watch History</button>
-                        <button onClick={() => { setIsMobileMenuOpen(false); resetFilters(); setSelectedCategory("CineAnalytics"); }} className="w-full flex items-center gap-4 p-4 bg-white/5 rounded-xl text-lg font-bold text-white"><BarChart3 size={24}/> Analytics</button>
                         <button onClick={() => { setIsMobileMenuOpen(false); setIsSettingsOpen(true); }} className="w-full flex items-center gap-4 p-4 bg-white/5 rounded-xl text-lg font-bold text-white"><Settings size={24}/> App Settings</button>
                         <button onClick={() => { setIsMobileMenuOpen(false); resetFilters(); setSelectedCategory("LiveTV"); }} className="w-full flex items-center gap-4 p-4 bg-white/5 rounded-xl text-lg font-bold text-white"><Radio size={24}/> Live TV</button>
                     </div>
@@ -993,7 +953,6 @@ export default function App() {
         <PersonPage personId={selectedPersonId || 0} onClose={() => setSelectedPersonId(null)} apiKey={apiKey} onMovieClick={(m) => { setSelectedPersonId(null); setTimeout(() => setSelectedMovie(m), 300); }} />
         <AIRecommendationModal isOpen={isAIModalOpen} onClose={() => setIsAIModalOpen(false)} apiKey={apiKey} />
         <ComparisonModal isOpen={isComparisonOpen} onClose={() => setIsComparisonOpen(false)} baseMovie={comparisonBaseMovie} apiKey={apiKey} />
-        {isWatchPartyOpen && <WatchPartySection userProfile={userProfile} apiKey={apiKey} onClose={() => setIsWatchPartyOpen(false)} />}
         <SettingsPage isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} apiKey={apiKey} setApiKey={(k) => saveSettings(k)} geminiKey={geminiKey} setGeminiKey={(k) => saveGeminiKey(k)} maturityRating={maturityRating} setMaturityRating={setMaturityRating} profile={userProfile} onUpdateProfile={setUserProfile} onLogout={handleLogout} searchHistory={searchHistory} setSearchHistory={(h) => { setSearchHistory(h); localStorage.setItem('movieverse_search_history', JSON.stringify(h)); }} watchedMovies={watched} setWatchedMovies={(m) => { setWatched(m); localStorage.setItem('movieverse_watched', JSON.stringify(m)); }} />
         <NotificationModal isOpen={isNotificationOpen} onClose={() => setIsNotificationOpen(false)} onUpdate={checkUnreadNotifications} userProfile={userProfile} />
         {!apiKey && loading && <div className="fixed inset-0 z-[100] bg-black"><LogoLoader /></div>}
