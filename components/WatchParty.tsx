@@ -303,9 +303,9 @@ export const WatchPartySection: React.FC<WatchPartyProps> = ({ userProfile, apiK
         if (!win) return;
 
         switch (payload.command) {
-            case 'play': win.postMessage({ command: 'play' }, '*'); break;
-            case 'pause': win.postMessage({ command: 'pause' }, '*'); break;
-            case 'seek': win.postMessage({ command: 'seek', time: payload.time }, '*'); break;
+            case 'play': win.postMessage({ type: 'play' }, '*'); break;
+            case 'pause': win.postMessage({ type: 'pause' }, '*'); break;
+            case 'seek': win.postMessage({ type: 'seek', value: payload.time }, '*'); break;
         }
     };
 
