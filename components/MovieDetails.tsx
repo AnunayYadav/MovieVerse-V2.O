@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, Suspense, useRef } from 'react';
 import { X, Calendar, Clock, Star, Play, Bookmark, Heart, Share2, Clapperboard, Sparkles, Loader2, Tag, MessageCircle, Globe, Facebook, Instagram, Twitter, Film, PlayCircle, Eye, Volume2, VolumeX, Users, ArrowLeft, Lightbulb, DollarSign, Trophy, Tv, Check, Mic2, Video, PenTool, ChevronRight, ChevronDown } from 'lucide-react';
 import { Movie, MovieDetails, Season, UserProfile, Keyword, Review, CastMember, CrewMember } from '../types';
@@ -180,8 +179,6 @@ export const MoviePage: React.FC<MoviePageProps> = ({
     const [viewingImage, setViewingImage] = useState<string | null>(null);
     const [showPlayer, setShowPlayer] = useState(false);
     const [playParams, setPlayParams] = useState({ season: 1, episode: 1 });
-    const [activeServer, setActiveServer] = useState('server1');
-    const [showServerMenu, setShowServerMenu] = useState(false);
     
     // Modal State
     const [isCastModalOpen, setCastModalOpen] = useState(false);
@@ -221,7 +218,6 @@ export const MoviePage: React.FC<MoviePageProps> = ({
         setVideoLoaded(false); 
         setIsMuted(true); 
         setPlayParams({ season: 1, episode: 1 });
-        setActiveServer('server1');
     }, [movie.id, apiKey, movie.media_type]);
 
     useEffect(() => {
@@ -234,11 +230,9 @@ export const MoviePage: React.FC<MoviePageProps> = ({
         }
     }, [movie.id, apiKey, selectedSeason, movie.media_type]);
 
-    const handleWatchClick = (server: string) => {
-        setActiveServer(server);
+    const handleWatchClick = () => {
         setPlayParams({ season: selectedSeason, episode: 1 });
         setShowPlayer(true);
-        setShowServerMenu(false);
     };
 
     const handleGenerateTrivia = async () => {
@@ -369,8 +363,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                             isAnime={isAnime || false} 
                                             initialSeason={playParams.season} 
                                             initialEpisode={playParams.episode} 
-                                            apiKey={apiKey} 
-                                            server={activeServer}
+                                            apiKey={apiKey}
                                          />
                                      </Suspense>
                                  </div>
@@ -378,7 +371,6 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                  <div className="absolute inset-0 w-full h-full overflow-hidden">
                                     {trailer && (
                                         <div className="absolute inset-0 w-full h-full pointer-events-none">
-                                            {/* ZOOOMED TRAILER: scale-150 to remove black bars completely */}
                                             <iframe
                                                 ref={iframeRef}
                                                 src={`https://www.youtube.com/embed/${trailer.key}?autoplay=1&mute=1&controls=0&loop=1&playlist=${trailer.key}&showinfo=0&rel=0&iv_load_policy=3&modestbranding=1&playsinline=1&enablejsapi=1&origin=${window.location.origin}`}
@@ -428,22 +420,11 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                             {isExclusive && (
                                                 <div className="relative inline-block text-left z-30">
                                                     <button 
-                                                        onClick={() => setShowServerMenu(!showServerMenu)} 
+                                                        onClick={handleWatchClick} 
                                                         className={`font-bold py-3 px-6 md:px-8 text-sm md:text-base rounded-xl transition-all flex items-center gap-2 active:scale-95 shadow-xl hover:shadow-2xl ${isGoldTheme ? 'bg-gradient-to-r from-amber-600 to-amber-500 text-black shadow-amber-900/40' : 'bg-red-600 hover:bg-red-700 text-white'}`}
                                                     >
-                                                        <PlayCircle size={20} fill="currentColor" /> Watch Now <ChevronDown size={16} className={`transition-transform duration-200 ${showServerMenu ? 'rotate-180' : ''}`}/>
+                                                        <PlayCircle size={20} fill="currentColor" /> Watch Now
                                                     </button>
-                                                    
-                                                    {showServerMenu && (
-                                                         <div className="absolute bottom-full left-0 mb-2 w-48 bg-[#1a1a1a] border border-white/10 rounded-xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 origin-bottom-left z-[100]">
-                                                            <button onClick={() => handleWatchClick('server1')} className="w-full text-left px-4 py-3 text-sm hover:bg-white/10 text-white flex items-center gap-2 border-b border-white/5">
-                                                                <span>Server 1</span> <span className="text-[10px] bg-white/10 text-gray-400 px-1.5 py-0.5 rounded">Default</span>
-                                                            </button>
-                                                            <button onClick={() => handleWatchClick('server2')} className="w-full text-left px-4 py-3 text-sm hover:bg-white/10 text-white flex items-center gap-2">
-                                                                <span>Server 2</span> <span className="text-[10px] bg-green-500/20 text-green-400 px-1.5 py-0.5 rounded">Fast</span>
-                                                            </button>
-                                                        </div>
-                                                    )}
                                                 </div>
                                             )}
                                             <button onClick={() => details?.videos?.results?.[0] && window.open(`https://www.youtube.com/watch?v=${details.videos.results[0].key}`)} className="glass hover:bg-white/10 text-white font-bold py-3 px-6 text-sm md:text-base rounded-xl transition-all flex items-center gap-2 active:scale-95"><Play size={18} /> Trailer</button>

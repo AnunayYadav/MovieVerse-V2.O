@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { ChevronRight, ChevronLeft, X, Film, Tv, Ghost, Search, List, ChevronDown, Loader2, ArrowLeft } from 'lucide-react';
 import { Season, Episode } from '../types';
@@ -13,11 +12,10 @@ interface MoviePlayerProps {
   initialSeason?: number;
   initialEpisode?: number;
   apiKey: string;
-  server?: string;
 }
 
 export const MoviePlayer: React.FC<MoviePlayerProps> = ({ 
-  tmdbId, onClose, mediaType, isAnime, initialSeason = 1, initialEpisode = 1, apiKey, server = 'server1'
+  tmdbId, onClose, mediaType, isAnime, initialSeason = 1, initialEpisode = 1, apiKey
 }) => {
   const [season, setSeason] = useState(initialSeason);
   const [episode, setEpisode] = useState(initialEpisode);
@@ -83,15 +81,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   };
 
   const getEmbedUrl = () => {
-    // Server 2: VidFast
-    if (server === 'server2') {
-         if (mediaType === 'tv' || (isAnime && mediaType !== 'movie')) {
-             return `https://vidfast.pro/tv/${tmdbId}/${season}/${episode}`;
-         }
-         return `https://vidfast.pro/movie/${tmdbId}`;
-    }
-
-    // Default Server 1: VidSrc
+    // Default Server: VidSrc
     if (mediaType === 'tv' || (isAnime && mediaType !== 'movie')) {
         return `https://vidsrc.cc/v2/embed/tv/${tmdbId}/${season}/${episode}`;
     }
@@ -229,14 +219,14 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
 
       <div className="flex-1 relative w-full h-full z-0 overflow-hidden bg-black">
         <iframe 
-            key={`${mediaType}-${isAnime}-${season}-${episode}-${server}`} 
+            key={`${mediaType}-${isAnime}-${season}-${episode}`} 
             src={getEmbedUrl()}
             className="w-full h-full absolute inset-0 bg-black"
             title="Media Player"
             frameBorder="0"
-            allow="autoplay; fullscreen; picture-in-picture"
+            allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
             allowFullScreen
-            sandbox={server === 'server2' ? undefined : "allow-forms allow-pointer-lock allow-same-origin allow-scripts allow-top-navigation"}
+            sandbox="allow-forms allow-pointer-lock allow-same-origin allow-scripts allow-top-navigation"
         />
       </div>
     </div>
