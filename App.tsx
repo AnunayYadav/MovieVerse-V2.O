@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Search, Film, Tv, Ghost, Calendar, Star, X, Sparkles, Settings, Globe, Bookmark, Heart, Languages, Filter, ChevronDown, Info, Plus, Clock, Bell, History, Tag, Crown, Radio, Clapperboard, Home, Map, Loader2, MoreHorizontal, Download, PlayCircle, LogOut, Users } from 'lucide-react';
+import { Search, Film, Tv, Ghost, Calendar, Star, X, Sparkles, Settings, Globe, Bookmark, Heart, Languages, Filter, ChevronDown, Info, Plus, Clock, Bell, History, Tag, Crown, Radio, Clapperboard, Home, Map, Loader2, MoreHorizontal, Download, PlayCircle, LogOut, Users, Menu } from 'lucide-react';
 import { Movie, UserProfile, GENRES_MAP, GENRES_LIST, INDIAN_LANGUAGES, MaturityRating, Keyword } from './types';
 import { LogoLoader, MovieSkeleton, MovieCard, PersonCard, PosterMarquee, TMDB_BASE_URL, TMDB_BACKDROP_BASE, TMDB_IMAGE_BASE, getTmdbKey, getGeminiKey } from './components/Shared';
 import { MoviePage } from './components/MovieDetails';
@@ -10,22 +10,10 @@ import { getSearchSuggestions } from './services/gemini';
 import { LoginPage } from './components/LoginPage';
 import { getSupabase, syncUserData, fetchUserData, signOut, getNotifications, triggerSystemNotification } from './services/supabase';
 import { LiveTV } from './components/LiveTV';
-import { NetflixSearch } from './components/NetflixSearch';
 
 const FRANCHISE_IDS = [ 86311, 131292, 131296, 131295, 115575, 10, 1241, 558216, 1060085, 894562, 1060096, 9485, 295, 645, 119, 121, 87359, 52984, 472535, 712282, 531241, 10194, 2150, 8354, 86066, 77816, 10593, 163313, 8265, 748, 131635, 33514, 8650, 84, 1575, 472761, 3573, 115570, 328, 8091, 8093, 528, 2344, 403374, 1570, 2155, 262, 3260, 1639, 264, 1733, 373722, 250329, 207923, 2289, 2661, 2656, 2342, 2660, 912503 ];
 
 const GENRE_COLORS: Record<string, string> = { "Action": "from-red-600 to-red-900", "Adventure": "from-orange-500 to-orange-800", "Animation": "from-pink-500 to-rose-800", "Comedy": "from-yellow-500 to-yellow-800", "Crime": "from-slate-700 to-slate-900", "Documentary": "from-emerald-600 to-emerald-900", "Drama": "from-purple-600 to-purple-900", "Family": "from-cyan-500 to-blue-800", "Fantasy": "from-indigo-500 to-indigo-900", "History": "from-amber-700 to-amber-950", "Horror": "from-gray-800 to-black", "Music": "from-fuchsia-600 to-fuchsia-900", "Mystery": "from-violet-800 to-black", "Romance": "from-rose-500 to-pink-900", "Sci-Fi": "from-teal-600 to-teal-900", "TV Movie": "from-blue-600 to-blue-900", "Thriller": "from-zinc-800 to-black", "War": "from-stone-600 to-stone-800", "Western": "from-orange-800 to-brown-900" };
-
-// Updated NavItem: Clean, small, red line indicator on the left
-const NavItem = ({ icon: Icon, isActive, onClick, className = "" }: any) => (
-    <button 
-        onClick={onClick}
-        className={`relative flex items-center justify-center w-full h-16 transition-colors ${isActive ? 'text-white' : 'text-gray-500 hover:text-gray-300'} ${className}`}
-    >
-        {isActive && <div className="absolute left-0 top-1/2 -translate-y-1/2 h-8 w-1 bg-red-600 rounded-r-full shadow-[0_0_10px_rgba(220,38,38,0.5)]"></div>}
-        <Icon size={22} strokeWidth={isActive ? 2.5 : 2} />
-    </button>
-);
 
 const HeroSection = () => (
     <div className="relative h-[30vh] w-full bg-gray-900 overflow-hidden mb-8">
@@ -193,11 +181,8 @@ export default function App() {
     setSearchHistory(newHistory);
     localStorage.setItem('movieverse_search_history', JSON.stringify(newHistory));
     
-    // If selectedCategory is "Search" (Netflix Style), stay there, otherwise maybe go to "All" to show grid?
-    // The previous code implied "Search" category uses NetflixSearch component which handles its own state
-    // but here we are using a global search bar. 
-    // Let's force "All" category so the grid renders results from fetchMovies
-    if (selectedCategory === "Search") setSelectedCategory("All");
+    // Switch to All to show results grid
+    setSelectedCategory("All");
     
     setTmdbCollectionId(null);
     setActiveKeyword(null);
@@ -485,9 +470,6 @@ export default function App() {
   const fetchMovies = useCallback(async (pageNum: number = 1, isLoadMore = false) => {
     if (!apiKey) return;
     
-    // SKIP FETCH IF SEARCH PAGE IS ACTIVE (Using NetflixSearch component)
-    if (selectedCategory === "Search") return;
-
     if (["Watchlist", "Favorites", "History"].includes(selectedCategory) || selectedCategory.startsWith("Custom:")) {
          const list = selectedCategory === "Watchlist" ? watchlistRef.current : selectedCategory === "Favorites" ? favoritesRef.current : selectedCategory === "History" ? watchedRef.current : customListsRef.current[selectedCategory.replace("Custom:", "")] || [];
          setMovies(sortMovies(list, sortOption)); 
@@ -684,9 +666,6 @@ export default function App() {
     if (selectedCategory === "LiveTV") {
       return <LiveTV userProfile={userProfile} />;
     }
-    if (selectedCategory === "Search") {
-        return <NetflixSearch onMovieClick={setSelectedMovie} apiKey={apiKey} onBack={resetToHome} />;
-    }
     
     // Default View (Home/Movies)
     return (
@@ -778,133 +757,115 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-black text-white font-sans selection:bg-amber-500/30 selection:text-white flex flex-col md:flex-row overflow-x-hidden w-full">
-      <nav className="hidden md:flex flex-col w-20 bg-black/95 border-r border-white/5 fixed left-0 top-0 bottom-0 z-[200] items-center py-8 gap-8 backdrop-blur-xl overflow-y-auto hide-scrollbar pb-8">
-         <div className="flex flex-col items-center gap-8 w-full">
-             <div className="cursor-pointer hover:scale-110 transition-transform duration-300" onClick={resetToHome}>
-                 <Film size={28} className={accentText} strokeWidth={2.5} />
-             </div>
-             <div className="flex flex-col gap-2 w-full items-center">
-                 <NavItem icon={Search} label="Search" isActive={selectedCategory === "Search"} onClick={() => handleNavClick("Search")} />
-                 <NavItem icon={Home} label="Home" isActive={isHomeView} onClick={resetToHome} />
-                 <NavItem icon={Tv} label="TV Shows" isActive={selectedCategory === "TV Shows"} onClick={() => handleNavClick("TV Shows")} />
-                 <NavItem icon={Clapperboard} label="Movies" isActive={selectedCategory === "Genres"} onClick={() => handleNavClick("Genres")} />
-                 <NavItem icon={Calendar} label="New & Popular" isActive={selectedCategory === "Coming"} onClick={() => handleNavClick("Coming")} />
-                 <NavItem icon={Plus} label="My List" isActive={selectedCategory === "Watchlist"} onClick={() => handleNavClick("Watchlist")} />
-             </div>
-         </div>
-         <div className="flex flex-col gap-6 w-full items-center mt-auto">
-             <button onClick={() => { closeAllModals(); setIsNotificationOpen(true); }} className="relative text-gray-500 hover:text-white transition-colors">
-                 <Bell size={24} />
-                 {hasUnread && <span className={`absolute top-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-black ${isGoldTheme ? 'bg-amber-500' : 'bg-red-600'}`}></span>}
-             </button>
-             <button onClick={() => { closeAllModals(); setIsProfileOpen(true); }} className="w-8 h-8 rounded-full overflow-hidden border-2 border-transparent hover:border-white transition-all">
-                 {userProfile.avatar ? <img src={userProfile.avatar} alt="Profile" className="w-full h-full object-cover"/> : <div className="w-full h-full bg-white/10 flex items-center justify-center text-xs font-bold">{userProfile.name.charAt(0)}</div>}
-             </button>
-             <button onClick={() => { closeAllModals(); setIsSettingsOpen(true); }} className="text-gray-500 hover:text-white transition-colors hover:rotate-90 duration-500">
-                 <Settings size={24} />
-             </button>
-         </div>
-      </nav>
-
-      <div className="md:hidden fixed top-0 left-0 right-0 z-40 bg-gradient-to-b from-black/90 via-black/60 to-transparent p-4 flex justify-between items-center pointer-events-none h-20 transition-all duration-300">
-          <div className="flex items-center gap-2 pointer-events-auto" onClick={resetToHome}>
-              <Film size={24} className={accentText} />
-              <span className="font-bold text-lg tracking-tight">MovieVerse</span>
+    <div className="min-h-screen bg-black text-white font-sans selection:bg-amber-500/30 selection:text-white flex flex-col overflow-x-hidden w-full">
+      {/* TOP NAVBAR */}
+      <nav className="fixed top-0 left-0 right-0 z-[100] bg-black/90 backdrop-blur-xl border-b border-white/5 px-6 md:px-12 h-20 flex items-center justify-between transition-all duration-300">
+          {/* Logo */}
+          <div className="flex items-center gap-2 cursor-pointer" onClick={resetToHome}>
+              <Film size={28} className="text-red-600" />
+              <span className="text-xl font-bold tracking-tight text-white hidden md:block">Movie<span className="text-red-600">Verse</span></span>
           </div>
-          <div className="flex items-center gap-4 pointer-events-auto">
-              <button onClick={() => setIsNotificationOpen(true)} className="text-white relative">
-                  <Bell size={24} />
-                  {hasUnread && <span className="absolute top-0 right-0 w-2 h-2 bg-red-600 rounded-full"></span>}
-              </button>
-              <button onClick={() => setIsProfileOpen(true)} className="w-8 h-8 rounded-full overflow-hidden border border-white/20">
-                  {userProfile.avatar ? <img src={userProfile.avatar} alt="Profile" className="w-full h-full object-cover"/> : <div className="w-full h-full bg-white/10 flex items-center justify-center text-xs">{userProfile.name.charAt(0)}</div>}
-              </button>
-          </div>
-      </div>
 
-      <main className="flex-1 md:ml-20 pb-24 md:pb-0 relative min-h-screen overflow-x-hidden">
-           {/* SEARCH BAR (Only visible if NOT in the new Search Page) */}
-           {selectedCategory !== "Search" && (
-                <div className={`sticky top-0 left-0 right-0 z-[60] bg-black/95 backdrop-blur-xl border-b border-white/10 transition-all duration-300 overflow-hidden ${isSearchActive ? 'max-h-24 opacity-100 py-4 px-6' : 'max-h-0 opacity-0 py-0'}`}>
-                        <div className="relative max-w-3xl mx-auto flex items-center">
-                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-white/50" size={20} />
-                            <input 
-                                ref={searchInputRef}
-                                type="text" 
-                                value={searchQuery} 
-                                onChange={(e) => { setSearchQuery(e.target.value); setIsSearchActive(true); }}
-                                onFocus={() => setIsSearchActive(true)}
-                                onKeyDown={(e) => { if(e.key === 'Enter') handleSearchSubmit(searchQuery); }}
-                                placeholder="Search for movies, shows, people, genres..." 
-                                className="w-full bg-white/10 border border-white/10 rounded-full py-3.5 pl-12 pr-12 text-white focus:outline-none focus:bg-white/20 transition-all placeholder-white/30 font-medium"
-                            />
-                            {searchQuery && (
-                                <button onClick={() => { setSearchQuery(""); setIsSearchActive(false); }} className="absolute right-4 top-1/2 -translate-y-1/2 text-white/50 hover:text-white p-1">
-                                    <X size={18}/>
-                                </button>
-                            )}
-                        </div>
-                        {showSuggestions && (searchSuggestions.length > 0 || (searchHistory.length > 0 && !searchQuery)) && (
-                            <div className="absolute top-full left-0 right-0 max-w-3xl mx-auto mt-2 bg-[#1a1a1a] border border-white/10 rounded-xl shadow-2xl overflow-hidden z-[70] animate-in fade-in slide-in-from-top-2">
-                                {!searchQuery && searchHistory.length > 0 && (
-                                    <div className="border-b border-white/5 pb-1">
-                                        <p className="px-4 py-2 text-[10px] text-white/40 font-bold uppercase tracking-wider">Recent</p>
-                                        {searchHistory.slice(0, 3).map((s, i) => (
-                                            <button key={`hist-${i}`} onClick={() => handleSearchSubmit(s)} className="w-full text-left px-4 py-3 text-sm hover:bg-white/5 text-gray-300 flex items-center gap-3"><Clock size={14}/> {s}</button>
-                                        ))}
-                                    </div>
-                                )}
-                                {searchQuery && searchSuggestions.map((s, i) => ( 
-                                    <button key={i} onClick={() => handleSuggestionClick(s)} className="w-full text-left px-4 py-3 text-sm hover:bg-white/5 text-gray-300 border-b border-white/5 last:border-0 flex items-center gap-3"><Search size={14}/> {s}</button> 
+          {/* Desktop Links */}
+          <div className="hidden md:flex items-center gap-8">
+              <button onClick={resetToHome} className={`${isHomeView ? 'text-white font-bold' : 'text-gray-400 hover:text-white'} transition-colors text-sm`}>Home</button>
+              <button onClick={() => handleNavClick("TV Shows")} className={`${selectedCategory === "TV Shows" ? 'text-white font-bold' : 'text-gray-400 hover:text-white'} transition-colors text-sm`}>TV Shows</button>
+              <button onClick={() => handleNavClick("Genres")} className={`${selectedCategory === "Genres" ? 'text-white font-bold' : 'text-gray-400 hover:text-white'} transition-colors text-sm`}>Movies</button>
+              <button onClick={() => handleNavClick("Coming")} className={`${selectedCategory === "Coming" ? 'text-white font-bold' : 'text-gray-400 hover:text-white'} transition-colors text-sm`}>New & Popular</button>
+              <button onClick={() => handleNavClick("Watchlist")} className={`${selectedCategory === "Watchlist" ? 'text-white font-bold' : 'text-gray-400 hover:text-white'} transition-colors text-sm`}>My List</button>
+          </div>
+
+          {/* Right Actions */}
+          <div className="flex items-center gap-6">
+              {/* Search Trigger */}
+              <div className={`relative flex items-center ${isSearchActive ? 'w-64' : 'w-auto'} transition-all duration-300`}>
+                   <Search 
+                     size={20} 
+                     className="text-white cursor-pointer hover:text-red-500 transition-colors" 
+                     onClick={() => {
+                         if (isSearchActive && searchQuery) handleSearchSubmit(searchQuery);
+                         else setIsSearchActive(!isSearchActive);
+                     }}
+                   />
+                   <input 
+                      ref={searchInputRef}
+                      type="text" 
+                      className={`bg-transparent border-b border-white/30 text-sm ml-3 text-white focus:outline-none focus:border-red-500 transition-all duration-300 ${isSearchActive ? 'w-full opacity-100' : 'w-0 opacity-0 pointer-events-none'}`}
+                      placeholder="Titles, people, genres..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && handleSearchSubmit(searchQuery)}
+                   />
+              </div>
+
+              {/* Suggestions Dropdown */}
+              {showSuggestions && (searchSuggestions.length > 0 || (searchHistory.length > 0 && !searchQuery)) && (
+                    <div className="absolute top-full right-0 mt-4 w-72 bg-[#1a1a1a] border border-white/10 rounded-xl shadow-2xl overflow-hidden z-[110] animate-in fade-in slide-in-from-top-2">
+                        {!searchQuery && searchHistory.length > 0 && (
+                            <div className="border-b border-white/5 pb-1">
+                                <p className="px-4 py-2 text-[10px] text-white/40 font-bold uppercase tracking-wider">Recent</p>
+                                {searchHistory.slice(0, 3).map((s, i) => (
+                                    <button key={`hist-${i}`} onClick={() => handleSearchSubmit(s)} className="w-full text-left px-4 py-3 text-sm hover:bg-white/5 text-gray-300 flex items-center gap-3"><Clock size={14}/> {s}</button>
                                 ))}
                             </div>
                         )}
-                </div>
-           )}
+                        {searchQuery && searchSuggestions.map((s, i) => ( 
+                            <button key={i} onClick={() => handleSuggestionClick(s)} className="w-full text-left px-4 py-3 text-sm hover:bg-white/5 text-gray-300 border-b border-white/5 last:border-0 flex items-center gap-3"><Search size={14}/> {s}</button> 
+                        ))}
+                    </div>
+              )}
 
+              <button onClick={() => setIsNotificationOpen(true)} className="relative text-gray-400 hover:text-white transition-colors">
+                  <Bell size={20} />
+                  {hasUnread && <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-600 rounded-full"></span>}
+              </button>
+
+              <button onClick={() => setIsProfileOpen(true)} className="w-8 h-8 rounded-md overflow-hidden border border-white/20 hover:border-white transition-all hidden md:block">
+                  {userProfile.avatar ? <img src={userProfile.avatar} className="w-full h-full object-cover"/> : <div className="w-full h-full bg-white/10 flex items-center justify-center font-bold text-xs">{userProfile.name.charAt(0)}</div>}
+              </button>
+              
+              <button onClick={() => setIsSettingsOpen(true)} className="text-gray-400 hover:text-white transition-colors hidden md:block">
+                  <Settings size={20} />
+              </button>
+
+              <button onClick={() => setIsMobileMenuOpen(true)} className="text-white md:hidden">
+                  <Menu size={24}/>
+              </button>
+          </div>
+      </nav>
+
+      <main className="flex-1 pt-20 pb-10 min-h-screen">
            {renderContent()}
-        </main>
-
-        <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-[#0a0a0a]/95 backdrop-blur-xl border-t border-white/10 z-[80] flex justify-around items-center h-20 pb-4 px-2 safe-area-pb">
-            <NavItem icon={Home} label="Home" isActive={isHomeView} onClick={resetToHome} className="justify-center" />
-            <NavItem icon={Search} label="Search" isActive={selectedCategory === "Search"} onClick={() => handleNavClick("Search")} className="justify-center" />
-            <NavItem icon={Calendar} label="New & Hot" isActive={selectedCategory === "Coming"} onClick={() => handleNavClick("Coming")} className="justify-center" />
-            <NavItem icon={Download} label="Downloads" isActive={selectedCategory === "Watchlist"} onClick={() => handleNavClick("Watchlist")} className="justify-center" />
-            <button 
-                onClick={() => setIsMobileMenuOpen(true)} 
-                className="flex flex-col items-center gap-1 text-gray-500 hover:text-white transition-colors justify-center w-full relative"
-            >
-                <div className={`p-0.5 rounded-full border-2 ${isMobileMenuOpen ? 'border-white' : 'border-transparent'}`}>
-                    {userProfile.avatar ? <img src={userProfile.avatar} className="w-6 h-6 rounded-full object-cover" alt=""/> : <MoreHorizontal size={24}/>}
-                </div>
-                <span className="text-[10px] font-medium mt-0.5">More</span>
-            </button>
-        </nav>
+      </main>
 
         {isMobileMenuOpen && (
-            <div className="md:hidden fixed inset-0 z-[100] bg-black/95 animate-in slide-in-from-bottom-10 duration-300 flex flex-col">
-                <div className="flex justify-end p-4">
+            <div className="fixed inset-0 z-[200] bg-black/95 animate-in slide-in-from-right duration-300 flex flex-col">
+                <div className="flex justify-end p-6 border-b border-white/10">
                     <button onClick={() => setIsMobileMenuOpen(false)} className="p-2 bg-white/10 rounded-full text-white"><X size={24}/></button>
                 </div>
-                <div className="flex flex-col items-center gap-6 p-8 flex-1 overflow-y-auto">
-                    <div className="flex flex-col items-center mb-6">
-                        <div className="w-20 h-20 rounded-full overflow-hidden border-2 border-white/20 mb-3">
+                <div className="flex flex-col p-8 flex-1 overflow-y-auto">
+                    <div className="flex items-center gap-4 mb-8">
+                        <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-white/20">
                             {userProfile.avatar ? <img src={userProfile.avatar} className="w-full h-full object-cover" alt=""/> : <div className="w-full h-full bg-white/10 flex items-center justify-center text-xl font-bold">{userProfile.name.charAt(0)}</div>}
                         </div>
-                        <h2 className="text-xl font-bold text-white">{userProfile.name}</h2>
-                        <button onClick={() => { setIsMobileMenuOpen(false); setIsProfileOpen(true); }} className="text-xs text-gray-400 mt-2 border border-white/20 px-3 py-1 rounded-full">Manage Profile</button>
+                        <div>
+                            <h2 className="text-xl font-bold text-white">{userProfile.name}</h2>
+                            <button onClick={() => { setIsMobileMenuOpen(false); setIsProfileOpen(true); }} className="text-xs text-gray-400 mt-1 border border-white/20 px-3 py-1 rounded-full">Edit Profile</button>
+                        </div>
                     </div>
                     
-                    <div className="w-full space-y-4">
-                        <button onClick={() => { setIsMobileMenuOpen(false); setIsNotificationOpen(true); }} className="w-full flex items-center gap-4 p-4 bg-white/5 rounded-xl text-lg font-bold text-white"><Bell size={24}/> Notifications {hasUnread && <span className="bg-red-600 w-2 h-2 rounded-full"></span>}</button>
-                        <button onClick={() => { setIsMobileMenuOpen(false); resetFilters(); setSelectedCategory("History"); }} className="w-full flex items-center gap-4 p-4 bg-white/5 rounded-xl text-lg font-bold text-white"><History size={24}/> Watch History</button>
-                        <button onClick={() => { setIsMobileMenuOpen(false); setIsSettingsOpen(true); }} className="w-full flex items-center gap-4 p-4 bg-white/5 rounded-xl text-lg font-bold text-white"><Settings size={24}/> App Settings</button>
-                        <button onClick={() => { setIsMobileMenuOpen(false); resetFilters(); setSelectedCategory("LiveTV"); }} className="w-full flex items-center gap-4 p-4 bg-white/5 rounded-xl text-lg font-bold text-white"><Radio size={24}/> Live TV</button>
+                    <div className="space-y-2">
+                        <button onClick={() => { setIsMobileMenuOpen(false); resetToHome(); }} className="w-full text-left p-4 text-lg font-bold text-white border-b border-white/5">Home</button>
+                        <button onClick={() => { setIsMobileMenuOpen(false); handleNavClick("TV Shows"); }} className="w-full text-left p-4 text-lg font-bold text-white border-b border-white/5">TV Shows</button>
+                        <button onClick={() => { setIsMobileMenuOpen(false); handleNavClick("Genres"); }} className="w-full text-left p-4 text-lg font-bold text-white border-b border-white/5">Movies</button>
+                        <button onClick={() => { setIsMobileMenuOpen(false); handleNavClick("Coming"); }} className="w-full text-left p-4 text-lg font-bold text-white border-b border-white/5">New & Popular</button>
+                        <button onClick={() => { setIsMobileMenuOpen(false); handleNavClick("Watchlist"); }} className="w-full text-left p-4 text-lg font-bold text-white border-b border-white/5">My List</button>
+                        <button onClick={() => { setIsMobileMenuOpen(false); resetFilters(); setSelectedCategory("LiveTV"); }} className="w-full text-left p-4 text-lg font-bold text-white border-b border-white/5">Live TV</button>
                     </div>
                     
-                    <div className="mt-auto w-full pt-8">
-                        <button onClick={handleLogout} className="w-full text-center py-4 text-red-500 font-bold border-t border-white/10 flex items-center justify-center gap-2"><LogOut size={18}/> Sign Out</button>
+                    <div className="mt-auto w-full pt-8 flex gap-4">
+                        <button onClick={() => { setIsMobileMenuOpen(false); setIsSettingsOpen(true); }} className="flex-1 py-3 bg-white/10 rounded-xl text-center font-bold">Settings</button>
+                        <button onClick={handleLogout} className="flex-1 py-3 bg-red-600/20 text-red-500 rounded-xl text-center font-bold">Sign Out</button>
                     </div>
                 </div>
             </div>
