@@ -980,7 +980,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-black text-white font-sans selection:bg-amber-500/30 selection:text-white flex flex-col md:flex-row">
-      <nav className="hidden md:flex flex-col w-20 bg-black/95 border-r border-white/5 fixed left-0 top-0 bottom-0 z-50 items-center py-8 gap-8 justify-between backdrop-blur-xl">
+      <nav className="hidden md:flex flex-col w-20 bg-black/95 border-r border-white/5 fixed left-0 top-0 bottom-0 z-50 items-center py-8 gap-8 backdrop-blur-xl overflow-y-auto hide-scrollbar">
          <div className="flex flex-col items-center gap-8 w-full">
              <div className="cursor-pointer hover:scale-110 transition-transform duration-300" onClick={resetToHome}>
                  <Film size={28} className={accentText} strokeWidth={2.5} />
@@ -995,7 +995,7 @@ export default function App() {
                  <NavItem icon={Plus} label="My List" isActive={selectedCategory === "Watchlist"} onClick={() => { resetFilters(); setSelectedCategory("Watchlist"); }} />
              </div>
          </div>
-         <div className="flex flex-col gap-6 w-full items-center">
+         <div className="flex flex-col gap-6 w-full items-center mt-auto">
              <button onClick={() => setIsNotificationOpen(true)} className="relative text-gray-500 hover:text-white transition-colors">
                  <Bell size={24} />
                  {hasUnread && <span className={`absolute top-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-black ${isGoldTheme ? 'bg-amber-500' : 'bg-red-600'}`}></span>}
