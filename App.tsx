@@ -16,14 +16,14 @@ const FRANCHISE_IDS = [ 86311, 131292, 131296, 131295, 115575, 10, 1241, 558216,
 
 const GENRE_COLORS: Record<string, string> = { "Action": "from-red-600 to-red-900", "Adventure": "from-orange-500 to-orange-800", "Animation": "from-pink-500 to-rose-800", "Comedy": "from-yellow-500 to-yellow-800", "Crime": "from-slate-700 to-slate-900", "Documentary": "from-emerald-600 to-emerald-900", "Drama": "from-purple-600 to-purple-900", "Family": "from-cyan-500 to-blue-800", "Fantasy": "from-indigo-500 to-indigo-900", "History": "from-amber-700 to-amber-950", "Horror": "from-gray-800 to-black", "Music": "from-fuchsia-600 to-fuchsia-900", "Mystery": "from-violet-800 to-black", "Romance": "from-rose-500 to-pink-900", "Sci-Fi": "from-teal-600 to-teal-900", "TV Movie": "from-blue-600 to-blue-900", "Thriller": "from-zinc-800 to-black", "War": "from-stone-600 to-stone-800", "Western": "from-orange-800 to-brown-900" };
 
-// Reverted to flex-col to ensure icons (logos) are always visible and above text in the sidebar
-const NavItem = ({ icon: Icon, label, isActive, onClick, className = "" }: any) => (
+// Updated NavItem: Clean, small, red line indicator on the left
+const NavItem = ({ icon: Icon, isActive, onClick, className = "" }: any) => (
     <button 
         onClick={onClick}
-        className={`flex flex-col items-center justify-center gap-1 p-2 md:py-3 rounded-xl transition-all w-full group ${isActive ? 'text-red-600 bg-red-600/10' : 'text-gray-400 hover:text-white hover:bg-white/5'} ${className}`}
+        className={`relative flex items-center justify-center w-full h-16 transition-colors ${isActive ? 'text-white' : 'text-gray-500 hover:text-gray-300'} ${className}`}
     >
-        <Icon size={24} className={`transition-transform duration-300 ${isActive ? "fill-current scale-110" : "group-hover:scale-110"}`} strokeWidth={isActive ? 2.5 : 2} />
-        <span className="text-[10px] font-bold tracking-wide">{label}</span>
+        {isActive && <div className="absolute left-0 top-1/2 -translate-y-1/2 h-8 w-1 bg-red-600 rounded-r-full shadow-[0_0_10px_rgba(220,38,38,0.5)]"></div>}
+        <Icon size={22} strokeWidth={isActive ? 2.5 : 2} />
     </button>
 );
 
@@ -784,7 +784,7 @@ export default function App() {
              <div className="cursor-pointer hover:scale-110 transition-transform duration-300" onClick={resetToHome}>
                  <Film size={28} className={accentText} strokeWidth={2.5} />
              </div>
-             <div className="flex flex-col gap-6 w-full items-center">
+             <div className="flex flex-col gap-2 w-full items-center">
                  <NavItem icon={Search} label="Search" isActive={selectedCategory === "Search"} onClick={() => handleNavClick("Search")} />
                  <NavItem icon={Home} label="Home" isActive={isHomeView} onClick={resetToHome} />
                  <NavItem icon={Tv} label="TV Shows" isActive={selectedCategory === "TV Shows"} onClick={() => handleNavClick("TV Shows")} />
