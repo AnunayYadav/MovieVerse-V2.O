@@ -613,7 +613,6 @@ export const WatchPartySection: React.FC<WatchPartyProps> = ({ userProfile, apiK
                                     frameBorder="0"
                                     allowFullScreen
                                     allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
-                                    sandbox="allow-forms allow-pointer-lock allow-same-origin allow-scripts allow-top-navigation allow-popups allow-presentation"
                                 />
                             </div>
                             {/* Mobile Controls if Host */}
