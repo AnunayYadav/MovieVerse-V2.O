@@ -1,21 +1,29 @@
-
-import React, { useState, useEffect, useCallback } from 'react';
-import { Search, Delete, Space, X, Film, Star, TrendingUp } from 'lucide-react';
-import { Movie, GENRES_LIST, GENRES_MAP } from '../types';
-import { TMDB_BASE_URL, TMDB_IMAGE_BASE, getTmdbKey } from './Shared';
+import React, { useState, useEffect } from 'react';
+import { Search, Delete, X, ArrowLeft, Star, Film, Tv, Heart, Zap, Globe, Music, Smile, Skull, Briefcase, Coffee, Anchor, Cpu, Eye } from 'lucide-react';
+import { Movie, GENRES_LIST } from '../types';
+import { TMDB_BASE_URL, TMDB_IMAGE_BASE } from './Shared';
 
 interface NetflixSearchProps {
     onMovieClick: (m: Movie) => void;
     apiKey: string;
+    onBack: () => void;
 }
 
-export const NetflixSearch: React.FC<NetflixSearchProps> = ({ onMovieClick, apiKey }) => {
+// Map genres to icons for the "Logos" request
+const GENRE_ICONS: Record<string, any> = {
+    "Action": Zap, "Adventure": Globe, "Animation": Smile, "Comedy": Smile, "Crime": Skull,
+    "Documentary": Film, "Drama": Heart, "Family": Smile, "Fantasy": Star, "History": Anchor,
+    "Horror": Skull, "Music": Music, "Mystery": Search, "Romance": Heart, "Sci-Fi": Cpu,
+    "TV Movie": Tv, "Thriller": Eye, "War": Skull, "Western": Briefcase
+};
+
+export const NetflixSearch: React.FC<NetflixSearchProps> = ({ onMovieClick, apiKey, onBack }) => {
     const [query, setQuery] = useState("");
     const [results, setResults] = useState<Movie[]>([]);
     const [loading, setLoading] = useState(false);
     const [popular, setPopular] = useState<Movie[]>([]);
 
-    // Keyboard Layout
+    // Keyboard Layout matching the image roughly (a-z, 0-9)
     const keys = [
         'a', 'b', 'c', 'd', 'e', 'f',
         'g', 'h', 'i', 'j', 'k', 'l',
@@ -81,33 +89,49 @@ export const NetflixSearch: React.FC<NetflixSearchProps> = ({ onMovieClick, apiK
     };
 
     return (
-        <div className="flex flex-col lg:flex-row h-full min-h-screen bg-[#000000] text-white pt-24 px-4 md:px-8 gap-8 animate-in fade-in duration-500">
+        <div className="flex flex-col lg:flex-row h-full min-h-screen bg-[#000000] text-white pt-24 pb-8 px-6 md:px-12 gap-10 animate-in fade-in duration-500">
             
-            {/* LEFT COLUMN: KEYBOARD & FILTERS */}
-            <div className="w-full lg:w-1/3 xl:w-1/4 shrink-0 flex flex-col gap-8">
+            {/* LEFT COLUMN: CONTROLS */}
+            <div className="w-full lg:w-[350px] shrink-0 flex flex-col gap-6">
                 
+                {/* Back Button */}
+                <button 
+                    onClick={onBack}
+                    className="flex items-center gap-3 text-white/50 hover:text-white transition-colors group mb-2"
+                >
+                    <div className="p-2 bg-white/10 rounded-full group-hover:bg-white/20 transition-colors">
+                        <ArrowLeft size={20} />
+                    </div>
+                    <span className="text-sm font-bold uppercase tracking-wider">Back to Browse</span>
+                </button>
+
                 {/* Search Input Display */}
-                <div className="relative">
-                    <div className="w-full bg-[#1a1a1a] border border-white/20 h-14 flex items-center px-4 text-xl font-medium tracking-wider">
-                        {query || <span className="text-white/30">Search titles...</span>}
+                <div className="relative group">
+                    <div className={`w-full bg-[#1a1a1a] border border-white/10 h-14 flex items-center px-4 text-xl font-medium tracking-wider transition-colors ${query ? 'bg-[#222] border-white/30' : ''}`}>
+                        <Search size={20} className="mr-3 text-white/30" />
+                        {query || <span className="text-white/20 italic text-lg">Search...</span>}
                         {query && <span className="ml-auto w-0.5 h-6 bg-red-600 animate-pulse"></span>}
                     </div>
                 </div>
 
-                {/* On-Screen Keyboard (Hidden on mobile, uses native input there) */}
-                <div className="hidden lg:grid grid-cols-6 gap-1 bg-[#1a1a1a] p-1 border border-white/10">
-                    {keys.map((k) => (
-                        <button
-                            key={k}
-                            onClick={() => handleKeyClick(k)}
-                            className="aspect-square flex items-center justify-center text-lg font-medium hover:bg-[#333] transition-colors focus:bg-white focus:text-black uppercase"
-                        >
-                            {k}
-                        </button>
-                    ))}
-                    <button onClick={handleSpace} className="col-span-2 flex items-center justify-center hover:bg-[#333] transition-colors"><div className="w-8 h-1 bg-white/50"></div></button>
-                    <button onClick={handleBackspace} className="col-span-2 flex items-center justify-center hover:bg-[#333] transition-colors"><Delete size={20}/></button>
-                    <button onClick={handleClear} className="col-span-2 flex items-center justify-center hover:bg-[#333] transition-colors text-red-500"><X size={20}/></button>
+                {/* On-Screen Keyboard */}
+                <div className="hidden lg:block">
+                    <div className="grid grid-cols-6 gap-1.5 mb-2">
+                        {keys.map((k) => (
+                            <button
+                                key={k}
+                                onClick={() => handleKeyClick(k)}
+                                className="aspect-square flex items-center justify-center text-lg font-medium bg-[#1a1a1a] hover:bg-[#333] hover:scale-105 hover:shadow-lg transition-all focus:bg-white focus:text-black uppercase border border-transparent hover:border-white/10"
+                            >
+                                {k}
+                            </button>
+                        ))}
+                    </div>
+                    <div className="grid grid-cols-3 gap-1.5">
+                        <button onClick={handleSpace} className="flex items-center justify-center h-12 bg-[#1a1a1a] hover:bg-[#333] transition-colors border border-transparent hover:border-white/10 text-xs font-bold uppercase tracking-wider text-white/50 hover:text-white">Space</button>
+                        <button onClick={handleBackspace} className="flex items-center justify-center h-12 bg-[#1a1a1a] hover:bg-[#333] transition-colors border border-transparent hover:border-white/10 text-white/50 hover:text-white"><Delete size={20}/></button>
+                        <button onClick={handleClear} className="flex items-center justify-center h-12 bg-[#1a1a1a] hover:bg-red-900/30 transition-colors border border-transparent hover:border-red-500/30 text-white/50 hover:text-red-500"><X size={20}/></button>
+                    </div>
                 </div>
 
                 {/* Mobile Input Fallback */}
@@ -121,34 +145,42 @@ export const NetflixSearch: React.FC<NetflixSearchProps> = ({ onMovieClick, apiK
                     />
                 </div>
 
-                {/* Genres List */}
-                <div className="flex flex-col gap-0.5">
-                    <h3 className="text-white/50 font-bold mb-4 uppercase text-xs tracking-widest px-2">Categories</h3>
-                    <div className="max-h-[40vh] overflow-y-auto custom-scrollbar pr-2 space-y-1">
-                        {GENRES_LIST.map((genre) => (
-                            <button 
-                                key={genre}
-                                onClick={() => setQuery(genre)}
-                                className="w-full text-left px-4 py-2.5 text-base font-medium text-white/60 hover:text-white hover:bg-white/10 transition-colors rounded-sm"
-                            >
-                                {genre}
-                            </button>
-                        ))}
+                {/* Genres List with Icons */}
+                <div className="flex flex-col gap-2 mt-4">
+                    <h3 className="text-white font-bold mb-2 text-lg">Categories</h3>
+                    <div className="max-h-[35vh] overflow-y-auto custom-scrollbar pr-2 space-y-1">
+                        {GENRES_LIST.map((genre) => {
+                            const Icon = GENRE_ICONS[genre] || Film;
+                            return (
+                                <button 
+                                    key={genre}
+                                    onClick={() => setQuery(genre)}
+                                    className="w-full flex items-center gap-4 px-4 py-3 text-sm font-bold text-white/60 hover:text-white hover:bg-white/10 transition-all rounded-lg group"
+                                >
+                                    <Icon size={18} className="text-white/30 group-hover:text-red-500 transition-colors"/>
+                                    <span>{genre}</span>
+                                </button>
+                            );
+                        })}
                     </div>
                 </div>
             </div>
 
             {/* RIGHT COLUMN: RESULTS */}
-            <div className="flex-1 pb-20">
-                <h2 className="text-2xl font-bold mb-6 flex items-center gap-3">
-                    {query ? `Results for "${query}"` : "Popular Searches"}
+            <div className="flex-1 pb-20 overflow-y-auto custom-scrollbar -mr-4 pr-4">
+                <h2 className="text-3xl font-bold mb-8 flex items-center gap-3">
+                    {query ? (
+                        <>Results for <span className="text-white italic">"{query}"</span></>
+                    ) : (
+                        "Top Searches"
+                    )}
                 </h2>
 
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-x-4 gap-y-8">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-x-4 gap-y-8">
                     {results.map((movie, index) => {
-                        const isTop10 = index < 10 && !query; // Only show Top 10 badges on default view
-                        const isNew = Math.random() > 0.8; // Simulated "New Episodes" logic for visual demo
-                        const hasNLogo = Math.random() > 0.7; // Simulated "N" logo
+                        const isTop10 = index < 10 && !query;
+                        const isNew = Math.random() > 0.85; 
+                        const hasNLogo = Math.random() > 0.8; 
 
                         return (
                             <div 
@@ -156,7 +188,7 @@ export const NetflixSearch: React.FC<NetflixSearchProps> = ({ onMovieClick, apiK
                                 onClick={() => onMovieClick(movie)}
                                 className="group cursor-pointer relative"
                             >
-                                <div className="aspect-[2/3] relative overflow-hidden rounded-sm transition-transform duration-300 group-hover:scale-105 group-hover:z-10 bg-[#222]">
+                                <div className="aspect-[2/3] relative overflow-hidden rounded-md transition-transform duration-300 group-hover:scale-105 group-hover:z-10 bg-[#222] shadow-lg">
                                     <img 
                                         src={movie.poster_path ? `${TMDB_IMAGE_BASE}${movie.poster_path}` : "https://placehold.co/300x450/222/555?text=No+Image"} 
                                         alt={movie.title || movie.name}
@@ -179,16 +211,14 @@ export const NetflixSearch: React.FC<NetflixSearchProps> = ({ onMovieClick, apiK
 
                                     {/* New Episodes Badge */}
                                     {isNew && (
-                                        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 bg-red-600 text-white text-[9px] font-bold px-3 py-1 rounded-sm shadow-lg whitespace-nowrap z-20 group-hover:translate-y-full transition-transform">
+                                        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-red-600 text-white text-[9px] font-bold px-2 py-0.5 rounded-sm shadow-lg whitespace-nowrap z-20 opacity-0 group-hover:opacity-100 transition-opacity">
                                             NEW EPISODES
                                         </div>
                                     )}
                                     
                                     {/* Hover Overlay */}
-                                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                        <div className="w-12 h-12 rounded-full border-2 border-white flex items-center justify-center">
-                                            <div className="w-0 h-0 border-t-[8px] border-t-transparent border-l-[14px] border-l-white border-b-[8px] border-b-transparent ml-1"></div>
-                                        </div>
+                                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center border-2 border-white/20 rounded-md">
+                                        
                                     </div>
                                 </div>
 
@@ -201,7 +231,7 @@ export const NetflixSearch: React.FC<NetflixSearchProps> = ({ onMovieClick, apiK
                     
                     {results.length === 0 && !loading && (
                         <div className="col-span-full py-20 text-center text-white/30">
-                            <Search size={48} className="mx-auto mb-4"/>
+                            <Search size={48} className="mx-auto mb-4 opacity-50"/>
                             <p>No titles found matching your search.</p>
                         </div>
                     )}
