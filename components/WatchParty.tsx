@@ -300,11 +300,32 @@ export const WatchPartySection: React.FC<WatchPartyProps> = ({ userProfile, apiK
         const win = iframeRef.current.contentWindow;
         if (!win) return;
 
-        // Try both standard patterns since input format isn't strictly documented
-        if (payload.command === 'seek') {
-            win.postMessage({ type: 'seek', time: payload.time }, '*');
-        } else {
-            win.postMessage({ type: payload.command }, '*');
+        const cmd = payload.command;
+        const time = payload.time;
+
+        // Helper to send "shotgun" style messages to ensure compatibility
+        const sendMultiFormat = (messageObj: any) => {
+            // 1. Raw Object
+            win.postMessage(messageObj, '*');
+            // 2. Stringified JSON
+            try {
+                win.postMessage(JSON.stringify(messageObj), '*');
+            } catch(e) {}
+        };
+
+        if (cmd === 'seek') {
+            // Common variations for seek
+            sendMultiFormat({ type: 'seek', time: time });
+            sendMultiFormat({ type: 'seek', value: time });
+            sendMultiFormat({ event: 'seek', time: time });
+            sendMultiFormat({ command: 'seek', time: time });
+        } else if (cmd === 'play' || cmd === 'pause') {
+            // Common variations for play/pause
+            sendMultiFormat({ type: cmd });
+            sendMultiFormat({ event: cmd });
+            sendMultiFormat({ command: cmd });
+            // Plain string
+            win.postMessage(cmd, '*');
         }
     };
 
