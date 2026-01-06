@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { ChevronRight, ChevronLeft, X, Film, Tv, Ghost, Search, List, ChevronDown, Loader2, ArrowLeft } from 'lucide-react';
 import { Season, Episode } from '../types';
@@ -81,7 +82,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   };
 
   const getEmbedUrl = () => {
-    // Default Server: VidSrc
+    // If it's a TV show or Anime series, include season/episode
     if (mediaType === 'tv' || (isAnime && mediaType !== 'movie')) {
         return `https://vidsrc.cc/v2/embed/tv/${tmdbId}/${season}/${episode}`;
     }
@@ -224,7 +225,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
             className="w-full h-full absolute inset-0 bg-black"
             title="Media Player"
             frameBorder="0"
-            allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
+            allow="autoplay; fullscreen; picture-in-picture"
             allowFullScreen
             sandbox="allow-forms allow-pointer-lock allow-same-origin allow-scripts allow-top-navigation"
         />

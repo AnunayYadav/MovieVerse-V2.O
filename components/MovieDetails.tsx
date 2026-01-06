@@ -1,5 +1,6 @@
+
 import React, { useState, useEffect, Suspense, useRef } from 'react';
-import { X, Calendar, Clock, Star, Play, Bookmark, Heart, Share2, Clapperboard, Sparkles, Loader2, Tag, MessageCircle, Globe, Facebook, Instagram, Twitter, Film, PlayCircle, Eye, Volume2, VolumeX, Users, ArrowLeft, Lightbulb, DollarSign, Trophy, Tv, Check, Mic2, Video, PenTool, ChevronRight, ChevronDown } from 'lucide-react';
+import { X, Calendar, Clock, Star, Play, Bookmark, Heart, Share2, Clapperboard, Sparkles, Loader2, Tag, MessageCircle, Globe, Facebook, Instagram, Twitter, Film, PlayCircle, Eye, Volume2, VolumeX, Users, ArrowLeft, Lightbulb, DollarSign, Trophy, Tv, Check, Mic2, Video, PenTool, ChevronRight } from 'lucide-react';
 import { Movie, MovieDetails, Season, UserProfile, Keyword, Review, CastMember, CrewMember } from '../types';
 import { TMDB_BASE_URL, TMDB_IMAGE_BASE, TMDB_BACKDROP_BASE, formatCurrency, ImageLightbox } from '../components/Shared';
 import { generateTrivia } from '../services/gemini';
@@ -363,7 +364,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                             isAnime={isAnime || false} 
                                             initialSeason={playParams.season} 
                                             initialEpisode={playParams.episode} 
-                                            apiKey={apiKey}
+                                            apiKey={apiKey} 
                                          />
                                      </Suspense>
                                  </div>
@@ -371,6 +372,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                  <div className="absolute inset-0 w-full h-full overflow-hidden">
                                     {trailer && (
                                         <div className="absolute inset-0 w-full h-full pointer-events-none">
+                                            {/* ZOOOMED TRAILER: scale-150 to remove black bars completely */}
                                             <iframe
                                                 ref={iframeRef}
                                                 src={`https://www.youtube.com/embed/${trailer.key}?autoplay=1&mute=1&controls=0&loop=1&playlist=${trailer.key}&showinfo=0&rel=0&iv_load_policy=3&modestbranding=1&playsinline=1&enablejsapi=1&origin=${window.location.origin}`}
@@ -416,16 +418,11 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                             {displayData.vote_average && <span className="flex items-center gap-2"><Star size={14} className="text-yellow-500" fill="currentColor"/> {displayData.vote_average.toFixed(1)}</span>}
                                         </div>
 
-                                        <div className="flex flex-wrap gap-3 mt-4 items-center">
+                                        <div className="flex flex-wrap gap-3 mt-4">
                                             {isExclusive && (
-                                                <div className="relative inline-block text-left z-30">
-                                                    <button 
-                                                        onClick={handleWatchClick} 
-                                                        className={`font-bold py-3 px-6 md:px-8 text-sm md:text-base rounded-xl transition-all flex items-center gap-2 active:scale-95 shadow-xl hover:shadow-2xl ${isGoldTheme ? 'bg-gradient-to-r from-amber-600 to-amber-500 text-black shadow-amber-900/40' : 'bg-red-600 hover:bg-red-700 text-white'}`}
-                                                    >
-                                                        <PlayCircle size={20} fill="currentColor" /> Watch Now
-                                                    </button>
-                                                </div>
+                                                <button onClick={handleWatchClick} className={`font-bold py-3 px-8 text-sm md:text-base rounded-xl transition-all flex items-center gap-2 active:scale-95 shadow-xl hover:shadow-2xl ${isGoldTheme ? 'bg-gradient-to-r from-amber-600 to-amber-500 text-black shadow-amber-900/40' : 'bg-red-600 hover:bg-red-700 text-white'}`}>
+                                                    <PlayCircle size={20} fill="currentColor" /> Watch Now
+                                                </button>
                                             )}
                                             <button onClick={() => details?.videos?.results?.[0] && window.open(`https://www.youtube.com/watch?v=${details.videos.results[0].key}`)} className="glass hover:bg-white/10 text-white font-bold py-3 px-6 text-sm md:text-base rounded-xl transition-all flex items-center gap-2 active:scale-95"><Play size={18} /> Trailer</button>
                                         </div>
