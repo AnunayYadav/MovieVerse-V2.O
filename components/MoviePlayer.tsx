@@ -20,10 +20,10 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
 
   const getEmbedUrl = () => {
     // Use vidsrc embed URL. 
-    // For TV shows, we pass the initial season/episode to start playback correctly.
-    // The internal player UI will handle subsequent navigation (season/episode selection).
+    // For TV shows and Anime series, we only use the ID as requested.
+    // The internal player UI will handle episode navigation.
     if (mediaType === 'tv' || (isAnime && mediaType !== 'movie')) {
-        return `https://vidsrc.cc/v2/embed/tv/${tmdbId}/${initialSeason}/${initialEpisode}`;
+        return `https://vidsrc.cc/v2/embed/tv/${tmdbId}`;
     }
     // Movies
     return `https://vidsrc.cc/v2/embed/movie/${tmdbId}`;
