@@ -21,6 +21,7 @@ export const LiveSports: React.FC<LiveSportsProps> = ({ userProfile }) => {
     const isGoldTheme = isExclusive && userProfile.theme !== 'default';
     const accentColor = isGoldTheme ? "text-amber-500" : "text-red-500";
     const accentBg = isGoldTheme ? "bg-amber-500" : "bg-red-600";
+    const accentBorder = isGoldTheme ? "border-amber-500/50" : "border-red-500/50";
 
     // Fetch Sports Categories
     useEffect(() => {
@@ -29,7 +30,12 @@ export const LiveSports: React.FC<LiveSportsProps> = ({ userProfile }) => {
                 const res = await fetch(`${API_BASE}/sports`);
                 if (res.ok) {
                     const data = await res.json();
-                    setSports(data);
+                    if (Array.isArray(data)) {
+                        setSports(data);
+                    } else {
+                        console.warn("Sports data is not an array:", data);
+                        setSports([]);
+                    }
                 }
             } catch (e) {
                 console.error("Failed to fetch sports", e);
@@ -53,14 +59,25 @@ export const LiveSports: React.FC<LiveSportsProps> = ({ userProfile }) => {
                 const res = await fetch(endpoint);
                 if (res.ok) {
                     const data = await res.json();
-                    // Sort: Live first, then by date
-                    const sorted = data.sort((a: APIMatch, b: APIMatch) => a.date - b.date);
-                    setMatches(sorted);
+                    if (Array.isArray(data)) {
+                        // Sort: Live first, then by date safely
+                        const sorted = data.sort((a: APIMatch, b: APIMatch) => (a.date || 0) - (b.date || 0));
+                        setMatches(sorted);
+                    } else {
+                        console.warn("Matches API response is not an array:", data);
+                        setMatches([]);
+                        if (data?.error) {
+                            setError(data.error);
+                        } else {
+                            setError("Received invalid data from server.");
+                        }
+                    }
                 } else {
-                    setError("Failed to load matches.");
+                    setError(`Failed to load matches (Status: ${res.status}).`);
                 }
             } catch (e) {
-                setError("Connection error. Please try again.");
+                console.error(e);
+                setError("Connection error. Please check your internet.");
             } finally {
                 setLoading(false);
             }
@@ -72,14 +89,19 @@ export const LiveSports: React.FC<LiveSportsProps> = ({ userProfile }) => {
     }, [activeTab]);
 
     const formatMatchTime = (timestamp: number) => {
-        const date = new Date(timestamp);
-        const now = new Date();
-        const isToday = date.getDate() === now.getDate() && date.getMonth() === now.getMonth();
-        
-        return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + (isToday ? '' : ` (${date.getDate()}/${date.getMonth() + 1})`);
+        if (!timestamp) return "TBA";
+        try {
+            const date = new Date(timestamp);
+            const now = new Date();
+            const isToday = date.getDate() === now.getDate() && date.getMonth() === now.getMonth();
+            return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + (isToday ? '' : ` (${date.getDate()}/${date.getMonth() + 1})`);
+        } catch (e) {
+            return "TBA";
+        }
     };
 
     const isLiveNow = (timestamp: number) => {
+        if (!timestamp) return false;
         const now = Date.now();
         // Assume match lasts ~2-3 hours. Simple heuristic: Started in last 3 hours and not in future
         return timestamp < now && timestamp > (now - 3 * 60 * 60 * 1000);
@@ -120,7 +142,7 @@ export const LiveSports: React.FC<LiveSportsProps> = ({ userProfile }) => {
                         <button
                             key={sport.id}
                             onClick={() => setActiveTab(sport.id)}
-                            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold whitespace-nowrap transition-all border ${activeTab === sport.id ? `border-${isGoldTheme ? 'amber' : 'red'}-500/50 bg-white/10 text-white` : 'border-transparent bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white'}`}
+                            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold whitespace-nowrap transition-all border ${activeTab === sport.id ? `${accentBorder} bg-white/10 text-white` : 'border-transparent bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white'}`}
                         >
                             {sport.name}
                         </button>
@@ -160,7 +182,7 @@ export const LiveSports: React.FC<LiveSportsProps> = ({ userProfile }) => {
                                     {/* Status Badge */}
                                     <div className="flex justify-between items-center mb-4">
                                         <div className="flex items-center gap-2 text-[10px] uppercase font-bold tracking-wider text-gray-500">
-                                            <span className="bg-white/10 px-2 py-0.5 rounded">{match.category}</span>
+                                            <span className="bg-white/10 px-2 py-0.5 rounded">{match.category || 'Sports'}</span>
                                         </div>
                                         {isLive ? (
                                             <div className="flex items-center gap-1.5 text-red-500 text-[10px] font-bold bg-red-500/10 px-2 py-0.5 rounded-full animate-pulse border border-red-500/20">
@@ -182,7 +204,7 @@ export const LiveSports: React.FC<LiveSportsProps> = ({ userProfile }) => {
                                                 ) : (
                                                     <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-[10px] text-gray-500 border border-white/5">H</div>
                                                 )}
-                                                <span className="font-bold text-sm text-gray-200">{match.teams?.home?.name || "Home Team"}</span>
+                                                <span className="font-bold text-sm text-gray-200 line-clamp-1">{match.teams?.home?.name || "Home Team"}</span>
                                             </div>
                                         </div>
                                         <div className="flex items-center justify-between">
@@ -192,7 +214,7 @@ export const LiveSports: React.FC<LiveSportsProps> = ({ userProfile }) => {
                                                 ) : (
                                                     <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-[10px] text-gray-500 border border-white/5">A</div>
                                                 )}
-                                                <span className="font-bold text-sm text-gray-200">{match.teams?.away?.name || "Away Team"}</span>
+                                                <span className="font-bold text-sm text-gray-200 line-clamp-1">{match.teams?.away?.name || "Away Team"}</span>
                                             </div>
                                         </div>
                                     </div>
@@ -226,21 +248,26 @@ const LiveSportsPlayer = ({ match, onClose, isGoldTheme }: { match: APIMatch, on
     const [details, setDetails] = useState<MatchDetail | null>(null);
     const [activeStream, setActiveStream] = useState<Stream | null>(null);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
         const fetchDetails = async () => {
             setLoading(true);
+            setError(null);
             try {
                 const res = await fetch(`${API_BASE}/matches/${match.id}/detail`);
                 if (res.ok) {
                     const data = await res.json();
                     setDetails(data);
-                    if (data.sources && data.sources.length > 0) {
+                    if (data.sources && Array.isArray(data.sources) && data.sources.length > 0) {
                         setActiveStream(data.sources[0]);
                     }
+                } else {
+                    setError("Failed to load match details.");
                 }
             } catch (e) {
                 console.error(e);
+                setError("Connection error loading stream details.");
             } finally {
                 setLoading(false);
             }
@@ -258,16 +285,16 @@ const LiveSportsPlayer = ({ match, onClose, isGoldTheme }: { match: APIMatch, on
                 </div>
                 
                 <div className="p-6 text-center border-b border-white/5 bg-gradient-to-b from-white/5 to-transparent">
-                    <div className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">{match.category}</div>
+                    <div className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">{match.category || 'Match'}</div>
                     <div className="flex justify-center items-center gap-4 mb-4">
                         <div className="flex flex-col items-center gap-2 w-20">
-                            {match.teams?.home?.badge ? <img src={match.teams.home.badge} className="w-12 h-12 object-contain" /> : <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center">H</div>}
-                            <span className="text-xs font-bold leading-tight">{match.teams?.home?.name}</span>
+                            {match.teams?.home?.badge ? <img src={match.teams.home.badge} className="w-12 h-12 object-contain" alt="H"/> : <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center">H</div>}
+                            <span className="text-xs font-bold leading-tight line-clamp-2">{match.teams?.home?.name || "Home"}</span>
                         </div>
                         <div className="text-xl font-black text-gray-600">VS</div>
                         <div className="flex flex-col items-center gap-2 w-20">
-                            {match.teams?.away?.badge ? <img src={match.teams.away.badge} className="w-12 h-12 object-contain" /> : <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center">A</div>}
-                            <span className="text-xs font-bold leading-tight">{match.teams?.away?.name}</span>
+                            {match.teams?.away?.badge ? <img src={match.teams.away.badge} className="w-12 h-12 object-contain" alt="A"/> : <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center">A</div>}
+                            <span className="text-xs font-bold leading-tight line-clamp-2">{match.teams?.away?.name || "Away"}</span>
                         </div>
                     </div>
                 </div>
@@ -276,7 +303,9 @@ const LiveSportsPlayer = ({ match, onClose, isGoldTheme }: { match: APIMatch, on
                     <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 px-2">Select Stream</h3>
                     {loading ? (
                         <div className="flex justify-center py-10"><Loader2 className="animate-spin text-gray-500"/></div>
-                    ) : details?.sources?.length ? (
+                    ) : error ? (
+                        <div className="text-center text-red-500 text-xs py-4">{error}</div>
+                    ) : (details?.sources && details.sources.length > 0) ? (
                         <div className="space-y-2">
                             {details.sources.map((stream, idx) => (
                                 <button
@@ -288,8 +317,8 @@ const LiveSportsPlayer = ({ match, onClose, isGoldTheme }: { match: APIMatch, on
                                         <div className={`w-8 h-8 rounded-full flex items-center justify-center bg-black/40 font-bold text-xs ${activeStream?.id === stream.id ? (isGoldTheme ? 'text-amber-500' : 'text-red-500') : 'text-gray-500'}`}>
                                             #{stream.streamNo}
                                         </div>
-                                        <div>
-                                            <div className="text-sm font-bold">{stream.source}</div>
+                                        <div className="min-w-0">
+                                            <div className="text-sm font-bold truncate">{stream.source}</div>
                                             <div className="text-[10px] opacity-70">{stream.language || "Unknown Language"}</div>
                                         </div>
                                     </div>
@@ -315,9 +344,10 @@ const LiveSportsPlayer = ({ match, onClose, isGoldTheme }: { match: APIMatch, on
                         sandbox="allow-forms allow-pointer-lock allow-same-origin allow-scripts allow-top-navigation"
                     />
                 ) : (
-                    <div className="text-center text-gray-500">
+                    <div className="text-center text-gray-500 p-6">
                         <MonitorPlay size={48} className="mx-auto mb-4 opacity-20"/>
-                        <p>Select a stream to start watching.</p>
+                        <p>Select a stream from the sidebar to start watching.</p>
+                        <p className="text-xs opacity-50 mt-2">If player doesn't load, try a different source.</p>
                     </div>
                 )}
             </div>
