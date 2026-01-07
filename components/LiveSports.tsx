@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Trophy, Calendar, Radio, Play, Shield, Loader2, RefreshCcw, X, Tv, MonitorPlay, WifiOff, ExternalLink, Search } from 'lucide-react';
+import { Trophy, Calendar, Radio, Play, Shield, Loader2, RefreshCcw, X, Tv, MonitorPlay, WifiOff, Search, AlertCircle } from 'lucide-react';
 import { Sport, APIMatch, MatchDetail, Stream, UserProfile } from '../types';
 
 const API_BASE = "https://livesport.su/api";
@@ -22,7 +22,7 @@ interface LiveSportsProps {
 export const LiveSports: React.FC<LiveSportsProps> = ({ userProfile }) => {
     const [sports, setSports] = useState<Sport[]>([]);
     const [matches, setMatches] = useState<APIMatch[]>([]);
-    const [activeTab, setActiveTab] = useState("today"); // Default to 'today' for more content
+    const [activeTab, setActiveTab] = useState("today");
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [selectedMatch, setSelectedMatch] = useState<APIMatch | null>(null);
@@ -43,7 +43,6 @@ export const LiveSports: React.FC<LiveSportsProps> = ({ userProfile }) => {
                     if (Array.isArray(data) && data.length > 0) {
                         setSports(data);
                     } else {
-                        // Fallback if API returns weird structure
                         setSports(DEFAULT_SPORTS);
                     }
                 } else {
@@ -57,7 +56,7 @@ export const LiveSports: React.FC<LiveSportsProps> = ({ userProfile }) => {
         fetchSports();
     }, []);
 
-    // Fetch Matches based on Active Tab
+    // Fetch Matches
     useEffect(() => {
         const fetchMatches = async () => {
             setLoading(true);
@@ -77,29 +76,20 @@ export const LiveSports: React.FC<LiveSportsProps> = ({ userProfile }) => {
                 const rawData = await res.json();
                 let data: APIMatch[] = [];
 
-                // Robust data parsing
                 if (Array.isArray(rawData)) {
                     data = rawData;
                 } else if (rawData && typeof rawData === 'object') {
-                    // Check specific properties where data might be hidden
                     if (Array.isArray(rawData.matches)) data = rawData.matches;
                     else if (Array.isArray(rawData.data)) data = rawData.data;
                     else if (Array.isArray(rawData.events)) data = rawData.events;
                     else {
-                        // If it's an object but not a known error, treat as empty list rather than crashing
-                        // This handles cases where API returns {} for "no matches"
-                        if (rawData.error) {
-                            throw new Error(rawData.error);
-                        }
-                        console.warn("Received object instead of array, treating as empty:", rawData);
+                        console.warn("Received object instead of array:", rawData);
                         data = [];
                     }
                 }
 
-                // Deduplicate and Sort
-                const uniqueMatches = Array.from(new Map(data.map(m => [m.id, m])).values());
-                const sorted = uniqueMatches.sort((a: APIMatch, b: APIMatch) => {
-                    // Prioritize LIVE/Popular
+                // Sort: Popular/Live first
+                const sorted = data.sort((a: APIMatch, b: APIMatch) => {
                     if (a.popular && !b.popular) return -1;
                     if (!a.popular && b.popular) return 1;
                     return (a.date || 0) - (b.date || 0);
@@ -116,7 +106,7 @@ export const LiveSports: React.FC<LiveSportsProps> = ({ userProfile }) => {
         };
 
         fetchMatches();
-        const interval = setInterval(fetchMatches, 60000); // Auto-refresh every minute
+        const interval = setInterval(fetchMatches, 60000);
         return () => clearInterval(interval);
     }, [activeTab]);
 
@@ -135,7 +125,7 @@ export const LiveSports: React.FC<LiveSportsProps> = ({ userProfile }) => {
     const isLiveNow = (timestamp: number) => {
         if (!timestamp) return false;
         const now = Date.now();
-        // Heuristic: Match started within last 3 hours and hasn't finished (assuming 3h max)
+        // Match started within last 3 hours
         return timestamp < now && timestamp > (now - 3 * 60 * 60 * 1000);
     };
 
@@ -151,7 +141,6 @@ export const LiveSports: React.FC<LiveSportsProps> = ({ userProfile }) => {
                         <p className="text-white/50 text-sm mt-1">Real-time scores and streams from around the world.</p>
                     </div>
                     
-                    {/* Primary Filter Tabs */}
                     <div className="flex bg-white/5 p-1 rounded-xl border border-white/5">
                         <button 
                             onClick={() => setActiveTab('live')}
@@ -168,7 +157,6 @@ export const LiveSports: React.FC<LiveSportsProps> = ({ userProfile }) => {
                     </div>
                 </div>
 
-                {/* Sports Category Scroller */}
                 <div className="flex gap-2 overflow-x-auto pb-4 hide-scrollbar">
                     {sports.map(sport => (
                         <button
@@ -194,23 +182,20 @@ export const LiveSports: React.FC<LiveSportsProps> = ({ userProfile }) => {
                     <div className="flex flex-col items-center justify-center py-20 text-gray-500">
                         <Shield size={48} className="mb-4 opacity-20"/>
                         <p className="mb-2">{error}</p>
-                        <p className="text-xs opacity-50 max-w-md text-center">We couldn't connect to the sports server. It might be blocked or temporarily offline.</p>
-                        <button onClick={() => setActiveTab('today')} className="mt-6 flex items-center gap-2 px-6 py-2 bg-white/10 hover:bg-white/20 rounded-full text-white transition-colors font-bold text-sm"><RefreshCcw size={14}/> Retry Connection</button>
+                        <button onClick={() => setActiveTab('today')} className="mt-6 flex items-center gap-2 px-6 py-2 bg-white/10 hover:bg-white/20 rounded-full text-white transition-colors font-bold text-sm"><RefreshCcw size={14}/> Retry</button>
                     </div>
                 ) : matches.length === 0 ? (
                     <div className="text-center py-24 text-gray-500">
                         <div className="w-20 h-20 bg-white/5 rounded-full flex items-center justify-center mx-auto mb-6">
                             <WifiOff size={32} className="opacity-40"/>
                         </div>
-                        <h3 className="text-lg font-bold text-white mb-2">No Live Matches Found</h3>
-                        <p className="text-sm opacity-60">There are no matches currently listed in this category.</p>
-                        <p className="text-xs opacity-40 mt-1">Try switching to "Today" or selecting a different sport.</p>
+                        <h3 className="text-lg font-bold text-white mb-2">No Matches Found</h3>
+                        <p className="text-sm opacity-60">Check back later for live events.</p>
                     </div>
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                         {matches.map(match => {
                             const isLive = activeTab === 'live' || isLiveNow(match.date);
-                            // Safety checks for missing team objects
                             const homeTeam = match.teams?.home || { name: "Home", badge: "" };
                             const awayTeam = match.teams?.away || { name: "Away", badge: "" };
 
@@ -220,10 +205,9 @@ export const LiveSports: React.FC<LiveSportsProps> = ({ userProfile }) => {
                                     onClick={() => setSelectedMatch(match)}
                                     className={`group bg-[#0a0a0a] border border-white/10 hover:border-white/20 rounded-2xl p-5 cursor-pointer transition-all duration-300 hover:bg-white/5 hover:scale-[1.01] hover:shadow-xl relative overflow-hidden`}
                                 >
-                                    {/* Status Badge */}
                                     <div className="flex justify-between items-center mb-4">
                                         <div className="flex items-center gap-2 text-[10px] uppercase font-bold tracking-wider text-gray-500">
-                                            <span className="bg-white/10 px-2 py-0.5 rounded">{match.category || 'Event'}</span>
+                                            <span className="bg-white/10 px-2 py-0.5 rounded">{match.category || 'Sport'}</span>
                                         </div>
                                         {isLive ? (
                                             <div className="flex items-center gap-1.5 text-red-500 text-[10px] font-bold bg-red-500/10 px-2 py-0.5 rounded-full animate-pulse border border-red-500/20">
@@ -236,32 +220,23 @@ export const LiveSports: React.FC<LiveSportsProps> = ({ userProfile }) => {
                                         )}
                                     </div>
 
-                                    {/* Teams */}
                                     <div className="space-y-3">
                                         <div className="flex items-center justify-between">
                                             <div className="flex items-center gap-3">
-                                                {homeTeam.badge ? (
-                                                    <img src={homeTeam.badge} alt="Home" className="w-8 h-8 object-contain" onError={(e) => (e.currentTarget.style.display = 'none')}/>
-                                                ) : (
-                                                    <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-[10px] text-gray-500 border border-white/5">H</div>
-                                                )}
+                                                {homeTeam.badge ? <img src={homeTeam.badge} alt="Home" className="w-8 h-8 object-contain"/> : <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-xs">H</div>}
                                                 <span className="font-bold text-sm text-gray-200 line-clamp-1">{homeTeam.name}</span>
                                             </div>
                                         </div>
                                         <div className="flex items-center justify-between">
                                             <div className="flex items-center gap-3">
-                                                {awayTeam.badge ? (
-                                                    <img src={awayTeam.badge} alt="Away" className="w-8 h-8 object-contain" onError={(e) => (e.currentTarget.style.display = 'none')}/>
-                                                ) : (
-                                                    <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-[10px] text-gray-500 border border-white/5">A</div>
-                                                )}
+                                                {awayTeam.badge ? <img src={awayTeam.badge} alt="Away" className="w-8 h-8 object-contain"/> : <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-xs">A</div>}
                                                 <span className="font-bold text-sm text-gray-200 line-clamp-1">{awayTeam.name}</span>
                                             </div>
                                         </div>
                                     </div>
 
                                     <div className={`mt-4 pt-4 border-t border-white/5 flex items-center justify-between opacity-50 group-hover:opacity-100 transition-opacity`}>
-                                        <span className="text-[10px] text-gray-500">{match.popular ? '🔥 Popular Match' : 'Watch Stream'}</span>
+                                        <span className="text-[10px] text-gray-500">{match.popular ? '🔥 Popular' : 'Watch Stream'}</span>
                                         <div className={`p-1.5 rounded-full ${accentBg} text-white`}>
                                             <Play size={12} fill="currentColor"/>
                                         </div>
@@ -296,28 +271,29 @@ const LiveSportsPlayer = ({ match, onClose, isGoldTheme }: { match: APIMatch, on
             setLoading(true);
             setError(null);
             try {
+                // IMPORTANT: Fetch detailed info specifically to get 'sources' array
                 const res = await fetch(`${API_BASE}/matches/${match.id}/detail`);
                 if (res.ok) {
                     const data = await res.json();
                     
-                    // Improved Parsing: Look for 'sources', 'streams', or 'links'
+                    // Parse 'sources' as per API documentation
                     let streams: Stream[] = [];
-                    if (Array.isArray(data)) {
-                        streams = data;
-                    } else if (data && typeof data === 'object') {
-                        if (Array.isArray(data.sources)) streams = data.sources;
-                        else if (Array.isArray(data.streams)) streams = data.streams;
-                        else if (Array.isArray(data.links)) streams = data.links;
+                    if (data && Array.isArray(data.sources)) {
+                        streams = data.sources;
+                    } else if (Array.isArray(data)) {
+                        streams = data; // Sometimes returns array directly
                     }
 
-                    // Format check for stream objects
+                    // Format and Validate
                     const validStreams = streams.map((s, idx) => ({
                         ...s,
                         id: s.id || `stream-${idx}`,
                         streamNo: s.streamNo || (idx + 1),
                         source: s.source || `Source ${idx + 1}`,
-                        language: s.language || "Multi"
-                    }));
+                        language: s.language || "Unknown",
+                        // Ensure embedUrl is present
+                        embedUrl: s.embedUrl || "" 
+                    })).filter(s => s.embedUrl); // Filter out streams without URLs
 
                     setDetails({ sources: validStreams });
                     
@@ -325,7 +301,6 @@ const LiveSportsPlayer = ({ match, onClose, isGoldTheme }: { match: APIMatch, on
                         setActiveStream(validStreams[0]);
                     }
                 } else {
-                    console.warn("Details fetch failed", res.status);
                     setDetails({ sources: [] });
                 }
             } catch (e) {
@@ -342,13 +317,13 @@ const LiveSportsPlayer = ({ match, onClose, isGoldTheme }: { match: APIMatch, on
     const awayName = match.teams?.away?.name || "Away Team";
 
     const handleGoogleSearch = () => {
-        const query = `${homeName} vs ${awayName} ${match.category || 'live stream'}`;
+        const query = `${homeName} vs ${awayName} live stream`;
         window.open(`https://www.google.com/search?q=${encodeURIComponent(query)}`, '_blank');
     };
 
     return (
         <div className="fixed inset-0 z-[150] bg-black/95 backdrop-blur-xl animate-in fade-in duration-300 flex flex-col md:flex-row">
-            {/* Header / Sidebar */}
+            {/* Sidebar */}
             <div className="w-full md:w-80 bg-[#0f0f0f] border-b md:border-b-0 md:border-r border-white/10 flex flex-col h-[40vh] md:h-full shrink-0">
                 <div className="p-4 border-b border-white/10 flex items-center gap-3 bg-black/20">
                     <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-full transition-colors"><X size={20}/></button>
@@ -359,12 +334,12 @@ const LiveSportsPlayer = ({ match, onClose, isGoldTheme }: { match: APIMatch, on
                     <div className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">{match.category || 'Live Event'}</div>
                     <div className="flex justify-center items-center gap-4 mb-4">
                         <div className="flex flex-col items-center gap-2 w-20">
-                            {match.teams?.home?.badge ? <img src={match.teams.home.badge} className="w-12 h-12 object-contain" alt="H" onError={(e) => (e.currentTarget.style.display = 'none')}/> : <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center">H</div>}
+                            {match.teams?.home?.badge ? <img src={match.teams.home.badge} className="w-12 h-12 object-contain" alt="H"/> : <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center">H</div>}
                             <span className="text-xs font-bold leading-tight line-clamp-2">{homeName}</span>
                         </div>
                         <div className="text-xl font-black text-gray-600">VS</div>
                         <div className="flex flex-col items-center gap-2 w-20">
-                            {match.teams?.away?.badge ? <img src={match.teams.away.badge} className="w-12 h-12 object-contain" alt="A" onError={(e) => (e.currentTarget.style.display = 'none')}/> : <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center">A</div>}
+                            {match.teams?.away?.badge ? <img src={match.teams.away.badge} className="w-12 h-12 object-contain" alt="A"/> : <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center">A</div>}
                             <span className="text-xs font-bold leading-tight line-clamp-2">{awayName}</span>
                         </div>
                     </div>
@@ -374,13 +349,11 @@ const LiveSportsPlayer = ({ match, onClose, isGoldTheme }: { match: APIMatch, on
                     <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 px-2">Select Stream</h3>
                     {loading ? (
                         <div className="flex justify-center py-10"><Loader2 className="animate-spin text-gray-500"/></div>
-                    ) : error ? (
-                        <div className="text-center text-red-500 text-xs py-4">{error}</div>
                     ) : (details?.sources && details.sources.length > 0) ? (
                         <div className="space-y-2">
                             {details.sources.map((stream, idx) => (
                                 <button
-                                    key={stream.id || idx}
+                                    key={stream.id}
                                     onClick={() => setActiveStream(stream)}
                                     className={`w-full text-left p-3 rounded-xl border transition-all flex items-center justify-between group ${activeStream?.id === stream.id ? (isGoldTheme ? 'bg-amber-500/10 border-amber-500/50 text-white' : 'bg-red-500/10 border-red-500/50 text-white') : 'bg-white/5 border-transparent text-gray-400 hover:bg-white/10 hover:text-white'}`}
                                 >
@@ -389,8 +362,8 @@ const LiveSportsPlayer = ({ match, onClose, isGoldTheme }: { match: APIMatch, on
                                             #{stream.streamNo}
                                         </div>
                                         <div className="min-w-0">
-                                            <div className="text-sm font-bold truncate">{stream.source}</div>
-                                            <div className="text-[10px] opacity-70">{stream.language || "Unknown Language"}</div>
+                                            <div className="text-sm font-bold truncate">{stream.source || `Stream ${idx+1}`}</div>
+                                            <div className="text-[10px] opacity-70">{stream.language}</div>
                                         </div>
                                     </div>
                                     {stream.hd && <span className="text-[9px] font-black bg-white/10 px-1.5 py-0.5 rounded text-white border border-white/10">HD</span>}
@@ -413,21 +386,25 @@ const LiveSportsPlayer = ({ match, onClose, isGoldTheme }: { match: APIMatch, on
             </div>
 
             {/* Player Area */}
-            <div className="flex-1 bg-black relative flex items-center justify-center">
+            <div className="flex-1 bg-black relative flex items-center justify-center overflow-hidden">
                 {activeStream ? (
                     <iframe
+                        key={activeStream.id} // Force re-render when stream changes
                         src={activeStream.embedUrl}
-                        className="w-full h-full absolute inset-0 border-0"
+                        className="w-full h-full absolute inset-0 border-0 bg-black"
                         allowFullScreen
-                        allow="autoplay; encrypted-media"
-                        title={match.title}
-                        sandbox="allow-forms allow-pointer-lock allow-same-origin allow-scripts allow-top-navigation"
+                        // Permissive allow attributes for sports players
+                        allow="autoplay; encrypted-media; picture-in-picture; presentation"
+                        // 'no-referrer' often helps bypass hotlink protection on these streams
+                        referrerPolicy="no-referrer"
+                        // Sandbox must allow scripts and same-origin. Some players also need popups to function (ads).
+                        sandbox="allow-forms allow-pointer-lock allow-same-origin allow-scripts allow-top-navigation allow-popups"
+                        title={`Stream ${activeStream.streamNo}`}
                     />
                 ) : (
                     <div className="text-center text-gray-500 p-6">
                         <MonitorPlay size={48} className="mx-auto mb-4 opacity-20"/>
-                        <p>Select a stream from the sidebar to start watching.</p>
-                        <p className="text-xs opacity-50 mt-2">If no streams are listed, try the "Find on Web" button.</p>
+                        <p>Select a stream from the sidebar.</p>
                     </div>
                 )}
             </div>
