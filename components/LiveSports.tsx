@@ -1,9 +1,19 @@
 
 import React, { useState, useEffect } from 'react';
-import { Trophy, Calendar, Radio, Play, Shield, Loader2, RefreshCcw, X, Tv, MonitorPlay } from 'lucide-react';
+import { Trophy, Calendar, Radio, Play, Shield, Loader2, RefreshCcw, X, Tv, MonitorPlay, WifiOff } from 'lucide-react';
 import { Sport, APIMatch, MatchDetail, Stream, UserProfile } from '../types';
 
 const API_BASE = "https://livesport.su/api";
+
+const DEFAULT_SPORTS: Sport[] = [
+    { id: 'football', name: 'Football' },
+    { id: 'basketball', name: 'Basketball' },
+    { id: 'tennis', name: 'Tennis' },
+    { id: 'hockey', name: 'Hockey' },
+    { id: 'baseball', name: 'Baseball' },
+    { id: 'cricket', name: 'Cricket' },
+    { id: 'volleyball', name: 'Volleyball' }
+];
 
 interface LiveSportsProps {
     userProfile: UserProfile;
@@ -12,7 +22,7 @@ interface LiveSportsProps {
 export const LiveSports: React.FC<LiveSportsProps> = ({ userProfile }) => {
     const [sports, setSports] = useState<Sport[]>([]);
     const [matches, setMatches] = useState<APIMatch[]>([]);
-    const [activeTab, setActiveTab] = useState("live"); // 'live', 'today', or sport_id
+    const [activeTab, setActiveTab] = useState("today"); // Default to 'today' for more content
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [selectedMatch, setSelectedMatch] = useState<APIMatch | null>(null);
@@ -30,15 +40,18 @@ export const LiveSports: React.FC<LiveSportsProps> = ({ userProfile }) => {
                 const res = await fetch(`${API_BASE}/sports`);
                 if (res.ok) {
                     const data = await res.json();
-                    if (Array.isArray(data)) {
+                    if (Array.isArray(data) && data.length > 0) {
                         setSports(data);
                     } else {
-                        console.warn("Sports data is not an array:", data);
-                        setSports([]);
+                        // Fallback if API returns weird structure
+                        setSports(DEFAULT_SPORTS);
                     }
+                } else {
+                    setSports(DEFAULT_SPORTS);
                 }
             } catch (e) {
-                console.error("Failed to fetch sports", e);
+                console.warn("Failed to fetch sports, using defaults", e);
+                setSports(DEFAULT_SPORTS);
             }
         };
         fetchSports();
@@ -57,27 +70,46 @@ export const LiveSports: React.FC<LiveSportsProps> = ({ userProfile }) => {
                 else endpoint = `${API_BASE}/matches/${activeTab}`;
 
                 const res = await fetch(endpoint);
-                if (res.ok) {
-                    const data = await res.json();
-                    if (Array.isArray(data)) {
-                        // Sort: Live first, then by date safely
-                        const sorted = data.sort((a: APIMatch, b: APIMatch) => (a.date || 0) - (b.date || 0));
-                        setMatches(sorted);
-                    } else {
-                        console.warn("Matches API response is not an array:", data);
-                        setMatches([]);
-                        if (data?.error) {
-                            setError(data.error);
-                        } else {
-                            setError("Received invalid data from server.");
-                        }
-                    }
-                } else {
-                    setError(`Failed to load matches (Status: ${res.status}).`);
+                if (!res.ok) {
+                    throw new Error(`Service Unavailable (Status: ${res.status})`);
                 }
-            } catch (e) {
-                console.error(e);
-                setError("Connection error. Please check your internet.");
+
+                const rawData = await res.json();
+                let data: APIMatch[] = [];
+
+                // Robust data parsing
+                if (Array.isArray(rawData)) {
+                    data = rawData;
+                } else if (rawData && typeof rawData === 'object') {
+                    // Check specific properties where data might be hidden
+                    if (Array.isArray(rawData.matches)) data = rawData.matches;
+                    else if (Array.isArray(rawData.data)) data = rawData.data;
+                    else if (Array.isArray(rawData.events)) data = rawData.events;
+                    else {
+                        // If it's an object but not a known error, treat as empty list rather than crashing
+                        // This handles cases where API returns {} for "no matches"
+                        if (rawData.error) {
+                            throw new Error(rawData.error);
+                        }
+                        console.warn("Received object instead of array, treating as empty:", rawData);
+                        data = [];
+                    }
+                }
+
+                // Deduplicate and Sort
+                const uniqueMatches = Array.from(new Map(data.map(m => [m.id, m])).values());
+                const sorted = uniqueMatches.sort((a: APIMatch, b: APIMatch) => {
+                    // Prioritize LIVE/Popular
+                    if (a.popular && !b.popular) return -1;
+                    if (!a.popular && b.popular) return 1;
+                    return (a.date || 0) - (b.date || 0);
+                });
+                
+                setMatches(sorted);
+
+            } catch (e: any) {
+                console.error("Match fetch error:", e);
+                setError(e.message || "Failed to load match data.");
             } finally {
                 setLoading(false);
             }
@@ -89,7 +121,7 @@ export const LiveSports: React.FC<LiveSportsProps> = ({ userProfile }) => {
     }, [activeTab]);
 
     const formatMatchTime = (timestamp: number) => {
-        if (!timestamp) return "TBA";
+        if (!timestamp) return "LIVE";
         try {
             const date = new Date(timestamp);
             const now = new Date();
@@ -103,7 +135,7 @@ export const LiveSports: React.FC<LiveSportsProps> = ({ userProfile }) => {
     const isLiveNow = (timestamp: number) => {
         if (!timestamp) return false;
         const now = Date.now();
-        // Assume match lasts ~2-3 hours. Simple heuristic: Started in last 3 hours and not in future
+        // Heuristic: Match started within last 3 hours and hasn't finished (assuming 3h max)
         return timestamp < now && timestamp > (now - 3 * 60 * 60 * 1000);
     };
 
@@ -161,18 +193,27 @@ export const LiveSports: React.FC<LiveSportsProps> = ({ userProfile }) => {
                 ) : error ? (
                     <div className="flex flex-col items-center justify-center py-20 text-gray-500">
                         <Shield size={48} className="mb-4 opacity-20"/>
-                        <p>{error}</p>
-                        <button onClick={() => setActiveTab(activeTab)} className="mt-4 flex items-center gap-2 text-white hover:underline"><RefreshCcw size={14}/> Retry</button>
+                        <p className="mb-2">{error}</p>
+                        <p className="text-xs opacity-50 max-w-md text-center">We couldn't connect to the sports server. It might be blocked or temporarily offline.</p>
+                        <button onClick={() => setActiveTab('today')} className="mt-6 flex items-center gap-2 px-6 py-2 bg-white/10 hover:bg-white/20 rounded-full text-white transition-colors font-bold text-sm"><RefreshCcw size={14}/> Retry Connection</button>
                     </div>
                 ) : matches.length === 0 ? (
-                    <div className="text-center py-20 text-gray-500">
-                        <Trophy size={48} className="mx-auto mb-4 opacity-20"/>
-                        <p>No matches found in this category right now.</p>
+                    <div className="text-center py-24 text-gray-500">
+                        <div className="w-20 h-20 bg-white/5 rounded-full flex items-center justify-center mx-auto mb-6">
+                            <WifiOff size={32} className="opacity-40"/>
+                        </div>
+                        <h3 className="text-lg font-bold text-white mb-2">No Live Matches Found</h3>
+                        <p className="text-sm opacity-60">There are no matches currently listed in this category.</p>
+                        <p className="text-xs opacity-40 mt-1">Try switching to "Today" or selecting a different sport.</p>
                     </div>
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                         {matches.map(match => {
                             const isLive = activeTab === 'live' || isLiveNow(match.date);
+                            // Safety checks for missing team objects
+                            const homeTeam = match.teams?.home || { name: "Home", badge: "" };
+                            const awayTeam = match.teams?.away || { name: "Away", badge: "" };
+
                             return (
                                 <div 
                                     key={match.id}
@@ -182,7 +223,7 @@ export const LiveSports: React.FC<LiveSportsProps> = ({ userProfile }) => {
                                     {/* Status Badge */}
                                     <div className="flex justify-between items-center mb-4">
                                         <div className="flex items-center gap-2 text-[10px] uppercase font-bold tracking-wider text-gray-500">
-                                            <span className="bg-white/10 px-2 py-0.5 rounded">{match.category || 'Sports'}</span>
+                                            <span className="bg-white/10 px-2 py-0.5 rounded">{match.category || 'Event'}</span>
                                         </div>
                                         {isLive ? (
                                             <div className="flex items-center gap-1.5 text-red-500 text-[10px] font-bold bg-red-500/10 px-2 py-0.5 rounded-full animate-pulse border border-red-500/20">
@@ -199,22 +240,22 @@ export const LiveSports: React.FC<LiveSportsProps> = ({ userProfile }) => {
                                     <div className="space-y-3">
                                         <div className="flex items-center justify-between">
                                             <div className="flex items-center gap-3">
-                                                {match.teams?.home?.badge ? (
-                                                    <img src={match.teams.home.badge} alt="Home" className="w-8 h-8 object-contain"/>
+                                                {homeTeam.badge ? (
+                                                    <img src={homeTeam.badge} alt="Home" className="w-8 h-8 object-contain" onError={(e) => (e.currentTarget.style.display = 'none')}/>
                                                 ) : (
                                                     <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-[10px] text-gray-500 border border-white/5">H</div>
                                                 )}
-                                                <span className="font-bold text-sm text-gray-200 line-clamp-1">{match.teams?.home?.name || "Home Team"}</span>
+                                                <span className="font-bold text-sm text-gray-200 line-clamp-1">{homeTeam.name}</span>
                                             </div>
                                         </div>
                                         <div className="flex items-center justify-between">
                                             <div className="flex items-center gap-3">
-                                                {match.teams?.away?.badge ? (
-                                                    <img src={match.teams.away.badge} alt="Away" className="w-8 h-8 object-contain"/>
+                                                {awayTeam.badge ? (
+                                                    <img src={awayTeam.badge} alt="Away" className="w-8 h-8 object-contain" onError={(e) => (e.currentTarget.style.display = 'none')}/>
                                                 ) : (
                                                     <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-[10px] text-gray-500 border border-white/5">A</div>
                                                 )}
-                                                <span className="font-bold text-sm text-gray-200 line-clamp-1">{match.teams?.away?.name || "Away Team"}</span>
+                                                <span className="font-bold text-sm text-gray-200 line-clamp-1">{awayTeam.name}</span>
                                             </div>
                                         </div>
                                     </div>
@@ -263,17 +304,22 @@ const LiveSportsPlayer = ({ match, onClose, isGoldTheme }: { match: APIMatch, on
                         setActiveStream(data.sources[0]);
                     }
                 } else {
-                    setError("Failed to load match details.");
+                    console.warn("Details fetch failed", res.status);
+                    setDetails({ sources: [] });
                 }
             } catch (e) {
                 console.error(e);
-                setError("Connection error loading stream details.");
+                // Fallback to empty details on error
+                setDetails({ sources: [] });
             } finally {
                 setLoading(false);
             }
         };
         fetchDetails();
     }, [match.id]);
+
+    const homeName = match.teams?.home?.name || "Home Team";
+    const awayName = match.teams?.away?.name || "Away Team";
 
     return (
         <div className="fixed inset-0 z-[150] bg-black/95 backdrop-blur-xl animate-in fade-in duration-300 flex flex-col md:flex-row">
@@ -285,16 +331,16 @@ const LiveSportsPlayer = ({ match, onClose, isGoldTheme }: { match: APIMatch, on
                 </div>
                 
                 <div className="p-6 text-center border-b border-white/5 bg-gradient-to-b from-white/5 to-transparent">
-                    <div className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">{match.category || 'Match'}</div>
+                    <div className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">{match.category || 'Live Event'}</div>
                     <div className="flex justify-center items-center gap-4 mb-4">
                         <div className="flex flex-col items-center gap-2 w-20">
-                            {match.teams?.home?.badge ? <img src={match.teams.home.badge} className="w-12 h-12 object-contain" alt="H"/> : <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center">H</div>}
-                            <span className="text-xs font-bold leading-tight line-clamp-2">{match.teams?.home?.name || "Home"}</span>
+                            {match.teams?.home?.badge ? <img src={match.teams.home.badge} className="w-12 h-12 object-contain" alt="H" onError={(e) => (e.currentTarget.style.display = 'none')}/> : <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center">H</div>}
+                            <span className="text-xs font-bold leading-tight line-clamp-2">{homeName}</span>
                         </div>
                         <div className="text-xl font-black text-gray-600">VS</div>
                         <div className="flex flex-col items-center gap-2 w-20">
-                            {match.teams?.away?.badge ? <img src={match.teams.away.badge} className="w-12 h-12 object-contain" alt="A"/> : <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center">A</div>}
-                            <span className="text-xs font-bold leading-tight line-clamp-2">{match.teams?.away?.name || "Away"}</span>
+                            {match.teams?.away?.badge ? <img src={match.teams.away.badge} className="w-12 h-12 object-contain" alt="A" onError={(e) => (e.currentTarget.style.display = 'none')}/> : <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center">A</div>}
+                            <span className="text-xs font-bold leading-tight line-clamp-2">{awayName}</span>
                         </div>
                     </div>
                 </div>
@@ -327,7 +373,10 @@ const LiveSportsPlayer = ({ match, onClose, isGoldTheme }: { match: APIMatch, on
                             ))}
                         </div>
                     ) : (
-                        <div className="text-center py-10 text-gray-500 text-sm">No live streams available yet. Check back closer to match time.</div>
+                        <div className="text-center py-10 text-gray-500 text-sm">
+                            <p>No streams available at the moment.</p>
+                            <p className="text-xs opacity-50 mt-1">Check back closer to match start time.</p>
+                        </div>
                     )}
                 </div>
             </div>
