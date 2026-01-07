@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Search, Film, Menu, TrendingUp, Tv, Ghost, Calendar, Star, X, Sparkles, Settings, Globe, BarChart3, Bookmark, Heart, Folder, Languages, Filter, ChevronDown, Info, Plus, Cloud, CloudOff, Clock, Bell, History, Users, Tag, Dice5, Crown, Radio, LayoutGrid, Award, Baby, Clapperboard, ChevronRight, PlayCircle, Megaphone, CalendarDays, Compass, Home, Map, Loader2 } from 'lucide-react';
+import { Search, Film, Menu, TrendingUp, Tv, Ghost, Calendar, Star, X, Sparkles, Settings, Globe, BarChart3, Bookmark, Heart, Folder, Languages, Filter, ChevronDown, Info, Plus, Cloud, CloudOff, Clock, Bell, History, Users, Tag, Dice5, Crown, Radio, LayoutGrid, Award, Baby, Clapperboard, ChevronRight, PlayCircle, Megaphone, CalendarDays, Compass, Home, Map, Loader2, Trophy } from 'lucide-react';
 import { Movie, UserProfile, GENRES_MAP, GENRES_LIST, INDIAN_LANGUAGES, MaturityRating, Keyword } from './types';
 import { LogoLoader, MovieSkeleton, MovieCard, PersonCard, PosterMarquee, TMDB_BASE_URL, TMDB_BACKDROP_BASE, TMDB_IMAGE_BASE, HARDCODED_TMDB_KEY, HARDCODED_GEMINI_KEY, getTmdbKey, getGeminiKey } from './components/Shared';
 import { MoviePage } from './components/MovieDetails';
@@ -11,6 +11,7 @@ import { generateSmartRecommendations, getSearchSuggestions } from './services/g
 import { LoginPage } from './components/LoginPage';
 import { getSupabase, syncUserData, fetchUserData, signOut, getNotifications, triggerSystemNotification } from './services/supabase';
 import { LiveTV } from './components/LiveTV';
+import { LiveSports } from './components/LiveSports';
 
 const DEFAULT_COLLECTIONS: any = {
   "srk": { title: "King Khan", params: { with_cast: "35742", sort_by: "popularity.desc" }, icon: "👑", backdrop: "https://image.tmdb.org/t/p/original/2uiMdrO15s597M3E27az2Z2gSgD.jpg", description: "The Badshah of Bollywood. Romance, Action, and Charm." },
@@ -21,120 +22,16 @@ const DEFAULT_COLLECTIONS: any = {
 };
 
 // Expanded Franchise List for Endless Scrolling - Real TMDB Collection IDs
-const FRANCHISE_IDS = [
-    86311,   // The Avengers Collection
-    131292,  // Iron Man Collection
-    131296,  // Thor Collection
-    131295,  // Captain America Collection
-    115575,  // DC Extended Universe
-    10,      // Star Wars Collection
-    1241,    // Harry Potter Collection
-    558216,  // MonsterVerse (Godzilla/Kong)
-    1060085, // YRF Spy Universe (Tiger/Pathaan/War)
-    894562,  // Lokesh Cinematic Universe (Vikram/Kaithi/Leo)
-    1060096, // Cop Universe (Singham/Simmba)
-    9485,    // The Fast and the Furious Collection
-    295,     // Pirates of the Caribbean Collection
-    645,     // James Bond Collection
-    119,     // The Lord of the Rings Collection
-    121,     // The Hobbit Collection
-    87359,   // Mission: Impossible Collection
-    52984,   // The Dark Knight Collection
-    472535,  // Baahubali Collection
-    712282,  // K.G.F Collection
-    531241,  // Spider-Man (Spider-Verse) Collection
-    10194,   // Toy Story Collection
-    2150,    // Shrek Collection
-    8354,    // Ice Age Collection
-    86066,   // Despicable Me Collection
-    77816,   // Kung Fu Panda Collection
-    10593,   // Madagascar Collection
-    163313,  // How to Train Your Dragon Collection
-    8265,    // Cars Collection
-    748,     // X-Men Collection
-    131635,  // The Hunger Games Collection
-    33514,   // The Twilight Saga
-    8650,    // Transformers Collection
-    84,      // Indiana Jones Collection
-    1575,    // Rocky Collection
-    472761,  // Creed Collection
-    3573,    // The Bourne Collection
-    115570,  // Star Trek (Reboot) Collection
-    328,     // Jurassic Park Collection
-    8091,    // Alien Collection
-    8093,    // Predator Collection
-    528,     // The Terminator Collection
-    2344,    // The Matrix Collection
-    403374,  // John Wick Collection
-    1570,    // Die Hard Collection
-    2155,    // Lethal Weapon Collection
-    262,     // Rush Hour Collection
-    3260,    // Men in Black Collection
-    1639,    // Ghostbusters Collection
-    264,     // Back to the Future Collection
-    1733,    // Planet of the Apes (Reboot) Collection
-    373722,  // Godzilla (Classic) Collection
-    250329,  // The Conjuring Collection
-    207923,  // Insidious Collection
-    2289,    // Saw Collection
-    2661,    // Scream Collection
-    2656,    // Halloween Collection
-    2342,    // Friday the13th Collection
-    2660,    // A Nightmare on Elm Street Collection
-    912503   // Astraverse (Brahmastra)
-];
+const FRANCHISE_IDS = [ 86311, 131292, 131296, 131295, 115575, 10, 1241, 558216, 1060085, 894562, 1060096, 9485, 295, 645, 119, 121, 87359, 52984, 472535, 712282, 531241, 10194, 2150, 8354, 86066, 77816, 10593, 163313, 8265, 748, 131635, 33514, 8650, 84, 1575, 472761, 3573, 115570, 328, 8091, 8093, 528, 2344, 403374, 1570, 2155, 262, 3260, 1639, 264, 1733, 373722, 250329, 207923, 2289, 2661, 2660, 2656, 2342, 912503 ];
 
-const COUNTRY_OPTIONS = [
-    { code: "US", name: "United States", flag: "🇺🇸" },
-    { code: "GB", name: "United Kingdom", flag: "🇬🇧" },
-    { code: "KR", name: "South Korea", flag: "🇰🇷" },
-    { code: "JP", name: "Japan", flag: "🇯🇵" },
-    { code: "IN", name: "India", flag: "🇮🇳" },
-    { code: "FR", name: "France", flag: "🇫🇷" },
-    { code: "CN", name: "China", flag: "🇨🇳" },
-    { code: "ES", name: "Spain", flag: "🇪🇸" },
-    { code: "DE", name: "Germany", flag: "🇩🇪" },
-    { code: "IT", name: "Italy", flag: "🇮🇹" },
-    { code: "CA", name: "Canada", flag: "🇨🇦" },
-    { code: "AU", name: "Australia", flag: "🇦🇺" },
-    { code: "MX", name: "Mexico", flag: "🇲🇽" },
-    { code: "BR", name: "Brazil", flag: "🇧🇷" },
-    { code: "TR", name: "Turkey", flag: "🇹🇷" },
-    { code: "TH", name: "Thailand", flag: "🇹🇭" },
-    { code: "HK", name: "Hong Kong", flag: "🇭🇰" },
-    { code: "RU", name: "Russia", flag: "🇷🇺" },
-    { code: "SE", name: "Sweden", flag: "🇸🇪" },
-    { code: "NO", name: "Norway", flag: "🇳🇴" },
-];
+const COUNTRY_OPTIONS = [ { code: "US", name: "United States", flag: "🇺🇸" }, { code: "GB", name: "United Kingdom", flag: "🇬🇧" }, { code: "KR", name: "South Korea", flag: "🇰🇷" }, { code: "JP", name: "Japan", flag: "🇯🇵" }, { code: "IN", name: "India", flag: "🇮🇳" }, { code: "FR", name: "France", flag: "🇫🇷" }, { code: "CN", name: "China", flag: "🇨🇳" }, { code: "ES", name: "Spain", flag: "🇪🇸" }, { code: "DE", name: "Germany", flag: "🇩🇪" }, { code: "IT", name: "Italy", flag: "🇮🇹" }, { code: "CA", name: "Canada", flag: "🇨🇦" }, { code: "AU", name: "Australia", flag: "🇦🇺" }, { code: "MX", name: "Mexico", flag: "🇲🇽" }, { code: "BR", name: "Brazil", flag: "🇧🇷" }, { code: "TR", name: "Turkey", flag: "🇹🇷" }, { code: "TH", name: "Thailand", flag: "🇹🇭" }, { code: "HK", name: "Hong Kong", flag: "🇭🇰" }, { code: "RU", name: "Russia", flag: "🇷🇺" }, { code: "SE", name: "Sweden", flag: "🇸🇪" }, { code: "NO", name: "Norway", flag: "🇳🇴" }, ];
 
-const GENRE_COLORS: Record<string, string> = {
-    "Action": "from-red-600 to-red-900",
-    "Adventure": "from-orange-500 to-orange-800",
-    "Animation": "from-pink-500 to-rose-800",
-    "Comedy": "from-yellow-500 to-yellow-800",
-    "Crime": "from-slate-700 to-slate-900",
-    "Documentary": "from-emerald-600 to-emerald-900",
-    "Drama": "from-purple-600 to-purple-900",
-    "Family": "from-cyan-500 to-blue-800",
-    "Fantasy": "from-indigo-500 to-indigo-900",
-    "History": "from-amber-700 to-amber-950",
-    "Horror": "from-gray-800 to-black",
-    "Music": "from-fuchsia-600 to-fuchsia-900",
-    "Mystery": "from-violet-800 to-black",
-    "Romance": "from-rose-500 to-pink-900",
-    "Sci-Fi": "from-teal-600 to-teal-900",
-    "TV Movie": "from-blue-600 to-blue-900",
-    "Thriller": "from-zinc-800 to-black",
-    "War": "from-stone-600 to-stone-800",
-    "Western": "from-orange-800 to-brown-900"
-};
+const GENRE_COLORS: Record<string, string> = { "Action": "from-red-600 to-red-900", "Adventure": "from-orange-500 to-orange-800", "Animation": "from-pink-500 to-rose-800", "Comedy": "from-yellow-500 to-yellow-800", "Crime": "from-slate-700 to-slate-900", "Documentary": "from-emerald-600 to-emerald-900", "Drama": "from-purple-600 to-purple-900", "Family": "from-cyan-500 to-blue-800", "Fantasy": "from-indigo-500 to-indigo-900", "History": "from-amber-700 to-amber-950", "Horror": "from-gray-800 to-black", "Music": "from-fuchsia-600 to-fuchsia-900", "Mystery": "from-violet-800 to-black", "Romance": "from-rose-500 to-pink-900", "Sci-Fi": "from-teal-600 to-teal-900", "TV Movie": "from-blue-600 to-blue-900", "Thriller": "from-zinc-800 to-black", "War": "from-stone-600 to-stone-800", "Western": "from-orange-800 to-brown-900" };
 
 export default function App() {
-  // Initialize with Helper from Shared
   const [apiKey, setApiKey] = useState(getTmdbKey());
   const [geminiKey, setGeminiKey] = useState(getGeminiKey());
   
-  // Auth State
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [authChecking, setAuthChecking] = useState(true);
   const [isCloudSync, setIsCloudSync] = useState(false);
@@ -157,7 +54,6 @@ export default function App() {
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
 
-  // Filters & View Modes
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [sortOption, setSortOption] = useState("popularity.desc");
   const [appRegion, setAppRegion] = useState("US");
@@ -173,9 +69,8 @@ export default function App() {
   const [maturityRating, setMaturityRating] = useState<MaturityRating>('NC-17');
   
   const [genreSearch, setGenreSearch] = useState("");
-  const [comingFilter, setComingFilter] = useState("upcoming"); // 'today', 'upcoming', 'announced'
+  const [comingFilter, setComingFilter] = useState("upcoming");
 
-  // Local Storage State
   const [watchlist, setWatchlist] = useState<Movie[]>([]);
   const [favorites, setFavorites] = useState<Movie[]>([]);
   const [watched, setWatched] = useState<Movie[]>([]);
@@ -186,7 +81,6 @@ export default function App() {
   
   const [isAgeModalOpen, setIsAgeModalOpen] = useState(false);
 
-  // Refs for Internal Lists
   const watchlistRef = useRef<Movie[]>([]);
   const favoritesRef = useRef<Movie[]>([]);
   const watchedRef = useRef<Movie[]>([]);
@@ -383,7 +277,6 @@ export default function App() {
     return () => { if (authListener) authListener.unsubscribe(); };
   }, [resetAuthState]);
 
-  // Mandatory Age Check Effect
   useEffect(() => {
       if (isAuthenticated && dataLoaded) {
           if (!userProfile.age) {
@@ -546,7 +439,7 @@ export default function App() {
          setFeaturedMovie(selectedCategory === "Watchlist" ? list[0] : null); 
          setHasMore(false); return; 
     }
-    if (["CineAnalytics", "LiveTV", "Genres", "Collections", "Countries"].includes(selectedCategory) && !activeCountry) return;
+    if (["CineAnalytics", "LiveTV", "Sports", "Genres", "Collections", "Countries"].includes(selectedCategory) && !activeCountry) return;
 
     if (abortControllerRef.current) abortControllerRef.current.abort();
     const controller = new AbortController();
@@ -556,11 +449,8 @@ export default function App() {
     setLoading(true);
     setAiContextReason(null);
 
-    // Calculate Adult/Age Logic
     const userAge = parseInt(userProfile.age || "0");
     const isAdult = !isNaN(userAge) && userAge >= 18;
-    // CRITICAL FIX: Always force include_adult to false to prevent nudity/pornography
-    // TMDB 'include_adult' is specifically for pornography, not rated R content.
     const includeAdultParam = "false";
 
     try {
@@ -572,18 +462,11 @@ export default function App() {
             include_adult: includeAdultParam 
         });
 
-        // Determine if strict filtering is needed
-        // STRICT: If user is < 18 OR user explicitly chose a restricted maturity rating (e.g. PG-13) in settings
-        // RELAXED: If user is >= 18 AND maturity rating is set to max 'NC-17' (default for adults usually)
         const isStrictFilter = !isAdult || maturityRating !== 'NC-17';
-
-        // DETERMINE IF WE ARE IN GENERAL DISCOVERY MODE
         const isGeneralDiscovery = !activeCountry && !activeKeyword && !tmdbCollectionId && !currentCollection && !["People", "Franchise"].includes(selectedCategory);
 
         if (isGeneralDiscovery) {
              if (appRegion) params.append("region", appRegion);
-             
-             // Apply maturity filters if strict filtering is required
              if (isStrictFilter) {
                  params.append("certification_country", "US"); 
                  params.append("certification.lte", maturityRating);
@@ -666,16 +549,12 @@ export default function App() {
             params.append("sort_by", "popularity.desc");
         }
         else if (selectedCategory === "Coming") {
-            // Updated Logic: Use standard pagination with release date sorting
             const today = new Date();
             const todayStr = today.toISOString().split('T')[0];
             const future = new Date(); 
-            future.setFullYear(future.getFullYear() + 2); // Show 2 years out max
+            future.setFullYear(future.getFullYear() + 2);
 
-            params.delete("region"); // Allow global coming soon if maturity settings permit
-            
-            // Re-apply maturity filter if strict (handled by general logic above, but double check we don't clear it)
-            // If not strict, we can see international upcoming releases too
+            params.delete("region"); 
             if (!isStrictFilter) {
                params.delete("certification_country");
                params.delete("certification.lte");
@@ -707,7 +586,6 @@ export default function App() {
              if (selectedCategory === "TV Shows" || selectedCategory === "Anime") results = results.map((m: any) => ({ ...m, media_type: 'tv', title: m.name, release_date: m.first_air_date }));
         }
         
-        // No client-side sorting for Coming, rely on API date sort
         const finalResults = (selectedCategory === "Coming") ? results : (selectedCategory === "People" ? results : sortMovies(results, sortOption));
 
         if (isLoadMore) {
@@ -718,7 +596,7 @@ export default function App() {
             });
         } else {
             setMovies(finalResults);
-            if (!activeCountry && !activeKeyword && !tmdbCollectionId && !["People", "Anime", "Family", "Awards", "India", "Coming", "Collections", "Genres", "Countries", "Franchise"].includes(selectedCategory) && finalResults.length > 0 && !searchQuery) {
+            if (!activeCountry && !activeKeyword && !tmdbCollectionId && !["People", "Anime", "Family", "Awards", "India", "Coming", "Collections", "Genres", "Countries", "Franchise", "Sports"].includes(selectedCategory) && finalResults.length > 0 && !searchQuery) {
                 setFeaturedMovie(finalResults.find((m: Movie) => m.backdrop_path) || finalResults[0]);
             } else setFeaturedMovie(null);
         }
@@ -763,6 +641,7 @@ export default function App() {
 
   const getPageTitle = () => {
       if (selectedCategory === "LiveTV") return "Live TV";
+      if (selectedCategory === "Sports") return "Live Sports";
       if (selectedCategory === "Genres") return "Genres";
       if (selectedCategory === "Collections") return "Collections";
       if (selectedCategory === "Franchise") return "Franchises";
@@ -777,10 +656,9 @@ export default function App() {
 
   const isHomeView = selectedCategory === "All" && !activeKeyword && !tmdbCollectionId && !currentCollection && filterPeriod === "all" && sortOption === "popularity.desc" && selectedRegion === "Global" && selectedLanguage === "All" && !searchQuery;
   const isLiveView = selectedCategory === "LiveTV" && !searchQuery;
-  const isBrowseActive = !isHomeView && !isLiveView && !selectedCategory.startsWith("Watchlist") && !selectedCategory.startsWith("Favorites") && !selectedCategory.startsWith("History") && !selectedCategory.startsWith("Custom") && !selectedCategory.startsWith("CineAnalytics") && !searchQuery;
+  const isBrowseActive = !isHomeView && !isLiveView && !selectedCategory.startsWith("Watchlist") && !selectedCategory.startsWith("Favorites") && !selectedCategory.startsWith("History") && !selectedCategory.startsWith("Custom") && !selectedCategory.startsWith("CineAnalytics") && selectedCategory !== "Sports" && !searchQuery;
   const filteredGenres = GENRES_LIST.filter(g => g.toLowerCase().includes(genreSearch.toLowerCase()));
 
-  // HERO CONFIGURATION
   const HERO_CONFIG: Record<string, { title: string, subtitle: string, bg: string, icon?: any }> = {
       "Anime": { title: "Anime World", subtitle: "Journey into the extraordinary world of Japanese animation.", bg: "https://image.tmdb.org/t/p/original/bSXfU4zoMDtHrnrPgeacQXGLhcD.jpg", icon: Ghost },
       "People": { title: "The Stars", subtitle: "Discover the actors, directors, and visionaries behind the magic.", bg: "https://image.tmdb.org/t/p/original/8rpDcsfLJypbO6vREc0547OTqEv.jpg", icon: Users },
@@ -855,7 +733,7 @@ export default function App() {
                     <div className="absolute top-full left-0 pt-4 w-[280px] hidden group-hover:block animate-in fade-in slide-in-from-top-2 duration-200">
                         <div className="bg-[#0f0f0f]/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl p-4 grid grid-cols-3 gap-2">
                             <div className="col-span-3 pb-2 mb-1 border-b border-white/5"><span className="text-[10px] font-bold text-white/40 uppercase tracking-wider">Browse By</span></div>
-                            {[ { label: "People", icon: Users }, { label: "Anime", icon: Ghost }, { label: "Awards", icon: Award }, { label: "Family", icon: Baby }, { label: "Genres", icon: Clapperboard }, { label: "Countries", icon: Map }, { label: "Franchise", icon: Sparkles }, { label: "TV Shows", icon: Tv }, { label: "Coming", icon: Calendar } ].map((item) => (
+                            {[ { label: "People", icon: Users }, { label: "Anime", icon: Ghost }, { label: "Awards", icon: Award }, { label: "Sports", icon: Trophy }, { label: "Family", icon: Baby }, { label: "Genres", icon: Clapperboard }, { label: "Countries", icon: Map }, { label: "Franchise", icon: Sparkles }, { label: "TV Shows", icon: Tv }, { label: "Coming", icon: Calendar } ].map((item) => (
                                 <button key={item.label} onClick={() => { resetFilters(); setSelectedCategory(item.label); }} className="flex flex-col items-center justify-center gap-2 p-3 rounded-xl bg-white/5 hover:bg-white/10 hover:scale-105 transition-all active:scale-95 group/item">
                                     <item.icon size={20} className={`transition-colors ${selectedCategory === item.label ? 'text-white' : 'text-gray-400 group-hover/item:text-white'}`} />
                                     <span className={`text-[10px] font-medium transition-colors ${selectedCategory === item.label ? 'text-white' : 'text-gray-400 group-hover/item:text-white'}`}>{item.label}</span>
@@ -915,6 +793,7 @@ export default function App() {
                         <p className="text-xs font-bold text-white/40 uppercase tracking-wider mb-2 px-2">Discover</p>
                         <button onClick={() => { resetToHome(); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 hover:translate-x-1 ${isHomeView ? `${accentBgLow} ${accentText}` : 'text-gray-400 hover:text-white hover:bg-white/5'}`}><TrendingUp size={18}/> Trending Now</button>
                         <button onClick={() => { resetFilters(); setSelectedCategory("LiveTV"); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 hover:translate-x-1 ${isLiveView ? `${accentBgLow} ${accentText}` : 'text-gray-400 hover:text-white hover:bg-white/5'}`}><Radio size={18}/> Live TV</button>
+                        <button onClick={() => { resetFilters(); setSelectedCategory("Sports"); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 hover:translate-x-1 ${selectedCategory === "Sports" ? `${accentBgLow} ${accentText}` : 'text-gray-400 hover:text-white hover:bg-white/5'}`}><Trophy size={18}/> Live Sports</button>
                         <button onClick={() => { resetFilters(); setSelectedCategory("People"); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 hover:translate-x-1 ${selectedCategory === "People" ? `${accentBgLow} ${accentText}` : 'text-gray-400 hover:text-white hover:bg-white/5'}`}><Users size={18}/> Popular People</button>
                         <button onClick={() => { resetFilters(); setSelectedCategory("TV Shows"); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 hover:translate-x-1 ${selectedCategory === "TV Shows" ? `${accentBgLow} ${accentText}` : 'text-gray-400 hover:text-white hover:bg-white/5'}`}><Tv size={18}/> TV Shows</button>
                         <button onClick={() => { resetFilters(); setSelectedCategory("Anime"); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 hover:translate-x-1 ${selectedCategory === "Anime" ? `${accentBgLow} ${accentText}` : 'text-gray-400 hover:text-white hover:bg-white/5'}`}><Ghost size={18}/> Anime</button>
@@ -948,7 +827,7 @@ export default function App() {
         </aside>
 
         <main className="flex-1 min-h-[calc(100vh-4rem)] w-full">
-           {selectedCategory === "CineAnalytics" ? ( <AnalyticsDashboard watchedMovies={watched} watchlist={watchlist} favorites={favorites} apiKey={apiKey} onMovieClick={setSelectedMovie} /> ) : selectedCategory === "LiveTV" ? ( <LiveTV userProfile={userProfile} /> ) : selectedCategory === "Genres" ? (
+           {selectedCategory === "CineAnalytics" ? ( <AnalyticsDashboard watchedMovies={watched} watchlist={watchlist} favorites={favorites} apiKey={apiKey} onMovieClick={setSelectedMovie} /> ) : selectedCategory === "LiveTV" ? ( <LiveTV userProfile={userProfile} /> ) : selectedCategory === "Sports" ? ( <LiveSports userProfile={userProfile} /> ) : selectedCategory === "Genres" ? (
                <div className="animate-in fade-in slide-in-from-bottom-4">
                    <HeroSection />
                    <div className="p-8 md:p-12">

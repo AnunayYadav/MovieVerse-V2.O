@@ -267,6 +267,44 @@ export interface LiveChannel {
     country?: string;
 }
 
+// --- LIVE SPORTS TYPES ---
+
+export interface Sport {
+    id: string;
+    name: string;
+}
+
+export interface APIMatch {
+    id: string;
+    title: string;
+    category: string;
+    date: number; // Unix timestamp in milliseconds
+    popular: boolean;
+    teams?: {
+        home?: {
+            name: string;
+            badge: string;
+        },
+        away?: {
+            name: string;
+            badge: string;
+        }
+    };
+}
+
+export interface Stream {
+    id: string;
+    streamNo: number;
+    language: string;
+    hd: boolean;
+    embedUrl: string;
+    source: string;
+}
+
+export interface MatchDetail {
+    sources: Stream[];
+}
+
 export type MaturityRating = "G" | "PG" | "PG-13" | "R" | "NC-17";
 
 export const INDIAN_LANGUAGES = [
