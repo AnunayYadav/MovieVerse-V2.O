@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Trophy, Calendar, Radio, Play, Shield, Loader2, RefreshCcw, X, Tv, MonitorPlay, WifiOff } from 'lucide-react';
+import { Trophy, Calendar, Radio, Play, Shield, Loader2, RefreshCcw, X, Tv, MonitorPlay, WifiOff, ExternalLink, Search } from 'lucide-react';
 import { Sport, APIMatch, MatchDetail, Stream, UserProfile } from '../types';
 
 const API_BASE = "https://livesport.su/api";
@@ -299,9 +299,30 @@ const LiveSportsPlayer = ({ match, onClose, isGoldTheme }: { match: APIMatch, on
                 const res = await fetch(`${API_BASE}/matches/${match.id}/detail`);
                 if (res.ok) {
                     const data = await res.json();
-                    setDetails(data);
-                    if (data.sources && Array.isArray(data.sources) && data.sources.length > 0) {
-                        setActiveStream(data.sources[0]);
+                    
+                    // Improved Parsing: Look for 'sources', 'streams', or 'links'
+                    let streams: Stream[] = [];
+                    if (Array.isArray(data)) {
+                        streams = data;
+                    } else if (data && typeof data === 'object') {
+                        if (Array.isArray(data.sources)) streams = data.sources;
+                        else if (Array.isArray(data.streams)) streams = data.streams;
+                        else if (Array.isArray(data.links)) streams = data.links;
+                    }
+
+                    // Format check for stream objects
+                    const validStreams = streams.map((s, idx) => ({
+                        ...s,
+                        id: s.id || `stream-${idx}`,
+                        streamNo: s.streamNo || (idx + 1),
+                        source: s.source || `Source ${idx + 1}`,
+                        language: s.language || "Multi"
+                    }));
+
+                    setDetails({ sources: validStreams });
+                    
+                    if (validStreams.length > 0) {
+                        setActiveStream(validStreams[0]);
                     }
                 } else {
                     console.warn("Details fetch failed", res.status);
@@ -309,7 +330,6 @@ const LiveSportsPlayer = ({ match, onClose, isGoldTheme }: { match: APIMatch, on
                 }
             } catch (e) {
                 console.error(e);
-                // Fallback to empty details on error
                 setDetails({ sources: [] });
             } finally {
                 setLoading(false);
@@ -320,6 +340,11 @@ const LiveSportsPlayer = ({ match, onClose, isGoldTheme }: { match: APIMatch, on
 
     const homeName = match.teams?.home?.name || "Home Team";
     const awayName = match.teams?.away?.name || "Away Team";
+
+    const handleGoogleSearch = () => {
+        const query = `${homeName} vs ${awayName} ${match.category || 'live stream'}`;
+        window.open(`https://www.google.com/search?q=${encodeURIComponent(query)}`, '_blank');
+    };
 
     return (
         <div className="fixed inset-0 z-[150] bg-black/95 backdrop-blur-xl animate-in fade-in duration-300 flex flex-col md:flex-row">
@@ -373,9 +398,15 @@ const LiveSportsPlayer = ({ match, onClose, isGoldTheme }: { match: APIMatch, on
                             ))}
                         </div>
                     ) : (
-                        <div className="text-center py-10 text-gray-500 text-sm">
-                            <p>No streams available at the moment.</p>
-                            <p className="text-xs opacity-50 mt-1">Check back closer to match start time.</p>
+                        <div className="text-center py-10 text-gray-500 text-sm flex flex-col items-center">
+                            <WifiOff size={24} className="mb-2 opacity-50"/>
+                            <p>No streams found.</p>
+                            <button 
+                                onClick={handleGoogleSearch}
+                                className={`mt-4 px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition-all active:scale-95 ${isGoldTheme ? 'bg-amber-500 text-black hover:bg-amber-400' : 'bg-white text-black hover:bg-gray-200'}`}
+                            >
+                                <Search size={14}/> Find on Web
+                            </button>
                         </div>
                     )}
                 </div>
@@ -396,7 +427,7 @@ const LiveSportsPlayer = ({ match, onClose, isGoldTheme }: { match: APIMatch, on
                     <div className="text-center text-gray-500 p-6">
                         <MonitorPlay size={48} className="mx-auto mb-4 opacity-20"/>
                         <p>Select a stream from the sidebar to start watching.</p>
-                        <p className="text-xs opacity-50 mt-2">If player doesn't load, try a different source.</p>
+                        <p className="text-xs opacity-50 mt-2">If no streams are listed, try the "Find on Web" button.</p>
                     </div>
                 )}
             </div>
