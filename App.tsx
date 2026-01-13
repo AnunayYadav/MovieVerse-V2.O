@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Search, Film, Menu, TrendingUp, Tv, Ghost, Calendar, Star, X, Sparkles, Settings, Globe, BarChart3, Bookmark, Heart, Folder, Languages, Filter, ChevronDown, Info, Plus, Cloud, CloudOff, Clock, Bell, History, Users, Tag, Dice5, Crown, Radio, LayoutGrid, Award, Baby, Clapperboard, ChevronRight, PlayCircle, Megaphone, CalendarDays, Compass, Home, Map, Loader2, Trophy, RefreshCcw, Check } from 'lucide-react';
+import { Search, Film, Menu, TrendingUp, Tv, Ghost, Calendar, Star, X, Sparkles, Settings, Globe, BarChart3, Bookmark, Heart, Folder, Languages, Filter, ChevronDown, Info, Plus, Cloud, CloudOff, Clock, Bell, History, Users, Tag, Dice5, Crown, Radio, LayoutGrid, Award, Baby, Clapperboard, ChevronRight, PlayCircle, Megaphone, CalendarDays, Compass, Home, Map, Loader2, Trophy, RefreshCcw, Check, MonitorPlay } from 'lucide-react';
 import { Movie, UserProfile, GENRES_MAP, GENRES_LIST, INDIAN_LANGUAGES, MaturityRating, Keyword } from './types';
 import { LogoLoader, MovieSkeleton, MovieCard, PersonCard, PosterMarquee, TMDB_BASE_URL, TMDB_BACKDROP_BASE, TMDB_IMAGE_BASE, HARDCODED_TMDB_KEY, HARDCODED_GEMINI_KEY, getTmdbKey, getGeminiKey } from './components/Shared';
 import { MoviePage } from './components/MovieDetails';
@@ -894,10 +894,10 @@ export default function App() {
                                            {featuredMovie.overview}
                                        </p>
 
-                                       <div className="flex items-center gap-4 mt-2">
+                                       <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto mt-2">
                                            <button 
                                                onClick={() => setSelectedMovie(featuredMovie)}
-                                               className={`px-8 py-3.5 rounded-xl font-bold flex items-center gap-3 transition-all hover:scale-105 active:scale-95 shadow-xl ${isGoldTheme ? 'bg-amber-500 text-black hover:bg-amber-400' : 'bg-white text-black hover:bg-gray-200'}`}
+                                               className={`w-full sm:w-auto px-8 py-3.5 rounded-xl font-bold flex items-center justify-center gap-3 transition-all hover:scale-105 active:scale-95 shadow-xl ${isGoldTheme ? 'bg-amber-500 text-black hover:bg-amber-400' : 'bg-white text-black hover:bg-gray-200'}`}
                                            >
                                                <PlayCircle size={20} fill="currentColor" /> Watch Now
                                            </button>
@@ -905,7 +905,7 @@ export default function App() {
                                                onClick={() => { 
                                                    toggleList(watchlist, setWatchlist, 'movieverse_watchlist', featuredMovie); 
                                                }}
-                                               className="px-8 py-3.5 rounded-xl font-bold flex items-center gap-3 bg-white/10 hover:bg-white/20 backdrop-blur-md text-white transition-all hover:scale-105 active:scale-95 border border-white/10"
+                                               className="w-full sm:w-auto px-8 py-3.5 rounded-xl font-bold flex items-center justify-center gap-3 bg-white/10 hover:bg-white/20 backdrop-blur-md text-white transition-all hover:scale-105 active:scale-95 border border-white/10"
                                            >
                                                {watchlist.some(m => m.id === featuredMovie.id) ? <Check size={20}/> : <Plus size={20}/>} 
                                                {watchlist.some(m => m.id === featuredMovie.id) ? 'Added' : 'My List'}
@@ -914,6 +914,62 @@ export default function App() {
                                    </div>
                                </div>
                            )}
+
+                           {/* Filter Bar */}
+                           <div className="sticky top-16 z-40 bg-[#030303]/80 backdrop-blur-xl py-3 px-4 md:px-12 border-b border-white/5 flex items-center gap-3 overflow-x-auto hide-scrollbar animate-in slide-in-from-top-2 fade-in">
+                                <div className="relative group shrink-0">
+                                    <button className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 rounded-full text-xs font-bold text-gray-300 border border-white/5 hover:border-white/20 transition-all active:scale-95">
+                                        <Filter size={14}/>
+                                        <span>Sort: {sortOption === 'popularity.desc' ? 'Popular' : sortOption === 'primary_release_date.desc' ? 'Newest' : sortOption === 'vote_average.desc' ? 'Top Rated' : 'Revenue'}</span>
+                                        <ChevronDown size={12}/>
+                                    </button>
+                                    <div className="absolute top-full left-0 mt-2 w-48 bg-[#1a1a1a]/95 backdrop-blur-xl border border-white/10 rounded-xl overflow-hidden shadow-2xl opacity-0 group-hover:opacity-100 scale-95 group-hover:scale-100 pointer-events-none group-hover:pointer-events-auto transition-all origin-top-left z-50">
+                                        {[
+                                            { label: 'Popular', value: 'popularity.desc' },
+                                            { label: 'Newest', value: 'primary_release_date.desc' },
+                                            { label: 'Top Rated', value: 'vote_average.desc' },
+                                            { label: 'Revenue', value: 'revenue.desc' }
+                                        ].map(opt => (
+                                            <button key={opt.value} onClick={() => setSortOption(opt.value)} className={`w-full text-left px-4 py-3 text-xs font-medium hover:bg-white/10 transition-colors flex items-center justify-between ${sortOption === opt.value ? 'text-white bg-white/5' : 'text-gray-400'}`}>
+                                                {opt.label}
+                                                {sortOption === opt.value && <Check size={12} className={accentText}/>}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                <div className="relative group shrink-0">
+                                    <button className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 rounded-full text-xs font-bold text-gray-300 border border-white/5 hover:border-white/20 transition-all active:scale-95">
+                                        <Globe size={14}/>
+                                        <span>Region: {selectedRegion === 'Global' ? 'Global' : selectedRegion}</span>
+                                        <ChevronDown size={12}/>
+                                    </button>
+                                    <div className="absolute top-full left-0 mt-2 w-48 bg-[#1a1a1a]/95 backdrop-blur-xl border border-white/10 rounded-xl overflow-hidden shadow-2xl opacity-0 group-hover:opacity-100 scale-95 group-hover:scale-100 pointer-events-none group-hover:pointer-events-auto transition-all origin-top-left z-50 max-h-60 overflow-y-auto custom-scrollbar">
+                                        {['Global', 'US', 'IN', 'JP', 'KR', 'GB', 'FR', 'DE'].map(region => (
+                                            <button key={region} onClick={() => setSelectedRegion(region)} className={`w-full text-left px-4 py-3 text-xs font-medium hover:bg-white/10 transition-colors flex items-center justify-between ${selectedRegion === region ? 'text-white bg-white/5' : 'text-gray-400'}`}>
+                                                {region === 'Global' ? 'Global' : region === 'IN' ? 'India' : region}
+                                                {selectedRegion === region && <Check size={12} className={accentText}/>}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                <div className="relative group shrink-0">
+                                    <button className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 rounded-full text-xs font-bold text-gray-300 border border-white/5 hover:border-white/20 transition-all active:scale-95">
+                                        <Languages size={14}/>
+                                        <span>Language: {selectedLanguage === 'All' ? 'All' : selectedLanguage.toUpperCase()}</span>
+                                        <ChevronDown size={12}/>
+                                    </button>
+                                    <div className="absolute top-full left-0 mt-2 w-48 bg-[#1a1a1a]/95 backdrop-blur-xl border border-white/10 rounded-xl overflow-hidden shadow-2xl opacity-0 group-hover:opacity-100 scale-95 group-hover:scale-100 pointer-events-none group-hover:pointer-events-auto transition-all origin-top-left z-50 max-h-60 overflow-y-auto custom-scrollbar">
+                                        {['All', 'en', 'hi', 'ja', 'ko', 'es', 'fr'].map(lang => (
+                                            <button key={lang} onClick={() => setSelectedLanguage(lang)} className={`w-full text-left px-4 py-3 text-xs font-medium hover:bg-white/10 transition-colors flex items-center justify-between ${selectedLanguage === lang ? 'text-white bg-white/5' : 'text-gray-400'}`}>
+                                                {lang === 'All' ? 'All Languages' : lang === 'en' ? 'English' : lang === 'hi' ? 'Hindi' : lang.toUpperCase()}
+                                                {selectedLanguage === lang && <Check size={12} className={accentText}/>}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                           </div>
 
                            <div className="px-4 md:px-12 py-8 space-y-8 relative z-10">
                                <PosterMarquee movies={!searchQuery && selectedCategory === "All" && !currentCollection && movies.length > 0 ? movies : []} onMovieClick={setSelectedMovie} />

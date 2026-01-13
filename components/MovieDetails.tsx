@@ -1,10 +1,10 @@
 
 import React, { useState, useEffect, Suspense, useRef } from 'react';
-import { X, Calendar, Clock, Star, Play, Bookmark, Heart, Share2, Clapperboard, Sparkles, Loader2, Tag, MessageCircle, Globe, Facebook, Instagram, Twitter, Film, PlayCircle, Eye, Volume2, VolumeX, Users, ArrowLeft, Lightbulb, DollarSign, Trophy, Tv, Check, Mic2, Video, PenTool, ChevronRight, Monitor } from 'lucide-react';
+import { X, Calendar, Clock, Star, Play, Bookmark, Heart, Share2, Clapperboard, Sparkles, Loader2, Tag, MessageCircle, Globe, Facebook, Instagram, Twitter, Film, PlayCircle, Eye, Volume2, VolumeX, Users, ArrowLeft, Lightbulb, DollarSign, Trophy, Tv, Check, Mic2, Video, PenTool, ChevronRight, Monitor, Plus } from 'lucide-react';
 import { Movie, MovieDetails, Season, UserProfile, Keyword, Review, CastMember, CrewMember } from '../types';
 import { TMDB_BASE_URL, TMDB_IMAGE_BASE, TMDB_BACKDROP_BASE, formatCurrency, ImageLightbox, PersonCard, MovieCard } from '../components/Shared';
 import { generateTrivia } from '../services/gemini';
-import { FullCreditsModal } from './Modals'; // We will add this
+import { FullCreditsModal } from './Modals';
 
 const MoviePlayer = React.lazy(() => import('./MoviePlayer').then(module => ({ default: module.MoviePlayer })));
 
@@ -185,6 +185,16 @@ export const MoviePage: React.FC<MoviePageProps> = ({
     const director = displayData.credits?.crew?.find(c => c.job === 'Director') || displayData.created_by?.[0];
     const providers = displayData["watch/providers"]?.results?.[appRegion || 'US'] || displayData["watch/providers"]?.results?.['US'];
 
+    // Social Links Component
+    const SocialLink = ({ url, icon: Icon, color }: { url?: string, icon: any, color: string }) => {
+        if (!url) return null;
+        return (
+            <a href={url} target="_blank" rel="noopener noreferrer" className={`p-2.5 rounded-full bg-white/5 hover:bg-white/10 transition-colors ${color} border-0 backdrop-blur-md`}>
+                <Icon size={18}/>
+            </a>
+        );
+    };
+
     return (
         <div className="fixed inset-0 z-[100] bg-[#0a0a0a] overflow-y-auto custom-scrollbar animate-in slide-in-from-right-10 duration-500">
             <div className="relative w-full min-h-screen flex flex-col">
@@ -268,19 +278,44 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                             {displayData.vote_average && <span className="flex items-center gap-2"><Star size={14} className="text-yellow-500" fill="currentColor"/> {displayData.vote_average.toFixed(1)}</span>}
                                         </div>
 
-                                        <div className="flex flex-wrap gap-3 mt-4">
+                                        <div className="flex flex-col sm:flex-row gap-4 mt-6 items-start sm:items-center">
                                             {isExclusive && (
-                                                <button onClick={handleWatchClick} className={`font-bold py-3 px-8 text-sm md:text-base rounded-xl transition-all flex items-center gap-2 active:scale-95 shadow-xl hover:shadow-2xl ${isGoldTheme ? 'bg-gradient-to-r from-amber-600 to-amber-500 text-black shadow-amber-900/40' : 'bg-red-600 hover:bg-red-700 text-white'}`}>
+                                                <button onClick={handleWatchClick} className={`font-bold py-3.5 px-8 text-sm md:text-base rounded-xl transition-all flex items-center gap-2 active:scale-95 shadow-xl hover:shadow-2xl ${isGoldTheme ? 'bg-gradient-to-r from-amber-600 to-amber-500 text-black shadow-amber-900/40' : 'bg-red-600 hover:bg-red-700 text-white'}`}>
                                                     <PlayCircle size={20} fill="currentColor" /> 
                                                     {movie.play_progress && movie.play_progress > 0 
                                                         ? `Resume ${isTv ? `S${playParams.season} E${playParams.episode}` : ''} (${Math.round(movie.play_progress)}%)` 
                                                         : 'Watch Now'}
                                                 </button>
                                             )}
-                                            <button onClick={() => onToggleWatchlist(displayData)} className={`glass hover:bg-white/10 text-white font-bold py-3 px-6 text-sm md:text-base rounded-xl transition-all flex items-center gap-2 active:scale-95 ${isWatchlisted ? 'text-green-400' : ''}`}>
-                                                {isWatchlisted ? <Check size={18}/> : <Bookmark size={18} />} {isWatchlisted ? 'In Watchlist' : 'Watchlist'}
-                                            </button>
-                                            <button onClick={() => details?.videos?.results?.[0] && window.open(`https://www.youtube.com/watch?v=${details.videos.results[0].key}`)} className="glass hover:bg-white/10 text-white font-bold py-3 px-6 text-sm md:text-base rounded-xl transition-all flex items-center gap-2 active:scale-95"><Play size={18} /> Trailer</button>
+                                            
+                                            {/* Minimal Glass Buttons */}
+                                            <div className="flex items-center gap-3">
+                                                <button 
+                                                    onClick={() => onToggleWatchlist(displayData)} 
+                                                    className={`w-12 h-12 rounded-full glass hover:bg-white/10 flex items-center justify-center transition-all active:scale-95 group relative ${isWatchlisted ? 'text-green-400 border-green-500/30' : 'text-white'}`}
+                                                    title={isWatchlisted ? "Remove from Watchlist" : "Add to Watchlist"}
+                                                >
+                                                    {isWatchlisted ? <Check size={22} strokeWidth={2.5}/> : <Plus size={22}/>}
+                                                </button>
+                                                
+                                                <button 
+                                                    onClick={() => onToggleFavorite(displayData)} 
+                                                    className={`w-12 h-12 rounded-full glass hover:bg-white/10 flex items-center justify-center transition-all active:scale-95 group ${isFavorite ? 'text-red-500' : 'text-white'}`}
+                                                    title={isFavorite ? "Remove from Favorites" : "Add to Favorites"}
+                                                >
+                                                    <Heart size={22} fill={isFavorite ? "currentColor" : "none"}/>
+                                                </button>
+
+                                                {details?.videos?.results?.[0] && (
+                                                    <button 
+                                                        onClick={() => window.open(`https://www.youtube.com/watch?v=${details.videos.results[0].key}`)} 
+                                                        className="w-12 h-12 rounded-full glass hover:bg-white/10 flex items-center justify-center transition-all active:scale-95 text-white"
+                                                        title="Watch Trailer"
+                                                    >
+                                                        <Play size={20} fill="currentColor" className="ml-0.5"/>
+                                                    </button>
+                                                )}
+                                            </div>
                                         </div>
                                     </div>
                                  </div>
@@ -321,6 +356,17 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                     </div>
                                                 )}
                                             </div>
+
+                                            {/* Social Links Row */}
+                                            {displayData.external_ids && (
+                                                <div className="flex gap-3 mb-10">
+                                                    {displayData.external_ids.imdb_id && <SocialLink url={`https://www.imdb.com/title/${displayData.external_ids.imdb_id}`} icon={Film} color="text-yellow-400"/>}
+                                                    {displayData.external_ids.instagram_id && <SocialLink url={`https://instagram.com/${displayData.external_ids.instagram_id}`} icon={Instagram} color="text-pink-400"/>}
+                                                    {displayData.external_ids.twitter_id && <SocialLink url={`https://twitter.com/${displayData.external_ids.twitter_id}`} icon={Twitter} color="text-blue-400"/>}
+                                                    {displayData.external_ids.facebook_id && <SocialLink url={`https://facebook.com/${displayData.external_ids.facebook_id}`} icon={Facebook} color="text-blue-600"/>}
+                                                    {displayData.homepage && <SocialLink url={displayData.homepage} icon={Globe} color="text-green-400"/>}
+                                                </div>
+                                            )}
 
                                             {/* Top Cast - Horizontal Row */}
                                             <div className="mb-10">
