@@ -4,6 +4,7 @@ import { X, Calendar, Clock, Star, Play, Bookmark, Heart, Share2, Clapperboard, 
 import { Movie, MovieDetails, Season, UserProfile, Keyword, Review, CastMember, CrewMember } from '../types';
 import { TMDB_BASE_URL, TMDB_IMAGE_BASE, TMDB_BACKDROP_BASE, formatCurrency, ImageLightbox, PersonCard, MovieCard } from '../components/Shared';
 import { generateTrivia } from '../services/gemini';
+import { FullCreditsModal } from './Modals'; // We will add this
 
 const MoviePlayer = React.lazy(() => import('./MoviePlayer').then(module => ({ default: module.MoviePlayer })));
 
@@ -56,12 +57,14 @@ export const MoviePage: React.FC<MoviePageProps> = ({
     const [copied, setCopied] = useState(false);
     const [activeTab, setActiveTab] = useState("overview");
     const [selectedSeason, setSelectedSeason] = useState(1);
-    const [seasonData, setSeasonData] = useState<Season | null>(null);
-    const [loadingSeason, setLoadingSeason] = useState(false);
     const [viewingImage, setViewingImage] = useState<string | null>(null);
     const [showPlayer, setShowPlayer] = useState(false);
     const [playParams, setPlayParams] = useState({ season: 1, episode: 1 });
     
+    // Modal States
+    const [showFullCast, setShowFullCast] = useState(false);
+    const [showFullCrew, setShowFullCrew] = useState(false);
+
     const [videoLoaded, setVideoLoaded] = useState(false);
     const [isMuted, setIsMuted] = useState(true);
     const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -102,14 +105,13 @@ export const MoviePage: React.FC<MoviePageProps> = ({
             .catch(() => setLoading(false));
         setTrivia("");
         setActiveTab("overview");
-        setSeasonData(null);
         setShowPlayer(false);
         setVideoLoaded(false); 
         setIsMuted(true); 
     }, [movie.id, apiKey, movie.media_type]);
 
     useEffect(() => {
-        if (activeTab === 'trivia' && !trivia && !loadingTrivia && details) {
+        if (activeTab === 'overview' && !trivia && !loadingTrivia && details) {
             setLoadingTrivia(true);
             const year = (details.release_date || details.first_air_date || "").split('-')[0];
             generateTrivia(details.title || details.name || "", year).then(t => {
@@ -125,7 +127,6 @@ export const MoviePage: React.FC<MoviePageProps> = ({
 
     const handlePlayerProgress = (data: any) => {
         if (onProgress) {
-            // Include episode info if TV
             const enhancedData = {
                 ...data,
                 season: playParams.season,
@@ -286,7 +287,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                              )}
                         </div>
 
-                        {/* MAIN CONTENT AREA - 2 COLUMN GRID */}
+                        {/* MAIN CONTENT AREA */}
                         <div className="max-w-7xl mx-auto w-full px-6 py-8 md:p-10 -mt-6 relative z-20">
                             
                             {/* Simple Text Tabs */}
@@ -310,14 +311,25 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                             <div className="mb-10">
                                                 <h3 className="text-xl font-bold text-white mb-4">Plot Summary</h3>
                                                 <p className="text-gray-300 leading-relaxed text-base font-light">{displayData.overview || "No overview available."}</p>
+                                                {trivia && (
+                                                    <div className="mt-6 p-4 bg-white/5 border border-white/10 rounded-xl flex items-start gap-3">
+                                                        <Lightbulb size={20} className="text-yellow-400 shrink-0 mt-0.5"/>
+                                                        <div>
+                                                            <p className="text-xs font-bold text-yellow-400 uppercase tracking-wider mb-1">Trivia</p>
+                                                            <p className="text-sm text-gray-300 italic">"{trivia}"</p>
+                                                        </div>
+                                                    </div>
+                                                )}
                                             </div>
 
-                                            {/* Top Cast */}
+                                            {/* Top Cast - Horizontal Row */}
                                             <div className="mb-10">
-                                                <h3 className="text-xl font-bold text-white mb-6">Top Cast</h3>
-                                                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-6">
+                                                <div className="flex items-center justify-between mb-6">
+                                                    <h3 className="text-xl font-bold text-white">Top Cast</h3>
+                                                </div>
+                                                <div className="flex overflow-x-auto gap-6 pb-4 hide-scrollbar">
                                                     {displayData.credits?.cast?.slice(0, 10).map((person) => (
-                                                        <div key={person.id} onClick={() => onPersonClick(person.id)} className="flex flex-col items-center text-center group cursor-pointer">
+                                                        <div key={person.id} onClick={() => onPersonClick(person.id)} className="flex flex-col items-center text-center group cursor-pointer shrink-0 w-24">
                                                             <div className="w-20 h-20 md:w-24 md:h-24 rounded-full overflow-hidden mb-3 border-2 border-transparent group-hover:border-white/20 transition-all shadow-lg">
                                                                 <img 
                                                                     src={person.profile_path ? `${TMDB_IMAGE_BASE}${person.profile_path}` : `https://ui-avatars.com/api/?name=${person.name}&background=333&color=fff`} 
@@ -325,19 +337,26 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                                     className="w-full h-full object-cover"
                                                                 />
                                                             </div>
-                                                            <h4 className="text-xs md:text-sm font-bold text-white leading-tight mb-1">{person.name}</h4>
-                                                            <p className="text-[10px] md:text-xs text-gray-500">{person.character}</p>
+                                                            <h4 className="text-xs md:text-sm font-bold text-white leading-tight mb-1 line-clamp-2">{person.name}</h4>
+                                                            <p className="text-[10px] md:text-xs text-gray-500 line-clamp-1">{person.character}</p>
                                                         </div>
                                                     ))}
+                                                    {/* View All Button */}
+                                                    <button onClick={() => setShowFullCast(true)} className="flex flex-col items-center justify-center shrink-0 w-24 h-24 rounded-full bg-white/5 hover:bg-white/10 border border-white/5 transition-all group">
+                                                        <ChevronRight size={24} className="text-gray-400 group-hover:text-white mb-1"/>
+                                                        <span className="text-[10px] font-bold text-gray-400 group-hover:text-white">View All</span>
+                                                    </button>
                                                 </div>
                                             </div>
 
-                                            {/* Crew */}
+                                            {/* Crew - Horizontal Row */}
                                             <div>
-                                                <h3 className="text-xl font-bold text-white mb-6">Crew</h3>
-                                                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-6">
+                                                <div className="flex items-center justify-between mb-6">
+                                                    <h3 className="text-xl font-bold text-white">Crew</h3>
+                                                </div>
+                                                <div className="flex overflow-x-auto gap-6 pb-4 hide-scrollbar">
                                                     {displayData.credits?.crew?.slice(0, 5).map((person) => (
-                                                        <div key={`${person.id}-${person.job}`} className="flex flex-col items-center text-center">
+                                                        <div key={`${person.id}-${person.job}`} className="flex flex-col items-center text-center shrink-0 w-20">
                                                             <div className="w-16 h-16 md:w-20 md:h-20 rounded-full overflow-hidden mb-3 bg-white/5 grayscale hover:grayscale-0 transition-all duration-500">
                                                                 <img 
                                                                     src={person.profile_path ? `${TMDB_IMAGE_BASE}${person.profile_path}` : `https://ui-avatars.com/api/?name=${person.name}&background=333&color=fff`} 
@@ -345,23 +364,27 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                                     className="w-full h-full object-cover"
                                                                 />
                                                             </div>
-                                                            <h4 className="text-xs font-bold text-white leading-tight mb-1">{person.name}</h4>
-                                                            <p className="text-[10px] text-gray-500">{person.job}</p>
+                                                            <h4 className="text-xs font-bold text-white leading-tight mb-1 line-clamp-2">{person.name}</h4>
+                                                            <p className="text-[10px] text-gray-500 line-clamp-1">{person.job}</p>
                                                         </div>
                                                     ))}
+                                                    <button onClick={() => setShowFullCrew(true)} className="flex flex-col items-center justify-center shrink-0 w-20 h-20 rounded-full bg-white/5 hover:bg-white/10 border border-white/5 transition-all group">
+                                                        <ChevronRight size={20} className="text-gray-400 group-hover:text-white mb-1"/>
+                                                        <span className="text-[10px] font-bold text-gray-400 group-hover:text-white">View All</span>
+                                                    </button>
                                                 </div>
                                             </div>
                                         </div>
                                     )}
 
                                     {activeTab === 'reviews' && (
-                                        <div className="space-y-6">
+                                        <div className="space-y-6 animate-in fade-in">
                                             {displayData.reviews?.results?.length ? displayData.reviews.results.map(review => (
                                                 <div key={review.id} className="bg-white/5 p-6 rounded-xl border border-white/5">
                                                     <div className="flex items-center justify-between mb-4">
                                                         <div className="flex items-center gap-3">
-                                                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-gray-700 to-gray-900 flex items-center justify-center font-bold text-white">
-                                                                {review.author.charAt(0).toUpperCase()}
+                                                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-gray-700 to-gray-900 flex items-center justify-center font-bold text-white uppercase">
+                                                                {review.author.charAt(0)}
                                                             </div>
                                                             <div>
                                                                 <h4 className="font-bold text-white text-sm">{review.author}</h4>
@@ -377,21 +400,51 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                     <p className="text-gray-300 text-sm leading-relaxed whitespace-pre-line">{review.content}</p>
                                                 </div>
                                             )) : (
-                                                <div className="text-center py-12 text-gray-500">No reviews yet.</div>
+                                                <div className="text-center py-12 text-gray-500 border border-white/5 rounded-xl">No reviews yet.</div>
                                             )}
                                         </div>
                                     )}
 
                                     {activeTab === 'media' && (
-                                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 animate-in fade-in">
                                             {displayData.images?.backdrops?.slice(0, 9).map((img, i) => (
                                                 <img 
                                                     key={i} 
                                                     src={`${TMDB_IMAGE_BASE}${img.file_path}`} 
-                                                    className="w-full h-auto rounded-lg cursor-pointer hover:opacity-80 transition-opacity" 
+                                                    className="w-full h-auto rounded-lg cursor-pointer hover:opacity-80 transition-opacity aspect-video object-cover" 
                                                     onClick={() => setViewingImage(`${TMDB_BACKDROP_BASE}${img.file_path}`)}
                                                     alt="Backdrop"
                                                 />
+                                            ))}
+                                        </div>
+                                    )}
+
+                                    {activeTab === 'seasons' && isTv && (
+                                        <div className="space-y-4 animate-in fade-in">
+                                            {displayData.seasons?.filter(s => s.season_number > 0).map(season => (
+                                                <div key={season.id} className="flex gap-4 p-4 bg-white/5 rounded-xl border border-white/5 hover:border-white/10 transition-colors">
+                                                    <img src={season.poster_path ? `${TMDB_IMAGE_BASE}${season.poster_path}` : "https://placehold.co/100x150"} className="w-20 h-32 object-cover rounded-lg shadow-lg shrink-0" alt={season.name}/>
+                                                    <div className="flex-1 py-1">
+                                                        <h3 className="text-lg font-bold text-white mb-1">{season.name}</h3>
+                                                        <div className="flex items-center gap-3 text-xs text-gray-400 mb-3">
+                                                            <span className="bg-white/10 px-2 py-0.5 rounded text-white">{season.episode_count} Episodes</span>
+                                                            <span>{season.air_date?.split('-')[0]}</span>
+                                                        </div>
+                                                        <p className="text-sm text-gray-400 line-clamp-2">{season.overview || `Season ${season.season_number} of ${displayData.name}.`}</p>
+                                                        
+                                                        {isExclusive && (
+                                                            <button 
+                                                                onClick={() => {
+                                                                    setPlayParams({ season: season.season_number, episode: 1 });
+                                                                    setShowPlayer(true);
+                                                                }}
+                                                                className={`mt-3 px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-2 hover:opacity-90 transition-opacity ${isGoldTheme ? 'bg-amber-500 text-black' : 'bg-red-600 text-white'}`}
+                                                            >
+                                                                <Play size={12} fill="currentColor"/> Watch
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                </div>
                                             ))}
                                         </div>
                                     )}
@@ -473,12 +526,46 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                     )}
                                 </div>
                             </div>
+
+                            {/* Similar Movies Section - Below Main Content */}
+                            {displayData.similar?.results && displayData.similar.results.length > 0 && (
+                                <div className="mt-16 pt-10 border-t border-white/5">
+                                    <h3 className="text-2xl font-bold text-white mb-6 flex items-center gap-2"><Sparkles size={24} className="text-yellow-500"/> More Like This</h3>
+                                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                                        {displayData.similar.results.slice(0, 12).map(sim => (
+                                            <div key={sim.id} onClick={() => { onClose(); onSwitchMovie(sim); }}>
+                                                <MovieCard 
+                                                    movie={sim} 
+                                                    onClick={() => { onClose(); onSwitchMovie(sim); }}
+                                                    isWatched={isWatched} // Just passing current state, individual card checks internal logic mostly
+                                                    onToggleWatched={() => {}} 
+                                                />
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </div>
                 )}
             </div>
             
             {viewingImage && <ImageLightbox src={viewingImage} onClose={() => setViewingImage(null)} />}
+            
+            <FullCreditsModal 
+                isOpen={showFullCast} 
+                onClose={() => setShowFullCast(false)} 
+                title="Full Cast" 
+                credits={displayData.credits?.cast || []} 
+                onPersonClick={onPersonClick}
+            />
+            <FullCreditsModal 
+                isOpen={showFullCrew} 
+                onClose={() => setShowFullCrew(false)} 
+                title="Full Crew" 
+                credits={displayData.credits?.crew || []} 
+                onPersonClick={onPersonClick}
+            />
         </div>
     );
 };

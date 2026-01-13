@@ -51,6 +51,49 @@ export const AgeVerificationModal: React.FC<AgeVerificationModalProps> = ({ isOp
     );
 };
 
+// FULL CREDITS MODAL
+interface FullCreditsModalProps {
+    isOpen: boolean;
+    onClose: () => void;
+    title: string;
+    credits: any[];
+    onPersonClick: (id: number) => void;
+}
+
+export const FullCreditsModal: React.FC<FullCreditsModalProps> = ({ isOpen, onClose, title, credits, onPersonClick }) => {
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 z-[150] bg-black/95 backdrop-blur-xl animate-in fade-in duration-300 flex flex-col">
+            <div className="p-6 border-b border-white/10 flex items-center justify-between bg-black/40">
+                <div className="flex items-center gap-4">
+                    <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-full transition-colors"><ArrowLeft size={20}/></button>
+                    <h2 className="text-xl font-bold text-white">{title}</h2>
+                </div>
+                <span className="text-xs font-bold bg-white/10 px-3 py-1 rounded-full text-gray-300">{credits.length} People</span>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto custom-scrollbar p-6">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                    {credits.map((person, idx) => (
+                        <div key={`${person.id}-${idx}`} onClick={() => { onClose(); onPersonClick(person.id); }} className="flex flex-col items-center text-center p-4 bg-white/5 rounded-xl border border-white/5 hover:bg-white/10 transition-colors cursor-pointer group">
+                            <div className="w-20 h-20 rounded-full overflow-hidden mb-3 border-2 border-transparent group-hover:border-white/30 transition-all">
+                                <img 
+                                    src={person.profile_path ? `${TMDB_IMAGE_BASE}${person.profile_path}` : `https://ui-avatars.com/api/?name=${person.name}&background=333&color=fff`} 
+                                    alt={person.name} 
+                                    className="w-full h-full object-cover"
+                                />
+                            </div>
+                            <h4 className="text-sm font-bold text-white mb-1 line-clamp-1">{person.name}</h4>
+                            <p className="text-xs text-gray-500 line-clamp-1">{person.character || person.job}</p>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        </div>
+    );
+};
+
 // PROFILE PAGE
 interface ProfilePageProps {
     isOpen: boolean;

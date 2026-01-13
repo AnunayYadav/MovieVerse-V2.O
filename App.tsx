@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Search, Film, Menu, TrendingUp, Tv, Ghost, Calendar, Star, X, Sparkles, Settings, Globe, BarChart3, Bookmark, Heart, Folder, Languages, Filter, ChevronDown, Info, Plus, Cloud, CloudOff, Clock, Bell, History, Users, Tag, Dice5, Crown, Radio, LayoutGrid, Award, Baby, Clapperboard, ChevronRight, PlayCircle, Megaphone, CalendarDays, Compass, Home, Map, Loader2, Trophy } from 'lucide-react';
+import { Search, Film, Menu, TrendingUp, Tv, Ghost, Calendar, Star, X, Sparkles, Settings, Globe, BarChart3, Bookmark, Heart, Folder, Languages, Filter, ChevronDown, Info, Plus, Cloud, CloudOff, Clock, Bell, History, Users, Tag, Dice5, Crown, Radio, LayoutGrid, Award, Baby, Clapperboard, ChevronRight, PlayCircle, Megaphone, CalendarDays, Compass, Home, Map, Loader2, Trophy, RefreshCcw } from 'lucide-react';
 import { Movie, UserProfile, GENRES_MAP, GENRES_LIST, INDIAN_LANGUAGES, MaturityRating, Keyword } from './types';
 import { LogoLoader, MovieSkeleton, MovieCard, PersonCard, PosterMarquee, TMDB_BASE_URL, TMDB_BACKDROP_BASE, TMDB_IMAGE_BASE, HARDCODED_TMDB_KEY, HARDCODED_GEMINI_KEY, getTmdbKey, getGeminiKey } from './components/Shared';
 import { MoviePage } from './components/MovieDetails';
@@ -24,8 +24,6 @@ const DEFAULT_COLLECTIONS: any = {
 // Expanded Franchise List for Endless Scrolling - Real TMDB Collection IDs
 const FRANCHISE_IDS = [ 86311, 131292, 131296, 131295, 115575, 10, 1241, 558216, 1060085, 894562, 1060096, 9485, 295, 645, 119, 121, 87359, 52984, 472535, 712282, 531241, 10194, 2150, 8354, 86066, 77816, 10593, 163313, 8265, 748, 131635, 33514, 8650, 84, 1575, 472761, 3573, 115570, 328, 8091, 8093, 528, 2344, 403374, 1570, 2155, 262, 3260, 1639, 264, 1733, 373722, 250329, 207923, 2289, 2661, 2660, 2656, 2342, 912503 ];
 
-const COUNTRY_OPTIONS = [ { code: "US", name: "United States", flag: "🇺🇸" }, { code: "GB", name: "United Kingdom", flag: "🇬🇧" }, { code: "KR", name: "South Korea", flag: "🇰🇷" }, { code: "JP", name: "Japan", flag: "🇯🇵" }, { code: "IN", name: "India", flag: "🇮🇳" }, { code: "FR", name: "France", flag: "🇫🇷" }, { code: "CN", name: "China", flag: "🇨🇳" }, { code: "ES", name: "Spain", flag: "🇪🇸" }, { code: "DE", name: "Germany", flag: "🇩🇪" }, { code: "IT", name: "Italy", flag: "🇮🇹" }, { code: "CA", name: "Canada", flag: "🇨🇦" }, { code: "AU", name: "Australia", flag: "🇦🇺" }, { code: "MX", name: "Mexico", flag: "🇲🇽" }, { code: "BR", name: "Brazil", flag: "🇧🇷" }, { code: "TR", name: "Turkey", flag: "🇹🇷" }, { code: "TH", name: "Thailand", flag: "🇹🇭" }, { code: "HK", name: "Hong Kong", flag: "🇭🇰" }, { code: "RU", name: "Russia", flag: "🇷🇺" }, { code: "SE", name: "Sweden", flag: "🇸🇪" }, { code: "NO", name: "Norway", flag: "🇳🇴" }, ];
-
 const GENRE_COLORS: Record<string, string> = { "Action": "from-red-600 to-red-900", "Adventure": "from-orange-500 to-orange-800", "Animation": "from-pink-500 to-rose-800", "Comedy": "from-yellow-500 to-yellow-800", "Crime": "from-slate-700 to-slate-900", "Documentary": "from-emerald-600 to-emerald-900", "Drama": "from-purple-600 to-purple-900", "Family": "from-cyan-500 to-blue-800", "Fantasy": "from-indigo-500 to-indigo-900", "History": "from-amber-700 to-amber-950", "Horror": "from-gray-800 to-black", "Music": "from-fuchsia-600 to-fuchsia-900", "Mystery": "from-violet-800 to-black", "Romance": "from-rose-500 to-pink-900", "Sci-Fi": "from-teal-600 to-teal-900", "TV Movie": "from-blue-600 to-blue-900", "Thriller": "from-zinc-800 to-black", "War": "from-stone-600 to-stone-800", "Western": "from-orange-800 to-brown-900" };
 
 export default function App() {
@@ -45,12 +43,12 @@ export default function App() {
   const [searchHistory, setSearchHistory] = useState<string[]>([]);
   
   const [loading, setLoading] = useState(false);
+  const [fetchError, setFetchError] = useState(false); // Track fetch errors
   const [selectedMovie, setSelectedMovie] = useState<Movie | null>(null);
   const [featuredMovie, setFeaturedMovie] = useState<Movie | null>(null);
   
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [aiContextReason, setAiContextReason] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
 
@@ -68,7 +66,6 @@ export default function App() {
   const [selectedLanguage, setSelectedLanguage] = useState("All");
   const [maturityRating, setMaturityRating] = useState<MaturityRating>('NC-17');
   
-  const [genreSearch, setGenreSearch] = useState("");
   const [comingFilter, setComingFilter] = useState("upcoming");
 
   const [watchlist, setWatchlist] = useState<Movie[]>([]);
@@ -80,6 +77,7 @@ export default function App() {
   const [lastNotificationId, setLastNotificationId] = useState<string | null>(null);
   
   const [isAgeModalOpen, setIsAgeModalOpen] = useState(false);
+  const [isBrowseOpen, setIsBrowseOpen] = useState(false);
 
   const watchlistRef = useRef<Movie[]>([]);
   const favoritesRef = useRef<Movie[]>([]);
@@ -109,6 +107,7 @@ export default function App() {
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const [isComparisonOpen, setIsComparisonOpen] = useState(false);
   const [comparisonBaseMovie, setComparisonBaseMovie] = useState<Movie | null>(null);
+  const [aiContextReason, setAiContextReason] = useState<string | null>(null);
   
   const abortControllerRef = useRef<AbortController | null>(null);
 
@@ -117,11 +116,9 @@ export default function App() {
   
   const accentText = isGoldTheme ? "text-amber-500" : "text-red-600";
   const accentBg = isGoldTheme ? "bg-amber-500" : "bg-red-600";
-  const accentBorder = isGoldTheme ? "border-amber-500" : "border-red-600";
-  const accentHoverText = isGoldTheme ? "group-hover:text-amber-400" : "group-hover:text-red-400";
   const accentBgLow = isGoldTheme ? "bg-amber-500/20" : "bg-red-600/20";
-  const featuredBadge = isGoldTheme ? "bg-gradient-to-r from-amber-400 to-amber-600 text-black shadow-[0_0_20px_rgba(245,158,11,0.6)]" : "bg-red-600 text-white shadow-[0_0_20px_rgba(220,38,38,0.6)]";
 
+  // ... (Auth/Reset logic same as before) ...
   const resetAuthState = useCallback(() => {
     localStorage.removeItem('movieverse_auth');
     setIsAuthenticated(false);
@@ -320,6 +317,7 @@ export default function App() {
       fetchMovies(1, false);
   }, [selectedCategory, comingFilter, selectedRegion, filterPeriod, selectedLanguage, sortOption, activeCountry, activeKeyword, tmdbCollectionId, userProfile.age]);
 
+  // ... (Notification and Login/Logout handlers same as before) ...
   const checkUnreadNotifications = async () => {
       try {
           const notifs = await getNotifications();
@@ -388,13 +386,11 @@ export default function App() {
       toggleList(watched, setWatched, 'movieverse_watched', movie);
   };
 
-  // --- AUTOMATIC WATCH TRACKING LOGIC ---
   const handleProgressUpdate = (movie: Movie, progressData: any) => {
       if (!movie || !progressData || userProfile.enableHistory === false) return;
       
       const { currentTime, duration, event, season, episode } = progressData;
       
-      // Filter irrelevant events to avoid state spam
       if (event !== 'time' && event !== 'pause' && event !== 'complete') return;
       if (!duration || duration <= 0) return;
 
@@ -404,14 +400,13 @@ export default function App() {
           const existingIndex = prevWatched.findIndex(m => m.id === movie.id);
           const existingMovie = existingIndex >= 0 ? prevWatched[existingIndex] : null;
 
-          // Avoid updates if progress changed less than 1% (unless paused/completed)
           if (existingMovie && event === 'time' && Math.abs((existingMovie.play_progress || 0) - progressPercent) < 1) {
               return prevWatched;
           }
 
           const updatedMovie: Movie = {
-              ...movie, // Base movie data
-              ...existingMovie, // Keep existing fields (like genres, etc if enriched)
+              ...movie, 
+              ...existingMovie, 
               play_progress: progressPercent,
               last_watched_data: {
                   season: season || existingMovie?.last_watched_data?.season || 1,
@@ -424,13 +419,9 @@ export default function App() {
 
           let newWatched;
           if (existingIndex >= 0) {
-              // Update existing
               newWatched = [...prevWatched];
               newWatched[existingIndex] = updatedMovie;
-              // Move to top if it's a significant update? Optional.
-              // For now, keep position but update data.
           } else {
-              // Add new
               newWatched = [updatedMovie, ...prevWatched];
           }
 
@@ -468,21 +459,40 @@ export default function App() {
     }
   }, []);
 
-  const fetchWithRetry = async (url: string, signal?: AbortSignal, retries = 2, delay = 1000): Promise<Response> => {
+  // Enhanced fetch with timeout for slow connections
+  const fetchWithRetry = async (url: string, signal?: AbortSignal, retries = 3, delay = 1500): Promise<Response> => {
+      const timeout = 10000; // 10 seconds timeout for "low internet" check
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), timeout);
+      
+      // Combine the original signal (if any) with the timeout signal
+      const combinedSignal = signal || controller.signal;
+
       try {
-          const res = await fetch(url, { signal });
+          const res = await fetch(url, { signal: combinedSignal });
+          clearTimeout(timeoutId);
           if (!res.ok && res.status !== 404) throw new Error(`HTTP ${res.status}`);
           return res;
       } catch (err: any) {
-          if (err.name === 'AbortError') throw err;
+          clearTimeout(timeoutId);
+          if (err.name === 'AbortError') {
+              // Differentiate between timeout (fetch took too long) and manual cancel (user nav)
+              if (signal && signal.aborted) {
+                  throw err; // User cancelled
+              } else {
+                  console.warn("Fetch timeout - retrying..."); // Timeout triggered
+              }
+          }
+          
           if (retries <= 0) throw err;
           await new Promise(r => setTimeout(r, delay));
-          return fetchWithRetry(url, signal, retries - 1, delay * 2);
+          return fetchWithRetry(url, signal, retries - 1, delay * 2); // Exponential backoff
       }
   };
 
   const fetchMovies = useCallback(async (pageNum: number = 1, isLoadMore = false) => {
     if (!apiKey) return;
+    setFetchError(false); // Reset error state
     
     if (["Watchlist", "Favorites", "History"].includes(selectedCategory) || selectedCategory.startsWith("Custom:")) {
          const list = selectedCategory === "Watchlist" ? watchlistRef.current : selectedCategory === "Favorites" ? favoritesRef.current : selectedCategory === "History" ? watchedRef.current : customListsRef.current[selectedCategory.replace("Custom:", "")] || [];
@@ -660,9 +670,17 @@ export default function App() {
             } else setFeaturedMovie(null);
         }
         setHasMore(data.page < data.total_pages);
-    } catch (error: any) { if (error.name !== 'AbortError') console.error("Fetch Logic Error:", error); } finally { if (!controller.signal.aborted) setLoading(false); }
+    } catch (error: any) { 
+        if (error.name !== 'AbortError') {
+            console.error("Fetch Logic Error:", error); 
+            setFetchError(true);
+        }
+    } finally { 
+        if (!controller.signal.aborted) setLoading(false); 
+    }
   }, [apiKey, searchQuery, selectedCategory, sortOption, appRegion, currentCollection, filterPeriod, selectedLanguage, selectedRegion, userProfile, maturityRating, sortMovies, tmdbCollectionId, activeKeyword, activeCountry, comingFilter]);
 
+  // ... (Effects for fetching same as before) ...
   useEffect(() => { const timeout = setTimeout(() => fetchMovies(1, false), searchQuery ? 800 : 300); return () => clearTimeout(timeout); }, [fetchMovies, searchQuery]);
   useEffect(() => { const fetchSuggestions = async () => { if (searchQuery.length > 3) { try { const sugs = await getSearchSuggestions(searchQuery); setSearchSuggestions(sugs); setShowSuggestions(true); } catch (e) { console.error(e); } } }; const timeout = setTimeout(fetchSuggestions, 500); return () => clearTimeout(timeout); }, [searchQuery]);
 
@@ -695,44 +713,72 @@ export default function App() {
       return Object.entries(groups).sort((a, b) => { if (a[0] === "TBA") return 1; if (b[0] === "TBA") return -1; return a[0].localeCompare(b[0]); });
   };
 
+  const browseOptions = [
+      { id: "Trending", icon: TrendingUp, label: "Trending", action: resetToHome },
+      { id: "Awards", icon: Award, label: "Awards", action: () => { resetFilters(); setSelectedCategory("Awards"); } },
+      { id: "Anime", icon: Ghost, label: "Anime", action: () => { resetFilters(); setSelectedCategory("Anime"); } },
+      { id: "Sports", icon: Trophy, label: "Sports", action: () => { resetFilters(); setSelectedCategory("Sports"); } },
+      { id: "Family", icon: Baby, label: "Family", action: () => { resetFilters(); setSelectedCategory("Family"); } },
+      { id: "TV Shows", icon: Tv, label: "TV Shows", action: () => { resetFilters(); setSelectedCategory("TV Shows"); } },
+      { id: "Coming", icon: CalendarDays, label: "Coming Soon", action: () => { resetFilters(); setSelectedCategory("Coming"); } },
+      { id: "Genres", icon: Clapperboard, label: "Genres", action: () => { resetFilters(); setSelectedCategory("Genres"); } },
+  ];
+
   if (authChecking) return <div className="fixed inset-0 bg-black flex items-center justify-center"><LogoLoader /></div>;
   if (!isAuthenticated) return (<> <LoginPage onLogin={handleLogin} onOpenSettings={() => setIsSettingsOpen(true)} /> <SettingsPage isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} apiKey={apiKey} setApiKey={(k) => saveSettings(k)} geminiKey={geminiKey} setGeminiKey={(k) => saveGeminiKey(k)} maturityRating={maturityRating} setMaturityRating={setMaturityRating} profile={userProfile} onUpdateProfile={setUserProfile} onLogout={handleLogout} searchHistory={searchHistory} setSearchHistory={(h) => { setSearchHistory(h); localStorage.setItem('movieverse_search_history', JSON.stringify(h)); }} watchedMovies={watched} setWatchedMovies={(m) => { setWatched(m); localStorage.setItem('movieverse_watched', JSON.stringify(m)); }} /> </>);
 
-  // ... (Rest of render logic, no major changes except passing props to MoviePage)
-
   return (
     <div className="min-h-screen bg-[#030303] text-white font-sans selection:bg-amber-500/30 selection:text-white">
-      {/* ... (Nav Bar) ... */}
       <nav className={`fixed top-0 left-0 right-0 z-[60] bg-black/90 backdrop-blur-xl border-b h-16 flex items-center justify-center px-4 md:px-6 transition-all duration-300 ${isGoldTheme ? 'border-amber-500/10' : 'border-white/5'}`}>
         <div className="flex items-center justify-between w-full max-w-7xl">
-            {/* Left: Logo */}
-            <div className="flex items-center gap-2 cursor-pointer group" onClick={resetToHome}>
-                <div className="relative">
-                    <Film size={24} className={`${accentText} relative z-10 transition-transform duration-500 group-hover:rotate-12`} />
-                    <div className={`absolute inset-0 blur-lg opacity-50 group-hover:opacity-80 transition-opacity duration-500 ${isGoldTheme ? 'bg-amber-500' : 'bg-red-600'}`}></div>
+            <div className="flex items-center gap-8">
+                {/* Left: Logo */}
+                <div className="flex items-center gap-2 cursor-pointer group" onClick={resetToHome}>
+                    <div className="relative">
+                        <Film size={24} className={`${accentText} relative z-10 transition-transform duration-500 group-hover:rotate-12`} />
+                        <div className={`absolute inset-0 blur-lg opacity-50 group-hover:opacity-80 transition-opacity duration-500 ${isGoldTheme ? 'bg-amber-500' : 'bg-red-600'}`}></div>
+                    </div>
+                    <div className="flex flex-col leading-none">
+                        <span className="text-lg font-bold tracking-tight text-white hidden sm:block">Movie<span className={accentText}>Verse</span></span>
+                        {isExclusive && <span className={`text-[9px] uppercase tracking-[0.2em] font-bold hidden sm:block animate-pulse ${isGoldTheme ? 'text-amber-500' : 'text-red-600'}`}>Exclusive</span>}
+                    </div>
                 </div>
-                <div className="flex flex-col leading-none">
-                    <span className="text-lg font-bold tracking-tight text-white hidden sm:block">Movie<span className={accentText}>Verse</span></span>
-                    {isExclusive && <span className={`text-[9px] uppercase tracking-[0.2em] font-bold hidden sm:block animate-pulse ${isGoldTheme ? 'text-amber-500' : 'text-red-600'}`}>Exclusive</span>}
-                </div>
-            </div>
 
-            {/* Center: Navigation Links */}
-            <div className="hidden md:flex items-center gap-6">
-                <button onClick={resetToHome} className={`flex items-center gap-2 text-sm font-bold transition-all hover:text-white ${selectedCategory === "All" && !searchQuery ? "text-white" : "text-gray-400"}`}>
-                    <Home size={18} /> Home
-                </button>
-                <button onClick={() => { setIsAIModalOpen(true); }} className={`flex items-center gap-2 text-sm font-bold transition-all hover:text-white text-gray-400`}>
-                    <Compass size={18} /> Explore
-                </button>
-                {isExclusive && (
-                    <button onClick={() => { resetFilters(); setSelectedCategory("LiveTV"); }} className={`flex items-center gap-2 text-sm font-bold transition-all hover:text-white ${selectedCategory === "LiveTV" ? "text-white" : "text-gray-400"}`}>
-                        <Radio size={18} className={isGoldTheme ? "text-amber-500" : "text-red-500"} /> Live TV
+                {/* Left Aligned Navigation Links */}
+                <div className="hidden md:flex items-center gap-2">
+                    <button onClick={resetToHome} className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold transition-all ${selectedCategory === "All" && !searchQuery ? "bg-white/10 text-white" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>
+                        <Home size={18} /> Home
                     </button>
-                )}
-                <button onClick={() => { resetFilters(); setSelectedCategory("Genres"); }} className={`flex items-center gap-2 text-sm font-bold transition-all hover:text-white ${selectedCategory === "Genres" ? "text-white" : "text-gray-400"}`}>
-                    <LayoutGrid size={18} /> Browse
-                </button>
+                    <button onClick={() => { setIsAIModalOpen(true); }} className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold transition-all text-gray-400 hover:text-white hover:bg-white/5`}>
+                        <Compass size={18} /> Explore
+                    </button>
+                    {isExclusive && (
+                        <button onClick={() => { resetFilters(); setSelectedCategory("LiveTV"); }} className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold transition-all ${selectedCategory === "LiveTV" ? "bg-white/10 text-white" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>
+                            <Radio size={18} className={isGoldTheme ? "text-amber-500" : "text-red-500"} /> Live TV
+                        </button>
+                    )}
+                    
+                    {/* Browse Dropdown on Hover */}
+                    <div className="relative group/browse" onMouseEnter={() => setIsBrowseOpen(true)} onMouseLeave={() => setIsBrowseOpen(false)}>
+                        <button className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold transition-all ${["Genres", "Awards", "Anime", "Sports", "Family", "TV Shows", "Coming"].includes(selectedCategory) ? "bg-white/10 text-white" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>
+                            <LayoutGrid size={18} /> Browse
+                        </button>
+                        
+                        {/* Dropdown Content */}
+                        <div className={`absolute top-full left-0 mt-2 w-64 bg-[#1a1a1a] border border-white/10 rounded-2xl shadow-2xl p-2 grid grid-cols-2 gap-1 z-50 transition-all duration-300 origin-top-left ${isBrowseOpen ? 'opacity-100 scale-100 translate-y-0 pointer-events-auto' : 'opacity-0 scale-95 -translate-y-2 pointer-events-none'}`}>
+                            {browseOptions.map(opt => (
+                                <button 
+                                    key={opt.id}
+                                    onClick={() => { opt.action(); setIsBrowseOpen(false); }}
+                                    className={`flex flex-col items-center justify-center gap-1 p-3 rounded-xl hover:bg-white/10 transition-colors ${selectedCategory === opt.id ? 'bg-white/5 text-white' : 'text-gray-400'}`}
+                                >
+                                    <opt.icon size={20}/>
+                                    <span className="text-[10px] font-bold">{opt.label}</span>
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                </div>
             </div>
 
             {/* Right: Search & Actions */}
@@ -757,45 +803,11 @@ export default function App() {
         </div>
       </nav>
 
+      {/* Main Content Area */}
       <div className="flex pt-16">
-        <aside className={`fixed top-0 left-0 h-full w-72 bg-black/80 backdrop-blur-2xl border-r border-white/10 z-[60] transform transition-transform duration-500 cubic-bezier(0.4, 0, 0.2, 1) ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-           {/* ... (Sidebar Content) ... */}
-           <div className="p-6 h-full overflow-y-auto custom-scrollbar">
-               <div className="flex justify-between items-center mb-8">
-                   <div className="flex items-center gap-2"><Film size={24} className={accentText} /><span className="text-xl font-bold">Menu</span></div>
-                   <button onClick={() => setIsSidebarOpen(false)} className="p-2 hover:bg-white/10 rounded-full transition-colors active:scale-95"><X size={20}/></button>
-               </div>
-               {/* ... (Sidebar Links) ... */}
-               <div className="space-y-6">
-                   <div className="space-y-1">
-                        <button onClick={() => { resetToHome(); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 hover:translate-x-1 ${selectedCategory === "All" && !searchQuery ? `${accentBgLow} ${accentText}` : 'text-gray-400 hover:text-white hover:bg-white/5'}`}><TrendingUp size={18}/> Trending Now</button>
-                        <button onClick={() => { resetFilters(); setSelectedCategory("Coming"); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 hover:translate-x-1 ${selectedCategory === "Coming" ? `${accentBgLow} ${accentText}` : 'text-gray-400 hover:text-white hover:bg-white/5'}`}><CalendarDays size={18}/> Coming Soon</button>
-                        <button onClick={() => { resetFilters(); setSelectedCategory("Genres"); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 hover:translate-x-1 ${selectedCategory === "Genres" ? `${accentBgLow} ${accentText}` : 'text-gray-400 hover:text-white hover:bg-white/5'}`}><LayoutGrid size={18}/> Browse Genres</button>
-                        <button onClick={() => { resetFilters(); setSelectedCategory("Countries"); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 hover:translate-x-1 ${selectedCategory === "Countries" ? `${accentBgLow} ${accentText}` : 'text-gray-400 hover:text-white hover:bg-white/5'}`}><Globe size={18}/> International</button>
-                   </div>
-                   
-                   <div className="space-y-1">
-                        <p className="px-3 text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Discovery</p>
-                        <button onClick={() => { resetFilters(); setSelectedCategory("CineAnalytics"); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 hover:translate-x-1 ${selectedCategory === "CineAnalytics" ? `${accentBgLow} ${accentText}` : 'text-gray-400 hover:text-white hover:bg-white/5'}`}><BarChart3 size={18}/> CineAnalytics</button>
-                        <button onClick={() => { setIsAIModalOpen(true); setIsSidebarOpen(false); }} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 hover:translate-x-1 text-gray-400 hover:text-white hover:bg-white/5"><Sparkles size={18}/> AI Finder</button>
-                        <button onClick={handleFeelingLucky} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 hover:translate-x-1 text-gray-400 hover:text-white hover:bg-white/5"><Dice5 size={18}/> Feeling Lucky</button>
-                   </div>
-
-                   <div className="space-y-1">
-                        <p className="px-3 text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Library</p>
-                        <button onClick={() => { resetFilters(); setSelectedCategory("Watchlist"); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 hover:translate-x-1 ${selectedCategory === "Watchlist" ? `${accentBgLow} ${accentText}` : 'text-gray-400 hover:text-white hover:bg-white/5'}`}><Bookmark size={18}/> Watchlist</button>
-                        <button onClick={() => { resetFilters(); setSelectedCategory("Favorites"); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 hover:translate-x-1 ${selectedCategory === "Favorites" ? `${accentBgLow} ${accentText}` : 'text-gray-400 hover:text-white hover:bg-white/5'}`}><Heart size={18}/> Favorites</button>
-                        <button onClick={() => { resetFilters(); setSelectedCategory("History"); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 hover:translate-x-1 ${selectedCategory === "History" ? `${accentBgLow} ${accentText}` : 'text-gray-400 hover:text-white hover:bg-white/5'}`}><History size={18}/> History</button>
-                   </div>
-               </div>
-           </div>
-           <div className={`absolute top-0 left-full w-screen h-full bg-black/50 backdrop-blur-sm transition-opacity duration-500 ${isSidebarOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`} onClick={() => setIsSidebarOpen(false)}></div>
-        </aside>
-
         <main className="flex-1 min-h-[calc(100vh-4rem)] w-full">
            {selectedCategory === "CineAnalytics" ? ( <AnalyticsDashboard watchedMovies={watched} watchlist={watchlist} favorites={favorites} apiKey={apiKey} onMovieClick={setSelectedMovie} /> ) : selectedCategory === "LiveTV" ? ( <LiveTV userProfile={userProfile} /> ) : selectedCategory === "Sports" ? ( <LiveSports userProfile={userProfile} /> ) : selectedCategory === "Genres" ? (
                <div className="animate-in fade-in slide-in-from-bottom-4">
-                   {/* ... (Genres Grid) ... */}
                    <div className="p-8 md:p-12">
                        <h1 className="text-4xl md:text-5xl font-black text-white tracking-tight mb-2">All Genres</h1>
                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6 mt-8">
@@ -813,14 +825,11 @@ export default function App() {
                </div>
            ) : (
                <>
-                   {/* ... (Hero & Lists) ... */}
                    {selectedCategory === "Coming" && (
                        <div className="animate-in fade-in slide-in-from-bottom-4 p-6 md:p-8">
-                           {/* ... (Coming Soon Grouping) ... */}
                            <div className="space-y-12">
                                {groupMoviesByDate(movies).map(([date, dateMovies]) => (
                                    <div key={date} className="animate-in slide-in-from-right-4 duration-500 group/timeline">
-                                       {/* ... */}
                                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 mt-4">
                                            {dateMovies.map((movie) => (
                                                <div key={movie.id} onClick={() => setSelectedMovie(movie)} className="group cursor-pointer relative">
@@ -842,6 +851,18 @@ export default function App() {
                        <div className="px-4 md:px-12 py-8 space-y-8 relative z-10">
                            <PosterMarquee movies={!searchQuery && selectedCategory === "All" && !currentCollection && movies.length > 0 ? movies : []} onMovieClick={setSelectedMovie} />
                            
+                           {/* Error State for Low Internet */}
+                           {fetchError && !loading && movies.length === 0 && (
+                                <div className="flex flex-col items-center justify-center py-20 text-center animate-in fade-in">
+                                    <CloudOff size={48} className="text-red-500 mb-4 opacity-80"/>
+                                    <h3 className="text-xl font-bold text-white mb-2">Connection Issues</h3>
+                                    <p className="text-gray-400 mb-6 max-w-md">We're having trouble reaching the movie database. Your internet might be unstable.</p>
+                                    <button onClick={() => fetchMovies(1, false)} className="flex items-center gap-2 px-6 py-2 bg-white/10 hover:bg-white/20 rounded-full text-white font-bold transition-all active:scale-95">
+                                        <RefreshCcw size={16}/> Retry Connection
+                                    </button>
+                                </div>
+                           )}
+
                            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-x-4 gap-y-8 animate-in fade-in duration-700">
                                {movies.map((movie, idx) => (
                                    <div key={`${movie.id}-${idx}`} ref={idx === movies.length - 1 ? lastMovieElementRef : null} className="animate-in fade-in zoom-in-95 duration-500" style={{ animationDelay: `${idx * 50}ms` }}>
@@ -859,7 +880,12 @@ export default function App() {
                                ))}
                                {loading && [...Array(12)].map((_, i) => <MovieSkeleton key={`skel-${i}`} />)}
                            </div>
-                           {!loading && movies.length === 0 && ( <div className="text-center py-20 opacity-50 flex flex-col items-center animate-in fade-in zoom-in"> <Ghost size={48} className="mb-4 text-white/20"/> <p>No results found.</p> </div> )}
+                           
+                           {!loading && !fetchError && movies.length === 0 && ( 
+                               <div className="text-center py-20 opacity-50 flex flex-col items-center animate-in fade-in zoom-in"> 
+                                   <Ghost size={48} className="mb-4 text-white/20"/> <p>No results found.</p> 
+                               </div> 
+                           )}
                        </div>
                    )}
                </>
