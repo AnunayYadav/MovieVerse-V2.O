@@ -1,5 +1,5 @@
 
-import React, { useRef } from 'react';
+import React, { useRef, useEffect } from 'react';
 import { X } from 'lucide-react';
 
 interface MoviePlayerProps {
@@ -11,10 +11,11 @@ interface MoviePlayerProps {
   initialSeason?: number;
   initialEpisode?: number;
   apiKey: string;
+  onProgress?: (data: any) => void;
 }
 
 export const MoviePlayer: React.FC<MoviePlayerProps> = ({ 
-  tmdbId, onClose, mediaType, isAnime, initialSeason = 1, initialEpisode = 1
+  tmdbId, onClose, mediaType, isAnime, initialSeason = 1, initialEpisode = 1, onProgress
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -28,6 +29,23 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     // Movies
     return `https://vidsrc.cc/v2/embed/movie/${tmdbId}`;
   };
+
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+        // Strict origin check for security
+        if (event.origin !== 'https://vidsrc.cc') return;
+
+        if (event.data && event.data.type === 'PLAYER_EVENT' && onProgress) {
+            // Forward the player event data to the parent component
+            onProgress(event.data.data);
+        }
+    };
+
+    window.addEventListener('message', handleMessage);
+    return () => {
+        window.removeEventListener('message', handleMessage);
+    };
+  }, [onProgress]);
 
   return (
     <div 
@@ -53,7 +71,8 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
             frameBorder="0"
             allow="autoplay; fullscreen; picture-in-picture"
             allowFullScreen
-            sandbox="allow-forms allow-pointer-lock allow-same-origin allow-scripts allow-top-navigation"
+            // Sandbox configured to block popups (ads) but allow scripts and same-origin for postMessage and playback
+            sandbox="allow-forms allow-pointer-lock allow-same-origin allow-scripts allow-top-navigation allow-presentation"
         />
       </div>
     </div>

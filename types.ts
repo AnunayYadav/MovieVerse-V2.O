@@ -29,6 +29,16 @@ export interface Movie {
   profile_path?: string | null;
   known_for_department?: string;
   known_for?: Movie[];
+  
+  // Watch History Tracking
+  play_progress?: number; // percentage 0-100
+  last_watched_data?: {
+      season?: number;
+      episode?: number;
+      current_time?: number;
+      duration?: number;
+      updated_at?: number;
+  };
 }
 
 export interface Genre {

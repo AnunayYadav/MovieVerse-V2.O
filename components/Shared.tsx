@@ -201,6 +201,10 @@ export const MovieCard = React.forwardRef<HTMLDivElement, MovieCardProps>(({ mov
     const rating = movie.vote_average;
     const year = (movie.release_date || movie.first_air_date || "").split('-')[0];
     const isFuture = new Date(movie.release_date || `${movie.year}-01-01`) > new Date();
+    
+    // Progress Bar Logic
+    const progress = movie.play_progress || 0;
+    const showProgress = progress > 0 && progress < 98; // Don't show if barely started or finished
   
     return (
       <div 
@@ -216,6 +220,17 @@ export const MovieCard = React.forwardRef<HTMLDivElement, MovieCardProps>(({ mov
             loading="lazy"
             className="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-110"
           />
+          
+          {/* Progress Bar at bottom of poster image */}
+          {showProgress && (
+              <div className="absolute bottom-0 left-0 w-full h-1 bg-black/50 z-10">
+                  <div 
+                    className="h-full bg-red-600 transition-all duration-500" 
+                    style={{ width: `${progress}%` }}
+                  />
+              </div>
+          )}
+
           {/* Liquid Glass Overlay on Hover */}
           <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent opacity-60 group-hover:opacity-90 transition-opacity duration-500 pointer-events-none" />
           
