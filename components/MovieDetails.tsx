@@ -605,15 +605,15 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                     {/* Horizontal Scroll for Collection Parts */}
                                     <div className="flex overflow-x-auto gap-4 pb-4 custom-scrollbar">
                                         {collection.parts.map(part => (
-                                            <div key={part.id} className="min-w-[150px] md:min-w-[180px] cursor-pointer group" onClick={() => { onClose(); onSwitchMovie(part); }}>
+                                            <div key={part.id} className="min-w-[100px] md:min-w-[120px] cursor-pointer group" onClick={() => { onClose(); onSwitchMovie(part); }}>
                                                 <div className="aspect-[2/3] rounded-xl overflow-hidden bg-white/5 mb-3 relative shadow-lg group-hover:shadow-purple-900/30 transition-all">
                                                     <img src={part.poster_path ? `${TMDB_IMAGE_BASE}${part.poster_path}` : "https://placehold.co/300x450"} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" alt={part.title}/>
                                                     {part.id === movie.id && (
                                                         <div className="absolute inset-0 bg-black/60 flex items-center justify-center font-bold text-xs uppercase tracking-widest text-white border-2 border-white/20">Current</div>
                                                     )}
                                                 </div>
-                                                <h4 className={`font-bold text-sm leading-tight ${part.id === movie.id ? 'text-purple-400' : 'text-gray-300 group-hover:text-white'}`}>{part.title}</h4>
-                                                <p className="text-xs text-gray-500">{part.release_date?.split('-')[0]}</p>
+                                                <h4 className={`font-bold text-xs leading-tight ${part.id === movie.id ? 'text-purple-400' : 'text-gray-300 group-hover:text-white'}`}>{part.title}</h4>
+                                                <p className="text-[10px] text-gray-500">{part.release_date?.split('-')[0]}</p>
                                             </div>
                                         ))}
                                     </div>

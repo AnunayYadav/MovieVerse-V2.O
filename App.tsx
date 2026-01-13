@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Search, Film, Menu, TrendingUp, Tv, Ghost, Calendar, Star, X, Sparkles, Settings, Globe, BarChart3, Bookmark, Heart, Folder, Languages, Filter, ChevronDown, Info, Plus, Cloud, CloudOff, Clock, Bell, History, Users, Tag, Dice5, Crown, Radio, LayoutGrid, Award, Baby, Clapperboard, ChevronRight, PlayCircle, Megaphone, CalendarDays, Compass, Home, Map, Loader2, Trophy, RefreshCcw, Check, MonitorPlay } from 'lucide-react';
 import { Movie, UserProfile, GENRES_MAP, GENRES_LIST, INDIAN_LANGUAGES, MaturityRating, Keyword } from './types';
@@ -78,6 +79,10 @@ export default function App() {
   
   const [isAgeModalOpen, setIsAgeModalOpen] = useState(false);
   
+  // Browse Dropdown State
+  const [isBrowseOpen, setIsBrowseOpen] = useState(false);
+  const browseTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const watchlistRef = useRef<Movie[]>([]);
   const favoritesRef = useRef<Movie[]>([]);
   const watchedRef = useRef<Movie[]>([]);
@@ -143,6 +148,22 @@ export default function App() {
       setSelectedRegion("Global");
       setSelectedLanguage("All");
   };
+
+  const handleBrowseEnter = () => {
+      if (browseTimeoutRef.current) clearTimeout(browseTimeoutRef.current);
+      setIsBrowseOpen(true);
+  };
+
+  const handleBrowseLeave = () => {
+      browseTimeoutRef.current = setTimeout(() => {
+          setIsBrowseOpen(false);
+      }, 300); // 300ms delay to allow moving to dropdown
+  };
+
+  const handleBrowseAction = (action: () => void) => {
+      action();
+      setIsBrowseOpen(false);
+  }
 
   useEffect(() => {
     let authListener: any = null;
@@ -709,7 +730,7 @@ export default function App() {
                 {/* Left: Logo */}
                 <div className="flex items-center gap-2 cursor-pointer group" onClick={resetToHome}>
                     <div className="relative">
-                        <Film size={24} className={`${accentText} relative z-10 transition-transform duration-500 group-hover:rotate-12`} />
+                        <Film size={24} className={`text-white relative z-10 transition-transform duration-500 group-hover:rotate-12`} />
                         <div className={`absolute inset-0 blur-lg opacity-50 group-hover:opacity-80 transition-opacity duration-500 ${isGoldTheme ? 'bg-amber-500' : 'bg-red-600'}`}></div>
                     </div>
                     <div className="flex flex-col leading-none">
@@ -732,28 +753,31 @@ export default function App() {
                         </button>
                     )}
                     
-                    {/* Browse Dropdown with CSS Bridge */}
-                    <div className="relative group/browse flex items-center h-full">
+                    {/* Browse Dropdown with State & Timeout */}
+                    <div 
+                        className="relative flex items-center h-full"
+                        onMouseEnter={handleBrowseEnter}
+                        onMouseLeave={handleBrowseLeave}
+                    >
                         <button className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold transition-all ${["Genres", "Awards", "Anime", "Sports", "Family", "TV Shows", "Coming"].includes(selectedCategory) ? "bg-white/10 text-white" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>
                             <LayoutGrid size={18} /> Browse
                         </button>
                         
-                        {/* Invisible Bridge */}
-                        <div className="absolute top-full left-0 w-full h-4 bg-transparent"></div>
-
                         {/* Dropdown Content */}
-                        <div className="absolute top-[calc(100%+0.5rem)] left-0 w-64 bg-[#1a1a1a] border border-white/10 rounded-2xl shadow-2xl p-2 grid grid-cols-2 gap-1 z-50 transition-all duration-300 origin-top-left opacity-0 scale-95 pointer-events-none group-hover/browse:opacity-100 group-hover/browse:scale-100 group-hover/browse:pointer-events-auto group-hover/browse:translate-y-0 -translate-y-2">
-                            {browseOptions.map(opt => (
-                                <button 
-                                    key={opt.id}
-                                    onClick={() => { opt.action(); }}
-                                    className={`flex flex-col items-center justify-center gap-1 p-3 rounded-xl hover:bg-white/10 transition-colors ${selectedCategory === opt.id ? 'bg-white/5 text-white' : 'text-gray-400 hover:text-white'}`}
-                                >
-                                    <opt.icon size={20}/>
-                                    <span className="text-[10px] font-bold">{opt.label}</span>
-                                </button>
-                            ))}
-                        </div>
+                        {isBrowseOpen && (
+                            <div className="absolute top-[calc(100%+0.5rem)] left-0 w-64 bg-[#1a1a1a] border border-white/10 rounded-2xl shadow-2xl p-2 grid grid-cols-2 gap-1 z-50 animate-in fade-in zoom-in-95 duration-200 origin-top-left">
+                                {browseOptions.map(opt => (
+                                    <button 
+                                        key={opt.id}
+                                        onClick={() => handleBrowseAction(opt.action)}
+                                        className={`flex flex-col items-center justify-center gap-1 p-3 rounded-xl hover:bg-white/10 transition-colors ${selectedCategory === opt.id ? 'bg-white/5 text-white' : 'text-gray-400 hover:text-white'}`}
+                                    >
+                                        <opt.icon size={20}/>
+                                        <span className="text-[10px] font-bold">{opt.label}</span>
+                                    </button>
+                                ))}
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>
@@ -860,12 +884,14 @@ export default function App() {
                                        </p>
 
                                        <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto mt-2">
-                                           <button 
-                                               onClick={() => setSelectedMovie(featuredMovie)}
-                                               className={`w-full sm:w-auto px-8 py-3.5 rounded-xl font-bold flex items-center justify-center gap-3 transition-all hover:scale-105 active:scale-95 shadow-xl ${isGoldTheme ? 'bg-amber-500 text-black hover:bg-amber-400' : 'bg-white text-black hover:bg-gray-200'}`}
-                                           >
-                                               <PlayCircle size={20} fill="currentColor" /> Watch Now
-                                           </button>
+                                           {isExclusive && (
+                                               <button 
+                                                   onClick={() => setSelectedMovie(featuredMovie)}
+                                                   className={`w-full sm:w-auto px-8 py-3.5 rounded-xl font-bold flex items-center justify-center gap-3 transition-all hover:scale-105 active:scale-95 shadow-xl ${isGoldTheme ? 'bg-amber-500 text-black hover:bg-amber-400' : 'bg-white text-black hover:bg-gray-200'}`}
+                                               >
+                                                   <PlayCircle size={20} fill="currentColor" /> Watch Now
+                                               </button>
+                                           )}
                                            <button 
                                                onClick={() => setSelectedMovie(featuredMovie)}
                                                className="w-full sm:w-auto px-8 py-3.5 rounded-xl font-bold flex items-center justify-center gap-3 bg-white/10 hover:bg-white/20 backdrop-blur-md text-white transition-all hover:scale-105 active:scale-95 border border-white/10"
@@ -884,7 +910,7 @@ export default function App() {
                                     <span className="px-2.5 py-0.5 rounded-lg bg-white/5 text-xs font-bold text-gray-400 border border-white/5">{movies.length > 0 ? movies.length : 0}</span>
                                 </div>
 
-                                <div className="flex items-center gap-3 overflow-x-auto hide-scrollbar">
+                                <div className="flex items-center gap-3">
                                     {/* Sort */}
                                     <div className="relative group shrink-0">
                                         <button className="flex items-center gap-2 px-4 py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-sm font-medium text-gray-200 transition-all hover:border-white/20 active:scale-95 min-w-[120px] justify-between">
