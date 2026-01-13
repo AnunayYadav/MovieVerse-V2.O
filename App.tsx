@@ -1,8 +1,7 @@
-
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Search, Film, Menu, TrendingUp, Tv, Ghost, Calendar, Star, X, Sparkles, Settings, Globe, BarChart3, Bookmark, Heart, Folder, Languages, Filter, ChevronDown, Info, Plus, Cloud, CloudOff, Clock, Bell, History, Users, Tag, Dice5, Crown, Radio, LayoutGrid, Award, Baby, Clapperboard, ChevronRight, PlayCircle, Megaphone, CalendarDays, Compass, Home, Map, Loader2, Trophy, RefreshCcw, Check, MonitorPlay } from 'lucide-react';
 import { Movie, UserProfile, GENRES_MAP, GENRES_LIST, INDIAN_LANGUAGES, MaturityRating, Keyword } from './types';
-import { LogoLoader, MovieSkeleton, MovieCard, PersonCard, PosterMarquee, TMDB_BASE_URL, TMDB_BACKDROP_BASE, TMDB_IMAGE_BASE, HARDCODED_TMDB_KEY, HARDCODED_GEMINI_KEY, getTmdbKey, getGeminiKey } from './components/Shared';
+import { LogoLoader, MovieSkeleton, MovieCard, PersonCard, PosterMarquee, TMDB_BASE_URL, TMDB_BACKDROP_BASE, TMDB_IMAGE_BASE, HARDCODED_TMDB_KEY, HARDCODED_GEMINI_KEY, getTmdbKey, getGeminiKey, BrandLogo } from './components/Shared';
 import { MoviePage } from './components/MovieDetails';
 import { AnalyticsDashboard } from './components/Analytics';
 import { ProfilePage, PersonPage, AIRecommendationModal, NotificationModal, ComparisonModal, AgeVerificationModal } from './components/Modals';
@@ -753,9 +752,8 @@ export default function App() {
             <div className="flex items-center gap-8">
                 {/* Left: Logo */}
                 <div className="flex items-center gap-2 cursor-pointer group" onClick={resetToHome}>
-                    <div className="relative">
-                        {/* REVERTED LOGO COLOR FROM WHITE TO ACCENT */}
-                        <Film size={24} className={`${accentText} relative z-10 transition-transform duration-500 group-hover:rotate-12`} />
+                    <div className="relative group">
+                        <BrandLogo className={`${accentText} relative z-10 transition-transform duration-500 group-hover:rotate-12`} accentColor={accentText} />
                         <div className={`absolute inset-0 blur-lg opacity-50 group-hover:opacity-80 transition-opacity duration-500 ${isGoldTheme ? 'bg-amber-500' : 'bg-red-600'}`}></div>
                     </div>
                     <div className="flex flex-col leading-none">
@@ -815,7 +813,9 @@ export default function App() {
                 </div>
 
                 <div className="flex items-center gap-3">
-                    {isCloudSync ? <Cloud size={20} className="text-green-500 hidden sm:block" title="Synced to Cloud"/> : <CloudOff size={20} className="text-gray-600 hidden sm:block" title="Local Only"/>}
+                    <div title={isCloudSync ? "Synced to Cloud" : "Local Only"} className="hidden sm:block">
+                        {isCloudSync ? <Cloud size={20} className="text-green-500" /> : <CloudOff size={20} className="text-gray-600" />}
+                    </div>
                     <button onClick={() => setIsNotificationOpen(true)} className="relative text-gray-400 hover:text-white transition-colors">
                         <Bell size={20} />
                         {hasUnread && <span className={`absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full ${isGoldTheme ? 'bg-amber-500' : 'bg-red-500'}`}></span>}

@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Film, Star, Eye, Download, X, Check, ArrowLeft } from 'lucide-react';
 import { Movie } from '../types';
 
@@ -58,11 +58,30 @@ export const formatCurrency = (value: number | undefined, region: string = 'US')
     return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(value);
 };
 
+export const BrandLogo = ({ className = "", size = 24, accentColor = "text-red-600" }: { className?: string, size?: number, accentColor?: string }) => {
+    const [imgError, setImgError] = useState(false);
+    const logoPath = "./assets/logo.png";
+
+    if (imgError) {
+        return <Film size={size} className={`${accentColor} ${className}`} />;
+    }
+
+    return (
+        <img 
+            src={logoPath}
+            alt="Logo" 
+            className={`object-contain ${className}`}
+            style={{ width: size, height: size }}
+            onError={() => setImgError(true)}
+        />
+    );
+};
+
 export const LogoLoader = () => (
   <div className="flex flex-col items-center justify-center gap-4 animate-in fade-in zoom-in duration-700 py-20 font-sans">
     <div className="relative">
       <div className="absolute inset-0 bg-red-600 blur-2xl opacity-20 animate-pulse rounded-full"></div>
-      <Film size={48} className="text-red-600 animate-[spin_3s_linear_infinite] relative z-10 drop-shadow-[0_0_15px_rgba(220,38,38,0.5)]" />
+      <BrandLogo size={48} className="animate-[spin_3s_linear_infinite] relative z-10 drop-shadow-[0_0_15px_rgba(220,38,38,0.5)]" />
     </div>
     <p className="text-white/80 text-xs font-bold tracking-[0.3em] animate-pulse">LOADING MOVIEVERSE</p>
   </div>
