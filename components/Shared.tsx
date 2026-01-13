@@ -59,7 +59,7 @@ export const formatCurrency = (value: number | undefined, region: string = 'US')
 };
 
 export const LogoLoader = () => (
-  <div className="flex flex-col items-center justify-center gap-4 animate-in fade-in zoom-in duration-700 py-20">
+  <div className="flex flex-col items-center justify-center gap-4 animate-in fade-in zoom-in duration-700 py-20 font-sans">
     <div className="relative">
       <div className="absolute inset-0 bg-red-600 blur-2xl opacity-20 animate-pulse rounded-full"></div>
       <Film size={48} className="text-red-600 animate-[spin_3s_linear_infinite] relative z-10 drop-shadow-[0_0_15px_rgba(220,38,38,0.5)]" />
@@ -92,7 +92,7 @@ export const StarRating = ({ rating }: { rating: number | undefined }) => {
   if (isNaN(numRating)) return <span className="text-white/30 text-xs italic">NR</span>;
   
   return (
-    <div className="flex items-center gap-1.5 text-yellow-500/90">
+    <div className="flex items-center gap-1.5 text-yellow-500/90 font-sans">
       <Star size={12} fill="currentColor" />
       <span className="text-sm font-bold text-white/90">
         {numRating.toFixed(1)}
@@ -163,7 +163,7 @@ export const ImageLightbox = ({ src, onClose }: { src: string, onClose: () => vo
     };
   
     return (
-      <div className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-xl flex items-center justify-center p-4 animate-in fade-in zoom-in-95 duration-300" onClick={onClose}>
+      <div className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-xl flex items-center justify-center p-4 animate-in fade-in zoom-in-95 duration-300 font-sans" onClick={onClose}>
          <button 
            onClick={(e) => { e.stopPropagation(); onClose(); }}
            className="absolute top-6 left-6 text-white hover:text-red-500 bg-white/5 hover:bg-white/10 p-3 rounded-full transition-all hover:scale-110 active:scale-95 flex items-center gap-2 group"
@@ -209,7 +209,7 @@ export const MovieCard = React.forwardRef<HTMLDivElement, MovieCardProps>(({ mov
     return (
       <div 
         ref={ref}
-        className="group relative rounded-xl overflow-hidden cursor-pointer transition-all duration-500 ease-[cubic-bezier(0.33,1,0.68,1)] hover:z-20 hover:scale-[1.03] hover:shadow-[0_10px_40px_rgba(0,0,0,0.5)]"
+        className="group relative rounded-xl overflow-hidden cursor-pointer transition-all duration-500 ease-[cubic-bezier(0.33,1,0.68,1)] hover:z-20 hover:scale-[1.03] hover:shadow-[0_10px_40px_rgba(0,0,0,0.5)] font-sans"
         onClick={() => onClick(movie)}
       >
         <div className="aspect-[2/3] overflow-hidden bg-white/5 relative">
@@ -221,11 +221,11 @@ export const MovieCard = React.forwardRef<HTMLDivElement, MovieCardProps>(({ mov
             className="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-110"
           />
           
-          {/* Progress Bar at bottom of poster image */}
+          {/* Aesthetic Progress Bar */}
           {showProgress && (
-              <div className="absolute bottom-0 left-0 w-full h-1 bg-black/50 z-10">
+              <div className="absolute bottom-0 left-0 w-full h-[3px] bg-white/10 z-20">
                   <div 
-                    className="h-full bg-red-600 transition-all duration-500" 
+                    className="h-full bg-gradient-to-r from-red-600 via-orange-500 to-red-600 shadow-[0_0_10px_rgba(255,50,0,0.8)] transition-all duration-500" 
                     style={{ width: `${progress}%` }}
                   />
               </div>
@@ -234,8 +234,8 @@ export const MovieCard = React.forwardRef<HTMLDivElement, MovieCardProps>(({ mov
           {/* Liquid Glass Overlay on Hover */}
           <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent opacity-60 group-hover:opacity-90 transition-opacity duration-500 pointer-events-none" />
           
-          {/* Content Overlay */}
-          <div className="absolute inset-0 p-4 flex flex-col justify-end translate-y-4 group-hover:translate-y-0 transition-transform duration-500 ease-[cubic-bezier(0.33,1,0.68,1)] pointer-events-none">
+          {/* Content Overlay - Shifted Up slightly to avoid progress bar overlap */}
+          <div className="absolute inset-0 p-4 pb-6 flex flex-col justify-end translate-y-4 group-hover:translate-y-0 transition-transform duration-500 ease-[cubic-bezier(0.33,1,0.68,1)] pointer-events-none">
              <div className="flex flex-col gap-1 mb-2">
                 {isFuture && (
                   <span className="w-fit bg-red-600/90 backdrop-blur-sm text-white text-[10px] font-bold px-2 py-0.5 rounded-md shadow-lg mb-1 animate-pulse">COMING SOON</span>
@@ -278,7 +278,7 @@ export const PersonCard = React.forwardRef<HTMLDivElement, PersonCardProps>(({ p
     return (
         <div 
             ref={ref}
-            className="group relative rounded-full md:rounded-xl overflow-hidden cursor-pointer transition-all duration-500 hover:scale-105 hover:z-20 hover:shadow-xl"
+            className="group relative rounded-full md:rounded-xl overflow-hidden cursor-pointer transition-all duration-500 hover:scale-105 hover:z-20 hover:shadow-xl font-sans"
             onClick={() => onClick(person.id)}
         >
             <div className="aspect-square md:aspect-[2/3] overflow-hidden bg-white/5 relative">

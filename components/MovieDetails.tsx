@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, Suspense, useRef } from 'react';
-import { X, Calendar, Clock, Star, Play, Bookmark, Heart, Share2, Clapperboard, Sparkles, Loader2, Tag, MessageCircle, Globe, Facebook, Instagram, Twitter, Film, PlayCircle, Eye, Volume2, VolumeX, Users, ArrowLeft, Lightbulb, DollarSign, Trophy, Tv, Check, Mic2, Video, PenTool, ChevronRight, Monitor, Plus } from 'lucide-react';
-import { Movie, MovieDetails, Season, UserProfile, Keyword, Review, CastMember, CrewMember } from '../types';
+import { X, Calendar, Clock, Star, Play, Bookmark, Heart, Share2, Clapperboard, Sparkles, Loader2, Tag, MessageCircle, Globe, Facebook, Instagram, Twitter, Film, PlayCircle, Eye, Volume2, VolumeX, Users, ArrowLeft, Lightbulb, DollarSign, Trophy, Tv, Check, Mic2, Video, PenTool, ChevronRight, Monitor, Plus, Layers } from 'lucide-react';
+import { Movie, MovieDetails, Season, UserProfile, Keyword, Review, CastMember, CrewMember, CollectionDetails } from '../types';
 import { TMDB_BASE_URL, TMDB_IMAGE_BASE, TMDB_BACKDROP_BASE, formatCurrency, ImageLightbox, PersonCard, MovieCard } from '../components/Shared';
 import { generateTrivia } from '../services/gemini';
 import { FullCreditsModal } from './Modals';
@@ -51,6 +51,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
     onKeywordClick, onCollectionClick, onCompare, appRegion = "US", onProgress
 }) => {
     const [details, setDetails] = useState<MovieDetails | null>(null);
+    const [collection, setCollection] = useState<CollectionDetails | null>(null);
     const [loading, setLoading] = useState(false);
     const [trivia, setTrivia] = useState("");
     const [loadingTrivia, setLoadingTrivia] = useState(false);
@@ -89,11 +90,31 @@ export const MoviePage: React.FC<MoviePageProps> = ({
     useEffect(() => {
         if (!apiKey || !movie.id) return;
         setLoading(true);
+        setCollection(null);
+        
         const type = movie.media_type === 'tv' ? 'tv' : 'movie';
+        
         fetch(`${TMDB_BASE_URL}/${type}/${movie.id}?api_key=${apiKey}&append_to_response=credits,reviews,videos,release_dates,watch/providers,external_ids,similar,images,content_ratings,seasons,keywords`)
             .then(res => res.json())
             .then(data => {
                 setDetails(data);
+                
+                // Fetch Collection if part of one
+                if (data.belongs_to_collection?.id) {
+                    fetch(`${TMDB_BASE_URL}/collection/${data.belongs_to_collection.id}?api_key=${apiKey}`)
+                        .then(res => res.json())
+                        .then(colData => {
+                            if (colData.parts) {
+                                // Sort by release date
+                                colData.parts.sort((a: Movie, b: Movie) => {
+                                    return new Date(a.release_date || '9999').getTime() - new Date(b.release_date || '9999').getTime();
+                                });
+                            }
+                            setCollection(colData);
+                        })
+                        .catch(err => console.error("Collection fetch error", err));
+                }
+
                 setLoading(false);
                 if (data.seasons && data.seasons.length > 0) {
                     if (!movie.last_watched_data?.season) {
@@ -196,7 +217,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
     };
 
     return (
-        <div className="fixed inset-0 z-[100] bg-[#0a0a0a] overflow-y-auto custom-scrollbar animate-in slide-in-from-right-10 duration-500">
+        <div className="fixed inset-0 z-[100] bg-[#0a0a0a] overflow-y-auto custom-scrollbar animate-in slide-in-from-right-10 duration-500 font-sans">
             <div className="relative w-full min-h-screen flex flex-col">
                 {!showPlayer && (
                     <button 
@@ -573,6 +594,32 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                 </div>
                             </div>
 
+                            {/* FRANCHISE COLLECTION SECTION */}
+                            {collection && collection.parts && collection.parts.length > 0 && (
+                                <div className="mt-16 pt-10 border-t border-white/5">
+                                    <div className="flex items-center justify-between mb-6">
+                                        <h3 className="text-2xl font-bold text-white flex items-center gap-2">
+                                            <Layers size={24} className="text-purple-500"/> {collection.name}
+                                        </h3>
+                                    </div>
+                                    {/* Horizontal Scroll for Collection Parts */}
+                                    <div className="flex overflow-x-auto gap-4 pb-4 custom-scrollbar">
+                                        {collection.parts.map(part => (
+                                            <div key={part.id} className="min-w-[150px] md:min-w-[180px] cursor-pointer group" onClick={() => { onClose(); onSwitchMovie(part); }}>
+                                                <div className="aspect-[2/3] rounded-xl overflow-hidden bg-white/5 mb-3 relative shadow-lg group-hover:shadow-purple-900/30 transition-all">
+                                                    <img src={part.poster_path ? `${TMDB_IMAGE_BASE}${part.poster_path}` : "https://placehold.co/300x450"} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" alt={part.title}/>
+                                                    {part.id === movie.id && (
+                                                        <div className="absolute inset-0 bg-black/60 flex items-center justify-center font-bold text-xs uppercase tracking-widest text-white border-2 border-white/20">Current</div>
+                                                    )}
+                                                </div>
+                                                <h4 className={`font-bold text-sm leading-tight ${part.id === movie.id ? 'text-purple-400' : 'text-gray-300 group-hover:text-white'}`}>{part.title}</h4>
+                                                <p className="text-xs text-gray-500">{part.release_date?.split('-')[0]}</p>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
                             {/* Similar Movies Section - Below Main Content */}
                             {displayData.similar?.results && displayData.similar.results.length > 0 && (
                                 <div className="mt-16 pt-10 border-t border-white/5">
@@ -583,7 +630,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                 <MovieCard 
                                                     movie={sim} 
                                                     onClick={() => { onClose(); onSwitchMovie(sim); }}
-                                                    isWatched={isWatched} // Just passing current state, individual card checks internal logic mostly
+                                                    isWatched={isWatched} 
                                                     onToggleWatched={() => {}} 
                                                 />
                                             </div>

@@ -5,7 +5,7 @@ import { Movie, UserProfile, GENRES_MAP, GENRES_LIST, INDIAN_LANGUAGES, Maturity
 import { LogoLoader, MovieSkeleton, MovieCard, PersonCard, PosterMarquee, TMDB_BASE_URL, TMDB_BACKDROP_BASE, TMDB_IMAGE_BASE, HARDCODED_TMDB_KEY, HARDCODED_GEMINI_KEY, getTmdbKey, getGeminiKey } from './components/Shared';
 import { MoviePage } from './components/MovieDetails';
 import { AnalyticsDashboard } from './components/Analytics';
-import { ProfilePage, ListSelectionModal, PersonPage, AIRecommendationModal, NotificationModal, ComparisonModal, AgeVerificationModal } from './components/Modals';
+import { ProfilePage, PersonPage, AIRecommendationModal, NotificationModal, ComparisonModal, AgeVerificationModal } from './components/Modals';
 import { SettingsPage } from './components/SettingsModal';
 import { generateSmartRecommendations, getSearchSuggestions } from './services/gemini';
 import { LoginPage } from './components/LoginPage';
@@ -71,38 +71,28 @@ export default function App() {
   const [watchlist, setWatchlist] = useState<Movie[]>([]);
   const [favorites, setFavorites] = useState<Movie[]>([]);
   const [watched, setWatched] = useState<Movie[]>([]);
-  const [customLists, setCustomLists] = useState<Record<string, Movie[]>>({});
+  // Removed customLists
   const [userProfile, setUserProfile] = useState<UserProfile>({ name: "Guest", age: "", genres: [], enableHistory: true });
   const [hasUnread, setHasUnread] = useState(false);
   const [lastNotificationId, setLastNotificationId] = useState<string | null>(null);
   
   const [isAgeModalOpen, setIsAgeModalOpen] = useState(false);
-  const [isBrowseOpen, setIsBrowseOpen] = useState(false);
-  const browseTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
+  
   const watchlistRef = useRef<Movie[]>([]);
   const favoritesRef = useRef<Movie[]>([]);
   const watchedRef = useRef<Movie[]>([]);
-  const customListsRef = useRef<Record<string, Movie[]>>({});
 
   useEffect(() => { watchlistRef.current = watchlist; }, [watchlist]);
   useEffect(() => { favoritesRef.current = favorites; }, [favorites]);
   useEffect(() => { watchedRef.current = watched; }, [watched]);
-  useEffect(() => { customListsRef.current = customLists; }, [customLists]);
 
   useEffect(() => {
       if (selectedCategory === "Watchlist") setMovies(watchlist);
       if (selectedCategory === "Favorites") setMovies(favorites);
       if (selectedCategory === "History") setMovies(watched);
-      if (selectedCategory.startsWith("Custom:")) {
-          const listName = selectedCategory.replace("Custom:", "");
-          setMovies(customLists[listName] || []);
-      }
-  }, [watchlist, favorites, watched, customLists, selectedCategory]);
+  }, [watchlist, favorites, watched, selectedCategory]);
 
   const [isProfileOpen, setIsProfileOpen] = useState(false);
-  const [isListModalOpen, setIsListModalOpen] = useState(false);
-  const [listModalMovie, setListModalMovie] = useState<Movie | null>(null);
   const [selectedPersonId, setSelectedPersonId] = useState<number | null>(null);
   const [isAIModalOpen, setIsAIModalOpen] = useState(false);
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
@@ -129,7 +119,6 @@ export default function App() {
     setWatchlist([]);
     setFavorites([]);
     setWatched([]);
-    setCustomLists({});
     setHasUnread(false);
     setLastNotificationId(null);
     setUserProfile({ name: "Guest", age: "", genres: [], enableHistory: true });
@@ -170,8 +159,6 @@ export default function App() {
              if (savedFavs) setFavorites(JSON.parse(savedFavs));
              const savedWatched = localStorage.getItem('movieverse_watched');
              if (savedWatched) setWatched(JSON.parse(savedWatched));
-             const savedLists = localStorage.getItem('movieverse_customlists');
-             if (savedLists) setCustomLists(JSON.parse(savedLists));
              const savedProfile = localStorage.getItem('movieverse_profile');
              if (savedProfile) setUserProfile(JSON.parse(savedProfile));
              setDataLoaded(true);
@@ -185,7 +172,6 @@ export default function App() {
                     setWatchlist(cloudData.watchlist);
                     setFavorites(cloudData.favorites);
                     setWatched(cloudData.watched);
-                    setCustomLists(cloudData.customLists);
                     setSearchHistory(cloudData.searchHistory || []);
                     if (cloudData.profile) {
                         profileToSet = cloudData.profile;
@@ -291,7 +277,8 @@ export default function App() {
       localStorage.setItem('movieverse_profile', JSON.stringify(updatedProfile));
       if (isCloudSync) {
           syncUserData({
-              watchlist, favorites, watched, customLists,
+              watchlist, favorites, watched,
+              customLists: {}, // Empty as feature removed
               profile: { ...updatedProfile, maturityRating, region: appRegion },
               settings: { tmdbKey: apiKey, geminiKey: geminiKey },
               searchHistory: searchHistory
@@ -304,7 +291,8 @@ export default function App() {
       if (isCloudSync && isAuthenticated && dataLoaded) {
           const timeoutId = setTimeout(() => {
               syncUserData({
-                  watchlist, favorites, watched, customLists,
+                  watchlist, favorites, watched,
+                  customLists: {},
                   profile: { ...userProfile, maturityRating, region: appRegion },
                   settings: { tmdbKey: apiKey, geminiKey: geminiKey },
                   searchHistory: searchHistory
@@ -312,7 +300,7 @@ export default function App() {
           }, 1000); 
           return () => clearTimeout(timeoutId);
       }
-  }, [watchlist, favorites, watched, customLists, userProfile, isCloudSync, isAuthenticated, apiKey, geminiKey, dataLoaded, searchHistory, maturityRating, appRegion]);
+  }, [watchlist, favorites, watched, userProfile, isCloudSync, isAuthenticated, apiKey, geminiKey, dataLoaded, searchHistory, maturityRating, appRegion]);
 
   useEffect(() => {
       fetchMovies(1, false);
@@ -431,21 +419,6 @@ export default function App() {
       });
   };
 
-  const createCustomList = (name: string, initialMovie: Movie) => {
-      if (customLists[name]) return;
-      const newLists = { ...customLists, [name]: initialMovie ? [initialMovie] : [] };
-      setCustomLists(newLists);
-      localStorage.setItem('movieverse_customlists', JSON.stringify(newLists));
-  };
-
-  const addToCustomList = (listName: string, movie: Movie) => {
-      const list = customLists[listName] || [];
-      if (list.some(m => m.id === movie.id)) return;
-      const newLists = { ...customLists, [listName]: [...list, movie] };
-      setCustomLists(newLists);
-      localStorage.setItem('movieverse_customlists', JSON.stringify(newLists));
-  };
-
   const sortMovies = useCallback((moviesList: Movie[], option: string) => {
     if (!moviesList || !option) return moviesList;
     if (option === 'relevance') return moviesList;
@@ -495,8 +468,8 @@ export default function App() {
     if (!apiKey) return;
     setFetchError(false); // Reset error state
     
-    if (["Watchlist", "Favorites", "History"].includes(selectedCategory) || selectedCategory.startsWith("Custom:")) {
-         const list = selectedCategory === "Watchlist" ? watchlistRef.current : selectedCategory === "Favorites" ? favoritesRef.current : selectedCategory === "History" ? watchedRef.current : customListsRef.current[selectedCategory.replace("Custom:", "")] || [];
+    if (["Watchlist", "Favorites", "History"].includes(selectedCategory)) {
+         const list = selectedCategory === "Watchlist" ? watchlistRef.current : selectedCategory === "Favorites" ? favoritesRef.current : watchedRef.current;
          setMovies(sortMovies(list, sortOption)); 
          setFeaturedMovie(selectedCategory === "Watchlist" ? list[0] : null); 
          setHasMore(false); return; 
@@ -714,17 +687,6 @@ export default function App() {
       return Object.entries(groups).sort((a, b) => { if (a[0] === "TBA") return 1; if (b[0] === "TBA") return -1; return a[0].localeCompare(b[0]); });
   };
 
-  const handleBrowseEnter = () => {
-    if (browseTimeoutRef.current) clearTimeout(browseTimeoutRef.current);
-    setIsBrowseOpen(true);
-  };
-
-  const handleBrowseLeave = () => {
-    browseTimeoutRef.current = setTimeout(() => {
-      setIsBrowseOpen(false);
-    }, 200); // 200ms delay to prevent fast closing
-  };
-
   const browseOptions = [
       { id: "Trending", icon: TrendingUp, label: "Trending", action: resetToHome },
       { id: "Awards", icon: Award, label: "Awards", action: () => { resetFilters(); setSelectedCategory("Awards"); } },
@@ -766,22 +728,25 @@ export default function App() {
                     </button>
                     {isExclusive && (
                         <button onClick={() => { resetFilters(); setSelectedCategory("LiveTV"); }} className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold transition-all ${selectedCategory === "LiveTV" ? "bg-white/10 text-white" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>
-                            <Radio size={18} className={isGoldTheme ? "text-amber-500" : "text-red-500"} /> Live TV
+                            <Radio size={18} className="text-white" /> Live TV
                         </button>
                     )}
                     
-                    {/* Browse Dropdown on Hover */}
-                    <div className="relative group/browse" onMouseEnter={handleBrowseEnter} onMouseLeave={handleBrowseLeave}>
+                    {/* Browse Dropdown with CSS Bridge */}
+                    <div className="relative group/browse flex items-center h-full">
                         <button className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold transition-all ${["Genres", "Awards", "Anime", "Sports", "Family", "TV Shows", "Coming"].includes(selectedCategory) ? "bg-white/10 text-white" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>
                             <LayoutGrid size={18} /> Browse
                         </button>
                         
+                        {/* Invisible Bridge */}
+                        <div className="absolute top-full left-0 w-full h-4 bg-transparent"></div>
+
                         {/* Dropdown Content */}
-                        <div className={`absolute top-full left-0 mt-2 w-64 bg-[#1a1a1a] border border-white/10 rounded-2xl shadow-2xl p-2 grid grid-cols-2 gap-1 z-50 transition-all duration-300 origin-top-left ${isBrowseOpen ? 'opacity-100 scale-100 translate-y-0 pointer-events-auto' : 'opacity-0 scale-95 -translate-y-2 pointer-events-none'}`}>
+                        <div className="absolute top-[calc(100%+0.5rem)] left-0 w-64 bg-[#1a1a1a] border border-white/10 rounded-2xl shadow-2xl p-2 grid grid-cols-2 gap-1 z-50 transition-all duration-300 origin-top-left opacity-0 scale-95 pointer-events-none group-hover/browse:opacity-100 group-hover/browse:scale-100 group-hover/browse:pointer-events-auto group-hover/browse:translate-y-0 -translate-y-2">
                             {browseOptions.map(opt => (
                                 <button 
                                     key={opt.id}
-                                    onClick={() => { opt.action(); setIsBrowseOpen(false); }}
+                                    onClick={() => { opt.action(); }}
                                     className={`flex flex-col items-center justify-center gap-1 p-3 rounded-xl hover:bg-white/10 transition-colors ${selectedCategory === opt.id ? 'bg-white/5 text-white' : 'text-gray-400 hover:text-white'}`}
                                 >
                                     <opt.icon size={20}/>
@@ -795,7 +760,7 @@ export default function App() {
 
             {/* Right: Search & Actions */}
             <div className="flex items-center gap-4">
-                <div className="relative hidden md:block w-96 lg:w-[32rem] group">
+                <div className="relative hidden md:block w-64 lg:w-80 group">
                     <input type="text" placeholder="Search movies, people, genres..." className={`w-full bg-[#1a1a1a] border border-white/5 rounded-full py-2 pl-10 pr-4 text-sm focus:outline-none transition-all text-white placeholder-gray-500 ${loading && searchQuery ? "border-opacity-50" : "focus:border-white/20"}`} value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} onFocus={() => setShowSuggestions(true)} onBlur={() => setTimeout(() => setShowSuggestions(false), 200)} onKeyDown={(e) => { if(e.key === 'Enter') handleSearchSubmit(searchQuery); }} />
                     <Search className={`absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 transition-colors ${loading && searchQuery ? "text-white animate-pulse" : "group-focus-within:text-white"}`} size={16} />
                 </div>
@@ -902,13 +867,10 @@ export default function App() {
                                                <PlayCircle size={20} fill="currentColor" /> Watch Now
                                            </button>
                                            <button 
-                                               onClick={() => { 
-                                                   toggleList(watchlist, setWatchlist, 'movieverse_watchlist', featuredMovie); 
-                                               }}
+                                               onClick={() => setSelectedMovie(featuredMovie)}
                                                className="w-full sm:w-auto px-8 py-3.5 rounded-xl font-bold flex items-center justify-center gap-3 bg-white/10 hover:bg-white/20 backdrop-blur-md text-white transition-all hover:scale-105 active:scale-95 border border-white/10"
                                            >
-                                               {watchlist.some(m => m.id === featuredMovie.id) ? <Check size={20}/> : <Plus size={20}/>} 
-                                               {watchlist.some(m => m.id === featuredMovie.id) ? 'Added' : 'My List'}
+                                               <Info size={20}/> More Info
                                            </button>
                                        </div>
                                    </div>
@@ -1032,7 +994,8 @@ export default function App() {
             onToggleWatched={handleToggleWatched} 
             isWatched={watched.some(m => m.id === selectedMovie.id)} 
             onSwitchMovie={setSelectedMovie} 
-            onOpenListModal={(m) => { setListModalMovie(m); setIsListModalOpen(true); }} 
+            // Removed custom list modal
+            onOpenListModal={() => {}} 
             userProfile={userProfile} 
             onKeywordClick={handleKeywordClick} 
             onCollectionClick={handleTmdbCollectionClick} 
@@ -1042,8 +1005,7 @@ export default function App() {
         /> 
       )}
       
-      {/* ... (Other Modals) ... */}
-      <ListSelectionModal isOpen={isListModalOpen} onClose={() => setIsListModalOpen(false)} movie={listModalMovie} customLists={customLists} onCreateList={createCustomList} onAddToList={addToCustomList} />
+      {/* Removed ListSelectionModal */}
       <ProfilePage isOpen={isProfileOpen} onClose={() => setIsProfileOpen(false)} profile={userProfile} onSave={(p) => { setUserProfile(p); localStorage.setItem('movieverse_profile', JSON.stringify(p)); }} />
       <PersonPage personId={selectedPersonId || 0} onClose={() => setSelectedPersonId(null)} apiKey={apiKey} onMovieClick={(m) => { setSelectedPersonId(null); setTimeout(() => setSelectedMovie(m), 300); }} />
       <AIRecommendationModal isOpen={isAIModalOpen} onClose={() => setIsAIModalOpen(false)} apiKey={apiKey} />
