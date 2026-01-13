@@ -78,6 +78,7 @@ export default function App() {
   
   const [isAgeModalOpen, setIsAgeModalOpen] = useState(false);
   const [isBrowseOpen, setIsBrowseOpen] = useState(false);
+  const browseTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const watchlistRef = useRef<Movie[]>([]);
   const favoritesRef = useRef<Movie[]>([]);
@@ -713,6 +714,17 @@ export default function App() {
       return Object.entries(groups).sort((a, b) => { if (a[0] === "TBA") return 1; if (b[0] === "TBA") return -1; return a[0].localeCompare(b[0]); });
   };
 
+  const handleBrowseEnter = () => {
+    if (browseTimeoutRef.current) clearTimeout(browseTimeoutRef.current);
+    setIsBrowseOpen(true);
+  };
+
+  const handleBrowseLeave = () => {
+    browseTimeoutRef.current = setTimeout(() => {
+      setIsBrowseOpen(false);
+    }, 200); // 200ms delay to prevent fast closing
+  };
+
   const browseOptions = [
       { id: "Trending", icon: TrendingUp, label: "Trending", action: resetToHome },
       { id: "Awards", icon: Award, label: "Awards", action: () => { resetFilters(); setSelectedCategory("Awards"); } },
@@ -759,7 +771,7 @@ export default function App() {
                     )}
                     
                     {/* Browse Dropdown on Hover */}
-                    <div className="relative group/browse" onMouseEnter={() => setIsBrowseOpen(true)} onMouseLeave={() => setIsBrowseOpen(false)}>
+                    <div className="relative group/browse" onMouseEnter={handleBrowseEnter} onMouseLeave={handleBrowseLeave}>
                         <button className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold transition-all ${["Genres", "Awards", "Anime", "Sports", "Family", "TV Shows", "Coming"].includes(selectedCategory) ? "bg-white/10 text-white" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>
                             <LayoutGrid size={18} /> Browse
                         </button>
@@ -770,7 +782,7 @@ export default function App() {
                                 <button 
                                     key={opt.id}
                                     onClick={() => { opt.action(); setIsBrowseOpen(false); }}
-                                    className={`flex flex-col items-center justify-center gap-1 p-3 rounded-xl hover:bg-white/10 transition-colors ${selectedCategory === opt.id ? 'bg-white/5 text-white' : 'text-gray-400'}`}
+                                    className={`flex flex-col items-center justify-center gap-1 p-3 rounded-xl hover:bg-white/10 transition-colors ${selectedCategory === opt.id ? 'bg-white/5 text-white' : 'text-gray-400 hover:text-white'}`}
                                 >
                                     <opt.icon size={20}/>
                                     <span className="text-[10px] font-bold">{opt.label}</span>
@@ -783,7 +795,7 @@ export default function App() {
 
             {/* Right: Search & Actions */}
             <div className="flex items-center gap-4">
-                <div className="relative hidden md:block w-64 group">
+                <div className="relative hidden md:block w-96 lg:w-[32rem] group">
                     <input type="text" placeholder="Search movies, people, genres..." className={`w-full bg-[#1a1a1a] border border-white/5 rounded-full py-2 pl-10 pr-4 text-sm focus:outline-none transition-all text-white placeholder-gray-500 ${loading && searchQuery ? "border-opacity-50" : "focus:border-white/20"}`} value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} onFocus={() => setShowSuggestions(true)} onBlur={() => setTimeout(() => setShowSuggestions(false), 200)} onKeyDown={(e) => { if(e.key === 'Enter') handleSearchSubmit(searchQuery); }} />
                     <Search className={`absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 transition-colors ${loading && searchQuery ? "text-white animate-pulse" : "group-focus-within:text-white"}`} size={16} />
                 </div>
