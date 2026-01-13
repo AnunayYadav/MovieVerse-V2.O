@@ -60,7 +60,8 @@ export const formatCurrency = (value: number | undefined, region: string = 'US')
 
 export const BrandLogo = ({ className = "", size = 24, accentColor = "text-red-600" }: { className?: string, size?: number, accentColor?: string }) => {
     const [imgError, setImgError] = useState(false);
-    const logoPath = "./assets/logo.png";
+    // Use absolute path to ensure it loads from root regardless of route depth
+    const logoPath = "/assets/logo.png";
 
     if (imgError) {
         return <Film size={size} className={`${accentColor} ${className}`} />;
@@ -71,7 +72,8 @@ export const BrandLogo = ({ className = "", size = 24, accentColor = "text-red-6
             src={logoPath}
             alt="Logo" 
             className={`object-contain ${className}`}
-            style={{ width: size, height: size }}
+            // Use height to constrain size but allow width to scale (maintain aspect ratio)
+            style={{ height: size, width: 'auto', maxWidth: '200px' }}
             onError={() => setImgError(true)}
         />
     );
