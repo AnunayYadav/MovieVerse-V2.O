@@ -1,5 +1,4 @@
 
-
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Search, Film, Menu, TrendingUp, Tv, Ghost, Calendar, Star, X, Sparkles, Settings, Globe, BarChart3, Bookmark, Heart, Folder, Languages, Filter, ChevronDown, Info, Plus, Cloud, CloudOff, Clock, Bell, History, Users, Tag, Dice5, Crown, Radio, LayoutGrid, Award, Baby, Clapperboard, ChevronRight, PlayCircle, Megaphone, CalendarDays, Compass, Home, Map, Loader2, Trophy, RefreshCcw, Check, MonitorPlay } from 'lucide-react';
 import { Movie, UserProfile, GENRES_MAP, GENRES_LIST, INDIAN_LANGUAGES, MaturityRating, Keyword } from './types';
@@ -581,6 +580,7 @@ export default function App() {
             endpoint = "/discover/tv";
             params.append("sort_by", sortOption === 'relevance' ? 'popularity.desc' : sortOption);
             if (selectedLanguage !== "All") params.append("with_original_language", selectedLanguage);
+            params.append("vote_count.gte", "50"); // TV specific clutter filter
         } 
         else if (selectedCategory === "Anime") {
             endpoint = "/discover/tv";
@@ -591,6 +591,7 @@ export default function App() {
         else if (selectedCategory === "Family") {
             params.append("with_genres", "10751");
             params.append("sort_by", "popularity.desc");
+            params.append("vote_count.gte", "25");
         }
         else if (selectedCategory === "Awards") {
             params.set("sort_by", "vote_average.desc");
@@ -603,6 +604,7 @@ export default function App() {
         else if (selectedCategory === "India") {
             params.append("with_origin_country", "IN");
             params.append("sort_by", "popularity.desc");
+            params.append("vote_count.gte", "10");
         }
         else if (selectedCategory === "Coming") {
             const today = new Date();
@@ -618,12 +620,24 @@ export default function App() {
 
             params.set("primary_release_date.gte", todayStr);
             params.set("primary_release_date.lte", future.toISOString().split('T')[0]);
-            params.set("sort_by", "primary_release_date.asc");
+            params.set("sort_by", "popularity.desc"); // Sort by popularity for coming soon to show big hits first
+            params.set("popularity.gte", "5"); // Filter out low-popularity unreleased stubs
             
             if (selectedRegion === "IN") params.set("with_origin_country", "IN");
         }
         else {
              params.append("sort_by", sortOption === 'relevance' ? 'popularity.desc' : sortOption);
+             
+             // GENERAL DISCOVERY CLUTTER FILTER
+             // Require at least 25 votes to show up in general feeds to avoid fan-made/test entries
+             // Unless sorting by revenue (which naturally filters) or newest (which might be low vote)
+             if (sortOption !== "revenue.desc" && sortOption !== "primary_release_date.desc") {
+                 params.append("vote_count.gte", "25");
+             } else if (sortOption === "primary_release_date.desc") {
+                 params.append("vote_count.gte", "5"); // Lower threshold for very new releases
+                 params.append("with_runtime.gte", "40"); // Ensure it's not a clip
+             }
+
              if (sortOption === "revenue.desc") params.append("vote_count.gte", "300");
              if (selectedCategory !== "All" && GENRES_MAP[selectedCategory]) params.append("with_genres", GENRES_MAP[selectedCategory].toString());
              if (selectedRegion === "IN") params.append("with_origin_country", "IN");
@@ -638,7 +652,17 @@ export default function App() {
 
         if (selectedCategory !== "People") {
              if (endpoint.includes("/search/multi")) results = results.filter((m: any) => m.media_type === 'movie' || m.media_type === 'tv');
-             results = results.filter((m: any) => m.poster_path);
+             
+             // STRICTER CLIENT SIDE CLUTTER FILTER
+             results = results.filter((m: any) => {
+                 if (!m.poster_path) return false;
+                 // If it has a runtime and it's less than 40 mins, likely short/extra/fake, unless it's animation
+                 // BUT: Unreleased movies often have 0 runtime, so we must allow 0.
+                 // We only filter if runtime > 0 and runtime < 40.
+                 if (m.media_type === 'movie' && m.runtime > 0 && m.runtime < 40 && !m.genre_ids?.includes(16)) return false; 
+                 return true;
+             });
+
              if (selectedCategory === "TV Shows" || selectedCategory === "Anime") results = results.map((m: any) => ({ ...m, media_type: 'tv', title: m.name, release_date: m.first_air_date }));
         }
         
@@ -730,7 +754,8 @@ export default function App() {
                 {/* Left: Logo */}
                 <div className="flex items-center gap-2 cursor-pointer group" onClick={resetToHome}>
                     <div className="relative">
-                        <Film size={24} className={`text-white relative z-10 transition-transform duration-500 group-hover:rotate-12`} />
+                        {/* REVERTED LOGO COLOR FROM WHITE TO ACCENT */}
+                        <Film size={24} className={`${accentText} relative z-10 transition-transform duration-500 group-hover:rotate-12`} />
                         <div className={`absolute inset-0 blur-lg opacity-50 group-hover:opacity-80 transition-opacity duration-500 ${isGoldTheme ? 'bg-amber-500' : 'bg-red-600'}`}></div>
                     </div>
                     <div className="flex flex-col leading-none">
@@ -903,14 +928,14 @@ export default function App() {
                                </div>
                            )}
 
-                           {/* Filter Bar */}
+                           {/* Filter Bar with WRAPPING instead of scroll to fix dropdown clip */}
                            <div className="sticky top-16 z-40 bg-[#030303]/80 backdrop-blur-xl border-b border-white/5 px-4 md:px-12 py-4 flex flex-col md:flex-row md:items-center justify-between gap-4 animate-in fade-in">
                                 <div className="flex items-center gap-3">
                                     <h2 className="text-2xl font-bold text-white tracking-tight">{searchQuery ? `Results for "${searchQuery}"` : selectedCategory === 'All' ? 'Trending Now' : selectedCategory}</h2>
                                     <span className="px-2.5 py-0.5 rounded-lg bg-white/5 text-xs font-bold text-gray-400 border border-white/5">{movies.length > 0 ? movies.length : 0}</span>
                                 </div>
 
-                                <div className="flex items-center gap-3">
+                                <div className="flex items-center gap-3 flex-wrap">
                                     {/* Sort */}
                                     <div className="relative group shrink-0">
                                         <button className="flex items-center gap-2 px-4 py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-sm font-medium text-gray-200 transition-all hover:border-white/20 active:scale-95 min-w-[120px] justify-between">
