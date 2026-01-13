@@ -1,20 +1,13 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
 
-# Run and deploy your AI Studio app
+# Assets Folder
 
-This contains everything you need to run your app locally.
+Upload your custom images here to customize the application.
 
-View your app in AI Studio: https://ai.studio/apps/drive/11xcl0cnQNA1pT-zQVY2xBPPrL5BztD1F
+## Supported Files
 
-## Run Locally
+1. **Logo**: Upload a file named `logo.png`.
+   - The app is configured to automatically display this image if it exists.
+   - If missing, the app defaults to the standard Film icon.
+   - Recommended size: 200x200px or higher, transparent background.
 
-**Prerequisites:**  Node.js
-
-
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+2. **Icons/Backgrounds**: You can upload other assets here and reference them in your code using `./assets/your-file-name.ext`.
