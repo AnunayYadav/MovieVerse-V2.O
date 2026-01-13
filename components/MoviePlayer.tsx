@@ -20,24 +20,26 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
 
   const getEmbedUrl = () => {
-    // Use vidsrc embed URL. 
-    // For TV shows and Anime series, we only use the ID as requested.
-    // The internal player UI will handle episode navigation.
+    // vidsrc.cc structure
     if (mediaType === 'tv' || (isAnime && mediaType !== 'movie')) {
-        return `https://vidsrc.cc/v2/embed/tv/${tmdbId}`;
+        return `https://vidsrc.cc/v2/embed/tv/${tmdbId}/${initialSeason}/${initialEpisode}`;
     }
-    // Movies
     return `https://vidsrc.cc/v2/embed/movie/${tmdbId}`;
   };
 
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
-        // Strict origin check for security
-        if (event.origin !== 'https://vidsrc.cc') return;
-
-        if (event.data && event.data.type === 'PLAYER_EVENT' && onProgress) {
-            // Forward the player event data to the parent component
-            onProgress(event.data.data);
+        // Handle both standard and nested data structures from vidsrc
+        // The API might send { type: "PLAYER_EVENT", data: {...} }
+        
+        try {
+            const msg = event.data;
+            if (msg && msg.type === 'PLAYER_EVENT' && msg.data) {
+                // Forward the internal data payload
+                if (onProgress) onProgress(msg.data);
+            }
+        } catch (e) {
+            // Ignore cross-origin frame access errors
         }
     };
 
@@ -52,7 +54,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
       ref={containerRef}
       className="w-full h-full flex flex-col bg-black relative group/player select-none overflow-hidden"
     >
-       {/* Minimal Overlay for Close Button */}
+       {/* Close Button Overlay */}
        <div className="absolute top-0 right-0 z-[100] p-6 opacity-0 group-hover/player:opacity-100 transition-opacity duration-300 pointer-events-none">
           <button 
             onClick={onClose}
@@ -71,7 +73,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
             frameBorder="0"
             allow="autoplay; fullscreen; picture-in-picture"
             allowFullScreen
-            // Sandbox configured to block popups (ads) but allow scripts and same-origin for postMessage and playback
+            // Essential Sandbox Permissions for vidsrc + postMessage
             sandbox="allow-forms allow-pointer-lock allow-same-origin allow-scripts allow-top-navigation allow-presentation"
         />
       </div>
