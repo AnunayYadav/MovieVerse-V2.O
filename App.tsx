@@ -913,14 +913,14 @@ export default function App() {
                                            {isExclusive && (
                                                <button 
                                                    onClick={() => setSelectedMovie(featuredMovie)}
-                                                   className={`flex-1 sm:flex-none px-4 py-3 sm:px-8 sm:py-3.5 text-sm sm:text-base rounded-xl font-bold flex items-center justify-center gap-3 transition-all hover:scale-105 active:scale-95 shadow-xl ${isGoldTheme ? 'bg-amber-500 text-black hover:bg-amber-400' : 'bg-white text-black hover:bg-gray-200'}`}
+                                                   className={`flex-1 sm:flex-none px-2 py-3 sm:px-8 sm:py-3.5 text-sm sm:text-base rounded-xl font-bold flex items-center justify-center gap-3 transition-all hover:scale-105 active:scale-95 shadow-xl ${isGoldTheme ? 'bg-amber-500 text-black hover:bg-amber-400' : 'bg-white text-black hover:bg-gray-200'}`}
                                                >
                                                    <PlayCircle size={20} fill="currentColor" /> Watch Now
                                                </button>
                                            )}
                                            <button 
                                                onClick={() => setSelectedMovie(featuredMovie)}
-                                               className="flex-1 sm:flex-none px-4 py-3 sm:px-8 sm:py-3.5 text-sm sm:text-base rounded-xl font-bold flex items-center justify-center gap-3 bg-white/10 hover:bg-white/20 backdrop-blur-md text-white transition-all hover:scale-105 active:scale-95 border border-white/10"
+                                               className="flex-1 sm:flex-none px-2 py-3 sm:px-8 sm:py-3.5 text-sm sm:text-base rounded-xl font-bold flex items-center justify-center gap-3 bg-white/10 hover:bg-white/20 backdrop-blur-md text-white transition-all hover:scale-105 active:scale-95 border border-white/10"
                                            >
                                                <Info size={20}/> More Info
                                            </button>

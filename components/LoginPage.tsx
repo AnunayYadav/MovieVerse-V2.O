@@ -163,7 +163,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onOpenSettings })
             <div className="relative z-10 flex flex-col items-center">
                 {/* Logo & Header */}
                 <div className="mb-8 text-center">
-                   <div className="inline-flex items-center justify-center p-4 rounded-2xl bg-gradient-to-br from-white/5 to-transparent shadow-xl mb-4 group-hover:scale-105 transition-transform duration-500">
+                   <div className="inline-flex items-center justify-center mb-4 group-hover:scale-105 transition-transform duration-500">
                       <BrandLogo size={40} className="text-red-600 drop-shadow-[0_0_15px_rgba(220,38,38,0.6)]" />
                    </div>
                    <h1 className="text-2xl font-bold tracking-tight text-white">

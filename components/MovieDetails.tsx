@@ -301,7 +301,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
 
                                         <div className="flex flex-row items-center gap-3 w-full sm:w-auto mt-6">
                                             {isExclusive && (
-                                                <button onClick={handleWatchClick} className={`font-bold py-3 px-4 sm:px-8 text-sm sm:text-base rounded-xl transition-all flex flex-1 sm:flex-none items-center justify-center gap-2 active:scale-95 shadow-xl hover:shadow-2xl ${isGoldTheme ? 'bg-gradient-to-r from-amber-600 to-amber-500 text-black shadow-amber-900/40' : 'bg-red-600 hover:bg-red-700 text-white'}`}>
+                                                <button onClick={handleWatchClick} className={`font-bold py-3 px-2 sm:px-8 text-sm sm:text-base rounded-xl transition-all flex flex-1 sm:flex-none items-center justify-center gap-2 active:scale-95 shadow-xl hover:shadow-2xl ${isGoldTheme ? 'bg-gradient-to-r from-amber-600 to-amber-500 text-black shadow-amber-900/40' : 'bg-red-600 hover:bg-red-700 text-white'}`}>
                                                     <PlayCircle size={20} fill="currentColor" /> 
                                                     {movie.play_progress && movie.play_progress > 0 
                                                         ? `Resume` 
