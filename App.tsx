@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Search, Film, Menu, TrendingUp, Tv, Ghost, Calendar, Star, X, Sparkles, Settings, Globe, BarChart3, Bookmark, Heart, Folder, Languages, Filter, ChevronDown, Info, Plus, Cloud, CloudOff, Clock, Bell, History, Users, Tag, Dice5, Crown, Radio, LayoutGrid, Award, Baby, Clapperboard, ChevronRight, PlayCircle, Megaphone, CalendarDays, Compass, Home, Map, Loader2, Trophy, RefreshCcw } from 'lucide-react';
+import { Search, Film, Menu, TrendingUp, Tv, Ghost, Calendar, Star, X, Sparkles, Settings, Globe, BarChart3, Bookmark, Heart, Folder, Languages, Filter, ChevronDown, Info, Plus, Cloud, CloudOff, Clock, Bell, History, Users, Tag, Dice5, Crown, Radio, LayoutGrid, Award, Baby, Clapperboard, ChevronRight, PlayCircle, Megaphone, CalendarDays, Compass, Home, Map, Loader2, Trophy, RefreshCcw, Check } from 'lucide-react';
 import { Movie, UserProfile, GENRES_MAP, GENRES_LIST, INDIAN_LANGUAGES, MaturityRating, Keyword } from './types';
 import { LogoLoader, MovieSkeleton, MovieCard, PersonCard, PosterMarquee, TMDB_BASE_URL, TMDB_BACKDROP_BASE, TMDB_IMAGE_BASE, HARDCODED_TMDB_KEY, HARDCODED_GEMINI_KEY, getTmdbKey, getGeminiKey } from './components/Shared';
 import { MoviePage } from './components/MovieDetails';
@@ -848,45 +848,101 @@ export default function App() {
 
                    {/* Standard Grid */}
                    {selectedCategory !== "Coming" && selectedCategory !== "Genres" && selectedCategory !== "Countries" && selectedCategory !== "Collections" && selectedCategory !== "Franchise" && (
-                       <div className="px-4 md:px-12 py-8 space-y-8 relative z-10">
-                           <PosterMarquee movies={!searchQuery && selectedCategory === "All" && !currentCollection && movies.length > 0 ? movies : []} onMovieClick={setSelectedMovie} />
-                           
-                           {/* Error State for Low Internet */}
-                           {fetchError && !loading && movies.length === 0 && (
-                                <div className="flex flex-col items-center justify-center py-20 text-center animate-in fade-in">
-                                    <CloudOff size={48} className="text-red-500 mb-4 opacity-80"/>
-                                    <h3 className="text-xl font-bold text-white mb-2">Connection Issues</h3>
-                                    <p className="text-gray-400 mb-6 max-w-md">We're having trouble reaching the movie database. Your internet might be unstable.</p>
-                                    <button onClick={() => fetchMovies(1, false)} className="flex items-center gap-2 px-6 py-2 bg-white/10 hover:bg-white/20 rounded-full text-white font-bold transition-all active:scale-95">
-                                        <RefreshCcw size={16}/> Retry Connection
-                                    </button>
-                                </div>
+                       <>
+                           {/* FEATURED HERO SECTION */}
+                           {!searchQuery && featuredMovie && !activeCountry && !activeKeyword && !tmdbCollectionId && !currentCollection && (
+                               <div className="relative w-full h-[70vh] md:h-[80vh] overflow-hidden group">
+                                   <div className="absolute inset-0">
+                                       <img 
+                                           src={featuredMovie.backdrop_path ? `${TMDB_BACKDROP_BASE}${featuredMovie.backdrop_path}` : `${TMDB_IMAGE_BASE}${featuredMovie.poster_path}`} 
+                                           alt={featuredMovie.title} 
+                                           className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105"
+                                       />
+                                       <div className="absolute inset-0 bg-gradient-to-t from-[#030303] via-[#030303]/60 to-transparent"></div>
+                                       <div className="absolute inset-0 bg-gradient-to-r from-[#030303] via-[#030303]/40 to-transparent"></div>
+                                   </div>
+
+                                   <div className="absolute bottom-0 left-0 w-full p-6 md:p-12 z-20 flex flex-col items-start gap-4 md:max-w-4xl animate-in slide-in-from-bottom-10 duration-700">
+                                       <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-widest ${isGoldTheme ? 'bg-amber-500 text-black' : 'bg-red-600 text-white'}`}>
+                                           Featured
+                                       </span>
+                                       <h1 className="text-4xl md:text-6xl font-black text-white leading-tight drop-shadow-2xl">
+                                           {featuredMovie.title || featuredMovie.name}
+                                       </h1>
+                                       
+                                       <div className="flex items-center gap-4 text-sm font-medium text-gray-300">
+                                           <span className="text-green-400 font-bold">{featuredMovie.vote_average ? featuredMovie.vote_average.toFixed(1) : 'NR'} Rating</span>
+                                           <span>•</span>
+                                           <span>{featuredMovie.release_date?.split('-')[0] || featuredMovie.first_air_date?.split('-')[0] || 'TBA'}</span>
+                                           <span>•</span>
+                                           <span>{GENRES_MAP[Object.keys(GENRES_MAP).find(key => GENRES_MAP[key] === featuredMovie.genre_ids?.[0]) || ""] || "Movie"}</span>
+                                       </div>
+
+                                       <p className="text-gray-300 text-sm md:text-lg line-clamp-3 md:line-clamp-2 max-w-2xl leading-relaxed drop-shadow-md">
+                                           {featuredMovie.overview}
+                                       </p>
+
+                                       <div className="flex items-center gap-4 mt-2">
+                                           <button 
+                                               onClick={() => setSelectedMovie(featuredMovie)}
+                                               className={`px-8 py-3.5 rounded-xl font-bold flex items-center gap-3 transition-all hover:scale-105 active:scale-95 shadow-xl ${isGoldTheme ? 'bg-amber-500 text-black hover:bg-amber-400' : 'bg-white text-black hover:bg-gray-200'}`}
+                                           >
+                                               <PlayCircle size={20} fill="currentColor" /> Watch Now
+                                           </button>
+                                           <button 
+                                               onClick={() => { 
+                                                   toggleList(watchlist, setWatchlist, 'movieverse_watchlist', featuredMovie); 
+                                               }}
+                                               className="px-8 py-3.5 rounded-xl font-bold flex items-center gap-3 bg-white/10 hover:bg-white/20 backdrop-blur-md text-white transition-all hover:scale-105 active:scale-95 border border-white/10"
+                                           >
+                                               {watchlist.some(m => m.id === featuredMovie.id) ? <Check size={20}/> : <Plus size={20}/>} 
+                                               {watchlist.some(m => m.id === featuredMovie.id) ? 'Added' : 'My List'}
+                                           </button>
+                                       </div>
+                                   </div>
+                               </div>
                            )}
 
-                           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-x-4 gap-y-8 animate-in fade-in duration-700">
-                               {movies.map((movie, idx) => (
-                                   <div key={`${movie.id}-${idx}`} ref={idx === movies.length - 1 ? lastMovieElementRef : null} className="animate-in fade-in zoom-in-95 duration-500" style={{ animationDelay: `${idx * 50}ms` }}>
-                                        {selectedCategory !== "People" ? ( 
-                                            <MovieCard 
-                                                movie={movie} 
-                                                onClick={setSelectedMovie} 
-                                                isWatched={watched.some(m => m.id === movie.id)} 
-                                                onToggleWatched={handleToggleWatched} 
-                                            /> 
-                                        ) : (
-                                            <PersonCard person={movie} onClick={(id) => setSelectedPersonId(id)} />
-                                        )}
-                                   </div>
-                               ))}
-                               {loading && [...Array(12)].map((_, i) => <MovieSkeleton key={`skel-${i}`} />)}
+                           <div className="px-4 md:px-12 py-8 space-y-8 relative z-10">
+                               <PosterMarquee movies={!searchQuery && selectedCategory === "All" && !currentCollection && movies.length > 0 ? movies : []} onMovieClick={setSelectedMovie} />
+                               
+                               {/* Error State for Low Internet */}
+                               {fetchError && !loading && movies.length === 0 && (
+                                    <div className="flex flex-col items-center justify-center py-20 text-center animate-in fade-in">
+                                        <CloudOff size={48} className="text-red-500 mb-4 opacity-80"/>
+                                        <h3 className="text-xl font-bold text-white mb-2">Connection Issues</h3>
+                                        <p className="text-gray-400 mb-6 max-w-md">We're having trouble reaching the movie database. Your internet might be unstable.</p>
+                                        <button onClick={() => fetchMovies(1, false)} className="flex items-center gap-2 px-6 py-2 bg-white/10 hover:bg-white/20 rounded-full text-white font-bold transition-all active:scale-95">
+                                            <RefreshCcw size={16}/> Retry Connection
+                                        </button>
+                                    </div>
+                               )}
+
+                               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-x-4 gap-y-8 animate-in fade-in duration-700">
+                                   {movies.map((movie, idx) => (
+                                       <div key={`${movie.id}-${idx}`} ref={idx === movies.length - 1 ? lastMovieElementRef : null} className="animate-in fade-in zoom-in-95 duration-500" style={{ animationDelay: `${idx * 50}ms` }}>
+                                            {selectedCategory !== "People" ? ( 
+                                                <MovieCard 
+                                                    movie={movie} 
+                                                    onClick={setSelectedMovie} 
+                                                    isWatched={watched.some(m => m.id === movie.id)} 
+                                                    onToggleWatched={handleToggleWatched} 
+                                                /> 
+                                            ) : (
+                                                <PersonCard person={movie} onClick={(id) => setSelectedPersonId(id)} />
+                                            )}
+                                       </div>
+                                   ))}
+                                   {loading && [...Array(12)].map((_, i) => <MovieSkeleton key={`skel-${i}`} />)}
+                               </div>
+                               
+                               {!loading && !fetchError && movies.length === 0 && ( 
+                                   <div className="text-center py-20 opacity-50 flex flex-col items-center animate-in fade-in zoom-in"> 
+                                       <Ghost size={48} className="mb-4 text-white/20"/> <p>No results found.</p> 
+                                   </div> 
+                               )}
                            </div>
-                           
-                           {!loading && !fetchError && movies.length === 0 && ( 
-                               <div className="text-center py-20 opacity-50 flex flex-col items-center animate-in fade-in zoom-in"> 
-                                   <Ghost size={48} className="mb-4 text-white/20"/> <p>No results found.</p> 
-                               </div> 
-                           )}
-                       </div>
+                       </>
                    )}
                </>
            )}
