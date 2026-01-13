@@ -2,7 +2,7 @@
 import React, { useState, useEffect, Suspense, useRef } from 'react';
 import { X, Calendar, Clock, Star, Play, Bookmark, Heart, Share2, Clapperboard, Sparkles, Loader2, Tag, MessageCircle, Globe, Facebook, Instagram, Twitter, Film, PlayCircle, Eye, Volume2, VolumeX, Users, ArrowLeft, Lightbulb, DollarSign, Trophy, Tv, Check, Mic2, Video, PenTool, ChevronRight } from 'lucide-react';
 import { Movie, MovieDetails, Season, UserProfile, Keyword, Review, CastMember, CrewMember } from '../types';
-import { TMDB_BASE_URL, TMDB_IMAGE_BASE, TMDB_BACKDROP_BASE, formatCurrency, ImageLightbox } from '../components/Shared';
+import { TMDB_BASE_URL, TMDB_IMAGE_BASE, TMDB_BACKDROP_BASE, formatCurrency, ImageLightbox, PersonCard, MovieCard } from '../components/Shared';
 import { generateTrivia } from '../services/gemini';
 
 const MoviePlayer = React.lazy(() => import('./MoviePlayer').then(module => ({ default: module.MoviePlayer })));
@@ -62,10 +62,6 @@ export const MoviePage: React.FC<MoviePageProps> = ({
     const [showPlayer, setShowPlayer] = useState(false);
     const [playParams, setPlayParams] = useState({ season: 1, episode: 1 });
     
-    // Modal State
-    const [isCastModalOpen, setCastModalOpen] = useState(false);
-    const [castModalType, setCastModalType] = useState<'cast' | 'crew'>('cast');
-    
     const [videoLoaded, setVideoLoaded] = useState(false);
     const [isMuted, setIsMuted] = useState(true);
     const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -112,6 +108,17 @@ export const MoviePage: React.FC<MoviePageProps> = ({
         setIsMuted(true); 
     }, [movie.id, apiKey, movie.media_type]);
 
+    useEffect(() => {
+        if (activeTab === 'trivia' && !trivia && !loadingTrivia && details) {
+            setLoadingTrivia(true);
+            const year = (details.release_date || details.first_air_date || "").split('-')[0];
+            generateTrivia(details.title || details.name || "", year).then(t => {
+                setTrivia(t);
+                setLoadingTrivia(false);
+            });
+        }
+    }, [activeTab, trivia, loadingTrivia, details]);
+
     const handleWatchClick = () => {
         setShowPlayer(true);
     };
@@ -150,7 +157,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
     };
 
     const displayData = { ...movie, ...details } as MovieDetails;
-    const isTv = movie.media_type === 'tv';
+    const isTv = movie.media_type === 'tv' || displayData.first_air_date;
     const isAnime = (displayData.genres?.some(g => g.id === 16) && (displayData as any).original_language === 'ja');
     const title = displayData.title || displayData.name;
     const runtime = displayData.runtime ? `${Math.floor(displayData.runtime/60)}h ${displayData.runtime%60}m` : (displayData.episode_run_time?.[0] ? `${displayData.episode_run_time[0]}m / ep` : "N/A");
@@ -166,6 +173,15 @@ export const MoviePage: React.FC<MoviePageProps> = ({
     const isMature = ['R', 'NC-17', 'TV-MA'].includes(ratingLabel);
     const isTeen = ['PG-13', 'TV-14'].includes(ratingLabel);
     const ratingColor = isMature ? 'bg-red-600 text-white' : isTeen ? 'bg-yellow-500 text-black' : 'bg-green-500 text-white';
+
+    const tabs = [
+        { id: 'overview', label: 'Overview', icon: Film },
+        ...(isTv ? [{ id: 'seasons', label: 'Seasons', icon: Calendar }] : []),
+        { id: 'cast', label: 'Cast & Crew', icon: Users },
+        { id: 'reviews', label: 'Reviews', icon: MessageCircle },
+        { id: 'trivia', label: 'Trivia', icon: Lightbulb },
+        { id: 'similar', label: 'More Like This', icon: Sparkles },
+    ];
 
     return (
         <div className="fixed inset-0 z-[100] bg-[#0a0a0a] overflow-y-auto custom-scrollbar animate-in slide-in-from-right-10 duration-500">
@@ -183,7 +199,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                 {loading && !details ? (
                     <MovieDetailsSkeleton />
                 ) : (
-                    <div className="flex flex-col">
+                    <div className="flex flex-col pb-20">
                         {/* HERO SECTION */}
                         <div className="relative h-[65vh] md:h-[65vh] w-full shrink-0 bg-black overflow-hidden group/hero">
                              {showPlayer ? (
@@ -300,12 +316,197 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                     </button>
                                 </div>
                             </div>
+
+                            {/* Tabs Navigation */}
+                            <div className="flex gap-4 border-b border-white/10 mb-8 overflow-x-auto hide-scrollbar">
+                                {tabs.map(tab => (
+                                    <button
+                                        key={tab.id}
+                                        onClick={() => setActiveTab(tab.id)}
+                                        className={`flex items-center gap-2 px-4 py-3 text-sm font-bold border-b-2 transition-all whitespace-nowrap ${activeTab === tab.id ? `${isGoldTheme ? 'border-amber-500 text-amber-500' : 'border-red-500 text-white'}` : 'border-transparent text-gray-400 hover:text-white'}`}
+                                    >
+                                        <tab.icon size={16}/> {tab.label}
+                                    </button>
+                                ))}
+                            </div>
                             
                             <div className="flex flex-col lg:flex-row gap-10">
                                 {/* Left Content: Tabs */}
                                 <div className="flex-1 space-y-6">
-                                    <p className="text-gray-300 leading-relaxed text-sm md:text-base font-light">{displayData.overview || "No overview available."}</p>
-                                    {/* ... rest of the tabs ... */}
+                                    {activeTab === 'overview' && (
+                                        <div className="animate-in fade-in slide-in-from-bottom-4">
+                                            <p className="text-gray-300 leading-relaxed text-sm md:text-base font-light mb-8">{displayData.overview || "No overview available."}</p>
+                                            
+                                            <div className="grid grid-cols-2 md:grid-cols-3 gap-6 mb-8">
+                                                <div className="bg-white/5 p-4 rounded-xl border border-white/5">
+                                                    <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1">Status</span>
+                                                    <span className="text-sm font-bold text-white">{displayData.status}</span>
+                                                </div>
+                                                <div className="bg-white/5 p-4 rounded-xl border border-white/5">
+                                                    <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1">Original Language</span>
+                                                    <span className="text-sm font-bold text-white uppercase">{displayData.original_language}</span>
+                                                </div>
+                                                <div className="bg-white/5 p-4 rounded-xl border border-white/5">
+                                                    <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1">{isTv ? 'Networks' : 'Budget'}</span>
+                                                    <span className="text-sm font-bold text-white">
+                                                        {isTv ? displayData.networks?.map(n => n.name).join(', ') : formatCurrency(displayData.budget, appRegion)}
+                                                    </span>
+                                                </div>
+                                                <div className="bg-white/5 p-4 rounded-xl border border-white/5">
+                                                    <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1">{isTv ? 'Type' : 'Revenue'}</span>
+                                                    <span className="text-sm font-bold text-white">
+                                                        {isTv ? displayData.type : formatCurrency(displayData.revenue, appRegion)}
+                                                    </span>
+                                                </div>
+                                            </div>
+
+                                            {displayData.keywords?.keywords && displayData.keywords.keywords.length > 0 && (
+                                                <div className="mb-8">
+                                                    <h3 className="text-sm font-bold text-white mb-3">Tags</h3>
+                                                    <div className="flex flex-wrap gap-2">
+                                                        {displayData.keywords.keywords.slice(0, 10).map(k => (
+                                                            <button 
+                                                                key={k.id} 
+                                                                onClick={() => { onClose(); onKeywordClick(k); }}
+                                                                className="px-3 py-1.5 bg-white/5 hover:bg-white/10 rounded-full text-xs text-gray-300 border border-white/5 hover:border-white/20 transition-colors"
+                                                            >
+                                                                #{k.name}
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {displayData.belongs_to_collection && (
+                                                <div className="mt-8 relative rounded-2xl overflow-hidden group cursor-pointer border border-white/10" onClick={() => { onClose(); onCollectionClick(displayData.belongs_to_collection!.id); }}>
+                                                    <div className="absolute inset-0 bg-gradient-to-r from-black via-black/60 to-transparent z-10"></div>
+                                                    <img src={`${TMDB_BACKDROP_BASE}${displayData.belongs_to_collection.backdrop_path}`} className="w-full h-40 object-cover opacity-60 group-hover:opacity-80 transition-opacity" alt=""/>
+                                                    <div className="absolute inset-0 z-20 flex flex-col justify-center px-8">
+                                                        <span className={`text-xs font-bold uppercase tracking-wider mb-1 ${accentText}`}>Collection</span>
+                                                        <h3 className="text-2xl font-bold text-white">{displayData.belongs_to_collection.name}</h3>
+                                                        <div className="flex items-center gap-2 mt-2 text-sm font-medium text-white/80 group-hover:translate-x-2 transition-transform">
+                                                            View Collection <ChevronRight size={16}/>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+
+                                    {activeTab === 'cast' && (
+                                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 animate-in fade-in slide-in-from-bottom-4">
+                                            {displayData.credits?.cast?.slice(0, 12).map((person) => (
+                                                <div key={person.id} onClick={() => onPersonClick(person.id)}>
+                                                    <PersonCard person={person as any} onClick={onPersonClick} />
+                                                    <div className="mt-2 text-center">
+                                                        <p className="text-xs text-gray-400">{person.character}</p>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                            {(!displayData.credits?.cast || displayData.credits.cast.length === 0) && (
+                                                <div className="col-span-full text-center py-10 text-gray-500">No cast information available.</div>
+                                            )}
+                                        </div>
+                                    )}
+
+                                    {activeTab === 'seasons' && isTv && (
+                                        <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4">
+                                            {displayData.seasons?.filter(s => s.season_number > 0).map(season => (
+                                                <div key={season.id} className="flex gap-4 p-4 bg-white/5 rounded-xl border border-white/5 hover:border-white/10 transition-colors">
+                                                    <img src={season.poster_path ? `${TMDB_IMAGE_BASE}${season.poster_path}` : "https://placehold.co/100x150"} className="w-24 h-36 object-cover rounded-lg shadow-lg shrink-0" alt={season.name}/>
+                                                    <div className="flex-1 py-1">
+                                                        <h3 className="text-lg font-bold text-white mb-1">{season.name}</h3>
+                                                        <div className="flex items-center gap-3 text-xs text-gray-400 mb-3">
+                                                            <span className="bg-white/10 px-2 py-0.5 rounded text-white">{season.episode_count} Episodes</span>
+                                                            <span>{season.air_date?.split('-')[0]}</span>
+                                                        </div>
+                                                        <p className="text-sm text-gray-400 line-clamp-3">{season.overview || `Season ${season.season_number} of ${displayData.name}.`}</p>
+                                                        
+                                                        {isExclusive && (
+                                                            <button 
+                                                                onClick={() => {
+                                                                    setPlayParams({ season: season.season_number, episode: 1 });
+                                                                    setShowPlayer(true);
+                                                                }}
+                                                                className={`mt-4 px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 hover:opacity-90 transition-opacity ${isGoldTheme ? 'bg-amber-500 text-black' : 'bg-red-600 text-white'}`}
+                                                            >
+                                                                <Play size={14} fill="currentColor"/> Watch Season {season.season_number}
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+
+                                    {activeTab === 'reviews' && (
+                                        <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4">
+                                            {displayData.reviews?.results?.length ? displayData.reviews.results.map(review => (
+                                                <div key={review.id} className="bg-white/5 p-6 rounded-xl border border-white/5">
+                                                    <div className="flex items-center justify-between mb-4">
+                                                        <div className="flex items-center gap-3">
+                                                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-gray-700 to-gray-900 flex items-center justify-center font-bold text-white">
+                                                                {review.author.charAt(0).toUpperCase()}
+                                                            </div>
+                                                            <div>
+                                                                <h4 className="font-bold text-white text-sm">{review.author}</h4>
+                                                                <p className="text-xs text-gray-500">{new Date(review.created_at).toLocaleDateString()}</p>
+                                                            </div>
+                                                        </div>
+                                                        {review.author_details?.rating && (
+                                                            <div className="flex items-center gap-1 bg-white/10 px-2 py-1 rounded text-xs font-bold text-yellow-500">
+                                                                <Star size={12} fill="currentColor"/> {review.author_details.rating}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                    <p className="text-gray-300 text-sm leading-relaxed whitespace-pre-line line-clamp-6 hover:line-clamp-none transition-all">{review.content}</p>
+                                                </div>
+                                            )) : (
+                                                <div className="text-center py-12 text-gray-500">No reviews yet.</div>
+                                            )}
+                                        </div>
+                                    )}
+
+                                    {activeTab === 'trivia' && (
+                                        <div className="animate-in fade-in slide-in-from-bottom-4">
+                                            <div className={`p-8 rounded-2xl border flex flex-col items-center text-center ${isGoldTheme ? 'bg-amber-900/10 border-amber-500/20' : 'bg-red-900/10 border-red-500/20'}`}>
+                                                <div className={`p-4 rounded-full mb-6 ${isGoldTheme ? 'bg-amber-500/20 text-amber-500' : 'bg-red-500/20 text-red-500'}`}>
+                                                    <Lightbulb size={32}/>
+                                                </div>
+                                                <h3 className="text-xl font-bold text-white mb-4">Did You Know?</h3>
+                                                {loadingTrivia ? (
+                                                    <div className="flex items-center gap-2 text-gray-400 text-sm">
+                                                        <Loader2 size={16} className="animate-spin"/> Consulting the archives...
+                                                    </div>
+                                                ) : (
+                                                    <p className="text-lg text-gray-200 leading-relaxed font-medium italic max-w-2xl">
+                                                        "{trivia}"
+                                                    </p>
+                                                )}
+                                                <div className="mt-8 text-xs text-gray-500 flex items-center gap-2">
+                                                    <Sparkles size={12}/> AI Generated Trivia
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {activeTab === 'similar' && (
+                                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 animate-in fade-in slide-in-from-bottom-4">
+                                            {displayData.similar?.results?.slice(0, 12).map(sim => (
+                                                <div key={sim.id} onClick={() => { onClose(); onSwitchMovie(sim); }}>
+                                                    <MovieCard 
+                                                        movie={sim} 
+                                                        onClick={() => { onClose(); onSwitchMovie(sim); }}
+                                                        isWatched={false} 
+                                                        onToggleWatched={() => {}} 
+                                                    />
+                                                </div>
+                                            ))}
+                                            {(!displayData.similar?.results || displayData.similar.results.length === 0) && (
+                                                <div className="col-span-full text-center py-10 text-gray-500">No similar movies found.</div>
+                                            )}
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         </div>

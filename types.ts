@@ -16,6 +16,7 @@ export interface Movie {
   genre_ids?: number[];
   genres?: Genre[];
   media_type?: 'movie' | 'tv' | 'person';
+  original_language?: string;
   runtime?: number;
   episode_run_time?: number[];
   adult?: boolean;
@@ -67,6 +68,13 @@ export interface ExternalIds {
     twitter_id?: string;
 }
 
+export interface Network {
+    id: number;
+    name: string;
+    logo_path: string | null;
+    origin_country: string;
+}
+
 export interface MovieDetails extends Movie {
   budget: number;
   revenue: number;
@@ -113,6 +121,8 @@ export interface MovieDetails extends Movie {
     poster_path: string;
     backdrop_path: string;
   };
+  networks?: Network[];
+  type?: string;
 }
 
 export interface Review {
@@ -152,6 +162,8 @@ export interface Season {
   episode_count: number;
   poster_path: string | null;
   episodes?: Episode[];
+  air_date?: string;
+  overview?: string;
 }
 
 export interface Episode {

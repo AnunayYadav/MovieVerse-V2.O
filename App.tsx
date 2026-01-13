@@ -721,7 +721,14 @@ export default function App() {
                 {/* ... (Menu Items) ... */}
                 <div className="hidden md:flex items-center gap-1">
                     <button onClick={resetToHome} className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all duration-300 hover:scale-105 active:scale-95 flex items-center gap-2 ${selectedCategory === "All" && !searchQuery ? "text-white" : "text-gray-400 hover:text-white hover:bg-white/5"}`}><Home size={16} /> Home</button>
-                    {/* ... */}
+                    <button onClick={() => { resetFilters(); setSelectedCategory("Movies"); }} className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all duration-300 hover:scale-105 active:scale-95 flex items-center gap-2 ${selectedCategory === "Movies" ? "text-white" : "text-gray-400 hover:text-white hover:bg-white/5"}`}><Film size={16} /> Movies</button>
+                    <button onClick={() => { resetFilters(); setSelectedCategory("TV Shows"); }} className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all duration-300 hover:scale-105 active:scale-95 flex items-center gap-2 ${selectedCategory === "TV Shows" ? "text-white" : "text-gray-400 hover:text-white hover:bg-white/5"}`}><Tv size={16} /> TV Shows</button>
+                    {isExclusive && (
+                        <>
+                            <button onClick={() => { resetFilters(); setSelectedCategory("LiveTV"); }} className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all duration-300 hover:scale-105 active:scale-95 flex items-center gap-2 ${selectedCategory === "LiveTV" ? "text-white" : "text-gray-400 hover:text-white hover:bg-white/5"}`}><Radio size={16} className={isGoldTheme ? "text-amber-500" : "text-red-500"} /> Live TV</button>
+                            <button onClick={() => { resetFilters(); setSelectedCategory("Sports"); }} className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all duration-300 hover:scale-105 active:scale-95 flex items-center gap-2 ${selectedCategory === "Sports" ? "text-white" : "text-gray-400 hover:text-white hover:bg-white/5"}`}><Trophy size={16} className={isGoldTheme ? "text-amber-500" : "text-red-500"} /> Sports</button>
+                        </>
+                    )}
                 </div>
             </div>
             {/* ... (Search & Right Menu) ... */}
@@ -751,9 +758,24 @@ export default function App() {
                <div className="space-y-6">
                    <div className="space-y-1">
                         <button onClick={() => { resetToHome(); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 hover:translate-x-1 ${selectedCategory === "All" && !searchQuery ? `${accentBgLow} ${accentText}` : 'text-gray-400 hover:text-white hover:bg-white/5'}`}><TrendingUp size={18}/> Trending Now</button>
-                        {/* ... */}
+                        <button onClick={() => { resetFilters(); setSelectedCategory("Coming"); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 hover:translate-x-1 ${selectedCategory === "Coming" ? `${accentBgLow} ${accentText}` : 'text-gray-400 hover:text-white hover:bg-white/5'}`}><CalendarDays size={18}/> Coming Soon</button>
+                        <button onClick={() => { resetFilters(); setSelectedCategory("Genres"); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 hover:translate-x-1 ${selectedCategory === "Genres" ? `${accentBgLow} ${accentText}` : 'text-gray-400 hover:text-white hover:bg-white/5'}`}><LayoutGrid size={18}/> Browse Genres</button>
+                        <button onClick={() => { resetFilters(); setSelectedCategory("Countries"); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 hover:translate-x-1 ${selectedCategory === "Countries" ? `${accentBgLow} ${accentText}` : 'text-gray-400 hover:text-white hover:bg-white/5'}`}><Globe size={18}/> International</button>
                    </div>
-                   {/* ... */}
+                   
+                   <div className="space-y-1">
+                        <p className="px-3 text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Discovery</p>
+                        <button onClick={() => { resetFilters(); setSelectedCategory("CineAnalytics"); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 hover:translate-x-1 ${selectedCategory === "CineAnalytics" ? `${accentBgLow} ${accentText}` : 'text-gray-400 hover:text-white hover:bg-white/5'}`}><BarChart3 size={18}/> CineAnalytics</button>
+                        <button onClick={() => { setIsAIModalOpen(true); setIsSidebarOpen(false); }} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 hover:translate-x-1 text-gray-400 hover:text-white hover:bg-white/5"><Sparkles size={18}/> AI Finder</button>
+                        <button onClick={handleFeelingLucky} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 hover:translate-x-1 text-gray-400 hover:text-white hover:bg-white/5"><Dice5 size={18}/> Feeling Lucky</button>
+                   </div>
+
+                   <div className="space-y-1">
+                        <p className="px-3 text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Library</p>
+                        <button onClick={() => { resetFilters(); setSelectedCategory("Watchlist"); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 hover:translate-x-1 ${selectedCategory === "Watchlist" ? `${accentBgLow} ${accentText}` : 'text-gray-400 hover:text-white hover:bg-white/5'}`}><Bookmark size={18}/> Watchlist</button>
+                        <button onClick={() => { resetFilters(); setSelectedCategory("Favorites"); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 hover:translate-x-1 ${selectedCategory === "Favorites" ? `${accentBgLow} ${accentText}` : 'text-gray-400 hover:text-white hover:bg-white/5'}`}><Heart size={18}/> Favorites</button>
+                        <button onClick={() => { resetFilters(); setSelectedCategory("History"); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 hover:translate-x-1 ${selectedCategory === "History" ? `${accentBgLow} ${accentText}` : 'text-gray-400 hover:text-white hover:bg-white/5'}`}><History size={18}/> History</button>
+                   </div>
                </div>
            </div>
            <div className={`absolute top-0 left-full w-screen h-full bg-black/50 backdrop-blur-sm transition-opacity duration-500 ${isSidebarOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`} onClick={() => setIsSidebarOpen(false)}></div>
