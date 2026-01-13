@@ -60,8 +60,8 @@ export const formatCurrency = (value: number | undefined, region: string = 'US')
 
 export const BrandLogo = ({ className = "", size = 24, accentColor = "text-red-600" }: { className?: string, size?: number, accentColor?: string }) => {
     const [imgError, setImgError] = useState(false);
-    // Use absolute path to ensure it loads from root regardless of route depth
-    const logoPath = "/assets/logo.png";
+    // Use relative path to ensure it loads from root correctly
+    const logoPath = "./assets/logo.png";
 
     if (imgError) {
         return <Film size={size} className={`${accentColor} ${className}`} />;
