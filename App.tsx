@@ -703,45 +703,56 @@ export default function App() {
   return (
     <div className="min-h-screen bg-[#030303] text-white font-sans selection:bg-amber-500/30 selection:text-white">
       {/* ... (Nav Bar) ... */}
-      <nav className={`fixed top-0 left-0 right-0 z-[60] bg-black/70 backdrop-blur-xl border-b h-16 flex items-center justify-center px-4 md:px-6 transition-all duration-300 ${isGoldTheme ? 'border-amber-500/10' : 'border-white/5'}`}>
+      <nav className={`fixed top-0 left-0 right-0 z-[60] bg-black/90 backdrop-blur-xl border-b h-16 flex items-center justify-center px-4 md:px-6 transition-all duration-300 ${isGoldTheme ? 'border-amber-500/10' : 'border-white/5'}`}>
         <div className="flex items-center justify-between w-full max-w-7xl">
-            {/* ... (Nav Content) ... */}
-            <div className="flex items-center gap-4 md:gap-6">
-                <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="md:hidden p-2 hover:bg-white/10 rounded-full transition-colors active:scale-95"><Menu size={20} /></button>
-                <div className="flex items-center gap-2 cursor-pointer group" onClick={resetToHome}>
-                    <div className="relative">
-                        <Film size={24} className={`${accentText} relative z-10 transition-transform duration-500 group-hover:rotate-12`} />
-                        <div className={`absolute inset-0 blur-lg opacity-50 group-hover:opacity-80 transition-opacity duration-500 ${isGoldTheme ? 'bg-amber-500' : 'bg-red-600'}`}></div>
-                    </div>
-                    <div className="flex flex-col leading-none">
-                        <span className="text-lg font-bold tracking-tight text-white hidden sm:block">Movie<span className={accentText}>Verse</span></span>
-                        {isExclusive && <span className={`text-[9px] uppercase tracking-[0.2em] font-bold hidden sm:block animate-pulse ${isGoldTheme ? 'text-amber-500' : 'text-red-600'}`}>Exclusive</span>}
-                    </div>
+            {/* Left: Logo */}
+            <div className="flex items-center gap-2 cursor-pointer group" onClick={resetToHome}>
+                <div className="relative">
+                    <Film size={24} className={`${accentText} relative z-10 transition-transform duration-500 group-hover:rotate-12`} />
+                    <div className={`absolute inset-0 blur-lg opacity-50 group-hover:opacity-80 transition-opacity duration-500 ${isGoldTheme ? 'bg-amber-500' : 'bg-red-600'}`}></div>
                 </div>
-                {/* ... (Menu Items) ... */}
-                <div className="hidden md:flex items-center gap-1">
-                    <button onClick={resetToHome} className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all duration-300 hover:scale-105 active:scale-95 flex items-center gap-2 ${selectedCategory === "All" && !searchQuery ? "text-white" : "text-gray-400 hover:text-white hover:bg-white/5"}`}><Home size={16} /> Home</button>
-                    <button onClick={() => { resetFilters(); setSelectedCategory("Movies"); }} className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all duration-300 hover:scale-105 active:scale-95 flex items-center gap-2 ${selectedCategory === "Movies" ? "text-white" : "text-gray-400 hover:text-white hover:bg-white/5"}`}><Film size={16} /> Movies</button>
-                    <button onClick={() => { resetFilters(); setSelectedCategory("TV Shows"); }} className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all duration-300 hover:scale-105 active:scale-95 flex items-center gap-2 ${selectedCategory === "TV Shows" ? "text-white" : "text-gray-400 hover:text-white hover:bg-white/5"}`}><Tv size={16} /> TV Shows</button>
-                    {isExclusive && (
-                        <>
-                            <button onClick={() => { resetFilters(); setSelectedCategory("LiveTV"); }} className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all duration-300 hover:scale-105 active:scale-95 flex items-center gap-2 ${selectedCategory === "LiveTV" ? "text-white" : "text-gray-400 hover:text-white hover:bg-white/5"}`}><Radio size={16} className={isGoldTheme ? "text-amber-500" : "text-red-500"} /> Live TV</button>
-                            <button onClick={() => { resetFilters(); setSelectedCategory("Sports"); }} className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all duration-300 hover:scale-105 active:scale-95 flex items-center gap-2 ${selectedCategory === "Sports" ? "text-white" : "text-gray-400 hover:text-white hover:bg-white/5"}`}><Trophy size={16} className={isGoldTheme ? "text-amber-500" : "text-red-500"} /> Sports</button>
-                        </>
-                    )}
+                <div className="flex flex-col leading-none">
+                    <span className="text-lg font-bold tracking-tight text-white hidden sm:block">Movie<span className={accentText}>Verse</span></span>
+                    {isExclusive && <span className={`text-[9px] uppercase tracking-[0.2em] font-bold hidden sm:block animate-pulse ${isGoldTheme ? 'text-amber-500' : 'text-red-600'}`}>Exclusive</span>}
                 </div>
             </div>
-            {/* ... (Search & Right Menu) ... */}
-            <div className="flex-1 max-w-md mx-4 relative hidden md:block group z-[70]">
-                {/* ... (Search Input) ... */}
-                <input type="text" placeholder="Search movies, people, genres..." className={`w-full bg-black/40 border backdrop-blur-md rounded-full py-2.5 pl-11 pr-10 text-sm focus:outline-none transition-all duration-300 text-white placeholder-white/30 ${loading && searchQuery ? "border-opacity-50" : "border-white/10 focus:bg-white/5 focus:shadow-[0_0_15px_rgba(255,255,255,0.1)]"} ${isGoldTheme ? 'focus:border-amber-500/50' : 'focus:border-white/30'}`} value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} onFocus={() => setShowSuggestions(true)} onBlur={() => setTimeout(() => setShowSuggestions(false), 200)} onKeyDown={(e) => { if(e.key === 'Enter') handleSearchSubmit(searchQuery); }} />
-                {/* ... (Search Dropdown) ... */}
-                <Search className={`absolute left-4 top-1/2 -translate-y-1/2 transition-colors duration-300 ${loading && searchQuery ? `${accentText} animate-pulse` : "text-white/50 group-focus-within:text-white"}`} size={16} />
+
+            {/* Center: Navigation Links */}
+            <div className="hidden md:flex items-center gap-6">
+                <button onClick={resetToHome} className={`flex items-center gap-2 text-sm font-bold transition-all hover:text-white ${selectedCategory === "All" && !searchQuery ? "text-white" : "text-gray-400"}`}>
+                    <Home size={18} /> Home
+                </button>
+                <button onClick={() => { setIsAIModalOpen(true); }} className={`flex items-center gap-2 text-sm font-bold transition-all hover:text-white text-gray-400`}>
+                    <Compass size={18} /> Explore
+                </button>
+                {isExclusive && (
+                    <button onClick={() => { resetFilters(); setSelectedCategory("LiveTV"); }} className={`flex items-center gap-2 text-sm font-bold transition-all hover:text-white ${selectedCategory === "LiveTV" ? "text-white" : "text-gray-400"}`}>
+                        <Radio size={18} className={isGoldTheme ? "text-amber-500" : "text-red-500"} /> Live TV
+                    </button>
+                )}
+                <button onClick={() => { resetFilters(); setSelectedCategory("Genres"); }} className={`flex items-center gap-2 text-sm font-bold transition-all hover:text-white ${selectedCategory === "Genres" ? "text-white" : "text-gray-400"}`}>
+                    <LayoutGrid size={18} /> Browse
+                </button>
             </div>
-            <div className="flex items-center gap-2 md:gap-4">
-                {/* ... (Icons) ... */}
-                <button onClick={() => setIsProfileOpen(true)} className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white shadow-lg transition-transform overflow-hidden duration-300 hover:scale-105 ${userProfile.avatarBackground || (isGoldTheme ? 'bg-gradient-to-br from-amber-500 to-yellow-900 shadow-amber-900/40' : 'bg-gradient-to-br from-red-600 to-red-900 shadow-red-900/40')}`}>{userProfile.avatar ? (<img key={userProfile.avatar} src={userProfile.avatar} alt={userProfile.name} className="w-full h-full object-cover" />) : (userProfile.name.charAt(0).toUpperCase())}</button>
-                <button onClick={() => setIsSettingsOpen(true)} className="text-gray-400 hover:text-white transition-all hover:rotate-90 duration-500"><Settings size={20} /></button>
+
+            {/* Right: Search & Actions */}
+            <div className="flex items-center gap-4">
+                <div className="relative hidden md:block w-64 group">
+                    <input type="text" placeholder="Search movies, people, genres..." className={`w-full bg-[#1a1a1a] border border-white/5 rounded-full py-2 pl-10 pr-4 text-sm focus:outline-none transition-all text-white placeholder-gray-500 ${loading && searchQuery ? "border-opacity-50" : "focus:border-white/20"}`} value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} onFocus={() => setShowSuggestions(true)} onBlur={() => setTimeout(() => setShowSuggestions(false), 200)} onKeyDown={(e) => { if(e.key === 'Enter') handleSearchSubmit(searchQuery); }} />
+                    <Search className={`absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 transition-colors ${loading && searchQuery ? "text-white animate-pulse" : "group-focus-within:text-white"}`} size={16} />
+                </div>
+
+                <div className="flex items-center gap-3">
+                    {isCloudSync ? <Cloud size={20} className="text-green-500 hidden sm:block" title="Synced to Cloud"/> : <CloudOff size={20} className="text-gray-600 hidden sm:block" title="Local Only"/>}
+                    <button onClick={() => setIsNotificationOpen(true)} className="relative text-gray-400 hover:text-white transition-colors">
+                        <Bell size={20} />
+                        {hasUnread && <span className={`absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full ${isGoldTheme ? 'bg-amber-500' : 'bg-red-500'}`}></span>}
+                    </button>
+                    <button onClick={() => setIsProfileOpen(true)} className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white shadow-lg transition-transform overflow-hidden hover:scale-105 ${userProfile.avatarBackground || (isGoldTheme ? 'bg-gradient-to-br from-amber-500 to-yellow-900 shadow-amber-900/40' : 'bg-gradient-to-br from-red-600 to-red-900 shadow-red-900/40')}`}>
+                        {userProfile.avatar ? (<img key={userProfile.avatar} src={userProfile.avatar} alt={userProfile.name} className="w-full h-full object-cover" />) : (userProfile.name.charAt(0).toUpperCase())}
+                    </button>
+                    <button onClick={() => setIsSettingsOpen(true)} className="text-gray-400 hover:text-white transition-all hover:rotate-90 duration-500"><Settings size={20} /></button>
+                </div>
             </div>
         </div>
       </nav>
