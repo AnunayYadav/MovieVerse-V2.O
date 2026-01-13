@@ -71,7 +71,7 @@ export default function App() {
   const [watchlist, setWatchlist] = useState<Movie[]>([]);
   const [favorites, setFavorites] = useState<Movie[]>([]);
   const [watched, setWatched] = useState<Movie[]>([]);
-  // Removed customLists
+  
   const [userProfile, setUserProfile] = useState<UserProfile>({ name: "Guest", age: "", genres: [], enableHistory: true });
   const [hasUnread, setHasUnread] = useState(false);
   const [lastNotificationId, setLastNotificationId] = useState<string | null>(null);
@@ -878,57 +878,64 @@ export default function App() {
                            )}
 
                            {/* Filter Bar */}
-                           <div className="sticky top-16 z-40 bg-[#030303]/80 backdrop-blur-xl py-3 px-4 md:px-12 border-b border-white/5 flex items-center gap-3 overflow-x-auto hide-scrollbar animate-in slide-in-from-top-2 fade-in">
-                                <div className="relative group shrink-0">
-                                    <button className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 rounded-full text-xs font-bold text-gray-300 border border-white/5 hover:border-white/20 transition-all active:scale-95">
-                                        <Filter size={14}/>
-                                        <span>Sort: {sortOption === 'popularity.desc' ? 'Popular' : sortOption === 'primary_release_date.desc' ? 'Newest' : sortOption === 'vote_average.desc' ? 'Top Rated' : 'Revenue'}</span>
-                                        <ChevronDown size={12}/>
-                                    </button>
-                                    <div className="absolute top-full left-0 mt-2 w-48 bg-[#1a1a1a]/95 backdrop-blur-xl border border-white/10 rounded-xl overflow-hidden shadow-2xl opacity-0 group-hover:opacity-100 scale-95 group-hover:scale-100 pointer-events-none group-hover:pointer-events-auto transition-all origin-top-left z-50">
-                                        {[
-                                            { label: 'Popular', value: 'popularity.desc' },
-                                            { label: 'Newest', value: 'primary_release_date.desc' },
-                                            { label: 'Top Rated', value: 'vote_average.desc' },
-                                            { label: 'Revenue', value: 'revenue.desc' }
-                                        ].map(opt => (
-                                            <button key={opt.value} onClick={() => setSortOption(opt.value)} className={`w-full text-left px-4 py-3 text-xs font-medium hover:bg-white/10 transition-colors flex items-center justify-between ${sortOption === opt.value ? 'text-white bg-white/5' : 'text-gray-400'}`}>
-                                                {opt.label}
-                                                {sortOption === opt.value && <Check size={12} className={accentText}/>}
-                                            </button>
-                                        ))}
-                                    </div>
+                           <div className="sticky top-16 z-40 bg-[#030303]/80 backdrop-blur-xl border-b border-white/5 px-4 md:px-12 py-4 flex flex-col md:flex-row md:items-center justify-between gap-4 animate-in fade-in">
+                                <div className="flex items-center gap-3">
+                                    <h2 className="text-2xl font-bold text-white tracking-tight">{searchQuery ? `Results for "${searchQuery}"` : selectedCategory === 'All' ? 'Trending Now' : selectedCategory}</h2>
+                                    <span className="px-2.5 py-0.5 rounded-lg bg-white/5 text-xs font-bold text-gray-400 border border-white/5">{movies.length > 0 ? movies.length : 0}</span>
                                 </div>
 
-                                <div className="relative group shrink-0">
-                                    <button className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 rounded-full text-xs font-bold text-gray-300 border border-white/5 hover:border-white/20 transition-all active:scale-95">
-                                        <Globe size={14}/>
-                                        <span>Region: {selectedRegion === 'Global' ? 'Global' : selectedRegion}</span>
-                                        <ChevronDown size={12}/>
-                                    </button>
-                                    <div className="absolute top-full left-0 mt-2 w-48 bg-[#1a1a1a]/95 backdrop-blur-xl border border-white/10 rounded-xl overflow-hidden shadow-2xl opacity-0 group-hover:opacity-100 scale-95 group-hover:scale-100 pointer-events-none group-hover:pointer-events-auto transition-all origin-top-left z-50 max-h-60 overflow-y-auto custom-scrollbar">
-                                        {['Global', 'US', 'IN', 'JP', 'KR', 'GB', 'FR', 'DE'].map(region => (
-                                            <button key={region} onClick={() => setSelectedRegion(region)} className={`w-full text-left px-4 py-3 text-xs font-medium hover:bg-white/10 transition-colors flex items-center justify-between ${selectedRegion === region ? 'text-white bg-white/5' : 'text-gray-400'}`}>
-                                                {region === 'Global' ? 'Global' : region === 'IN' ? 'India' : region}
-                                                {selectedRegion === region && <Check size={12} className={accentText}/>}
-                                            </button>
-                                        ))}
+                                <div className="flex items-center gap-3 overflow-x-auto hide-scrollbar">
+                                    {/* Sort */}
+                                    <div className="relative group shrink-0">
+                                        <button className="flex items-center gap-2 px-4 py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-sm font-medium text-gray-200 transition-all hover:border-white/20 active:scale-95 min-w-[120px] justify-between">
+                                            <div className="flex items-center gap-2"><Filter size={16}/> <span>Sort</span></div>
+                                            <ChevronDown size={14} className="text-gray-500 group-hover:text-white transition-colors"/>
+                                        </button>
+                                        <div className="absolute top-full right-0 mt-2 w-48 bg-[#1a1a1a]/95 backdrop-blur-xl border border-white/10 rounded-xl overflow-hidden shadow-2xl opacity-0 group-hover:opacity-100 scale-95 group-hover:scale-100 pointer-events-none group-hover:pointer-events-auto transition-all origin-top-right z-50 p-1">
+                                            {[
+                                                { label: 'Popularity', value: 'popularity.desc' },
+                                                { label: 'Newest First', value: 'primary_release_date.desc' },
+                                                { label: 'Top Rated', value: 'vote_average.desc' },
+                                                { label: 'Revenue', value: 'revenue.desc' }
+                                            ].map(opt => (
+                                                <button key={opt.value} onClick={() => setSortOption(opt.value)} className={`w-full text-left px-3 py-2.5 text-xs font-medium rounded-lg transition-colors flex items-center justify-between ${sortOption === opt.value ? 'bg-white/10 text-white' : 'text-gray-400 hover:bg-white/5 hover:text-white'}`}>
+                                                    {opt.label}
+                                                    {sortOption === opt.value && <Check size={12} className={accentText}/>}
+                                                </button>
+                                            ))}
+                                        </div>
                                     </div>
-                                </div>
 
-                                <div className="relative group shrink-0">
-                                    <button className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 rounded-full text-xs font-bold text-gray-300 border border-white/5 hover:border-white/20 transition-all active:scale-95">
-                                        <Languages size={14}/>
-                                        <span>Language: {selectedLanguage === 'All' ? 'All' : selectedLanguage.toUpperCase()}</span>
-                                        <ChevronDown size={12}/>
-                                    </button>
-                                    <div className="absolute top-full left-0 mt-2 w-48 bg-[#1a1a1a]/95 backdrop-blur-xl border border-white/10 rounded-xl overflow-hidden shadow-2xl opacity-0 group-hover:opacity-100 scale-95 group-hover:scale-100 pointer-events-none group-hover:pointer-events-auto transition-all origin-top-left z-50 max-h-60 overflow-y-auto custom-scrollbar">
-                                        {['All', 'en', 'hi', 'ja', 'ko', 'es', 'fr'].map(lang => (
-                                            <button key={lang} onClick={() => setSelectedLanguage(lang)} className={`w-full text-left px-4 py-3 text-xs font-medium hover:bg-white/10 transition-colors flex items-center justify-between ${selectedLanguage === lang ? 'text-white bg-white/5' : 'text-gray-400'}`}>
-                                                {lang === 'All' ? 'All Languages' : lang === 'en' ? 'English' : lang === 'hi' ? 'Hindi' : lang.toUpperCase()}
-                                                {selectedLanguage === lang && <Check size={12} className={accentText}/>}
-                                            </button>
-                                        ))}
+                                    {/* Region */}
+                                    <div className="relative group shrink-0">
+                                        <button className="flex items-center gap-2 px-4 py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-sm font-medium text-gray-200 transition-all hover:border-white/20 active:scale-95 min-w-[120px] justify-between">
+                                            <div className="flex items-center gap-2"><Globe size={16}/> <span>{selectedRegion === 'Global' ? 'Global' : selectedRegion}</span></div>
+                                            <ChevronDown size={14} className="text-gray-500 group-hover:text-white transition-colors"/>
+                                        </button>
+                                        <div className="absolute top-full right-0 mt-2 w-48 bg-[#1a1a1a]/95 backdrop-blur-xl border border-white/10 rounded-xl overflow-hidden shadow-2xl opacity-0 group-hover:opacity-100 scale-95 group-hover:scale-100 pointer-events-none group-hover:pointer-events-auto transition-all origin-top-right z-50 max-h-60 overflow-y-auto custom-scrollbar p-1">
+                                            {['Global', 'US', 'IN', 'JP', 'KR', 'GB', 'FR', 'DE'].map(region => (
+                                                <button key={region} onClick={() => setSelectedRegion(region)} className={`w-full text-left px-3 py-2.5 text-xs font-medium rounded-lg transition-colors flex items-center justify-between ${selectedRegion === region ? 'bg-white/10 text-white' : 'text-gray-400 hover:bg-white/5 hover:text-white'}`}>
+                                                    {region === 'Global' ? 'Global' : region === 'IN' ? 'India' : region}
+                                                    {selectedRegion === region && <Check size={12} className={accentText}/>}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    {/* Language */}
+                                    <div className="relative group shrink-0">
+                                        <button className="flex items-center gap-2 px-4 py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-sm font-medium text-gray-200 transition-all hover:border-white/20 active:scale-95 min-w-[120px] justify-between">
+                                            <div className="flex items-center gap-2"><Languages size={16}/> <span>{selectedLanguage === 'All' ? 'All' : selectedLanguage.toUpperCase()}</span></div>
+                                            <ChevronDown size={14} className="text-gray-500 group-hover:text-white transition-colors"/>
+                                        </button>
+                                        <div className="absolute top-full right-0 mt-2 w-48 bg-[#1a1a1a]/95 backdrop-blur-xl border border-white/10 rounded-xl overflow-hidden shadow-2xl opacity-0 group-hover:opacity-100 scale-95 group-hover:scale-100 pointer-events-none group-hover:pointer-events-auto transition-all origin-top-right z-50 max-h-60 overflow-y-auto custom-scrollbar p-1">
+                                            {['All', 'en', 'hi', 'ja', 'ko', 'es', 'fr'].map(lang => (
+                                                <button key={lang} onClick={() => setSelectedLanguage(lang)} className={`w-full text-left px-3 py-2.5 text-xs font-medium rounded-lg transition-colors flex items-center justify-between ${selectedLanguage === lang ? 'bg-white/10 text-white' : 'text-gray-400 hover:bg-white/5 hover:text-white'}`}>
+                                                    {lang === 'All' ? 'All Languages' : lang === 'en' ? 'English' : lang === 'hi' ? 'Hindi' : lang.toUpperCase()}
+                                                    {selectedLanguage === lang && <Check size={12} className={accentText}/>}
+                                                </button>
+                                            ))}
+                                        </div>
                                     </div>
                                 </div>
                            </div>
