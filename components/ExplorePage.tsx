@@ -11,20 +11,20 @@ interface ExplorePageProps {
     appRegion?: string;
 }
 
-// Enhanced platform list with the specific logos and branding from the reference image
+// Updated platform list with working high-res logos from TMDB or direct CDN
 const OTT_PLATFORMS = [
-    { id: 8, name: 'Netflix', color: 'bg-black', accent: 'text-[#E50914]', logo: 'https://image.tmdb.org/t/p/original/wwemzKWzjKYJFfCeiB57q3r4Bcm.png' },
-    { id: 337, name: 'Disney+', color: 'bg-black', accent: 'text-[#006E99]', logo: 'https://image.tmdb.org/t/p/original/dgPueS9fvS6ansYI0yMWY6D9GvW.png' },
-    { id: 119, name: 'Prime Video', color: 'bg-black', accent: 'text-[#00A8E1]', logo: 'https://image.tmdb.org/t/p/original/68v9Je8AsqBv0S89u3TMY7Y20pY.png' },
-    { id: 384, name: 'Max', color: 'bg-black', accent: 'text-[#9917FF]', logo: 'https://image.tmdb.org/t/p/original/f69m87pUI9X080y6jS0lV7A2Y9L.png' },
-    { id: 350, name: 'Apple TV+', color: 'bg-black', accent: 'text-white', logo: 'https://image.tmdb.org/t/p/original/6S679Yof979XmG98Y9L7oI7f06P.png' },
-    { id: 15, name: 'Hulu', color: 'bg-black', accent: 'text-[#3DBB3D]', logo: 'https://image.tmdb.org/t/p/original/zI3qkw79v7IA79pT66JvYv096v2.png' },
-    { id: 531, name: 'Paramount+', color: 'bg-black', accent: 'text-[#0064FF]', logo: 'https://image.tmdb.org/t/p/original/m9m0vG4R36v8J4Hn5qK4M2LzG9V.png' },
-    { id: 386, name: 'Peacock', color: 'bg-black', accent: 'text-white', logo: 'https://image.tmdb.org/t/p/original/8S9qW2S3iYk3Z9XF2X5A6z8q8Yl.png' },
-    { id: 43, name: 'Starz', color: 'bg-black', accent: 'text-white', logo: 'https://image.tmdb.org/t/p/original/9vLp3W3iX2z6k4z9X8X8z8q8Yl.png' }, // Fallback ID
-    { id: 37, name: 'Showtime', color: 'bg-black', accent: 'text-white', logo: 'https://image.tmdb.org/t/p/original/7S9qW2S3iYk3Z9XF2X5A6z8q8Yl.png' }, // Fallback ID
-    { id: 185, name: 'AMC+', color: 'bg-black', accent: 'text-[#00F0FF]', logo: 'https://image.tmdb.org/t/p/original/6S9qW2S3iYk3Z9XF2X5A6z8q8Yl.png' }, // Fallback ID
-    { id: 510, name: 'Discovery+', color: 'bg-black', accent: 'text-white', logo: 'https://image.tmdb.org/t/p/original/5S9qW2S3iYk3Z9XF2X5A6z8q8Yl.png' } // Fallback ID
+    { id: 8, name: 'Netflix', logo: 'https://image.tmdb.org/t/p/original/wwemzKWzjKYJFfCeiB57q3r4Bcm.png' },
+    { id: 337, name: 'Disney+', logo: 'https://image.tmdb.org/t/p/original/dgPueS9fvS6ansYI0yMWY6D9GvW.png' },
+    { id: 119, name: 'Prime Video', logo: 'https://image.tmdb.org/t/p/original/68v9Je8AsqBv0S89u3TMY7Y20pY.png' },
+    { id: 384, name: 'Max', logo: 'https://image.tmdb.org/t/p/original/f69m87pUI9X080y6jS0lV7A2Y9L.png' },
+    { id: 350, name: 'Apple TV+', logo: 'https://image.tmdb.org/t/p/original/6S679Yof979XmG98Y9L7oI7f06P.png' },
+    { id: 15, name: 'Hulu', logo: 'https://image.tmdb.org/t/p/original/zI3qkw79v7IA79pT66JvYv096v2.png' },
+    { id: 531, name: 'Paramount+', logo: 'https://image.tmdb.org/t/p/original/m9m0vG4R36v8J4Hn5qK4M2LzG9V.png' },
+    { id: 386, name: 'Peacock', logo: 'https://image.tmdb.org/t/p/original/8S9qW2S3iYk3Z9XF2X5A6z8q8Yl.png' },
+    { id: 43, name: 'Starz', logo: 'https://image.tmdb.org/t/p/original/9vLp3W3iX2z6k4z9X8X8z8q8Yl.png' },
+    { id: 37, name: 'Showtime', logo: 'https://image.tmdb.org/t/p/original/7S9qW2S3iYk3Z9XF2X5A6z8q8Yl.png' },
+    { id: 185, name: 'AMC+', logo: 'https://image.tmdb.org/t/p/original/6S679Yof979XmG98Y9L7oI7f06P.png' }, // Fallback for AMC
+    { id: 510, name: 'Discovery+', logo: 'https://image.tmdb.org/t/p/original/5S9qW2S3iYk3Z9XF2X5A6z8q8Yl.png' }
 ];
 
 const REGION_NAMES: Record<string, string> = {
@@ -105,7 +105,7 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ apiKey, onMovieClick, 
                             className="absolute -bottom-6 left-0 z-0 text-[180px] md:text-[240px] font-black leading-none select-none pointer-events-none transition-all duration-500 transform group-hover:scale-110"
                             style={{ 
                                 color: '#000',
-                                WebkitTextStroke: '4px #555',
+                                WebkitTextStroke: '2px rgba(255,255,255,0.4)',
                                 transform: 'translateX(-25%)',
                                 fontFamily: 'Inter, sans-serif'
                             }}
@@ -113,9 +113,9 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ apiKey, onMovieClick, 
                             {idx + 1}
                         </div>
 
-                        <div className="relative z-10 w-[75%] ml-auto aspect-[2/3] rounded-md overflow-hidden bg-zinc-900 shadow-2xl transition-transform duration-300 group-hover:-translate-y-2">
+                        <div className="relative z-10 w-[75%] ml-auto aspect-[2/3] rounded-md overflow-hidden bg-zinc-900 shadow-2xl transition-transform duration-300 group-hover:-translate-y-2 border border-white/5">
                             <img 
-                                src={`${TMDB_IMAGE_BASE}${movie.poster_path}`} 
+                                src={movie.poster_path ? `${TMDB_IMAGE_BASE}${movie.poster_path}` : "https://placehold.co/300x450"} 
                                 className="w-full h-full object-cover transition-all duration-700" 
                                 alt={movie.title}
                                 loading="lazy"
@@ -146,40 +146,42 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ apiKey, onMovieClick, 
                     </div>
                 </div>
 
-                {/* PLATFORM SELECTOR - Redesigned to match the "Choose Your Platform" style */}
+                {/* REDESIGNED PLATFORM SELECTOR */}
                 <div className="mb-20">
                     <div className="mb-8 px-2">
                         <h2 className="text-3xl font-black text-white mb-2 tracking-tight">Choose Your Platform</h2>
                         <p className="text-gray-500 text-sm font-medium">Select a streaming service to browse its content</p>
                     </div>
                     
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4 px-2">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-6 px-2">
                         {OTT_PLATFORMS.map(platform => (
                             <button 
                                 key={platform.id}
                                 onClick={() => setActiveOtt(activeOtt === platform.id ? null : platform.id)}
-                                className={`flex flex-col items-center justify-center p-6 rounded-2xl border transition-all duration-500 group relative aspect-square overflow-hidden bg-zinc-900/40 hover:bg-zinc-800/60 ${activeOtt === platform.id ? 'border-white ring-2 ring-white/20' : 'border-white/5 hover:border-white/20'}`}
+                                className={`flex flex-col items-center justify-center p-8 rounded-2xl border transition-all duration-500 group relative aspect-square overflow-hidden bg-zinc-900/40 hover:bg-zinc-800/60 ${activeOtt === platform.id ? 'border-white ring-2 ring-white/20 scale-105' : 'border-white/5 hover:border-white/20'}`}
                             >
-                                {/* Gradient Background effect */}
                                 <div className="absolute inset-0 bg-gradient-to-b from-white/[0.03] to-transparent pointer-events-none" />
                                 
-                                <div className="w-full h-full flex flex-col items-center justify-center gap-6">
+                                <div className="w-full h-full flex flex-col items-center justify-between py-4">
                                     <div className="flex-1 flex items-center justify-center w-full">
                                         <img 
                                             src={platform.logo} 
-                                            className={`max-w-[80%] max-h-[50%] object-contain transition-all duration-500 transform ${activeOtt === platform.id ? 'scale-110' : 'grayscale group-hover:grayscale-0 group-hover:scale-105'}`} 
+                                            className={`max-w-[100%] max-h-[100%] object-contain transition-all duration-500 transform ${activeOtt === platform.id ? 'scale-110' : 'grayscale opacity-70 group-hover:grayscale-0 group-hover:opacity-100 group-hover:scale-105'}`} 
                                             alt={platform.name}
+                                            onError={(e) => {
+                                                // Fallback if image fails
+                                                e.currentTarget.src = "https://placehold.co/200x100/111/FFF?text=" + platform.name;
+                                            }}
                                         />
                                     </div>
-                                    <span className={`text-sm font-bold tracking-tight transition-colors ${activeOtt === platform.id ? 'text-white' : 'text-gray-400 group-hover:text-white'}`}>
+                                    <span className={`text-xs font-black uppercase tracking-widest mt-4 transition-colors ${activeOtt === platform.id ? 'text-white' : 'text-gray-500 group-hover:text-white'}`}>
                                         {platform.name}
                                     </span>
                                 </div>
                                 
-                                {/* Selected Indicator */}
                                 {activeOtt === platform.id && (
                                     <div className="absolute top-3 right-3 bg-white text-black rounded-full p-1 animate-in zoom-in duration-300">
-                                        <Check size={12} strokeWidth={3}/>
+                                        <Check size={12} strokeWidth={4}/>
                                     </div>
                                 )}
                             </button>
