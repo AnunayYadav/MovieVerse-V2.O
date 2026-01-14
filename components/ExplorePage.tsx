@@ -71,34 +71,36 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ apiKey, onMovieClick, 
     };
 
     const RankingRow = ({ title, items, icon: Icon }: { title: string, items: Movie[], icon: any }) => (
-        <div className="mb-10">
-            <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg md:text-xl font-bold text-white flex items-center gap-2 uppercase tracking-tight">
-                    <Icon size={20} className={isGoldTheme ? 'text-amber-500' : 'text-red-600'}/> {title}
+        <div className="mb-14">
+            <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-bold text-white flex items-center gap-3 uppercase tracking-tighter italic">
+                    <Icon size={24} className={isGoldTheme ? 'text-amber-500' : 'text-red-600'}/> {title}
                 </h2>
-                <span className="text-[9px] font-bold text-gray-500 uppercase tracking-widest">Today</span>
+                <div className="h-px bg-white/10 flex-1 mx-6 hidden md:block opacity-50"></div>
+                <span className="text-[10px] font-bold text-gray-500 uppercase tracking-[0.2em]">Live Ranking</span>
             </div>
-            <div className="flex gap-1 overflow-x-auto pb-4 hide-scrollbar px-2">
+            <div className="flex gap-4 overflow-x-auto pb-8 hide-scrollbar px-6 -mx-6">
                 {items.map((movie, idx) => (
                     <div 
                         key={movie.id} 
-                        className="relative shrink-0 w-32 md:w-44 h-48 md:h-64 group cursor-pointer flex items-end" 
+                        className="relative shrink-0 w-44 md:w-56 h-60 md:h-72 group cursor-pointer flex items-end" 
                         onClick={() => onMovieClick(movie)}
                     >
-                        {/* Netflix Style Large Numbers */}
+                        {/* Netflix Style Outline Numbers */}
                         <div 
-                            className="absolute -left-2 md:-left-4 bottom-[-10px] md:bottom-[-20px] z-0 text-[120px] md:text-[180px] font-black leading-none select-none pointer-events-none transition-transform duration-500 group-hover:scale-110"
+                            className="absolute -left-6 md:-left-10 bottom-[-10px] md:bottom-[-20px] z-0 text-[160px] md:text-[220px] font-black leading-none select-none pointer-events-none transition-all duration-500 group-hover:scale-110 group-hover:-translate-x-2"
                             style={{ 
-                                color: '#000',
-                                WebkitTextStroke: '2px #555',
-                                fontFamily: 'Inter, sans-serif'
+                                color: '#030303',
+                                WebkitTextStroke: '4px #333',
+                                fontFamily: 'Inter, sans-serif',
+                                letterSpacing: '-0.1em'
                             }}
                         >
                             {idx + 1}
                         </div>
                         
-                        {/* Poster overlapping the number */}
-                        <div className="relative z-10 ml-8 md:ml-12 w-full h-[90%] rounded-md overflow-hidden bg-white/5 border border-white/5 group-hover:border-white/20 transition-all shadow-2xl group-hover:shadow-red-600/5">
+                        {/* Poster Overlay */}
+                        <div className="relative z-10 ml-12 md:ml-20 w-full h-[95%] rounded-lg overflow-hidden bg-white/5 border border-white/5 group-hover:border-white/20 transition-all shadow-2xl group-hover:shadow-red-600/10">
                             <img 
                                 src={`${TMDB_IMAGE_BASE}${movie.poster_path}`} 
                                 className="w-full h-full object-cover transition-all duration-700 group-hover:scale-110" 
@@ -113,57 +115,58 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ apiKey, onMovieClick, 
     );
 
     return (
-        <div className="min-h-screen bg-[#030303] text-white p-4 md:p-10 animate-in fade-in duration-700">
+        <div className="min-h-screen bg-[#030303] text-white p-6 md:p-12 animate-in fade-in duration-700">
             <div className="max-w-7xl mx-auto">
-                <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-8 gap-4">
+                <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-12 gap-6">
                     <div>
-                        <h1 className="text-2xl md:text-4xl font-black tracking-tighter text-white uppercase italic">
-                            Discover <span className={isGoldTheme ? 'text-amber-500' : 'text-red-600'}>Universe</span>
+                        <h1 className="text-4xl md:text-5xl font-black tracking-tighter text-white uppercase italic">
+                            Explore <span className={isGoldTheme ? 'text-amber-500' : 'text-red-600'}>Universe</span>
                         </h1>
-                        <p className="text-gray-400 mt-1 text-xs md:text-sm font-medium">Daily rankings and OTT hubs.</p>
+                        <p className="text-gray-400 mt-2 text-sm md:text-base font-medium">Daily global trends and platform exclusives.</p>
                     </div>
-                    <div className="flex items-center gap-2 bg-white/5 p-0.5 rounded-full border border-white/10 pr-3">
-                         <div className={`p-1.5 rounded-full ${isGoldTheme ? 'bg-amber-500 text-black' : 'bg-red-600 text-white'}`}>
-                            <Sparkles size={14}/>
+                    <div className="flex items-center gap-3 bg-white/5 p-1 rounded-full border border-white/10 pr-4">
+                         <div className={`p-2 rounded-full ${isGoldTheme ? 'bg-amber-500 text-black' : 'bg-red-600 text-white'}`}>
+                            <Sparkles size={18}/>
                          </div>
-                         <span className="text-[10px] font-bold uppercase tracking-wider">AI Discovery</span>
+                         <span className="text-xs font-bold uppercase tracking-widest">Global Discovery</span>
                     </div>
                 </div>
 
-                {/* OTT Hub - More compact */}
-                <div className="mb-12">
-                    <div className="flex items-center justify-between mb-4">
-                        <h2 className="text-sm font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2">
-                            <LayoutGrid size={16}/> Platforms
-                        </h2>
-                    </div>
-                    <div className="grid grid-cols-4 md:grid-cols-8 gap-3">
+                {/* OTT Hub */}
+                <div className="mb-16">
+                    <h2 className="text-xs font-black text-gray-500 uppercase tracking-[0.3em] mb-6 flex items-center gap-3">
+                        <LayoutGrid size={14}/> Top Platforms
+                    </h2>
+                    <div className="grid grid-cols-4 md:grid-cols-8 gap-4">
                         {OTT_PLATFORMS.map(platform => (
                             <button 
                                 key={platform.id}
                                 onClick={() => setActiveOtt(activeOtt === platform.id ? null : platform.id)}
-                                className={`flex flex-col items-center gap-2 p-3 rounded-xl border transition-all duration-500 group relative overflow-hidden ${activeOtt === platform.id ? `${platform.color} border-white shadow-xl scale-105` : 'bg-white/5 border-white/5 hover:border-white/10 hover:bg-white/10'}`}
+                                className={`flex flex-col items-center gap-3 p-4 rounded-2xl border transition-all duration-500 group relative overflow-hidden ${activeOtt === platform.id ? `${platform.color} border-white shadow-2xl scale-110` : 'bg-white/5 border-white/5 hover:border-white/20 hover:bg-white/10'}`}
                             >
-                                <div className="w-8 h-8 md:w-10 md:h-10 relative z-10">
+                                <div className="w-10 h-10 md:w-12 md:h-12 relative z-10">
                                     <img src={platform.logo} className={`w-full h-full object-contain ${activeOtt === platform.id ? '' : 'grayscale opacity-50 group-hover:grayscale-0 group-hover:opacity-100'} transition-all`} alt={platform.name}/>
                                 </div>
-                                <span className={`text-[8px] font-bold uppercase tracking-widest relative z-10 ${activeOtt === platform.id ? 'text-white' : 'text-gray-500 group-hover:text-white'}`}>{platform.name}</span>
+                                <span className={`text-[10px] font-bold uppercase tracking-widest relative z-10 ${activeOtt === platform.id ? 'text-white' : 'text-gray-500 group-hover:text-white'}`}>{platform.name}</span>
+                                {activeOtt === platform.id && <div className="absolute top-2 right-2 text-white animate-in zoom-in duration-300"><Check size={14}/></div>}
                             </button>
                         ))}
                     </div>
                 </div>
 
                 {activeOtt ? (
-                    <div className="animate-in slide-in-from-bottom-5 duration-500">
-                        <div className="flex items-center justify-between mb-6">
-                             <div className="flex items-center gap-3">
-                                <button onClick={() => setActiveOtt(null)} className="p-1.5 hover:bg-white/10 rounded-full transition-colors"><ChevronRight size={18} className="rotate-180"/></button>
+                    <div className="animate-in slide-in-from-bottom-10 duration-500">
+                        <div className="flex items-center justify-between mb-8 pb-4 border-b border-white/5">
+                             <div className="flex items-center gap-4">
+                                <button onClick={() => setActiveOtt(null)} className="p-2 hover:bg-white/10 rounded-full transition-colors bg-white/5 border border-white/10"><ChevronRight size={24} className="rotate-180"/></button>
                                 <div>
-                                    <h2 className="text-xl font-bold text-white">Available on {activeProvider?.name}</h2>
+                                    <h2 className="text-3xl font-black text-white">{activeProvider?.name} Collection</h2>
+                                    <p className="text-sm text-gray-500">Popular content on this platform</p>
                                 </div>
                              </div>
+                             <div className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border border-white/10 ${activeProvider?.color}`}>Trending Now</div>
                         </div>
-                        <div className="grid grid-cols-3 md:grid-cols-5 lg:grid-cols-6 gap-3">
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-6">
                             {ottMovies.map(movie => (
                                 <MovieCard key={movie.id} movie={movie} onClick={onMovieClick} isWatched={false} onToggleWatched={() => {}} />
                             ))}
@@ -171,7 +174,7 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ apiKey, onMovieClick, 
                         </div>
                     </div>
                 ) : (
-                    <div className="space-y-6">
+                    <div className="space-y-12">
                         <RankingRow title="Top 10 Movies Today" items={topMovies} icon={TrendingUp} />
                         <RankingRow title="Top 10 TV Shows Today" items={topShows} icon={Tv} />
                     </div>
