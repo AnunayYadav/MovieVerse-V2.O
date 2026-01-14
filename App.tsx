@@ -900,13 +900,13 @@ export default function App() {
                <div className="animate-in fade-in slide-in-from-bottom-4">
                    <div className="p-8 md:p-12">
                        <h1 className="text-4xl md:text-5xl font-black text-white tracking-tight mb-2">All Genres</h1>
-                       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 md:gap-4 mt-8">
+                       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6 mt-8">
                            {GENRES_LIST.map(genre => (
-                               <div key={genre} onClick={() => { resetFilters(); setSelectedCategory(genre); }} className={`relative h-32 md:h-40 rounded-xl overflow-hidden cursor-pointer group shadow-xl transition-all duration-500 hover:scale-[1.02] hover:shadow-white/5`}>
-                                   <div className={`absolute inset-0 bg-gradient-to-br ${GENRE_COLORS[genre] || "from-gray-700 to-black"} opacity-70 group-hover:opacity-100 transition-opacity duration-500`}></div>
-                                   <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent"></div>
-                                   <div className="absolute bottom-0 left-0 p-4 w-full">
-                                       <h3 className="text-lg md:text-xl font-black text-white mb-1 group-hover:translate-x-1 transition-transform duration-300">{genre}</h3>
+                               <div key={genre} onClick={() => { resetFilters(); setSelectedCategory(genre); }} className={`relative h-40 md:h-48 rounded-2xl overflow-hidden cursor-pointer group shadow-2xl transition-all duration-500 hover:scale-[1.02] hover:shadow-white/5`}>
+                                   <div className={`absolute inset-0 bg-gradient-to-br ${GENRE_COLORS[genre] || "from-gray-700 to-black"} opacity-80 group-hover:opacity-100 transition-opacity duration-500`}></div>
+                                   <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent"></div>
+                                   <div className="absolute bottom-0 left-0 p-6 w-full">
+                                       <h3 className="text-xl md:text-2xl font-black text-white mb-1 group-hover:translate-x-1 transition-transform duration-300">{genre}</h3>
                                    </div>
                                </div>
                            ))}
@@ -916,9 +916,9 @@ export default function App() {
            ) : selectedCategory === "Franchise" ? (
                <div className="animate-in fade-in slide-in-from-bottom-4 p-8 md:p-12">
                    <h1 className="text-4xl md:text-5xl font-black text-white tracking-tight mb-8">Franchise Explorer</h1>
-                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
+                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                        {franchiseList.map((franchise) => (
-                           <div key={franchise.id} onClick={() => handleTmdbCollectionClick(franchise.id)} className="group cursor-pointer bg-white/5 border border-white/10 rounded-xl overflow-hidden transition-all hover:scale-105 hover:bg-white/10 shadow-xl">
+                           <div key={franchise.id} onClick={() => handleTmdbCollectionClick(franchise.id)} className="group cursor-pointer bg-white/5 border border-white/10 rounded-2xl overflow-hidden transition-all hover:scale-105 hover:bg-white/10 shadow-xl">
                                <div className="aspect-[16/9] relative overflow-hidden">
                                    <img 
                                        src={franchise.backdrop_path ? `${TMDB_BACKDROP_BASE}${franchise.backdrop_path}` : `${TMDB_IMAGE_BASE}${franchise.poster_path}`} 
@@ -926,39 +926,38 @@ export default function App() {
                                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
                                    />
                                    <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent"></div>
-                                   <div className="absolute bottom-3 left-3">
-                                       <h3 className="text-lg font-bold text-white drop-shadow-lg">{franchise.name}</h3>
+                                   <div className="absolute bottom-4 left-4">
+                                       <h3 className="text-xl font-bold text-white drop-shadow-lg">{franchise.name}</h3>
                                    </div>
                                </div>
-                               <div className="p-3">
-                                   <p className="text-gray-400 text-[11px] line-clamp-2 leading-relaxed">{franchise.overview}</p>
-                                   <div className="mt-2 flex items-center justify-between">
-                                       <span className="text-[9px] font-black px-1.5 py-0.5 bg-white/10 rounded text-gray-300 uppercase tracking-widest">{franchise.parts?.length || 0} Films</span>
-                                       <div className={`p-1 rounded-full ${accentBg} text-white`}>
-                                           <ChevronRight size={12}/>
+                               <div className="p-4">
+                                   <p className="text-gray-400 text-xs line-clamp-2 leading-relaxed">{franchise.overview}</p>
+                                   <div className="mt-3 flex items-center justify-between">
+                                       <span className="text-[10px] font-bold px-2 py-0.5 bg-white/10 rounded text-gray-300 uppercase tracking-widest">{franchise.parts?.length || 0} Films</span>
+                                       <div className={`p-1.5 rounded-full ${accentBg} text-white`}>
+                                           <ChevronRight size={14}/>
                                        </div>
                                    </div>
                                </div>
                            </div>
                        ))}
-                       {loading && [...Array(10)].map((_, i) => <div key={i} className="aspect-[16/9] bg-white/5 rounded-xl animate-pulse"></div>)}
+                       {loading && [...Array(8)].map((_, i) => <div key={i} className="aspect-[16/9] bg-white/5 rounded-2xl animate-pulse"></div>)}
                    </div>
                </div>
            ) : (
                <>
                    {selectedCategory === "Coming" && (
-                       <div className="animate-in fade-in slide-in-from-bottom-4 p-4 md:p-8">
-                           <div className="space-y-10">
+                       <div className="animate-in fade-in slide-in-from-bottom-4 p-6 md:p-8">
+                           <div className="space-y-12">
                                {groupMoviesByDate(movies).map(([date, dateMovies]) => (
                                    <div key={date} className="animate-in slide-in-from-right-4 duration-500 group/timeline">
-                                       <h3 className="text-lg font-black text-white/40 mb-4 border-l-2 border-red-600 pl-3">{date}</h3>
-                                       <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 2xl:grid-cols-10 gap-3 mt-4">
+                                       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 mt-4">
                                            {dateMovies.map((movie) => (
                                                <div key={movie.id} onClick={() => setSelectedMovie(movie)} className="group cursor-pointer relative">
-                                                   <div className="aspect-[2/3] rounded-lg overflow-hidden bg-gray-900 mb-2 relative shadow-lg border border-white/5">
-                                                       <img src={movie.poster_path ? `${TMDB_IMAGE_BASE}${movie.poster_path}` : "https://placehold.co/300x450"} alt={movie.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" loading="lazy" />
+                                                   <div className="aspect-[2/3] rounded-xl overflow-hidden bg-gray-900 mb-3 relative shadow-lg">
+                                                       <img src={movie.poster_path ? `${TMDB_IMAGE_BASE}${movie.poster_path}` : "https://placehold.co/300x450"} alt={movie.title} className="w-full h-full object-cover" loading="lazy" />
                                                    </div>
-                                                   <h4 className="font-bold text-[10px] text-gray-400 truncate px-0.5">{movie.title}</h4>
+                                                   <h4 className="font-bold text-sm text-gray-200">{movie.title}</h4>
                                                </div>
                                            ))}
                                        </div>
@@ -971,7 +970,7 @@ export default function App() {
                    {selectedCategory !== "Coming" && selectedCategory !== "Genres" && selectedCategory !== "Countries" && selectedCategory !== "Collections" && selectedCategory !== "Franchise" && (
                        <>
                            {!searchQuery && featuredMovie && !activeCountry && !activeKeyword && !tmdbCollectionId && !currentCollection && (
-                               <div className="relative w-full h-[60vh] md:h-[70vh] overflow-hidden group">
+                               <div className="relative w-full h-[70vh] md:h-[80vh] overflow-hidden group">
                                    <div className="absolute inset-0">
                                        <img 
                                            src={featuredMovie.backdrop_path ? `${TMDB_BACKDROP_BASE}${featuredMovie.backdrop_path}` : `${TMDB_IMAGE_BASE}${featuredMovie.poster_path}`} 
@@ -983,22 +982,22 @@ export default function App() {
                                    </div>
 
                                    <div className="absolute bottom-0 left-0 w-full p-6 md:p-12 z-20 flex flex-col items-start gap-4 md:max-w-4xl animate-in slide-in-from-bottom-10 duration-700">
-                                       <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest ${isGoldTheme ? 'bg-amber-500 text-black' : 'bg-red-600 text-white'}`}>
-                                           Featured Title
+                                       <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-widest ${isGoldTheme ? 'bg-amber-500 text-black' : 'bg-red-600 text-white'}`}>
+                                           Featured
                                        </span>
-                                       <h1 className="text-3xl md:text-5xl font-black text-white leading-tight drop-shadow-2xl">
+                                       <h1 className="text-4xl md:text-6xl font-black text-white leading-tight drop-shadow-2xl">
                                            {featuredMovie.title || featuredMovie.name}
                                        </h1>
                                        
-                                       <div className="flex items-center gap-4 text-[11px] md:text-xs font-bold text-gray-300">
-                                           <span className="text-green-400">{featuredMovie.vote_average ? featuredMovie.vote_average.toFixed(1) : 'NR'} Rating</span>
+                                       <div className="flex items-center gap-4 text-sm font-medium text-gray-300">
+                                           <span className="text-green-400 font-bold">{featuredMovie.vote_average ? featuredMovie.vote_average.toFixed(1) : 'NR'} Rating</span>
                                            <span>•</span>
                                            <span>{featuredMovie.release_date?.split('-')[0] || featuredMovie.first_air_date?.split('-')[0] || 'TBA'}</span>
                                            <span>•</span>
-                                           <span className="uppercase tracking-widest opacity-60">{GENRES_MAP[Object.keys(GENRES_MAP).find(key => GENRES_MAP[key] === featuredMovie.genre_ids?.[0]) || ""] || "Movie"}</span>
+                                           <span>{GENRES_MAP[Object.keys(GENRES_MAP).find(key => GENRES_MAP[key] === featuredMovie.genre_ids?.[0]) || ""] || "Movie"}</span>
                                        </div>
 
-                                       <p className="text-gray-300 text-xs md:text-sm line-clamp-3 md:line-clamp-2 max-w-xl leading-relaxed drop-shadow-md font-medium opacity-80">
+                                       <p className="text-gray-300 text-sm md:text-lg line-clamp-3 md:line-clamp-2 max-w-2xl leading-relaxed drop-shadow-md">
                                            {featuredMovie.overview}
                                        </p>
 
@@ -1006,58 +1005,77 @@ export default function App() {
                                            {isExclusive && (
                                                <button 
                                                    onClick={() => setSelectedMovie(featuredMovie)}
-                                                   className={`flex-1 sm:flex-none px-4 py-2.5 sm:px-6 sm:py-3 text-xs sm:text-sm rounded-xl font-black flex items-center justify-center gap-2 transition-all hover:scale-105 active:scale-95 shadow-xl ${isGoldTheme ? 'bg-amber-500 text-black hover:bg-amber-400' : 'bg-white text-black hover:bg-gray-200'}`}
+                                                   className={`flex-1 sm:flex-none px-2 py-3 sm:px-8 sm:py-3.5 text-sm sm:text-base rounded-xl font-bold flex items-center justify-center gap-3 transition-all hover:scale-105 active:scale-95 shadow-xl ${isGoldTheme ? 'bg-amber-500 text-black hover:bg-amber-400' : 'bg-white text-black hover:bg-gray-200'}`}
                                                >
-                                                   <PlayCircle size={18} fill="currentColor" /> Watch Now
+                                                   <PlayCircle size={20} fill="currentColor" /> Watch Now
                                                </button>
                                            )}
                                            <button 
                                                onClick={() => setSelectedMovie(featuredMovie)}
-                                               className="flex-1 sm:flex-none px-4 py-2.5 sm:px-6 sm:py-3 text-xs sm:text-sm rounded-xl font-black flex items-center justify-center gap-2 bg-white/10 hover:bg-white/20 backdrop-blur-md text-white transition-all hover:scale-105 active:scale-95 border border-white/10"
+                                               className="flex-1 sm:flex-none px-2 py-3 sm:px-8 sm:py-3.5 text-sm sm:text-base rounded-xl font-bold flex items-center justify-center gap-3 bg-white/10 hover:bg-white/20 backdrop-blur-md text-white transition-all hover:scale-105 active:scale-95 border border-white/10"
                                            >
-                                               <Info size={18}/> More Info
+                                               <Info size={20}/> More Info
                                            </button>
                                        </div>
                                    </div>
                                </div>
                            )}
 
-                           <div className="sticky top-16 z-40 bg-[#030303]/80 backdrop-blur-xl border-b border-white/5 px-4 md:px-12 py-2 flex flex-col md:flex-row md:items-center justify-between gap-3 animate-in fade-in">
-                                <div className="flex items-center gap-2">
-                                    <h2 className="text-base font-black text-white tracking-tight uppercase italic">{searchQuery ? `Search: "${searchQuery}"` : selectedCategory === 'All' ? 'Trending' : selectedCategory}</h2>
-                                    <span className="px-1.5 py-0.5 rounded bg-white/5 text-[9px] font-black text-gray-500 border border-white/5">{movies.length} Items</span>
+                           <div className="sticky top-16 z-40 bg-[#030303]/80 backdrop-blur-xl border-b border-white/5 px-4 md:px-12 py-3 flex flex-col md:flex-row md:items-center justify-between gap-4 animate-in fade-in">
+                                <div className="flex items-center gap-3">
+                                    <h2 className="text-xl font-bold text-white tracking-tight">{searchQuery ? `Results for "${searchQuery}"` : selectedCategory === 'All' ? 'Trending Now' : selectedCategory}</h2>
+                                    <span className="px-2 py-0.5 rounded-lg bg-white/5 text-[10px] font-bold text-gray-400 border border-white/5">{movies.length > 0 ? movies.length : 0}</span>
                                 </div>
 
-                                <div className="flex items-center gap-1.5 flex-wrap">
+                                <div className="flex items-center gap-2 flex-wrap">
                                     <div className="relative group shrink-0">
-                                        <button className="flex items-center gap-2 px-2.5 py-1 bg-white/5 hover:bg-white/10 border border-white/10 rounded text-[10px] font-bold text-gray-300 transition-all active:scale-95 min-w-[80px] justify-between">
-                                            <div className="flex items-center gap-1.5"><Filter size={12}/> <span>Sort</span></div>
-                                            <ChevronDown size={10} className="text-gray-500 group-hover:text-white transition-colors"/>
+                                        <button className="flex items-center gap-2 px-3 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-xs font-medium text-gray-200 transition-all hover:border-white/20 active:scale-95 min-w-[100px] justify-between">
+                                            <div className="flex items-center gap-2"><Filter size={14}/> <span>Sort</span></div>
+                                            <ChevronDown size={12} className="text-gray-500 group-hover:text-white transition-colors"/>
                                         </button>
-                                        <div className="absolute top-full right-0 mt-1 w-40 bg-[#1a1a1a] border border-white/10 rounded-lg overflow-hidden shadow-2xl opacity-0 group-hover:opacity-100 scale-95 group-hover:scale-100 pointer-events-none group-hover:pointer-events-auto transition-all origin-top-right z-50 p-1">
+                                        <div className="absolute top-full left-0 w-full h-2 bg-transparent pointer-events-auto opacity-0 group-hover:block hidden"></div>
+                                        <div className="absolute top-full right-0 mt-2 w-48 bg-[#1a1a1a]/95 backdrop-blur-xl border border-white/10 rounded-xl overflow-hidden shadow-2xl opacity-0 group-hover:opacity-100 scale-95 group-hover:scale-100 pointer-events-none group-hover:pointer-events-auto transition-all origin-top-right z-50 p-1">
                                             {[
                                                 { label: 'Popularity', value: 'popularity.desc' },
-                                                { label: 'Newest', value: 'primary_release_date.desc' },
-                                                { label: 'Top Rated', value: 'vote_average.desc' }
+                                                { label: 'Newest First', value: 'primary_release_date.desc' },
+                                                { label: 'Top Rated', value: 'vote_average.desc' },
+                                                { label: 'Revenue', value: 'revenue.desc' }
                                             ].map(opt => (
-                                                <button key={opt.value} onClick={() => setSortOption(opt.value)} className={`w-full text-left px-2 py-1.5 text-[10px] font-bold rounded transition-colors flex items-center justify-between ${sortOption === opt.value ? 'bg-white/10 text-white' : 'text-gray-500 hover:bg-white/5 hover:text-white'}`}>
+                                                <button key={opt.value} onClick={() => setSortOption(opt.value)} className={`w-full text-left px-3 py-2 text-xs font-medium rounded-lg transition-colors flex items-center justify-between ${sortOption === opt.value ? 'bg-white/10 text-white' : 'text-gray-400 hover:bg-white/5 hover:text-white'}`}>
                                                     {opt.label}
-                                                    {sortOption === opt.value && <Check size={10} className={accentText}/>}
+                                                    {sortOption === opt.value && <Check size={12} className={accentText}/>}
                                                 </button>
                                             ))}
                                         </div>
                                     </div>
 
                                     <div className="relative group shrink-0">
-                                        <button className="flex items-center gap-2 px-2.5 py-1 bg-white/5 hover:bg-white/10 border border-white/10 rounded text-[10px] font-bold text-gray-300 transition-all active:scale-95 min-w-[80px] justify-between">
-                                            <div className="flex items-center gap-1.5"><Globe size={12}/> <span>{selectedRegion}</span></div>
-                                            <ChevronDown size={10} className="text-gray-500 group-hover:text-white transition-colors"/>
+                                        <button className="flex items-center gap-2 px-3 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-xs font-medium text-gray-200 transition-all hover:border-white/20 active:scale-95 min-w-[100px] justify-between">
+                                            <div className="flex items-center gap-2"><Globe size={14}/> <span>{selectedRegion === 'Global' ? 'Global' : selectedRegion}</span></div>
+                                            <ChevronDown size={12} className="text-gray-500 group-hover:text-white transition-colors"/>
                                         </button>
-                                        <div className="absolute top-full right-0 mt-1 w-40 bg-[#1a1a1a] border border-white/10 rounded-lg overflow-hidden shadow-2xl opacity-0 group-hover:opacity-100 scale-95 group-hover:scale-100 pointer-events-none group-hover:pointer-events-auto transition-all origin-top-right z-50 max-h-60 overflow-y-auto custom-scrollbar p-1">
-                                            {['Global', 'US', 'IN', 'JP', 'KR', 'GB'].map(region => (
-                                                <button key={region} onClick={() => setSelectedRegion(region)} className={`w-full text-left px-2 py-1.5 text-[10px] font-bold rounded transition-colors flex items-center justify-between ${selectedRegion === region ? 'bg-white/10 text-white' : 'text-gray-500 hover:bg-white/5 hover:text-white'}`}>
-                                                    {region}
-                                                    {selectedRegion === region && <Check size={10} className={accentText}/>}
+                                        <div className="absolute top-full left-0 w-full h-2 bg-transparent pointer-events-auto opacity-0 group-hover:block hidden"></div>
+                                        <div className="absolute top-full right-0 mt-2 w-48 bg-[#1a1a1a]/95 backdrop-blur-xl border border-white/10 rounded-xl overflow-hidden shadow-2xl opacity-0 group-hover:opacity-100 scale-95 group-hover:scale-100 pointer-events-none group-hover:pointer-events-auto transition-all origin-top-right z-50 max-h-60 overflow-y-auto custom-scrollbar p-1">
+                                            {['Global', 'US', 'IN', 'JP', 'KR', 'GB', 'FR', 'DE'].map(region => (
+                                                <button key={region} onClick={() => setSelectedRegion(region)} className={`w-full text-left px-3 py-2 text-xs font-medium rounded-lg transition-colors flex items-center justify-between ${selectedRegion === region ? 'bg-white/10 text-white' : 'text-gray-400 hover:bg-white/5 hover:text-white'}`}>
+                                                    {region === 'Global' ? 'Global' : region === 'IN' ? 'India' : region}
+                                                    {selectedRegion === region && <Check size={12} className={accentText}/>}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    <div className="relative group shrink-0">
+                                        <button className="flex items-center gap-2 px-3 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-xs font-medium text-gray-200 transition-all hover:border-white/20 active:scale-95 min-w-[100px] justify-between">
+                                            <div className="flex items-center gap-2"><Languages size={14}/> <span>{selectedLanguage === 'All' ? 'All' : selectedLanguage.toUpperCase()}</span></div>
+                                            <ChevronDown size={12} className="text-gray-500 group-hover:text-white transition-colors"/>
+                                        </button>
+                                        <div className="absolute top-full left-0 w-full h-2 bg-transparent pointer-events-auto opacity-0 group-hover:block hidden"></div>
+                                        <div className="absolute top-full right-0 mt-2 w-48 bg-[#1a1a1a]/95 backdrop-blur-xl border border-white/10 rounded-xl overflow-hidden shadow-2xl opacity-0 group-hover:opacity-100 scale-95 group-hover:scale-100 pointer-events-none group-hover:pointer-events-auto transition-all origin-top-right z-50 max-h-60 overflow-y-auto custom-scrollbar p-1">
+                                            {['All', 'en', 'hi', 'ja', 'ko', 'es', 'fr'].map(lang => (
+                                                <button key={lang} onClick={() => setSelectedLanguage(lang)} className={`w-full text-left px-3 py-2 text-xs font-medium rounded-lg transition-colors flex items-center justify-between ${selectedLanguage === lang ? 'bg-white/10 text-white' : 'text-gray-400 hover:bg-white/5 hover:text-white'}`}>
+                                                    {lang === 'All' ? 'All Languages' : lang === 'en' ? 'English' : lang === 'hi' ? 'Hindi' : lang.toUpperCase()}
+                                                    {selectedLanguage === lang && <Check size={12} className={accentText}/>}
                                                 </button>
                                             ))}
                                         </div>
@@ -1065,22 +1083,23 @@ export default function App() {
                                 </div>
                            </div>
 
-                           <div className="px-4 md:px-12 py-6 space-y-6 relative z-10">
+                           <div className="px-4 md:px-12 py-8 space-y-8 relative z-10">
                                <PosterMarquee movies={!searchQuery && selectedCategory === "All" && !currentCollection && movies.length > 0 ? movies : []} onMovieClick={setSelectedMovie} />
                                
                                {fetchError && !loading && movies.length === 0 && (
                                     <div className="flex flex-col items-center justify-center py-20 text-center animate-in fade-in">
-                                        <CloudOff size={40} className="text-red-500 mb-4 opacity-80"/>
-                                        <h3 className="text-lg font-bold text-white mb-2">Connection Issues</h3>
-                                        <button onClick={() => fetchMovies(1, false)} className="flex items-center gap-2 px-6 py-2 bg-white/10 hover:bg-white/20 rounded-full text-white font-bold transition-all active:scale-95 text-xs">
-                                            <RefreshCcw size={14}/> Retry Connection
+                                        <CloudOff size={48} className="text-red-500 mb-4 opacity-80"/>
+                                        <h3 className="text-xl font-bold text-white mb-2">Connection Issues</h3>
+                                        <p className="text-gray-400 mb-6 max-w-md">We're having trouble reaching the movie database. Your internet might be unstable.</p>
+                                        <button onClick={() => fetchMovies(1, false)} className="flex items-center gap-2 px-6 py-2 bg-white/10 hover:bg-white/20 rounded-full text-white font-bold transition-all active:scale-95">
+                                            <RefreshCcw size={16}/> Retry Connection
                                         </button>
                                     </div>
                                )}
 
-                               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-7 2xl:grid-cols-9 gap-2.5 md:gap-3.5 animate-in fade-in duration-700">
+                               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-x-4 gap-y-8 animate-in fade-in duration-700">
                                    {movies.map((movie, idx) => (
-                                       <div key={`${movie.id}-${idx}`} ref={idx === movies.length - 1 ? lastMovieElementRef : null} className="animate-in fade-in zoom-in-95 duration-500" style={{ animationDelay: `${idx * 30}ms` }}>
+                                       <div key={`${movie.id}-${idx}`} ref={idx === movies.length - 1 ? lastMovieElementRef : null} className="animate-in fade-in zoom-in-95 duration-500" style={{ animationDelay: `${idx * 50}ms` }}>
                                             {selectedCategory !== "People" ? ( 
                                                 <MovieCard 
                                                     movie={movie} 
@@ -1093,12 +1112,12 @@ export default function App() {
                                             )}
                                        </div>
                                    ))}
-                                   {loading && [...Array(18)].map((_, i) => <MovieSkeleton key={`skel-${i}`} />)}
+                                   {loading && [...Array(12)].map((_, i) => <MovieSkeleton key={`skel-${i}`} />)}
                                </div>
                                
                                {!loading && !fetchError && movies.length === 0 && ( 
                                    <div className="text-center py-20 opacity-50 flex flex-col items-center animate-in fade-in zoom-in"> 
-                                       <Ghost size={40} className="mb-4 text-white/20"/> <p className="text-xs font-bold uppercase tracking-widest">No results found.</p> 
+                                       <Ghost size={48} className="mb-4 text-white/20"/> <p>No results found.</p> 
                                    </div> 
                                )}
                            </div>
