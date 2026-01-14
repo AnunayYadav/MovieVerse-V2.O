@@ -90,14 +90,11 @@ export const LogoLoader = () => (
 );
 
 export const MovieSkeleton = () => (
-  <div className="group relative bg-white/5 rounded-xl overflow-hidden aspect-[2/3]">
+  <div className="group relative bg-white/5 rounded-lg overflow-hidden aspect-[2/3] border border-white/5">
     <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full animate-[shimmer_1.5s_infinite]" />
-    <div className="absolute bottom-0 left-0 w-full p-4 space-y-3">
-      <div className="h-4 bg-white/10 rounded-full w-3/4" />
-      <div className="flex justify-between">
-        <div className="h-3 bg-white/10 rounded-full w-1/3" />
-        <div className="h-3 bg-white/10 rounded-full w-1/4" />
-      </div>
+    <div className="absolute bottom-0 left-0 w-full p-2 space-y-2">
+      <div className="h-3 bg-white/10 rounded-full w-3/4" />
+      <div className="h-2 bg-white/10 rounded-full w-1/2" />
     </div>
     <style>{`
       @keyframes shimmer {
@@ -108,14 +105,14 @@ export const MovieSkeleton = () => (
 );
 
 export const StarRating = ({ rating }: { rating: number | undefined }) => {
-  if (rating === undefined || rating === null) return <span className="text-white/30 text-xs italic">NR</span>;
+  if (rating === undefined || rating === null) return <span className="text-white/30 text-[10px] italic">NR</span>;
   const numRating = typeof rating === 'number' ? rating : parseFloat(rating);
-  if (isNaN(numRating)) return <span className="text-white/30 text-xs italic">NR</span>;
+  if (isNaN(numRating)) return <span className="text-white/30 text-[10px] italic">NR</span>;
   
   return (
-    <div className="flex items-center gap-1.5 text-yellow-500/90 font-sans">
-      <Star size={12} fill="currentColor" />
-      <span className="text-sm font-bold text-white/90">
+    <div className="flex items-center gap-1 text-yellow-500 font-sans">
+      <Star size={10} fill="currentColor" />
+      <span className="text-[11px] font-bold text-white/90">
         {numRating.toFixed(1)}
       </span>
     </div>
@@ -130,22 +127,22 @@ export const PosterMarquee = React.memo(({ movies, onMovieClick }: { movies: Mov
     const marqueeMovies = [...sourceMovies, ...sourceMovies];
   
     return (
-      <div className="relative w-full overflow-hidden py-8 border-y border-white/5 bg-black/40 backdrop-blur-sm mb-8 transition-all duration-500">
-        <div className="absolute top-0 bottom-0 left-0 w-32 z-10 bg-gradient-to-r from-black to-transparent pointer-events-none" />
-        <div className="absolute top-0 bottom-0 right-0 w-32 z-10 bg-gradient-to-l from-black to-transparent pointer-events-none" />
+      <div className="relative w-full overflow-hidden py-4 border-y border-white/5 bg-black/40 backdrop-blur-sm mb-6 transition-all duration-500">
+        <div className="absolute top-0 bottom-0 left-0 w-24 z-10 bg-gradient-to-r from-black to-transparent pointer-events-none" />
+        <div className="absolute top-0 bottom-0 right-0 w-24 z-10 bg-gradient-to-l from-black to-transparent pointer-events-none" />
         <div className="flex animate-marquee hover:[animation-play-state:paused]" style={{ width: 'max-content' }}>
           {marqueeMovies.map((movie, index) => (
              <div 
                key={`${movie.id}-${index}`} 
-               className="flex-shrink-0 w-32 md:w-48 mx-3 cursor-pointer group relative transition-all duration-500 ease-out hover:scale-105 hover:z-10"
+               className="flex-shrink-0 w-24 md:w-32 mx-2 cursor-pointer group relative transition-all duration-500 ease-out hover:scale-105 hover:z-10"
                onClick={() => onMovieClick(movie)}
              >
-                <div className="aspect-[2/3] rounded-xl overflow-hidden shadow-2xl group-hover:shadow-[0_0_25px_rgba(220,38,38,0.3)] transition-all duration-500">
+                <div className="aspect-[2/3] rounded-lg overflow-hidden shadow-2xl group-hover:shadow-[0_0_20px_rgba(220,38,38,0.2)] transition-all duration-500">
                     <img 
                       src={movie.poster_path ? `${TMDB_IMAGE_BASE}${movie.poster_path}` : (movie.poster || "https://placehold.co/300x450/333/FFF?text=Movie")} 
                       alt={movie.title || "Movie"} 
                       loading="lazy"
-                      className="w-full h-full object-cover opacity-60 grayscale group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-500"
+                      className="w-full h-full object-cover opacity-70 grayscale group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-500"
                     />
                 </div>
              </div>
@@ -225,60 +222,57 @@ export const MovieCard = React.forwardRef<HTMLDivElement, MovieCardProps>(({ mov
     
     // Progress Bar Logic
     const progress = movie.play_progress || 0;
-    const showProgress = progress > 0 && progress < 98; // Don't show if barely started or finished
+    const showProgress = progress > 0 && progress < 98; 
   
     return (
       <div 
         ref={ref}
-        className="group relative rounded-xl overflow-hidden cursor-pointer transition-all duration-500 ease-[cubic-bezier(0.33,1,0.68,1)] hover:z-20 hover:scale-[1.03] hover:shadow-[0_10px_40px_rgba(0,0,0,0.5)] font-sans"
+        className="group relative rounded-lg overflow-hidden cursor-pointer transition-all duration-300 ease-out hover:z-20 hover:scale-[1.04] hover:shadow-2xl font-sans bg-white/5 border border-white/5"
         onClick={() => onClick(movie)}
       >
-        <div className="aspect-[2/3] overflow-hidden bg-white/5 relative">
-           {!posterUrl && <div className="absolute inset-0 flex items-center justify-center text-white/20"><Film size={40}/></div>}
+        <div className="aspect-[2/3] overflow-hidden relative">
           <img 
             src={posterUrl} 
             alt={movie.title || "Movie Poster"} 
             loading="lazy"
-            className="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-110"
+            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
           />
           
-          {/* Aesthetic Progress Bar */}
           {showProgress && (
-              <div className="absolute bottom-0 left-0 w-full h-[3px] bg-white/10 z-20">
+              <div className="absolute bottom-0 left-0 w-full h-[2px] bg-white/10 z-20">
                   <div 
-                    className="h-full bg-gradient-to-r from-red-600 via-orange-500 to-red-600 shadow-[0_0_10px_rgba(255,50,0,0.8)] transition-all duration-500" 
+                    className="h-full bg-red-600 shadow-[0_0_8px_rgba(220,38,38,0.8)] transition-all duration-500" 
                     style={{ width: `${progress}%` }}
                   />
               </div>
           )}
 
-          {/* Liquid Glass Overlay on Hover */}
-          <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent opacity-60 group-hover:opacity-90 transition-opacity duration-500 pointer-events-none" />
+          {/* Compact Gradient Overlay */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent opacity-40 group-hover:opacity-80 transition-opacity duration-300" />
           
-          {/* Content Overlay - Shifted Up slightly to avoid progress bar overlap */}
-          <div className="absolute inset-0 p-4 pb-6 flex flex-col justify-end translate-y-4 group-hover:translate-y-0 transition-transform duration-500 ease-[cubic-bezier(0.33,1,0.68,1)] pointer-events-none">
-             <div className="flex flex-col gap-1 mb-2">
+          {/* Action Buttons - Compact */}
+          <div className="absolute top-1.5 right-1.5 flex flex-col gap-1.5 opacity-0 group-hover:opacity-100 transition-all duration-200 transform translate-x-2 group-hover:translate-x-0 z-30">
+               <button 
+                 onClick={(e) => { e.stopPropagation(); onToggleWatched(movie); }}
+                 className={`p-1.5 rounded-md backdrop-blur-md shadow-lg transition-all hover:scale-110 active:scale-95 ${isWatched ? 'text-green-400 bg-black/80' : 'text-white/90 bg-black/60 hover:bg-white hover:text-black'}`}
+              >
+                 {isWatched ? <Check size={14} strokeWidth={3} /> : <Eye size={14} />}
+              </button>
+          </div>
+
+          {/* Info - High Density */}
+          <div className="absolute inset-x-0 bottom-0 p-2.5 flex flex-col justify-end translate-y-1 group-hover:translate-y-0 transition-transform duration-300">
+             <div className="space-y-0.5 pointer-events-none">
                 {isFuture && (
-                  <span className="w-fit bg-red-600/90 backdrop-blur-sm text-white text-[10px] font-bold px-2 py-0.5 rounded-md shadow-lg mb-1 animate-pulse">COMING SOON</span>
+                  <span className="w-fit bg-red-600/90 text-white text-[8px] font-black px-1.5 py-0.5 rounded shadow mb-1">UPCOMING</span>
                 )}
-                <h3 className="text-white font-bold text-base leading-tight drop-shadow-md line-clamp-2 transform translate-y-2 group-hover:translate-y-0 transition-transform duration-500 delay-75">{movie.title || movie.name}</h3>
-                <div className="flex items-center justify-between text-white/70 text-xs transform translate-y-2 group-hover:translate-y-0 transition-transform duration-500 delay-100">
+                <h3 className="text-white font-bold text-xs leading-tight line-clamp-1 drop-shadow-md">{movie.title || movie.name}</h3>
+                <div className="flex items-center justify-between text-white/60 text-[10px] font-medium">
                   <span>{year || 'TBA'}</span>
                   <StarRating rating={rating} />
                 </div>
              </div>
           </div>
-        </div>
-
-        {/* Action Buttons - Clean Icon Only */}
-        <div className="absolute top-2 right-2 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-x-4 group-hover:translate-x-0 z-30">
-             <button 
-               onClick={(e) => { e.stopPropagation(); onToggleWatched(movie); }}
-               className={`p-2 rounded-full backdrop-blur-md shadow-lg transition-all hover:scale-110 active:scale-95 ${isWatched ? 'text-green-400 bg-black/60' : 'text-white/80 bg-black/40 hover:bg-white hover:text-black'}`}
-               title={isWatched ? "Mark Unwatched" : "Mark Watched"}
-            >
-               {isWatched ? <Check size={16} strokeWidth={3} /> : <Eye size={16} />}
-            </button>
         </div>
       </div>
     );
@@ -299,20 +293,20 @@ export const PersonCard = React.forwardRef<HTMLDivElement, PersonCardProps>(({ p
     return (
         <div 
             ref={ref}
-            className="group relative rounded-full md:rounded-xl overflow-hidden cursor-pointer transition-all duration-500 hover:scale-105 hover:z-20 hover:shadow-xl font-sans"
+            className="group relative rounded-lg overflow-hidden cursor-pointer transition-all duration-300 hover:scale-105 hover:z-20 font-sans"
             onClick={() => onClick(person.id)}
         >
-            <div className="aspect-square md:aspect-[2/3] overflow-hidden bg-white/5 relative">
+            <div className="aspect-[2/3] overflow-hidden bg-white/5 relative border border-white/5">
                 <img 
                     src={imageUrl} 
                     alt={person.name} 
                     loading="lazy"
-                    className="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-110"
+                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-80" />
-                <div className="absolute bottom-0 left-0 w-full p-4 text-center md:text-left">
-                     <h3 className="text-white font-bold text-xs md:text-lg leading-tight mb-1 line-clamp-1">{person.name}</h3>
-                     <p className="text-red-400 text-[10px] md:text-xs font-medium uppercase tracking-wider hidden md:block">{person.known_for_department || "Artist"}</p>
+                <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-60" />
+                <div className="absolute bottom-0 left-0 w-full p-2.5">
+                     <h3 className="text-white font-bold text-xs leading-tight mb-0.5 line-clamp-1">{person.name}</h3>
+                     <p className="text-red-400 text-[9px] font-black uppercase tracking-wider">{person.known_for_department || "Artist"}</p>
                 </div>
             </div>
         </div>
