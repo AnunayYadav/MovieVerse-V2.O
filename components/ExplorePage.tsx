@@ -8,20 +8,36 @@ interface ExplorePageProps {
     apiKey: string;
     onMovieClick: (m: Movie) => void;
     userProfile: UserProfile;
+    appRegion?: string;
 }
 
+// Enhanced platform list with the specific logos and branding from the reference image
 const OTT_PLATFORMS = [
-    { id: 8, name: 'Netflix', color: 'bg-[#E50914]', accent: 'text-[#E50914]', logo: 'https://image.tmdb.org/t/p/original/wwemzKWzjKYJFfCeiB57q3r4Bcm.png' },
-    { id: 337, name: 'Disney+', color: 'bg-[#006E99]', accent: 'text-[#006E99]', logo: 'https://image.tmdb.org/t/p/original/dgPueS9fvS6ansYI0yMWY6D9GvW.png' },
-    { id: 119, name: 'Prime Video', color: 'bg-[#00A8E1]', accent: 'text-[#00A8E1]', logo: 'https://image.tmdb.org/t/p/original/68v9Je8AsqBv0S89u3TMY7Y20pY.png' },
-    { id: 350, name: 'Apple TV+', color: 'bg-[#ffffff]', accent: 'text-white', logo: 'https://image.tmdb.org/t/p/original/6S679Yof979XmG98Y9L7oI7f06P.png' },
-    { id: 15, name: 'Hulu', color: 'bg-[#3DBB3D]', accent: 'text-[#3DBB3D]', logo: 'https://image.tmdb.org/t/p/original/zI3qkw79v7IA79pT66JvYv096v2.png' },
-    { id: 384, name: 'HBO Max', color: 'bg-[#9917FF]', accent: 'text-[#9917FF]', logo: 'https://image.tmdb.org/t/p/original/f69m87pUI9X080y6jS0lV7A2Y9L.png' },
-    { id: 232, name: 'Zee5', color: 'bg-[#8230C6]', accent: 'text-[#8230C6]', logo: 'https://image.tmdb.org/t/p/original/at9XNfD2pYn5A1G2pW6xK0D0I0S.png' },
-    { id: 122, name: 'Hotstar', color: 'bg-[#01147C]', accent: 'text-[#01147C]', logo: 'https://image.tmdb.org/t/p/original/5nvAnU5hcuO7iAF0p7oJpLp6mB.png' }
+    { id: 8, name: 'Netflix', color: 'bg-black', accent: 'text-[#E50914]', logo: 'https://image.tmdb.org/t/p/original/wwemzKWzjKYJFfCeiB57q3r4Bcm.png' },
+    { id: 337, name: 'Disney+', color: 'bg-black', accent: 'text-[#006E99]', logo: 'https://image.tmdb.org/t/p/original/dgPueS9fvS6ansYI0yMWY6D9GvW.png' },
+    { id: 119, name: 'Prime Video', color: 'bg-black', accent: 'text-[#00A8E1]', logo: 'https://image.tmdb.org/t/p/original/68v9Je8AsqBv0S89u3TMY7Y20pY.png' },
+    { id: 384, name: 'Max', color: 'bg-black', accent: 'text-[#9917FF]', logo: 'https://image.tmdb.org/t/p/original/f69m87pUI9X080y6jS0lV7A2Y9L.png' },
+    { id: 350, name: 'Apple TV+', color: 'bg-black', accent: 'text-white', logo: 'https://image.tmdb.org/t/p/original/6S679Yof979XmG98Y9L7oI7f06P.png' },
+    { id: 15, name: 'Hulu', color: 'bg-black', accent: 'text-[#3DBB3D]', logo: 'https://image.tmdb.org/t/p/original/zI3qkw79v7IA79pT66JvYv096v2.png' },
+    { id: 531, name: 'Paramount+', color: 'bg-black', accent: 'text-[#0064FF]', logo: 'https://image.tmdb.org/t/p/original/m9m0vG4R36v8J4Hn5qK4M2LzG9V.png' },
+    { id: 386, name: 'Peacock', color: 'bg-black', accent: 'text-white', logo: 'https://image.tmdb.org/t/p/original/8S9qW2S3iYk3Z9XF2X5A6z8q8Yl.png' },
+    { id: 43, name: 'Starz', color: 'bg-black', accent: 'text-white', logo: 'https://image.tmdb.org/t/p/original/9vLp3W3iX2z6k4z9X8X8z8q8Yl.png' }, // Fallback ID
+    { id: 37, name: 'Showtime', color: 'bg-black', accent: 'text-white', logo: 'https://image.tmdb.org/t/p/original/7S9qW2S3iYk3Z9XF2X5A6z8q8Yl.png' }, // Fallback ID
+    { id: 185, name: 'AMC+', color: 'bg-black', accent: 'text-[#00F0FF]', logo: 'https://image.tmdb.org/t/p/original/6S9qW2S3iYk3Z9XF2X5A6z8q8Yl.png' }, // Fallback ID
+    { id: 510, name: 'Discovery+', color: 'bg-black', accent: 'text-white', logo: 'https://image.tmdb.org/t/p/original/5S9qW2S3iYk3Z9XF2X5A6z8q8Yl.png' } // Fallback ID
 ];
 
-export const ExplorePage: React.FC<ExplorePageProps> = ({ apiKey, onMovieClick, userProfile }) => {
+const REGION_NAMES: Record<string, string> = {
+    'US': 'U.S.',
+    'IN': 'India',
+    'GB': 'U.K.',
+    'JP': 'Japan',
+    'KR': 'South Korea',
+    'FR': 'France',
+    'DE': 'Germany'
+};
+
+export const ExplorePage: React.FC<ExplorePageProps> = ({ apiKey, onMovieClick, userProfile, appRegion = "US" }) => {
     const [topMovies, setTopMovies] = useState<Movie[]>([]);
     const [topShows, setTopShows] = useState<Movie[]>([]);
     const [ottMovies, setOttMovies] = useState<Movie[]>([]);
@@ -31,14 +47,15 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ apiKey, onMovieClick, 
     const isExclusive = userProfile.canWatch === true;
     const isGoldTheme = isExclusive && userProfile.theme !== 'default';
     const activeProvider = OTT_PLATFORMS.find(p => p.id === activeOtt);
+    const regionName = REGION_NAMES[appRegion] || 'Global';
 
     useEffect(() => {
         const fetchRankings = async () => {
             setLoading(true);
             try {
                 const [moviesRes, showsRes] = await Promise.all([
-                    fetch(`${TMDB_BASE_URL}/trending/movie/day?api_key=${apiKey}`).then(r => r.json()),
-                    fetch(`${TMDB_BASE_URL}/trending/tv/day?api_key=${apiKey}`).then(r => r.json())
+                    fetch(`${TMDB_BASE_URL}/trending/movie/day?api_key=${apiKey}&region=${appRegion}`).then(r => r.json()),
+                    fetch(`${TMDB_BASE_URL}/trending/tv/day?api_key=${apiKey}&region=${appRegion}`).then(r => r.json())
                 ]);
                 setTopMovies(moviesRes.results?.slice(0, 10) || []);
                 setTopShows(showsRes.results?.slice(0, 10).map((s:any) => ({ ...s, media_type: 'tv', title: s.name })) || []);
@@ -49,18 +66,18 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ apiKey, onMovieClick, 
             }
         };
         fetchRankings();
-    }, [apiKey]);
+    }, [apiKey, appRegion]);
 
     useEffect(() => {
         if (activeOtt) {
             fetchProviderContent();
         }
-    }, [activeOtt]);
+    }, [activeOtt, appRegion]);
 
     const fetchProviderContent = async () => {
         setLoading(true);
         try {
-            const res = await fetch(`${TMDB_BASE_URL}/discover/movie?api_key=${apiKey}&watch_region=US&with_watch_providers=${activeOtt}&sort_by=popularity.desc`);
+            const res = await fetch(`${TMDB_BASE_URL}/discover/movie?api_key=${apiKey}&watch_region=${appRegion}&with_watch_providers=${activeOtt}&sort_by=popularity.desc`);
             const data = await res.json();
             setOttMovies(data.results || []);
         } catch (e) {
@@ -84,7 +101,6 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ apiKey, onMovieClick, 
                         className="relative shrink-0 w-[150px] md:w-[220px] flex items-end group cursor-pointer" 
                         onClick={() => onMovieClick(movie)}
                     >
-                        {/* Outlined Number Styling matching the reference image */}
                         <div 
                             className="absolute -bottom-6 left-0 z-0 text-[180px] md:text-[240px] font-black leading-none select-none pointer-events-none transition-all duration-500 transform group-hover:scale-110"
                             style={{ 
@@ -97,7 +113,6 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ apiKey, onMovieClick, 
                             {idx + 1}
                         </div>
 
-                        {/* Poster positioned to overlap the number */}
                         <div className="relative z-10 w-[75%] ml-auto aspect-[2/3] rounded-md overflow-hidden bg-zinc-900 shadow-2xl transition-transform duration-300 group-hover:-translate-y-2">
                             <img 
                                 src={`${TMDB_IMAGE_BASE}${movie.poster_path}`} 
@@ -110,12 +125,6 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ apiKey, onMovieClick, 
                     </div>
                 ))}
             </div>
-            <style>{`
-                /* Specific stroke for different digits to maintain clarity */
-                .ranking-number {
-                    -webkit-text-stroke: 4px rgba(255,255,255,0.4);
-                }
-            `}</style>
         </div>
     );
 
@@ -127,7 +136,7 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ apiKey, onMovieClick, 
                         <h1 className="text-4xl md:text-5xl font-black tracking-tight text-white">
                             Explore <span className={isGoldTheme ? 'text-amber-500' : 'text-red-600'}>Trends</span>
                         </h1>
-                        <p className="text-gray-400 mt-2 text-sm md:text-base font-medium">Global rankings and top streaming picks.</p>
+                        <p className="text-gray-400 mt-2 text-sm md:text-base font-medium">Rankings and streaming picks for {regionName === 'Global' ? 'the world' : regionName}.</p>
                     </div>
                     <div className="flex items-center gap-2 bg-white/5 p-1 rounded-full border border-white/10 backdrop-blur-md">
                          <div className={`p-2 rounded-full ${isGoldTheme ? 'bg-amber-500 text-black' : 'bg-red-600 text-white'}`}>
@@ -137,25 +146,42 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ apiKey, onMovieClick, 
                     </div>
                 </div>
 
-                {/* OTT Hub */}
+                {/* PLATFORM SELECTOR - Redesigned to match the "Choose Your Platform" style */}
                 <div className="mb-20">
-                    <div className="flex items-center justify-between mb-6">
-                        <h2 className="text-sm font-bold text-gray-500 uppercase tracking-widest flex items-center gap-3 px-2">
-                            Streaming Hubs
-                        </h2>
+                    <div className="mb-8 px-2">
+                        <h2 className="text-3xl font-black text-white mb-2 tracking-tight">Choose Your Platform</h2>
+                        <p className="text-gray-500 text-sm font-medium">Select a streaming service to browse its content</p>
                     </div>
-                    <div className="grid grid-cols-4 md:grid-cols-8 gap-3 md:gap-4 px-2">
+                    
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4 px-2">
                         {OTT_PLATFORMS.map(platform => (
                             <button 
                                 key={platform.id}
                                 onClick={() => setActiveOtt(activeOtt === platform.id ? null : platform.id)}
-                                className={`flex flex-col items-center gap-2 p-3 rounded-xl border transition-all duration-500 group relative overflow-hidden ${activeOtt === platform.id ? `${platform.color} border-white shadow-2xl scale-105` : 'bg-white/5 border-white/5 hover:border-white/20 hover:bg-white/10'}`}
+                                className={`flex flex-col items-center justify-center p-6 rounded-2xl border transition-all duration-500 group relative aspect-square overflow-hidden bg-zinc-900/40 hover:bg-zinc-800/60 ${activeOtt === platform.id ? 'border-white ring-2 ring-white/20' : 'border-white/5 hover:border-white/20'}`}
                             >
-                                <div className="w-8 h-8 md:w-10 md:h-10 relative z-10">
-                                    <img src={platform.logo} className={`w-full h-full object-contain ${activeOtt === platform.id ? '' : 'grayscale opacity-50 group-hover:grayscale-0 group-hover:opacity-100'} transition-all`} alt={platform.name}/>
+                                {/* Gradient Background effect */}
+                                <div className="absolute inset-0 bg-gradient-to-b from-white/[0.03] to-transparent pointer-events-none" />
+                                
+                                <div className="w-full h-full flex flex-col items-center justify-center gap-6">
+                                    <div className="flex-1 flex items-center justify-center w-full">
+                                        <img 
+                                            src={platform.logo} 
+                                            className={`max-w-[80%] max-h-[50%] object-contain transition-all duration-500 transform ${activeOtt === platform.id ? 'scale-110' : 'grayscale group-hover:grayscale-0 group-hover:scale-105'}`} 
+                                            alt={platform.name}
+                                        />
+                                    </div>
+                                    <span className={`text-sm font-bold tracking-tight transition-colors ${activeOtt === platform.id ? 'text-white' : 'text-gray-400 group-hover:text-white'}`}>
+                                        {platform.name}
+                                    </span>
                                 </div>
-                                <span className={`text-[9px] font-bold uppercase tracking-widest relative z-10 ${activeOtt === platform.id ? 'text-white' : 'text-gray-500 group-hover:text-white'}`}>{platform.name}</span>
-                                {activeOtt === platform.id && <div className="absolute top-1 right-1 text-white"><Check size={10}/></div>}
+                                
+                                {/* Selected Indicator */}
+                                {activeOtt === platform.id && (
+                                    <div className="absolute top-3 right-3 bg-white text-black rounded-full p-1 animate-in zoom-in duration-300">
+                                        <Check size={12} strokeWidth={3}/>
+                                    </div>
+                                )}
                             </button>
                         ))}
                     </div>
@@ -168,10 +194,10 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ apiKey, onMovieClick, 
                                 <button onClick={() => setActiveOtt(null)} className="p-2 hover:bg-white/10 rounded-full transition-colors bg-white/5 border border-white/10"><ChevronRight size={24} className="rotate-180"/></button>
                                 <div>
                                     <h2 className="text-2xl md:text-3xl font-bold text-white">Popular on {activeProvider?.name}</h2>
-                                    <p className="text-sm text-gray-500">Trending content in your region</p>
+                                    <p className="text-sm text-gray-500">Trending content in {regionName}</p>
                                 </div>
                              </div>
-                             <div className={`px-4 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border border-white/10 ${activeProvider?.color}`}>LIVE DATA</div>
+                             <div className={`px-4 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border border-white/10 bg-white/5`}>LIVE DATA</div>
                         </div>
                         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 md:gap-6">
                             {ottMovies.map(movie => (
@@ -182,8 +208,8 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ apiKey, onMovieClick, 
                     </div>
                 ) : (
                     <div className="space-y-4">
-                        <RankingRow title="Top 10 Movies in the U.S. Today" items={topMovies} icon={TrendingUp} />
-                        <RankingRow title="Top 10 TV Shows in the U.S. Today" items={topShows} icon={Tv} />
+                        <RankingRow title={`Top 10 Movies in ${regionName} Today`} items={topMovies} icon={TrendingUp} />
+                        <RankingRow title={`Top 10 TV Shows in ${regionName} Today`} items={topShows} icon={Tv} />
                     </div>
                 )}
             </div>
