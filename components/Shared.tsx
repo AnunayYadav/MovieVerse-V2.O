@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Film, Star, Eye, Download, X, Check, ArrowLeft } from 'lucide-react';
 import { Movie } from '../types';
@@ -59,8 +60,8 @@ export const formatCurrency = (value: number | undefined, region: string = 'US')
 
 export const BrandLogo = ({ className = "", size = 24, accentColor = "text-red-600" }: { className?: string, size?: number, accentColor?: string }) => {
     const [imgError, setImgError] = useState(false);
-    // Path relative to index.html since React is SPA served from root
-    const logoPath = "./public/logo.png";
+    // Path updated to favicon.png as requested
+    const logoPath = "./favicon.png";
 
     if (imgError) {
         return <Film size={size} className={`${accentColor} ${className}`} />;

@@ -875,9 +875,16 @@ export default function App() {
                 </div>
 
                 <div className="flex items-center gap-3">
-                    <button onClick={() => setIsNotificationOpen(true)} className="relative text-gray-400 hover:text-white transition-colors">
+                    <button 
+                        onClick={() => setIsSettingsOpen(true)} 
+                        className="text-gray-400 hover:text-white transition-colors p-2 hover:bg-white/10 rounded-full"
+                        title="Settings"
+                    >
+                        <Settings size={20} />
+                    </button>
+                    <button onClick={() => setIsNotificationOpen(true)} className="relative text-gray-400 hover:text-white transition-colors p-2 hover:bg-white/10 rounded-full">
                         <Bell size={20} />
-                        {hasUnread && <span className={`absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full ${isGoldTheme ? 'bg-amber-500' : 'bg-red-500'}`}></span>}
+                        {hasUnread && <span className={`absolute top-2 right-2 w-2 h-2 rounded-full ${isGoldTheme ? 'bg-amber-500' : 'bg-red-500'}`}></span>}
                     </button>
                     <button onClick={() => setIsProfileOpen(true)} className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white shadow-lg transition-transform overflow-hidden hover:scale-105 ${userProfile.avatarBackground || (isGoldTheme ? 'bg-gradient-to-br from-amber-500 to-yellow-900 shadow-amber-900/40' : 'bg-gradient-to-br from-red-600 to-red-900 shadow-red-900/40')}`}>
                         {userProfile.avatar ? (<img key={userProfile.avatar} src={userProfile.avatar} alt={userProfile.name} className="w-full h-full object-cover" />) : (userProfile.name.charAt(0).toUpperCase())}
