@@ -943,6 +943,8 @@ export default function App() {
                                             <div className="flex items-center gap-2"><Filter size={14}/> <span>Sort</span></div>
                                             <ChevronDown size={12} className="text-gray-500 group-hover:text-white transition-colors"/>
                                         </button>
+                                        {/* Invisible bridge to prevent closing when moving to dropdown */}
+                                        <div className="absolute top-full left-0 w-full h-2 bg-transparent pointer-events-auto opacity-0 group-hover:block hidden"></div>
                                         <div className="absolute top-full right-0 mt-2 w-48 bg-[#1a1a1a]/95 backdrop-blur-xl border border-white/10 rounded-xl overflow-hidden shadow-2xl opacity-0 group-hover:opacity-100 scale-95 group-hover:scale-100 pointer-events-none group-hover:pointer-events-auto transition-all origin-top-right z-50 p-1">
                                             {[
                                                 { label: 'Popularity', value: 'popularity.desc' },
@@ -964,6 +966,8 @@ export default function App() {
                                             <div className="flex items-center gap-2"><Globe size={14}/> <span>{selectedRegion === 'Global' ? 'Global' : selectedRegion}</span></div>
                                             <ChevronDown size={12} className="text-gray-500 group-hover:text-white transition-colors"/>
                                         </button>
+                                        {/* Invisible bridge */}
+                                        <div className="absolute top-full left-0 w-full h-2 bg-transparent pointer-events-auto opacity-0 group-hover:block hidden"></div>
                                         <div className="absolute top-full right-0 mt-2 w-48 bg-[#1a1a1a]/95 backdrop-blur-xl border border-white/10 rounded-xl overflow-hidden shadow-2xl opacity-0 group-hover:opacity-100 scale-95 group-hover:scale-100 pointer-events-none group-hover:pointer-events-auto transition-all origin-top-right z-50 max-h-60 overflow-y-auto custom-scrollbar p-1">
                                             {['Global', 'US', 'IN', 'JP', 'KR', 'GB', 'FR', 'DE'].map(region => (
                                                 <button key={region} onClick={() => setSelectedRegion(region)} className={`w-full text-left px-3 py-2 text-xs font-medium rounded-lg transition-colors flex items-center justify-between ${selectedRegion === region ? 'bg-white/10 text-white' : 'text-gray-400 hover:bg-white/5 hover:text-white'}`}>
@@ -980,6 +984,8 @@ export default function App() {
                                             <div className="flex items-center gap-2"><Languages size={14}/> <span>{selectedLanguage === 'All' ? 'All' : selectedLanguage.toUpperCase()}</span></div>
                                             <ChevronDown size={12} className="text-gray-500 group-hover:text-white transition-colors"/>
                                         </button>
+                                        {/* Invisible bridge */}
+                                        <div className="absolute top-full left-0 w-full h-2 bg-transparent pointer-events-auto opacity-0 group-hover:block hidden"></div>
                                         <div className="absolute top-full right-0 mt-2 w-48 bg-[#1a1a1a]/95 backdrop-blur-xl border border-white/10 rounded-xl overflow-hidden shadow-2xl opacity-0 group-hover:opacity-100 scale-95 group-hover:scale-100 pointer-events-none group-hover:pointer-events-auto transition-all origin-top-right z-50 max-h-60 overflow-y-auto custom-scrollbar p-1">
                                             {['All', 'en', 'hi', 'ja', 'ko', 'es', 'fr'].map(lang => (
                                                 <button key={lang} onClick={() => setSelectedLanguage(lang)} className={`w-full text-left px-3 py-2 text-xs font-medium rounded-lg transition-colors flex items-center justify-between ${selectedLanguage === lang ? 'bg-white/10 text-white' : 'text-gray-400 hover:bg-white/5 hover:text-white'}`}>
