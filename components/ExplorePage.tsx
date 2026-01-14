@@ -139,8 +139,8 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ apiKey, onMovieClick, 
             <div className="flex gap-4 md:gap-8 overflow-x-auto pb-8 pt-4 px-2 hide-scrollbar">
                 {items.map((movie, idx) => (
                     <div key={movie.id} className="relative shrink-0 w-[160px] md:w-[240px] flex items-end group cursor-pointer" onClick={() => onMovieClick(movie)}>
-                        <div className="absolute -bottom-8 left-0 z-0 text-[180px] md:text-[260px] font-black leading-none select-none pointer-events-none transition-all duration-700 transform group-hover:scale-110 opacity-40 group-hover:opacity-100"
-                            style={{ color: '#000', WebkitTextStroke: '2px rgba(255,255,255,0.2)', transform: 'translateX(-30%)', fontFamily: 'Inter, sans-serif' }}>
+                        <div className="absolute -bottom-8 left-0 z-0 text-[180px] md:text-[260px] font-black leading-none select-none pointer-events-none transition-all duration-700 transform group-hover:scale-110 opacity-80 group-hover:opacity-100"
+                            style={{ color: '#000', WebkitTextStroke: '2px rgba(255,255,255,0.4)', transform: 'translateX(-30%)', fontFamily: 'Inter, sans-serif' }}>
                             {idx + 1}
                         </div>
                         <div className="relative z-10 w-[80%] ml-auto aspect-[2/3] rounded-xl overflow-hidden bg-zinc-900 shadow-2xl transition-all duration-500 group-hover:-translate-y-4 border border-white/5 group-hover:border-white/20">
