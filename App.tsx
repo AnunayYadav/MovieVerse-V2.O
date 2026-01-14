@@ -930,18 +930,18 @@ export default function App() {
                            )}
 
                            {/* Filter Bar with WRAPPING instead of scroll to fix dropdown clip */}
-                           <div className="sticky top-16 z-40 bg-[#030303]/80 backdrop-blur-xl border-b border-white/5 px-4 md:px-12 py-4 flex flex-col md:flex-row md:items-center justify-between gap-4 animate-in fade-in">
+                           <div className="sticky top-16 z-40 bg-[#030303]/80 backdrop-blur-xl border-b border-white/5 px-4 md:px-12 py-3 flex flex-col md:flex-row md:items-center justify-between gap-4 animate-in fade-in">
                                 <div className="flex items-center gap-3">
-                                    <h2 className="text-2xl font-bold text-white tracking-tight">{searchQuery ? `Results for "${searchQuery}"` : selectedCategory === 'All' ? 'Trending Now' : selectedCategory}</h2>
-                                    <span className="px-2.5 py-0.5 rounded-lg bg-white/5 text-xs font-bold text-gray-400 border border-white/5">{movies.length > 0 ? movies.length : 0}</span>
+                                    <h2 className="text-xl font-bold text-white tracking-tight">{searchQuery ? `Results for "${searchQuery}"` : selectedCategory === 'All' ? 'Trending Now' : selectedCategory}</h2>
+                                    <span className="px-2 py-0.5 rounded-lg bg-white/5 text-[10px] font-bold text-gray-400 border border-white/5">{movies.length > 0 ? movies.length : 0}</span>
                                 </div>
 
-                                <div className="flex items-center gap-3 flex-wrap">
+                                <div className="flex items-center gap-2 flex-wrap">
                                     {/* Sort */}
                                     <div className="relative group shrink-0">
-                                        <button className="flex items-center gap-2 px-4 py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-sm font-medium text-gray-200 transition-all hover:border-white/20 active:scale-95 min-w-[120px] justify-between">
-                                            <div className="flex items-center gap-2"><Filter size={16}/> <span>Sort</span></div>
-                                            <ChevronDown size={14} className="text-gray-500 group-hover:text-white transition-colors"/>
+                                        <button className="flex items-center gap-2 px-3 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-xs font-medium text-gray-200 transition-all hover:border-white/20 active:scale-95 min-w-[100px] justify-between">
+                                            <div className="flex items-center gap-2"><Filter size={14}/> <span>Sort</span></div>
+                                            <ChevronDown size={12} className="text-gray-500 group-hover:text-white transition-colors"/>
                                         </button>
                                         <div className="absolute top-full right-0 mt-2 w-48 bg-[#1a1a1a]/95 backdrop-blur-xl border border-white/10 rounded-xl overflow-hidden shadow-2xl opacity-0 group-hover:opacity-100 scale-95 group-hover:scale-100 pointer-events-none group-hover:pointer-events-auto transition-all origin-top-right z-50 p-1">
                                             {[
@@ -950,7 +950,7 @@ export default function App() {
                                                 { label: 'Top Rated', value: 'vote_average.desc' },
                                                 { label: 'Revenue', value: 'revenue.desc' }
                                             ].map(opt => (
-                                                <button key={opt.value} onClick={() => setSortOption(opt.value)} className={`w-full text-left px-3 py-2.5 text-xs font-medium rounded-lg transition-colors flex items-center justify-between ${sortOption === opt.value ? 'bg-white/10 text-white' : 'text-gray-400 hover:bg-white/5 hover:text-white'}`}>
+                                                <button key={opt.value} onClick={() => setSortOption(opt.value)} className={`w-full text-left px-3 py-2 text-xs font-medium rounded-lg transition-colors flex items-center justify-between ${sortOption === opt.value ? 'bg-white/10 text-white' : 'text-gray-400 hover:bg-white/5 hover:text-white'}`}>
                                                     {opt.label}
                                                     {sortOption === opt.value && <Check size={12} className={accentText}/>}
                                                 </button>
@@ -960,13 +960,13 @@ export default function App() {
 
                                     {/* Region */}
                                     <div className="relative group shrink-0">
-                                        <button className="flex items-center gap-2 px-4 py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-sm font-medium text-gray-200 transition-all hover:border-white/20 active:scale-95 min-w-[120px] justify-between">
-                                            <div className="flex items-center gap-2"><Globe size={16}/> <span>{selectedRegion === 'Global' ? 'Global' : selectedRegion}</span></div>
-                                            <ChevronDown size={14} className="text-gray-500 group-hover:text-white transition-colors"/>
+                                        <button className="flex items-center gap-2 px-3 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-xs font-medium text-gray-200 transition-all hover:border-white/20 active:scale-95 min-w-[100px] justify-between">
+                                            <div className="flex items-center gap-2"><Globe size={14}/> <span>{selectedRegion === 'Global' ? 'Global' : selectedRegion}</span></div>
+                                            <ChevronDown size={12} className="text-gray-500 group-hover:text-white transition-colors"/>
                                         </button>
                                         <div className="absolute top-full right-0 mt-2 w-48 bg-[#1a1a1a]/95 backdrop-blur-xl border border-white/10 rounded-xl overflow-hidden shadow-2xl opacity-0 group-hover:opacity-100 scale-95 group-hover:scale-100 pointer-events-none group-hover:pointer-events-auto transition-all origin-top-right z-50 max-h-60 overflow-y-auto custom-scrollbar p-1">
                                             {['Global', 'US', 'IN', 'JP', 'KR', 'GB', 'FR', 'DE'].map(region => (
-                                                <button key={region} onClick={() => setSelectedRegion(region)} className={`w-full text-left px-3 py-2.5 text-xs font-medium rounded-lg transition-colors flex items-center justify-between ${selectedRegion === region ? 'bg-white/10 text-white' : 'text-gray-400 hover:bg-white/5 hover:text-white'}`}>
+                                                <button key={region} onClick={() => setSelectedRegion(region)} className={`w-full text-left px-3 py-2 text-xs font-medium rounded-lg transition-colors flex items-center justify-between ${selectedRegion === region ? 'bg-white/10 text-white' : 'text-gray-400 hover:bg-white/5 hover:text-white'}`}>
                                                     {region === 'Global' ? 'Global' : region === 'IN' ? 'India' : region}
                                                     {selectedRegion === region && <Check size={12} className={accentText}/>}
                                                 </button>
@@ -976,13 +976,13 @@ export default function App() {
 
                                     {/* Language */}
                                     <div className="relative group shrink-0">
-                                        <button className="flex items-center gap-2 px-4 py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-sm font-medium text-gray-200 transition-all hover:border-white/20 active:scale-95 min-w-[120px] justify-between">
-                                            <div className="flex items-center gap-2"><Languages size={16}/> <span>{selectedLanguage === 'All' ? 'All' : selectedLanguage.toUpperCase()}</span></div>
-                                            <ChevronDown size={14} className="text-gray-500 group-hover:text-white transition-colors"/>
+                                        <button className="flex items-center gap-2 px-3 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-xs font-medium text-gray-200 transition-all hover:border-white/20 active:scale-95 min-w-[100px] justify-between">
+                                            <div className="flex items-center gap-2"><Languages size={14}/> <span>{selectedLanguage === 'All' ? 'All' : selectedLanguage.toUpperCase()}</span></div>
+                                            <ChevronDown size={12} className="text-gray-500 group-hover:text-white transition-colors"/>
                                         </button>
                                         <div className="absolute top-full right-0 mt-2 w-48 bg-[#1a1a1a]/95 backdrop-blur-xl border border-white/10 rounded-xl overflow-hidden shadow-2xl opacity-0 group-hover:opacity-100 scale-95 group-hover:scale-100 pointer-events-none group-hover:pointer-events-auto transition-all origin-top-right z-50 max-h-60 overflow-y-auto custom-scrollbar p-1">
                                             {['All', 'en', 'hi', 'ja', 'ko', 'es', 'fr'].map(lang => (
-                                                <button key={lang} onClick={() => setSelectedLanguage(lang)} className={`w-full text-left px-3 py-2.5 text-xs font-medium rounded-lg transition-colors flex items-center justify-between ${selectedLanguage === lang ? 'bg-white/10 text-white' : 'text-gray-400 hover:bg-white/5 hover:text-white'}`}>
+                                                <button key={lang} onClick={() => setSelectedLanguage(lang)} className={`w-full text-left px-3 py-2 text-xs font-medium rounded-lg transition-colors flex items-center justify-between ${selectedLanguage === lang ? 'bg-white/10 text-white' : 'text-gray-400 hover:bg-white/5 hover:text-white'}`}>
                                                     {lang === 'All' ? 'All Languages' : lang === 'en' ? 'English' : lang === 'hi' ? 'Hindi' : lang.toUpperCase()}
                                                     {selectedLanguage === lang && <Check size={12} className={accentText}/>}
                                                 </button>
