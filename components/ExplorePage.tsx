@@ -21,7 +21,6 @@ const REGION_NAMES: Record<string, string> = {
     'DE': 'Germany'
 };
 
-// Platforms we prioritize visually and check against API results
 const PRIORITY_BRANDS = [
     { name: 'Netflix', tmdbId: 8 },
     { name: 'Disney Plus', tmdbId: 337 },
@@ -54,28 +53,24 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ apiKey, onMovieClick, 
     const activeProvider = platforms.find(p => p.provider_id === activeOtt);
     const regionName = REGION_NAMES[appRegion] || 'Global';
 
-    // Fetch dynamic platforms using Watchmode + TMDB IDs
     useEffect(() => {
         const fetchPlatforms = async () => {
             setLoadingPlatforms(true);
             const wmKey = getWatchmodeKey();
             
             try {
-                // If Watchmode key is present, we try to get their high-res logos
                 let wmSources: WatchmodeSource[] = [];
                 if (wmKey) {
                     const wmRes = await fetch(`https://api.watchmode.com/v1/sources/?apiKey=${wmKey}&regions=${appRegion}`);
                     wmSources = await wmRes.json();
                 }
 
-                // Get TMDB providers for the region to ensure IDs match discovery API
                 const tmdbRes = await fetch(`${TMDB_BASE_URL}/watch/providers/movie?api_key=${apiKey}&watch_region=${appRegion}`);
                 const tmdbData = await tmdbRes.json();
                 
                 if (tmdbData.results) {
                     const mappedPlatforms = tmdbData.results
                         .map((provider: Provider) => {
-                            // Try to find a matching high-res logo from Watchmode
                             const wmMatch = wmSources.find(s => 
                                 s.name.toLowerCase().replace(/\s+/g, '') === 
                                 provider.provider_name.toLowerCase().replace(/\s+/g, '')
@@ -205,61 +200,52 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ apiKey, onMovieClick, 
                     </div>
                 </div>
 
-                {/* AESTHETIC STREAMING HUB SECTION */}
                 <div className="mb-20">
-                    <div className="mb-10 px-2 flex flex-col md:flex-row md:items-end justify-between gap-4">
-                        <div>
-                            <h2 className="text-4xl font-black text-white mb-2 tracking-tight">Choose Your Platform</h2>
-                            <p className="text-gray-500 text-sm font-medium tracking-wide">Select a streaming service to browse its content</p>
-                        </div>
-                        {!loadingPlatforms && platforms.some(p => p.isWM) && (
-                            <span className="text-[9px] uppercase tracking-[0.2em] font-black text-white/20 bg-white/5 px-3 py-1.5 rounded-full border border-white/10">Enhanced by Watchmode</span>
-                        )}
+                    <div className="mb-10 px-2">
+                        <h2 className="text-4xl font-black text-white mb-2 tracking-tight">Choose Your Platform</h2>
+                        <p className="text-gray-500 text-sm font-medium tracking-wide">Select a streaming service to browse its content</p>
                     </div>
                     
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-6 px-2">
                         {loadingPlatforms ? (
                             [...Array(12)].map((_, i) => (
-                                <div key={i} className="aspect-square bg-zinc-900/40 rounded-[2.5rem] animate-pulse border border-white/5"></div>
+                                <div key={i} className="aspect-square bg-[#111] rounded-2xl animate-pulse border border-white/5"></div>
                             ))
                         ) : (
                             platforms.map(platform => (
                                 <button 
                                     key={platform.provider_id}
                                     onClick={() => setActiveOtt(activeOtt === platform.provider_id ? null : platform.provider_id)}
-                                    className={`flex flex-col items-center justify-center p-8 rounded-[2.5rem] border transition-all duration-500 group relative aspect-square overflow-hidden bg-[#0a0a0a] hover:bg-zinc-900 ${activeOtt === platform.provider_id ? 'border-white ring-4 ring-white/10 scale-105 shadow-[0_0_50px_rgba(255,255,255,0.15)]' : 'border-white/5 hover:border-white/20'}`}
+                                    className={`flex flex-col items-center justify-center p-6 rounded-2xl border transition-all duration-300 group relative aspect-square overflow-hidden bg-[#0d0d0d] hover:bg-[#141414] ${activeOtt === platform.provider_id ? 'border-white/40 ring-1 ring-white/10 shadow-[0_0_40px_rgba(0,0,0,0.8)]' : 'border-white/5 hover:border-white/10'}`}
                                 >
-                                    {/* Premium glass sheen effect */}
-                                    <div className="absolute inset-0 bg-gradient-to-br from-white/[0.04] to-transparent pointer-events-none group-hover:opacity-100 transition-opacity" />
-                                    
-                                    <div className="w-full h-full flex flex-col items-center justify-between py-2 relative z-10">
-                                        <div className="flex-1 flex items-center justify-center w-full relative">
+                                    <div className="w-full h-full flex flex-col items-center justify-between relative z-10">
+                                        <div className="flex-1 flex items-center justify-center w-full px-2">
                                             <img 
                                                 src={platform.logo_path} 
-                                                className={`max-w-[100%] max-h-[100%] object-contain rounded-2xl transition-all duration-700 transform ${activeOtt === platform.provider_id ? 'scale-110 drop-shadow-[0_0_20px_rgba(255,255,255,0.3)]' : 'grayscale opacity-50 group-hover:grayscale-0 group-hover:opacity-100 group-hover:scale-110'}`} 
+                                                className={`max-w-full max-h-[70%] object-contain transition-all duration-500 transform ${activeOtt === platform.provider_id ? 'scale-110 drop-shadow-[0_0_15px_rgba(255,255,255,0.2)]' : 'opacity-80 group-hover:opacity-100 group-hover:scale-105'}`} 
                                                 alt={platform.provider_name}
                                                 onError={(e) => {
                                                     e.currentTarget.src = "https://placehold.co/200x200/111/FFF?text=" + platform.provider_name;
                                                 }}
                                             />
                                         </div>
-                                        <span className={`text-[11px] font-black uppercase tracking-[0.2em] mt-6 transition-all duration-300 text-center ${activeOtt === platform.provider_id ? 'text-white translate-y-0' : 'text-gray-600 group-hover:text-white translate-y-1 group-hover:translate-y-0'}`}>
+                                        <span className={`text-[11px] font-bold mt-4 transition-all duration-300 text-center line-clamp-1 ${activeOtt === platform.provider_id ? 'text-white' : 'text-gray-500 group-hover:text-gray-300'}`}>
                                             {platform.provider_name}
                                         </span>
                                     </div>
                                     
                                     {activeOtt === platform.provider_id && (
-                                        <div className="absolute top-4 right-4 bg-white text-black rounded-full p-1.5 shadow-2xl animate-in zoom-in duration-300">
-                                            <Check size={14} strokeWidth={4}/>
+                                        <div className="absolute top-3 right-3 bg-white text-black rounded-full p-1 shadow-lg animate-in zoom-in duration-300">
+                                            <Check size={10} strokeWidth={4}/>
                                         </div>
                                     )}
                                 </button>
                             ))
                         )}
                         {!loadingPlatforms && platforms.length === 0 && (
-                            <div className="col-span-full py-16 text-center text-gray-500 border-2 border-dashed border-white/5 rounded-[2.5rem] bg-zinc-900/20">
+                            <div className="col-span-full py-16 text-center text-gray-500 border border-dashed border-white/10 rounded-2xl bg-zinc-900/10">
                                 <AlertCircle className="mx-auto mb-4 opacity-50" size={40}/>
-                                <p className="font-bold tracking-tight">Streaming data unavailable for this region.</p>
+                                <p className="font-bold">Streaming data unavailable for this region.</p>
                             </div>
                         )}
                     </div>
