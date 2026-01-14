@@ -25,6 +25,7 @@ interface MoviePageProps {
     onKeywordClick: (keyword: Keyword) => void;
     onCollectionClick: (collectionId: number) => void;
     onCompare?: (m: Movie) => void;
+    onProgress?: (movie: Movie, progressData: any) => void;
 }
 
 const MovieDetailsSkeleton = () => (
@@ -44,7 +45,7 @@ const MovieDetailsSkeleton = () => (
 export const MoviePage: React.FC<MoviePageProps> = ({ 
     movie, onClose, apiKey, onPersonClick, onToggleWatchlist, isWatchlisted, 
     onSwitchMovie, onOpenListModal, onToggleFavorite, isFavorite, isWatched, onToggleWatched, userProfile,
-    onKeywordClick, onCollectionClick, onCompare
+    onKeywordClick, onCollectionClick, onCompare, onProgress
 }) => {
     const [details, setDetails] = useState<MovieDetails | null>(null);
     const [collection, setCollection] = useState<CollectionDetails | null>(null);
@@ -92,12 +93,10 @@ export const MoviePage: React.FC<MoviePageProps> = ({
     }, [activeTab, trivia, loadingTrivia, details]);
 
     const displayData = { ...movie, ...details } as MovieDetails;
-    const isTv = movie.media_type === 'tv' || displayData.first_air_date;
     const title = displayData.title || displayData.name;
     const releaseDate = displayData.release_date || displayData.first_air_date || 'TBA';
-    const trailer = displayData.videos?.results?.find(v => v.type === 'Trailer' && v.site === 'YouTube');
     
-    // Globally picking US as default for streaming data in the absence of user selection
+    // Globally picking a primary region for standard streaming data visibility
     const providers = displayData["watch/providers"]?.results?.['US'];
 
     return (
@@ -106,7 +105,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
             {loading && !details ? <MovieDetailsSkeleton /> : (
                 <div className="flex flex-col pb-20">
                     <div className="relative h-[65vh] bg-black">
-                        <img src={`${TMDB_BACKDROP_BASE}${displayData.backdrop_path}`} className="w-full h-full object-cover opacity-60" alt="" />
+                        <img src={displayData.backdrop_path ? `${TMDB_BACKDROP_BASE}${displayData.backdrop_path}` : "https://placehold.co/1200x600"} className="w-full h-full object-cover opacity-60" alt="" />
                         <div className="absolute bottom-0 left-0 w-full p-10 bg-gradient-to-t from-[#0a0a0a] to-transparent">
                             <h2 className="text-4xl md:text-6xl font-black text-white mb-4">{title}</h2>
                             <div className="flex items-center gap-6 text-gray-300 font-bold mb-8">
@@ -114,7 +113,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                 <span className="flex items-center gap-2"><Star size={18} className="text-yellow-500" fill="currentColor"/> {displayData.vote_average?.toFixed(1)}</span>
                             </div>
                             <button onClick={() => setShowPlayer(true)} className="px-10 py-4 bg-red-600 text-white rounded-xl font-bold flex items-center gap-3">
-                                <PlayCircle size={24}/> Watch Global Feed
+                                <PlayCircle size={24}/> Watch Worldwide Feed
                             </button>
                         </div>
                     </div>
@@ -132,7 +131,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                             <img key={p.provider_id} src={`${TMDB_IMAGE_BASE}${p.logo_path}`} className="w-12 h-12 rounded-xl" title={p.provider_name} />
                                         ))}
                                     </div>
-                                ) : <p className="text-gray-500 text-sm italic">Global streaming data unavailable.</p>}
+                                ) : <p className="text-gray-500 text-sm italic">Universal streaming data unavailable.</p>}
                             </div>
                         </div>
                     </div>

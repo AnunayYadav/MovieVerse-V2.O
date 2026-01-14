@@ -95,8 +95,6 @@ export default function App() {
   const accentText = isGoldTheme ? "text-amber-500" : "text-red-600";
   const accentBg = isGoldTheme ? "bg-amber-500" : "bg-red-600";
 
-  // --- MISSING HANDLERS IMPLEMENTATION ---
-
   const handleLogin = (profile?: UserProfile) => {
     localStorage.setItem('movieverse_auth', 'true');
     if (profile) {
@@ -145,8 +143,6 @@ export default function App() {
     setTmdbCollectionId(collectionId);
     setSelectedCategory("All");
   };
-
-  // --- END OF HANDLERS ---
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -422,7 +418,6 @@ export default function App() {
                           <Compass size={18}/> Explore
                       </button>
                   </div>
-                  {/* ... other nav items */}
               </div>
           </div>
       </div>
@@ -505,6 +500,11 @@ export default function App() {
             onCollectionClick={handleTmdbCollectionClick} 
         /> 
       )}
+      
+      <ProfilePage isOpen={isProfileOpen} onClose={() => setIsProfileOpen(false)} profile={userProfile} onSave={(p) => { setUserProfile(p); localStorage.setItem('movieverse_profile', JSON.stringify(p)); }} />
+      <PersonPage personId={selectedPersonId || 0} onClose={() => setSelectedPersonId(null)} apiKey={apiKey} onMovieClick={(m) => { setSelectedPersonId(null); setTimeout(() => setSelectedMovie(m), 300); }} />
+      <ComparisonModal isOpen={isComparisonOpen} onClose={() => setIsComparisonOpen(false)} baseMovie={comparisonBaseMovie} apiKey={apiKey} />
+      <NotificationModal isOpen={isNotificationOpen} onClose={() => setIsNotificationOpen(false)} userProfile={userProfile} />
     </div>
   );
 }

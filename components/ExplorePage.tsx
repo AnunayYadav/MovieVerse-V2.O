@@ -41,7 +41,7 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ apiKey, onMovieClick, 
         const fetchPlatforms = async () => {
             setLoadingPlatforms(true);
             try {
-                // Fetching providers without region to get global set
+                // Fetching global providers without regional constraints
                 const tmdbRes = await fetch(`${TMDB_BASE_URL}/watch/providers/movie?api_key=${apiKey}`);
                 const tmdbData = await tmdbRes.json();
                 
@@ -75,6 +75,7 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ apiKey, onMovieClick, 
         const fetchRankings = async () => {
             setLoading(true);
             try {
+                // Global trends instead of regional
                 const [moviesRes, showsRes] = await Promise.all([
                     fetch(`${TMDB_BASE_URL}/trending/movie/day?api_key=${apiKey}`).then(r => r.json()),
                     fetch(`${TMDB_BASE_URL}/trending/tv/day?api_key=${apiKey}`).then(r => r.json())
@@ -203,11 +204,13 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ apiKey, onMovieClick, 
                     </div>
                 </div>
 
+                {/* Trending Content First */}
                 <div className="space-y-4">
                     <RankingRow title={`Today's Top 10 Movies`} items={topMovies} icon={TrendingUp} />
                     <RankingRow title={`Global Trending TV Series`} items={topShows} icon={Tv} />
                 </div>
 
+                {/* Platforms Hub Second */}
                 <div className="mt-32 mb-20 animate-in slide-in-from-bottom-10 duration-1000">
                     <div className="mb-12 px-2 flex flex-col md:flex-row md:items-end justify-between gap-6">
                         <div>
