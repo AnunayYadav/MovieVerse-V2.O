@@ -80,6 +80,10 @@ export default function App() {
   // Browse Dropdown State
   const [isBrowseOpen, setIsBrowseOpen] = useState(false);
 
+  // Keyboard Navigation Support
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const moviePageRef = useRef<any>(null); // To trigger internal player close if needed
+
   const watchlistRef = useRef<Movie[]>([]);
   const favoritesRef = useRef<Movie[]>([]);
   const watchedRef = useRef<Movie[]>([]);
@@ -110,6 +114,53 @@ export default function App() {
   const accentText = isGoldTheme ? "text-amber-500" : "text-red-600";
   const accentBg = isGoldTheme ? "bg-amber-500" : "bg-red-600";
   const accentBgLow = isGoldTheme ? "bg-amber-500/20" : "bg-red-600/20";
+
+  // Shortcut Handler
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't trigger shortcuts if user is typing in an input (except for Esc)
+      const isTyping = e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement;
+
+      if (e.key === 'Escape') {
+        // Hierarchical closing logic
+        if (isComparisonOpen) return setIsComparisonOpen(false);
+        if (selectedPersonId) return setSelectedPersonId(null);
+        if (isAIModalOpen) return setIsAIModalOpen(false);
+        if (isSettingsOpen) return setIsSettingsOpen(false);
+        if (isProfileOpen) return setIsProfileOpen(false);
+        if (isNotificationOpen) return setIsNotificationOpen(false);
+        if (isSidebarOpen) return setIsSidebarOpen(false);
+        
+        // If MoviePage is open, it handles its own internal "Player vs Details" Escape logic 
+        // through the prop callback onClose or internal state.
+        if (selectedMovie) {
+            // We'll let the MoviePage handle Esc internally or just close it here
+            return setSelectedMovie(null);
+        }
+      }
+
+      if (isTyping) return;
+
+      // Focus search with '/'
+      if (e.key === '/') {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+      }
+
+      // Alt based navigation
+      if (e.altKey) {
+        switch(e.key.toLowerCase()) {
+          case 'h': resetToHome(); break;
+          case 's': setIsSettingsOpen(true); break;
+          case 'a': resetFilters(); setSelectedCategory("CineAnalytics"); break;
+          case 'w': resetFilters(); setSelectedCategory("Watchlist"); break;
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isComparisonOpen, selectedPersonId, isAIModalOpen, isSettingsOpen, isProfileOpen, isNotificationOpen, isSidebarOpen, selectedMovie]);
 
   const resetAuthState = useCallback(() => {
     localStorage.removeItem('movieverse_auth');
@@ -687,7 +738,7 @@ export default function App() {
               <div className="mb-8 md:hidden relative group">
                   <input 
                       type="text" 
-                      placeholder="Search..." 
+                      placeholder="Search... (Press /)" 
                       className="w-full bg-white/5 border border-white/10 rounded-xl py-2.5 pl-10 pr-4 text-sm focus:outline-none focus:border-white/30"
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
@@ -700,13 +751,13 @@ export default function App() {
                   <div className="space-y-1">
                       <p className="px-3 text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Main</p>
                       <button onClick={resetToHome} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-all ${selectedCategory === "All" ? "bg-white/10 text-white" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>
-                          <Home size={18}/> Home
+                          <Home size={18}/> Home <span className="ml-auto text-[8px] opacity-40 hidden lg:inline">Alt+H</span>
                       </button>
                       <button onClick={() => { setIsSidebarOpen(false); setIsAIModalOpen(true); }} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold text-gray-400 hover:text-white hover:bg-white/5">
                           <Compass size={18}/> AI Explore
                       </button>
                       <button onClick={() => { resetFilters(); setSelectedCategory("CineAnalytics"); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-all ${selectedCategory === "CineAnalytics" ? "bg-white/10 text-white" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>
-                          <BarChart3 size={18}/> CineAnalytics
+                          <BarChart3 size={18}/> CineAnalytics <span className="ml-auto text-[8px] opacity-40 hidden lg:inline">Alt+A</span>
                       </button>
                   </div>
 
@@ -729,7 +780,7 @@ export default function App() {
                   <div className="space-y-1">
                       <p className="px-3 text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">My Library</p>
                       <button onClick={() => { resetFilters(); setSelectedCategory("Watchlist"); }} className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-bold transition-all ${selectedCategory === "Watchlist" ? "bg-white/10 text-white" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>
-                          <div className="flex items-center gap-3"><Bookmark size={18}/> Watchlist</div>
+                          <div className="flex items-center gap-3"><Bookmark size={18}/> Watchlist <span className="text-[8px] opacity-40 hidden lg:inline ml-1">Alt+W</span></div>
                           <span className="text-[10px] bg-white/5 px-1.5 rounded">{watchlist.length}</span>
                       </button>
                       <button onClick={() => { resetFilters(); setSelectedCategory("Favorites"); }} className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-bold transition-all ${selectedCategory === "Favorites" ? "bg-white/10 text-white" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>
@@ -745,7 +796,7 @@ export default function App() {
 
               <div className="mt-auto pt-6 border-t border-white/5 space-y-2">
                   <button onClick={() => { setIsSidebarOpen(false); setIsSettingsOpen(true); }} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold text-gray-400 hover:text-white hover:bg-white/5">
-                      <Settings size={18}/> Settings
+                      <Settings size={18}/> Settings <span className="ml-auto text-[8px] opacity-40 hidden lg:inline">Alt+S</span>
                   </button>
                   <button onClick={handleLogout} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold text-red-500 hover:bg-red-500/10 transition-colors">
                       <LogOut size={18}/> Sign Out
@@ -823,7 +874,17 @@ export default function App() {
 
             <div className="flex items-center gap-4">
                 <div className="relative hidden md:block w-64 lg:w-80 group">
-                    <input type="text" placeholder="Search movies, people, genres..." className={`w-full bg-[#1a1a1a] border border-white/5 rounded-full py-2 pl-10 pr-4 text-sm focus:outline-none transition-all text-white placeholder-gray-500 ${loading && searchQuery ? "border-opacity-50" : "focus:border-white/20"}`} value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} onFocus={() => setShowSuggestions(true)} onBlur={() => setTimeout(() => setShowSuggestions(false), 200)} onKeyDown={(e) => { if(e.key === 'Enter') handleSearchSubmit(searchQuery); }} />
+                    <input 
+                        ref={searchInputRef}
+                        type="text" 
+                        placeholder="Search... (Press /)" 
+                        className={`w-full bg-[#1a1a1a] border border-white/5 rounded-full py-2 pl-10 pr-4 text-sm focus:outline-none transition-all text-white placeholder-gray-500 ${loading && searchQuery ? "border-opacity-50" : "focus:border-white/20"}`} 
+                        value={searchQuery} 
+                        onChange={(e) => setSearchQuery(e.target.value)} 
+                        onFocus={() => setShowSuggestions(true)} 
+                        onBlur={() => setTimeout(() => setShowSuggestions(false), 200)} 
+                        onKeyDown={(e) => { if(e.key === 'Enter') handleSearchSubmit(searchQuery); }} 
+                    />
                     <Search className={`absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 transition-colors ${loading && searchQuery ? "text-white animate-pulse" : "group-focus-within:text-white"}`} size={16} />
                 </div>
 

@@ -76,6 +76,37 @@ export const MoviePage: React.FC<MoviePageProps> = ({
     const accentText = isGoldTheme ? "text-amber-500" : "text-red-500";
     const accentBg = isGoldTheme ? "bg-amber-500" : "bg-red-500";
 
+    // Escape listener for internal page state
+    useEffect(() => {
+        const handleEsc = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') {
+                if (viewingImage) {
+                    setViewingImage(null);
+                    e.stopPropagation();
+                    return;
+                }
+                if (showFullCast) {
+                    setShowFullCast(false);
+                    e.stopPropagation();
+                    return;
+                }
+                if (showFullCrew) {
+                    setShowFullCrew(false);
+                    e.stopPropagation();
+                    return;
+                }
+                if (showPlayer) {
+                    setShowPlayer(false);
+                    e.stopPropagation(); // Stop event from closing the entire MoviePage
+                    return;
+                }
+                // If nothing internal is open, the global handler in App.tsx will close the MoviePage
+            }
+        };
+        window.addEventListener('keydown', handleEsc, true); // Use capture to intercept before global
+        return () => window.removeEventListener('keydown', handleEsc, true);
+    }, [showPlayer, showFullCast, showFullCrew, viewingImage]);
+
     // Resume Logic
     useEffect(() => {
         if (movie.last_watched_data?.season) {
@@ -314,7 +345,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                 <button 
                                                     onClick={() => onToggleWatchlist(displayData)} 
                                                     className={`w-12 h-12 rounded-full glass hover:bg-white/10 flex items-center justify-center transition-all active:scale-95 group relative ${isWatchlisted ? 'text-green-400 border-green-500/30' : 'text-white'}`}
-                                                    title={isWatchlisted ? "Remove from Watchlist" : "Add to Watchlist"}
+                                                    title="Add to Watchlist"
                                                 >
                                                     {isWatchlisted ? <Check size={22} strokeWidth={2.5}/> : <Plus size={22}/>}
                                                 </button>
@@ -322,7 +353,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                 <button 
                                                     onClick={() => onToggleFavorite(displayData)} 
                                                     className={`w-12 h-12 rounded-full glass hover:bg-white/10 flex items-center justify-center transition-all active:scale-95 group ${isFavorite ? 'text-red-500' : 'text-white'}`}
-                                                    title={isFavorite ? "Remove from Favorites" : "Add to Favorites"}
+                                                    title="Add to Favorites"
                                                 >
                                                     <Heart size={22} fill={isFavorite ? "currentColor" : "none"}/>
                                                 </button>
@@ -635,6 +666,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                 <div className="mt-16 pt-10 border-t border-white/5">
                                     <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-3">
                                         <div className="p-1.5 rounded-lg bg-yellow-500/10 text-yellow-500">
+                                            <span className="hidden">AI recommends:</span>
                                             <Sparkles size={20}/>
                                         </div>
                                         More Like This
