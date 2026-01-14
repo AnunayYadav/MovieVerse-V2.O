@@ -1,13 +1,12 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Search, Film, Menu, TrendingUp, Tv, Ghost, Calendar, Star, X, Sparkles, Settings, Globe, BarChart3, Bookmark, Heart, Folder, Languages, Filter, ChevronDown, Info, Plus, Cloud, CloudOff, Clock, Bell, History, Users, Tag, Dice5, Crown, Radio, LayoutGrid, Award, Baby, Clapperboard, ChevronRight, PlayCircle, Megaphone, CalendarDays, Compass, Home, Map, Loader2, Trophy, RefreshCcw, Check, MonitorPlay, Layers, LogOut } from 'lucide-react';
+import { Search, Film, Menu, TrendingUp, Tv, Ghost, Calendar, Star, X, Sparkles, Settings, Globe, Bookmark, Heart, Folder, Languages, Filter, ChevronDown, Info, Plus, Cloud, CloudOff, Clock, Bell, History, Users, Tag, Dice5, Crown, Radio, LayoutGrid, Award, Baby, Clapperboard, ChevronRight, PlayCircle, Megaphone, CalendarDays, Compass, Home, Map, Loader2, Trophy, RefreshCcw, Check, MonitorPlay, Layers, LogOut } from 'lucide-react';
 import { Movie, UserProfile, GENRES_MAP, GENRES_LIST, INDIAN_LANGUAGES, MaturityRating, Keyword } from './types';
 import { LogoLoader, MovieSkeleton, MovieCard, PersonCard, PosterMarquee, TMDB_BASE_URL, TMDB_BACKDROP_BASE, TMDB_IMAGE_BASE, HARDCODED_TMDB_KEY, HARDCODED_GEMINI_KEY, getTmdbKey, getGeminiKey, BrandLogo } from './components/Shared';
 import { MoviePage } from './components/MovieDetails';
-import { AnalyticsDashboard } from './components/Analytics';
-import { ProfilePage, PersonPage, AIRecommendationModal, NotificationModal, ComparisonModal, AgeVerificationModal } from './components/Modals';
+import { ProfilePage, PersonPage, NotificationModal, ComparisonModal, AgeVerificationModal } from './components/Modals';
 import { SettingsPage } from './components/SettingsModal';
-import { generateSmartRecommendations, getSearchSuggestions } from './services/gemini';
+import { getSearchSuggestions } from './services/gemini';
 import { LoginPage } from './components/LoginPage';
 import { getSupabase, syncUserData, fetchUserData, signOut, getNotifications, triggerSystemNotification } from './services/supabase';
 import { LiveTV } from './components/LiveTV';
@@ -82,7 +81,6 @@ export default function App() {
 
   // Keyboard Navigation Support
   const searchInputRef = useRef<HTMLInputElement>(null);
-  const moviePageRef = useRef<any>(null); // To trigger internal player close if needed
 
   const watchlistRef = useRef<Movie[]>([]);
   const favoritesRef = useRef<Movie[]>([]);
@@ -100,11 +98,9 @@ export default function App() {
 
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [selectedPersonId, setSelectedPersonId] = useState<number | null>(null);
-  const [isAIModalOpen, setIsAIModalOpen] = useState(false);
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const [isComparisonOpen, setIsComparisonOpen] = useState(false);
   const [comparisonBaseMovie, setComparisonBaseMovie] = useState<Movie | null>(null);
-  const [aiContextReason, setAiContextReason] = useState<string | null>(null);
   
   const abortControllerRef = useRef<AbortController | null>(null);
 
@@ -118,41 +114,29 @@ export default function App() {
   // Shortcut Handler
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Don't trigger shortcuts if user is typing in an input (except for Esc)
       const isTyping = e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement;
 
       if (e.key === 'Escape') {
-        // Hierarchical closing logic
         if (isComparisonOpen) return setIsComparisonOpen(false);
         if (selectedPersonId) return setSelectedPersonId(null);
-        if (isAIModalOpen) return setIsAIModalOpen(false);
         if (isSettingsOpen) return setIsSettingsOpen(false);
         if (isProfileOpen) return setIsProfileOpen(false);
         if (isNotificationOpen) return setIsNotificationOpen(false);
         if (isSidebarOpen) return setIsSidebarOpen(false);
-        
-        // If MoviePage is open, it handles its own internal "Player vs Details" Escape logic 
-        // through the prop callback onClose or internal state.
-        if (selectedMovie) {
-            // We'll let the MoviePage handle Esc internally or just close it here
-            return setSelectedMovie(null);
-        }
+        if (selectedMovie) return setSelectedMovie(null);
       }
 
       if (isTyping) return;
 
-      // Focus search with '/'
       if (e.key === '/') {
         e.preventDefault();
         searchInputRef.current?.focus();
       }
 
-      // Alt based navigation
       if (e.altKey) {
         switch(e.key.toLowerCase()) {
           case 'h': resetToHome(); break;
           case 's': setIsSettingsOpen(true); break;
-          case 'a': resetFilters(); setSelectedCategory("CineAnalytics"); break;
           case 'w': resetFilters(); setSelectedCategory("Watchlist"); break;
         }
       }
@@ -160,7 +144,7 @@ export default function App() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isComparisonOpen, selectedPersonId, isAIModalOpen, isSettingsOpen, isProfileOpen, isNotificationOpen, isSidebarOpen, selectedMovie]);
+  }, [isComparisonOpen, selectedPersonId, isSettingsOpen, isProfileOpen, isNotificationOpen, isSidebarOpen, selectedMovie]);
 
   const resetAuthState = useCallback(() => {
     localStorage.removeItem('movieverse_auth');
@@ -514,13 +498,12 @@ export default function App() {
          setFeaturedMovie(selectedCategory === "Watchlist" ? list[0] : null); 
          setHasMore(false); return; 
     }
-    if (["CineAnalytics", "LiveTV", "Sports", "Genres", "Collections", "Countries", "Franchise"].includes(selectedCategory) && !activeCountry) return;
+    if (["LiveTV", "Sports", "Genres", "Collections", "Countries", "Franchise"].includes(selectedCategory) && !activeCountry) return;
     if (abortControllerRef.current) abortControllerRef.current.abort();
     const controller = new AbortController();
     abortControllerRef.current = controller;
     if (pageNum === 1) setMovies([]);
     setLoading(true);
-    setAiContextReason(null);
     const userAge = parseInt(userProfile.age || "0");
     const isAdult = !isNaN(userAge) && userAge >= 18;
     try {
@@ -734,7 +717,7 @@ export default function App() {
                   </button>
               </div>
 
-              {/* Mobile Search - Visible only in Sidebar on small screens */}
+              {/* Mobile Search */}
               <div className="mb-8 md:hidden relative group">
                   <input 
                       type="text" 
@@ -752,12 +735,6 @@ export default function App() {
                       <p className="px-3 text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Main</p>
                       <button onClick={resetToHome} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-all ${selectedCategory === "All" ? "bg-white/10 text-white" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>
                           <Home size={18}/> Home <span className="ml-auto text-[8px] opacity-40 hidden lg:inline">Alt+H</span>
-                      </button>
-                      <button onClick={() => { setIsSidebarOpen(false); setIsAIModalOpen(true); }} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold text-gray-400 hover:text-white hover:bg-white/5">
-                          <Compass size={18}/> AI Explore
-                      </button>
-                      <button onClick={() => { resetFilters(); setSelectedCategory("CineAnalytics"); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-all ${selectedCategory === "CineAnalytics" ? "bg-white/10 text-white" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>
-                          <BarChart3 size={18}/> CineAnalytics <span className="ml-auto text-[8px] opacity-40 hidden lg:inline">Alt+A</span>
                       </button>
                   </div>
 
@@ -838,9 +815,6 @@ export default function App() {
                     <button onClick={resetToHome} className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold transition-all ${selectedCategory === "All" && !searchQuery ? "bg-white/10 text-white" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>
                         <Home size={18} /> Home
                     </button>
-                    <button onClick={() => { setIsAIModalOpen(true); }} className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold transition-all text-gray-400 hover:text-white hover:bg-white/5`}>
-                        <Compass size={18} /> Explore
-                    </button>
                     
                     <div 
                         className="relative flex items-center h-full"
@@ -903,7 +877,7 @@ export default function App() {
 
       <div className="flex pt-16">
         <main className="flex-1 min-h-[calc(100vh-4rem)] w-full">
-           {selectedCategory === "CineAnalytics" ? ( <AnalyticsDashboard watchedMovies={watched} watchlist={watchlist} favorites={favorites} apiKey={apiKey} onMovieClick={setSelectedMovie} /> ) : selectedCategory === "LiveTV" ? ( <LiveTV userProfile={userProfile} /> ) : selectedCategory === "Sports" ? ( <LiveSports userProfile={userProfile} /> ) : selectedCategory === "Genres" ? (
+           {selectedCategory === "LiveTV" ? ( <LiveTV userProfile={userProfile} /> ) : selectedCategory === "Sports" ? ( <LiveSports userProfile={userProfile} /> ) : selectedCategory === "Genres" ? (
                <div className="animate-in fade-in slide-in-from-bottom-4">
                    <div className="p-8 md:p-12">
                        <h1 className="text-4xl md:text-5xl font-black text-white tracking-tight mb-2">All Genres</h1>
@@ -1162,7 +1136,6 @@ export default function App() {
       
       <ProfilePage isOpen={isProfileOpen} onClose={() => setIsProfileOpen(false)} profile={userProfile} onSave={(p) => { setUserProfile(p); localStorage.setItem('movieverse_profile', JSON.stringify(p)); }} />
       <PersonPage personId={selectedPersonId || 0} onClose={() => setSelectedPersonId(null)} apiKey={apiKey} onMovieClick={(m) => { setSelectedPersonId(null); setTimeout(() => setSelectedMovie(m), 300); }} />
-      <AIRecommendationModal isOpen={isAIModalOpen} onClose={() => setIsAIModalOpen(false)} apiKey={apiKey} />
       <ComparisonModal isOpen={isComparisonOpen} onClose={() => setIsComparisonOpen(false)} baseMovie={comparisonBaseMovie} apiKey={apiKey} />
       <SettingsPage isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} apiKey={apiKey} setApiKey={(k) => saveSettings(k)} geminiKey={geminiKey} setGeminiKey={(k) => saveGeminiKey(k)} maturityRating={maturityRating} setMaturityRating={setMaturityRating} profile={userProfile} onUpdateProfile={setUserProfile} onLogout={handleLogout} searchHistory={searchHistory} setSearchHistory={(h) => { setSearchHistory(h); localStorage.setItem('movieverse_search_history', JSON.stringify(h)); }} watchedMovies={watched} setWatchedMovies={(m) => { setWatched(m); localStorage.setItem('movieverse_watched', JSON.stringify(m)); }} />
       <NotificationModal isOpen={isNotificationOpen} onClose={() => setIsNotificationOpen(false)} onUpdate={checkUnreadNotifications} userProfile={userProfile} />
