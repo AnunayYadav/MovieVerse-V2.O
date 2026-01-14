@@ -8,18 +8,7 @@ interface ExplorePageProps {
     apiKey: string;
     onMovieClick: (m: Movie) => void;
     userProfile: UserProfile;
-    appRegion?: string;
 }
-
-const REGION_NAMES: Record<string, string> = {
-    'US': 'U.S.',
-    'IN': 'India',
-    'GB': 'U.K.',
-    'JP': 'Japan',
-    'KR': 'South Korea',
-    'FR': 'France',
-    'DE': 'Germany'
-};
 
 const BRAND_THEMES: Record<number, { accent: string, bg: string, text: string, gradient: string }> = {
     8: { accent: '#E50914', bg: '#000000', text: '#ffffff', gradient: 'from-[#E50914]/20 to-black' }, // Netflix
@@ -34,7 +23,7 @@ const BRAND_THEMES: Record<number, { accent: string, bg: string, text: string, g
 
 const DEFAULT_THEME = { accent: '#ef4444', bg: '#030303', text: '#ffffff', gradient: 'from-white/5 to-[#030303]' };
 
-export const ExplorePage: React.FC<ExplorePageProps> = ({ apiKey, onMovieClick, userProfile, appRegion = "US" }) => {
+export const ExplorePage: React.FC<ExplorePageProps> = ({ apiKey, onMovieClick, userProfile }) => {
     const [topMovies, setTopMovies] = useState<Movie[]>([]);
     const [topShows, setTopShows] = useState<Movie[]>([]);
     const [ottMovies, setOttMovies] = useState<Movie[]>([]);
@@ -47,37 +36,22 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ apiKey, onMovieClick, 
     const isGoldTheme = isExclusive && userProfile.theme !== 'default';
     const activeProvider = platforms.find(p => p.provider_id === activeOtt);
     const theme = activeOtt ? (BRAND_THEMES[activeOtt] || DEFAULT_THEME) : DEFAULT_THEME;
-    const regionName = REGION_NAMES[appRegion] || 'Global';
 
     useEffect(() => {
         const fetchPlatforms = async () => {
             setLoadingPlatforms(true);
-            const wmKey = getWatchmodeKey();
             try {
-                let wmSources: any[] = [];
-                if (wmKey) {
-                    const wmRes = await fetch(`https://api.watchmode.com/v1/sources/?apiKey=${wmKey}&regions=${appRegion}`);
-                    wmSources = await wmRes.json();
-                }
-
-                const tmdbRes = await fetch(`${TMDB_BASE_URL}/watch/providers/movie?api_key=${apiKey}&watch_region=${appRegion}`);
+                // Fetching providers without region to get global set
+                const tmdbRes = await fetch(`${TMDB_BASE_URL}/watch/providers/movie?api_key=${apiKey}`);
                 const tmdbData = await tmdbRes.json();
                 
                 if (tmdbData.results) {
                     const mappedPlatforms = tmdbData.results
-                        .map((provider: Provider) => {
-                            const wmMatch = Array.isArray(wmSources) ? wmSources.find(s => 
-                                s.name?.toLowerCase().replace(/\s+/g, '') === 
-                                provider.provider_name?.toLowerCase().replace(/\s+/g, '')
-                            ) : null;
-
-                            return {
-                                provider_id: provider.provider_id,
-                                provider_name: provider.provider_name,
-                                logo_path: wmMatch?.logo_url || `https://image.tmdb.org/t/p/original${provider.logo_path}`,
-                                isWM: !!wmMatch
-                            };
-                        })
+                        .map((provider: Provider) => ({
+                            provider_id: provider.provider_id,
+                            provider_name: provider.provider_name,
+                            logo_path: `https://image.tmdb.org/t/p/original${provider.logo_path}`,
+                        }))
                         .sort((a: any, b: any) => {
                             const aPri = [8, 337, 119, 384, 350, 15].indexOf(a.provider_id);
                             const bPri = [8, 337, 119, 384, 350, 15].indexOf(b.provider_id);
@@ -95,15 +69,15 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ apiKey, onMovieClick, 
             }
         };
         fetchPlatforms();
-    }, [apiKey, appRegion]);
+    }, [apiKey]);
 
     useEffect(() => {
         const fetchRankings = async () => {
             setLoading(true);
             try {
                 const [moviesRes, showsRes] = await Promise.all([
-                    fetch(`${TMDB_BASE_URL}/trending/movie/day?api_key=${apiKey}&region=${appRegion}`).then(r => r.json()),
-                    fetch(`${TMDB_BASE_URL}/trending/tv/day?api_key=${apiKey}&region=${appRegion}`).then(r => r.json())
+                    fetch(`${TMDB_BASE_URL}/trending/movie/day?api_key=${apiKey}`).then(r => r.json()),
+                    fetch(`${TMDB_BASE_URL}/trending/tv/day?api_key=${apiKey}`).then(r => r.json())
                 ]);
                 setTopMovies(moviesRes.results?.slice(0, 10) || []);
                 setTopShows(showsRes.results?.slice(0, 10).map((s:any) => ({ ...s, media_type: 'tv', title: s.name })) || []);
@@ -114,17 +88,17 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ apiKey, onMovieClick, 
             }
         };
         fetchRankings();
-    }, [apiKey, appRegion]);
+    }, [apiKey]);
 
     useEffect(() => {
         if (activeOtt) {
             setLoading(true);
-            fetch(`${TMDB_BASE_URL}/discover/movie?api_key=${apiKey}&watch_region=${appRegion}&with_watch_providers=${activeOtt}&sort_by=popularity.desc`)
+            fetch(`${TMDB_BASE_URL}/discover/movie?api_key=${apiKey}&with_watch_providers=${activeOtt}&sort_by=popularity.desc`)
                 .then(r => r.json())
                 .then(data => { setOttMovies(data.results || []); setLoading(false); })
                 .catch(() => setLoading(false));
         }
-    }, [activeOtt, apiKey, appRegion]);
+    }, [activeOtt, apiKey]);
 
     const RankingRow = ({ title, items, icon: Icon }: { title: string, items: Movie[], icon: any }) => (
         <div className="mb-20">
@@ -166,12 +140,9 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ apiKey, onMovieClick, 
                             <img src={activeProvider.logo_path} className="h-10 md:h-12 w-auto object-contain rounded-xl shadow-2xl" alt={activeProvider.provider_name} />
                             <div>
                                 <h2 className="text-xl md:text-3xl font-black text-white tracking-tight">{activeProvider.provider_name}</h2>
-                                <p className="text-xs md:text-sm font-bold opacity-60 uppercase tracking-widest">Streaming Collection</p>
+                                <p className="text-xs md:text-sm font-bold opacity-60 uppercase tracking-widest">Global Collection</p>
                             </div>
                         </div>
-                    </div>
-                    <div className="hidden md:flex items-center gap-3 px-4 py-2 rounded-full bg-white/10 border border-white/10">
-                        <span className="text-[10px] font-black uppercase tracking-widest text-white/80">Live Region: {regionName}</span>
                     </div>
                 </div>
 
@@ -183,7 +154,7 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ apiKey, onMovieClick, 
                             <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent" />
                             <div className="absolute bottom-0 left-0 p-8 md:p-12 w-full flex flex-col md:flex-row md:items-end justify-between gap-6">
                                 <div className="max-w-2xl">
-                                    <span className="inline-block px-3 py-1 rounded bg-white/20 backdrop-blur-md text-[10px] font-bold text-white uppercase tracking-widest mb-4">Must Watch</span>
+                                    <span className="inline-block px-3 py-1 rounded bg-white/20 backdrop-blur-md text-[10px] font-bold text-white uppercase tracking-widest mb-4">Trending Globally</span>
                                     <h3 className="text-3xl md:text-5xl font-black text-white mb-4 leading-tight">{ottMovies[0].title}</h3>
                                     <p className="text-white/70 text-sm md:text-base line-clamp-2">{ottMovies[0].overview}</p>
                                 </div>
@@ -196,7 +167,7 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ apiKey, onMovieClick, 
 
                     <div className="flex items-center justify-between mb-10">
                         <h4 className="text-2xl font-black text-white tracking-tight">Top Picks for You</h4>
-                        <span className="text-[10px] font-black uppercase tracking-widest opacity-40 px-3 py-1 rounded-full border border-white/10">Syncing...</span>
+                        <span className="text-[10px] font-black uppercase tracking-widest opacity-40 px-3 py-1 rounded-full border border-white/10">Global Sync</span>
                     </div>
 
                     <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-6 md:gap-8">
@@ -217,9 +188,9 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ apiKey, onMovieClick, 
                 <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-16 gap-6">
                     <div>
                         <h1 className="text-5xl md:text-7xl font-black tracking-tighter text-white">
-                            Trending <span className={isGoldTheme ? 'text-amber-500' : 'text-red-600'}>Now</span>
+                            Global <span className={isGoldTheme ? 'text-amber-500' : 'text-red-600'}>Trends</span>
                         </h1>
-                        <p className="text-gray-400 mt-4 text-sm md:text-lg font-medium max-w-xl">The most watched movies and TV shows across all networks in {regionName} right now.</p>
+                        <p className="text-gray-400 mt-4 text-sm md:text-lg font-medium max-w-xl">The most watched movies and TV shows across all networks worldwide.</p>
                     </div>
                     <div className="flex items-center gap-3 bg-white/5 p-2 rounded-3xl border border-white/10 backdrop-blur-md">
                          <div className={`p-3 rounded-2xl ${isGoldTheme ? 'bg-amber-500 text-black' : 'bg-red-600 text-white shadow-[0_0_20px_rgba(220,38,38,0.3)]'}`}>
@@ -227,30 +198,22 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ apiKey, onMovieClick, 
                          </div>
                          <div className="pr-4">
                             <span className="block text-[10px] uppercase tracking-[0.2em] font-black opacity-40">AI Engine</span>
-                            <span className="text-xs font-black">Live Data Sync</span>
+                            <span className="text-xs font-black">Worldwide Sync</span>
                          </div>
                     </div>
                 </div>
 
-                {/* Trending Content First */}
                 <div className="space-y-4">
                     <RankingRow title={`Today's Top 10 Movies`} items={topMovies} icon={TrendingUp} />
                     <RankingRow title={`Global Trending TV Series`} items={topShows} icon={Tv} />
                 </div>
 
-                {/* Platforms Hub Second */}
                 <div className="mt-32 mb-20 animate-in slide-in-from-bottom-10 duration-1000">
                     <div className="mb-12 px-2 flex flex-col md:flex-row md:items-end justify-between gap-6">
                         <div>
                             <h2 className="text-4xl md:text-6xl font-black text-white mb-4 tracking-tight">Your Apps</h2>
-                            <p className="text-gray-500 text-base md:text-lg font-medium tracking-wide">Enter an immersive world of content from your favorite providers.</p>
+                            <p className="text-gray-500 text-base md:text-lg font-medium tracking-wide">Enter an immersive world of content from global providers.</p>
                         </div>
-                        {!loadingPlatforms && platforms.some(p => p.isWM) && (
-                            <div className="flex items-center gap-3 bg-indigo-500/10 border border-indigo-500/20 px-5 py-2.5 rounded-full">
-                                <div className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse"></div>
-                                <span className="text-[10px] uppercase tracking-[0.2em] font-black text-indigo-400">Enhanced Quality</span>
-                            </div>
-                        )}
                     </div>
                     
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-8 px-2">
@@ -280,7 +243,6 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ apiKey, onMovieClick, 
                                             </span>
                                         </div>
                                     </div>
-                                    {/* Sheen effect */}
                                     <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                                 </button>
                             ))
