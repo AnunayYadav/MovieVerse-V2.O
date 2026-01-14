@@ -301,7 +301,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
 
                                         <div className="flex flex-row items-center gap-3 w-full sm:w-auto mt-6">
                                             {isExclusive && (
-                                                <button onClick={handleWatchClick} className={`font-bold py-3 px-2 sm:px-8 text-sm sm:text-base rounded-xl transition-all flex flex-1 sm:flex-none items-center justify-center gap-2 active:scale-95 shadow-xl hover:shadow-2xl ${isGoldTheme ? 'bg-gradient-to-r from-amber-600 to-amber-500 text-black shadow-amber-900/40' : 'bg-red-600 hover:bg-red-700 text-white'}`}>
+                                                <button onClick={handleWatchClick} className={`font-bold py-3 px-8 text-sm sm:text-base rounded-xl transition-all flex flex-1 sm:flex-none items-center justify-center gap-2 active:scale-95 shadow-xl hover:shadow-2xl ${isGoldTheme ? 'bg-gradient-to-r from-amber-600 to-amber-500 text-black shadow-amber-900/40' : 'bg-red-600 hover:bg-red-700 text-white'}`}>
                                                     <PlayCircle size={20} fill="currentColor" /> 
                                                     {movie.play_progress && movie.play_progress > 0 
                                                         ? `Resume` 
@@ -416,15 +416,15 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                 </div>
                                             </div>
 
-                                            {/* Crew - Horizontal Row */}
+                                            {/* Crew - Horizontal Row - Fixed B&W issue */}
                                             <div>
                                                 <div className="flex items-center justify-between mb-6">
                                                     <h3 className="text-xl font-bold text-white">Crew</h3>
                                                 </div>
                                                 <div className="flex overflow-x-auto gap-6 pb-4 hide-scrollbar">
                                                     {displayData.credits?.crew?.slice(0, 5).map((person) => (
-                                                        <div key={`${person.id}-${person.job}`} className="flex flex-col items-center text-center shrink-0 w-20">
-                                                            <div className="w-16 h-16 md:w-20 md:h-20 rounded-full overflow-hidden mb-3 bg-white/5 grayscale hover:grayscale-0 transition-all duration-500">
+                                                        <div key={`${person.id}-${person.job}`} onClick={() => onPersonClick(person.id)} className="flex flex-col items-center text-center shrink-0 w-20 cursor-pointer group">
+                                                            <div className="w-16 h-16 md:w-20 md:h-20 rounded-full overflow-hidden mb-3 bg-white/5 transition-all duration-500 border border-transparent group-hover:border-white/20">
                                                                 <img 
                                                                     src={person.profile_path ? `${TMDB_IMAGE_BASE}${person.profile_path}` : `https://ui-avatars.com/api/?name=${person.name}&background=333&color=fff`} 
                                                                     alt={person.name} 
@@ -594,26 +594,36 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                 </div>
                             </div>
 
-                            {/* FRANCHISE COLLECTION SECTION */}
+                            {/* FRANCHISE COLLECTION SECTION - Aesthetic & Compact Overhaul */}
                             {collection && collection.parts && collection.parts.length > 0 && (
                                 <div className="mt-16 pt-10 border-t border-white/5">
                                     <div className="flex items-center justify-between mb-6">
-                                        <h3 className="text-2xl font-bold text-white flex items-center gap-2">
-                                            <Layers size={24} className="text-purple-500"/> {collection.name}
+                                        <h3 className="text-xl font-bold text-white flex items-center gap-3">
+                                            <div className={`p-1.5 rounded-lg ${isGoldTheme ? 'bg-amber-500/10 text-amber-500' : 'bg-red-500/10 text-red-500'}`}>
+                                                <Layers size={20}/>
+                                            </div>
+                                            {collection.name}
                                         </h3>
                                     </div>
-                                    {/* Horizontal Scroll for Collection Parts */}
+                                    {/* Horizontal Scroll for Collection Parts - Smaller & Stylized */}
                                     <div className="flex overflow-x-auto gap-4 pb-4 custom-scrollbar">
                                         {collection.parts.map(part => (
-                                            <div key={part.id} className="min-w-[100px] md:min-w-[120px] cursor-pointer group" onClick={() => { onClose(); onSwitchMovie(part); }}>
-                                                <div className="aspect-[2/3] rounded-xl overflow-hidden bg-white/5 mb-3 relative shadow-lg group-hover:shadow-purple-900/30 transition-all">
-                                                    <img src={part.poster_path ? `${TMDB_IMAGE_BASE}${part.poster_path}` : "https://placehold.co/300x450"} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" alt={part.title}/>
+                                            <div key={part.id} className="min-w-[90px] md:min-w-[110px] cursor-pointer group" onClick={() => { if(part.id !== movie.id) { onClose(); onSwitchMovie(part); } }}>
+                                                <div className={`aspect-[2/3] rounded-lg overflow-hidden bg-white/5 mb-2 relative border transition-all duration-300 ${part.id === movie.id ? (isGoldTheme ? 'border-amber-500 shadow-lg shadow-amber-900/20' : 'border-red-500 shadow-lg shadow-red-900/20') : 'border-white/5 group-hover:border-white/20'}`}>
+                                                    <img 
+                                                        src={part.poster_path ? `${TMDB_IMAGE_BASE}${part.poster_path}` : "https://placehold.co/300x450"} 
+                                                        className={`w-full h-full object-cover transition-all duration-500 ${part.id === movie.id ? 'opacity-40 scale-110' : 'group-hover:scale-110 opacity-70 group-hover:opacity-100'}`} 
+                                                        alt={part.title}
+                                                    />
                                                     {part.id === movie.id && (
-                                                        <div className="absolute inset-0 bg-black/60 flex items-center justify-center font-bold text-xs uppercase tracking-widest text-white border-2 border-white/20">Current</div>
+                                                        <div className="absolute inset-0 flex items-center justify-center p-2 text-center">
+                                                            <span className="font-black text-[9px] uppercase tracking-widest text-white drop-shadow-lg">Current Title</span>
+                                                        </div>
                                                     )}
+                                                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                                                 </div>
-                                                <h4 className={`font-bold text-xs leading-tight ${part.id === movie.id ? 'text-purple-400' : 'text-gray-300 group-hover:text-white'}`}>{part.title}</h4>
-                                                <p className="text-[10px] text-gray-500">{part.release_date?.split('-')[0]}</p>
+                                                <h4 className={`font-bold text-[10px] leading-tight truncate px-1 transition-colors ${part.id === movie.id ? accentText : 'text-gray-400 group-hover:text-white'}`}>{part.title}</h4>
+                                                <p className="text-[9px] text-gray-500 mt-0.5 px-1 font-medium">{part.release_date?.split('-')[0] || 'TBA'}</p>
                                             </div>
                                         ))}
                                     </div>
@@ -623,7 +633,12 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                             {/* Similar Movies Section - Below Main Content */}
                             {displayData.similar?.results && displayData.similar.results.length > 0 && (
                                 <div className="mt-16 pt-10 border-t border-white/5">
-                                    <h3 className="text-2xl font-bold text-white mb-6 flex items-center gap-2"><Sparkles size={24} className="text-yellow-500"/> More Like This</h3>
+                                    <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-3">
+                                        <div className="p-1.5 rounded-lg bg-yellow-500/10 text-yellow-500">
+                                            <Sparkles size={20}/>
+                                        </div>
+                                        More Like This
+                                    </h3>
                                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
                                         {displayData.similar.results.slice(0, 12).map(sim => (
                                             <div key={sim.id} onClick={() => { onClose(); onSwitchMovie(sim); }}>
