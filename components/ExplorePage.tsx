@@ -209,14 +209,14 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ apiKey, onMovieClick, 
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-6 px-2">
                         {loadingPlatforms ? (
                             [...Array(12)].map((_, i) => (
-                                <div key={i} className="aspect-square bg-[#111] rounded-2xl animate-pulse border border-white/5"></div>
+                                <div key={i} className="aspect-[4/5] bg-[#111] rounded-2xl animate-pulse border border-white/5"></div>
                             ))
                         ) : (
                             platforms.map(platform => (
                                 <button 
                                     key={platform.provider_id}
                                     onClick={() => setActiveOtt(activeOtt === platform.provider_id ? null : platform.provider_id)}
-                                    className={`flex flex-col items-center justify-center p-6 rounded-2xl border transition-all duration-300 group relative aspect-square overflow-hidden bg-[#0d0d0d] hover:bg-[#141414] ${activeOtt === platform.provider_id ? 'border-white/40 ring-1 ring-white/10 shadow-[0_0_40px_rgba(0,0,0,0.8)]' : 'border-white/5 hover:border-white/10'}`}
+                                    className={`flex flex-col items-center justify-center p-6 rounded-2xl border transition-all duration-300 group relative aspect-[4/5] overflow-hidden bg-[#0d0d0d] hover:bg-[#141414] ${activeOtt === platform.provider_id ? 'border-white/40 ring-1 ring-white/10 shadow-[0_0_40px_rgba(0,0,0,0.8)]' : 'border-white/5 hover:border-white/10'}`}
                                 >
                                     <div className="w-full h-full flex flex-col items-center justify-between relative z-10">
                                         <div className="flex-1 flex items-center justify-center w-full px-2">
@@ -229,7 +229,7 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ apiKey, onMovieClick, 
                                                 }}
                                             />
                                         </div>
-                                        <span className={`text-[11px] font-bold mt-4 transition-all duration-300 text-center line-clamp-1 ${activeOtt === platform.provider_id ? 'text-white' : 'text-gray-500 group-hover:text-gray-300'}`}>
+                                        <span className={`text-[11px] font-bold mt-2 transition-all duration-300 text-center line-clamp-2 w-full pb-1 ${activeOtt === platform.provider_id ? 'text-white' : 'text-gray-500 group-hover:text-gray-300'}`}>
                                             {platform.provider_name}
                                         </span>
                                     </div>
