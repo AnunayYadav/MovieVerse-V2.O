@@ -1,6 +1,5 @@
 
 import React, { useState, useEffect } from 'react';
-/* Added Loader2 to imports from lucide-react */
 import { Award, TrendingUp, Tv, Film, Star, PlayCircle, Plus, LayoutGrid, Sparkles, ChevronRight, Check, AlertCircle, Loader2 } from 'lucide-react';
 import { Movie, UserProfile, Provider } from '../types';
 import { TMDB_BASE_URL, TMDB_IMAGE_BASE, MovieCard, MovieSkeleton } from './Shared';
@@ -22,8 +21,21 @@ const REGION_NAMES: Record<string, string> = {
     'DE': 'Germany'
 };
 
-// Platforms we prioritize if available in the API response for the region
-const BRAND_PRIORITY = ['Netflix', 'Disney Plus', 'Amazon Prime Video', 'Max', 'Apple TV Plus', 'Hulu', 'Paramount Plus', 'Peacock', 'Crunchyroll', 'Hotstar', 'Zee5', 'JioCinema'];
+// Priority list to ensure major streaming brands appear first in the grid
+const BRAND_PRIORITY = [
+    'Netflix', 
+    'Disney Plus', 
+    'Amazon Prime Video', 
+    'Max', 
+    'Apple TV Plus', 
+    'Hulu', 
+    'Paramount Plus', 
+    'Peacock', 
+    'Crunchyroll', 
+    'Hotstar', 
+    'Zee5', 
+    'JioCinema'
+];
 
 export const ExplorePage: React.FC<ExplorePageProps> = ({ apiKey, onMovieClick, userProfile, appRegion = "US" }) => {
     const [topMovies, setTopMovies] = useState<Movie[]>([]);
@@ -39,15 +51,15 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ apiKey, onMovieClick, 
     const activeProvider = platforms.find(p => p.provider_id === activeOtt);
     const regionName = REGION_NAMES[appRegion] || 'Global';
 
-    // Fetch Region-Specific Platforms from TMDB
+    // Fetch region-specific streaming providers from TMDB
     useEffect(() => {
         const fetchPlatforms = async () => {
             setLoadingPlatforms(true);
             try {
+                // We use TMDB's watch provider endpoint which is the industry standard for this data
                 const res = await fetch(`${TMDB_BASE_URL}/watch/providers/movie?api_key=${apiKey}&watch_region=${appRegion}`);
                 const data = await res.json();
                 if (data.results) {
-                    // Sort by priority brands first, then popularity
                     const sorted = (data.results as Provider[]).sort((a, b) => {
                         const aIdx = BRAND_PRIORITY.indexOf(a.provider_name);
                         const bIdx = BRAND_PRIORITY.indexOf(b.provider_name);
@@ -56,7 +68,7 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ apiKey, onMovieClick, 
                         if (bIdx !== -1) return 1;
                         return 0;
                     });
-                    setPlatforms(sorted.slice(0, 12)); // Take top 12 for the grid
+                    setPlatforms(sorted.slice(0, 12)); 
                 }
             } catch (e) {
                 console.error("Failed to fetch platforms", e);
@@ -154,7 +166,7 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ apiKey, onMovieClick, 
                         <h1 className="text-4xl md:text-5xl font-black tracking-tight text-white">
                             Explore <span className={isGoldTheme ? 'text-amber-500' : 'text-red-600'}>Trends</span>
                         </h1>
-                        <p className="text-gray-400 mt-2 text-sm md:text-base font-medium">Rankings and streaming picks for {regionName === 'Global' ? 'the world' : regionName}.</p>
+                        <p className="text-gray-400 mt-2 text-sm md:text-base font-medium">Rankings and streaming picks for {regionName}.</p>
                     </div>
                     <div className="flex items-center gap-2 bg-white/5 p-1 rounded-full border border-white/10 backdrop-blur-md">
                          <div className={`p-2 rounded-full ${isGoldTheme ? 'bg-amber-500 text-black' : 'bg-red-600 text-white'}`}>
@@ -164,70 +176,74 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ apiKey, onMovieClick, 
                     </div>
                 </div>
 
-                {/* DYNAMIC PLATFORM SELECTOR */}
+                {/* AESTHETIC STREAMING HUB SECTION */}
                 <div className="mb-20">
-                    <div className="mb-8 px-2 flex justify-between items-end">
-                        <div>
-                            <h2 className="text-3xl font-black text-white mb-2 tracking-tight">Choose Your Platform</h2>
-                            <p className="text-gray-500 text-sm font-medium">Select a streaming service to browse its content in {regionName}</p>
-                        </div>
-                        {loadingPlatforms && <Loader2 className="animate-spin text-gray-600 mb-2" size={20}/>}
+                    <div className="mb-10 px-2">
+                        <h2 className="text-4xl font-black text-white mb-2 tracking-tight">Choose Your Platform</h2>
+                        <p className="text-gray-500 text-sm font-medium tracking-wide">Select a streaming service to browse its content</p>
                     </div>
                     
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-6 px-2">
-                        {platforms.map(platform => (
-                            <button 
-                                key={platform.provider_id}
-                                onClick={() => setActiveOtt(activeOtt === platform.provider_id ? null : platform.provider_id)}
-                                className={`flex flex-col items-center justify-center p-8 rounded-2xl border transition-all duration-500 group relative aspect-square overflow-hidden bg-zinc-900/40 hover:bg-zinc-800/60 ${activeOtt === platform.provider_id ? 'border-white ring-2 ring-white/20 scale-105' : 'border-white/5 hover:border-white/20'}`}
-                            >
-                                <div className="absolute inset-0 bg-gradient-to-b from-white/[0.03] to-transparent pointer-events-none" />
-                                
-                                <div className="w-full h-full flex flex-col items-center justify-between py-4">
-                                    <div className="flex-1 flex items-center justify-center w-full">
-                                        <img 
-                                            src={`${TMDB_IMAGE_BASE}${platform.logo_path}`} 
-                                            className={`max-w-[100%] max-h-[100%] object-contain rounded-xl transition-all duration-500 transform ${activeOtt === platform.provider_id ? 'scale-110 shadow-2xl' : 'grayscale opacity-70 group-hover:grayscale-0 group-hover:opacity-100 group-hover:scale-105'}`} 
-                                            alt={platform.provider_name}
-                                            onError={(e) => {
-                                                e.currentTarget.src = "https://placehold.co/200x200/111/FFF?text=" + platform.provider_name;
-                                            }}
-                                        />
+                        {loadingPlatforms ? (
+                            [...Array(12)].map((_, i) => (
+                                <div key={i} className="aspect-square bg-zinc-900/40 rounded-3xl animate-pulse border border-white/5"></div>
+                            ))
+                        ) : (
+                            platforms.map(platform => (
+                                <button 
+                                    key={platform.provider_id}
+                                    onClick={() => setActiveOtt(activeOtt === platform.provider_id ? null : platform.provider_id)}
+                                    className={`flex flex-col items-center justify-center p-8 rounded-[2rem] border transition-all duration-500 group relative aspect-square overflow-hidden bg-zinc-900/30 hover:bg-zinc-800/50 ${activeOtt === platform.provider_id ? 'border-white ring-4 ring-white/10 scale-105 shadow-[0_0_50px_rgba(255,255,255,0.1)]' : 'border-white/5 hover:border-white/20'}`}
+                                >
+                                    {/* Glass sheen effect */}
+                                    <div className="absolute inset-0 bg-gradient-to-br from-white/[0.05] to-transparent pointer-events-none" />
+                                    
+                                    <div className="w-full h-full flex flex-col items-center justify-between py-2 relative z-10">
+                                        <div className="flex-1 flex items-center justify-center w-full">
+                                            <img 
+                                                src={`https://image.tmdb.org/t/p/original${platform.logo_path}`} 
+                                                className={`max-w-[100%] max-h-[100%] object-contain rounded-2xl transition-all duration-700 transform ${activeOtt === platform.provider_id ? 'scale-110 drop-shadow-[0_0_20px_rgba(255,255,255,0.3)]' : 'grayscale opacity-60 group-hover:grayscale-0 group-hover:opacity-100 group-hover:scale-110'}`} 
+                                                alt={platform.provider_name}
+                                                onError={(e) => {
+                                                    e.currentTarget.src = "https://placehold.co/200x200/111/FFF?text=" + platform.provider_name;
+                                                }}
+                                            />
+                                        </div>
+                                        <span className={`text-[11px] font-black uppercase tracking-[0.15em] mt-6 transition-all duration-300 text-center ${activeOtt === platform.provider_id ? 'text-white' : 'text-gray-500 group-hover:text-white'}`}>
+                                            {platform.provider_name}
+                                        </span>
                                     </div>
-                                    <span className={`text-[10px] font-black uppercase tracking-widest mt-4 transition-colors text-center ${activeOtt === platform.provider_id ? 'text-white' : 'text-gray-500 group-hover:text-white'}`}>
-                                        {platform.provider_name}
-                                    </span>
-                                </div>
-                                
-                                {activeOtt === platform.provider_id && (
-                                    <div className="absolute top-3 right-3 bg-white text-black rounded-full p-1 animate-in zoom-in duration-300">
-                                        <Check size={12} strokeWidth={4}/>
-                                    </div>
-                                )}
-                            </button>
-                        ))}
+                                    
+                                    {activeOtt === platform.provider_id && (
+                                        <div className="absolute top-4 right-4 bg-white text-black rounded-full p-1 shadow-xl animate-in zoom-in duration-300">
+                                            <Check size={14} strokeWidth={4}/>
+                                        </div>
+                                    )}
+                                </button>
+                            ))
+                        )}
                         {!loadingPlatforms && platforms.length === 0 && (
-                            <div className="col-span-full py-12 text-center text-gray-500 border border-dashed border-white/10 rounded-2xl">
-                                <AlertCircle className="mx-auto mb-2 opacity-50" size={32}/>
-                                <p>No streaming data available for this region.</p>
+                            <div className="col-span-full py-16 text-center text-gray-500 border-2 border-dashed border-white/5 rounded-[2rem] bg-zinc-900/20">
+                                <AlertCircle className="mx-auto mb-4 opacity-50" size={40}/>
+                                <p className="font-bold tracking-tight">Streaming data unavailable for this region.</p>
                             </div>
                         )}
                     </div>
                 </div>
 
                 {activeOtt ? (
-                    <div className="animate-in slide-in-from-bottom-10 duration-500 px-2">
-                        <div className="flex items-center justify-between mb-8">
-                             <div className="flex items-center gap-4">
-                                <button onClick={() => setActiveOtt(null)} className="p-2 hover:bg-white/10 rounded-full transition-colors bg-white/5 border border-white/10"><ChevronRight size={24} className="rotate-180"/></button>
+                    <div className="animate-in slide-in-from-bottom-10 duration-700 px-2">
+                        <div className="flex items-center justify-between mb-10">
+                             <div className="flex items-center gap-6">
+                                <button onClick={() => setActiveOtt(null)} className="p-3 hover:bg-white/10 rounded-full transition-all bg-white/5 border border-white/10 hover:scale-110 active:scale-95"><ChevronRight size={24} className="rotate-180"/></button>
                                 <div>
-                                    <h2 className="text-2xl md:text-3xl font-bold text-white">Popular on {activeProvider?.provider_name}</h2>
-                                    <p className="text-sm text-gray-500">Trending content in {regionName}</p>
+                                    <h2 className="text-3xl md:text-4xl font-black text-white tracking-tight">Popular on {activeProvider?.provider_name}</h2>
+                                    <p className="text-base text-gray-500 font-medium">Top trending content right now</p>
                                 </div>
                              </div>
-                             <div className={`px-4 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border border-white/10 bg-white/5`}>LIVE DATA</div>
+                             <div className={`px-5 py-2 rounded-full text-[11px] font-black uppercase tracking-[0.2em] border border-white/10 bg-white/5 backdrop-blur-md`}>LIVE SYNC</div>
                         </div>
-                        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 md:gap-6">
+                        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-6 md:gap-8">
                             {ottMovies.map(movie => (
                                 <MovieCard key={movie.id} movie={movie} onClick={onMovieClick} isWatched={false} onToggleWatched={() => {}} />
                             ))}
