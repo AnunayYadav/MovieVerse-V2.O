@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Award, TrendingUp, Tv, Film, Star, PlayCircle, Plus, LayoutGrid, Sparkles, ChevronRight, Check, AlertCircle, Loader2 } from 'lucide-react';
 import { Movie, UserProfile, Provider } from '../types';
-import { TMDB_BASE_URL, TMDB_IMAGE_BASE, MovieCard, MovieSkeleton } from './Shared';
+import { TMDB_BASE_URL, TMDB_IMAGE_BASE, MovieCard, MovieSkeleton, getWatchmodeKey } from './Shared';
 
 interface ExplorePageProps {
     apiKey: string;
@@ -21,27 +21,30 @@ const REGION_NAMES: Record<string, string> = {
     'DE': 'Germany'
 };
 
-// Priority list to ensure major streaming brands appear first in the grid
-const BRAND_PRIORITY = [
-    'Netflix', 
-    'Disney Plus', 
-    'Amazon Prime Video', 
-    'Max', 
-    'Apple TV Plus', 
-    'Hulu', 
-    'Paramount Plus', 
-    'Peacock', 
-    'Crunchyroll', 
-    'Hotstar', 
-    'Zee5', 
-    'JioCinema'
+// Platforms we prioritize visually and check against API results
+const PRIORITY_BRANDS = [
+    { name: 'Netflix', tmdbId: 8 },
+    { name: 'Disney Plus', tmdbId: 337 },
+    { name: 'Amazon Prime Video', tmdbId: 119 },
+    { name: 'Max', tmdbId: 384 },
+    { name: 'Apple TV Plus', tmdbId: 350 },
+    { name: 'Hulu', tmdbId: 15 },
+    { name: 'Paramount Plus', tmdbId: 531 },
+    { name: 'Peacock', tmdbId: 386 },
+    { name: 'Crunchyroll', tmdbId: 283 }
 ];
+
+interface WatchmodeSource {
+    id: number;
+    name: string;
+    logo_url: string;
+}
 
 export const ExplorePage: React.FC<ExplorePageProps> = ({ apiKey, onMovieClick, userProfile, appRegion = "US" }) => {
     const [topMovies, setTopMovies] = useState<Movie[]>([]);
     const [topShows, setTopShows] = useState<Movie[]>([]);
     const [ottMovies, setOttMovies] = useState<Movie[]>([]);
-    const [platforms, setPlatforms] = useState<Provider[]>([]);
+    const [platforms, setPlatforms] = useState<any[]>([]);
     const [activeOtt, setActiveOtt] = useState<number | null>(null);
     const [loading, setLoading] = useState(true);
     const [loadingPlatforms, setLoadingPlatforms] = useState(true);
@@ -51,27 +54,53 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ apiKey, onMovieClick, 
     const activeProvider = platforms.find(p => p.provider_id === activeOtt);
     const regionName = REGION_NAMES[appRegion] || 'Global';
 
-    // Fetch region-specific streaming providers from TMDB
+    // Fetch dynamic platforms using Watchmode + TMDB IDs
     useEffect(() => {
         const fetchPlatforms = async () => {
             setLoadingPlatforms(true);
+            const wmKey = getWatchmodeKey();
+            
             try {
-                // We use TMDB's watch provider endpoint which is the industry standard for this data
-                const res = await fetch(`${TMDB_BASE_URL}/watch/providers/movie?api_key=${apiKey}&watch_region=${appRegion}`);
-                const data = await res.json();
-                if (data.results) {
-                    const sorted = (data.results as Provider[]).sort((a, b) => {
-                        const aIdx = BRAND_PRIORITY.indexOf(a.provider_name);
-                        const bIdx = BRAND_PRIORITY.indexOf(b.provider_name);
-                        if (aIdx !== -1 && bIdx !== -1) return aIdx - bIdx;
-                        if (aIdx !== -1) return -1;
-                        if (bIdx !== -1) return 1;
-                        return 0;
-                    });
-                    setPlatforms(sorted.slice(0, 12)); 
+                // If Watchmode key is present, we try to get their high-res logos
+                let wmSources: WatchmodeSource[] = [];
+                if (wmKey) {
+                    const wmRes = await fetch(`https://api.watchmode.com/v1/sources/?apiKey=${wmKey}&regions=${appRegion}`);
+                    wmSources = await wmRes.json();
+                }
+
+                // Get TMDB providers for the region to ensure IDs match discovery API
+                const tmdbRes = await fetch(`${TMDB_BASE_URL}/watch/providers/movie?api_key=${apiKey}&watch_region=${appRegion}`);
+                const tmdbData = await tmdbRes.json();
+                
+                if (tmdbData.results) {
+                    const mappedPlatforms = tmdbData.results
+                        .map((provider: Provider) => {
+                            // Try to find a matching high-res logo from Watchmode
+                            const wmMatch = wmSources.find(s => 
+                                s.name.toLowerCase().replace(/\s+/g, '') === 
+                                provider.provider_name.toLowerCase().replace(/\s+/g, '')
+                            );
+
+                            return {
+                                provider_id: provider.provider_id,
+                                provider_name: provider.provider_name,
+                                logo_path: wmMatch?.logo_url || `https://image.tmdb.org/t/p/original${provider.logo_path}`,
+                                isWM: !!wmMatch
+                            };
+                        })
+                        .sort((a: any, b: any) => {
+                            const aPri = PRIORITY_BRANDS.findIndex(p => p.tmdbId === a.provider_id);
+                            const bPri = PRIORITY_BRANDS.findIndex(p => p.tmdbId === b.provider_id);
+                            if (aPri !== -1 && bPri !== -1) return aPri - bPri;
+                            if (aPri !== -1) return -1;
+                            if (bPri !== -1) return 1;
+                            return 0;
+                        });
+
+                    setPlatforms(mappedPlatforms.slice(0, 12)); 
                 }
             } catch (e) {
-                console.error("Failed to fetch platforms", e);
+                console.error("Platform fetch failed", e);
             } finally {
                 setLoadingPlatforms(false);
             }
@@ -178,44 +207,49 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ apiKey, onMovieClick, 
 
                 {/* AESTHETIC STREAMING HUB SECTION */}
                 <div className="mb-20">
-                    <div className="mb-10 px-2">
-                        <h2 className="text-4xl font-black text-white mb-2 tracking-tight">Choose Your Platform</h2>
-                        <p className="text-gray-500 text-sm font-medium tracking-wide">Select a streaming service to browse its content</p>
+                    <div className="mb-10 px-2 flex flex-col md:flex-row md:items-end justify-between gap-4">
+                        <div>
+                            <h2 className="text-4xl font-black text-white mb-2 tracking-tight">Choose Your Platform</h2>
+                            <p className="text-gray-500 text-sm font-medium tracking-wide">Select a streaming service to browse its content</p>
+                        </div>
+                        {!loadingPlatforms && platforms.some(p => p.isWM) && (
+                            <span className="text-[9px] uppercase tracking-[0.2em] font-black text-white/20 bg-white/5 px-3 py-1.5 rounded-full border border-white/10">Enhanced by Watchmode</span>
+                        )}
                     </div>
                     
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-6 px-2">
                         {loadingPlatforms ? (
                             [...Array(12)].map((_, i) => (
-                                <div key={i} className="aspect-square bg-zinc-900/40 rounded-3xl animate-pulse border border-white/5"></div>
+                                <div key={i} className="aspect-square bg-zinc-900/40 rounded-[2.5rem] animate-pulse border border-white/5"></div>
                             ))
                         ) : (
                             platforms.map(platform => (
                                 <button 
                                     key={platform.provider_id}
                                     onClick={() => setActiveOtt(activeOtt === platform.provider_id ? null : platform.provider_id)}
-                                    className={`flex flex-col items-center justify-center p-8 rounded-[2rem] border transition-all duration-500 group relative aspect-square overflow-hidden bg-zinc-900/30 hover:bg-zinc-800/50 ${activeOtt === platform.provider_id ? 'border-white ring-4 ring-white/10 scale-105 shadow-[0_0_50px_rgba(255,255,255,0.1)]' : 'border-white/5 hover:border-white/20'}`}
+                                    className={`flex flex-col items-center justify-center p-8 rounded-[2.5rem] border transition-all duration-500 group relative aspect-square overflow-hidden bg-[#0a0a0a] hover:bg-zinc-900 ${activeOtt === platform.provider_id ? 'border-white ring-4 ring-white/10 scale-105 shadow-[0_0_50px_rgba(255,255,255,0.15)]' : 'border-white/5 hover:border-white/20'}`}
                                 >
-                                    {/* Glass sheen effect */}
-                                    <div className="absolute inset-0 bg-gradient-to-br from-white/[0.05] to-transparent pointer-events-none" />
+                                    {/* Premium glass sheen effect */}
+                                    <div className="absolute inset-0 bg-gradient-to-br from-white/[0.04] to-transparent pointer-events-none group-hover:opacity-100 transition-opacity" />
                                     
                                     <div className="w-full h-full flex flex-col items-center justify-between py-2 relative z-10">
-                                        <div className="flex-1 flex items-center justify-center w-full">
+                                        <div className="flex-1 flex items-center justify-center w-full relative">
                                             <img 
-                                                src={`https://image.tmdb.org/t/p/original${platform.logo_path}`} 
-                                                className={`max-w-[100%] max-h-[100%] object-contain rounded-2xl transition-all duration-700 transform ${activeOtt === platform.provider_id ? 'scale-110 drop-shadow-[0_0_20px_rgba(255,255,255,0.3)]' : 'grayscale opacity-60 group-hover:grayscale-0 group-hover:opacity-100 group-hover:scale-110'}`} 
+                                                src={platform.logo_path} 
+                                                className={`max-w-[100%] max-h-[100%] object-contain rounded-2xl transition-all duration-700 transform ${activeOtt === platform.provider_id ? 'scale-110 drop-shadow-[0_0_20px_rgba(255,255,255,0.3)]' : 'grayscale opacity-50 group-hover:grayscale-0 group-hover:opacity-100 group-hover:scale-110'}`} 
                                                 alt={platform.provider_name}
                                                 onError={(e) => {
                                                     e.currentTarget.src = "https://placehold.co/200x200/111/FFF?text=" + platform.provider_name;
                                                 }}
                                             />
                                         </div>
-                                        <span className={`text-[11px] font-black uppercase tracking-[0.15em] mt-6 transition-all duration-300 text-center ${activeOtt === platform.provider_id ? 'text-white' : 'text-gray-500 group-hover:text-white'}`}>
+                                        <span className={`text-[11px] font-black uppercase tracking-[0.2em] mt-6 transition-all duration-300 text-center ${activeOtt === platform.provider_id ? 'text-white translate-y-0' : 'text-gray-600 group-hover:text-white translate-y-1 group-hover:translate-y-0'}`}>
                                             {platform.provider_name}
                                         </span>
                                     </div>
                                     
                                     {activeOtt === platform.provider_id && (
-                                        <div className="absolute top-4 right-4 bg-white text-black rounded-full p-1 shadow-xl animate-in zoom-in duration-300">
+                                        <div className="absolute top-4 right-4 bg-white text-black rounded-full p-1.5 shadow-2xl animate-in zoom-in duration-300">
                                             <Check size={14} strokeWidth={4}/>
                                         </div>
                                     )}
@@ -223,7 +257,7 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ apiKey, onMovieClick, 
                             ))
                         )}
                         {!loadingPlatforms && platforms.length === 0 && (
-                            <div className="col-span-full py-16 text-center text-gray-500 border-2 border-dashed border-white/5 rounded-[2rem] bg-zinc-900/20">
+                            <div className="col-span-full py-16 text-center text-gray-500 border-2 border-dashed border-white/5 rounded-[2.5rem] bg-zinc-900/20">
                                 <AlertCircle className="mx-auto mb-4 opacity-50" size={40}/>
                                 <p className="font-bold tracking-tight">Streaming data unavailable for this region.</p>
                             </div>

@@ -14,9 +14,9 @@ export const TMDB_BACKDROP_BASE = "https://image.tmdb.org/t/p/w1280";
 export const safeEnv = (key: string) => {
   try {
     // @ts-ignore
-    if (typeof process !== 'undefined' && process.env) return process.env[key];
+    if (typeof process !== 'undefined' && process.env && process.env[key]) return process.env[key];
     // @ts-ignore
-    if (typeof import.meta !== 'undefined' && import.meta.env) return import.meta.env[key];
+    if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env[key]) return import.meta.env[key];
   } catch(e) {}
   return "";
 };
@@ -40,6 +40,10 @@ export const getGeminiKey = (): string => {
          safeEnv('API_KEY') || 
          safeEnv('GEMINI_API_KEY') || 
          HARDCODED_GEMINI_KEY;
+};
+
+export const getWatchmodeKey = (): string => {
+  return safeEnv('VITE_WATCHMODE_API_KEY') || safeEnv('WATCHMODE_API_KEY') || "";
 };
 
 // --- UTILITIES ---
