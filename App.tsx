@@ -21,7 +21,6 @@ const DEFAULT_COLLECTIONS: any = {
   "korean": { title: "K-Wave", params: { with_original_language: "ko", sort_by: "popularity.desc" }, icon: "🇰🇷", backdrop: "https://image.tmdb.org/t/p/original/7CAl1uP0r6qfK325603665.jpg", description: "Thrillers, Romance, and Drama from South Korea." },
 };
 
-// Expanded Franchise List for Endless Scrolling - Real TMDB Collection IDs
 const FRANCHISE_IDS = [ 86311, 131292, 131296, 131295, 115575, 10, 1241, 558216, 1060085, 894562, 1060096, 9485, 295, 645, 119, 121, 87359, 52984, 472535, 712282, 531241, 10194, 2150, 8354, 86066, 77816, 10593, 163313, 8265, 748, 131635, 33514, 8650, 84, 1575, 472761, 3573, 115570, 328, 8091, 8093, 528, 2344, 403374, 1570, 2155, 262, 3260, 1639, 264, 1733, 373722, 250329, 207923, 2289, 2661, 2660, 2656, 2342, 912503 ];
 
 const GENRE_COLORS: Record<string, string> = { "Action": "from-red-600 to-red-900", "Adventure": "from-orange-500 to-orange-800", "Animation": "from-pink-500 to-rose-800", "Comedy": "from-yellow-500 to-yellow-800", "Crime": "from-slate-700 to-slate-900", "Documentary": "from-emerald-600 to-emerald-900", "Drama": "from-purple-600 to-purple-900", "Family": "from-cyan-500 to-blue-800", "Fantasy": "from-indigo-500 to-indigo-900", "History": "from-amber-700 to-amber-950", "Horror": "from-gray-800 to-black", "Music": "from-fuchsia-600 to-fuchsia-900", "Mystery": "from-violet-800 to-black", "Romance": "from-rose-500 to-pink-900", "Sci-Fi": "from-teal-600 to-teal-900", "TV Movie": "from-blue-600 to-blue-900", "Thriller": "from-zinc-800 to-black", "War": "from-stone-600 to-stone-800", "Western": "from-orange-800 to-brown-900" };
@@ -43,7 +42,7 @@ export default function App() {
   const [searchHistory, setSearchHistory] = useState<string[]>([]);
   
   const [loading, setLoading] = useState(false);
-  const [fetchError, setFetchError] = useState(false); // Track fetch errors
+  const [fetchError, setFetchError] = useState(false);
   const [selectedMovie, setSelectedMovie] = useState<Movie | null>(null);
   const [featuredMovie, setFeaturedMovie] = useState<Movie | null>(null);
   
@@ -80,7 +79,6 @@ export default function App() {
   
   // Browse Dropdown State
   const [isBrowseOpen, setIsBrowseOpen] = useState(false);
-  const browseTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const watchlistRef = useRef<Movie[]>([]);
   const favoritesRef = useRef<Movie[]>([]);
@@ -113,7 +111,6 @@ export default function App() {
   const accentBg = isGoldTheme ? "bg-amber-500" : "bg-red-600";
   const accentBgLow = isGoldTheme ? "bg-amber-500/20" : "bg-red-600/20";
 
-  // ... (Auth/Reset logic same as before) ...
   const resetAuthState = useCallback(() => {
     localStorage.removeItem('movieverse_auth');
     setIsAuthenticated(false);
@@ -149,20 +146,17 @@ export default function App() {
   };
 
   const handleBrowseEnter = () => {
-      if (browseTimeoutRef.current) clearTimeout(browseTimeoutRef.current);
       setIsBrowseOpen(true);
   };
 
   const handleBrowseLeave = () => {
-      browseTimeoutRef.current = setTimeout(() => {
-          setIsBrowseOpen(false);
-      }, 300); // 300ms delay to allow moving to dropdown
+      setIsBrowseOpen(false);
   };
 
   const handleBrowseAction = (action: () => void) => {
       action();
       setIsBrowseOpen(false);
-  }
+  };
 
   useEffect(() => {
     let authListener: any = null;
@@ -298,7 +292,7 @@ export default function App() {
       if (isCloudSync) {
           syncUserData({
               watchlist, favorites, watched,
-              customLists: {}, // Empty as feature removed
+              customLists: {},
               profile: { ...updatedProfile, maturityRating, region: appRegion },
               settings: { tmdbKey: apiKey, geminiKey: geminiKey },
               searchHistory: searchHistory
@@ -326,7 +320,6 @@ export default function App() {
       fetchMovies(1, false);
   }, [selectedCategory, comingFilter, selectedRegion, filterPeriod, selectedLanguage, sortOption, activeCountry, activeKeyword, tmdbCollectionId, userProfile.age]);
 
-  // ... (Notification and Login/Logout handlers same as before) ...
   const checkUnreadNotifications = async () => {
       try {
           const notifs = await getNotifications();
@@ -375,13 +368,6 @@ export default function App() {
       localStorage.setItem('movieverse_search_history', JSON.stringify(newHistory));
   };
 
-  const removeFromSearchHistory = (e: React.MouseEvent, query: string) => {
-      e.stopPropagation();
-      const newHistory = searchHistory.filter(h => h !== query);
-      setSearchHistory(newHistory);
-      localStorage.setItem('movieverse_search_history', JSON.stringify(newHistory));
-  };
-
   const toggleList = (list: Movie[], setList: (l: Movie[]) => void, key: string, movie: Movie) => {
       const exists = list.some(m => m.id === movie.id);
       const newList = exists ? list.filter(m => m.id !== movie.id) : [...list, movie];
@@ -397,22 +383,16 @@ export default function App() {
 
   const handleProgressUpdate = (movie: Movie, progressData: any) => {
       if (!movie || !progressData || userProfile.enableHistory === false) return;
-      
       const { currentTime, duration, event, season, episode } = progressData;
-      
       if (event !== 'time' && event !== 'pause' && event !== 'complete') return;
       if (!duration || duration <= 0) return;
-
       const progressPercent = Math.min(100, Math.max(0, (currentTime / duration) * 100));
-
       setWatched(prevWatched => {
           const existingIndex = prevWatched.findIndex(m => m.id === movie.id);
           const existingMovie = existingIndex >= 0 ? prevWatched[existingIndex] : null;
-
           if (existingMovie && event === 'time' && Math.abs((existingMovie.play_progress || 0) - progressPercent) < 1) {
               return prevWatched;
           }
-
           const updatedMovie: Movie = {
               ...movie, 
               ...existingMovie, 
@@ -425,7 +405,6 @@ export default function App() {
                   updated_at: Date.now()
               }
           };
-
           let newWatched;
           if (existingIndex >= 0) {
               newWatched = [...prevWatched];
@@ -433,7 +412,6 @@ export default function App() {
           } else {
               newWatched = [updatedMovie, ...prevWatched];
           }
-
           localStorage.setItem('movieverse_watched', JSON.stringify(newWatched));
           return newWatched;
       });
@@ -453,15 +431,11 @@ export default function App() {
     }
   }, []);
 
-  // Enhanced fetch with timeout for slow connections
   const fetchWithRetry = async (url: string, signal?: AbortSignal, retries = 3, delay = 1500): Promise<Response> => {
-      const timeout = 10000; // 10 seconds timeout for "low internet" check
+      const timeout = 10000;
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), timeout);
-      
-      // Combine the original signal (if any) with the timeout signal
       const combinedSignal = signal || controller.signal;
-
       try {
           const res = await fetch(url, { signal: combinedSignal });
           clearTimeout(timeoutId);
@@ -470,24 +444,17 @@ export default function App() {
       } catch (err: any) {
           clearTimeout(timeoutId);
           if (err.name === 'AbortError') {
-              // Differentiate between timeout (fetch took too long) and manual cancel (user nav)
-              if (signal && signal.aborted) {
-                  throw err; // User cancelled
-              } else {
-                  console.warn("Fetch timeout - retrying..."); // Timeout triggered
-              }
+              if (signal && signal.aborted) throw err;
           }
-          
           if (retries <= 0) throw err;
           await new Promise(r => setTimeout(r, delay));
-          return fetchWithRetry(url, signal, retries - 1, delay * 2); // Exponential backoff
+          return fetchWithRetry(url, signal, retries - 1, delay * 2);
       }
   };
 
   const fetchMovies = useCallback(async (pageNum: number = 1, isLoadMore = false) => {
     if (!apiKey) return;
-    setFetchError(false); // Reset error state
-    
+    setFetchError(false);
     if (["Watchlist", "Favorites", "History"].includes(selectedCategory)) {
          const list = selectedCategory === "Watchlist" ? watchlistRef.current : selectedCategory === "Favorites" ? favoritesRef.current : watchedRef.current;
          setMovies(sortMovies(list, sortOption)); 
@@ -495,31 +462,19 @@ export default function App() {
          setHasMore(false); return; 
     }
     if (["CineAnalytics", "LiveTV", "Sports", "Genres", "Collections", "Countries"].includes(selectedCategory) && !activeCountry) return;
-
     if (abortControllerRef.current) abortControllerRef.current.abort();
     const controller = new AbortController();
     abortControllerRef.current = controller;
-
     if (pageNum === 1) setMovies([]);
     setLoading(true);
     setAiContextReason(null);
-
     const userAge = parseInt(userProfile.age || "0");
     const isAdult = !isNaN(userAge) && userAge >= 18;
-    const includeAdultParam = "false";
-
     try {
         let endpoint = "/discover/movie";
-        const params = new URLSearchParams({ 
-            api_key: apiKey, 
-            page: pageNum.toString(), 
-            language: "en-US", 
-            include_adult: includeAdultParam 
-        });
-
+        const params = new URLSearchParams({ api_key: apiKey, page: pageNum.toString(), language: "en-US", include_adult: "false" });
         const isStrictFilter = !isAdult || maturityRating !== 'NC-17';
         const isGeneralDiscovery = !activeCountry && !activeKeyword && !tmdbCollectionId && !currentCollection && !["People", "Franchise"].includes(selectedCategory);
-
         if (isGeneralDiscovery) {
              if (appRegion) params.append("region", appRegion);
              if (isStrictFilter) {
@@ -527,7 +482,6 @@ export default function App() {
                  params.append("certification.lte", maturityRating);
              }
         }
-
         if (searchQuery) {
             endpoint = selectedCategory === "People" ? "/search/person" : "/search/multi";
             params.delete("certification_country");
@@ -559,19 +513,15 @@ export default function App() {
             const start = (pageNum - 1) * ITEMS_PER_PAGE;
             const end = start + ITEMS_PER_PAGE;
             const idsToFetch = FRANCHISE_IDS.slice(start, end);
-            
             if (idsToFetch.length === 0) {
                 if (pageNum === 1) setFranchiseList([]);
                 setLoading(false); setHasMore(false); return;
             }
-
             const promises = idsToFetch.map(id => fetchWithRetry(`${TMDB_BASE_URL}/collection/${id}?api_key=${apiKey}`, controller.signal).then(r => r.json()).catch(() => null));
             const data = await Promise.all(promises);
             const valid = data.filter(d => d && d.id);
-            
             if (isLoadMore) setFranchiseList(prev => [...prev, ...valid]);
             else setFranchiseList(valid);
-            
             setHasMore(end < FRANCHISE_IDS.length);
             setLoading(false);
             return;
@@ -580,7 +530,7 @@ export default function App() {
             endpoint = "/discover/tv";
             params.append("sort_by", sortOption === 'relevance' ? 'popularity.desc' : sortOption);
             if (selectedLanguage !== "All") params.append("with_original_language", selectedLanguage);
-            params.append("vote_count.gte", "50"); // TV specific clutter filter
+            params.append("vote_count.gte", "50");
         } 
         else if (selectedCategory === "Anime") {
             endpoint = "/discover/tv";
@@ -611,33 +561,25 @@ export default function App() {
             const todayStr = today.toISOString().split('T')[0];
             const future = new Date(); 
             future.setFullYear(future.getFullYear() + 2);
-
             params.delete("region"); 
             if (!isStrictFilter) {
                params.delete("certification_country");
                params.delete("certification.lte");
             }
-
             params.set("primary_release_date.gte", todayStr);
             params.set("primary_release_date.lte", future.toISOString().split('T')[0]);
-            params.set("sort_by", "popularity.desc"); // Sort by popularity for coming soon to show big hits first
-            params.set("popularity.gte", "5"); // Filter out low-popularity unreleased stubs
-            
+            params.set("sort_by", "popularity.desc"); 
+            params.set("popularity.gte", "5"); 
             if (selectedRegion === "IN") params.set("with_origin_country", "IN");
         }
         else {
              params.append("sort_by", sortOption === 'relevance' ? 'popularity.desc' : sortOption);
-             
-             // GENERAL DISCOVERY CLUTTER FILTER
-             // Require at least 25 votes to show up in general feeds to avoid fan-made/test entries
-             // Unless sorting by revenue (which naturally filters) or newest (which might be low vote)
              if (sortOption !== "revenue.desc" && sortOption !== "primary_release_date.desc") {
                  params.append("vote_count.gte", "25");
              } else if (sortOption === "primary_release_date.desc") {
-                 params.append("vote_count.gte", "5"); // Lower threshold for very new releases
-                 params.append("with_runtime.gte", "40"); // Ensure it's not a clip
+                 params.append("vote_count.gte", "5");
+                 params.append("with_runtime.gte", "40");
              }
-
              if (sortOption === "revenue.desc") params.append("vote_count.gte", "300");
              if (selectedCategory !== "All" && GENRES_MAP[selectedCategory]) params.append("with_genres", GENRES_MAP[selectedCategory].toString());
              if (selectedRegion === "IN") params.append("with_origin_country", "IN");
@@ -645,37 +587,25 @@ export default function App() {
              if (filterPeriod === "future") { params.set("sort_by", "popularity.desc"); params.append("primary_release_date.gte", new Date().toISOString().split('T')[0]); }
              else if (filterPeriod === "thisYear") { params.append("primary_release_year", new Date().getFullYear().toString()); }
         }
-
         const res = await fetchWithRetry(`${TMDB_BASE_URL}${endpoint}?${params.toString()}`, controller.signal);
         const data = await res.json();
         let results = data.results || [];
-
         if (selectedCategory !== "People") {
              if (endpoint.includes("/search/multi")) results = results.filter((m: any) => m.media_type === 'movie' || m.media_type === 'tv');
-             
-             // STRICTER CLIENT SIDE CLUTTER FILTER
              results = results.filter((m: any) => {
                  if (!m.poster_path) return false;
-                 // If it has a runtime and it's less than 40 mins, likely short/extra/fake, unless it's animation
-                 // BUT: Unreleased movies often have 0 runtime, so we must allow 0.
-                 // We only filter if runtime > 0 and runtime < 40.
                  if (m.media_type === 'movie' && m.runtime > 0 && m.runtime < 40 && !m.genre_ids?.includes(16)) return false; 
                  return true;
              });
-
              if (selectedCategory === "TV Shows" || selectedCategory === "Anime") results = results.map((m: any) => ({ ...m, media_type: 'tv', title: m.name, release_date: m.first_air_date }));
         }
-        
-        // Sync with watched state to show progress bars in grid
         if (results.length > 0) {
             results = results.map((r: Movie) => {
                 const watchedItem = watchedRef.current.find(w => w.id === r.id);
                 return watchedItem ? { ...r, play_progress: watchedItem.play_progress } : r;
             });
         }
-
         const finalResults = (selectedCategory === "Coming") ? results : (selectedCategory === "People" ? results : sortMovies(results, sortOption));
-
         if (isLoadMore) {
             setMovies(prev => {
                 const existingIds = new Set(prev.map(m => m.id));
@@ -684,14 +614,13 @@ export default function App() {
             });
         } else {
             setMovies(finalResults);
-            if (!activeCountry && !activeKeyword && !tmdbCollectionId && !["People", "Anime", "Family", "Awards", "India", "Coming", "Collections", "Genres", "Countries", "Franchise", "Sports"].includes(selectedCategory) && finalResults.length > 0 && !searchQuery) {
+            if (!activeCountry && !activeKeyword && !tmdbCollectionId && !currentCollection && !["People", "Anime", "Family", "Awards", "India", "Coming", "Collections", "Genres", "Countries", "Franchise", "Sports"].includes(selectedCategory) && finalResults.length > 0 && !searchQuery) {
                 setFeaturedMovie(finalResults.find((m: Movie) => m.backdrop_path) || finalResults[0]);
             } else setFeaturedMovie(null);
         }
         setHasMore(data.page < data.total_pages);
     } catch (error: any) { 
         if (error.name !== 'AbortError') {
-            console.error("Fetch Logic Error:", error); 
             setFetchError(true);
         }
     } finally { 
@@ -699,7 +628,6 @@ export default function App() {
     }
   }, [apiKey, searchQuery, selectedCategory, sortOption, appRegion, currentCollection, filterPeriod, selectedLanguage, selectedRegion, userProfile, maturityRating, sortMovies, tmdbCollectionId, activeKeyword, activeCountry, comingFilter]);
 
-  // ... (Effects for fetching same as before) ...
   useEffect(() => { const timeout = setTimeout(() => fetchMovies(1, false), searchQuery ? 800 : 300); return () => clearTimeout(timeout); }, [fetchMovies, searchQuery]);
   useEffect(() => { const fetchSuggestions = async () => { if (searchQuery.length > 3) { try { const sugs = await getSearchSuggestions(searchQuery); setSearchSuggestions(sugs); setShowSuggestions(true); } catch (e) { console.error(e); } } }; const timeout = setTimeout(fetchSuggestions, 500); return () => clearTimeout(timeout); }, [searchQuery]);
 
@@ -709,14 +637,6 @@ export default function App() {
   const handleKeywordClick = (keyword: Keyword) => { setSelectedMovie(null); resetFilters(); setActiveKeyword(keyword); setSelectedCategory("Deep Dive"); };
   const handleCountryClick = (country: { code: string, name: string }) => { resetFilters(); setActiveCountry(country); setSelectedCategory("Countries"); };
   const handleSearchSubmit = (query: string) => { resetFilters(); setSearchQuery(query); addToSearchHistory(query); setShowSuggestions(false); };
-  const handleSuggestionClick = (suggestion: string) => { handleSearchSubmit(suggestion); };
-  
-  const handleFeelingLucky = () => {
-      setIsSidebarOpen(false); resetFilters(); setLoading(true);
-      const randomPage = Math.floor(Math.random() * 50) + 1;
-      const params = new URLSearchParams({ api_key: apiKey, page: randomPage.toString(), sort_by: "vote_average.desc", "vote_count.gte": "500", include_adult: "false" });
-      fetch(`${TMDB_BASE_URL}/discover/movie?${params.toString()}`).then(r => r.json()).then(d => { if (d.results && d.results.length > 0) { const randomMovie = d.results[Math.floor(Math.random() * d.results.length)]; setSelectedMovie(randomMovie); setLoading(false); } else setLoading(false); }).catch(() => setLoading(false));
-  };
   
   const observer = useRef<IntersectionObserver | null>(null);
   const lastMovieElementRef = useCallback((node: HTMLDivElement) => {
@@ -751,7 +671,6 @@ export default function App() {
       <nav className={`fixed top-0 left-0 right-0 z-[60] bg-black/90 backdrop-blur-xl border-b h-16 flex items-center justify-center px-4 md:px-6 transition-all duration-300 ${isGoldTheme ? 'border-amber-500/10' : 'border-white/5'}`}>
         <div className="flex items-center justify-between w-full max-w-7xl">
             <div className="flex items-center gap-8">
-                {/* Left: Logo */}
                 <div className="flex items-center gap-2 cursor-pointer group" onClick={resetToHome}>
                     <div className="relative group">
                         <BrandLogo className={`${accentText} relative z-10 transition-transform duration-500 group-hover:rotate-12`} accentColor={accentText} />
@@ -763,7 +682,6 @@ export default function App() {
                     </div>
                 </div>
 
-                {/* Left Aligned Navigation Links */}
                 <div className="hidden md:flex items-center gap-2">
                     <button onClick={resetToHome} className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold transition-all ${selectedCategory === "All" && !searchQuery ? "bg-white/10 text-white" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>
                         <Home size={18} /> Home
@@ -777,7 +695,6 @@ export default function App() {
                         </button>
                     )}
                     
-                    {/* Browse Dropdown with State & Timeout */}
                     <div 
                         className="relative flex items-center h-full"
                         onMouseEnter={handleBrowseEnter}
@@ -787,26 +704,28 @@ export default function App() {
                             <LayoutGrid size={18} /> Browse
                         </button>
                         
-                        {/* Dropdown Content */}
                         {isBrowseOpen && (
-                            <div className="absolute top-[calc(100%+0.5rem)] left-0 w-64 bg-[#1a1a1a] border border-white/10 rounded-2xl shadow-2xl p-2 grid grid-cols-2 gap-1 z-50 animate-in fade-in zoom-in-95 duration-200 origin-top-left">
-                                {browseOptions.map(opt => (
-                                    <button 
-                                        key={opt.id}
-                                        onClick={() => handleBrowseAction(opt.action)}
-                                        className={`flex flex-col items-center justify-center gap-1 p-3 rounded-xl hover:bg-white/10 transition-colors ${selectedCategory === opt.id ? 'bg-white/5 text-white' : 'text-gray-400 hover:text-white'}`}
-                                    >
-                                        <opt.icon size={20}/>
-                                        <span className="text-[10px] font-bold">{opt.label}</span>
-                                    </button>
-                                ))}
-                            </div>
+                            <>
+                                {/* Invisible Bridge to prevent closing when moving between button and dropdown */}
+                                <div className="absolute top-full left-0 w-full h-4 bg-transparent z-[55]" />
+                                <div className="absolute top-[calc(100%+0.25rem)] left-0 w-64 bg-[#1a1a1a] border border-white/10 rounded-2xl shadow-2xl p-2 grid grid-cols-2 gap-1 z-[60] animate-in fade-in zoom-in-95 duration-200 origin-top-left">
+                                    {browseOptions.map(opt => (
+                                        <button 
+                                            key={opt.id}
+                                            onClick={() => handleBrowseAction(opt.action)}
+                                            className={`flex flex-col items-center justify-center gap-1 p-3 rounded-xl hover:bg-white/10 transition-colors ${selectedCategory === opt.id ? 'bg-white/5 text-white' : 'text-gray-400 hover:text-white'}`}
+                                        >
+                                            <opt.icon size={20}/>
+                                            <span className="text-[10px] font-bold">{opt.label}</span>
+                                        </button>
+                                    ))}
+                                </div>
+                            </>
                         )}
                     </div>
                 </div>
             </div>
 
-            {/* Right: Search & Actions */}
             <div className="flex items-center gap-4">
                 <div className="relative hidden md:block w-64 lg:w-80 group">
                     <input type="text" placeholder="Search movies, people, genres..." className={`w-full bg-[#1a1a1a] border border-white/5 rounded-full py-2 pl-10 pr-4 text-sm focus:outline-none transition-all text-white placeholder-gray-500 ${loading && searchQuery ? "border-opacity-50" : "focus:border-white/20"}`} value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} onFocus={() => setShowSuggestions(true)} onBlur={() => setTimeout(() => setShowSuggestions(false), 200)} onKeyDown={(e) => { if(e.key === 'Enter') handleSearchSubmit(searchQuery); }} />
@@ -830,7 +749,6 @@ export default function App() {
         </div>
       </nav>
 
-      {/* Main Content Area */}
       <div className="flex pt-16">
         <main className="flex-1 min-h-[calc(100vh-4rem)] w-full">
            {selectedCategory === "CineAnalytics" ? ( <AnalyticsDashboard watchedMovies={watched} watchlist={watchlist} favorites={favorites} apiKey={apiKey} onMovieClick={setSelectedMovie} /> ) : selectedCategory === "LiveTV" ? ( <LiveTV userProfile={userProfile} /> ) : selectedCategory === "Sports" ? ( <LiveSports userProfile={userProfile} /> ) : selectedCategory === "Genres" ? (
@@ -873,10 +791,8 @@ export default function App() {
                        </div>
                    )}
 
-                   {/* Standard Grid */}
                    {selectedCategory !== "Coming" && selectedCategory !== "Genres" && selectedCategory !== "Countries" && selectedCategory !== "Collections" && selectedCategory !== "Franchise" && (
                        <>
-                           {/* FEATURED HERO SECTION */}
                            {!searchQuery && featuredMovie && !activeCountry && !activeKeyword && !tmdbCollectionId && !currentCollection && (
                                <div className="relative w-full h-[70vh] md:h-[80vh] overflow-hidden group">
                                    <div className="absolute inset-0">
@@ -929,7 +845,6 @@ export default function App() {
                                </div>
                            )}
 
-                           {/* Filter Bar with WRAPPING instead of scroll to fix dropdown clip */}
                            <div className="sticky top-16 z-40 bg-[#030303]/80 backdrop-blur-xl border-b border-white/5 px-4 md:px-12 py-3 flex flex-col md:flex-row md:items-center justify-between gap-4 animate-in fade-in">
                                 <div className="flex items-center gap-3">
                                     <h2 className="text-xl font-bold text-white tracking-tight">{searchQuery ? `Results for "${searchQuery}"` : selectedCategory === 'All' ? 'Trending Now' : selectedCategory}</h2>
@@ -937,13 +852,11 @@ export default function App() {
                                 </div>
 
                                 <div className="flex items-center gap-2 flex-wrap">
-                                    {/* Sort */}
                                     <div className="relative group shrink-0">
                                         <button className="flex items-center gap-2 px-3 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-xs font-medium text-gray-200 transition-all hover:border-white/20 active:scale-95 min-w-[100px] justify-between">
                                             <div className="flex items-center gap-2"><Filter size={14}/> <span>Sort</span></div>
                                             <ChevronDown size={12} className="text-gray-500 group-hover:text-white transition-colors"/>
                                         </button>
-                                        {/* Invisible bridge to prevent closing when moving to dropdown */}
                                         <div className="absolute top-full left-0 w-full h-2 bg-transparent pointer-events-auto opacity-0 group-hover:block hidden"></div>
                                         <div className="absolute top-full right-0 mt-2 w-48 bg-[#1a1a1a]/95 backdrop-blur-xl border border-white/10 rounded-xl overflow-hidden shadow-2xl opacity-0 group-hover:opacity-100 scale-95 group-hover:scale-100 pointer-events-none group-hover:pointer-events-auto transition-all origin-top-right z-50 p-1">
                                             {[
@@ -960,13 +873,11 @@ export default function App() {
                                         </div>
                                     </div>
 
-                                    {/* Region */}
                                     <div className="relative group shrink-0">
                                         <button className="flex items-center gap-2 px-3 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-xs font-medium text-gray-200 transition-all hover:border-white/20 active:scale-95 min-w-[100px] justify-between">
                                             <div className="flex items-center gap-2"><Globe size={14}/> <span>{selectedRegion === 'Global' ? 'Global' : selectedRegion}</span></div>
                                             <ChevronDown size={12} className="text-gray-500 group-hover:text-white transition-colors"/>
                                         </button>
-                                        {/* Invisible bridge */}
                                         <div className="absolute top-full left-0 w-full h-2 bg-transparent pointer-events-auto opacity-0 group-hover:block hidden"></div>
                                         <div className="absolute top-full right-0 mt-2 w-48 bg-[#1a1a1a]/95 backdrop-blur-xl border border-white/10 rounded-xl overflow-hidden shadow-2xl opacity-0 group-hover:opacity-100 scale-95 group-hover:scale-100 pointer-events-none group-hover:pointer-events-auto transition-all origin-top-right z-50 max-h-60 overflow-y-auto custom-scrollbar p-1">
                                             {['Global', 'US', 'IN', 'JP', 'KR', 'GB', 'FR', 'DE'].map(region => (
@@ -978,13 +889,11 @@ export default function App() {
                                         </div>
                                     </div>
 
-                                    {/* Language */}
                                     <div className="relative group shrink-0">
                                         <button className="flex items-center gap-2 px-3 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-xs font-medium text-gray-200 transition-all hover:border-white/20 active:scale-95 min-w-[100px] justify-between">
                                             <div className="flex items-center gap-2"><Languages size={14}/> <span>{selectedLanguage === 'All' ? 'All' : selectedLanguage.toUpperCase()}</span></div>
                                             <ChevronDown size={12} className="text-gray-500 group-hover:text-white transition-colors"/>
                                         </button>
-                                        {/* Invisible bridge */}
                                         <div className="absolute top-full left-0 w-full h-2 bg-transparent pointer-events-auto opacity-0 group-hover:block hidden"></div>
                                         <div className="absolute top-full right-0 mt-2 w-48 bg-[#1a1a1a]/95 backdrop-blur-xl border border-white/10 rounded-xl overflow-hidden shadow-2xl opacity-0 group-hover:opacity-100 scale-95 group-hover:scale-100 pointer-events-none group-hover:pointer-events-auto transition-all origin-top-right z-50 max-h-60 overflow-y-auto custom-scrollbar p-1">
                                             {['All', 'en', 'hi', 'ja', 'ko', 'es', 'fr'].map(lang => (
@@ -1001,7 +910,6 @@ export default function App() {
                            <div className="px-4 md:px-12 py-8 space-y-8 relative z-10">
                                <PosterMarquee movies={!searchQuery && selectedCategory === "All" && !currentCollection && movies.length > 0 ? movies : []} onMovieClick={setSelectedMovie} />
                                
-                               {/* Error State for Low Internet */}
                                {fetchError && !loading && movies.length === 0 && (
                                     <div className="flex flex-col items-center justify-center py-20 text-center animate-in fade-in">
                                         <CloudOff size={48} className="text-red-500 mb-4 opacity-80"/>
@@ -1059,7 +967,6 @@ export default function App() {
             onToggleWatched={handleToggleWatched} 
             isWatched={watched.some(m => m.id === selectedMovie.id)} 
             onSwitchMovie={setSelectedMovie} 
-            // Removed custom list modal
             onOpenListModal={() => {}} 
             userProfile={userProfile} 
             onKeywordClick={handleKeywordClick} 
@@ -1070,7 +977,6 @@ export default function App() {
         /> 
       )}
       
-      {/* Removed ListSelectionModal */}
       <ProfilePage isOpen={isProfileOpen} onClose={() => setIsProfileOpen(false)} profile={userProfile} onSave={(p) => { setUserProfile(p); localStorage.setItem('movieverse_profile', JSON.stringify(p)); }} />
       <PersonPage personId={selectedPersonId || 0} onClose={() => setSelectedPersonId(null)} apiKey={apiKey} onMovieClick={(m) => { setSelectedPersonId(null); setTimeout(() => setSelectedMovie(m), 300); }} />
       <AIRecommendationModal isOpen={isAIModalOpen} onClose={() => setIsAIModalOpen(false)} apiKey={apiKey} />
