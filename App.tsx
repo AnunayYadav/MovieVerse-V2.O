@@ -1,8 +1,9 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Search, Film, Menu, TrendingUp, Tv, Ghost, Calendar, Star, X, Sparkles, Settings, Globe, Bookmark, Heart, Folder, Languages, Filter, ChevronDown, Info, Plus, Cloud, CloudOff, Clock, Bell, History, Users, Tag, Dice5, Crown, Radio, LayoutGrid, Award, Baby, Clapperboard, ChevronRight, PlayCircle, Megaphone, CalendarDays, Compass, Home, Map, Loader2, Trophy, RefreshCcw, Check, MonitorPlay, Layers, LogOut } from 'lucide-react';
-import { Movie, UserProfile, GENRES_MAP, GENRES_LIST, MaturityRating, Keyword } from './types';
-import { LogoLoader, MovieSkeleton, MovieCard, PersonCard, PosterMarquee, TMDB_BASE_URL, TMDB_BACKDROP_BASE, TMDB_IMAGE_BASE, HARDCODED_TMDB_KEY, HARDCODED_GEMINI_KEY, getTmdbKey, getGeminiKey, BrandLogo } from './components/Shared';
+import { Movie, UserProfile, GENRES_MAP, GENRES_LIST, INDIAN_LANGUAGES, MaturityRating, Keyword } from './types';
+// Fix: Removed HARDCODED_TMDB_KEY and HARDCODED_GEMINI_KEY as they were not exported from Shared.tsx
+import { LogoLoader, MovieSkeleton, MovieCard, PersonCard, PosterMarquee, TMDB_BASE_URL, TMDB_BACKDROP_BASE, TMDB_IMAGE_BASE, getTmdbKey, getGeminiKey, BrandLogo } from './components/Shared';
 import { MoviePage } from './components/MovieDetails';
 import { ProfilePage, PersonPage, NotificationModal, ComparisonModal, AgeVerificationModal } from './components/Modals';
 import { SettingsPage } from './components/SettingsModal';
@@ -13,60 +14,73 @@ import { LiveTV } from './components/LiveTV';
 import { LiveSports } from './components/LiveSports';
 import { ExplorePage } from './components/ExplorePage';
 
-// --- TV NAVIGATION ENGINE ---
+// --- TV SPATIAL NAVIGATION HOOK ---
 const useSpatialNavigation = (active: boolean) => {
-    useEffect(() => {
-        if (!active) return;
-        const handleKeyDown = (e: KeyboardEvent) => {
-            const focusables = Array.from(document.querySelectorAll('.tv-focusable')) as HTMLElement[];
-            const current = document.activeElement as HTMLElement;
-            if (!current || !focusables.includes(current)) {
-                if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
-                    focusables[0]?.focus();
-                }
-                return;
-            }
+  useEffect(() => {
+    if (!active) return;
 
-            const rect = current.getBoundingClientRect();
-            const cx = rect.left + rect.width / 2;
-            const cy = rect.top + rect.height / 2;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const directionMap: Record<string, [number, number]> = {
+        ArrowUp: [0, -1],
+        ArrowDown: [0, 1],
+        ArrowLeft: [-1, 0],
+        ArrowRight: [1, 0],
+      };
 
-            let best: HTMLElement | null = null;
-            let minScore = Infinity;
+      if (!directionMap[e.key]) return;
 
-            focusables.forEach(target => {
-                if (target === current) return;
-                const tRect = target.getBoundingClientRect();
-                const tx = tRect.left + tRect.width / 2;
-                const ty = tRect.top + tRect.height / 2;
-                const dx = tx - cx;
-                const dy = ty - cy;
+      const focusables = Array.from(document.querySelectorAll('.tv-focusable')) as HTMLElement[];
+      const current = document.activeElement as HTMLElement;
 
-                let isValid = false;
-                if (e.key === 'ArrowUp' && dy < 0 && Math.abs(dx) < Math.abs(dy) * 2) isValid = true;
-                if (e.key === 'ArrowDown' && dy > 0 && Math.abs(dx) < Math.abs(dy) * 2) isValid = true;
-                if (e.key === 'ArrowLeft' && dx < 0 && Math.abs(dy) < Math.abs(dx) * 2) isValid = true;
-                if (e.key === 'ArrowRight' && dx > 0 && Math.abs(dy) < Math.abs(dx) * 2) isValid = true;
+      if (!current || !focusables.includes(current)) {
+        focusables[0]?.focus();
+        return;
+      }
 
-                if (isValid) {
-                    const score = Math.sqrt(dx * dx + dy * dy);
-                    if (score < minScore) {
-                        minScore = score;
-                        best = target;
-                    }
-                }
-            });
+      const currentRect = current.getBoundingClientRect();
+      const currentCenter = {
+        x: currentRect.left + currentRect.width / 2,
+        y: currentRect.top + currentRect.height / 2
+      };
 
-            if (best) {
-                e.preventDefault();
-                (best as HTMLElement).focus();
-                (best as HTMLElement).scrollIntoView({ behavior: 'smooth', block: 'center' });
-            }
+      const [dx, dy] = directionMap[e.key];
+      let bestMatch: HTMLElement | null = null;
+      let minDistance = Infinity;
+
+      focusables.forEach((target) => {
+        if (target === current) return;
+        const targetRect = target.getBoundingClientRect();
+        const targetCenter = {
+          x: targetRect.left + targetRect.width / 2,
+          y: targetRect.top + targetRect.height / 2
         };
 
-        window.addEventListener('keydown', handleKeyDown);
-        return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [active]);
+        const vectorX = targetCenter.x - currentCenter.x;
+        const vectorY = targetCenter.y - currentCenter.y;
+
+        // Check if target is in the correct direction
+        const isCorrectDirection = (dx !== 0 && Math.sign(vectorX) === dx && Math.abs(vectorY) < Math.abs(vectorX)) ||
+                                    (dy !== 0 && Math.sign(vectorY) === dy && Math.abs(vectorX) < Math.abs(vectorY));
+
+        if (isCorrectDirection) {
+          const distance = Math.pow(vectorX, 2) + Math.pow(vectorY, 2);
+          if (distance < minDistance) {
+            minDistance = distance;
+            bestMatch = target;
+          }
+        }
+      });
+
+      if (bestMatch) {
+        e.preventDefault();
+        (bestMatch as HTMLElement).focus();
+        (bestMatch as HTMLElement).scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [active]);
 };
 
 export default function App() {
@@ -104,7 +118,6 @@ export default function App() {
   const [lastNotificationId, setLastNotificationId] = useState<string | null>(null);
   
   const [isAgeModalOpen, setIsAgeModalOpen] = useState(false);
-  const [isBrowseOpen, setIsBrowseOpen] = useState(false);
   const [searchHistory, setSearchHistory] = useState<string[]>([]);
 
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -112,8 +125,14 @@ export default function App() {
   const favoritesRef = useRef<Movie[]>([]);
   const watchedRef = useRef<Movie[]>([]);
 
+  const isExclusive = userProfile.canWatch === true;
+  const isGoldTheme = isExclusive && userProfile.theme !== 'default';
+  
+  const accentText = isGoldTheme ? "text-amber-500" : "text-red-600";
+  const accentBg = isGoldTheme ? "bg-amber-500" : "bg-red-600";
+
   // Activate TV Navigation
-  useSpatialNavigation(!selectedMovie && !isSettingsOpen && !isAgeModalOpen && !isSidebarOpen);
+  useSpatialNavigation(!selectedMovie && !isSidebarOpen && !isAgeModalOpen && !isSettingsOpen);
 
   useEffect(() => { watchlistRef.current = watchlist; }, [watchlist]);
   useEffect(() => { favoritesRef.current = favorites; }, [favorites]);
@@ -125,18 +144,12 @@ export default function App() {
       if (selectedCategory === "History") setMovies(watched);
   }, [watchlist, favorites, watched, selectedCategory]);
 
-  const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [selectedPersonId, setSelectedPersonId] = useState<number | null>(null);
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const [isComparisonOpen, setIsComparisonOpen] = useState(false);
   const [comparisonBaseMovie, setComparisonBaseMovie] = useState<Movie | null>(null);
   
   const abortControllerRef = useRef<AbortController | null>(null);
-
-  const isExclusive = userProfile.canWatch === true;
-  const isGoldTheme = isExclusive && userProfile.theme !== 'default';
-  const accentText = isGoldTheme ? "text-amber-500" : "text-red-600";
-  const focusClass = `tv-focusable transition-all duration-300 ${isGoldTheme ? 'gold-focus' : ''}`;
 
   const resetAuthState = useCallback(() => {
     localStorage.removeItem('movieverse_auth');
@@ -184,22 +197,21 @@ export default function App() {
   };
 
   useEffect(() => {
-    let authListener: any = null;
     const initApp = async () => {
       try {
         setApiKey(getTmdbKey());
         setGeminiKey(getGeminiKey());
         const supabase = getSupabase();
         if (supabase) {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (session) setIsAuthenticated(true);
-            else {
-                const localAuth = localStorage.getItem('movieverse_auth');
-                if (localAuth) setIsAuthenticated(true);
-            }
-        } else {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session) setIsAuthenticated(true);
+          else {
             const localAuth = localStorage.getItem('movieverse_auth');
             if (localAuth) setIsAuthenticated(true);
+          }
+        } else {
+          const localAuth = localStorage.getItem('movieverse_auth');
+          if (localAuth) setIsAuthenticated(true);
         }
         setAuthChecking(false);
         setDataLoaded(true);
@@ -243,84 +255,84 @@ export default function App() {
   if (!isAuthenticated) return <LoginPage onLogin={handleLogin} onOpenSettings={() => setIsSettingsOpen(true)} />;
 
   return (
-    <div className="min-h-screen bg-[#030303] text-white font-sans">
-      {/* Sidebar (TV Friendly) */}
-      <div className={`fixed inset-y-0 left-0 z-[100] w-72 bg-black/95 backdrop-blur-2xl border-r border-white/10 transform transition-transform duration-500 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-          <div className="flex flex-col h-full p-6">
-              <div className="flex items-center justify-between mb-8">
-                  <div className="flex items-center gap-2">
-                      <BrandLogo size={32} accentColor={accentText} />
-                      <span className="text-lg font-bold tracking-tight">Movie<span className={accentText}>Verse</span></span>
+    <div className={`min-h-screen bg-[#030303] text-white font-sans ${isGoldTheme ? 'gold-theme' : ''}`}>
+      {/* Sidebar - TV Optimized */}
+      <div className={`fixed inset-y-0 left-0 z-[100] w-80 bg-black/95 backdrop-blur-2xl border-r border-white/10 transform transition-transform duration-500 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+          <div className="flex flex-col h-full p-8">
+              <div className="flex items-center justify-between mb-12">
+                  <div className="flex items-center gap-3">
+                      <BrandLogo size={40} accentColor={accentText} />
+                      <span className="text-xl font-bold tracking-tight">Movie<span className={accentText}>Verse</span></span>
                   </div>
-                  <button onClick={() => setIsSidebarOpen(false)} className={`p-2 hover:bg-white/10 rounded-full ${focusClass}`} tabIndex={isSidebarOpen ? 0 : -1}><X size={20}/></button>
+                  <button onClick={() => setIsSidebarOpen(false)} className="p-3 hover:bg-white/10 rounded-full tv-focusable" tabIndex={isSidebarOpen ? 0 : -1} onKeyDown={e => e.key === 'Enter' && setIsSidebarOpen(false)}><X size={24}/></button>
               </div>
 
               <div className="space-y-4 overflow-y-auto flex-1">
-                  <button onClick={resetToHome} className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-bold ${focusClass} ${selectedCategory === "All" ? "bg-white/10" : ""}`} tabIndex={isSidebarOpen ? 0 : -1}>
-                      <Home size={18}/> Home
+                  <button onClick={resetToHome} className={`w-full flex items-center gap-4 px-4 py-4 rounded-2xl text-lg font-bold tv-focusable ${selectedCategory === "All" ? "bg-white/10" : "text-gray-400"}`} tabIndex={isSidebarOpen ? 0 : -1} onKeyDown={e => e.key === 'Enter' && resetToHome()}>
+                      <Home size={24}/> Home
                   </button>
-                  <button onClick={() => { resetFilters(); setSelectedCategory("Explore"); }} className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-bold ${focusClass} ${selectedCategory === "Explore" ? "bg-white/10" : ""}`} tabIndex={isSidebarOpen ? 0 : -1}>
-                      <Compass size={18}/> Explore
+                  <button onClick={() => { resetFilters(); setSelectedCategory("Explore"); }} className={`w-full flex items-center gap-4 px-4 py-4 rounded-2xl text-lg font-bold tv-focusable ${selectedCategory === "Explore" ? "bg-white/10" : "text-gray-400"}`} tabIndex={isSidebarOpen ? 0 : -1} onKeyDown={e => e.key === 'Enter' && setSelectedCategory("Explore")}>
+                      <Compass size={24}/> Explore
                   </button>
-                  <div className="h-px bg-white/5 my-2"></div>
-                  <button onClick={() => { resetFilters(); setSelectedCategory("Watchlist"); }} className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-bold ${focusClass}`} tabIndex={isSidebarOpen ? 0 : -1}>
-                      <Bookmark size={18}/> Watchlist
+                  <div className="h-px bg-white/5 my-4"></div>
+                  <button onClick={() => setSelectedCategory("Watchlist")} className={`w-full flex items-center gap-4 px-4 py-4 rounded-2xl text-lg font-bold tv-focusable ${selectedCategory === "Watchlist" ? "bg-white/10" : "text-gray-400"}`} tabIndex={isSidebarOpen ? 0 : -1} onKeyDown={e => e.key === 'Enter' && setSelectedCategory("Watchlist")}>
+                      <Bookmark size={24}/> Watchlist
                   </button>
-                  <button onClick={() => setIsSettingsOpen(true)} className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-bold ${focusClass}`} tabIndex={isSidebarOpen ? 0 : -1}>
-                      <Settings size={18}/> Settings
+                  <button onClick={() => setIsSettingsOpen(true)} className={`w-full flex items-center gap-4 px-4 py-4 rounded-2xl text-lg font-bold tv-focusable text-gray-400`} tabIndex={isSidebarOpen ? 0 : -1} onKeyDown={e => e.key === 'Enter' && setIsSettingsOpen(true)}>
+                      <Settings size={24}/> Settings
                   </button>
               </div>
           </div>
       </div>
 
-      <nav className="fixed top-0 left-0 right-0 z-[60] bg-black/90 backdrop-blur-xl border-b border-white/5 h-20 flex items-center justify-center px-6">
-        <div className="flex items-center justify-between w-full max-w-7xl">
-            <div className="flex items-center gap-6">
-                <button onClick={() => setIsSidebarOpen(true)} className={`p-3 hover:bg-white/10 rounded-full ${focusClass}`}><Menu size={28}/></button>
-                <div className="flex items-center gap-2 cursor-pointer group" onClick={resetToHome}>
-                    <BrandLogo className={accentText} accentColor={accentText} size={32} />
-                    <span className="text-xl font-bold tracking-tight text-white hidden sm:block">Movie<span className={accentText}>Verse</span></span>
+      <nav className="fixed top-0 left-0 right-0 z-[60] bg-black/90 backdrop-blur-xl border-b border-white/5 h-24 flex items-center justify-center px-8">
+        <div className="flex items-center justify-between w-full max-w-screen-2xl">
+            <div className="flex items-center gap-8">
+                <button onClick={() => setIsSidebarOpen(true)} className="p-4 hover:bg-white/10 rounded-full text-white tv-focusable"><Menu size={32}/></button>
+                <div className="flex items-center gap-3 cursor-pointer group" onClick={resetToHome}>
+                    <BrandLogo className={accentText} accentColor={accentText} size={40} />
+                    <span className="text-2xl font-bold tracking-tight text-white hidden md:block">Movie<span className={accentText}>Verse</span></span>
                 </div>
             </div>
 
-            <div className="flex items-center gap-6">
-                <div className="relative hidden md:block w-96">
-                    <input ref={searchInputRef} type="text" placeholder="Search movies..." className={`w-full bg-[#1a1a1a] border border-white/10 rounded-full py-3 pl-12 pr-4 text-sm focus:outline-none transition-all text-white ${focusClass}`} value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
-                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
+            <div className="flex items-center gap-8">
+                <div className="relative hidden lg:block w-96">
+                    <input ref={searchInputRef} type="text" placeholder="Search movies..." className="w-full bg-[#1a1a1a] border border-white/10 rounded-full py-4 pl-14 pr-6 text-lg focus:outline-none transition-all text-white tv-focusable" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+                    <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-500" size={24} />
                 </div>
-                <button onClick={() => setIsSettingsOpen(true)} className={`p-3 hover:bg-white/10 rounded-full ${focusClass}`}><Settings size={24} /></button>
+                <button onClick={() => setIsSettingsOpen(true)} className="p-4 hover:bg-white/10 rounded-full tv-focusable"><Settings size={32} /></button>
             </div>
         </div>
       </nav>
 
-      <div className="flex pt-20">
-        <main className="flex-1 min-h-[calc(100vh-5rem)] w-full">
+      <div className="flex pt-24">
+        <main className="flex-1 min-h-[calc(100vh-6rem)] w-full">
            {selectedCategory === "Explore" ? (
                <ExplorePage apiKey={apiKey} onMovieClick={setSelectedMovie} userProfile={userProfile} />
            ) : (
                <div className="animate-in fade-in duration-700">
                    {featuredMovie && !searchQuery && (
-                       <div className="relative w-full h-[70vh] overflow-hidden">
+                       <div className="relative w-full h-[75vh] overflow-hidden">
                            <div className="absolute inset-0">
-                               <img src={featuredMovie.backdrop_path ? `${TMDB_BACKDROP_BASE}${featuredMovie.backdrop_path}` : `${TMDB_IMAGE_BASE}${featuredMovie.poster_path}`} className="w-full h-full object-cover" alt="" />
-                               <div className="absolute inset-0 bg-gradient-to-t from-[#030303] via-[#030303]/40 to-transparent"></div>
+                               <img src={featuredMovie.backdrop_path ? `${TMDB_BACKDROP_BASE}${featuredMovie.backdrop_path}` : `${TMDB_IMAGE_BASE}${featuredMovie.poster_path}`} className="w-full h-full object-cover opacity-60" alt="" />
+                               <div className="absolute inset-0 bg-gradient-to-t from-[#030303] via-[#030303]/20 to-transparent"></div>
                            </div>
-                           <div className="absolute bottom-0 left-0 w-full p-12 z-20 md:max-w-4xl">
-                               <h1 className="text-5xl md:text-7xl font-black text-white mb-6 leading-tight drop-shadow-2xl">{featuredMovie.title || featuredMovie.name}</h1>
-                               <p className="text-gray-200 text-lg line-clamp-2 max-w-2xl mb-8 font-medium">{featuredMovie.overview}</p>
-                               <button onClick={() => setSelectedMovie(featuredMovie)} className={`px-10 py-4 bg-white text-black rounded-2xl font-black flex items-center gap-3 transition-all ${focusClass}`}>
-                                   <PlayCircle size={24} fill="currentColor" /> Watch Now
+                           <div className="absolute bottom-0 left-0 w-full p-12 z-20 md:max-w-5xl">
+                               <h1 className="text-6xl md:text-8xl font-black text-white mb-8 leading-tight drop-shadow-2xl">{featuredMovie.title || featuredMovie.name}</h1>
+                               <p className="text-gray-200 text-xl line-clamp-3 max-w-3xl mb-10 font-medium leading-relaxed">{featuredMovie.overview}</p>
+                               <button onClick={() => setSelectedMovie(featuredMovie)} className="px-12 py-5 bg-white text-black rounded-2xl font-black text-xl flex items-center gap-4 transition-all tv-focusable" onKeyDown={e => e.key === 'Enter' && setSelectedMovie(featuredMovie)}>
+                                   <PlayCircle size={32} fill="currentColor" /> Watch Now
                                </button>
                            </div>
                        </div>
                    )}
-                   <div className="px-6 md:px-12 py-12">
-                       <h2 className="text-3xl font-black mb-8 px-2 flex items-center gap-3">
-                           <TrendingUp className={accentText} /> {selectedCategory === "All" ? "Trending Today" : selectedCategory}
+                   <div className="px-8 md:px-16 py-16">
+                       <h2 className="text-4xl font-black mb-12 px-2 flex items-center gap-4">
+                           <TrendingUp className={accentText} size={32} /> {selectedCategory === "All" ? "Trending Today" : selectedCategory}
                        </h2>
-                       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-8">
+                       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-10">
                            {movies.map((movie, idx) => (
-                               /* Fix: key should be a React attribute, not passed in the props object */
+                               // Fix: MovieCard does not take a 'key' prop (handled by React)
                                <MovieCard 
                                  key={`${movie.id}-${idx}`} 
                                  movie={movie} 
@@ -332,7 +344,7 @@ export default function App() {
                                />
                            ))}
                        </div>
-                       {loading && <div className="grid grid-cols-2 md:grid-cols-6 gap-8 mt-8">{[...Array(6)].map((_, i) => <MovieSkeleton key={i} />)}</div>}
+                       {loading && <div className="grid grid-cols-2 md:grid-cols-6 gap-10 mt-10">{[...Array(6)].map((_, i) => <MovieSkeleton key={i} />)}</div>}
                    </div>
                </div>
            )}
