@@ -62,6 +62,35 @@
       .text-shadow {
         text-shadow: 0 2px 4px rgba(0,0,0,0.5);
       }
+
+      /* TV Spatial Navigation Styles */
+      :focus {
+        outline: none !important;
+      }
+
+      .tv-focusable {
+        transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s ease, border-color 0.2s ease;
+        scroll-margin: 100px;
+        position: relative;
+      }
+
+      .tv-focusable:focus {
+        transform: scale(1.08);
+        z-index: 50;
+        outline: 4px solid #ffffff !important;
+        outline-offset: 4px;
+        box-shadow: 0 0 50px rgba(255, 255, 255, 0.4);
+      }
+
+      .gold-theme .tv-focusable:focus {
+        outline-color: #f59e0b !important;
+        box-shadow: 0 0 50px rgba(245, 158, 11, 0.4);
+      }
+      
+      /* Prevent scrolling on fixed containers when D-pad is used */
+      .fixed {
+        overscroll-behavior: contain;
+      }
     </style>
   <script type="importmap">
 {
