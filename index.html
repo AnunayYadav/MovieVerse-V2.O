@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
   <head>
@@ -19,7 +18,7 @@
         overflow-x: hidden;
       }
       
-      /* Custom Scrollbar */
+      /* Custom Scrollbar for Chrome/Safari/Webkit */
       ::-webkit-scrollbar {
         width: 8px;
         height: 8px;
@@ -31,37 +30,17 @@
         background: #333; 
         border-radius: 4px;
       }
+      ::-webkit-scrollbar-thumb:hover {
+        background: #555; 
+      }
       
+      /* Hide scrollbar utility */
       .hide-scrollbar::-webkit-scrollbar {
         display: none;
       }
       .hide-scrollbar {
         -ms-overflow-style: none;
         scrollbar-width: none;
-      }
-
-      /* TV Spatial Navigation Styles */
-      :focus {
-        outline: none !important;
-      }
-
-      .tv-focusable {
-        transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.25s ease;
-        outline: 0 solid transparent;
-      }
-
-      .tv-focusable:focus {
-        transform: scale(1.08);
-        z-index: 50;
-        outline: 4px solid #ffffff !important;
-        outline-offset: 4px;
-        box-shadow: 0 0 50px rgba(255, 255, 255, 0.4);
-        position: relative;
-      }
-
-      .gold-theme .tv-focusable:focus {
-        outline-color: #f59e0b !important;
-        box-shadow: 0 0 50px rgba(245, 158, 11, 0.4);
       }
 
       /* Glass utilities */
@@ -78,6 +57,10 @@
         -webkit-backdrop-filter: blur(24px);
         border: 1px solid rgba(255, 255, 255, 0.08);
         box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.36);
+      }
+
+      .text-shadow {
+        text-shadow: 0 2px 4px rgba(0,0,0,0.5);
       }
     </style>
   <script type="importmap">
