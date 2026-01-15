@@ -112,10 +112,93 @@ export default function App() {
   const accentBg = isGoldTheme ? "bg-amber-500" : "bg-red-600";
   const accentBgLow = isGoldTheme ? "bg-amber-500/20" : "bg-red-600/20";
 
-  // Shortcut Handler
+  // --- TV NAVIGATION LOGIC ---
+  
+  const handleTvNavigation = useCallback((e: KeyboardEvent) => {
+    // Focus Manager for TV Remotes
+    const focusableSelector = 'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
+    const focusableElements = Array.from(document.querySelectorAll(focusableSelector)) as HTMLElement[];
+    const activeElement = document.activeElement as HTMLElement;
+    const activeIndex = focusableElements.indexOf(activeElement);
+
+    const moveFocus = (direction: 'up' | 'down' | 'left' | 'right') => {
+      if (focusableElements.length === 0) return;
+      
+      // Spatial Navigation Simulation
+      const activeRect = activeElement.getBoundingClientRect();
+      let bestMatch: HTMLElement | null = null;
+      let minDistance = Infinity;
+
+      focusableElements.forEach((el) => {
+        if (el === activeElement) return;
+        const elRect = el.getBoundingClientRect();
+        
+        // Simple direction check
+        let isCorrectDirection = false;
+        if (direction === 'up') isCorrectDirection = elRect.bottom <= activeRect.top;
+        if (direction === 'down') isCorrectDirection = elRect.top >= activeRect.bottom;
+        if (direction === 'left') isCorrectDirection = elRect.right <= activeRect.left;
+        if (direction === 'right') isCorrectDirection = elRect.left >= activeRect.right;
+
+        if (isCorrectDirection) {
+          // Calculate Euclidean distance between centers
+          const dx = (elRect.left + elRect.width / 2) - (activeRect.left + activeRect.width / 2);
+          const dy = (elRect.top + elRect.height / 2) - (activeRect.top + activeRect.height / 2);
+          const distance = Math.sqrt(dx * dx + dy * dy);
+
+          if (distance < minDistance) {
+            minDistance = distance;
+            bestMatch = el;
+          }
+        }
+      });
+
+      if (bestMatch) {
+        (bestMatch as HTMLElement).focus();
+        e.preventDefault();
+      } else {
+        // Fallback to tab index if spatial fails
+        if (direction === 'right' || direction === 'down') {
+          const next = focusableElements[activeIndex + 1] || focusableElements[0];
+          next.focus();
+          e.preventDefault();
+        } else {
+          const prev = focusableElements[activeIndex - 1] || focusableElements[focusableElements.length - 1];
+          prev.focus();
+          e.preventDefault();
+        }
+      }
+    };
+
+    switch (e.key) {
+      case 'ArrowUp': moveFocus('up'); break;
+      case 'ArrowDown': moveFocus('down'); break;
+      case 'ArrowLeft': moveFocus('left'); break;
+      case 'ArrowRight': moveFocus('right'); break;
+      case 'Enter': 
+        if (activeElement && activeElement.tagName !== 'INPUT' && activeElement.tagName !== 'SELECT') {
+          activeElement.click();
+        }
+        break;
+      case 'Backspace':
+      case 'Escape':
+        // Back navigation
+        if (selectedMovie) setSelectedMovie(null);
+        else if (selectedPersonId) setSelectedPersonId(null);
+        else if (isSidebarOpen) setIsSidebarOpen(false);
+        else if (isSettingsOpen) setIsSettingsOpen(false);
+        else if (isProfileOpen) setIsProfileOpen(false);
+        break;
+    }
+  }, [selectedMovie, selectedPersonId, isSidebarOpen, isSettingsOpen, isProfileOpen]);
+
+  // Global Key Listener
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const isTyping = e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement;
+
+      // Handle standard TV remote keys
+      handleTvNavigation(e);
 
       if (e.key === 'Escape') {
         if (isComparisonOpen) return setIsComparisonOpen(false);
@@ -147,7 +230,7 @@ export default function App() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isComparisonOpen, selectedPersonId, isSettingsOpen, isProfileOpen, isNotificationOpen, isSidebarOpen, selectedMovie]);
+  }, [handleTvNavigation, isComparisonOpen, selectedPersonId, isSettingsOpen, isProfileOpen, isNotificationOpen, isSidebarOpen, selectedMovie]);
 
   const resetAuthState = useCallback(() => {
     localStorage.removeItem('movieverse_auth');
@@ -706,16 +789,16 @@ export default function App() {
   if (!isAuthenticated) return (<> <LoginPage onLogin={handleLogin} onOpenSettings={() => setIsSettingsOpen(true)} /> <SettingsPage isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} apiKey={apiKey} setApiKey={(k) => saveSettings(k)} geminiKey={geminiKey} setGeminiKey={(k) => saveGeminiKey(k)} maturityRating={maturityRating} setMaturityRating={setMaturityRating} profile={userProfile} onUpdateProfile={setUserProfile} onLogout={handleLogout} searchHistory={searchHistory} setSearchHistory={(h) => { setSearchHistory(h); localStorage.setItem('movieverse_search_history', JSON.stringify(h)); }} watchedMovies={watched} setWatchedMovies={(m) => { setWatched(m); localStorage.setItem('movieverse_watched', JSON.stringify(m)); }} /> </>);
 
   return (
-    <div className="min-h-screen bg-[#030303] text-white font-sans selection:bg-amber-500/30 selection:text-white">
+    <div className={`min-h-screen bg-[#030303] text-white font-sans selection:bg-amber-500/30 selection:text-white ${isGoldTheme ? 'gold-theme' : ''}`}>
       {/* Dynamic Sidebar */}
       <div className={`fixed inset-y-0 left-0 z-[100] w-72 bg-black/95 backdrop-blur-2xl border-r border-white/10 transform transition-transform duration-500 ease-[cubic-bezier(0.33,1,0.68,1)] ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
           <div className="flex flex-col h-full p-6">
               <div className="flex items-center justify-between mb-8">
-                  <div className="flex items-center gap-2 cursor-pointer" onClick={resetToHome}>
+                  <button className="flex items-center gap-2 cursor-pointer focus:outline-none" onClick={resetToHome}>
                       <BrandLogo size={32} accentColor={accentText} />
                       <span className="text-lg font-bold tracking-tight">Movie<span className={accentText}>Verse</span></span>
-                  </div>
-                  <button onClick={() => setIsSidebarOpen(false)} className="p-2 hover:bg-white/10 rounded-full transition-colors">
+                  </button>
+                  <button onClick={() => setIsSidebarOpen(false)} className="p-2 hover:bg-white/10 rounded-full transition-colors focus:outline-none">
                       <X size={20}/>
                   </button>
               </div>
@@ -736,41 +819,41 @@ export default function App() {
               <div className="space-y-6 overflow-y-auto custom-scrollbar flex-1 -mx-2 px-2">
                   <div className="space-y-1">
                       <p className="px-3 text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Main</p>
-                      <button onClick={resetToHome} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-all ${selectedCategory === "All" ? "bg-white/10 text-white" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>
+                      <button onClick={resetToHome} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-all focus:outline-none ${selectedCategory === "All" ? "bg-white/10 text-white" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>
                           <Home size={18}/> Home <span className="ml-auto text-[8px] opacity-40 hidden lg:inline">Alt+H</span>
                       </button>
-                      <button onClick={() => { resetFilters(); setSelectedCategory("Explore"); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-all ${selectedCategory === "Explore" ? "bg-white/10 text-white" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>
+                      <button onClick={() => { resetFilters(); setSelectedCategory("Explore"); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-all focus:outline-none ${selectedCategory === "Explore" ? "bg-white/10 text-white" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>
                           <Compass size={18}/> Explore <span className="ml-auto text-[8px] opacity-40 hidden lg:inline">Alt+E</span>
                       </button>
                   </div>
 
                   <div className="space-y-1">
                       <p className="px-3 text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Entertainment</p>
-                      <button onClick={() => { resetFilters(); setSelectedCategory("TV Shows"); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-all ${selectedCategory === "TV Shows" ? "bg-white/10 text-white" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>
+                      <button onClick={() => { resetFilters(); setSelectedCategory("TV Shows"); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-all focus:outline-none ${selectedCategory === "TV Shows" ? "bg-white/10 text-white" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>
                           <Tv size={18}/> TV Shows
                       </button>
-                      <button onClick={() => { resetFilters(); setSelectedCategory("LiveTV"); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-all ${selectedCategory === "LiveTV" ? "bg-white/10 text-white" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>
+                      <button onClick={() => { resetFilters(); setSelectedCategory("LiveTV"); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-all focus:outline-none ${selectedCategory === "LiveTV" ? "bg-white/10 text-white" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>
                           <Radio size={18}/> Live TV <span className="ml-auto text-[8px] opacity-40 hidden lg:inline">Alt+T</span>
                       </button>
-                      <button onClick={() => { resetFilters(); setSelectedCategory("Sports"); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-all ${selectedCategory === "Sports" ? "bg-white/10 text-white" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>
+                      <button onClick={() => { resetFilters(); setSelectedCategory("Sports"); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-all focus:outline-none ${selectedCategory === "Sports" ? "bg-white/10 text-white" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>
                           <Trophy size={18}/> Sports
                       </button>
-                      <button onClick={() => { resetFilters(); setSelectedCategory("Franchise"); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-all ${selectedCategory === "Franchise" ? "bg-white/10 text-white" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>
+                      <button onClick={() => { resetFilters(); setSelectedCategory("Franchise"); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-all focus:outline-none ${selectedCategory === "Franchise" ? "bg-white/10 text-white" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>
                           <Layers size={18}/> Franchise Explorer
                       </button>
                   </div>
 
                   <div className="space-y-1">
                       <p className="px-3 text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">My Library</p>
-                      <button onClick={() => { resetFilters(); setSelectedCategory("Watchlist"); }} className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-bold transition-all ${selectedCategory === "Watchlist" ? "bg-white/10 text-white" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>
+                      <button onClick={() => { resetFilters(); setSelectedCategory("Watchlist"); }} className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-bold transition-all focus:outline-none ${selectedCategory === "Watchlist" ? "bg-white/10 text-white" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>
                           <div className="flex items-center gap-3"><Bookmark size={18}/> Watchlist <span className="text-[8px] opacity-40 hidden lg:inline ml-1">Alt+W</span></div>
                           <span className="text-[10px] bg-white/5 px-1.5 rounded">{watchlist.length}</span>
                       </button>
-                      <button onClick={() => { resetFilters(); setSelectedCategory("Favorites"); }} className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-bold transition-all ${selectedCategory === "Favorites" ? "bg-white/10 text-white" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>
+                      <button onClick={() => { resetFilters(); setSelectedCategory("Favorites"); }} className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-bold transition-all focus:outline-none ${selectedCategory === "Favorites" ? "bg-white/10 text-white" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>
                           <div className="flex items-center gap-3"><Heart size={18}/> Favorites</div>
                           <span className="text-[10px] bg-white/5 px-1.5 rounded">{favorites.length}</span>
                       </button>
-                      <button onClick={() => { resetFilters(); setSelectedCategory("History"); }} className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-bold transition-all ${selectedCategory === "History" ? "bg-white/10 text-white" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>
+                      <button onClick={() => { resetFilters(); setSelectedCategory("History"); }} className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-bold transition-all focus:outline-none ${selectedCategory === "History" ? "bg-white/10 text-white" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>
                           <div className="flex items-center gap-3"><History size={18}/> History</div>
                           <span className="text-[10px] bg-white/5 px-1.5 rounded">{watched.length}</span>
                       </button>
@@ -782,7 +865,7 @@ export default function App() {
                           href="https://median.co/share/eeewoqx#apk" 
                           target="_blank" 
                           rel="noopener noreferrer" 
-                          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold text-amber-500 hover:bg-amber-500/10 transition-all border border-amber-500/10"
+                          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold text-amber-500 hover:bg-amber-500/10 transition-all border border-amber-500/10 focus:outline-none"
                       >
                           <Download size={18}/> Download App
                       </a>
@@ -790,10 +873,10 @@ export default function App() {
               </div>
 
               <div className="mt-auto pt-6 border-t border-white/5 space-y-2">
-                  <button onClick={() => { setIsSidebarOpen(false); setIsSettingsOpen(true); }} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold text-gray-400 hover:text-white hover:bg-white/5">
+                  <button onClick={() => { setIsSidebarOpen(false); setIsSettingsOpen(true); }} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold text-gray-400 hover:text-white hover:bg-white/5 focus:outline-none">
                       <Settings size={18}/> Settings <span className="ml-auto text-[8px] opacity-40 hidden lg:inline">Alt+S</span>
                   </button>
-                  <button onClick={handleLogout} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold text-red-500 hover:bg-red-500/10 transition-colors">
+                  <button onClick={handleLogout} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold text-red-500 hover:bg-red-500/10 transition-colors focus:outline-none">
                       <LogOut size={18}/> Sign Out
                   </button>
               </div>
@@ -813,12 +896,12 @@ export default function App() {
             <div className="flex items-center gap-4 md:gap-8">
                 <button 
                     onClick={() => setIsSidebarOpen(true)}
-                    className="p-2 -ml-2 hover:bg-white/10 rounded-full transition-colors text-white"
+                    className="p-2 -ml-2 hover:bg-white/10 rounded-full transition-colors text-white focus:outline-none"
                 >
                     <Menu size={24}/>
                 </button>
 
-                <div className="flex items-center gap-2 cursor-pointer group" onClick={resetToHome}>
+                <button className="flex items-center gap-2 cursor-pointer group focus:outline-none" onClick={resetToHome}>
                     <div className="relative group">
                         <BrandLogo className={`${accentText} relative z-10 transition-transform duration-500 group-hover:rotate-12`} accentColor={accentText} />
                         <div className={`absolute inset-0 blur-lg opacity-50 group-hover:opacity-80 transition-opacity duration-500 ${isGoldTheme ? 'bg-amber-500' : 'bg-red-600'}`}></div>
@@ -827,16 +910,16 @@ export default function App() {
                         <span className="text-lg font-bold tracking-tight text-white hidden sm:block">Movie<span className={accentText}>Verse</span></span>
                         {isExclusive && <span className={`text-[9px] uppercase tracking-[0.2em] font-bold hidden sm:block animate-pulse ${isGoldTheme ? 'text-amber-500' : 'text-red-600'}`}>Exclusive</span>}
                     </div>
-                </div>
+                </button>
 
                 <div className="hidden lg:flex items-center gap-2">
-                    <button onClick={resetToHome} className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold transition-all ${selectedCategory === "All" && !searchQuery ? "bg-white/10 text-white" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>
+                    <button onClick={resetToHome} className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold transition-all focus:outline-none ${selectedCategory === "All" && !searchQuery ? "bg-white/10 text-white" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>
                         <Home size={18} /> Home
                     </button>
-                    <button onClick={() => { resetFilters(); setSelectedCategory("Explore"); }} className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold transition-all ${selectedCategory === "Explore" ? "bg-white/10 text-white" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>
+                    <button onClick={() => { resetFilters(); setSelectedCategory("Explore"); }} className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold transition-all focus:outline-none ${selectedCategory === "Explore" ? "bg-white/10 text-white" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>
                         <Compass size={18} /> Explore
                     </button>
-                    <button onClick={() => { resetFilters(); setSelectedCategory("LiveTV"); }} className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold transition-all ${selectedCategory === "LiveTV" ? "bg-white/10 text-white" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>
+                    <button onClick={() => { resetFilters(); setSelectedCategory("LiveTV"); }} className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold transition-all focus:outline-none ${selectedCategory === "LiveTV" ? "bg-white/10 text-white" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>
                         <Radio size={18} /> Live TV
                     </button>
                     
@@ -845,7 +928,7 @@ export default function App() {
                         onMouseEnter={handleBrowseEnter}
                         onMouseLeave={handleBrowseLeave}
                     >
-                        <button className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold transition-all ${["Genres", "Awards", "Anime", "Sports", "Family", "TV Shows", "Coming"].includes(selectedCategory) ? "bg-white/10 text-white" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>
+                        <button className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold transition-all focus:outline-none ${["Genres", "Awards", "Anime", "Sports", "Family", "TV Shows", "Coming"].includes(selectedCategory) ? "bg-white/10 text-white" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>
                             <LayoutGrid size={18} /> Browse
                         </button>
                         
@@ -857,7 +940,7 @@ export default function App() {
                                         <button 
                                             key={opt.id}
                                             onClick={() => handleBrowseAction(opt.action)}
-                                            className={`flex flex-col items-center justify-center gap-1 p-3 rounded-xl hover:bg-white/10 transition-colors ${selectedCategory === opt.id ? 'bg-white/5 text-white' : 'text-gray-400 hover:text-white'}`}
+                                            className={`flex flex-col items-center justify-center gap-1 p-3 rounded-xl hover:bg-white/10 transition-colors focus:outline-none ${selectedCategory === opt.id ? 'bg-white/5 text-white' : 'text-gray-400 hover:text-white'}`}
                                         >
                                             <opt.icon size={20}/>
                                             <span className="text-[10px] font-bold">{opt.label}</span>
@@ -889,16 +972,16 @@ export default function App() {
                 <div className="flex items-center gap-3">
                     <button 
                         onClick={() => setIsSettingsOpen(true)} 
-                        className="text-gray-400 hover:text-white transition-colors p-2 hover:bg-white/10 rounded-full"
+                        className="text-gray-400 hover:text-white transition-colors p-2 hover:bg-white/10 rounded-full focus:outline-none"
                         title="Settings"
                     >
                         <Settings size={20} />
                     </button>
-                    <button onClick={() => setIsNotificationOpen(true)} className="relative text-gray-400 hover:text-white transition-colors p-2 hover:bg-white/10 rounded-full">
+                    <button onClick={() => setIsNotificationOpen(true)} className="relative text-gray-400 hover:text-white transition-colors p-2 hover:bg-white/10 rounded-full focus:outline-none">
                         <Bell size={20} />
                         {hasUnread && <span className={`absolute top-2 right-2 w-2 h-2 rounded-full ${isGoldTheme ? 'bg-amber-500' : 'bg-red-500'}`}></span>}
                     </button>
-                    <button onClick={() => setIsProfileOpen(true)} className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white shadow-lg transition-transform overflow-hidden hover:scale-105 ${userProfile.avatarBackground || (isGoldTheme ? 'bg-gradient-to-br from-amber-500 to-yellow-900 shadow-amber-900/40' : 'bg-gradient-to-br from-red-600 to-red-900 shadow-red-900/40')}`}>
+                    <button onClick={() => setIsProfileOpen(true)} className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white shadow-lg transition-transform overflow-hidden hover:scale-105 focus:outline-none ${userProfile.avatarBackground || (isGoldTheme ? 'bg-gradient-to-br from-amber-500 to-yellow-900 shadow-amber-900/40' : 'bg-gradient-to-br from-red-600 to-red-900 shadow-red-900/40')}`}>
                         {userProfile.avatar ? (<img key={userProfile.avatar} src={userProfile.avatar} alt={userProfile.name} className="w-full h-full object-cover" />) : (userProfile.name.charAt(0).toUpperCase())}
                     </button>
                 </div>
@@ -914,13 +997,13 @@ export default function App() {
                        <h1 className="text-4xl md:text-5xl font-black text-white tracking-tight mb-2">All Genres</h1>
                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6 mt-8">
                            {GENRES_LIST.map(genre => (
-                               <div key={genre} onClick={() => { resetFilters(); setSelectedCategory(genre); }} className={`relative h-40 md:h-48 rounded-2xl overflow-hidden cursor-pointer group shadow-2xl transition-all duration-500 hover:scale-[1.02] hover:shadow-white/5`}>
+                               <button key={genre} onClick={() => { resetFilters(); setSelectedCategory(genre); }} className={`relative h-40 md:h-48 rounded-2xl overflow-hidden cursor-pointer group shadow-2xl transition-all duration-500 hover:scale-[1.02] hover:shadow-white/5 focus:outline-none`}>
                                    <div className={`absolute inset-0 bg-gradient-to-br ${GENRE_COLORS[genre] || "from-gray-700 to-black"} opacity-80 group-hover:opacity-100 transition-opacity duration-500`}></div>
                                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent"></div>
-                                   <div className="absolute bottom-0 left-0 p-6 w-full">
+                                   <div className="absolute bottom-0 left-0 p-6 w-full text-left">
                                        <h3 className="text-xl md:text-2xl font-black text-white mb-1 group-hover:translate-x-1 transition-transform duration-300">{genre}</h3>
                                    </div>
-                               </div>
+                               </button>
                            ))}
                        </div>
                    </div>
@@ -930,7 +1013,7 @@ export default function App() {
                    <h1 className="text-4xl md:text-5xl font-black text-white tracking-tight mb-8">Franchise Explorer</h1>
                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                        {franchiseList.map((franchise) => (
-                           <div key={franchise.id} onClick={() => handleTmdbCollectionClick(franchise.id)} className="group cursor-pointer bg-white/5 border border-white/10 rounded-2xl overflow-hidden transition-all hover:scale-105 hover:bg-white/10 shadow-xl">
+                           <button key={franchise.id} onClick={() => handleTmdbCollectionClick(franchise.id)} className="group cursor-pointer bg-white/5 border border-white/10 rounded-2xl overflow-hidden transition-all hover:scale-105 hover:bg-white/10 shadow-xl focus:outline-none text-left">
                                <div className="aspect-[16/9] relative overflow-hidden">
                                    <img 
                                        src={franchise.backdrop_path ? `${TMDB_BACKDROP_BASE}${franchise.backdrop_path}` : `${TMDB_IMAGE_BASE}${franchise.poster_path}`} 
@@ -951,7 +1034,7 @@ export default function App() {
                                        </div>
                                    </div>
                                </div>
-                           </div>
+                           </button>
                        ))}
                        {loading && [...Array(8)].map((_, i) => <div key={i} className="aspect-[16/9] bg-white/5 rounded-2xl animate-pulse"></div>)}
                    </div>
@@ -965,12 +1048,12 @@ export default function App() {
                                    <div key={date} className="animate-in slide-in-from-right-4 duration-500 group/timeline">
                                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 mt-4">
                                            {dateMovies.map((movie) => (
-                                               <div key={movie.id} onClick={() => setSelectedMovie(movie)} className="group cursor-pointer relative">
+                                               <button key={movie.id} onClick={() => setSelectedMovie(movie)} className="group cursor-pointer relative focus:outline-none text-left">
                                                    <div className="aspect-[2/3] rounded-xl overflow-hidden bg-gray-900 mb-3 relative shadow-lg">
                                                        <img src={movie.poster_path ? `${TMDB_IMAGE_BASE}${movie.poster_path}` : "https://placehold.co/300x450"} alt={movie.title} className="w-full h-full object-cover" loading="lazy" />
                                                    </div>
                                                    <h4 className="font-bold text-sm text-gray-200">{movie.title}</h4>
-                                               </div>
+                                               </button>
                                            ))}
                                        </div>
                                    </div>
@@ -1017,14 +1100,14 @@ export default function App() {
                                            {isExclusive && (
                                                <button 
                                                    onClick={() => setSelectedMovie(featuredMovie)}
-                                                   className={`flex-1 sm:flex-none px-2 py-3 sm:px-8 sm:py-3.5 text-sm sm:text-base rounded-xl font-bold flex items-center justify-center gap-3 transition-all hover:scale-105 active:scale-95 shadow-xl ${isGoldTheme ? 'bg-amber-500 text-black hover:bg-amber-400' : 'bg-white text-black hover:bg-gray-200'}`}
+                                                   className={`flex-1 sm:flex-none px-2 py-3 sm:px-8 sm:py-3.5 text-sm sm:text-base rounded-xl font-bold flex items-center justify-center gap-3 transition-all hover:scale-105 active:scale-95 shadow-xl focus:outline-none ${isGoldTheme ? 'bg-amber-500 text-black hover:bg-amber-400' : 'bg-white text-black hover:bg-gray-200'}`}
                                                >
                                                    <PlayCircle size={20} fill="currentColor" /> Watch Now
                                                </button>
                                            )}
                                            <button 
                                                onClick={() => setSelectedMovie(featuredMovie)}
-                                               className="flex-1 sm:flex-none px-2 py-3 sm:px-8 sm:py-3.5 text-sm sm:text-base rounded-xl font-bold flex items-center justify-center gap-3 bg-white/10 hover:bg-white/20 backdrop-blur-md text-white transition-all hover:scale-105 active:scale-95 border border-white/10"
+                                               className="flex-1 sm:flex-none px-2 py-3 sm:px-8 sm:py-3.5 text-sm sm:text-base rounded-xl font-bold flex items-center justify-center gap-3 bg-white/10 hover:bg-white/20 backdrop-blur-md text-white transition-all hover:scale-105 active:scale-95 border border-white/10 focus:outline-none"
                                            >
                                                <Info size={20}/> More Info
                                            </button>
@@ -1041,7 +1124,7 @@ export default function App() {
 
                                 <div className="flex items-center gap-2 flex-wrap">
                                     <div className="relative group shrink-0">
-                                        <button className="flex items-center gap-2 px-3 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-xs font-medium text-gray-200 transition-all hover:border-white/20 active:scale-95 min-w-[100px] justify-between">
+                                        <button className="flex items-center gap-2 px-3 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-xs font-medium text-gray-200 transition-all hover:border-white/20 active:scale-95 min-w-[100px] justify-between focus:outline-none">
                                             <div className="flex items-center gap-2"><Filter size={14}/> <span>Sort</span></div>
                                             <ChevronDown size={12} className="text-gray-500 group-hover:text-white transition-colors"/>
                                         </button>
@@ -1053,7 +1136,7 @@ export default function App() {
                                                 { label: 'Top Rated', value: 'vote_average.desc' },
                                                 { label: 'Revenue', value: 'revenue.desc' }
                                             ].map(opt => (
-                                                <button key={opt.value} onClick={() => setSortOption(opt.value)} className={`w-full text-left px-3 py-2 text-xs font-medium rounded-lg transition-colors flex items-center justify-between ${sortOption === opt.value ? 'bg-white/10 text-white' : 'text-gray-400 hover:bg-white/5 hover:text-white'}`}>
+                                                <button key={opt.value} onClick={() => setSortOption(opt.value)} className={`w-full text-left px-3 py-2 text-xs font-medium rounded-lg transition-colors flex items-center justify-between focus:outline-none ${sortOption === opt.value ? 'bg-white/10 text-white' : 'text-gray-400 hover:bg-white/5 hover:text-white'}`}>
                                                     {opt.label}
                                                     {sortOption === opt.value && <Check size={12} className={accentText}/>}
                                                 </button>
@@ -1062,14 +1145,14 @@ export default function App() {
                                     </div>
 
                                     <div className="relative group shrink-0">
-                                        <button className="flex items-center gap-2 px-3 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-xs font-medium text-gray-200 transition-all hover:border-white/20 active:scale-95 min-w-[100px] justify-between">
+                                        <button className="flex items-center gap-2 px-3 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-xs font-medium text-gray-200 transition-all hover:border-white/20 active:scale-95 min-w-[100px] justify-between focus:outline-none">
                                             <div className="flex items-center gap-2"><Globe size={14}/> <span>{selectedRegion === 'Global' ? 'Global' : selectedRegion}</span></div>
                                             <ChevronDown size={12} className="text-gray-500 group-hover:text-white transition-colors"/>
                                         </button>
                                         <div className="absolute top-full left-0 w-full h-2 bg-transparent pointer-events-auto opacity-0 group-hover:block hidden"></div>
                                         <div className="absolute top-full right-0 mt-2 w-48 bg-[#1a1a1a]/95 backdrop-blur-xl border border-white/10 rounded-xl overflow-hidden shadow-2xl opacity-0 group-hover:opacity-100 scale-95 group-hover:scale-100 pointer-events-none group-hover:pointer-events-auto transition-all origin-top-right z-50 max-h-60 overflow-y-auto custom-scrollbar p-1">
                                             {['Global', 'US', 'IN', 'JP', 'KR', 'GB', 'FR', 'DE'].map(region => (
-                                                <button key={region} onClick={() => setSelectedRegion(region)} className={`w-full text-left px-3 py-2 text-xs font-medium rounded-lg transition-colors flex items-center justify-between ${selectedRegion === region ? 'bg-white/10 text-white' : 'text-gray-400 hover:bg-white/5 hover:text-white'}`}>
+                                                <button key={region} onClick={() => setSelectedRegion(region)} className={`w-full text-left px-3 py-2 text-xs font-medium rounded-lg transition-colors flex items-center justify-between focus:outline-none ${selectedRegion === region ? 'bg-white/10 text-white' : 'text-gray-400 hover:bg-white/5 hover:text-white'}`}>
                                                     {region === 'Global' ? 'Global' : region === 'IN' ? 'India' : region}
                                                     {selectedRegion === region && <Check size={12} className={accentText}/>}
                                                 </button>
@@ -1078,14 +1161,14 @@ export default function App() {
                                     </div>
 
                                     <div className="relative group shrink-0">
-                                        <button className="flex items-center gap-2 px-3 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-xs font-medium text-gray-200 transition-all hover:border-white/20 active:scale-95 min-w-[100px] justify-between">
+                                        <button className="flex items-center gap-2 px-3 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-xs font-medium text-gray-200 transition-all hover:border-white/20 active:scale-95 min-w-[100px] justify-between focus:outline-none">
                                             <div className="flex items-center gap-2"><Languages size={14}/> <span>{selectedLanguage === 'All' ? 'All' : selectedLanguage.toUpperCase()}</span></div>
                                             <ChevronDown size={12} className="text-gray-500 group-hover:text-white transition-colors"/>
                                         </button>
                                         <div className="absolute top-full left-0 w-full h-2 bg-transparent pointer-events-auto opacity-0 group-hover:block hidden"></div>
                                         <div className="absolute top-full right-0 mt-2 w-48 bg-[#1a1a1a]/95 backdrop-blur-xl border border-white/10 rounded-xl overflow-hidden shadow-2xl opacity-0 group-hover:opacity-100 scale-95 group-hover:scale-100 pointer-events-none group-hover:pointer-events-auto transition-all origin-top-right z-50 max-h-60 overflow-y-auto custom-scrollbar p-1">
                                             {['All', 'en', 'hi', 'ja', 'ko', 'es', 'fr'].map(lang => (
-                                                <button key={lang} onClick={() => setSelectedLanguage(lang)} className={`w-full text-left px-3 py-2 text-xs font-medium rounded-lg transition-colors flex items-center justify-between ${selectedLanguage === lang ? 'bg-white/10 text-white' : 'text-gray-400 hover:bg-white/5 hover:text-white'}`}>
+                                                <button key={lang} onClick={() => setSelectedLanguage(lang)} className={`w-full text-left px-3 py-2 text-xs font-medium rounded-lg transition-colors flex items-center justify-between focus:outline-none ${selectedLanguage === lang ? 'bg-white/10 text-white' : 'text-gray-400 hover:bg-white/5 hover:text-white'}`}>
                                                     {lang === 'All' ? 'All Languages' : lang === 'en' ? 'English' : lang === 'hi' ? 'Hindi' : lang.toUpperCase()}
                                                     {selectedLanguage === lang && <Check size={12} className={accentText}/>}
                                                 </button>
@@ -1103,7 +1186,7 @@ export default function App() {
                                         <CloudOff size={48} className="text-red-500 mb-4 opacity-80"/>
                                         <h3 className="text-xl font-bold text-white mb-2">Connection Issues</h3>
                                         <p className="text-gray-400 mb-6 max-w-md">We're having trouble reaching the movie database. Your internet might be unstable.</p>
-                                        <button onClick={() => fetchMovies(1, false)} className="flex items-center gap-2 px-6 py-2 bg-white/10 hover:bg-white/20 rounded-full text-white font-bold transition-all active:scale-95">
+                                        <button onClick={() => fetchMovies(1, false)} className="flex items-center gap-2 px-6 py-2 bg-white/10 hover:bg-white/20 rounded-full text-white font-bold transition-all active:scale-95 focus:outline-none">
                                             <RefreshCcw size={16}/> Retry Connection
                                         </button>
                                     </div>
