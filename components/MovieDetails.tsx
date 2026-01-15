@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, Suspense, useRef } from 'react';
 import { X, Calendar, Clock, Star, Play, Bookmark, Heart, Share2, Loader2, Tag, Film, PlayCircle, Eye, Volume2, VolumeX, Users, ArrowLeft, Lightbulb, DollarSign, Trophy, Tv, Check, ChevronRight, Monitor, Plus, Layers } from 'lucide-react';
 import { Movie, MovieDetails, UserProfile, Keyword } from '../types';
@@ -176,7 +177,6 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                 movie={sim} 
                                                 onClick={onSwitchMovie} 
                                                 isWatched={false} 
-                                                onToggleWatched={() => {}} 
                                             />
                                         </div>
                                     ))}

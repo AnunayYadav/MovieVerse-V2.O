@@ -202,13 +202,11 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ apiKey, onMovieClick, 
                     <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-6 md:gap-8">
                         {loading ? [...Array(12)].map((_, i) => <MovieSkeleton key={i} />) : 
                             ottMovies.map(movie => (
-                                // Fix: Removed invalid 'key' prop and ensured correct mapping for MovieCardProps
                                 <MovieCard 
                                   key={movie.id} 
                                   movie={movie} 
                                   onClick={onMovieClick} 
                                   isWatched={false} 
-                                  onToggleWatched={() => {}} 
                                 />
                             ))
                         }
