@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
   <head>
@@ -61,6 +62,31 @@
 
       .text-shadow {
         text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+      }
+
+      /* TV Navigation Focus Styles */
+      :focus {
+        outline: none !important;
+      }
+
+      .tv-focusable:focus {
+        transform: scale(1.05);
+        outline: 4px solid white !important;
+        outline-offset: 4px;
+        box-shadow: 0 0 40px rgba(255,255,255,0.4);
+        z-index: 50;
+        position: relative;
+      }
+
+      /* For circular buttons */
+      .rounded-full.tv-focusable:focus {
+        border-radius: 9999px;
+      }
+      
+      /* Gold theme specific focus */
+      .gold-focus:focus {
+        outline: 4px solid #f59e0b !important;
+        box-shadow: 0 0 40px rgba(245, 158, 11, 0.4);
       }
     </style>
   <script type="importmap">
