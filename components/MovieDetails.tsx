@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, Suspense, useRef } from 'react';
 import { X, Calendar, Clock, Star, Play, Bookmark, Heart, Share2, Clapperboard, Sparkles, Loader2, Tag, MessageCircle, Globe, Facebook, Instagram, Twitter, Film, PlayCircle, Eye, Volume2, VolumeX, Users, ArrowLeft, Lightbulb, DollarSign, Trophy, Tv, Check, Mic2, Video, PenTool, ChevronRight, Monitor, Plus, Layers } from 'lucide-react';
 import { Movie, MovieDetails, Season, UserProfile, Keyword, Review, CastMember, CrewMember, CollectionDetails } from '../types';
@@ -68,7 +69,6 @@ export const MoviePage: React.FC<MoviePageProps> = ({
     const [videoLoaded, setVideoLoaded] = useState(false);
     const [isMuted, setIsMuted] = useState(true);
     const iframeRef = useRef<HTMLIFrameElement>(null);
-    const watchButtonRef = useRef<HTMLButtonElement>(null);
 
     const isExclusive = userProfile.canWatch === true;
     const isGoldTheme = isExclusive && userProfile.theme !== 'default';
@@ -76,14 +76,36 @@ export const MoviePage: React.FC<MoviePageProps> = ({
     const accentText = isGoldTheme ? "text-amber-500" : "text-red-500";
     const accentBg = isGoldTheme ? "bg-amber-500" : "bg-red-500";
 
-    // Auto-focus logical entry point for TV
+    // Escape listener for internal page state
     useEffect(() => {
-        if (!loading && details) {
-            setTimeout(() => {
-                watchButtonRef.current?.focus();
-            }, 500);
-        }
-    }, [loading, details]);
+        const handleEsc = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') {
+                if (viewingImage) {
+                    setViewingImage(null);
+                    e.stopPropagation();
+                    return;
+                }
+                if (showFullCast) {
+                    setShowFullCast(false);
+                    e.stopPropagation();
+                    return;
+                }
+                if (showFullCrew) {
+                    setShowFullCrew(false);
+                    e.stopPropagation();
+                    return;
+                }
+                if (showPlayer) {
+                    setShowPlayer(false);
+                    e.stopPropagation(); // Stop event from closing the entire MoviePage
+                    return;
+                }
+                // If nothing internal is open, the global handler in App.tsx will close the MoviePage
+            }
+        };
+        window.addEventListener('keydown', handleEsc, true); // Use capture to intercept before global
+        return () => window.removeEventListener('keydown', handleEsc, true);
+    }, [showPlayer, showFullCast, showFullCrew, viewingImage]);
 
     // Resume Logic
     useEffect(() => {
@@ -219,7 +241,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
     const SocialLink = ({ url, icon: Icon, color }: { url?: string, icon: any, color: string }) => {
         if (!url) return null;
         return (
-            <a href={url} target="_blank" rel="noopener noreferrer" className={`p-2.5 rounded-full bg-white/5 hover:bg-white/10 transition-colors ${color} border-0 backdrop-blur-md focus:outline-none`}>
+            <a href={url} target="_blank" rel="noopener noreferrer" className={`p-2.5 rounded-full bg-white/5 hover:bg-white/10 transition-colors ${color} border-0 backdrop-blur-md`}>
                 <Icon size={18}/>
             </a>
         );
@@ -231,7 +253,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                 {!showPlayer && (
                     <button 
                         onClick={onClose} 
-                        className="fixed top-6 left-6 z-[120] bg-black/40 hover:bg-white/10 backdrop-blur-md px-4 py-2 rounded-full text-white/80 hover:text-white transition-all hover:scale-105 active:scale-95 border border-white/5 flex items-center gap-2 group focus:outline-none"
+                        className="fixed top-6 left-6 z-[120] bg-black/40 hover:bg-white/10 backdrop-blur-md px-4 py-2 rounded-full text-white/80 hover:text-white transition-all hover:scale-105 active:scale-95 border border-white/5 flex items-center gap-2 group"
                     >
                         <ArrowLeft size={20} />
                         <span className="hidden md:inline font-bold text-sm">Back</span>
@@ -285,7 +307,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                     <div className={`absolute -inset-1 bg-gradient-to-t from-[#0a0a0a] via-[#0a0a0a]/50 to-transparent transition-opacity duration-700 ease-in-out pointer-events-none ${videoLoaded ? 'opacity-25 group-hover/hero:opacity-100' : 'opacity-100'}`}></div>
                                  
                                     {trailer && videoLoaded && (
-                                        <button onClick={toggleMute} className="absolute bottom-6 right-6 z-30 p-3 bg-black/30 hover:bg-white/10 backdrop-blur-md border border-white/10 rounded-full text-white transition-all active:scale-95 group/mute hidden md:flex focus:outline-none" title={isMuted ? "Unmute" : "Mute"}>
+                                        <button onClick={toggleMute} className="absolute bottom-6 right-6 z-30 p-3 bg-black/30 hover:bg-white/10 backdrop-blur-md border border-white/10 rounded-full text-white transition-all active:scale-95 group/mute hidden md:flex" title={isMuted ? "Unmute" : "Mute"}>
                                             {isMuted ? <VolumeX size={20} strokeWidth={1.5} /> : <Volume2 size={20} strokeWidth={1.5} />}
                                         </button>
                                     )}
@@ -310,7 +332,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
 
                                         <div className="flex flex-row items-center gap-3 w-full sm:w-auto mt-6">
                                             {isExclusive && (
-                                                <button ref={watchButtonRef} onClick={handleWatchClick} className={`font-bold py-3 px-8 text-sm sm:text-base rounded-xl transition-all flex flex-1 sm:flex-none items-center justify-center gap-2 active:scale-95 shadow-xl hover:shadow-2xl focus:outline-none ${isGoldTheme ? 'bg-gradient-to-r from-amber-600 to-amber-500 text-black shadow-amber-900/40' : 'bg-red-600 hover:bg-red-700 text-white'}`}>
+                                                <button onClick={handleWatchClick} className={`font-bold py-3 px-8 text-sm sm:text-base rounded-xl transition-all flex flex-1 sm:flex-none items-center justify-center gap-2 active:scale-95 shadow-xl hover:shadow-2xl ${isGoldTheme ? 'bg-gradient-to-r from-amber-600 to-amber-500 text-black shadow-amber-900/40' : 'bg-red-600 hover:bg-red-700 text-white'}`}>
                                                     <PlayCircle size={20} fill="currentColor" /> 
                                                     {movie.play_progress && movie.play_progress > 0 
                                                         ? `Resume` 
@@ -322,7 +344,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                             <div className="flex items-center gap-3">
                                                 <button 
                                                     onClick={() => onToggleWatchlist(displayData)} 
-                                                    className={`w-12 h-12 rounded-full glass hover:bg-white/10 flex items-center justify-center transition-all active:scale-95 group relative focus:outline-none ${isWatchlisted ? 'text-green-400 border-green-500/30' : 'text-white'}`}
+                                                    className={`w-12 h-12 rounded-full glass hover:bg-white/10 flex items-center justify-center transition-all active:scale-95 group relative ${isWatchlisted ? 'text-green-400 border-green-500/30' : 'text-white'}`}
                                                     title="Add to Watchlist"
                                                 >
                                                     {isWatchlisted ? <Check size={22} strokeWidth={2.5}/> : <Plus size={22}/>}
@@ -330,7 +352,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                 
                                                 <button 
                                                     onClick={() => onToggleFavorite(displayData)} 
-                                                    className={`w-12 h-12 rounded-full glass hover:bg-white/10 flex items-center justify-center transition-all active:scale-95 group focus:outline-none ${isFavorite ? 'text-red-500' : 'text-white'}`}
+                                                    className={`w-12 h-12 rounded-full glass hover:bg-white/10 flex items-center justify-center transition-all active:scale-95 group ${isFavorite ? 'text-red-500' : 'text-white'}`}
                                                     title="Add to Favorites"
                                                 >
                                                     <Heart size={22} fill={isFavorite ? "currentColor" : "none"}/>
@@ -339,7 +361,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                 {details?.videos?.results?.[0] && (
                                                     <button 
                                                         onClick={() => window.open(`https://www.youtube.com/watch?v=${details.videos.results[0].key}`)} 
-                                                        className="w-12 h-12 rounded-full glass hover:bg-white/10 flex items-center justify-center transition-all active:scale-95 text-white focus:outline-none"
+                                                        className="w-12 h-12 rounded-full glass hover:bg-white/10 flex items-center justify-center transition-all active:scale-95 text-white"
                                                         title="Watch Trailer"
                                                     >
                                                         <Play size={20} fill="currentColor" className="ml-0.5"/>
@@ -361,7 +383,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                     <button
                                         key={tab.id}
                                         onClick={() => setActiveTab(tab.id)}
-                                        className={`pb-4 text-base font-bold transition-all whitespace-nowrap focus:outline-none ${activeTab === tab.id ? 'text-white border-b-2 border-white' : 'text-gray-400 hover:text-white border-b-2 border-transparent'}`}
+                                        className={`pb-4 text-base font-bold transition-all whitespace-nowrap ${activeTab === tab.id ? 'text-white border-b-2 border-white' : 'text-gray-400 hover:text-white border-b-2 border-transparent'}`}
                                     >
                                         {tab.label}
                                     </button>
@@ -405,7 +427,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                 </div>
                                                 <div className="flex overflow-x-auto gap-6 pb-4 hide-scrollbar">
                                                     {displayData.credits?.cast?.slice(0, 10).map((person) => (
-                                                        <button key={person.id} onClick={() => onPersonClick(person.id)} className="flex flex-col items-center text-center group cursor-pointer shrink-0 w-24 focus:outline-none">
+                                                        <div key={person.id} onClick={() => onPersonClick(person.id)} className="flex flex-col items-center text-center group cursor-pointer shrink-0 w-24">
                                                             <div className="w-20 h-20 md:w-24 md:h-24 rounded-full overflow-hidden mb-3 border-2 border-transparent group-hover:border-white/20 transition-all shadow-lg">
                                                                 <img 
                                                                     src={person.profile_path ? `${TMDB_IMAGE_BASE}${person.profile_path}` : `https://ui-avatars.com/api/?name=${person.name}&background=333&color=fff`} 
@@ -415,10 +437,10 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                             </div>
                                                             <h4 className="text-xs md:text-sm font-bold text-white leading-tight mb-1 line-clamp-2">{person.name}</h4>
                                                             <p className="text-[10px] md:text-xs text-gray-500 line-clamp-1">{person.character}</p>
-                                                        </button>
+                                                        </div>
                                                     ))}
                                                     {/* View All Button */}
-                                                    <button onClick={() => setShowFullCast(true)} className="flex flex-col items-center justify-center shrink-0 w-24 h-24 rounded-full bg-white/5 hover:bg-white/10 border border-white/5 transition-all group focus:outline-none">
+                                                    <button onClick={() => setShowFullCast(true)} className="flex flex-col items-center justify-center shrink-0 w-24 h-24 rounded-full bg-white/5 hover:bg-white/10 border border-white/5 transition-all group">
                                                         <ChevronRight size={24} className="text-gray-400 group-hover:text-white mb-1"/>
                                                         <span className="text-[10px] font-bold text-gray-400 group-hover:text-white">View All</span>
                                                     </button>
@@ -432,7 +454,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                 </div>
                                                 <div className="flex overflow-x-auto gap-6 pb-4 hide-scrollbar">
                                                     {displayData.credits?.crew?.slice(0, 5).map((person) => (
-                                                        <button key={`${person.id}-${person.job}`} onClick={() => onPersonClick(person.id)} className="flex flex-col items-center text-center shrink-0 w-20 cursor-pointer group focus:outline-none">
+                                                        <div key={`${person.id}-${person.job}`} onClick={() => onPersonClick(person.id)} className="flex flex-col items-center text-center shrink-0 w-20 cursor-pointer group">
                                                             <div className="w-16 h-16 md:w-20 md:h-20 rounded-full overflow-hidden mb-3 bg-white/5 transition-all duration-500 border border-transparent group-hover:border-white/20">
                                                                 <img 
                                                                     src={person.profile_path ? `${TMDB_IMAGE_BASE}${person.profile_path}` : `https://ui-avatars.com/api/?name=${person.name}&background=333&color=fff`} 
@@ -442,9 +464,9 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                             </div>
                                                             <h4 className="text-xs font-bold text-white leading-tight mb-1 line-clamp-2">{person.name}</h4>
                                                             <p className="text-[10px] text-gray-500 line-clamp-1">{person.job}</p>
-                                                        </button>
+                                                        </div>
                                                     ))}
-                                                    <button onClick={() => setShowFullCrew(true)} className="flex flex-col items-center justify-center shrink-0 w-20 h-20 rounded-full bg-white/5 hover:bg-white/10 border border-white/5 transition-all group focus:outline-none">
+                                                    <button onClick={() => setShowFullCrew(true)} className="flex flex-col items-center justify-center shrink-0 w-20 h-20 rounded-full bg-white/5 hover:bg-white/10 border border-white/5 transition-all group">
                                                         <ChevronRight size={20} className="text-gray-400 group-hover:text-white mb-1"/>
                                                         <span className="text-[10px] font-bold text-gray-400 group-hover:text-white">View All</span>
                                                     </button>
@@ -484,13 +506,13 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                     {activeTab === 'media' && (
                                         <div className="grid grid-cols-2 md:grid-cols-3 gap-4 animate-in fade-in">
                                             {displayData.images?.backdrops?.slice(0, 9).map((img, i) => (
-                                                <button 
+                                                <img 
                                                     key={i} 
-                                                    className="w-full h-auto rounded-lg cursor-pointer hover:opacity-80 transition-opacity aspect-video object-cover focus:outline-none" 
+                                                    src={`${TMDB_IMAGE_BASE}${img.file_path}`} 
+                                                    className="w-full h-auto rounded-lg cursor-pointer hover:opacity-80 transition-opacity aspect-video object-cover" 
                                                     onClick={() => setViewingImage(`${TMDB_BACKDROP_BASE}${img.file_path}`)}
-                                                >
-                                                    <img src={`${TMDB_IMAGE_BASE}${img.file_path}`} alt="Backdrop" className="w-full h-full object-cover rounded-lg" />
-                                                </button>
+                                                    alt="Backdrop"
+                                                />
                                             ))}
                                         </div>
                                     )}
@@ -514,7 +536,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                                     setPlayParams({ season: season.season_number, episode: 1 });
                                                                     setShowPlayer(true);
                                                                 }}
-                                                                className={`mt-3 px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-2 hover:opacity-90 transition-opacity focus:outline-none ${isGoldTheme ? 'bg-amber-500 text-black' : 'bg-red-600 text-white'}`}
+                                                                className={`mt-3 px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-2 hover:opacity-90 transition-opacity ${isGoldTheme ? 'bg-amber-500 text-black' : 'bg-red-600 text-white'}`}
                                                             >
                                                                 <Play size={12} fill="currentColor"/> Watch
                                                             </button>
@@ -594,9 +616,9 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                     {displayData.keywords?.keywords && displayData.keywords.keywords.length > 0 && (
                                         <div className="flex flex-wrap gap-2">
                                             {displayData.keywords.keywords.slice(0, 8).map(k => (
-                                                <button key={k.id} onClick={() => { onClose(); onKeywordClick(k); }} className="text-[10px] bg-white/5 hover:bg-white/10 border border-white/5 px-3 py-1.5 rounded-full text-gray-400 hover:text-white cursor-pointer transition-colors focus:outline-none">
+                                                <span key={k.id} onClick={() => { onClose(); onKeywordClick(k); }} className="text-[10px] bg-white/5 hover:bg-white/10 border border-white/5 px-3 py-1.5 rounded-full text-gray-400 hover:text-white cursor-pointer transition-colors">
                                                     #{k.name}
-                                                </button>
+                                                </span>
                                             ))}
                                         </div>
                                     )}
@@ -617,7 +639,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                     {/* Horizontal Scroll for Collection Parts - Smaller & Stylized */}
                                     <div className="flex overflow-x-auto gap-4 pb-4 custom-scrollbar">
                                         {collection.parts.map(part => (
-                                            <button key={part.id} className="min-w-[90px] md:min-w-[110px] cursor-pointer group focus:outline-none text-left" onClick={() => { if(part.id !== movie.id) { onClose(); onSwitchMovie(part); } }}>
+                                            <div key={part.id} className="min-w-[90px] md:min-w-[110px] cursor-pointer group" onClick={() => { if(part.id !== movie.id) { onClose(); onSwitchMovie(part); } }}>
                                                 <div className={`aspect-[2/3] rounded-lg overflow-hidden bg-white/5 mb-2 relative border transition-all duration-300 ${part.id === movie.id ? (isGoldTheme ? 'border-amber-500 shadow-lg shadow-amber-900/20' : 'border-red-500 shadow-lg shadow-red-900/20') : 'border-white/5 group-hover:border-white/20'}`}>
                                                     <img 
                                                         src={part.poster_path ? `${TMDB_IMAGE_BASE}${part.poster_path}` : "https://placehold.co/300x450"} 
@@ -633,7 +655,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                 </div>
                                                 <h4 className={`font-bold text-[10px] leading-tight truncate px-1 transition-colors ${part.id === movie.id ? accentText : 'text-gray-400 group-hover:text-white'}`}>{part.title}</h4>
                                                 <p className="text-[9px] text-gray-500 mt-0.5 px-1 font-medium">{part.release_date?.split('-')[0] || 'TBA'}</p>
-                                            </button>
+                                            </div>
                                         ))}
                                     </div>
                                 </div>
