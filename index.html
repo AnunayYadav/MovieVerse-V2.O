@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
   <head>
@@ -19,28 +18,6 @@
         overflow-x: hidden;
       }
       
-      /* TV Focus Styles */
-      :focus {
-        outline: none;
-      }
-
-      .tv-focus-element {
-        transition: transform 0.2s cubic-bezier(0.2, 0, 0, 1), box-shadow 0.2s ease;
-      }
-
-      .tv-focused {
-        transform: scale(1.08);
-        z-index: 50 !important;
-        outline: 4px solid #ef4444 !important;
-        outline-offset: 4px;
-        box-shadow: 0 0 30px rgba(239, 68, 68, 0.5);
-      }
-
-      .gold-theme .tv-focused {
-        outline-color: #f59e0b !important;
-        box-shadow: 0 0 30px rgba(245, 158, 11, 0.5);
-      }
-
       /* Custom Scrollbar for Chrome/Safari/Webkit */
       ::-webkit-scrollbar {
         width: 8px;
@@ -57,6 +34,7 @@
         background: #555; 
       }
       
+      /* Hide scrollbar utility */
       .hide-scrollbar::-webkit-scrollbar {
         display: none;
       }
@@ -65,6 +43,7 @@
         scrollbar-width: none;
       }
 
+      /* Glass utilities */
       .glass {
         background: rgba(255, 255, 255, 0.03);
         backdrop-filter: blur(16px);
@@ -78,6 +57,10 @@
         -webkit-backdrop-filter: blur(24px);
         border: 1px solid rgba(255, 255, 255, 0.08);
         box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.36);
+      }
+
+      .text-shadow {
+        text-shadow: 0 2px 4px rgba(0,0,0,0.5);
       }
     </style>
   <script type="importmap">
