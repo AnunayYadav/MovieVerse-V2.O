@@ -18,14 +18,32 @@
         overflow-x: hidden;
       }
       
-      ::-webkit-scrollbar { width: 8px; height: 8px; }
-      ::-webkit-scrollbar-track { background: #000000; }
-      ::-webkit-scrollbar-thumb { background: #333; border-radius: 4px; }
-      ::-webkit-scrollbar-thumb:hover { background: #555; }
+      /* Custom Scrollbar for Chrome/Safari/Webkit */
+      ::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+      }
+      ::-webkit-scrollbar-track {
+        background: #000000; 
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #333; 
+        border-radius: 4px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: #555; 
+      }
       
-      .hide-scrollbar::-webkit-scrollbar { display: none; }
-      .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+      /* Hide scrollbar utility */
+      .hide-scrollbar::-webkit-scrollbar {
+        display: none;
+      }
+      .hide-scrollbar {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+      }
 
+      /* Glass utilities */
       .glass {
         background: rgba(255, 255, 255, 0.03);
         backdrop-filter: blur(16px);
@@ -41,25 +59,8 @@
         box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.36);
       }
 
-      /* TV Spatial Navigation - Purely Functional with minimal visual override */
-      :focus { outline: none !important; }
-      
-      .tv-focusable {
-        transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s ease;
-        scroll-margin: 120px;
-      }
-
-      .tv-focusable:focus {
-        transform: scale(1.05);
-        z-index: 100;
-        outline: 4px solid #ffffff !important;
-        outline-offset: 4px;
-        box-shadow: 0 0 40px rgba(255, 255, 255, 0.5);
-      }
-
-      .gold-theme .tv-focusable:focus {
-        outline-color: #f59e0b !important;
-        box-shadow: 0 0 40px rgba(245, 158, 11, 0.5);
+      .text-shadow {
+        text-shadow: 0 2px 4px rgba(0,0,0,0.5);
       }
     </style>
   <script type="importmap">
