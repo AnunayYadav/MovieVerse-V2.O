@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Film, Star, Eye, Download, X, Check, ArrowLeft } from 'lucide-react';
 import { Movie } from '../types';
@@ -301,7 +300,7 @@ export const PersonCard = React.forwardRef<HTMLButtonElement, PersonCardProps>((
     return (
         <button 
             ref={ref}
-            className="group relative rounded-full md:rounded-xl overflow-hidden cursor-pointer transition-all duration-500 hover:scale-105 hover:z-20 hover:shadow-xl focus:scale-[1.05] focus:outline-none focus:shadow-[0_0_20px_#ef4444] font-sans text-left w-full"
+            className="group relative rounded-full md:rounded-xl overflow-hidden cursor-pointer transition-all duration-500 hover:scale(1.05) hover:z-20 hover:shadow-xl focus:scale-[1.05] focus:outline-none focus:shadow-[0_0_20px_#ef4444] font-sans text-left w-full"
             onClick={() => onClick(person.id)}
         >
             <div className="aspect-square md:aspect-[2/3] overflow-hidden bg-white/5 relative">

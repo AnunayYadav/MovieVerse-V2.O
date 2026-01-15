@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
   <head>
@@ -12,6 +11,10 @@
     <style>
       @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
       
+      html {
+        scroll-behavior: smooth;
+      }
+
       body {
         font-family: 'Youtube Sans', 'Inter', sans-serif;
         background-color: #000000;
@@ -44,6 +47,28 @@
         scrollbar-width: none;
       }
 
+      /* TV Navigation Focus States - Enhanced Visibility */
+      :focus-visible {
+        outline: 4px solid #ef4444 !important;
+        outline-offset: 4px !important;
+        box-shadow: 0 0 30px rgba(239, 68, 68, 0.6) !important;
+        transform: scale(1.05) !important;
+        z-index: 50 !important;
+        transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.2s ease !important;
+      }
+
+      .gold-theme :focus-visible {
+        outline-color: #f59e0b !important;
+        box-shadow: 0 0 30px rgba(245, 158, 11, 0.6) !important;
+      }
+
+      /* Handle buttons within movie cards */
+      .group:focus-within {
+        outline: 4px solid #ef4444 !important;
+        outline-offset: 4px !important;
+        transform: scale(1.05) !important;
+      }
+
       /* Glass utilities */
       .glass {
         background: rgba(255, 255, 255, 0.03);
@@ -58,25 +83,6 @@
         -webkit-backdrop-filter: blur(24px);
         border: 1px solid rgba(255, 255, 255, 0.08);
         box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.36);
-      }
-
-      .text-shadow {
-        text-shadow: 0 2px 4px rgba(0,0,0,0.5);
-      }
-
-      /* TV Navigation Focus States */
-      :focus-visible {
-        outline: 3px solid #ef4444 !important;
-        outline-offset: 4px !important;
-        background-color: rgba(255, 255, 255, 0.1) !important;
-        transform: scale(1.05);
-        z-index: 50;
-        transition: transform 0.2s ease, outline 0.2s ease;
-      }
-
-      /* Specific adjustments for gold theme focus */
-      .gold-theme :focus-visible {
-        outline-color: #f59e0b !important;
       }
     </style>
   <script type="importmap">

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Search, Film, Menu, TrendingUp, Tv, Ghost, Calendar, Star, X, Sparkles, Settings, Globe, Bookmark, Heart, Folder, Languages, Filter, ChevronDown, Info, Plus, Cloud, CloudOff, Clock, Bell, History, Users, Tag, Dice5, Crown, Radio, LayoutGrid, Award, Baby, Clapperboard, ChevronRight, PlayCircle, Megaphone, CalendarDays, Compass, Home, Map, Loader2, Trophy, RefreshCcw, Check, MonitorPlay, Layers, LogOut, Download } from 'lucide-react';
 import { Movie, UserProfile, GENRES_MAP, GENRES_LIST, INDIAN_LANGUAGES, MaturityRating, Keyword } from './types';
@@ -112,61 +111,49 @@ export default function App() {
   const accentBg = isGoldTheme ? "bg-amber-500" : "bg-red-600";
   const accentBgLow = isGoldTheme ? "bg-amber-500/20" : "bg-red-600/20";
 
-  // --- TV NAVIGATION LOGIC ---
-  
+  // --- SPATIAL NAVIGATION (TV ENGINE) ---
   const handleTvNavigation = useCallback((e: KeyboardEvent) => {
-    // Focus Manager for TV Remotes
+    // List of focusable elements
     const focusableSelector = 'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
     const focusableElements = Array.from(document.querySelectorAll(focusableSelector)) as HTMLElement[];
     const activeElement = document.activeElement as HTMLElement;
-    const activeIndex = focusableElements.indexOf(activeElement);
+    
+    // Only proceed if an element is focused or we have focusable elements
+    if (!activeElement || focusableElements.length === 0) return;
 
     const moveFocus = (direction: 'up' | 'down' | 'left' | 'right') => {
-      if (focusableElements.length === 0) return;
-      
-      // Spatial Navigation Simulation
       const activeRect = activeElement.getBoundingClientRect();
-      let bestMatch: HTMLElement | null = null;
+      let bestCandidate: HTMLElement | null = null;
       let minDistance = Infinity;
 
-      focusableElements.forEach((el) => {
-        if (el === activeElement) return;
-        const elRect = el.getBoundingClientRect();
-        
-        // Simple direction check
+      focusableElements.forEach((candidate) => {
+        if (candidate === activeElement) return;
+        const candRect = candidate.getBoundingClientRect();
+
+        // Overlap and direction check
         let isCorrectDirection = false;
-        if (direction === 'up') isCorrectDirection = elRect.bottom <= activeRect.top;
-        if (direction === 'down') isCorrectDirection = elRect.top >= activeRect.bottom;
-        if (direction === 'left') isCorrectDirection = elRect.right <= activeRect.left;
-        if (direction === 'right') isCorrectDirection = elRect.left >= activeRect.right;
+        if (direction === 'up') isCorrectDirection = candRect.bottom <= activeRect.top;
+        if (direction === 'down') isCorrectDirection = candRect.top >= activeRect.bottom;
+        if (direction === 'left') isCorrectDirection = candRect.right <= activeRect.left;
+        if (direction === 'right') isCorrectDirection = candRect.left >= activeRect.right;
 
         if (isCorrectDirection) {
-          // Calculate Euclidean distance between centers
-          const dx = (elRect.left + elRect.width / 2) - (activeRect.left + activeRect.width / 2);
-          const dy = (elRect.top + elRect.height / 2) - (activeRect.top + activeRect.height / 2);
+          // Calculate Euclidean distance between centers for natural spatial feel
+          const dx = (candRect.left + candRect.width / 2) - (activeRect.left + activeRect.width / 2);
+          const dy = (candRect.top + candRect.height / 2) - (activeRect.top + activeRect.height / 2);
           const distance = Math.sqrt(dx * dx + dy * dy);
 
           if (distance < minDistance) {
             minDistance = distance;
-            bestMatch = el;
+            bestCandidate = candidate;
           }
         }
       });
 
-      if (bestMatch) {
-        (bestMatch as HTMLElement).focus();
+      if (bestCandidate) {
+        (bestCandidate as HTMLElement).focus();
+        (bestCandidate as HTMLElement).scrollIntoView({ behavior: 'smooth', block: 'center' });
         e.preventDefault();
-      } else {
-        // Fallback to tab index if spatial fails
-        if (direction === 'right' || direction === 'down') {
-          const next = focusableElements[activeIndex + 1] || focusableElements[0];
-          next.focus();
-          e.preventDefault();
-        } else {
-          const prev = focusableElements[activeIndex - 1] || focusableElements[focusableElements.length - 1];
-          prev.focus();
-          e.preventDefault();
-        }
       }
     };
 
@@ -175,14 +162,15 @@ export default function App() {
       case 'ArrowDown': moveFocus('down'); break;
       case 'ArrowLeft': moveFocus('left'); break;
       case 'ArrowRight': moveFocus('right'); break;
-      case 'Enter': 
+      case 'Enter':
+        // Clicks the element if it's not an input
         if (activeElement && activeElement.tagName !== 'INPUT' && activeElement.tagName !== 'SELECT') {
-          activeElement.click();
+           activeElement.click();
         }
         break;
       case 'Backspace':
       case 'Escape':
-        // Back navigation
+        // TV Remote back button handling
         if (selectedMovie) setSelectedMovie(null);
         else if (selectedPersonId) setSelectedPersonId(null);
         else if (isSidebarOpen) setIsSidebarOpen(false);
@@ -192,45 +180,25 @@ export default function App() {
     }
   }, [selectedMovie, selectedPersonId, isSidebarOpen, isSettingsOpen, isProfileOpen]);
 
-  // Global Key Listener
+  // Global Key Listener for TV D-Pad
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't hijack arrow keys if user is typing in the search bar
       const isTyping = e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement;
+      if (isTyping && ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) return;
 
-      // Handle standard TV remote keys
       handleTvNavigation(e);
 
-      if (e.key === 'Escape') {
-        if (isComparisonOpen) return setIsComparisonOpen(false);
-        if (selectedPersonId) return setSelectedPersonId(null);
-        if (isSettingsOpen) return setIsSettingsOpen(false);
-        if (isProfileOpen) return setIsProfileOpen(false);
-        if (isNotificationOpen) return setIsNotificationOpen(false);
-        if (isSidebarOpen) return setIsSidebarOpen(false);
-        if (selectedMovie) return setSelectedMovie(null);
-      }
-
-      if (isTyping) return;
-
-      if (e.key === '/') {
+      // Shortcuts
+      if (!isTyping && e.key === '/') {
         e.preventDefault();
         searchInputRef.current?.focus();
-      }
-
-      if (e.altKey) {
-        switch(e.key.toLowerCase()) {
-          case 'h': resetToHome(); break;
-          case 's': setIsSettingsOpen(true); break;
-          case 'w': resetFilters(); setSelectedCategory("Watchlist"); break;
-          case 'e': resetFilters(); setSelectedCategory("Explore"); break;
-          case 't': resetFilters(); setSelectedCategory("LiveTV"); break;
-        }
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleTvNavigation, isComparisonOpen, selectedPersonId, isSettingsOpen, isProfileOpen, isNotificationOpen, isSidebarOpen, selectedMovie]);
+  }, [handleTvNavigation]);
 
   const resetAuthState = useCallback(() => {
     localStorage.removeItem('movieverse_auth');
