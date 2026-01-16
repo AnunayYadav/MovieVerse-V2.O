@@ -2,8 +2,7 @@
 import React, { useState, useEffect, Suspense, useRef } from 'react';
 import { X, Calendar, Clock, Star, Play, Bookmark, Heart, Share2, Clapperboard, Sparkles, Loader2, Tag, MessageCircle, Globe, Facebook, Instagram, Twitter, Film, PlayCircle, Eye, Volume2, VolumeX, Users, ArrowLeft, Lightbulb, DollarSign, Trophy, Tv, Check, Mic2, Video, PenTool, ChevronRight, Monitor, Plus, Layers } from 'lucide-react';
 import { Movie, MovieDetails, Season, UserProfile, Keyword, Review, CastMember, CrewMember, CollectionDetails } from '../types';
-/* Fixed: Removed non-existent ImageLightbox import from Shared.tsx */
-import { TMDB_BASE_URL, TMDB_IMAGE_BASE, TMDB_BACKDROP_BASE, formatCurrency, PersonCard, MovieCard } from '../components/Shared';
+import { TMDB_BASE_URL, TMDB_IMAGE_BASE, TMDB_BACKDROP_BASE, formatCurrency, ImageLightbox, PersonCard, MovieCard } from '../components/Shared';
 import { generateTrivia } from '../services/gemini';
 import { FullCreditsModal } from './Modals';
 
@@ -691,13 +690,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                 )}
             </div>
             
-            {/* Fixed: Removed reference to ImageLightbox since it doesn't exist */}
-            {viewingImage && (
-                <div className="fixed inset-0 z-[200] bg-black/95 flex items-center justify-center p-4 animate-in fade-in duration-300" onClick={() => setViewingImage(null)}>
-                    <img src={viewingImage} className="max-w-full max-h-full object-contain shadow-2xl" alt="Lightbox" />
-                    <button onClick={() => setViewingImage(null)} className="absolute top-6 right-6 p-2 bg-white/10 hover:bg-white/20 rounded-full text-white transition-all"><X size={32}/></button>
-                </div>
-            )}
+            {viewingImage && <ImageLightbox src={viewingImage} onClose={() => setViewingImage(null)} />}
             
             <FullCreditsModal 
                 isOpen={showFullCast} 

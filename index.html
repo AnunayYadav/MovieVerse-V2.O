@@ -19,48 +19,62 @@
         overflow-x: hidden;
       }
       
-      /* Custom Scrollbar */
-      ::-webkit-scrollbar { width: 8px; height: 8px; }
-      ::-webkit-scrollbar-track { background: #000000; }
-      ::-webkit-scrollbar-thumb { background: #333; border-radius: 4px; }
+      /* Custom Scrollbar for Chrome/Safari/Webkit */
+      ::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+      }
+      ::-webkit-scrollbar-track {
+        background: #000000; 
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #333; 
+        border-radius: 4px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: #555; 
+      }
       
-      .hide-scrollbar::-webkit-scrollbar { display: none; }
-      .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+      /* Hide scrollbar utility */
+      .hide-scrollbar::-webkit-scrollbar {
+        display: none;
+      }
+      .hide-scrollbar {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+      }
 
+      /* Glass utilities */
       .glass {
         background: rgba(255, 255, 255, 0.03);
         backdrop-filter: blur(16px);
         -webkit-backdrop-filter: blur(16px);
         border: 1px solid rgba(255, 255, 255, 0.05);
       }
-
-      /* --- TV NAVIGATION LAYER (NON-DESTRUCTIVE) --- */
       
-      /* Reset default focus for touch/mouse */
-      :focus { outline: none; }
-
-      /* Visual highlight ONLY when using D-Pad or Keyboard */
-      .tv-focusable:focus-visible {
-        transform: scale(1.08) !important;
-        z-index: 99 !important;
-        outline: 4px solid #ef4444 !important;
-        outline-offset: 4px;
-        box-shadow: 0 0 40px rgba(239, 68, 68, 0.6);
-        transition: transform 0.2s cubic-bezier(0.17, 0.67, 0.83, 0.67), outline 0.1s ease;
+      .glass-panel {
+        background: rgba(20, 20, 20, 0.6);
+        backdrop-filter: blur(24px);
+        -webkit-backdrop-filter: blur(24px);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.36);
       }
 
-      .gold-theme .tv-focusable:focus-visible {
-        outline-color: #f59e0b !important;
-        box-shadow: 0 0 40px rgba(245, 158, 11, 0.6);
+      .text-shadow {
+        text-shadow: 0 2px 4px rgba(0,0,0,0.5);
       }
 
-      /* Ensure focused movie cards look great */
-      .movie-card-trigger:focus-visible {
-        border-radius: 12px;
+      /* TV Specific Focus Styles */
+      @media (hover: none) and (pointer: coarse) {
+        :focus-visible {
+          outline: 4px solid #ef4444 !important;
+          outline-offset: 4px;
+          border-radius: 8px;
+          transition: transform 0.2s ease-out;
+          transform: scale(1.02);
+          z-index: 1000;
+        }
       }
-
-      /* Median specific: ensure webview doesn't show tap highlights on TV */
-      * { -webkit-tap-highlight-color: transparent; }
     </style>
   <script type="importmap">
 {
@@ -80,71 +94,5 @@
   <body>
     <div id="root"></div>
     <script type="module" src="./index.tsx"></script>
-
-    <!-- TV Spatial Navigation Engine (Median Compatible) -->
-    <script>
-      (function() {
-        const FOCUSABLE_SELECTOR = 'button, a, input, [role="button"], .movie-card-trigger';
-        
-        const updateFocusableElements = () => {
-          document.querySelectorAll(FOCUSABLE_SELECTOR).forEach(el => {
-            if (!el.classList.contains('tv-focusable')) {
-              el.classList.add('tv-focusable');
-              if (!el.hasAttribute('tabindex')) el.setAttribute('tabindex', '0');
-            }
-          });
-        };
-
-        // Mutation Observer to handle infinite scroll content
-        const observer = new MutationObserver(updateFocusableElements);
-        observer.observe(document.body, { childList: true, subtree: true });
-
-        // Handle logical D-pad navigation
-        window.addEventListener('keydown', (e) => {
-          const active = document.activeElement;
-          const isRemote = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Enter', 'Backspace', 'Escape'].includes(e.key);
-          
-          if (!isRemote) return;
-
-          switch(e.key) {
-            case 'Enter':
-              if (active && active.classList.contains('tv-focusable')) {
-                active.click();
-              }
-              break;
-            
-            case 'Backspace':
-            case 'Escape':
-              // Smart Back button logic for TV remotes
-              const modals = document.querySelectorAll('.fixed.inset-0');
-              if (modals.length > 0) {
-                 // Try to find a close button first
-                 const closeBtn = document.querySelector('button[title*="Close"], button[title*="Back"]');
-                 if (closeBtn) closeBtn.click();
-                 else window.history.back();
-                 e.preventDefault();
-              }
-              break;
-
-            case 'ArrowUp':
-            case 'ArrowDown':
-            case 'ArrowLeft':
-            case 'ArrowRight':
-              // Natural browser focus handles 1D/2D spatial move
-              // We just ensure the element is centered after focus changes
-              setTimeout(() => {
-                const newActive = document.activeElement;
-                if (newActive && newActive !== active && newActive.classList.contains('tv-focusable')) {
-                  newActive.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
-                }
-              }, 50);
-              break;
-          }
-        });
-
-        // Initialize
-        window.addEventListener('load', updateFocusableElements);
-      })();
-    </script>
   </body>
 </html>

@@ -1,23 +1,5 @@
 {
   "name": "MovieVerse AI",
   "description": "An immersive, AI-powered movie discovery platform featuring deep analytics, smart recommendations, and a rich media player experience.",
-  "requestFramePermissions": [],
-  "android": {
-    "isTV": true,
-    "hardware": {
-      "touchscreen": false,
-      "leanback": true
-    },
-    "manifest": {
-      "intentFilters": [
-        {
-          "action": "android.intent.action.MAIN",
-          "category": [
-            "android.intent.category.LAUNCHER",
-            "android.intent.category.LEANBACK_LAUNCHER"
-          ]
-        }
-      ]
-    }
-  }
+  "requestFramePermissions": []
 }
