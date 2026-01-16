@@ -76,13 +76,24 @@ export default function App() {
   const [lastNotificationId, setLastNotificationId] = useState<string | null>(null);
   
   const [isAgeModalOpen, setIsAgeModalOpen] = useState(false);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [selectedPersonId, setSelectedPersonId] = useState<number | null>(null);
+  const [isNotificationOpen, setIsNotificationOpen] = useState(false);
+  const [isComparisonOpen, setIsComparisonOpen] = useState(false);
+  const [comparisonBaseMovie, setComparisonBaseMovie] = useState<Movie | null>(null);
+
+  // Scroll Lock Controller
+  useEffect(() => {
+    const isAnyModalOpen = selectedMovie || isSettingsOpen || isProfileOpen || selectedPersonId || isNotificationOpen || isComparisonOpen || isAgeModalOpen || isSidebarOpen;
+    if (isAnyModalOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'auto';
+    }
+  }, [selectedMovie, isSettingsOpen, isProfileOpen, selectedPersonId, isNotificationOpen, isComparisonOpen, isAgeModalOpen, isSidebarOpen]);
   
-  // Browse Dropdown State
   const [isBrowseOpen, setIsBrowseOpen] = useState(false);
-
-  // Keyboard Navigation Support
   const searchInputRef = useRef<HTMLInputElement>(null);
-
   const watchlistRef = useRef<Movie[]>([]);
   const favoritesRef = useRef<Movie[]>([]);
   const watchedRef = useRef<Movie[]>([]);
@@ -97,17 +108,9 @@ export default function App() {
       if (selectedCategory === "History") setMovies(watched);
   }, [watchlist, favorites, watched, selectedCategory]);
 
-  const [isProfileOpen, setIsProfileOpen] = useState(false);
-  const [selectedPersonId, setSelectedPersonId] = useState<number | null>(null);
-  const [isNotificationOpen, setIsNotificationOpen] = useState(false);
-  const [isComparisonOpen, setIsComparisonOpen] = useState(false);
-  const [comparisonBaseMovie, setComparisonBaseMovie] = useState<Movie | null>(null);
-  
   const abortControllerRef = useRef<AbortController | null>(null);
-
   const isExclusive = userProfile.canWatch === true;
   const isGoldTheme = isExclusive && userProfile.theme !== 'default';
-  
   const accentText = isGoldTheme ? "text-amber-500" : "text-red-600";
   const accentBg = isGoldTheme ? "bg-amber-500" : "bg-red-600";
   const accentBgLow = isGoldTheme ? "bg-amber-500/20" : "bg-red-600/20";
