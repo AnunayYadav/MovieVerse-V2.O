@@ -316,62 +316,6 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ isOpen, onClose, profi
     );
 };
 
-// PARENTS GUIDE MODAL
-interface ParentsGuideModalProps {
-    isOpen: boolean;
-    onClose: () => void;
-    imdbId: string | undefined;
-    title: string;
-}
-
-export const ParentsGuideModal: React.FC<ParentsGuideModalProps> = ({ isOpen, onClose, imdbId, title }) => {
-    if (!isOpen || !imdbId) return null;
-    const url = `https://www.imdb.com/title/${imdbId}/parentalguide`;
-
-    return (
-        <div className="fixed inset-0 z-[250] flex items-center justify-center p-4 bg-black/90 backdrop-blur-xl animate-in fade-in duration-300">
-            <div className="glass-panel w-full max-w-5xl h-[85vh] rounded-2xl flex flex-col overflow-hidden border border-white/10 shadow-2xl relative">
-                <div className="p-4 border-b border-white/10 flex justify-between items-center bg-black/40">
-                    <div className="flex items-center gap-3">
-                        <Shield size={20} className="text-blue-400"/>
-                        <h3 className="font-bold text-white text-sm md:text-base truncate max-w-[200px] md:max-w-md">Parents Guide: {title}</h3>
-                    </div>
-                    <div className="flex items-center gap-4">
-                        <a 
-                            href={url} 
-                            target="_blank" 
-                            rel="noopener noreferrer" 
-                            className="hidden md:flex items-center gap-1.5 text-xs font-bold text-blue-400 hover:text-blue-300 transition-colors"
-                        >
-                            <ExternalLink size={14}/> Open in New Tab
-                        </a>
-                        <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-full transition-colors">
-                            <X size={20} className="text-white"/>
-                        </button>
-                    </div>
-                </div>
-                
-                {/* Fallback Message */}
-                <div className="bg-blue-500/10 p-3 flex items-center justify-center gap-2 border-b border-blue-500/20">
-                    <AlertCircle size={14} className="text-blue-400"/>
-                    <p className="text-[10px] md:text-xs text-blue-200 text-center">
-                        Some browsers block embedding IMDb. If the content doesn't load below, <a href={url} target="_blank" rel="noopener noreferrer" className="underline font-bold">click here to open in a new tab</a>.
-                    </p>
-                </div>
-
-                <div className="flex-1 bg-white">
-                    <iframe 
-                        src={url} 
-                        className="w-full h-full border-0" 
-                        title="IMDb Parents Guide"
-                        sandbox="allow-forms allow-scripts allow-same-origin allow-popups"
-                    />
-                </div>
-            </div>
-        </div>
-    );
-};
-
 // PERSON PAGE
 interface PersonPageProps {
     personId: number;
@@ -678,7 +622,7 @@ export const ComparisonModal: React.FC<ComparisonModalProps> = ({ isOpen, onClos
                         <div className="flex-1 flex flex-col items-center text-center">
                             {movie2 ? (
                                 <>
-                                    <img src={movie2.poster_path ? `${TMDB_IMAGE_BASE}${movie2.poster_path}` : "https://placehold.co/200x300"} className="w-48 rounded-xl shadow-lg border-2 border-blue-500/50 mb-4 object-cover" alt={movie2.title}/>
+                                    <img src={movie2.poster_path ? `${TMDB_IMAGE_BASE}${movie2.poster_path}` : "https://placehold.co/200x300"} className="w-48 rounded-xl shadow-lg border-2 border-red-500/50 mb-4 object-cover" alt={movie2.title}/>
                                     <h3 className="text-xl font-bold text-white mb-1">{movie2.title}</h3>
                                     <p className="text-sm text-gray-400 mb-2">{movie2.release_date?.split('-')[0]}</p>
                                     <div className="flex items-center gap-1 text-yellow-500 font-bold"><Star size={14} fill="currentColor"/> {movie2.vote_average.toFixed(1)}</div>

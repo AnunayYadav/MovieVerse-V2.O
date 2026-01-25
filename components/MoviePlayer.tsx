@@ -21,7 +21,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
 
   const getEmbedUrl = () => {
     // vidsrc.cc structure
-    // Per user request: for TV series and Anime, use the base TV path without season/episode
+    // Per user request: for TV series and Anime, use the base TV path without season/episode parameters
     if (mediaType === 'tv' || (isAnime && mediaType !== 'movie')) {
         return `https://vidsrc.cc/v2/embed/tv/${tmdbId}`;
     }

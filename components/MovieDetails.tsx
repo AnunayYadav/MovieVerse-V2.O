@@ -4,7 +4,7 @@ import { X, Calendar, Clock, Star, Play, Bookmark, Heart, Share2, Clapperboard, 
 import { Movie, MovieDetails, Season, UserProfile, Keyword, Review, CastMember, CrewMember, CollectionDetails } from '../types';
 import { TMDB_BASE_URL, TMDB_IMAGE_BASE, TMDB_BACKDROP_BASE, formatCurrency, ImageLightbox, PersonCard, MovieCard } from '../components/Shared';
 import { generateTrivia } from '../services/gemini';
-import { FullCreditsModal, ParentsGuideModal } from './Modals';
+import { FullCreditsModal } from './Modals';
 
 const MoviePlayer = React.lazy(() => import('./MoviePlayer').then(module => ({ default: module.MoviePlayer })));
 
@@ -61,7 +61,6 @@ export const MoviePage: React.FC<MoviePageProps> = ({
     const [viewingImage, setViewingImage] = useState<string | null>(null);
     const [showPlayer, setShowPlayer] = useState(false);
     const [playParams, setPlayParams] = useState({ season: 1, episode: 1 });
-    const [showParentsGuide, setShowParentsGuide] = useState(false);
     
     // Modal States
     const [showFullCast, setShowFullCast] = useState(false);
@@ -86,11 +85,6 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                     e.stopPropagation();
                     return;
                 }
-                if (showParentsGuide) {
-                    setShowParentsGuide(false);
-                    e.stopPropagation();
-                    return;
-                }
                 if (showFullCast) {
                     setShowFullCast(false);
                     e.stopPropagation();
@@ -110,7 +104,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
         };
         window.addEventListener('keydown', handleEsc, true);
         return () => window.removeEventListener('keydown', handleEsc, true);
-    }, [showPlayer, showFullCast, showFullCrew, viewingImage, showParentsGuide]);
+    }, [showPlayer, showFullCast, showFullCrew, viewingImage]);
 
     // Resume Logic
     useEffect(() => {
@@ -241,6 +235,12 @@ export const MoviePage: React.FC<MoviePageProps> = ({
         );
     };
 
+    const handleParentsGuideClick = () => {
+        if (details?.external_ids?.imdb_id) {
+            window.open(`https://www.imdb.com/title/${details.external_ids.imdb_id}/parentalguide`, '_blank');
+        }
+    };
+
     return (
         <div className="fixed inset-0 z-[100] bg-[#0a0a0a] overflow-y-auto custom-scrollbar animate-in slide-in-from-right-10 duration-500 font-sans">
             <div className="relative w-full min-h-screen flex flex-col">
@@ -312,7 +312,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                         {logo ? (
                                             <img src={`${TMDB_IMAGE_BASE}${logo.file_path}`} alt={title} className={`max-h-16 md:max-h-24 max-w-[55%] w-auto object-contain object-left drop-shadow-2xl mb-4 origin-bottom-left -ml-1 transition-all duration-700 ease-in-out transform ${videoLoaded ? 'scale-90 opacity-70 group-hover/hero:scale-100 group-hover/hero:opacity-100' : 'scale-100 opacity-100'}`}/>
                                         ) : (
-                                            <h2 className={`text-3xl md:text-5xl font-extrabold text-white leading-tight drop-shadow-lg mb-4 transition-all duration-700 ease-in-out ${videoLoaded ? 'opacity-80 group-hover:opacity-100' : 'opacity-100'}`}>{title}</h2>
+                                            <h2 className={`text-3xl md:text-5xl font-extrabold text-white leading-tight drop-shadow-lg mb-4 transition-all duration-700 ease-in-out ${videoLoaded ? 'opacity-80 group-hover/hero:opacity-100' : 'opacity-100'}`}>{title}</h2>
                                         )}
                                         
                                         <div className={`flex flex-wrap items-center gap-4 text-white/90 text-xs md:text-sm font-medium transition-all duration-700 ease-in-out origin-bottom ${videoLoaded ? 'opacity-0 group-hover/hero:opacity-100' : 'opacity-100'}`}>
@@ -350,12 +350,12 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                     <Heart size={22} fill={isFavorite ? "currentColor" : "none"}/>
                                                 </button>
 
-                                                {/* Parents Guide Button Beside Favorite */}
+                                                {/* Parents Guide Button - Opens in New Tab */}
                                                 <button 
-                                                    onClick={() => setShowParentsGuide(true)} 
+                                                    onClick={handleParentsGuideClick} 
                                                     disabled={!details?.external_ids?.imdb_id}
                                                     className={`w-12 h-12 rounded-full glass hover:bg-white/10 flex items-center justify-center transition-all active:scale-95 text-white ${!details?.external_ids?.imdb_id ? 'opacity-30 cursor-not-allowed' : ''}`}
-                                                    title="Parents Guide"
+                                                    title="Parents Guide (IMDb)"
                                                 >
                                                     <Shield size={22}/>
                                                 </button>
@@ -705,13 +705,6 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                 title="Full Crew" 
                 credits={displayData.credits?.crew || []} 
                 onPersonClick={onPersonClick}
-            />
-            {/* Added ParentsGuideModal */}
-            <ParentsGuideModal 
-                isOpen={showParentsGuide}
-                onClose={() => setShowParentsGuide(false)}
-                imdbId={details?.external_ids?.imdb_id}
-                title={title || ""}
             />
         </div>
     );
