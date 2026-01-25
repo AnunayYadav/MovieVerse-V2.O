@@ -15,31 +15,28 @@ interface MoviePlayerProps {
 }
 
 export const MoviePlayer: React.FC<MoviePlayerProps> = ({ 
-  tmdbId, onClose, mediaType, isAnime, initialSeason = 1, initialEpisode = 1, onProgress
+  tmdbId, onClose, mediaType, isAnime, onProgress
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
 
   const getEmbedUrl = () => {
     // vidsrc.cc structure
+    // Per user request: for TV series and Anime, use the base TV path without season/episode
     if (mediaType === 'tv' || (isAnime && mediaType !== 'movie')) {
-        return `https://vidsrc.cc/v2/embed/tv/${tmdbId}/${initialSeason}/${initialEpisode}`;
+        return `https://vidsrc.cc/v2/embed/tv/${tmdbId}`;
     }
     return `https://vidsrc.cc/v2/embed/movie/${tmdbId}`;
   };
 
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
-        // Handle both standard and nested data structures from vidsrc
-        // The API might send { type: "PLAYER_EVENT", data: {...} }
-        
         try {
             const msg = event.data;
             if (msg && msg.type === 'PLAYER_EVENT' && msg.data) {
-                // Forward the internal data payload
                 if (onProgress) onProgress(msg.data);
             }
         } catch (e) {
-            // Ignore cross-origin frame access errors
+            // Ignore cross-origin access errors
         }
     };
 
@@ -73,7 +70,6 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
             frameBorder="0"
             allow="autoplay; fullscreen; picture-in-picture"
             allowFullScreen
-            // Essential Sandbox Permissions for vidsrc + postMessage
             sandbox="allow-forms allow-pointer-lock allow-same-origin allow-scripts allow-top-navigation allow-presentation"
         />
       </div>

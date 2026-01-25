@@ -1,10 +1,10 @@
 
 import React, { useState, useEffect, Suspense, useRef } from 'react';
-import { X, Calendar, Clock, Star, Play, Bookmark, Heart, Share2, Clapperboard, Sparkles, Loader2, Tag, MessageCircle, Globe, Facebook, Instagram, Twitter, Film, PlayCircle, Eye, Volume2, VolumeX, Users, ArrowLeft, Lightbulb, DollarSign, Trophy, Tv, Check, Mic2, Video, PenTool, ChevronRight, Monitor, Plus, Layers } from 'lucide-react';
+import { X, Calendar, Clock, Star, Play, Bookmark, Heart, Share2, Clapperboard, Sparkles, Loader2, Tag, MessageCircle, Globe, Facebook, Instagram, Twitter, Film, PlayCircle, Eye, Volume2, VolumeX, Users, ArrowLeft, Lightbulb, DollarSign, Trophy, Tv, Check, Mic2, Video, PenTool, ChevronRight, Monitor, Plus, Layers, Shield } from 'lucide-react';
 import { Movie, MovieDetails, Season, UserProfile, Keyword, Review, CastMember, CrewMember, CollectionDetails } from '../types';
 import { TMDB_BASE_URL, TMDB_IMAGE_BASE, TMDB_BACKDROP_BASE, formatCurrency, ImageLightbox, PersonCard, MovieCard } from '../components/Shared';
 import { generateTrivia } from '../services/gemini';
-import { FullCreditsModal } from './Modals';
+import { FullCreditsModal, ParentsGuideModal } from './Modals';
 
 const MoviePlayer = React.lazy(() => import('./MoviePlayer').then(module => ({ default: module.MoviePlayer })));
 
@@ -61,6 +61,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
     const [viewingImage, setViewingImage] = useState<string | null>(null);
     const [showPlayer, setShowPlayer] = useState(false);
     const [playParams, setPlayParams] = useState({ season: 1, episode: 1 });
+    const [showParentsGuide, setShowParentsGuide] = useState(false);
     
     // Modal States
     const [showFullCast, setShowFullCast] = useState(false);
@@ -85,6 +86,11 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                     e.stopPropagation();
                     return;
                 }
+                if (showParentsGuide) {
+                    setShowParentsGuide(false);
+                    e.stopPropagation();
+                    return;
+                }
                 if (showFullCast) {
                     setShowFullCast(false);
                     e.stopPropagation();
@@ -97,15 +103,14 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                 }
                 if (showPlayer) {
                     setShowPlayer(false);
-                    e.stopPropagation(); // Stop event from closing the entire MoviePage
+                    e.stopPropagation();
                     return;
                 }
-                // If nothing internal is open, the global handler in App.tsx will close the MoviePage
             }
         };
-        window.addEventListener('keydown', handleEsc, true); // Use capture to intercept before global
+        window.addEventListener('keydown', handleEsc, true);
         return () => window.removeEventListener('keydown', handleEsc, true);
-    }, [showPlayer, showFullCast, showFullCrew, viewingImage]);
+    }, [showPlayer, showFullCast, showFullCrew, viewingImage, showParentsGuide]);
 
     // Resume Logic
     useEffect(() => {
@@ -130,13 +135,11 @@ export const MoviePage: React.FC<MoviePageProps> = ({
             .then(data => {
                 setDetails(data);
                 
-                // Fetch Collection if part of one
                 if (data.belongs_to_collection?.id) {
                     fetch(`${TMDB_BASE_URL}/collection/${data.belongs_to_collection.id}?api_key=${apiKey}`)
                         .then(res => res.json())
                         .then(colData => {
                             if (colData.parts) {
-                                // Sort by release date
                                 colData.parts.sort((a: Movie, b: Movie) => {
                                     return new Date(a.release_date || '9999').getTime() - new Date(b.release_date || '9999').getTime();
                                 });
@@ -179,21 +182,12 @@ export const MoviePage: React.FC<MoviePageProps> = ({
 
     const handlePlayerProgress = (data: any) => {
         if (onProgress) {
-            const enhancedData = {
+            onProgress(movie, {
                 ...data,
                 season: playParams.season,
                 episode: playParams.episode
-            };
-            onProgress(movie, enhancedData);
+            });
         }
-    };
-
-    const handleShare = () => {
-        const url = `${window.location.origin}/?movie=${movie.id}`;
-        navigator.clipboard.writeText(url).then(() => {
-            setCopied(true);
-            setTimeout(() => setCopied(false), 2000);
-        });
     };
 
     const toggleMute = (e: React.MouseEvent) => {
@@ -274,8 +268,6 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                             onClose={() => setShowPlayer(false)} 
                                             mediaType={isTv ? 'tv' : 'movie'} 
                                             isAnime={isAnime || false} 
-                                            initialSeason={playParams.season} 
-                                            initialEpisode={playParams.episode} 
                                             apiKey={apiKey} 
                                             onProgress={handlePlayerProgress}
                                          />
@@ -320,7 +312,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                         {logo ? (
                                             <img src={`${TMDB_IMAGE_BASE}${logo.file_path}`} alt={title} className={`max-h-16 md:max-h-24 max-w-[55%] w-auto object-contain object-left drop-shadow-2xl mb-4 origin-bottom-left -ml-1 transition-all duration-700 ease-in-out transform ${videoLoaded ? 'scale-90 opacity-70 group-hover/hero:scale-100 group-hover/hero:opacity-100' : 'scale-100 opacity-100'}`}/>
                                         ) : (
-                                            <h2 className={`text-3xl md:text-5xl font-extrabold text-white leading-tight drop-shadow-lg mb-4 transition-all duration-700 ease-in-out ${videoLoaded ? 'opacity-80 group-hover/hero:opacity-100' : 'opacity-100'}`}>{title}</h2>
+                                            <h2 className={`text-3xl md:text-5xl font-extrabold text-white leading-tight drop-shadow-lg mb-4 transition-all duration-700 ease-in-out ${videoLoaded ? 'opacity-80 group-hover:opacity-100' : 'opacity-100'}`}>{title}</h2>
                                         )}
                                         
                                         <div className={`flex flex-wrap items-center gap-4 text-white/90 text-xs md:text-sm font-medium transition-all duration-700 ease-in-out origin-bottom ${videoLoaded ? 'opacity-0 group-hover/hero:opacity-100' : 'opacity-100'}`}>
@@ -356,6 +348,16 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                     title="Add to Favorites"
                                                 >
                                                     <Heart size={22} fill={isFavorite ? "currentColor" : "none"}/>
+                                                </button>
+
+                                                {/* Parents Guide Button Beside Favorite */}
+                                                <button 
+                                                    onClick={() => setShowParentsGuide(true)} 
+                                                    disabled={!details?.external_ids?.imdb_id}
+                                                    className={`w-12 h-12 rounded-full glass hover:bg-white/10 flex items-center justify-center transition-all active:scale-95 text-white ${!details?.external_ids?.imdb_id ? 'opacity-30 cursor-not-allowed' : ''}`}
+                                                    title="Parents Guide"
+                                                >
+                                                    <Shield size={22}/>
                                                 </button>
 
                                                 {details?.videos?.results?.[0] && (
@@ -447,7 +449,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                 </div>
                                             </div>
 
-                                            {/* Crew - Horizontal Row - Fixed B&W issue */}
+                                            {/* Crew - Horizontal Row */}
                                             <div>
                                                 <div className="flex items-center justify-between mb-6">
                                                     <h3 className="text-xl font-bold text-white">Crew</h3>
@@ -625,7 +627,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                 </div>
                             </div>
 
-                            {/* FRANCHISE COLLECTION SECTION - Aesthetic & Compact Overhaul */}
+                            {/* FRANCHISE COLLECTION SECTION */}
                             {collection && collection.parts && collection.parts.length > 0 && (
                                 <div className="mt-16 pt-10 border-t border-white/5">
                                     <div className="flex items-center justify-between mb-6">
@@ -636,7 +638,6 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                             {collection.name}
                                         </h3>
                                     </div>
-                                    {/* Horizontal Scroll for Collection Parts - Smaller & Stylized */}
                                     <div className="flex overflow-x-auto gap-4 pb-4 custom-scrollbar">
                                         {collection.parts.map(part => (
                                             <div key={part.id} className="min-w-[90px] md:min-w-[110px] cursor-pointer group" onClick={() => { if(part.id !== movie.id) { onClose(); onSwitchMovie(part); } }}>
@@ -661,12 +662,11 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                 </div>
                             )}
 
-                            {/* Similar Movies Section - Below Main Content */}
+                            {/* Similar Movies Section */}
                             {displayData.similar?.results && displayData.similar.results.length > 0 && (
                                 <div className="mt-16 pt-10 border-t border-white/5">
                                     <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-3">
                                         <div className="p-1.5 rounded-lg bg-yellow-500/10 text-yellow-500">
-                                            <span className="hidden">AI recommends:</span>
                                             <Sparkles size={20}/>
                                         </div>
                                         More Like This
@@ -705,6 +705,13 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                 title="Full Crew" 
                 credits={displayData.credits?.crew || []} 
                 onPersonClick={onPersonClick}
+            />
+            {/* Added ParentsGuideModal */}
+            <ParentsGuideModal 
+                isOpen={showParentsGuide}
+                onClose={() => setShowParentsGuide(false)}
+                imdbId={details?.external_ids?.imdb_id}
+                title={title || ""}
             />
         </div>
     );
