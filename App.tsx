@@ -45,6 +45,7 @@ export default function App() {
   const [fetchError, setFetchError] = useState(false);
   const [selectedMovie, setSelectedMovie] = useState<Movie | null>(null);
   const [featuredMovie, setFeaturedMovie] = useState<Movie | null>(null);
+  const [featuredLogo, setFeaturedLogo] = useState<string | null>(null);
   
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -383,6 +384,21 @@ export default function App() {
       }
   }, [isAuthenticated, lastNotificationId]);
 
+  // Effect to fetch logo for featuredMovie
+  useEffect(() => {
+    if (featuredMovie && apiKey) {
+        setFeaturedLogo(null);
+        const type = featuredMovie.media_type === 'tv' ? 'tv' : 'movie';
+        fetch(`${TMDB_BASE_URL}/${type}/${featuredMovie.id}/images?api_key=${apiKey}`)
+            .then(res => res.json())
+            .then(data => {
+                const logo = data.logos?.find((l: any) => l.iso_639_1 === 'en') || data.logos?.[0];
+                if (logo) setFeaturedLogo(logo.file_path);
+            })
+            .catch(() => {});
+    }
+  }, [featuredMovie?.id, apiKey]);
+
   const handleLogin = (profileData?: UserProfile) => {
     localStorage.setItem('movieverse_auth', 'true');
     if (profileData) {
@@ -393,7 +409,7 @@ export default function App() {
   };
 
   const handleLogout = async () => {
-    try { await signOut(); await new Promise((resolve) => setTimeout(resolve, 500)); } catch (e) {} finally { resetAuthState(); window.location.reload(); }
+    try { await signOut(); await new Promise((resolve) => setTimeout(resolve, 1500)); } catch (e) {} finally { resetAuthState(); window.location.reload(); }
   };
 
   const saveSettings = (newTmdb: string) => {
@@ -1000,9 +1016,18 @@ export default function App() {
                                        <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-widest ${isGoldTheme ? 'bg-amber-500 text-black' : 'bg-red-600 text-white'}`}>
                                            Featured
                                        </span>
-                                       <h1 className="text-4xl md:text-6xl font-black text-white leading-tight drop-shadow-2xl">
-                                           {featuredMovie.title || featuredMovie.name}
-                                       </h1>
+                                       
+                                       {featuredLogo ? (
+                                           <img 
+                                              src={`${TMDB_IMAGE_BASE}${featuredLogo}`} 
+                                              alt={featuredMovie.title || featuredMovie.name} 
+                                              className="max-h-24 md:max-h-36 max-w-[80%] md:max-w-[50%] object-contain object-left mb-2 drop-shadow-2xl" 
+                                           />
+                                       ) : (
+                                          <h1 className="text-4xl md:text-6xl font-black text-white leading-tight drop-shadow-2xl">
+                                              {featuredMovie.title || featuredMovie.name}
+                                          </h1>
+                                       )}
                                        
                                        <div className="flex items-center gap-4 text-sm font-medium text-gray-300">
                                            <span className="text-green-400 font-bold">{featuredMovie.vote_average ? featuredMovie.vote_average.toFixed(1) : 'NR'} Rating</span>
