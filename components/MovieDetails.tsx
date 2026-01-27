@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, Suspense, useRef } from 'react';
-import { X, Calendar, Clock, Star, Play, Bookmark, Heart, Share2, Clapperboard, Sparkles, Loader2, Tag, MessageCircle, Globe, Facebook, Instagram, Twitter, Film, PlayCircle, Eye, Volume2, VolumeX, Users, ArrowLeft, Lightbulb, DollarSign, Trophy, Tv, Check, Mic2, Video, PenTool, ChevronRight, Monitor, Plus, Layers, Shield, Building2, Languages, Headphones } from 'lucide-react';
+import { X, Calendar, Clock, Star, Play, Bookmark, Heart, Share2, Clapperboard, Sparkles, Loader2, Tag, MessageCircle, Globe, Facebook, Instagram, Twitter, Film, PlayCircle, Eye, Volume2, VolumeX, Users, ArrowLeft, Lightbulb, DollarSign, Trophy, Tv, Check, Mic2, Video, PenTool, ChevronRight, Monitor, Plus, Layers, Shield, Building2, Languages, Headphones, Activity } from 'lucide-react';
 import { Movie, MovieDetails, Season, UserProfile, Keyword, Review, CastMember, CrewMember, CollectionDetails } from '../types';
 import { TMDB_BASE_URL, TMDB_IMAGE_BASE, TMDB_BACKDROP_BASE, formatCurrency, ImageLightbox, PersonCard, MovieCard } from '../components/Shared';
 import { generateTrivia } from '../services/gemini';
@@ -28,6 +28,83 @@ interface MoviePageProps {
     appRegion?: string;
     onProgress?: (movie: Movie, progressData: any) => void;
 }
+
+const PopularityMeter = ({ score, count, isGold }: { score: number; count: number; isGold: boolean }) => {
+    const percentage = Math.round(score * 10);
+    const positiveVotes = Math.round((score / 10) * count);
+    
+    // Half circle circumference calculation (Radius 75)
+    // C = PI * r
+    const radius = 75;
+    const circumference = Math.PI * radius;
+    const [offset, setOffset] = useState(circumference);
+
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            const progress = (percentage / 100) * circumference;
+            setOffset(circumference - progress);
+        }, 300);
+        return () => clearTimeout(timer);
+    }, [percentage, circumference]);
+
+    return (
+        <div className="mt-12 p-8 bg-white/5 rounded-3xl border border-white/5 flex flex-col items-center text-center relative overflow-hidden group">
+            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-teal-500 via-purple-500 to-teal-500 opacity-20"></div>
+            
+            <div className="flex items-center gap-2 mb-6">
+                <div className={`p-1.5 rounded-lg ${isGold ? 'bg-amber-500/10 text-amber-500' : 'bg-red-500/10 text-red-500'}`}>
+                    <Activity size={18}/>
+                </div>
+                <h3 className="text-sm font-bold text-white uppercase tracking-widest">Popularity Meter</h3>
+            </div>
+
+            <div className="relative w-64 h-32 md:w-72 md:h-36">
+                <svg className="w-full h-full -rotate-0" viewBox="0 0 200 100">
+                    <defs>
+                        <linearGradient id="meterGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                            <stop offset="0%" stopColor="#10b981" />
+                            <stop offset="100%" stopColor="#a855f7" />
+                        </linearGradient>
+                    </defs>
+                    {/* Background Arc */}
+                    <path
+                        d="M 25 100 A 75 75 0 0 1 175 100"
+                        fill="none"
+                        stroke="rgba(255,255,255,0.05)"
+                        strokeWidth="14"
+                        strokeLinecap="round"
+                    />
+                    {/* Progress Arc */}
+                    <path
+                        d="M 25 100 A 75 75 0 0 1 175 100"
+                        fill="none"
+                        stroke="url(#meterGradient)"
+                        strokeWidth="14"
+                        strokeLinecap="round"
+                        strokeDasharray={circumference}
+                        strokeDashoffset={offset}
+                        className="transition-all duration-1000 ease-out"
+                    />
+                </svg>
+                <div className="absolute inset-0 flex flex-col items-center justify-end pb-2">
+                    <span className="text-4xl md:text-5xl font-black text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.2)]">
+                        {percentage}%
+                    </span>
+                </div>
+            </div>
+            
+            <div className="mt-4 space-y-1">
+                <p className="text-base font-bold text-gray-300">
+                    <span className="text-white">{positiveVotes.toLocaleString()}</span>
+                    <span className="text-gray-600 mx-2">/</span>
+                    <span className="text-gray-500">{count.toLocaleString()}</span>
+                    <span className="ml-2 text-xs text-gray-500 font-medium uppercase tracking-wider">Votes</span>
+                </p>
+                <p className="text-[10px] text-gray-600 font-bold uppercase tracking-[0.3em]">Audience Approval Rating</p>
+            </div>
+        </div>
+    );
+};
 
 const MovieDetailsSkeleton = () => (
     <div className="w-full min-h-screen flex flex-col bg-[#0a0a0a]">
@@ -347,7 +424,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                             <h2 className={`text-3xl md:text-5xl font-extrabold text-white leading-tight drop-shadow-lg mb-4 transition-all duration-700 ease-in-out ${videoLoaded ? 'opacity-80 group-hover:opacity-100' : 'opacity-100'}`}>{title}</h2>
                                         )}
                                         
-                                        <div className={`flex flex-wrap items-center gap-4 text-white/90 text-xs md:text-sm font-medium transition-all duration-700 ease-in-out origin-bottom ${videoLoaded ? 'opacity-0 group-hover/hero:opacity-100' : 'opacity-100'}`}>
+                                        <div className={`flex flex-wrap items-center gap-4 text-white/90 text-xs md:text-sm font-medium transition-all duration-700 ease-in-out origin-bottom ${videoLoaded ? 'opacity-0 group-hover:opacity-100' : 'opacity-100'}`}>
                                             {ratingLabel !== 'NR' && <span className={`px-2 py-0.5 rounded text-[10px] md:text-xs font-bold shadow-lg ${ratingColor}`}>{ratingLabel}</span>}
                                             <span className="flex items-center gap-2"><Calendar size={14} className={accentText}/> {releaseDate}</span>
                                             <span className="flex items-center gap-2"><Clock size={14} className={accentText}/> {runtime}</span>
@@ -506,6 +583,15 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                     </button>
                                                 </div>
                                             </div>
+
+                                            {/* Popularity Meter */}
+                                            {displayData.vote_count > 0 && (
+                                                <PopularityMeter 
+                                                    score={displayData.vote_average} 
+                                                    count={displayData.vote_count} 
+                                                    isGold={isGoldTheme}
+                                                />
+                                            )}
                                         </div>
                                     )}
 
