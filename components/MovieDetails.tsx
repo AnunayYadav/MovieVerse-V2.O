@@ -70,8 +70,10 @@ export const MoviePage: React.FC<MoviePageProps> = ({
     const [isMuted, setIsMuted] = useState(true);
     const iframeRef = useRef<HTMLIFrameElement>(null);
     
-    // Timeline Auto-scroll ref
+    // Timeline Refs for centering logic
+    const timelineContainerRef = useRef<HTMLDivElement>(null);
     const activeTimelineItemRef = useRef<HTMLDivElement>(null);
+    const hasCenteredTimeline = useRef<number | null>(null); // Track which movie was centered
 
     const isExclusive = userProfile.canWatch === true;
     const isGoldTheme = isExclusive && userProfile.theme !== 'default';
@@ -125,6 +127,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
         if (!apiKey || !movie.id) return;
         setLoading(true);
         setCollection(null);
+        hasCenteredTimeline.current = null; // Reset centering track when movie changes
         
         const type = movie.media_type === 'tv' ? 'tv' : 'movie';
         
@@ -174,15 +177,29 @@ export const MoviePage: React.FC<MoviePageProps> = ({
         }
     }, [activeTab, trivia, loadingTrivia, details]);
 
-    // Auto-scroll timeline to active movie
+    // Handle timeline horizontal scroll ONLY when it comes into view
     useEffect(() => {
-        if (activeTimelineItemRef.current) {
-            activeTimelineItemRef.current.scrollIntoView({
-                behavior: 'smooth',
-                block: 'nearest',
-                inline: 'center'
-            });
-        }
+        if (!timelineContainerRef.current || !activeTimelineItemRef.current || hasCenteredTimeline.current === movie.id) return;
+
+        const observer = new IntersectionObserver((entries) => {
+            if (entries[0].isIntersecting) {
+                // Centering logic: calculate scroll position to center the item in the container
+                const container = timelineContainerRef.current;
+                const item = activeTimelineItemRef.current;
+                if (container && item) {
+                    const scrollLeft = item.offsetLeft - (container.offsetWidth / 2) + (item.offsetWidth / 2);
+                    container.scrollTo({
+                        left: scrollLeft,
+                        behavior: 'smooth'
+                    });
+                    hasCenteredTimeline.current = movie.id;
+                    observer.disconnect();
+                }
+            }
+        }, { threshold: 0.1 });
+
+        observer.observe(timelineContainerRef.current);
+        return () => observer.disconnect();
     }, [collection, movie.id]);
 
     const handleWatchClick = () => {
@@ -311,7 +328,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                     />
                                     
                                     <div className="absolute inset-0 bg-black -z-20"></div>
-                                    <div className={`absolute -inset-1 bg-gradient-to-t from-[#0a0a0a] via-[#0a0a0a]/50 to-transparent transition-opacity duration-700 ease-in-out pointer-events-none ${videoLoaded ? 'opacity-25 group-hover/hero:opacity-100' : 'opacity-100'}`}></div>
+                                    <div className={`absolute -inset-1 bg-gradient-to-t from-[#0a0a0a] via-[#0a0a0a]/50 to-transparent transition-opacity duration-700 ease-in-out pointer-events-none ${videoLoaded ? 'opacity-25 group-hover:opacity-100' : 'opacity-100'}`}></div>
                                  
                                     {trailer && videoLoaded && (
                                         <button onClick={toggleMute} className="absolute bottom-6 right-6 z-30 p-3 bg-black/30 hover:bg-white/10 backdrop-blur-md border border-white/10 rounded-full text-white transition-all active:scale-95 group/mute hidden md:flex" title={isMuted ? "Unmute" : "Mute"}>
@@ -327,7 +344,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                         {logo ? (
                                             <img src={`${TMDB_IMAGE_BASE}${logo.file_path}`} alt={title} className={`max-h-16 md:max-h-24 max-w-[55%] w-auto object-contain object-left drop-shadow-2xl mb-4 origin-bottom-left -ml-1 transition-all duration-700 ease-in-out transform ${videoLoaded ? 'scale-90 opacity-70 group-hover/hero:scale-100 group-hover/hero:opacity-100' : 'scale-100 opacity-100'}`}/>
                                         ) : (
-                                            <h2 className={`text-3xl md:text-5xl font-extrabold text-white leading-tight drop-shadow-lg mb-4 transition-all duration-700 ease-in-out ${videoLoaded ? 'opacity-80 group-hover/hero:opacity-100' : 'opacity-100'}`}>{title}</h2>
+                                            <h2 className={`text-3xl md:text-5xl font-extrabold text-white leading-tight drop-shadow-lg mb-4 transition-all duration-700 ease-in-out ${videoLoaded ? 'opacity-80 group-hover:opacity-100' : 'opacity-100'}`}>{title}</h2>
                                         )}
                                         
                                         <div className={`flex flex-wrap items-center gap-4 text-white/90 text-xs md:text-sm font-medium transition-all duration-700 ease-in-out origin-bottom ${videoLoaded ? 'opacity-0 group-hover/hero:opacity-100' : 'opacity-100'}`}>
@@ -597,7 +614,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                         
                                         <div>
                                             <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2">Original Language</p>
-                                            <span className="text-xs bg-white/10 px-3 py-1 rounded-full text-white font-bold uppercase tracking-widest">{displayData.original_language || 'EN'}</span>
+                                            <span className="text-xs bg-white/10 px-3 py-1 rounded-full text-white font-bold uppercase tracking-widest">{displayData.original_language?.toUpperCase() || 'EN'}</span>
                                         </div>
 
                                         {displayData.spoken_languages && displayData.spoken_languages.length > 0 && (
@@ -719,7 +736,10 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                 />
                                             </div>
 
-                                            <div className="flex overflow-x-auto gap-8 md:gap-12 pb-12 pt-4 hide-scrollbar relative z-10 px-4">
+                                            <div 
+                                                ref={timelineContainerRef}
+                                                className="flex overflow-x-auto gap-8 md:gap-12 pb-12 pt-4 hide-scrollbar relative z-10 px-4 scroll-smooth"
+                                            >
                                                 {collection.parts.map((part, index) => {
                                                     const isCurrent = part.id === movie.id;
                                                     const partYear = part.release_date?.split('-')[0] || 'TBA';
