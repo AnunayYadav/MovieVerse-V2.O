@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, Suspense, useRef } from 'react';
-import { X, Calendar, Clock, Star, Play, Bookmark, Heart, Share2, Clapperboard, Sparkles, Loader2, Tag, MessageCircle, Globe, Facebook, Instagram, Twitter, Film, PlayCircle, Eye, Volume2, VolumeX, Users, ArrowLeft, Lightbulb, DollarSign, Trophy, Tv, Check, Mic2, Video, PenTool, ChevronRight, Monitor, Plus, Layers, Shield, Building2, Languages, Headphones, Activity } from 'lucide-react';
+import { X, Calendar, Clock, Star, Play, Bookmark, Heart, Share2, Clapperboard, Sparkles, Loader2, Tag, MessageCircle, Globe, Facebook, Instagram, Twitter, Film, PlayCircle, Eye, Volume2, VolumeX, Users, ArrowLeft, Lightbulb, DollarSign, Trophy, Tv, Check, Mic2, Video, PenTool, ChevronRight, Monitor, Plus, Layers, Shield, Building2, Languages, Headphones, Activity, Target } from 'lucide-react';
 import { Movie, MovieDetails, Season, UserProfile, Keyword, Review, CastMember, CrewMember, CollectionDetails } from '../types';
 import { TMDB_BASE_URL, TMDB_IMAGE_BASE, TMDB_BACKDROP_BASE, formatCurrency, ImageLightbox, PersonCard, MovieCard } from '../components/Shared';
 import { generateTrivia } from '../services/gemini';
@@ -33,8 +33,24 @@ const PopularityMeter = ({ score, count, isGold }: { score: number; count: numbe
     const percentage = Math.round(score * 10);
     const positiveVotes = Math.round((score / 10) * count);
     
+    // Dynamic Category Logic
+    let category = "Unknown";
+    let categoryColor = "text-gray-400";
+    if (percentage < 45) {
+        category = "SKIP";
+        categoryColor = "text-red-500";
+    } else if (percentage < 65) {
+        category = "ONE TIME WATCH";
+        categoryColor = "text-orange-400";
+    } else if (percentage < 85) {
+        category = "GO FOR IT";
+        categoryColor = "text-emerald-400";
+    } else {
+        category = "PERFECTION";
+        categoryColor = isGold ? "text-amber-400" : "text-purple-400";
+    }
+
     // Half circle circumference calculation (Radius 75)
-    // C = PI * r
     const radius = 75;
     const circumference = Math.PI * radius;
     const [offset, setOffset] = useState(circumference);
@@ -47,31 +63,44 @@ const PopularityMeter = ({ score, count, isGold }: { score: number; count: numbe
         return () => clearTimeout(timer);
     }, [percentage, circumference]);
 
+    const startColor = isGold ? "#f59e0b" : "#ef4444"; // Amber-500 or Red-600
+    const endColor = isGold ? "#fbbf24" : "#ec4899";   // Amber-400 or Pink-500
+    // If high score, let's make it look special
+    const specialEndColor = percentage >= 85 ? (isGold ? "#fff7ed" : "#a855f7") : endColor;
+
     return (
-        <div className="mt-12 p-8 bg-white/5 rounded-3xl border border-white/5 flex flex-col items-center text-center relative overflow-hidden group">
-            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-teal-500 via-purple-500 to-teal-500 opacity-20"></div>
+        <div className="mt-12 p-8 bg-white/[0.03] rounded-3xl border border-white/5 flex flex-col items-center text-center relative overflow-hidden group">
+            {/* Glossy overlay */}
+            <div className="absolute inset-0 bg-gradient-to-br from-white/[0.02] to-transparent pointer-events-none"></div>
             
-            <div className="flex items-center gap-2 mb-6">
+            <div className="flex items-center gap-2 mb-8 relative z-10">
                 <div className={`p-1.5 rounded-lg ${isGold ? 'bg-amber-500/10 text-amber-500' : 'bg-red-500/10 text-red-500'}`}>
-                    <Activity size={18}/>
+                    <Target size={18}/>
                 </div>
-                <h3 className="text-sm font-bold text-white uppercase tracking-widest">Popularity Meter</h3>
+                <h3 className="text-[10px] font-black text-white/40 uppercase tracking-[0.3em]">Audience Verdict</h3>
             </div>
 
             <div className="relative w-64 h-32 md:w-72 md:h-36">
-                <svg className="w-full h-full -rotate-0" viewBox="0 0 200 100">
+                <svg className="w-full h-full" viewBox="0 0 200 100">
                     <defs>
                         <linearGradient id="meterGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                            <stop offset="0%" stopColor="#10b981" />
-                            <stop offset="100%" stopColor="#a855f7" />
+                            <stop offset="0%" stopColor={startColor} />
+                            <stop offset="100%" stopColor={specialEndColor} />
                         </linearGradient>
+                        <filter id="glow">
+                            <feGaussianBlur stdDeviation="2" result="coloredBlur" />
+                            <feMerge>
+                                <feMergeNode in="coloredBlur" />
+                                <feMergeNode in="SourceGraphic" />
+                            </feMerge>
+                        </filter>
                     </defs>
                     {/* Background Arc */}
                     <path
                         d="M 25 100 A 75 75 0 0 1 175 100"
                         fill="none"
                         stroke="rgba(255,255,255,0.05)"
-                        strokeWidth="14"
+                        strokeWidth="12"
                         strokeLinecap="round"
                     />
                     {/* Progress Arc */}
@@ -79,29 +108,40 @@ const PopularityMeter = ({ score, count, isGold }: { score: number; count: numbe
                         d="M 25 100 A 75 75 0 0 1 175 100"
                         fill="none"
                         stroke="url(#meterGradient)"
-                        strokeWidth="14"
+                        strokeWidth="12"
                         strokeLinecap="round"
                         strokeDasharray={circumference}
                         strokeDashoffset={offset}
-                        className="transition-all duration-1000 ease-out"
+                        filter="url(#glow)"
+                        className="transition-all duration-[1500ms] ease-out"
                     />
                 </svg>
-                <div className="absolute inset-0 flex flex-col items-center justify-end pb-2">
-                    <span className="text-4xl md:text-5xl font-black text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.2)]">
+                <div className="absolute inset-0 flex flex-col items-center justify-end pb-1">
+                    <span className="text-5xl md:text-6xl font-black text-white tracking-tighter drop-shadow-[0_0_20px_rgba(255,255,255,0.1)]">
                         {percentage}%
                     </span>
                 </div>
             </div>
             
-            <div className="mt-4 space-y-1">
-                <p className="text-base font-bold text-gray-300">
-                    <span className="text-white">{positiveVotes.toLocaleString()}</span>
-                    <span className="text-gray-600 mx-2">/</span>
-                    <span className="text-gray-500">{count.toLocaleString()}</span>
-                    <span className="ml-2 text-xs text-gray-500 font-medium uppercase tracking-wider">Votes</span>
-                </p>
-                <p className="text-[10px] text-gray-600 font-bold uppercase tracking-[0.3em]">Audience Approval Rating</p>
+            <div className="mt-6 space-y-3 relative z-10">
+                <div className={`text-sm font-black tracking-[0.2em] px-4 py-1.5 rounded-full bg-white/5 border border-white/5 ${categoryColor} inline-block animate-in zoom-in-90 duration-700 delay-500`}>
+                    {category}
+                </div>
+                
+                <div className="flex flex-col items-center">
+                    <p className="text-sm font-bold text-gray-400">
+                        <span className="text-white">{positiveVotes.toLocaleString()}</span>
+                        <span className="text-gray-600 mx-2">/</span>
+                        <span className="text-gray-500">{count.toLocaleString()}</span>
+                        <span className="ml-1 text-[10px] text-gray-600 uppercase tracking-widest font-black">Total Votes</span>
+                    </p>
+                </div>
             </div>
+            
+            {/* Subtle light pulse for "Perfection" */}
+            {percentage >= 85 && (
+                <div className={`absolute -bottom-20 -left-20 w-40 h-40 rounded-full blur-[80px] opacity-20 animate-pulse ${isGold ? 'bg-amber-500' : 'bg-red-600'}`}></div>
+            )}
         </div>
     );
 };
