@@ -75,6 +75,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
 
     const accentText = isGoldTheme ? "text-amber-500" : "text-red-500";
     const accentBg = isGoldTheme ? "bg-amber-500" : "bg-red-500";
+    const accentShadow = isGoldTheme ? "shadow-amber-500/50" : "shadow-red-600/50";
 
     // Escape listener for internal page state
     useEffect(() => {
@@ -627,37 +628,84 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                 </div>
                             </div>
 
-                            {/* FRANCHISE COLLECTION SECTION */}
+                            {/* FRANCHISE TIMELINE SECTION */}
                             {collection && collection.parts && collection.parts.length > 0 && (
-                                <div className="mt-16 pt-10 border-t border-white/5">
-                                    <div className="flex items-center justify-between mb-6">
-                                        <h3 className="text-xl font-bold text-white flex items-center gap-3">
-                                            <div className={`p-1.5 rounded-lg ${isGoldTheme ? 'bg-amber-500/10 text-amber-500' : 'bg-red-500/10 text-red-500'}`}>
-                                                <Layers size={20}/>
+                                <div className="mt-16 pt-10 border-t border-white/10">
+                                    <div className="flex flex-col gap-8 mb-12">
+                                        <div className="flex items-center gap-3">
+                                            <div className={`p-2 rounded-xl ${isGoldTheme ? 'bg-amber-500/10 text-amber-500' : 'bg-red-500/10 text-red-500'}`}>
+                                                <Layers size={24}/>
                                             </div>
-                                            {collection.name}
-                                        </h3>
-                                    </div>
-                                    <div className="flex overflow-x-auto gap-4 pb-4 custom-scrollbar">
-                                        {collection.parts.map(part => (
-                                            <div key={part.id} className="min-w-[90px] md:min-w-[110px] cursor-pointer group" onClick={() => { if(part.id !== movie.id) { onClose(); onSwitchMovie(part); } }}>
-                                                <div className={`aspect-[2/3] rounded-lg overflow-hidden bg-white/5 mb-2 relative border transition-all duration-300 ${part.id === movie.id ? (isGoldTheme ? 'border-amber-500 shadow-lg shadow-amber-900/20' : 'border-red-500 shadow-lg shadow-red-900/20') : 'border-white/5 group-hover:border-white/20'}`}>
-                                                    <img 
-                                                        src={part.poster_path ? `${TMDB_IMAGE_BASE}${part.poster_path}` : "https://placehold.co/300x450"} 
-                                                        className={`w-full h-full object-cover transition-all duration-500 ${part.id === movie.id ? 'opacity-40 scale-110' : 'group-hover:scale-110 opacity-70 group-hover:opacity-100'}`} 
-                                                        alt={part.title}
-                                                    />
-                                                    {part.id === movie.id && (
-                                                        <div className="absolute inset-0 flex items-center justify-center p-2 text-center">
-                                                            <span className="font-black text-[9px] uppercase tracking-widest text-white drop-shadow-lg">Current Title</span>
+                                            <div>
+                                                <h3 className="text-2xl font-black text-white tracking-tight">{collection.name}</h3>
+                                                <p className="text-xs text-gray-500 font-bold uppercase tracking-widest mt-1">Chronological Order</p>
+                                            </div>
+                                        </div>
+
+                                        {/* THE TIMELINE CAROUSEL */}
+                                        <div className="relative w-full">
+                                            {/* Horizontal Connection Line */}
+                                            <div className="absolute top-[calc(45%+14px)] left-0 right-0 h-[2px] bg-white/10 z-0 overflow-hidden">
+                                                <div 
+                                                    className={`h-full transition-all duration-1000 ${accentBg}`} 
+                                                    style={{ width: `${((collection.parts.findIndex(p => p.id === movie.id) + 1) / collection.parts.length) * 100}%` }}
+                                                />
+                                            </div>
+
+                                            <div className="flex overflow-x-auto gap-8 md:gap-12 pb-12 pt-4 hide-scrollbar relative z-10 px-4">
+                                                {collection.parts.map((part, index) => {
+                                                    const isCurrent = part.id === movie.id;
+                                                    const partYear = part.release_date?.split('-')[0] || 'TBA';
+                                                    
+                                                    return (
+                                                        <div key={part.id} className="flex flex-col items-center shrink-0 w-32 md:w-44 group">
+                                                            {/* Poster Card */}
+                                                            <div 
+                                                                onClick={() => { if(!isCurrent) { onClose(); onSwitchMovie(part); } }}
+                                                                className={`relative aspect-[2/3] w-full rounded-2xl overflow-hidden cursor-pointer transition-all duration-500 ease-[cubic-bezier(0.23,1,0.32,1)] mb-8 border-2 ${
+                                                                    isCurrent 
+                                                                    ? `${isGoldTheme ? 'border-amber-500 shadow-[0_0_30px_rgba(245,158,11,0.4)] scale-105' : 'border-red-500 shadow-[0_0_30px_rgba(239,68,68,0.4)] scale-105'} z-20` 
+                                                                    : 'border-white/5 group-hover:border-white/20 opacity-60 grayscale hover:grayscale-0 hover:opacity-100'
+                                                                }`}
+                                                            >
+                                                                <img 
+                                                                    src={part.poster_path ? `${TMDB_IMAGE_BASE}${part.poster_path}` : "https://placehold.co/300x450"} 
+                                                                    className={`w-full h-full object-cover transition-transform duration-700 group-hover:scale-110`} 
+                                                                    alt={part.title}
+                                                                />
+                                                                {isCurrent && (
+                                                                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex items-end justify-center p-3">
+                                                                        <span className="text-[10px] font-black uppercase tracking-widest text-white shadow-lg">Viewing Now</span>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+
+                                                            {/* Year Badge */}
+                                                            <div className={`mb-4 px-3 py-1 rounded-full text-[11px] font-black shadow-lg transition-all duration-500 ${
+                                                                isCurrent ? `${accentBg} text-white` : 'bg-white/5 text-gray-400 group-hover:text-white'
+                                                            }`}>
+                                                                {partYear}
+                                                            </div>
+
+                                                            {/* Connection Marker (Dot) */}
+                                                            <div className="relative mb-6">
+                                                                <div className={`w-3 h-3 rounded-full transition-all duration-500 shadow-xl ${
+                                                                    isCurrent ? `${accentBg} scale-150 ring-4 ring-white/10` : 'bg-white/20 scale-100 group-hover:bg-white/40'
+                                                                }`} />
+                                                                {isCurrent && <div className={`absolute inset-0 w-3 h-3 rounded-full animate-ping ${accentBg} opacity-75`}></div>}
+                                                            </div>
+
+                                                            {/* Movie Info */}
+                                                            <div className="text-center w-full px-2">
+                                                                <h4 className={`font-bold text-xs md:text-sm leading-tight transition-colors duration-300 line-clamp-2 ${
+                                                                    isCurrent ? 'text-white' : 'text-gray-500 group-hover:text-gray-300'
+                                                                }`}>{part.title}</h4>
+                                                            </div>
                                                         </div>
-                                                    )}
-                                                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                                                </div>
-                                                <h4 className={`font-bold text-[10px] leading-tight truncate px-1 transition-colors ${part.id === movie.id ? accentText : 'text-gray-400 group-hover:text-white'}`}>{part.title}</h4>
-                                                <p className="text-[9px] text-gray-500 mt-0.5 px-1 font-medium">{part.release_date?.split('-')[0] || 'TBA'}</p>
+                                                    );
+                                                })}
                                             </div>
-                                        ))}
+                                        </div>
                                     </div>
                                 </div>
                             )}
