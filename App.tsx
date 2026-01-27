@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Search, Film, Menu, TrendingUp, Tv, Ghost, Calendar, Star, X, Sparkles, Settings, Globe, Bookmark, Heart, Folder, Languages, Filter, ChevronDown, Info, Plus, Cloud, CloudOff, Clock, Bell, History, Users, Tag, Dice5, Crown, Radio, LayoutGrid, Award, Baby, Clapperboard, ChevronRight, PlayCircle, Megaphone, CalendarDays, Compass, Home, Map, Loader2, Trophy, RefreshCcw, Check, MonitorPlay, Layers, LogOut, Download } from 'lucide-react';
 import { Movie, UserProfile, GENRES_MAP, GENRES_LIST, INDIAN_LANGUAGES, MaturityRating, Keyword } from './types';
-import { LogoLoader, MovieSkeleton, MovieCard, PersonCard, PosterMarquee, TMDB_BASE_URL, TMDB_BACKDROP_BASE, TMDB_IMAGE_BASE, HARDCODED_TMDB_KEY, HARDCODED_GEMINI_KEY, getTmdbKey, getGeminiKey, BrandLogo } from './components/Shared';
+import { LogoLoader, MovieSkeleton, MovieCard, PersonCard, PosterMarquee, TMDB_BASE_URL, TMDB_BACKDROP_BASE, TMDB_IMAGE_BASE, HARDCODED_TMDB_KEY, getTmdbKey, getGeminiKey, BrandLogo } from './components/Shared';
 import { MoviePage } from './components/MovieDetails';
 import { ProfilePage, PersonPage, NotificationModal, ComparisonModal, AgeVerificationModal } from './components/Modals';
 import { SettingsPage } from './components/SettingsModal';
@@ -27,7 +27,6 @@ const GENRE_COLORS: Record<string, string> = { "Action": "from-red-600 to-red-90
 
 export default function App() {
   const [apiKey, setApiKey] = useState(getTmdbKey());
-  const [geminiKey, setGeminiKey] = useState(getGeminiKey());
   
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [authChecking, setAuthChecking] = useState(true);
@@ -207,7 +206,6 @@ export default function App() {
     const initApp = async () => {
       try {
         setApiKey(getTmdbKey());
-        setGeminiKey(getGeminiKey());
         const savedHistory = localStorage.getItem('movieverse_search_history');
         if (savedHistory) setSearchHistory(JSON.parse(savedHistory));
         const loadLocalState = () => {
@@ -240,10 +238,6 @@ export default function App() {
                         if (cloudData.settings.tmdbKey && !getTmdbKey()) {
                             setApiKey(cloudData.settings.tmdbKey);
                             localStorage.setItem('movieverse_tmdb_key', cloudData.settings.tmdbKey);
-                        }
-                        if (cloudData.settings.geminiKey && !getGeminiKey()) {
-                            setGeminiKey(cloudData.settings.geminiKey);
-                            localStorage.setItem('movieverse_gemini_key', cloudData.settings.geminiKey);
                         }
                     }
                     setIsCloudSync(true);
@@ -338,7 +332,7 @@ export default function App() {
               watchlist, favorites, watched,
               customLists: {},
               profile: { ...updatedProfile, maturityRating, region: appRegion },
-              settings: { tmdbKey: apiKey, geminiKey: geminiKey },
+              settings: { tmdbKey: apiKey },
               searchHistory: searchHistory
           });
       }
@@ -352,13 +346,13 @@ export default function App() {
                   watchlist, favorites, watched,
                   customLists: {},
                   profile: { ...userProfile, maturityRating, region: appRegion },
-                  settings: { tmdbKey: apiKey, geminiKey: geminiKey },
+                  settings: { tmdbKey: apiKey },
                   searchHistory: searchHistory
               });
           }, 1000); 
           return () => clearTimeout(timeoutId);
       }
-  }, [watchlist, favorites, watched, userProfile, isCloudSync, isAuthenticated, apiKey, geminiKey, dataLoaded, searchHistory, maturityRating, appRegion]);
+  }, [watchlist, favorites, watched, userProfile, isCloudSync, isAuthenticated, apiKey, dataLoaded, searchHistory, maturityRating, appRegion]);
 
   useEffect(() => {
       fetchMovies(1, false);
@@ -414,10 +408,6 @@ export default function App() {
 
   const saveSettings = (newTmdb: string) => {
     if (!newTmdb || newTmdb === HARDCODED_TMDB_KEY) { localStorage.removeItem('movieverse_tmdb_key'); setApiKey(HARDCODED_TMDB_KEY); } else { setApiKey(newTmdb); localStorage.setItem('movieverse_tmdb_key', newTmdb); }
-  };
-
-  const saveGeminiKey = (newGemini: string) => {
-    if (!newGemini || newGemini === HARDCODED_GEMINI_KEY) { localStorage.removeItem('movieverse_gemini_key'); setGeminiKey(HARDCODED_GEMINI_KEY); } else { setGeminiKey(newGemini); localStorage.setItem('movieverse_gemini_key', newGemini); }
   };
 
   const addToSearchHistory = (query: string) => {
@@ -722,7 +712,7 @@ export default function App() {
   ];
 
   if (authChecking) return <div className="fixed inset-0 bg-black flex items-center justify-center"><LogoLoader /></div>;
-  if (!isAuthenticated) return (<> <LoginPage onLogin={handleLogin} onOpenSettings={() => setIsSettingsOpen(true)} /> <SettingsPage isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} apiKey={apiKey} setApiKey={(k) => saveSettings(k)} geminiKey={geminiKey} setGeminiKey={(k) => saveGeminiKey(k)} maturityRating={maturityRating} setMaturityRating={setMaturityRating} profile={userProfile} onUpdateProfile={setUserProfile} onLogout={handleLogout} searchHistory={searchHistory} setSearchHistory={(h) => { setSearchHistory(h); localStorage.setItem('movieverse_search_history', JSON.stringify(h)); }} watchedMovies={watched} setWatchedMovies={(m) => { setWatched(m); localStorage.setItem('movieverse_watched', JSON.stringify(m)); }} /> </>);
+  if (!isAuthenticated) return (<> <LoginPage onLogin={handleLogin} onOpenSettings={() => setIsSettingsOpen(true)} /> <SettingsPage isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} apiKey={apiKey} setApiKey={(k) => saveSettings(k)} geminiKey={process.env.API_KEY || ""} setGeminiKey={() => {}} maturityRating={maturityRating} setMaturityRating={setMaturityRating} profile={userProfile} onUpdateProfile={setUserProfile} onLogout={handleLogout} searchHistory={searchHistory} setSearchHistory={(h) => { setSearchHistory(h); localStorage.setItem('movieverse_search_history', JSON.stringify(h)); }} watchedMovies={watched} setWatchedMovies={(m) => { setWatched(m); localStorage.setItem('movieverse_watched', JSON.stringify(m)); }} /> </>);
 
   return (
     <div className="min-h-screen bg-[#030303] text-white font-sans selection:bg-amber-500/30 selection:text-white">
@@ -915,7 +905,7 @@ export default function App() {
                     </button>
                     <button onClick={() => setIsNotificationOpen(true)} className="relative text-gray-400 hover:text-white transition-colors p-2 hover:bg-white/10 rounded-full">
                         <Bell size={20} />
-                        {hasUnread && <span className={`absolute top-2 right-2 w-2 h-2 rounded-full ${isGoldTheme ? 'bg-amber-500' : 'bg-red-500'}`}></span>}
+                        {hasUnread && <span className={`absolute top-2 right-2 w-2 h-2 rounded-full ${isGoldTheme ? 'bg-amber-500' : 'bg-red-600'}`}></span>}
                     </button>
                     <button onClick={() => setIsProfileOpen(true)} className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white shadow-lg transition-transform overflow-hidden hover:scale-105 ${userProfile.avatarBackground || (isGoldTheme ? 'bg-gradient-to-br from-amber-500 to-yellow-900 shadow-amber-900/40' : 'bg-gradient-to-br from-red-600 to-red-900 shadow-red-900/40')}`}>
                         {userProfile.avatar ? (<img key={userProfile.avatar} src={userProfile.avatar} alt={userProfile.name} className="w-full h-full object-cover" />) : (userProfile.name.charAt(0).toUpperCase())}
@@ -1196,7 +1186,7 @@ export default function App() {
       <ProfilePage isOpen={isProfileOpen} onClose={() => setIsProfileOpen(false)} profile={userProfile} onSave={(p) => { setUserProfile(p); localStorage.setItem('movieverse_profile', JSON.stringify(p)); }} />
       <PersonPage personId={selectedPersonId || 0} onClose={() => setSelectedPersonId(null)} apiKey={apiKey} onMovieClick={(m) => { setSelectedPersonId(null); setTimeout(() => setSelectedMovie(m), 300); }} />
       <ComparisonModal isOpen={isComparisonOpen} onClose={() => setIsComparisonOpen(false)} baseMovie={comparisonBaseMovie} apiKey={apiKey} />
-      <SettingsPage isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} apiKey={apiKey} setApiKey={(k) => saveSettings(k)} geminiKey={geminiKey} setGeminiKey={(k) => saveGeminiKey(k)} maturityRating={maturityRating} setMaturityRating={setMaturityRating} profile={userProfile} onUpdateProfile={setUserProfile} onLogout={handleLogout} searchHistory={searchHistory} setSearchHistory={(h) => { setSearchHistory(h); localStorage.setItem('movieverse_search_history', JSON.stringify(h)); }} watchedMovies={watched} setWatchedMovies={(m) => { setWatched(m); localStorage.setItem('movieverse_watched', JSON.stringify(m)); }} />
+      <SettingsPage isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} apiKey={apiKey} setApiKey={(k) => saveSettings(k)} geminiKey={process.env.API_KEY || ""} setGeminiKey={() => {}} maturityRating={maturityRating} setMaturityRating={setMaturityRating} profile={userProfile} onUpdateProfile={setUserProfile} onLogout={handleLogout} searchHistory={searchHistory} setSearchHistory={(h) => { setSearchHistory(h); localStorage.setItem('movieverse_search_history', JSON.stringify(h)); }} watchedMovies={watched} setWatchedMovies={(m) => { setWatched(m); localStorage.setItem('movieverse_watched', JSON.stringify(m)); }} />
       <NotificationModal isOpen={isNotificationOpen} onClose={() => setIsNotificationOpen(false)} onUpdate={checkUnreadNotifications} userProfile={userProfile} />
       {!apiKey && loading && <div className="fixed inset-0 z-[100] bg-black"><LogoLoader /></div>}
     </div>

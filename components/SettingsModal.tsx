@@ -24,19 +24,16 @@ interface SettingsPageProps {
 }
 
 export const SettingsPage: React.FC<SettingsPageProps> = ({ 
-    isOpen, onClose, apiKey, setApiKey, geminiKey, setGeminiKey, maturityRating, setMaturityRating, profile, onUpdateProfile, onLogout,
+    isOpen, onClose, apiKey, setApiKey, maturityRating, setMaturityRating, profile, onUpdateProfile, onLogout,
     searchHistory = [], setSearchHistory, watchedMovies = [], setWatchedMovies
 }) => {
     // Check if custom keys are stored
     const hasCustomTmdb = !!localStorage.getItem('movieverse_tmdb_key');
-    const hasCustomGemini = !!localStorage.getItem('movieverse_gemini_key');
 
     const [inputKey, setInputKey] = useState(apiKey || "");
-    const [inputGemini, setInputGemini] = useState(geminiKey || "");
     const [activeTab, setActiveTab] = useState("account");
 
     const [isEditingTmdb, setIsEditingTmdb] = useState(false);
-    const [isEditingGemini, setIsEditingGemini] = useState(false);
 
     // Enhanced Account State
     const [userEmail, setUserEmail] = useState("");
@@ -62,9 +59,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
     useEffect(() => {
         if (isOpen) {
             setInputKey(hasCustomTmdb ? apiKey : "");
-            setInputGemini(hasCustomGemini ? geminiKey : "");
             setIsEditingTmdb(hasCustomTmdb);
-            setIsEditingGemini(hasCustomGemini);
             
             // Fetch real user data
             const fetchUser = async () => {
@@ -92,11 +87,10 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
             };
             fetchUser();
         }
-    }, [isOpen, apiKey, geminiKey, hasCustomTmdb, hasCustomGemini, profile]);
+    }, [isOpen, apiKey, hasCustomTmdb, profile]);
 
     const handleSave = () => {
         setApiKey(isEditingTmdb ? inputKey : ""); 
-        setGeminiKey(isEditingGemini ? inputGemini : "");
         onClose();
     };
 
@@ -356,47 +350,12 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                                         </div>
                                       </div>
 
-                                      <div className="space-y-2">
-                                        <div className="flex justify-between items-center">
-                                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">Gemini API Key <BrainCircuit size={12} className="text-blue-400"/></label>
-                                            {!isEditingGemini && <span className="text-[10px] text-blue-400 font-bold bg-blue-500/10 px-2 py-0.5 rounded-full border border-blue-500/20 flex items-center gap-1"><ShieldCheck size={10}/> Default Active</span>}
+                                      <div className="space-y-2 p-5 rounded-2xl border border-blue-500/20 bg-blue-500/5">
+                                        <div className="flex justify-between items-center mb-1">
+                                            <label className="text-[10px] font-bold text-blue-400 uppercase tracking-wider flex items-center gap-2">Gemini AI Engine <BrainCircuit size={12}/></label>
+                                            <span className="text-[10px] text-blue-400 font-bold bg-blue-500/10 px-2 py-0.5 rounded-full border border-blue-500/20 flex items-center gap-1"><ShieldCheck size={10}/> Cloud Managed</span>
                                         </div>
-                                        <div className="flex gap-2">
-                                            <div className="relative flex-1 group">
-                                                <input 
-                                                    type="password" 
-                                                    value={isEditingGemini ? inputGemini : "Default Environment Key"} 
-                                                    onChange={(e) => isEditingGemini && setInputGemini(e.target.value)} 
-                                                    disabled={!isEditingGemini}
-                                                    className={`w-full border rounded-xl p-3 pr-10 focus:outline-none transition-all text-xs font-mono ${
-                                                        isEditingGemini 
-                                                        ? "bg-white/5 border-white/10 text-white focus:border-blue-500 focus:bg-white/10" 
-                                                        : "bg-white/5 border-transparent text-gray-500 cursor-not-allowed select-none"
-                                                    }`} 
-                                                    placeholder="Enter Gemini Key"
-                                                />
-                                                {!isEditingGemini && <Lock size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-600"/>}
-                                            </div>
-                                            
-                                            {isEditingGemini ? (
-                                                <button 
-                                                    onClick={() => { setIsEditingGemini(false); setInputGemini(""); }} 
-                                                    className={`p-3 rounded-xl border transition-colors ${isGoldTheme ? 'bg-amber-500/10 hover:bg-amber-500/20 border-amber-500/20 text-amber-400 hover:text-amber-300' : 'bg-red-500/10 hover:bg-red-500/20 border-red-500/20 text-red-400 hover:text-red-300'}`}
-                                                    title="Reset to Default"
-                                                >
-                                                    <RefreshCcw size={16}/>
-                                                </button>
-                                            ) : (
-                                                <button 
-                                                    onClick={() => { setIsEditingGemini(true); setInputGemini(""); }} 
-                                                    className="bg-white/5 hover:bg-white/10 border border-white/10 p-3 rounded-xl text-gray-400 hover:text-white transition-colors" 
-                                                    title="Edit Key"
-                                                >
-                                                    <Pencil size={16}/>
-                                                </button>
-                                            )}
-                                        </div>
-                                        <p className="text-[10px] text-gray-500">Required for Smart Recommendations and Analytics.</p>
+                                        <p className="text-xs text-gray-400">Gemini API is managed via environment variables for enhanced security and performance. Features like smart recommendations and cinema analysis are active.</p>
                                       </div>
                                   </div>
                                   

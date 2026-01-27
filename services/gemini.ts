@@ -1,7 +1,6 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
 import { AIAnalysisResult } from "../types";
-import { getGeminiKey } from "../components/Shared";
 
 const cleanJson = (text: string): string => {
   if (!text) return "{}";
@@ -16,11 +15,8 @@ export const generateMovieAnalysis = async (
   watchlistTitles: string
 ): Promise<AIAnalysisResult> => {
   try {
-      const apiKey = getGeminiKey();
-      if (!apiKey) throw new Error("No Gemini API Key found");
-
-      // Always use the object constructor for GoogleGenAI
-      const ai = new GoogleGenAI({ apiKey });
+      // Always use the object constructor for GoogleGenAI with process.env.API_KEY
+      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
       
       const prompt = `
           My Movie Data:
@@ -72,10 +68,7 @@ export const generateMovieAnalysis = async (
 
 export const generateTrivia = async (movieTitle: string, year: string): Promise<string> => {
   try {
-      const apiKey = getGeminiKey();
-      if (!apiKey) return "Trivia unavailable (Missing Key)";
-
-      const ai = new GoogleGenAI({ apiKey });
+      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
       const prompt = `Tell me one short, fascinating, and lesser-known behind-the-scenes trivia fact about the movie "${movieTitle}" (${year}). Keep it under 30 words.`;
       
       // Use 'gemini-3-flash-preview' for quick basic text tasks
@@ -93,10 +86,7 @@ export const generateTrivia = async (movieTitle: string, year: string): Promise<
 
 export const generateSmartRecommendations = async (query: string): Promise<{ movies: string[], reason: string }> => {
   try {
-      const apiKey = getGeminiKey();
-      if (!apiKey) return { movies: [], reason: "API Key Missing" };
-
-      const ai = new GoogleGenAI({ apiKey });
+      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
       const prompt = `
         Act as a premium media recommendation engine. The user searched for: "${query}".
         
@@ -138,10 +128,7 @@ export const generateSmartRecommendations = async (query: string): Promise<{ mov
 
 export const getSimilarMoviesAI = async (title: string, year: string): Promise<string[]> => {
     try {
-        const apiKey = getGeminiKey();
-        if (!apiKey) return [];
-
-        const ai = new GoogleGenAI({ apiKey });
+        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
         const prompt = `Recommend 5 movies similar to "${title}" (${year}). Focus on genre, director style, and tone. Return a list of strings.`;
         
         const response = await ai.models.generateContent({
@@ -168,10 +155,7 @@ export const getSimilarMoviesAI = async (title: string, year: string): Promise<s
 
 export const getSearchSuggestions = async (query: string): Promise<string[]> => {
   try {
-      const apiKey = getGeminiKey();
-      if (!apiKey) return [];
-
-      const ai = new GoogleGenAI({ apiKey });
+      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
       const prompt = `
         The user is typing in a media search bar: "${query}".
         Suggest 5 concise, relevant auto-complete options.

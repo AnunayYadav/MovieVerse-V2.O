@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, Suspense, useRef } from 'react';
+import React, { useState, useEffect, Suspense, useRef, useMemo } from 'react';
 import { X, Calendar, Clock, Star, Play, Bookmark, Heart, Share2, Clapperboard, Sparkles, Loader2, Tag, MessageCircle, Globe, Facebook, Instagram, Twitter, Film, PlayCircle, Eye, Volume2, VolumeX, Users, ArrowLeft, Lightbulb, DollarSign, Trophy, Tv, Check, Mic2, Video, PenTool, ChevronRight, Monitor, Plus, Layers, Shield, Building2, Languages, Headphones, Activity, Target, TrendingUp, PieChart as PieChartIcon } from 'lucide-react';
 import { Movie, MovieDetails, Season, UserProfile, Keyword, Review, CastMember, CrewMember, CollectionDetails, Genre } from '../types';
 import { TMDB_BASE_URL, TMDB_IMAGE_BASE, TMDB_BACKDROP_BASE, formatCurrency, ImageLightbox, PersonCard, MovieCard } from '../components/Shared';
@@ -124,47 +124,64 @@ const PopularityMeter = ({ score, count, isGold }: { score: number; count: numbe
 };
 
 const VibeChart = ({ genres, isGold }: { genres: Genre[]; isGold: boolean }) => {
-    const data = genres.slice(0, 4).map((g, i) => {
-        const weights = [40, 30, 20, 10];
-        const colors = isGold 
-            ? ['#f59e0b', '#fbbf24', '#78350f', '#fef3c7'] 
-            : ['#991b1b', '#ef4444', '#1d4ed8', '#7c3aed']; // Matching the user image colors: Brownish, Red, Blue, Purple
-        const altColors = ['#5b3e31', '#be123c', '#1d4ed8', '#6d28d9']; // Refined match to image
-        return { name: g.name, value: weights[i] || 5, color: altColors[i] || '#333' };
-    });
-
-    const total = data.reduce((acc, d) => acc + d.value, 0);
-    const radius = 70;
-    const innerRadius = 50;
-    const circumference = 2 * Math.PI * radius;
-    
-    let currentOffset = 0;
+    const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
     const [animate, setAnimate] = useState(false);
+
+    const chartData = useMemo(() => {
+        if (!genres || genres.length === 0) return [];
+        
+        const displayGenres = genres.slice(0, 4);
+        const count = displayGenres.length;
+        
+        const baseWeights = count === 1 ? [100] : count === 2 ? [60, 40] : count === 3 ? [50, 30, 20] : [40, 30, 20, 10];
+        
+        const palette = isGold 
+            ? ['#f59e0b', '#fbbf24', '#78350f', '#fef3c7'] 
+            : ['#5b3e31', '#be123c', '#1d4ed8', '#6d28d9']; 
+
+        return displayGenres.map((g, i) => ({
+            name: g.name,
+            value: baseWeights[i],
+            color: palette[i] || '#333'
+        }));
+    }, [genres, isGold]);
+
+    const total = useMemo(() => chartData.reduce((acc, d) => acc + d.value, 0), [chartData]);
+    const radius = 70;
+    const circumference = 2 * Math.PI * radius;
 
     useEffect(() => {
         const timer = setTimeout(() => setAnimate(true), 600);
         return () => clearTimeout(timer);
     }, []);
 
+    const activeItem = hoveredIndex !== null ? chartData[hoveredIndex] : null;
+
     return (
         <div className="p-8 md:p-10 bg-[#0d0d0d] rounded-[2.5rem] border border-white/5 flex flex-col items-center relative overflow-hidden group shadow-2xl h-full">
+            {/* Background Glow consistent with Popularity Meter */}
+            <div className={`absolute -top-24 -right-24 w-48 h-48 rounded-full blur-[100px] opacity-20 ${isGold ? 'bg-amber-500' : 'bg-indigo-600'}`}></div>
+
             <div className="flex items-center gap-3 mb-8 relative z-10 w-full">
                 <div className={`p-2.5 rounded-2xl shadow-lg flex items-center justify-center ${isGold ? 'bg-amber-500/10 text-amber-500 border border-amber-500/20' : 'bg-purple-500/10 text-purple-500 border border-purple-500/20'}`}>
                     <PieChartIcon size={22}/>
                 </div>
                 <div className="text-left">
                     <h3 className="text-[11px] font-black text-gray-400 uppercase tracking-[0.4em]">Vibe Chart</h3>
-                    <p className="text-[9px] text-gray-600 font-bold uppercase tracking-[0.1em] mt-0.5">Genre Breakdown</p>
+                    <p className="text-[9px] text-gray-600 font-bold uppercase tracking-[0.1em] mt-0.5">Genre Identity</p>
                 </div>
             </div>
 
-            <div className="relative w-56 h-56 flex items-center justify-center mb-8">
+            <div className="relative w-56 h-56 flex items-center justify-center mb-8 z-10">
                 <svg className="w-full h-full -rotate-90" viewBox="0 0 200 200">
-                    {data.map((segment, i) => {
+                    {chartData.reduce((acc, segment, i) => {
+                        const prevSegments = chartData.slice(0, i);
+                        const prevSum = prevSegments.reduce((sum, s) => sum + s.value, 0);
                         const dashArray = (segment.value / total) * circumference;
-                        const dashOffset = -currentOffset;
-                        currentOffset += dashArray;
-                        return (
+                        const dashOffset = -(prevSum / total) * circumference;
+                        const isHovered = hoveredIndex === i;
+                        
+                        acc.push(
                             <circle
                                 key={i}
                                 cx="100"
@@ -172,29 +189,50 @@ const VibeChart = ({ genres, isGold }: { genres: Genre[]; isGold: boolean }) => 
                                 r={radius}
                                 fill="transparent"
                                 stroke={segment.color}
-                                strokeWidth="22"
+                                strokeWidth={isHovered ? 28 : 22}
                                 strokeDasharray={`${animate ? dashArray : 0} ${circumference}`}
-                                strokeDashoffset={dashOffset}
-                                className="transition-all duration-1000 ease-out"
+                                strokeDashoffset={animate ? dashOffset : 0}
                                 strokeLinecap="butt"
+                                className="transition-all duration-700 ease-[cubic-bezier(0.23,1,0.32,1)] cursor-pointer"
+                                style={{ opacity: hoveredIndex === null || isHovered ? 1 : 0.4 }}
+                                onMouseEnter={() => setHoveredIndex(i)}
+                                onMouseLeave={() => setHoveredIndex(null)}
                             />
                         );
-                    })}
+                        return acc;
+                    }, [] as React.ReactElement[])}
                 </svg>
-                <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-                    <span className="text-[10px] font-bold text-gray-500 uppercase tracking-[0.2em] mb-1">{data[0]?.name || "N/A"}</span>
-                    <span className="text-3xl font-black text-white tracking-tighter">{data[0]?.value || 0}%</span>
+                <div className="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none">
+                    {activeItem ? (
+                        <div className="animate-in fade-in zoom-in-95 duration-300 flex flex-col items-center" key={`active-${hoveredIndex}`}>
+                            <span className="text-[10px] font-bold text-gray-500 uppercase tracking-[0.2em] mb-1">
+                                {activeItem.name}
+                            </span>
+                            <span className="text-4xl font-black text-white tracking-tighter">
+                                {activeItem.value}%
+                            </span>
+                        </div>
+                    ) : (
+                        <div className="flex flex-col items-center opacity-30 animate-pulse">
+                            <span className="text-[8px] font-black text-gray-600 uppercase tracking-[0.4em]">View Vibe</span>
+                        </div>
+                    )}
                 </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-x-8 gap-y-3 w-full px-2">
-                {data.map((segment, i) => (
-                    <div key={i} className="flex items-center justify-between gap-3 group/item">
+            <div className="grid grid-cols-2 gap-x-8 gap-y-4 w-full px-2 mt-auto relative z-10">
+                {chartData.map((segment, i) => (
+                    <div 
+                        key={i} 
+                        className="flex items-center justify-between gap-3 group/item cursor-pointer"
+                        onMouseEnter={() => setHoveredIndex(i)}
+                        onMouseLeave={() => setHoveredIndex(null)}
+                    >
                         <div className="flex items-center gap-2.5 overflow-hidden">
-                            <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: segment.color }} />
-                            <span className="text-xs font-bold text-gray-400 group-hover/item:text-white transition-colors truncate">{segment.name}</span>
+                            <div className={`w-2.5 h-2.5 rounded-full shrink-0 transition-transform duration-300 ${hoveredIndex === i ? 'scale-125 shadow-lg' : 'scale-100'}`} style={{ backgroundColor: segment.color, boxShadow: hoveredIndex === i ? `0 0 10px ${segment.color}` : 'none' }} />
+                            <span className={`text-xs font-bold transition-colors truncate ${hoveredIndex === i ? 'text-white' : 'text-gray-500'}`}>{segment.name}</span>
                         </div>
-                        <span className="text-xs font-black text-gray-300">{segment.value}%</span>
+                        <span className={`text-xs font-black transition-colors ${hoveredIndex === i ? 'text-white' : 'text-gray-400'}`}>{segment.value}%</span>
                     </div>
                 ))}
             </div>

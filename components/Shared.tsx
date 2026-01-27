@@ -23,7 +23,6 @@ export const safeEnv = (key: string) => {
 
 // Hardcoded fallbacks REMOVED for production security.
 export const HARDCODED_TMDB_KEY = "";
-export const HARDCODED_GEMINI_KEY = "";
 
 export const getTmdbKey = (): string => {
   return localStorage.getItem('movieverse_tmdb_key') || 
@@ -33,13 +32,9 @@ export const getTmdbKey = (): string => {
          HARDCODED_TMDB_KEY;
 };
 
+// Gemini API Key must be obtained exclusively from process.env.API_KEY
 export const getGeminiKey = (): string => {
-  return localStorage.getItem('movieverse_gemini_key') || 
-         safeEnv('VITE_GEMINI_API_KEY') || 
-         safeEnv('REACT_APP_GEMINI_API_KEY') || 
-         safeEnv('API_KEY') || 
-         safeEnv('GEMINI_API_KEY') || 
-         HARDCODED_GEMINI_KEY;
+  return process.env.API_KEY || "";
 };
 
 export const getWatchmodeKey = (): string => {
