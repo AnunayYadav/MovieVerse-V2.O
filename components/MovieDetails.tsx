@@ -130,14 +130,20 @@ const VibeChart = ({ genres, isGold }: { genres: Genre[]; isGold: boolean }) => 
     const chartData = useMemo(() => {
         if (!genres || genres.length === 0) return [];
         
+        // Take top 4 genres
         const displayGenres = genres.slice(0, 4);
         const count = displayGenres.length;
         
+        // Weighted distribution logic: 
+        // 1 genre: 100%
+        // 2 genres: 60%, 40%
+        // 3 genres: 50%, 30%, 20%
+        // 4 genres: 40%, 30%, 20%, 10%
         const baseWeights = count === 1 ? [100] : count === 2 ? [60, 40] : count === 3 ? [50, 30, 20] : [40, 30, 20, 10];
         
         const palette = isGold 
             ? ['#f59e0b', '#fbbf24', '#78350f', '#fef3c7'] 
-            : ['#5b3e31', '#be123c', '#1d4ed8', '#6d28d9']; 
+            : ['#5b3e31', '#be123c', '#1d4ed8', '#6d28d9']; // Brown, Crimson, Blue, Purple (per user image)
 
         return displayGenres.map((g, i) => ({
             name: g.name,
@@ -155,13 +161,10 @@ const VibeChart = ({ genres, isGold }: { genres: Genre[]; isGold: boolean }) => 
         return () => clearTimeout(timer);
     }, []);
 
-    const activeItem = hoveredIndex !== null ? chartData[hoveredIndex] : null;
+    const activeItem = hoveredIndex !== null ? chartData[hoveredIndex] : chartData[0];
 
     return (
         <div className="p-8 md:p-10 bg-[#0d0d0d] rounded-[2.5rem] border border-white/5 flex flex-col items-center relative overflow-hidden group shadow-2xl h-full">
-            {/* Background Glow consistent with Popularity Meter */}
-            <div className={`absolute -top-24 -right-24 w-48 h-48 rounded-full blur-[100px] opacity-20 ${isGold ? 'bg-amber-500' : 'bg-indigo-600'}`}></div>
-
             <div className="flex items-center gap-3 mb-8 relative z-10 w-full">
                 <div className={`p-2.5 rounded-2xl shadow-lg flex items-center justify-center ${isGold ? 'bg-amber-500/10 text-amber-500 border border-amber-500/20' : 'bg-purple-500/10 text-purple-500 border border-purple-500/20'}`}>
                     <PieChartIcon size={22}/>
@@ -172,7 +175,7 @@ const VibeChart = ({ genres, isGold }: { genres: Genre[]; isGold: boolean }) => 
                 </div>
             </div>
 
-            <div className="relative w-56 h-56 flex items-center justify-center mb-8 z-10">
+            <div className="relative w-56 h-56 flex items-center justify-center mb-8">
                 <svg className="w-full h-full -rotate-90" viewBox="0 0 200 200">
                     {chartData.reduce((acc, segment, i) => {
                         const prevSegments = chartData.slice(0, i);
@@ -200,27 +203,20 @@ const VibeChart = ({ genres, isGold }: { genres: Genre[]; isGold: boolean }) => 
                             />
                         );
                         return acc;
+                    // Fix: Changed JSX.Element[] to React.ReactElement[] to fix namespace error
                     }, [] as React.ReactElement[])}
                 </svg>
                 <div className="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none">
-                    {activeItem ? (
-                        <div className="animate-in fade-in zoom-in-95 duration-300 flex flex-col items-center" key={`active-${hoveredIndex}`}>
-                            <span className="text-[10px] font-bold text-gray-500 uppercase tracking-[0.2em] mb-1">
-                                {activeItem.name}
-                            </span>
-                            <span className="text-4xl font-black text-white tracking-tighter">
-                                {activeItem.value}%
-                            </span>
-                        </div>
-                    ) : (
-                        <div className="flex flex-col items-center opacity-30 animate-pulse">
-                            <span className="text-[8px] font-black text-gray-600 uppercase tracking-[0.4em]">View Vibe</span>
-                        </div>
-                    )}
+                    <span className="text-[10px] font-bold text-gray-500 uppercase tracking-[0.2em] mb-1 animate-in fade-in slide-in-from-bottom-1 duration-300" key={`name-${hoveredIndex}`}>
+                        {activeItem?.name || "N/A"}
+                    </span>
+                    <span className="text-4xl font-black text-white tracking-tighter animate-in fade-in zoom-in-95 duration-300" key={`val-${hoveredIndex}`}>
+                        {activeItem?.value || 0}%
+                    </span>
                 </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-x-8 gap-y-4 w-full px-2 mt-auto relative z-10">
+            <div className="grid grid-cols-2 gap-x-8 gap-y-4 w-full px-2 mt-auto">
                 {chartData.map((segment, i) => (
                     <div 
                         key={i} 
