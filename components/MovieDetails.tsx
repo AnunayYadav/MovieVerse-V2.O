@@ -69,6 +69,9 @@ export const MoviePage: React.FC<MoviePageProps> = ({
     const [videoLoaded, setVideoLoaded] = useState(false);
     const [isMuted, setIsMuted] = useState(true);
     const iframeRef = useRef<HTMLIFrameElement>(null);
+    
+    // Timeline Auto-scroll ref
+    const activeTimelineItemRef = useRef<HTMLDivElement>(null);
 
     const isExclusive = userProfile.canWatch === true;
     const isGoldTheme = isExclusive && userProfile.theme !== 'default';
@@ -170,6 +173,17 @@ export const MoviePage: React.FC<MoviePageProps> = ({
             });
         }
     }, [activeTab, trivia, loadingTrivia, details]);
+
+    // Auto-scroll timeline to active movie
+    useEffect(() => {
+        if (activeTimelineItemRef.current) {
+            activeTimelineItemRef.current.scrollIntoView({
+                behavior: 'smooth',
+                block: 'nearest',
+                inline: 'center'
+            });
+        }
+    }, [collection, movie.id]);
 
     const handleWatchClick = () => {
         setShowPlayer(true);
@@ -658,14 +672,18 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                     const partYear = part.release_date?.split('-')[0] || 'TBA';
                                                     
                                                     return (
-                                                        <div key={part.id} className="flex flex-col items-center shrink-0 w-32 md:w-44 group">
+                                                        <div 
+                                                            key={part.id} 
+                                                            ref={isCurrent ? activeTimelineItemRef : null}
+                                                            className="flex flex-col items-center shrink-0 w-32 md:w-44 group"
+                                                        >
                                                             {/* Poster Card */}
                                                             <div 
                                                                 onClick={() => { if(!isCurrent) { onClose(); onSwitchMovie(part); } }}
                                                                 className={`relative aspect-[2/3] w-full rounded-2xl overflow-hidden cursor-pointer transition-all duration-500 ease-[cubic-bezier(0.23,1,0.32,1)] mb-8 border-2 ${
                                                                     isCurrent 
                                                                     ? `${isGoldTheme ? 'border-amber-500 shadow-[0_0_30px_rgba(245,158,11,0.4)] scale-105' : 'border-red-500 shadow-[0_0_30px_rgba(239,68,68,0.4)] scale-105'} z-20` 
-                                                                    : 'border-white/5 group-hover:border-white/20 opacity-60 grayscale hover:grayscale-0 hover:opacity-100'
+                                                                    : 'border-white/5 group-hover:border-white/20 opacity-80 hover:opacity-100'
                                                                 }`}
                                                             >
                                                                 <img 
