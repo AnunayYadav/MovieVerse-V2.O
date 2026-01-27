@@ -134,16 +134,15 @@ const VibeChart = ({ genres, isGold }: { genres: Genre[]; isGold: boolean }) => 
         const count = displayGenres.length;
         const baseWeights = count === 1 ? [100] : count === 2 ? [60, 40] : count === 3 ? [50, 30, 20] : [40, 30, 20, 10];
         
-        const palette = isGold 
-            ? ['#f59e0b', '#fbbf24', '#78350f', '#fef3c7'] 
-            : ['#5b3e31', '#be123c', '#1d4ed8', '#6d28d9']; 
+        // Use vibrant colors regardless of isGold theme for the chart arcs themselves, as requested
+        const palette = ['#f43f5e', '#3b82f6', '#8b5cf6', '#10b981']; 
 
         return displayGenres.map((g, i) => ({
             name: g.name,
             value: baseWeights[i],
             color: palette[i] || '#333'
         }));
-    }, [genres, isGold]);
+    }, [genres]);
 
     const total = useMemo(() => chartData.reduce((acc, d) => acc + d.value, 0), [chartData]);
     const radius = 70;
@@ -158,6 +157,7 @@ const VibeChart = ({ genres, isGold }: { genres: Genre[]; isGold: boolean }) => 
 
     return (
         <div className="p-8 md:p-10 bg-[#0d0d0d] rounded-[2.5rem] border border-white/5 flex flex-col items-center relative overflow-hidden group shadow-2xl h-full">
+            {/* Background Glow consistent with Popularity Meter - stays themed to container */}
             <div className={`absolute -top-24 -right-24 w-48 h-48 rounded-full blur-[100px] opacity-20 ${isGold ? 'bg-amber-500' : 'bg-purple-600'}`}></div>
             
             <div className="flex items-center gap-3 mb-8 relative z-10 w-full">
@@ -209,7 +209,8 @@ const VibeChart = ({ genres, isGold }: { genres: Genre[]; isGold: boolean }) => 
                     }, [] as React.ReactElement[])}
                 </svg>
                 <div className="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none">
-                    {activeItem ? (
+                    {/* By default no value is written. Only shows on hover. */}
+                    {activeItem && (
                         <div className="animate-in fade-in zoom-in-95 duration-300 flex flex-col items-center" key={`active-${hoveredIndex}`}>
                             <span className="text-[10px] font-bold text-gray-500 uppercase tracking-[0.2em] mb-1">
                                 {activeItem.name}
@@ -217,11 +218,6 @@ const VibeChart = ({ genres, isGold }: { genres: Genre[]; isGold: boolean }) => 
                             <span className="text-4xl font-black text-white tracking-tighter">
                                 {activeItem.value}%
                             </span>
-                        </div>
-                    ) : (
-                        <div className="flex flex-col items-center opacity-0 group-hover:opacity-20 transition-opacity duration-500">
-                             <PieChartIcon size={24} className="text-white mb-2" />
-                             <span className="text-[8px] font-bold tracking-widest text-white uppercase">Hover Color</span>
                         </div>
                     )}
                 </div>
