@@ -130,20 +130,13 @@ const VibeChart = ({ genres, isGold }: { genres: Genre[]; isGold: boolean }) => 
     const chartData = useMemo(() => {
         if (!genres || genres.length === 0) return [];
         
-        // Take top 4 genres
         const displayGenres = genres.slice(0, 4);
         const count = displayGenres.length;
-        
-        // Weighted distribution logic: 
-        // 1 genre: 100%
-        // 2 genres: 60%, 40%
-        // 3 genres: 50%, 30%, 20%
-        // 4 genres: 40%, 30%, 20%, 10%
         const baseWeights = count === 1 ? [100] : count === 2 ? [60, 40] : count === 3 ? [50, 30, 20] : [40, 30, 20, 10];
         
         const palette = isGold 
             ? ['#f59e0b', '#fbbf24', '#78350f', '#fef3c7'] 
-            : ['#5b3e31', '#be123c', '#1d4ed8', '#6d28d9']; // Brown, Crimson, Blue, Purple (per user image)
+            : ['#5b3e31', '#be123c', '#1d4ed8', '#6d28d9']; 
 
         return displayGenres.map((g, i) => ({
             name: g.name,
@@ -161,10 +154,12 @@ const VibeChart = ({ genres, isGold }: { genres: Genre[]; isGold: boolean }) => 
         return () => clearTimeout(timer);
     }, []);
 
-    const activeItem = hoveredIndex !== null ? chartData[hoveredIndex] : chartData[0];
+    const activeItem = hoveredIndex !== null ? chartData[hoveredIndex] : null;
 
     return (
         <div className="p-8 md:p-10 bg-[#0d0d0d] rounded-[2.5rem] border border-white/5 flex flex-col items-center relative overflow-hidden group shadow-2xl h-full">
+            <div className={`absolute -top-24 -right-24 w-48 h-48 rounded-full blur-[100px] opacity-20 ${isGold ? 'bg-amber-500' : 'bg-purple-600'}`}></div>
+            
             <div className="flex items-center gap-3 mb-8 relative z-10 w-full">
                 <div className={`p-2.5 rounded-2xl shadow-lg flex items-center justify-center ${isGold ? 'bg-amber-500/10 text-amber-500 border border-amber-500/20' : 'bg-purple-500/10 text-purple-500 border border-purple-500/20'}`}>
                     <PieChartIcon size={22}/>
@@ -175,8 +170,14 @@ const VibeChart = ({ genres, isGold }: { genres: Genre[]; isGold: boolean }) => 
                 </div>
             </div>
 
-            <div className="relative w-56 h-56 flex items-center justify-center mb-8">
-                <svg className="w-full h-full -rotate-90" viewBox="0 0 200 200">
+            <div className="relative w-56 h-56 flex items-center justify-center mb-8 z-10">
+                <svg className="w-full h-full -rotate-90" viewBox="0 0 200 200" style={{ overflow: 'visible' }}>
+                    <defs>
+                        <filter id="vibeGlow" x="-50%" y="-50%" width="200%" height="200%">
+                            <feGaussianBlur stdDeviation="4" result="blur" />
+                            <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                        </filter>
+                    </defs>
                     {chartData.reduce((acc, segment, i) => {
                         const prevSegments = chartData.slice(0, i);
                         const prevSum = prevSegments.reduce((sum, s) => sum + s.value, 0);
@@ -196,6 +197,8 @@ const VibeChart = ({ genres, isGold }: { genres: Genre[]; isGold: boolean }) => 
                                 strokeDasharray={`${animate ? dashArray : 0} ${circumference}`}
                                 strokeDashoffset={animate ? dashOffset : 0}
                                 strokeLinecap="butt"
+                                filter={isHovered ? "url(#vibeGlow)" : "none"}
+                                pointerEvents="stroke"
                                 className="transition-all duration-700 ease-[cubic-bezier(0.23,1,0.32,1)] cursor-pointer"
                                 style={{ opacity: hoveredIndex === null || isHovered ? 1 : 0.4 }}
                                 onMouseEnter={() => setHoveredIndex(i)}
@@ -203,20 +206,28 @@ const VibeChart = ({ genres, isGold }: { genres: Genre[]; isGold: boolean }) => 
                             />
                         );
                         return acc;
-                    // Fix: Changed JSX.Element[] to React.ReactElement[] to fix namespace error
                     }, [] as React.ReactElement[])}
                 </svg>
                 <div className="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none">
-                    <span className="text-[10px] font-bold text-gray-500 uppercase tracking-[0.2em] mb-1 animate-in fade-in slide-in-from-bottom-1 duration-300" key={`name-${hoveredIndex}`}>
-                        {activeItem?.name || "N/A"}
-                    </span>
-                    <span className="text-4xl font-black text-white tracking-tighter animate-in fade-in zoom-in-95 duration-300" key={`val-${hoveredIndex}`}>
-                        {activeItem?.value || 0}%
-                    </span>
+                    {activeItem ? (
+                        <div className="animate-in fade-in zoom-in-95 duration-300 flex flex-col items-center" key={`active-${hoveredIndex}`}>
+                            <span className="text-[10px] font-bold text-gray-500 uppercase tracking-[0.2em] mb-1">
+                                {activeItem.name}
+                            </span>
+                            <span className="text-4xl font-black text-white tracking-tighter">
+                                {activeItem.value}%
+                            </span>
+                        </div>
+                    ) : (
+                        <div className="flex flex-col items-center opacity-0 group-hover:opacity-20 transition-opacity duration-500">
+                             <PieChartIcon size={24} className="text-white mb-2" />
+                             <span className="text-[8px] font-bold tracking-widest text-white uppercase">Hover Color</span>
+                        </div>
+                    )}
                 </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-x-8 gap-y-4 w-full px-2 mt-auto">
+            <div className="grid grid-cols-2 gap-x-8 gap-y-4 w-full px-2 mt-auto relative z-10">
                 {chartData.map((segment, i) => (
                     <div 
                         key={i} 
@@ -225,10 +236,16 @@ const VibeChart = ({ genres, isGold }: { genres: Genre[]; isGold: boolean }) => 
                         onMouseLeave={() => setHoveredIndex(null)}
                     >
                         <div className="flex items-center gap-2.5 overflow-hidden">
-                            <div className={`w-2.5 h-2.5 rounded-full shrink-0 transition-transform duration-300 ${hoveredIndex === i ? 'scale-125 shadow-lg' : 'scale-100'}`} style={{ backgroundColor: segment.color, boxShadow: hoveredIndex === i ? `0 0 10px ${segment.color}` : 'none' }} />
-                            <span className={`text-xs font-bold transition-colors truncate ${hoveredIndex === i ? 'text-white' : 'text-gray-500'}`}>{segment.name}</span>
+                            <div 
+                                className={`w-2.5 h-2.5 rounded-full shrink-0 transition-all duration-300 ${hoveredIndex === i ? 'scale-125' : 'scale-100'}`} 
+                                style={{ 
+                                    backgroundColor: segment.color, 
+                                    boxShadow: hoveredIndex === i ? `0 0 12px ${segment.color}` : 'none' 
+                                }} 
+                            />
+                            <span className={`text-xs font-bold transition-colors truncate ${hoveredIndex === i ? 'text-white' : 'text-gray-500 group-hover/item:text-gray-300'}`}>{segment.name}</span>
                         </div>
-                        <span className={`text-xs font-black transition-colors ${hoveredIndex === i ? 'text-white' : 'text-gray-400'}`}>{segment.value}%</span>
+                        <span className={`text-xs font-black transition-colors ${hoveredIndex === i ? 'text-white' : 'text-gray-400 group-hover/item:text-gray-200'}`}>{segment.value}%</span>
                     </div>
                 ))}
             </div>
@@ -528,7 +545,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                             </div>
                                             {displayData.external_ids && (
                                                 <div className="flex gap-3 mb-10">
-                                                    {displayData.external_ids.imdb_id && <SocialLink url={`https://www.imdb.com/title/${displayData.external_ids.imdb_id}`} icon={Film} color="text-yellow-400"/>}
+                                                    {displayData.external_ids.imdb_id && <SocialLink url={`https://www.imdb.com/title/${details.external_ids.imdb_id}`} icon={Film} color="text-yellow-400"/>}
                                                     {displayData.external_ids.instagram_id && <SocialLink url={`https://instagram.com/${displayData.external_ids.instagram_id}`} icon={Instagram} color="text-pink-400"/>}
                                                     {displayData.external_ids.twitter_id && <SocialLink url={`https://twitter.com/${displayData.external_ids.twitter_id}`} icon={Twitter} color="text-blue-400"/>}
                                                     {displayData.external_ids.facebook_id && <SocialLink url={`https://facebook.com/${displayData.external_ids.facebook_id}`} icon={Facebook} color="text-blue-600"/>}
