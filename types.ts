@@ -75,11 +75,26 @@ export interface Network {
     origin_country: string;
 }
 
+export interface ProductionCompany {
+    id: number;
+    logo_path: string | null;
+    name: string;
+    origin_country: string;
+}
+
+export interface SpokenLanguage {
+    english_name: string;
+    iso_639_1: string;
+    name: string;
+}
+
 export interface MovieDetails extends Movie {
   budget: number;
   revenue: number;
   status: string;
   tagline: string;
+  production_companies?: ProductionCompany[];
+  spoken_languages?: SpokenLanguage[];
   credits?: {
     cast: CastMember[];
     crew: CrewMember[];

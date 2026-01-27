@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, Suspense, useRef } from 'react';
-import { X, Calendar, Clock, Star, Play, Bookmark, Heart, Share2, Clapperboard, Sparkles, Loader2, Tag, MessageCircle, Globe, Facebook, Instagram, Twitter, Film, PlayCircle, Eye, Volume2, VolumeX, Users, ArrowLeft, Lightbulb, DollarSign, Trophy, Tv, Check, Mic2, Video, PenTool, ChevronRight, Monitor, Plus, Layers, Shield } from 'lucide-react';
+import { X, Calendar, Clock, Star, Play, Bookmark, Heart, Share2, Clapperboard, Sparkles, Loader2, Tag, MessageCircle, Globe, Facebook, Instagram, Twitter, Film, PlayCircle, Eye, Volume2, VolumeX, Users, ArrowLeft, Lightbulb, DollarSign, Trophy, Tv, Check, Mic2, Video, PenTool, ChevronRight, Monitor, Plus, Layers, Shield, Building2, Languages, Headphones } from 'lucide-react';
 import { Movie, MovieDetails, Season, UserProfile, Keyword, Review, CastMember, CrewMember, CollectionDetails } from '../types';
 import { TMDB_BASE_URL, TMDB_IMAGE_BASE, TMDB_BACKDROP_BASE, formatCurrency, ImageLightbox, PersonCard, MovieCard } from '../components/Shared';
 import { generateTrivia } from '../services/gemini';
@@ -590,6 +590,59 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                             <p className="text-green-400 font-bold text-sm">{formatCurrency(displayData.revenue, appRegion)}</p>
                                         </div>
                                     </div>
+
+                                    {/* Languages & Regions */}
+                                    <div className="bg-white/5 border border-white/5 rounded-2xl p-6 space-y-5">
+                                        <h4 className="text-sm font-bold text-white mb-4 flex items-center gap-2"><Languages size={14} className={accentText}/> Audio & Languages</h4>
+                                        
+                                        <div>
+                                            <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2">Original Language</p>
+                                            <span className="text-xs bg-white/10 px-3 py-1 rounded-full text-white font-bold uppercase tracking-widest">{displayData.original_language || 'EN'}</span>
+                                        </div>
+
+                                        {displayData.spoken_languages && displayData.spoken_languages.length > 0 && (
+                                            <div className="pt-4 border-t border-white/5">
+                                                <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-2">
+                                                    <Headphones size={10}/> Spoken / Dubbed
+                                                </p>
+                                                <div className="flex flex-wrap gap-2">
+                                                    {displayData.spoken_languages.map((lang, idx) => (
+                                                        <span key={idx} className="text-[10px] bg-white/5 border border-white/5 px-2.5 py-1 rounded-lg text-gray-300">
+                                                            {lang.english_name || lang.name}
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* Production Companies */}
+                                    {displayData.production_companies && displayData.production_companies.length > 0 && (
+                                        <div className="bg-white/5 border border-white/5 rounded-2xl p-6">
+                                            <h4 className="text-sm font-bold text-white mb-5 flex items-center gap-2"><Building2 size={14} className={accentText}/> Production</h4>
+                                            <div className="space-y-4">
+                                                {displayData.production_companies.map((company) => (
+                                                    <div key={company.id} className="flex items-center gap-3 group">
+                                                        <div className="w-10 h-10 bg-white/90 rounded-lg p-1 flex items-center justify-center shrink-0 shadow-lg group-hover:bg-white transition-colors">
+                                                            {company.logo_path ? (
+                                                                <img 
+                                                                    src={`${TMDB_IMAGE_BASE}${company.logo_path}`} 
+                                                                    alt={company.name} 
+                                                                    className="max-w-full max-h-full object-contain"
+                                                                />
+                                                            ) : (
+                                                                <Building2 size={18} className="text-black/40"/>
+                                                            )}
+                                                        </div>
+                                                        <div className="min-w-0">
+                                                            <p className="text-xs font-bold text-white truncate leading-none mb-1">{company.name}</p>
+                                                            <p className="text-[10px] text-gray-500">{company.origin_country || 'Global'}</p>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
 
                                     {/* Where to Watch */}
                                     <div className="bg-white/5 border border-white/5 rounded-2xl p-6">
