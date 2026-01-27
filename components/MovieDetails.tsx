@@ -56,7 +56,9 @@ const PopularityMeter = ({ score, count, isGold }: { score: number; count: numbe
         categoryBg = isGold ? "bg-amber-500/10 border-amber-500/20" : "bg-purple-500/10 border-purple-500/20";
     }
 
-    const radius = 75;
+    // Geometry calculation for the arc
+    // Using a taller ViewBox to prevent clipping
+    const radius = 80;
     const circumference = Math.PI * radius;
     const [offset, setOffset] = useState(circumference);
 
@@ -68,47 +70,54 @@ const PopularityMeter = ({ score, count, isGold }: { score: number; count: numbe
         return () => clearTimeout(timer);
     }, [percentage, circumference]);
 
-    // Enhanced Aesthetic Gradients
-    const stop1 = isGold ? "#f59e0b" : "#10b981"; // Amber or Emerald
-    const stop2 = isGold ? "#fbbf24" : "#3b82f6"; // Light Amber or Blue
-    const stop3 = isGold ? "#fff7ed" : "#a855f7"; // White-Amber or Purple
+    // Enhanced Aesthetic Gradients matching website color palette
+    // Transitions from Low (Red) -> Med (Amber) -> High (Emerald) -> Perfection (Purple/Gold)
+    const stop1 = "#ef4444"; // Red
+    const stop2 = "#f59e0b"; // Amber
+    const stop3 = "#10b981"; // Emerald
+    const stop4 = isGold ? "#fbbf24" : "#a855f7"; // Gold or Purple
 
     return (
-        <div className="mt-12 p-8 bg-[#0d0d0d] rounded-[2rem] border border-white/5 flex flex-col items-center text-center relative overflow-hidden group shadow-2xl">
+        <div className="mt-12 p-10 bg-[#0d0d0d] rounded-[2.5rem] border border-white/5 flex flex-col items-center text-center relative overflow-hidden group shadow-2xl">
             {/* Background Glow */}
             <div className={`absolute -top-24 -right-24 w-48 h-48 rounded-full blur-[100px] opacity-20 ${isGold ? 'bg-amber-500' : 'bg-red-600'}`}></div>
             
-            <div className="flex items-center gap-2.5 mb-10 relative z-10">
-                <div className={`p-2 rounded-xl shadow-lg ${isGold ? 'bg-amber-500/10 text-amber-500 border border-amber-500/20' : 'bg-red-500/10 text-red-500 border border-red-500/20'}`}>
-                    <TrendingUp size={20}/>
+            <div className="flex items-center gap-3 mb-10 relative z-10">
+                <div className={`p-2.5 rounded-2xl shadow-lg flex items-center justify-center ${isGold ? 'bg-amber-500/10 text-amber-500 border border-amber-500/20' : 'bg-red-500/10 text-red-500 border border-red-500/20'}`}>
+                    <TrendingUp size={22}/>
                 </div>
-                <h3 className="text-[11px] font-black text-gray-400 uppercase tracking-[0.4em]">Popularity Score</h3>
+                <div>
+                    <h3 className="text-[11px] font-black text-gray-400 uppercase tracking-[0.4em] text-left">Popularity Meter</h3>
+                    <p className="text-[9px] text-gray-600 font-bold uppercase tracking-[0.1em] text-left mt-0.5">Real-time Analytics</p>
+                </div>
             </div>
 
-            <div className="relative w-64 h-32 md:w-80 md:h-40">
-                <svg className="w-full h-full" viewBox="0 0 200 100">
+            <div className="relative w-64 h-36 md:w-80 md:h-44">
+                {/* SVG viewBox adjusted to 120 height to avoid top clipping (peak of arc is at y=30, stroke is 16 wide so edge is at 22) */}
+                <svg className="w-full h-full" viewBox="0 0 200 120" style={{ overflow: 'visible' }}>
                     <defs>
                         <linearGradient id="meterGradientRefined" x1="0%" y1="0%" x2="100%" y2="0%">
                             <stop offset="0%" stopColor={stop1} />
-                            <stop offset="50%" stopColor={stop2} />
-                            <stop offset="100%" stopColor={stop3} />
+                            <stop offset="33%" stopColor={stop2} />
+                            <stop offset="66%" stopColor={stop3} />
+                            <stop offset="100%" stopColor={stop4} />
                         </linearGradient>
-                        <filter id="meterGlow">
-                            <feGaussianBlur stdDeviation="3" result="blur" />
+                        <filter id="meterGlow" x="-20%" y="-20%" width="140%" height="140%">
+                            <feGaussianBlur stdDeviation="3.5" result="blur" />
                             <feComposite in="SourceGraphic" in2="blur" operator="over" />
                         </filter>
                     </defs>
-                    {/* Background Track */}
+                    {/* Background Track - Grayed out arc */}
                     <path
-                        d="M 25 100 A 75 75 0 0 1 175 100"
+                        d="M 20 110 A 80 80 0 0 1 180 110"
                         fill="none"
-                        stroke="rgba(255,255,255,0.03)"
+                        stroke="rgba(255,255,255,0.04)"
                         strokeWidth="16"
                         strokeLinecap="round"
                     />
-                    {/* Animated Progress Arc */}
+                    {/* Animated Progress Arc - Gradient colored */}
                     <path
-                        d="M 25 100 A 75 75 0 0 1 175 100"
+                        d="M 20 110 A 80 80 0 0 1 180 110"
                         fill="none"
                         stroke="url(#meterGradientRefined)"
                         strokeWidth="16"
@@ -116,10 +125,10 @@ const PopularityMeter = ({ score, count, isGold }: { score: number; count: numbe
                         strokeDasharray={circumference}
                         strokeDashoffset={offset}
                         filter="url(#meterGlow)"
-                        className="transition-all duration-[2000ms] ease-[cubic-bezier(0.34,1.56,0.64,1)]"
+                        className="transition-all duration-[2200ms] ease-out" 
                     />
                 </svg>
-                <div className="absolute inset-0 flex flex-col items-center justify-end pb-1">
+                <div className="absolute inset-0 flex flex-col items-center justify-end pb-2">
                     <span className="text-5xl md:text-6xl font-black text-white tracking-tighter drop-shadow-2xl">
                         {percentage}%
                     </span>
@@ -127,23 +136,23 @@ const PopularityMeter = ({ score, count, isGold }: { score: number; count: numbe
             </div>
             
             <div className="mt-8 space-y-4 relative z-10 w-full flex flex-col items-center">
-                <div className={`text-xs font-black tracking-[0.25em] px-6 py-2 rounded-full border shadow-xl transition-all duration-700 delay-300 animate-in zoom-in-95 ${categoryBg} ${categoryColor}`}>
+                <div className={`text-xs font-black tracking-[0.25em] px-8 py-2.5 rounded-full border shadow-2xl transition-all duration-700 delay-300 animate-in zoom-in-95 ${categoryBg} ${categoryColor}`}>
                     {category}
                 </div>
                 
                 <div className="flex flex-col items-center">
-                    <div className="flex items-center gap-2 text-sm font-bold">
-                        <span className="text-white text-lg">{positiveVotes.toLocaleString()}</span>
-                        <span className="text-gray-700 text-lg">/</span>
-                        <span className="text-gray-500">{count.toLocaleString()}</span>
+                    <div className="flex items-center gap-2.5">
+                        <span className="text-white text-xl font-black tracking-tight">{positiveVotes.toLocaleString()}</span>
+                        <span className="text-gray-700 font-bold">/</span>
+                        <span className="text-gray-500 text-base font-bold">{count.toLocaleString()}</span>
+                        <span className="text-[10px] text-gray-600 font-black uppercase tracking-widest ml-1">Total Votes</span>
                     </div>
-                    <p className="text-[10px] text-gray-600 font-black uppercase tracking-[0.2em] mt-1">Verified Audience Rating</p>
                 </div>
             </div>
             
             {/* Visual sheen for Perfection */}
             {percentage >= 85 && (
-                <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/[0.03] to-transparent pointer-events-none animate-[pulse_4s_infinite]"></div>
+                <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/[0.02] to-transparent pointer-events-none animate-[pulse_4s_infinite]"></div>
             )}
         </div>
     );
