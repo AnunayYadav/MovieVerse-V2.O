@@ -439,7 +439,8 @@ export default function App() {
 
   useEffect(() => {
     if (featuredMovie && apiKey) {
-        tmdbService.getMovieDetails(featuredMovie.id, featuredMovie.media_type || 'movie', 'images').then(data => {
+        // Fix: Narrowed the media type to 'movie' | 'tv' for tmdbService.getMovieDetails
+        tmdbService.getMovieDetails(featuredMovie.id, (featuredMovie.media_type === 'tv' ? 'tv' : 'movie'), 'images').then(data => {
             const logo = data?.images?.logos?.find((l: any) => l.iso_639_1 === 'en') || data?.images?.logos?.[0];
             if (logo) setFeaturedLogo(logo.file_path);
         }).catch(() => {});
@@ -550,6 +551,8 @@ export default function App() {
             onToggleWatched={(m) => toggleList(watched, setWatched, 'movieverse_watched', m)} 
             isWatched={watched.some(m => m.id === selectedMovie.id)} 
             onSwitchMovie={setSelectedMovie} userProfile={userProfile} onKeywordClick={() => {}} onCollectionClick={() => {}}
+            // Fix: Added missing onOpenListModal dummy prop to satisfy MoviePageProps
+            onOpenListModal={() => {}}
         /> 
       )}
       <ProfilePage isOpen={isProfileOpen} onClose={() => setIsProfileOpen(false)} profile={userProfile} onSave={(p) => { setUserProfile(p); localStorage.setItem('movieverse_profile', JSON.stringify(p)); }} />

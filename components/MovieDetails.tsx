@@ -2,8 +2,7 @@
 import React, { useState, useEffect, Suspense, useRef, useMemo } from 'react';
 import { X, Calendar, Clock, Star, Play, Bookmark, Heart, Share2, Clapperboard, Sparkles, Loader2, Tag, MessageCircle, Globe, Facebook, Instagram, Twitter, Film, PlayCircle, Eye, Volume2, VolumeX, Users, ArrowLeft, Lightbulb, DollarSign, Trophy, Tv, Check, Mic2, Video, PenTool, ChevronRight, Monitor, Plus, Layers, Shield, Building2, Languages, Headphones, Activity, Target, TrendingUp, PieChart as PieChartIcon } from 'lucide-react';
 import { Movie, MovieDetails, Season, UserProfile, Keyword, Review, CastMember, CrewMember, CollectionDetails, Genre } from '../types';
-// Fixed: Added LogoLoader to imports
-import { TMDB_IMAGE_BASE, TMDB_BACKDROP_BASE, formatCurrency, ImageLightbox, PersonCard, MovieCard, LogoLoader } from '../components/Shared';
+import { TMDB_IMAGE_BASE, TMDB_BACKDROP_BASE, formatCurrency, ImageLightbox, PersonCard, MovieCard, LogoLoader } from './Shared';
 import { generateTrivia } from '../services/gemini';
 import { FullCreditsModal } from './Modals';
 import { tmdbService } from '../services/tmdb';
@@ -18,7 +17,8 @@ interface MoviePageProps {
     onToggleWatchlist: (m: Movie) => void;
     isWatchlisted: boolean;
     onSwitchMovie: (m: Movie) => void;
-    onOpenListModal: (m: Movie) => void;
+    // Fix: Made onOpenListModal optional as it is not provided in App.tsx
+    onOpenListModal?: (m: Movie) => void;
     onToggleFavorite: (m: Movie) => void;
     isFavorite: boolean;
     isWatched: boolean;
@@ -33,7 +33,6 @@ interface MoviePageProps {
 
 const PopularityMeter = ({ score, count, isGold }: { score: number; count: number; isGold: boolean }) => {
     const percentage = Math.round(score * 10);
-    const positiveVotes = Math.round((score / 10) * count);
     let category = percentage < 50 ? "SKIP" : percentage < 70 ? "ONE TIME WATCH" : percentage < 85 ? "GO FOR IT" : "PERFECTION";
     let color = percentage < 50 ? "text-red-500" : percentage < 70 ? "text-orange-400" : percentage < 85 ? "text-emerald-400" : isGold ? "text-amber-400" : "text-purple-400";
     const radius = 80;
@@ -63,19 +62,46 @@ const VibeChart = ({ genres, isGold }: { genres: Genre[]; isGold: boolean }) => 
         const weights = displayGenres.length === 1 ? [100] : displayGenres.length === 2 ? [60, 40] : displayGenres.length === 3 ? [50, 30, 20] : [40, 30, 20, 10];
         return displayGenres.map((g, i) => ({ name: g.name, value: weights[i], color: palette[i] }));
     }, [genres]);
+
     const total = 100;
     const radius = 70;
     const circumference = 2 * Math.PI * radius;
     const activeItem = hoveredIndex !== null ? chartData[hoveredIndex] : null;
+
     return (
         <div className="p-8 md:p-10 bg-[#0d0d0d] rounded-[2.5rem] border border-white/5 flex flex-col items-center relative overflow-hidden group shadow-2xl h-full">
             <div className={`absolute -top-24 -right-24 w-48 h-48 rounded-full blur-[100px] opacity-20 ${isGold ? 'bg-amber-500' : 'bg-purple-600'}`}></div>
             <div className="relative w-56 h-56 flex items-center justify-center mb-8 z-10">
                 <svg className="w-full h-full -rotate-90" viewBox="0 0 200 200" style={{ overflow: 'visible' }}>
+                    <defs>
+                        <filter id="vibeGlow" x="-50%" y="-50%" width="200%" height="200%">
+                            <feGaussianBlur stdDeviation="4" result="blur" />
+                            <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                        </filter>
+                    </defs>
                     {chartData.reduce((acc, segment, i) => {
                         const prevSum = chartData.slice(0, i).reduce((s, d) => s + d.value, 0);
                         const isHovered = hoveredIndex === i;
-                        acc.push(<circle key={i} cx="100" cy="100" r={radius} fill="transparent" stroke={segment.color} strokeWidth={isHovered ? 28 : 22} strokeDasharray={`${(segment.value/total)*circumference} ${circumference}`} strokeDashoffset={-(prevSum/total)*circumference} strokeLinecap="butt" pointerEvents="stroke" className="transition-all duration-500 cursor-pointer" style={{ opacity: hoveredIndex === null || isHovered ? 1 : 0.4 }} onMouseEnter={() => setHoveredIndex(i)} onMouseLeave={() => setHoveredIndex(null)} />);
+                        acc.push(
+                            <circle 
+                                key={i} 
+                                cx="100" 
+                                cy="100" 
+                                r={radius} 
+                                fill="transparent" 
+                                stroke={segment.color} 
+                                strokeWidth={isHovered ? 28 : 22} 
+                                strokeDasharray={`${(segment.value/total)*circumference} ${circumference}`} 
+                                strokeDashoffset={-(prevSum/total)*circumference} 
+                                strokeLinecap="butt" 
+                                filter={isHovered ? "url(#vibeGlow)" : "none"}
+                                pointerEvents="stroke" 
+                                className="transition-all duration-500 cursor-pointer" 
+                                style={{ opacity: hoveredIndex === null || isHovered ? 1 : 0.4 }} 
+                                onMouseEnter={() => setHoveredIndex(i)} 
+                                onMouseLeave={() => setHoveredIndex(null)} 
+                            />
+                        );
                         return acc;
                     }, [] as React.ReactElement[])}
                 </svg>
@@ -83,7 +109,7 @@ const VibeChart = ({ genres, isGold }: { genres: Genre[]; isGold: boolean }) => 
                     {activeItem && (
                         <div className="animate-in fade-in zoom-in-95 duration-300 flex flex-col items-center" key={hoveredIndex}>
                             <span className="text-[10px] font-bold text-gray-500 uppercase tracking-[0.2em] mb-1">{activeItem.name}</span>
-                            <span className="text-4xl font-black text-white">{activeItem.value}%</span>
+                            <span className="text-4xl font-black text-white tracking-tighter">{activeItem.value}%</span>
                         </div>
                     )}
                 </div>
@@ -92,10 +118,10 @@ const VibeChart = ({ genres, isGold }: { genres: Genre[]; isGold: boolean }) => 
                 {chartData.map((s, i) => (
                     <div key={i} className="flex items-center justify-between gap-3 group/item cursor-pointer" onMouseEnter={() => setHoveredIndex(i)} onMouseLeave={() => setHoveredIndex(null)}>
                         <div className="flex items-center gap-2 overflow-hidden">
-                            <div className={`w-2 h-2 rounded-full shrink-0 transition-all ${hoveredIndex === i ? 'scale-150' : ''}`} style={{ backgroundColor: s.color }} />
-                            <span className={`text-xs font-bold truncate ${hoveredIndex === i ? 'text-white' : 'text-gray-500'}`}>{s.name}</span>
+                            <div className={`w-2 h-2 rounded-full shrink-0 transition-all ${hoveredIndex === i ? 'scale-150 shadow-[0_0_8px_currentColor]' : ''}`} style={{ backgroundColor: s.color, color: s.color }} />
+                            <span className={`text-xs font-bold truncate transition-colors ${hoveredIndex === i ? 'text-white' : 'text-gray-500'}`}>{s.name}</span>
                         </div>
-                        <span className="text-[10px] font-black text-gray-400">{s.value}%</span>
+                        <span className={`text-[10px] font-black transition-colors ${hoveredIndex === i ? 'text-white' : 'text-gray-400'}`}>{s.value}%</span>
                     </div>
                 ))}
             </div>
@@ -117,7 +143,8 @@ export const MoviePage: React.FC<MoviePageProps> = ({ movie, onClose, apiKey, on
     useEffect(() => {
         if (!apiKey || !movie.id) return;
         setLoading(true);
-        tmdbService.getMovieDetails(movie.id, movie.media_type || 'movie', 'credits,reviews,videos,release_dates,watch/providers,external_ids,similar,images,content_ratings,seasons,keywords')
+        // Fix: Narrowed the media type to 'movie' | 'tv' for tmdbService.getMovieDetails
+        tmdbService.getMovieDetails(movie.id, (movie.media_type === 'tv' ? 'tv' : 'movie'), 'credits,reviews,videos,release_dates,watch/providers,external_ids,similar,images,content_ratings,seasons,keywords')
             .then(data => {
                 setDetails(data);
                 if (data?.belongs_to_collection?.id) {
@@ -131,35 +158,36 @@ export const MoviePage: React.FC<MoviePageProps> = ({ movie, onClose, apiKey, on
     if (!details && loading) return <div className="fixed inset-0 bg-[#0a0a0a] z-[100] flex items-center justify-center"><Loader2 className="animate-spin text-red-600" size={40}/></div>;
 
     const displayData = { ...movie, ...details } as MovieDetails;
+
     return (
         <div className="fixed inset-0 z-[100] bg-[#0a0a0a] overflow-y-auto custom-scrollbar animate-in slide-in-from-right-10 duration-500 font-sans">
-            <button onClick={onClose} className="fixed top-6 left-6 z-[120] bg-black/40 hover:bg-white/10 backdrop-blur-md px-4 py-2 rounded-full text-white border border-white/5 flex items-center gap-2"><ArrowLeft size={20}/><span className="hidden md:inline font-bold text-sm">Back</span></button>
+            <button onClick={onClose} className="fixed top-6 left-6 z-[120] bg-black/40 hover:bg-white/10 backdrop-blur-md px-4 py-2 rounded-full text-white border border-white/5 flex items-center gap-2 transition-all active:scale-95"><ArrowLeft size={20}/><span className="hidden md:inline font-bold text-sm">Back</span></button>
             <div className="relative h-[65vh] w-full shrink-0 bg-black overflow-hidden group/hero">
                 <img src={`${TMDB_BACKDROP_BASE}${displayData.backdrop_path}`} className="absolute inset-0 w-full h-full object-cover opacity-80" alt=""/>
                 <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0a] via-transparent to-transparent"/>
-                <div className="absolute bottom-12 left-12 max-w-4xl z-10">
+                <div className="absolute bottom-12 left-12 max-w-4xl z-10 animate-in slide-in-from-bottom-4 duration-700">
                     <h1 className="text-4xl md:text-6xl font-black text-white mb-6 drop-shadow-2xl">{displayData.title || displayData.name}</h1>
                     <div className="flex gap-4 mb-8">
-                        {isExclusive && <button onClick={() => setShowPlayer(true)} className={`px-8 py-4 rounded-xl font-bold flex items-center gap-2 transition-all hover:scale-105 active:scale-95 shadow-xl ${isGoldTheme ? 'bg-amber-500 text-black' : 'bg-red-600 text-white'}`}><PlayCircle size={20}/> Watch Now</button>}
-                        <button onClick={() => onToggleWatchlist(displayData)} className="w-14 h-14 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center border border-white/10 hover:bg-white/20 transition-all">{isWatchlisted ? <Check size={24} className="text-green-400"/> : <Plus size={24}/>}</button>
+                        {isExclusive && <button onClick={() => setShowPlayer(true)} className={`px-8 py-4 rounded-xl font-bold flex items-center gap-2 transition-all hover:scale-105 active:scale-95 shadow-xl ${isGoldTheme ? 'bg-amber-500 text-black shadow-amber-900/40' : 'bg-red-600 text-white shadow-red-900/40'}`}><PlayCircle size={20}/> Watch Now</button>}
+                        <button onClick={() => onToggleWatchlist(displayData)} className="w-14 h-14 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center border border-white/10 hover:bg-white/20 transition-all active:scale-95">{isWatchlisted ? <Check size={24} className="text-green-400"/> : <Plus size={24}/>}</button>
                     </div>
                 </div>
             </div>
             <div className="max-w-7xl mx-auto px-6 py-12">
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
                     <div className="lg:col-span-2 space-y-10">
-                        <p className="text-gray-300 text-lg leading-relaxed">{displayData.overview}</p>
-                        {trivia && <div className="p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-xl flex gap-4"><Lightbulb className="text-yellow-500 shrink-0"/><p className="text-sm italic text-gray-300">"{trivia}"</p></div>}
+                        <p className="text-gray-300 text-lg leading-relaxed font-light">{displayData.overview}</p>
+                        {trivia && <div className="p-5 bg-white/5 border border-white/10 rounded-2xl flex gap-4"><Lightbulb className="text-yellow-500 shrink-0"/><p className="text-sm italic text-gray-400">"{trivia}"</p></div>}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <PopularityMeter score={displayData.vote_average} count={displayData.vote_count} isGold={isGoldTheme}/>
                             <VibeChart genres={displayData.genres || []} isGold={isGoldTheme}/>
                         </div>
                     </div>
                     <div className="space-y-8">
-                        <div className="p-6 bg-white/5 rounded-2xl border border-white/5 space-y-4">
+                        <div className="p-6 bg-white/5 rounded-2xl border border-white/5 space-y-6">
                             <div><p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">Status</p><p className="text-white font-bold">{displayData.status}</p></div>
-                            <div><p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">Budget</p><p className="text-white font-bold">{formatCurrency(displayData.budget)}</p></div>
-                            <div><p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">Revenue</p><p className="text-green-400 font-bold">{formatCurrency(displayData.revenue)}</p></div>
+                            <div className="pt-4 border-t border-white/5"><p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">Budget</p><p className="text-white font-bold">{formatCurrency(displayData.budget)}</p></div>
+                            <div className="pt-4 border-t border-white/5"><p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">Revenue</p><p className="text-green-400 font-bold">{formatCurrency(displayData.revenue)}</p></div>
                         </div>
                     </div>
                 </div>
