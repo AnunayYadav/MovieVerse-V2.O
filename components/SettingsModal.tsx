@@ -1,9 +1,9 @@
 
 import React, { useState, useEffect } from 'react';
-import { UserCircle, X, Check, Settings, ShieldCheck, RefreshCcw, HelpCircle, FileText, Lock, LogOut, Calendar, Mail, User, BrainCircuit, Pencil, CheckCheck, Loader2, ChevronDown, Fingerprint, Copy, Crown, History, Trash2, Search, Clock, ArrowLeft, Globe } from 'lucide-react';
+import { UserCircle, X, Check, Settings, ShieldCheck, RefreshCcw, HelpCircle, FileText, Lock, LogOut, Calendar, Mail, User, BrainCircuit, Pencil, CheckCheck, Loader2, ChevronDown, Fingerprint, Copy, Crown, History, Trash2, Search, Clock, ArrowLeft } from 'lucide-react';
 import { UserProfile, MaturityRating, Movie } from '../types';
 import { getSupabase, submitSupportTicket } from '../services/supabase';
-import { TMDB_IMAGE_BASE, TMDB_OFFICIAL_BASE } from './Shared';
+import { TMDB_IMAGE_BASE } from './Shared';
 
 interface SettingsPageProps {
     isOpen: boolean;
@@ -27,10 +27,12 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
     isOpen, onClose, apiKey, setApiKey, maturityRating, setMaturityRating, profile, onUpdateProfile, onLogout,
     searchHistory = [], setSearchHistory, watchedMovies = [], setWatchedMovies
 }) => {
+    // Check if custom keys are stored
     const hasCustomTmdb = !!localStorage.getItem('movieverse_tmdb_key');
+
     const [inputKey, setInputKey] = useState(apiKey || "");
-    const [proxyUrl, setProxyUrl] = useState(localStorage.getItem('movieverse_tmdb_proxy') || "");
     const [activeTab, setActiveTab] = useState("account");
+
     const [isEditingTmdb, setIsEditingTmdb] = useState(false);
 
     // Enhanced Account State
@@ -50,15 +52,16 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
     const isExclusive = profile.canWatch === true;
     const isGoldTheme = isExclusive && profile.theme !== 'default';
     
+    // Dynamic Accent Logic
     const accentText = isGoldTheme ? "text-amber-500" : "text-red-600";
     const accentHoverText = isGoldTheme ? "hover:text-amber-400" : "hover:text-red-400";
 
     useEffect(() => {
         if (isOpen) {
             setInputKey(hasCustomTmdb ? apiKey : "");
-            setProxyUrl(localStorage.getItem('movieverse_tmdb_proxy') || "");
             setIsEditingTmdb(hasCustomTmdb);
             
+            // Fetch real user data
             const fetchUser = async () => {
                 const supabase = getSupabase();
                 if (supabase) {
@@ -69,6 +72,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                         setJoinDate(new Date(user.created_at).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }));
                         setProvider(user.app_metadata.provider || "Email");
                     } else {
+                        // Guest Fallback
                         setUserEmail("guest@movieverse.ai");
                         setUserId("guest-session-" + Math.floor(Math.random() * 10000));
                         setJoinDate("Just Now");
@@ -87,13 +91,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
 
     const handleSave = () => {
         setApiKey(isEditingTmdb ? inputKey : ""); 
-        if (proxyUrl.trim()) {
-            localStorage.setItem('movieverse_tmdb_proxy', proxyUrl.trim());
-        } else {
-            localStorage.removeItem('movieverse_tmdb_proxy');
-        }
         onClose();
-        window.location.reload(); // Refresh to apply proxy changes app-wide
     };
 
     const handleCopyId = () => {
@@ -129,6 +127,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
 
     const handleSendSupport = async () => {
         setSending(true);
+        // Include User ID in message for context
         const fullMessage = `[User ID: ${userId}] ${supportMessage}`;
         const success = await submitSupportTicket(supportSubject, fullMessage, userEmail);
         
@@ -141,10 +140,10 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
     };
 
     const FAQs = [
-        { q: "How do I fix 'Connection Issue' error?", a: "If you are in a region where TMDB is blocked (like India), try using a Proxy URL in General Settings." },
         { q: "How do I verify my email?", a: "Check your inbox for a confirmation link. If not found, check spam." },
         { q: "Is this service free?", a: "Yes, this is a demonstration app using public APIs for educational purposes." },
-        { q: "Where does the data come from?", a: "We use the TMDB API for movie metadata and Google Gemini for AI features." }
+        { q: "Where does the data come from?", a: "We use the TMDB API for movie metadata and Google Gemini for AI features." },
+        { q: "Can I watch movies here?", a: "No, MovieVerse AI is purely a discovery and tracking platform. We do not host or stream any video content." }
     ];
 
     if (!isOpen) return null;
@@ -351,24 +350,6 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                                         </div>
                                       </div>
 
-                                      <div className="space-y-2">
-                                        <div className="flex justify-between items-center">
-                                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">TMDB Proxy URL <Globe size={12}/></label>
-                                            {proxyUrl && <span className="text-[10px] text-blue-400 font-bold bg-blue-500/10 px-2 py-0.5 rounded-full border border-blue-500/20">Custom Active</span>}
-                                        </div>
-                                        <div className="relative group">
-                                            <input 
-                                                type="text" 
-                                                value={proxyUrl} 
-                                                onChange={(e) => setProxyUrl(e.target.value)} 
-                                                className={`w-full bg-white/5 border border-white/10 rounded-xl p-3 focus:outline-none transition-all text-xs font-mono text-white placeholder-gray-600 ${isGoldTheme ? 'focus:border-amber-500' : 'focus:border-red-500'}`} 
-                                                placeholder={`e.g. https://your-proxy.com/api/v3 (Default: TMDB)`}
-                                            />
-                                            {proxyUrl && <button onClick={() => setProxyUrl("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white"><X size={14}/></button>}
-                                        </div>
-                                        <p className="text-[10px] text-gray-500 italic mt-1 leading-relaxed">If the official TMDB domain is blocked in your region, provide a backend proxy URL to continue using the app.</p>
-                                      </div>
-
                                       <div className="space-y-2 p-5 rounded-2xl border border-blue-500/20 bg-blue-500/5">
                                         <div className="flex justify-between items-center mb-1">
                                             <label className="text-[10px] font-bold text-blue-400 uppercase tracking-wider flex items-center gap-2">Gemini AI Engine <BrainCircuit size={12}/></label>
@@ -379,7 +360,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                                   </div>
                                   
                                   <div className="pt-8">
-                                    <button onClick={handleSave} className="w-full bg-white text-black font-bold py-3 rounded-xl transition-all hover:bg-gray-200 active:scale-[0.98] shadow-xl text-sm">Save Changes & Refresh</button>
+                                    <button onClick={handleSave} className="w-full bg-white text-black font-bold py-3 rounded-xl transition-all hover:bg-gray-200 active:scale-[0.98] shadow-xl text-sm">Save Changes</button>
                                   </div>
                               </div>
                           )}
@@ -578,6 +559,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                                   
                                   <div className="flex-1 space-y-10 text-xs text-gray-300 leading-relaxed pb-8">
                                       
+                                      {/* TMDB Attribution - Prominent as requested for compliance */}
                                       <div className="bg-gradient-to-br from-[#0d253f] to-[#01b4e4] rounded-2xl p-0.5 border border-white/10 shadow-lg">
                                           <div className="bg-black/90 rounded-[14px] p-6 h-full backdrop-blur-sm">
                                               <h4 className="text-white font-bold text-lg mb-3 flex items-center gap-3">Data Attribution</h4>
@@ -599,6 +581,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                                           </div>
                                       </div>
 
+                                      {/* Terms of Service */}
                                       <section>
                                           <h4 className="text-white font-bold text-lg mb-4 pb-2 border-b border-white/10 text-blue-400">Terms of Service</h4>
                                           <div className="space-y-4 text-gray-400 text-xs">
@@ -614,9 +597,18 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                                                   <h5 className="text-white font-bold mb-1 text-sm">3. Content Policy</h5>
                                                   <p>MovieVerse AI functions strictly as a discovery tool. We do not host, upload, stream, or index any video files. All media assets (posters, backdrops) are provided by third-party APIs. We are not responsible for the accuracy or legality of content provided by third-party sources.</p>
                                               </div>
+                                              <div>
+                                                  <h5 className="text-white font-bold mb-1 text-sm">4. User Conduct</h5>
+                                                  <p>You agree not to use the Application for any unlawful purpose or any purpose prohibited under this clause. You agree not to use the Application in any way that could damage the Application, the services, or the general business of MovieVerse AI.</p>
+                                              </div>
+                                              <div>
+                                                  <h5 className="text-white font-bold mb-1 text-sm">5. Termination</h5>
+                                                  <p>We may terminate your access to the Application, without cause or notice, which may result in the forfeiture and destruction of all information associated with your account.</p>
+                                              </div>
                                           </div>
                                       </section>
 
+                                      {/* Privacy Policy */}
                                       <section>
                                           <h4 className="text-white font-bold text-lg mb-4 pb-2 border-b border-white/10 text-green-400">Privacy Policy</h4>
                                           <div className="space-y-4 text-gray-400 text-xs">
@@ -628,9 +620,18 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                                                   <h5 className="text-white font-bold mb-1 text-sm">2. Use of Information</h5>
                                                   <p>We use the information we collect to provide, maintain, and improve our services, such as to personalize the content you see (e.g., "AI Recommendations") and to facilitate synchronization across devices.</p>
                                               </div>
+                                              <div>
+                                                  <h5 className="text-white font-bold mb-1 text-sm">3. Local Storage & Cookies</h5>
+                                                  <p>We use local storage technology to store your preferences (API keys, watchlist, settings) directly on your device for a seamless experience. If you use cloud sync features, this data is encrypted and stored in our database.</p>
+                                              </div>
+                                              <div>
+                                                  <h5 className="text-white font-bold mb-1 text-sm">4. Third-Party Services</h5>
+                                                  <p>This Application uses services provided by Google (Gemini AI), TMDB (Metadata), and Supabase (Authentication/DB). Please refer to their respective privacy policies for information on how they handle data.</p>
+                                              </div>
                                           </div>
                                       </section>
 
+                                      {/* Additional Acknowledgments */}
                                       <section>
                                           <h4 className="text-white font-bold text-lg mb-4 pb-2 border-b border-white/10">Acknowledgments</h4>
                                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
