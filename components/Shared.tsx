@@ -3,14 +3,13 @@ import React, { useState } from 'react';
 import { Film, Star, Eye, Download, X, Check, ArrowLeft } from 'lucide-react';
 import { Movie } from '../types';
 
-export const TMDB_BASE_URL = "https://api.themoviedb.org/3";
+// Default TMDB Base URL
+export const TMDB_OFFICIAL_BASE = "https://api.themoviedb.org/3";
 export const TMDB_IMAGE_BASE = "https://image.tmdb.org/t/p/w500";
-// Optimized from 'original' to 'w1280' for better performance and lower bandwidth
 export const TMDB_BACKDROP_BASE = "https://image.tmdb.org/t/p/w1280";
 
 // --- CENTRALIZED CONFIGURATION ---
 
-// Helper to safely access env vars in various environments (Vite, CRA, Browser)
 export const safeEnv = (key: string) => {
   try {
     // @ts-ignore
@@ -21,7 +20,6 @@ export const safeEnv = (key: string) => {
   return "";
 };
 
-// Hardcoded fallbacks REMOVED for production security.
 export const HARDCODED_TMDB_KEY = "";
 
 export const getTmdbKey = (): string => {
@@ -32,7 +30,11 @@ export const getTmdbKey = (): string => {
          HARDCODED_TMDB_KEY;
 };
 
-// Gemini API Key must be obtained exclusively from process.env.API_KEY
+// Support for Proxy Base URL to fix DNS issues in restricted regions
+export const getTmdbBaseUrl = (): string => {
+    return localStorage.getItem('movieverse_tmdb_proxy') || TMDB_OFFICIAL_BASE;
+};
+
 export const getGeminiKey = (): string => {
   return process.env.API_KEY || "";
 };
@@ -59,7 +61,6 @@ export const formatCurrency = (value: number | undefined, region: string = 'US')
 
 export const BrandLogo = ({ className = "", size = 24, accentColor = "text-red-600" }: { className?: string, size?: number, accentColor?: string }) => {
     const [imgError, setImgError] = useState(false);
-    // Path updated to favicon.png as requested
     const logoPath = "./favicon.png";
 
     if (imgError) {
@@ -71,7 +72,6 @@ export const BrandLogo = ({ className = "", size = 24, accentColor = "text-red-6
             src={logoPath}
             alt="Logo" 
             className={`object-contain ${className}`}
-            // Use height to constrain size but allow width to scale (maintain aspect ratio)
             style={{ height: size, width: 'auto', maxWidth: '200px' }}
             onError={() => setImgError(true)}
         />
@@ -124,7 +124,6 @@ export const StarRating = ({ rating }: { rating: number | undefined }) => {
 export const PosterMarquee = React.memo(({ movies, onMovieClick }: { movies: Movie[], onMovieClick: (m: Movie) => void }) => {
     if (!movies || movies.length === 0) return null;
     
-    // Performance: Take top 20 movies max, then duplicate for marquee effect
     const sourceMovies = movies.slice(0, 20);
     const marqueeMovies = [...sourceMovies, ...sourceMovies];
   
@@ -222,7 +221,6 @@ export const MovieCard = React.forwardRef<HTMLDivElement, MovieCardProps>(({ mov
     const year = (movie.release_date || movie.first_air_date || "").split('-')[0];
     const isFuture = new Date(movie.release_date || `${movie.year}-01-01`) > new Date();
     
-    // Progress Bar Logic
     const progress = movie.play_progress || 0;
     const showProgress = progress > 0 && progress < 98; 
   
@@ -249,10 +247,8 @@ export const MovieCard = React.forwardRef<HTMLDivElement, MovieCardProps>(({ mov
               </div>
           )}
 
-          {/* Liquid Glass Overlay on Hover */}
           <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent opacity-60 group-hover:opacity-90 transition-opacity duration-500 pointer-events-none" />
           
-          {/* Content Overlay */}
           <div className="absolute inset-0 p-4 pb-6 flex flex-col justify-end translate-y-4 group-hover:translate-y-0 transition-transform duration-500 ease-[cubic-bezier(0.33,1,0.68,1)] pointer-events-none">
              <div className="flex flex-col gap-1 mb-2">
                 {isFuture && (
@@ -267,7 +263,6 @@ export const MovieCard = React.forwardRef<HTMLDivElement, MovieCardProps>(({ mov
           </div>
         </div>
 
-        {/* Action Buttons */}
         <div className="absolute top-2 right-2 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-x-4 group-hover:translate-x-0 z-30">
              <button 
                onClick={(e) => { e.stopPropagation(); onToggleWatched(movie); }}
