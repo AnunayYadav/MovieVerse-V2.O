@@ -32,7 +32,7 @@ const BRAND_THEMES: Record<number, { accent: string, bg: string, text: string, g
     386: { accent: '#ffff00', bg: '#000000', text: '#ffffff', gradient: 'from-yellow-500/10 to-black' }, // Peacock
 };
 
-const DEFAULT_THEME = { accent: '#ffffff', bg: '#030303', text: '#ffffff', gradient: 'from-white/5 to-[#030303]' };
+const DEFAULT_THEME = { accent: '#ef4444', bg: '#030303', text: '#ffffff', gradient: 'from-white/5 to-[#030303]' };
 
 export const ExplorePage: React.FC<ExplorePageProps> = ({ apiKey, onMovieClick, userProfile, appRegion = "US" }) => {
     const [topMovies, setTopMovies] = useState<Movie[]>([]);
@@ -48,8 +48,6 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ apiKey, onMovieClick, 
     const activeProvider = platforms.find(p => p.provider_id === activeOtt);
     const theme = activeOtt ? (BRAND_THEMES[activeOtt] || DEFAULT_THEME) : DEFAULT_THEME;
     const regionName = REGION_NAMES[appRegion] || 'Global';
-
-    const accentText = 'text-white';
 
     useEffect(() => {
         const fetchPlatforms = async () => {
@@ -132,7 +130,7 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ apiKey, onMovieClick, 
         <div className="mb-20">
             <div className="flex items-center justify-between mb-8 px-2">
                 <h2 className="text-2xl md:text-3xl font-black text-white flex items-center gap-4">
-                    <div className={`p-2 rounded-xl bg-white/5 border border-white/10 ${accentText}`}>
+                    <div className={`p-2 rounded-xl bg-white/5 border border-white/10 ${isGoldTheme ? 'text-amber-500' : 'text-red-600'}`}>
                         <Icon size={24}/>
                     </div>
                     {title}
@@ -219,12 +217,12 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ apiKey, onMovieClick, 
                 <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-16 gap-6">
                     <div>
                         <h1 className="text-5xl md:text-7xl font-black tracking-tighter text-white">
-                            Trending <span className={accentText}>Now</span>
+                            Trending <span className={isGoldTheme ? 'text-amber-500' : 'text-red-600'}>Now</span>
                         </h1>
                         <p className="text-gray-400 mt-4 text-sm md:text-lg font-medium max-w-xl">The most watched movies and TV shows across all networks in {regionName} right now.</p>
                     </div>
                     <div className="flex items-center gap-3 bg-white/5 p-2 rounded-3xl border border-white/10 backdrop-blur-md">
-                         <div className={`p-3 rounded-2xl bg-white text-black shadow-[0_0_20px_rgba(255,255,255,0.3)]`}>
+                         <div className={`p-3 rounded-2xl ${isGoldTheme ? 'bg-amber-500 text-black' : 'bg-red-600 text-white shadow-[0_0_20px_rgba(220,38,38,0.3)]'}`}>
                             <Sparkles size={20}/>
                          </div>
                          <div className="pr-4">
