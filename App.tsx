@@ -23,7 +23,27 @@ const DEFAULT_COLLECTIONS: any = {
 
 const FRANCHISE_IDS = [ 86311, 131292, 131296, 131295, 115575, 10, 1241, 558216, 1060085, 894562, 1060096, 9485, 295, 645, 119, 121, 87359, 52984, 472535, 712282, 531241, 10194, 2150, 8354, 86066, 77816, 10593, 163313, 8265, 748, 131635, 33514, 8650, 84, 1575, 472761, 3573, 115570, 328, 8091, 8093, 528, 2344, 403374, 1570, 2155, 262, 3260, 1639, 264, 1733, 373722, 250329, 207923, 2289, 2661, 2660, 2656, 2342, 912503 ];
 
-const GENRE_COLORS: Record<string, string> = { "Action": "from-red-600 to-red-900", "Adventure": "from-orange-500 to-orange-800", "Animation": "from-pink-500 to-rose-800", "Comedy": "from-yellow-500 to-yellow-800", "Crime": "from-slate-700 to-slate-900", "Documentary": "from-emerald-600 to-emerald-900", "Drama": "from-purple-600 to-purple-900", "Family": "from-cyan-500 to-blue-800", "Fantasy": "from-indigo-500 to-indigo-900", "History": "from-amber-700 to-amber-950", "Horror": "from-gray-800 to-black", "Music": "from-fuchsia-600 to-fuchsia-900", "Mystery": "from-violet-800 to-black", "Romance": "from-rose-500 to-pink-900", "Sci-Fi": "from-teal-600 to-teal-900", "TV Movie": "from-blue-600 to-blue-900", "Thriller": "from-zinc-800 to-black", "War": "from-stone-600 to-stone-800", "Western": "from-orange-800 to-brown-900" };
+const GENRE_COLORS: Record<string, string> = { "Action": "from-zinc-800 to-black", "Adventure": "from-zinc-800 to-black", "Animation": "from-zinc-800 to-black", "Comedy": "from-zinc-800 to-black", "Crime": "from-zinc-800 to-black", "Documentary": "from-zinc-800 to-black", "Drama": "from-zinc-800 to-black", "Family": "from-zinc-800 to-black", "Fantasy": "from-zinc-800 to-black", "History": "from-zinc-800 to-black", "Horror": "from-zinc-800 to-black", "Music": "from-zinc-800 to-black", "Mystery": "from-zinc-800 to-black", "Romance": "from-zinc-800 to-black", "Sci-Fi": "from-zinc-800 to-black", "TV Movie": "from-zinc-800 to-black", "Thriller": "from-zinc-800 to-black", "War": "from-zinc-800 to-black", "Western": "from-zinc-800 to-black" };
+
+// ROUTE MAPPING
+const ROUTE_TO_CATEGORY: Record<string, string> = {
+    '/': 'All',
+    '/explore': 'Explore',
+    '/tv-shows': 'TV Shows',
+    '/live-tv': 'LiveTV',
+    '/sports': 'Sports',
+    '/anime': 'Anime',
+    '/watchlist': 'Watchlist',
+    '/favorites': 'Favorites',
+    '/history': 'History',
+    '/genres': 'Genres',
+    '/franchise': 'Franchise',
+    '/awards': 'Awards',
+    '/family': 'Family',
+    '/coming': 'Coming',
+};
+
+const CATEGORY_TO_ROUTE = Object.fromEntries(Object.entries(ROUTE_TO_CATEGORY).map(([r, c]) => [c, r]));
 
 export default function App() {
   const [apiKey, setApiKey] = useState(getTmdbKey());
@@ -82,17 +102,78 @@ export default function App() {
   const [isComparisonOpen, setIsComparisonOpen] = useState(false);
   const [comparisonBaseMovie, setComparisonBaseMovie] = useState<Movie | null>(null);
 
+  // ROUTING HANDLER
+  const navigateTo = useCallback((category: string, pathOverride?: string) => {
+    const path = pathOverride || CATEGORY_TO_ROUTE[category] || '/';
+    if (window.location.pathname !== path) {
+        window.history.pushState({ category }, '', path);
+    }
+    setSelectedCategory(category);
+    setIsSidebarOpen(false);
+    setIsBrowseOpen(false);
+    setSearchQuery("");
+  }, []);
+
+  const openMovie = useCallback((movie: Movie) => {
+    setSelectedMovie(movie);
+    const moviePath = `/movie/${movie.id}`;
+    if (window.location.pathname !== moviePath) {
+        window.history.pushState({ movieId: movie.id }, '', moviePath);
+    }
+  }, []);
+
+  const closeMovie = useCallback(() => {
+    setSelectedMovie(null);
+    const currentCatPath = CATEGORY_TO_ROUTE[selectedCategory] || '/';
+    if (window.location.pathname !== currentCatPath) {
+        window.history.pushState({ category: selectedCategory }, '', currentCatPath);
+    }
+  }, [selectedCategory]);
+
+  // Handle browser navigation (Back/Forward)
+  useEffect(() => {
+    const handlePopState = (event: PopStateEvent) => {
+      const path = window.location.pathname;
+      
+      // Match Movie Detail Route
+      const movieMatch = path.match(/^\/movie\/(\d+)/);
+      if (movieMatch) {
+          const id = parseInt(movieMatch[1]);
+          if (selectedMovie?.id !== id && apiKey) {
+              fetch(`${TMDB_BASE_URL}/movie/${id}?api_key=${apiKey}`).then(r => r.json()).then(data => {
+                  if (data?.id) setSelectedMovie(data);
+              });
+          }
+          return;
+      } else {
+          setSelectedMovie(null);
+      }
+
+      // Match Category Routes
+      const category = ROUTE_TO_CATEGORY[path] || 'All';
+      setSelectedCategory(category);
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [selectedMovie, apiKey]);
+
   // Scroll Lock Controller
   useEffect(() => {
     const isAnyModalOpen = selectedMovie || isSettingsOpen || isProfileOpen || selectedPersonId || isNotificationOpen || isComparisonOpen || isAgeModalOpen || isSidebarOpen;
-    if (isAnyModalOpen) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = 'auto';
-    }
+    document.body.style.overflow = isAnyModalOpen ? 'hidden' : 'auto';
   }, [selectedMovie, isSettingsOpen, isProfileOpen, selectedPersonId, isNotificationOpen, isComparisonOpen, isAgeModalOpen, isSidebarOpen]);
   
   const [isBrowseOpen, setIsBrowseOpen] = useState(false);
+
+  // Fix: Defined handleBrowseEnter, handleBrowseLeave, and handleBrowseAction to resolve component errors.
+  const handleBrowseEnter = () => setIsBrowseOpen(true);
+  const handleBrowseLeave = () => setIsBrowseOpen(false);
+  const handleBrowseAction = (action: () => void) => {
+      action();
+      setIsBrowseOpen(false);
+  };
+
   const searchInputRef = useRef<HTMLInputElement>(null);
   const watchlistRef = useRef<Movie[]>([]);
   const favoritesRef = useRef<Movie[]>([]);
@@ -111,9 +192,9 @@ export default function App() {
   const abortControllerRef = useRef<AbortController | null>(null);
   const isExclusive = userProfile.canWatch === true;
   const isGoldTheme = isExclusive && userProfile.theme !== 'default';
-  const accentText = isGoldTheme ? "text-amber-500" : "text-red-600";
-  const accentBg = isGoldTheme ? "bg-amber-500" : "bg-red-600";
-  const accentBgLow = isGoldTheme ? "bg-amber-500/20" : "bg-red-600/20";
+  
+  const accentText = "text-white";
+  const accentBg = "bg-white";
 
   // Shortcut Handler
   useEffect(() => {
@@ -127,7 +208,7 @@ export default function App() {
         if (isProfileOpen) return setIsProfileOpen(false);
         if (isNotificationOpen) return setIsNotificationOpen(false);
         if (isSidebarOpen) return setIsSidebarOpen(false);
-        if (selectedMovie) return setSelectedMovie(null);
+        if (selectedMovie) return closeMovie();
       }
 
       if (isTyping) return;
@@ -141,16 +222,16 @@ export default function App() {
         switch(e.key.toLowerCase()) {
           case 'h': resetToHome(); break;
           case 's': setIsSettingsOpen(true); break;
-          case 'w': resetFilters(); setSelectedCategory("Watchlist"); break;
-          case 'e': resetFilters(); setSelectedCategory("Explore"); break;
-          case 't': resetFilters(); setSelectedCategory("LiveTV"); break;
+          case 'w': resetFilters(); navigateTo("Watchlist"); break;
+          case 'e': resetFilters(); navigateTo("Explore"); break;
+          case 't': resetFilters(); navigateTo("LiveTV"); break;
         }
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isComparisonOpen, selectedPersonId, isSettingsOpen, isProfileOpen, isNotificationOpen, isSidebarOpen, selectedMovie]);
+  }, [isComparisonOpen, selectedPersonId, isSettingsOpen, isProfileOpen, isNotificationOpen, isSidebarOpen, selectedMovie, closeMovie]);
 
   const resetAuthState = useCallback(() => {
     localStorage.removeItem('movieverse_auth');
@@ -180,25 +261,11 @@ export default function App() {
   
   const resetToHome = () => {
       resetFilters();
-      setSelectedCategory("All");
+      navigateTo("All");
       setSortOption("popularity.desc");
       setFilterPeriod("all");
       setSelectedRegion("Global");
       setSelectedLanguage("All");
-  };
-
-  const handleBrowseEnter = () => {
-      setIsBrowseOpen(true);
-  };
-
-  const handleBrowseLeave = () => {
-      setIsBrowseOpen(false);
-  };
-
-  const handleBrowseAction = (action: () => void) => {
-      action();
-      setIsBrowseOpen(false);
-      setIsSidebarOpen(false);
   };
 
   useEffect(() => {
@@ -255,7 +322,6 @@ export default function App() {
                 }
                 setUserProfile(profileToSet);
              } catch (err) {
-                 console.error("Cloud fetch error", err);
                  loadLocalState();
              }
              setDataLoaded(true);
@@ -264,46 +330,37 @@ export default function App() {
         const supabase = getSupabase();
         if (supabase) {
             const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-                if (event === 'SIGNED_IN' && session) {
-                    handleSessionFound(session);
-                } else if (event === 'SIGNED_OUT') {
-                    resetAuthState();
-                    setAuthChecking(false);
-                }
+                if (event === 'SIGNED_IN' && session) handleSessionFound(session);
+                else if (event === 'SIGNED_OUT') { resetAuthState(); setAuthChecking(false); }
             });
             authListener = subscription;
             try {
                 const { data: { session } } = await supabase.auth.getSession();
-                if (session) {
-                    handleSessionFound(session);
-                } else {
+                if (session) handleSessionFound(session);
+                else {
                     const localAuth = localStorage.getItem('movieverse_auth');
-                    if (localAuth) {
-                        loadLocalState();
-                        setIsAuthenticated(true);
-                    }
+                    if (localAuth) { loadLocalState(); setIsAuthenticated(true); }
                     setAuthChecking(false);
                 }
             } catch (supaError) {
                 const localAuth = localStorage.getItem('movieverse_auth');
-                if (localAuth) {
-                    loadLocalState();
-                    setIsAuthenticated(true);
-                }
+                if (localAuth) { loadLocalState(); setIsAuthenticated(true); }
                 setAuthChecking(false);
             }
         } else {
             const localAuth = localStorage.getItem('movieverse_auth');
-            if (localAuth) {
-                loadLocalState();
-                setIsAuthenticated(true);
-            }
+            if (localAuth) { loadLocalState(); setIsAuthenticated(true); }
             setAuthChecking(false);
         }
-        const params = new URLSearchParams(window.location.search);
-        const movieId = params.get('movie');
-        if (movieId && getTmdbKey()) {
-            fetch(`${TMDB_BASE_URL}/movie/${movieId}?api_key=${getTmdbKey()}`).then(res => res.ok ? res.json() : null).then(data => { if(data?.id) setSelectedMovie(data); });
+
+        // INIT ROUTE DETECTION
+        const path = window.location.pathname;
+        const movieMatch = path.match(/^\/movie\/(\d+)/);
+        if (movieMatch && getTmdbKey()) {
+             fetch(`${TMDB_BASE_URL}/movie/${movieMatch[1]}?api_key=${getTmdbKey()}`).then(r => r.json()).then(data => { if(data?.id) setSelectedMovie(data); });
+        } else {
+             const category = ROUTE_TO_CATEGORY[path] || 'All';
+             setSelectedCategory(category);
         }
       } catch (criticalError) {
           setAuthChecking(false);
@@ -315,11 +372,8 @@ export default function App() {
 
   useEffect(() => {
       if (isAuthenticated && dataLoaded) {
-          if (!userProfile.age) {
-              setIsAgeModalOpen(true);
-          } else {
-              setIsAgeModalOpen(false);
-          }
+          if (!userProfile.age) setIsAgeModalOpen(true);
+          else setIsAgeModalOpen(false);
       }
   }, [isAuthenticated, userProfile.age, dataLoaded]);
 
@@ -378,7 +432,6 @@ export default function App() {
       }
   }, [isAuthenticated, lastNotificationId]);
 
-  // Effect to fetch logo for featuredMovie
   useEffect(() => {
     if (featuredMovie && apiKey) {
         setFeaturedLogo(null);
@@ -492,9 +545,7 @@ export default function App() {
           return res;
       } catch (err: any) {
           clearTimeout(timeoutId);
-          if (err.name === 'AbortError') {
-              if (signal && signal.aborted) throw err;
-          }
+          if (err.name === 'AbortError') { if (signal && signal.aborted) throw err; }
           if (retries <= 0) throw err;
           await new Promise(r => setTimeout(r, delay));
           return fetchWithRetry(url, signal, retries - 1, delay * 2);
@@ -525,10 +576,7 @@ export default function App() {
         const isGeneralDiscovery = !activeCountry && !activeKeyword && !tmdbCollectionId && !currentCollection && !["People", "Franchise"].includes(selectedCategory);
         if (isGeneralDiscovery) {
              if (appRegion) params.append("region", appRegion);
-             if (isStrictFilter) {
-                 params.append("certification_country", "US"); 
-                 params.append("certification.lte", maturityRating);
-             }
+             if (isStrictFilter) { params.append("certification_country", "US"); params.append("certification.lte", maturityRating); }
         }
         if (searchQuery) {
             endpoint = selectedCategory === "People" ? "/search/person" : "/search/multi";
@@ -553,18 +601,13 @@ export default function App() {
             Object.keys(colParams).forEach(key => params.append(key, colParams[key]));
             if (selectedRegion === "IN" && !colParams.with_origin_country) params.append("with_origin_country", "IN");
         } 
-        else if (selectedCategory === "People") {
-            endpoint = "/person/popular";
-        }
+        else if (selectedCategory === "People") endpoint = "/person/popular";
         else if (selectedCategory === "Franchise") {
             const ITEMS_PER_PAGE = 12;
             const start = (pageNum - 1) * ITEMS_PER_PAGE;
             const end = start + ITEMS_PER_PAGE;
             const idsToFetch = FRANCHISE_IDS.slice(start, end);
-            if (idsToFetch.length === 0) {
-                if (pageNum === 1) setFranchiseList([]);
-                setLoading(false); setHasMore(false); return;
-            }
+            if (idsToFetch.length === 0) { if (pageNum === 1) setFranchiseList([]); setLoading(false); setHasMore(false); return; }
             const promises = idsToFetch.map(id => fetchWithRetry(`${TMDB_BASE_URL}/collection/${id}?api_key=${apiKey}`, controller.signal).then(r => r.json()).catch(() => null));
             const data = await Promise.all(promises);
             const valid = data.filter(d => d && d.id);
@@ -586,34 +629,17 @@ export default function App() {
             params.set("with_original_language", "ja");
             params.append("sort_by", "popularity.desc");
         }
-        else if (selectedCategory === "Family") {
-            params.append("with_genres", "10751");
-            params.append("sort_by", "popularity.desc");
-            params.append("vote_count.gte", "25");
-        }
-        else if (selectedCategory === "Awards") {
-            params.set("sort_by", "vote_average.desc");
-            params.append("vote_count.gte", "1000");
-        }
-        else if (activeCountry) {
-            params.append("with_origin_country", activeCountry.code);
-            params.append("sort_by", "popularity.desc");
-        }
-        else if (selectedCategory === "India") {
-            params.append("with_origin_country", "IN");
-            params.append("sort_by", "popularity.desc");
-            params.append("vote_count.gte", "10");
-        }
+        else if (selectedCategory === "Family") { params.append("with_genres", "10751"); params.append("sort_by", "popularity.desc"); params.append("vote_count.gte", "25"); }
+        else if (selectedCategory === "Awards") { params.set("sort_by", "vote_average.desc"); params.append("vote_count.gte", "1000"); }
+        else if (activeCountry) { params.append("with_origin_country", activeCountry.code); params.append("sort_by", "popularity.desc"); }
+        else if (selectedCategory === "India") { params.append("with_origin_country", "IN"); params.append("sort_by", "popularity.desc"); params.append("vote_count.gte", "10"); }
         else if (selectedCategory === "Coming") {
             const today = new Date();
             const todayStr = today.toISOString().split('T')[0];
             const future = new Date(); 
             future.setFullYear(future.getFullYear() + 2);
             params.delete("region"); 
-            if (!isStrictFilter) {
-               params.delete("certification_country");
-               params.delete("certification.lte");
-            }
+            if (!isStrictFilter) { params.delete("certification_country"); params.delete("certification.lte"); }
             params.set("primary_release_date.gte", todayStr);
             params.set("primary_release_date.lte", future.toISOString().split('T')[0]);
             params.set("sort_by", "popularity.desc"); 
@@ -622,12 +648,8 @@ export default function App() {
         }
         else {
              params.append("sort_by", sortOption === 'relevance' ? 'popularity.desc' : sortOption);
-             if (sortOption !== "revenue.desc" && sortOption !== "primary_release_date.desc") {
-                 params.append("vote_count.gte", "25");
-             } else if (sortOption === "primary_release_date.desc") {
-                 params.append("vote_count.gte", "5");
-                 params.append("with_runtime.gte", "40");
-             }
+             if (sortOption !== "revenue.desc" && sortOption !== "primary_release_date.desc") params.append("vote_count.gte", "25");
+             else if (sortOption === "primary_release_date.desc") { params.append("vote_count.gte", "5"); params.append("with_runtime.gte", "40"); }
              if (sortOption === "revenue.desc") params.append("vote_count.gte", "300");
              if (selectedCategory !== "All" && GENRES_MAP[selectedCategory]) params.append("with_genres", GENRES_MAP[selectedCategory].toString());
              if (selectedRegion === "IN") params.append("with_origin_country", "IN");
@@ -640,19 +662,10 @@ export default function App() {
         let results = data.results || [];
         if (selectedCategory !== "People") {
              if (endpoint.includes("/search/multi")) results = results.filter((m: any) => m.media_type === 'movie' || m.media_type === 'tv');
-             results = results.filter((m: any) => {
-                 if (!m.poster_path) return false;
-                 if (m.media_type === 'movie' && m.runtime > 0 && m.runtime < 40 && !m.genre_ids?.includes(16)) return false; 
-                 return true;
-             });
+             results = results.filter((m: any) => { if (!m.poster_path) return false; if (m.media_type === 'movie' && m.runtime > 0 && m.runtime < 40 && !m.genre_ids?.includes(16)) return false; return true; });
              if (selectedCategory === "TV Shows" || selectedCategory === "Anime") results = results.map((m: any) => ({ ...m, media_type: 'tv', title: m.name, release_date: m.first_air_date }));
         }
-        if (results.length > 0) {
-            results = results.map((r: Movie) => {
-                const watchedItem = watchedRef.current.find(w => w.id === r.id);
-                return watchedItem ? { ...r, play_progress: watchedItem.play_progress } : r;
-            });
-        }
+        if (results.length > 0) { results = results.map((r: Movie) => { const watchedItem = watchedRef.current.find(w => w.id === r.id); return watchedItem ? { ...r, play_progress: watchedItem.play_progress } : r; }); }
         const finalResults = (selectedCategory === "Coming") ? results : (selectedCategory === "People" ? results : sortMovies(results, sortOption));
         if (isLoadMore) {
             setMovies(prev => {
@@ -667,23 +680,17 @@ export default function App() {
             } else setFeaturedMovie(null);
         }
         setHasMore(data.page < data.total_pages);
-    } catch (error: any) { 
-        if (error.name !== 'AbortError') {
-            setFetchError(true);
-        }
-    } finally { 
-        if (!controller.signal.aborted) setLoading(false); 
-    }
+    } catch (error: any) { if (error.name !== 'AbortError') setFetchError(true); } finally { if (!controller.signal.aborted) setLoading(false); }
   }, [apiKey, searchQuery, selectedCategory, sortOption, appRegion, currentCollection, filterPeriod, selectedLanguage, selectedRegion, userProfile, maturityRating, sortMovies, tmdbCollectionId, activeKeyword, activeCountry, comingFilter]);
 
   useEffect(() => { const timeout = setTimeout(() => fetchMovies(1, false), searchQuery ? 800 : 300); return () => clearTimeout(timeout); }, [fetchMovies, searchQuery]);
   useEffect(() => { const fetchSuggestions = async () => { if (searchQuery.length > 3) { try { const sugs = await getSearchSuggestions(searchQuery); setSearchSuggestions(sugs); setShowSuggestions(true); } catch (e) { console.error(e); } } }; const timeout = setTimeout(fetchSuggestions, 500); return () => clearTimeout(timeout); }, [searchQuery]);
 
   const handleLoadMore = () => { const nextPage = page + 1; setPage(nextPage); fetchMovies(nextPage, true); };
-  const handleCollectionClick = (key: string) => { resetFilters(); setCurrentCollection(key); setSelectedCategory("Collection"); setIsSidebarOpen(false); };
-  const handleTmdbCollectionClick = (id: number) => { setSelectedMovie(null); resetFilters(); setTmdbCollectionId(id); setSelectedCategory("Deep Dive"); setIsSidebarOpen(false); };
-  const handleKeywordClick = (keyword: Keyword) => { setSelectedMovie(null); resetFilters(); setActiveKeyword(keyword); setSelectedCategory("Deep Dive"); setIsSidebarOpen(false); };
-  const handleCountryClick = (country: { code: string, name: string }) => { resetFilters(); setActiveCountry(country); setSelectedCategory("Countries"); setIsSidebarOpen(false); };
+  const handleCollectionClick = (key: string) => { resetFilters(); setCurrentCollection(key); navigateTo("Collection"); };
+  const handleTmdbCollectionClick = (id: number) => { closeMovie(); resetFilters(); setTmdbCollectionId(id); navigateTo("Deep Dive"); };
+  const handleKeywordClick = (keyword: Keyword) => { closeMovie(); resetFilters(); setActiveKeyword(keyword); navigateTo("Deep Dive"); };
+  const handleCountryClick = (country: { code: string, name: string }) => { resetFilters(); setActiveCountry(country); navigateTo("Countries"); };
   const handleSearchSubmit = (query: string) => { resetFilters(); setSearchQuery(query); addToSearchHistory(query); setShowSuggestions(false); setIsSidebarOpen(false); };
   
   const observer = useRef<IntersectionObserver | null>(null);
@@ -702,20 +709,20 @@ export default function App() {
 
   const browseOptions = [
       { id: "Trending", icon: TrendingUp, label: "Trending", action: resetToHome },
-      { id: "Awards", icon: Award, label: "Awards", action: () => { resetFilters(); setSelectedCategory("Awards"); } },
-      { id: "Anime", icon: Ghost, label: "Anime", action: () => { resetFilters(); setSelectedCategory("Anime"); } },
-      { id: "Sports", icon: Trophy, label: "Sports", action: () => { resetFilters(); setSelectedCategory("Sports"); } },
-      { id: "Family", icon: Baby, label: "Family", action: () => { resetFilters(); setSelectedCategory("Family"); } },
-      { id: "TV Shows", icon: Tv, label: "TV Shows", action: () => { resetFilters(); setSelectedCategory("TV Shows"); } },
-      { id: "Coming", icon: CalendarDays, label: "Coming Soon", action: () => { resetFilters(); setSelectedCategory("Coming"); } },
-      { id: "Genres", icon: Clapperboard, label: "Genres", action: () => { resetFilters(); setSelectedCategory("Genres"); } },
+      { id: "Awards", icon: Award, label: "Awards", action: () => { resetFilters(); navigateTo("Awards"); } },
+      { id: "Anime", icon: Ghost, label: "Anime", action: () => { resetFilters(); navigateTo("Anime"); } },
+      { id: "Sports", icon: Trophy, label: "Sports", action: () => { resetFilters(); navigateTo("Sports"); } },
+      { id: "Family", icon: Baby, label: "Family", action: () => { resetFilters(); navigateTo("Family"); } },
+      { id: "TV Shows", icon: Tv, label: "TV Shows", action: () => { resetFilters(); navigateTo("TV Shows"); } },
+      { id: "Coming", icon: CalendarDays, label: "Coming Soon", action: () => { resetFilters(); navigateTo("Coming"); } },
+      { id: "Genres", icon: Clapperboard, label: "Genres", action: () => { resetFilters(); navigateTo("Genres"); } },
   ];
 
   if (authChecking) return <div className="fixed inset-0 bg-black flex items-center justify-center"><LogoLoader /></div>;
   if (!isAuthenticated) return (<> <LoginPage onLogin={handleLogin} onOpenSettings={() => setIsSettingsOpen(true)} /> <SettingsPage isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} apiKey={apiKey} setApiKey={(k) => saveSettings(k)} geminiKey={process.env.API_KEY || ""} setGeminiKey={() => {}} maturityRating={maturityRating} setMaturityRating={setMaturityRating} profile={userProfile} onUpdateProfile={setUserProfile} onLogout={handleLogout} searchHistory={searchHistory} setSearchHistory={(h) => { setSearchHistory(h); localStorage.setItem('movieverse_search_history', JSON.stringify(h)); }} watchedMovies={watched} setWatchedMovies={(m) => { setWatched(m); localStorage.setItem('movieverse_watched', JSON.stringify(m)); }} /> </>);
 
   return (
-    <div className="min-h-screen bg-[#030303] text-white font-sans selection:bg-amber-500/30 selection:text-white">
+    <div className="min-h-screen bg-[#030303] text-white font-sans selection:bg-white selection:text-black">
       {/* Dynamic Sidebar */}
       <div className={`fixed inset-y-0 left-0 z-[100] w-72 bg-black/95 backdrop-blur-2xl border-r border-white/10 transform transition-transform duration-500 ease-[cubic-bezier(0.33,1,0.68,1)] ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
           <div className="flex flex-col h-full p-6">
@@ -748,38 +755,38 @@ export default function App() {
                       <button onClick={resetToHome} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-all ${selectedCategory === "All" ? "bg-white/10 text-white" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>
                           <Home size={18}/> Home <span className="ml-auto text-[8px] opacity-40 hidden lg:inline">Alt+H</span>
                       </button>
-                      <button onClick={() => { resetFilters(); setSelectedCategory("Explore"); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-all ${selectedCategory === "Explore" ? "bg-white/10 text-white" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>
+                      <button onClick={() => { resetFilters(); navigateTo("Explore"); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-all ${selectedCategory === "Explore" ? "bg-white/10 text-white" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>
                           <Compass size={18}/> Explore <span className="ml-auto text-[8px] opacity-40 hidden lg:inline">Alt+E</span>
                       </button>
                   </div>
 
                   <div className="space-y-1">
                       <p className="px-3 text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Entertainment</p>
-                      <button onClick={() => { resetFilters(); setSelectedCategory("TV Shows"); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-all ${selectedCategory === "TV Shows" ? "bg-white/10 text-white" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>
+                      <button onClick={() => { resetFilters(); navigateTo("TV Shows"); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-all ${selectedCategory === "TV Shows" ? "bg-white/10 text-white" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>
                           <Tv size={18}/> TV Shows
                       </button>
-                      <button onClick={() => { resetFilters(); setSelectedCategory("LiveTV"); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-all ${selectedCategory === "LiveTV" ? "bg-white/10 text-white" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>
+                      <button onClick={() => { resetFilters(); navigateTo("LiveTV"); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-all ${selectedCategory === "LiveTV" ? "bg-white/10 text-white" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>
                           <Radio size={18}/> Live TV <span className="ml-auto text-[8px] opacity-40 hidden lg:inline">Alt+T</span>
                       </button>
-                      <button onClick={() => { resetFilters(); setSelectedCategory("Sports"); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-all ${selectedCategory === "Sports" ? "bg-white/10 text-white" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>
+                      <button onClick={() => { resetFilters(); navigateTo("Sports"); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-all ${selectedCategory === "Sports" ? "bg-white/10 text-white" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>
                           <Trophy size={18}/> Sports
                       </button>
-                      <button onClick={() => { resetFilters(); setSelectedCategory("Franchise"); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-all ${selectedCategory === "Franchise" ? "bg-white/10 text-white" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>
+                      <button onClick={() => { resetFilters(); navigateTo("Franchise"); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-all ${selectedCategory === "Franchise" ? "bg-white/10 text-white" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>
                           <Layers size={18}/> Franchise Explorer
                       </button>
                   </div>
 
                   <div className="space-y-1">
                       <p className="px-3 text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">My Library</p>
-                      <button onClick={() => { resetFilters(); setSelectedCategory("Watchlist"); }} className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-bold transition-all ${selectedCategory === "Watchlist" ? "bg-white/10 text-white" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>
+                      <button onClick={() => { resetFilters(); navigateTo("Watchlist"); }} className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-bold transition-all ${selectedCategory === "Watchlist" ? "bg-white/10 text-white" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>
                           <div className="flex items-center gap-3"><Bookmark size={18}/> Watchlist <span className="text-[8px] opacity-40 hidden lg:inline ml-1">Alt+W</span></div>
                           <span className="text-[10px] bg-white/5 px-1.5 rounded">{watchlist.length}</span>
                       </button>
-                      <button onClick={() => { resetFilters(); setSelectedCategory("Favorites"); }} className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-bold transition-all ${selectedCategory === "Favorites" ? "bg-white/10 text-white" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>
+                      <button onClick={() => { resetFilters(); navigateTo("Favorites"); }} className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-bold transition-all ${selectedCategory === "Favorites" ? "bg-white/10 text-white" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>
                           <div className="flex items-center gap-3"><Heart size={18}/> Favorites</div>
                           <span className="text-[10px] bg-white/5 px-1.5 rounded">{favorites.length}</span>
                       </button>
-                      <button onClick={() => { resetFilters(); setSelectedCategory("History"); }} className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-bold transition-all ${selectedCategory === "History" ? "bg-white/10 text-white" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>
+                      <button onClick={() => { resetFilters(); navigateTo("History"); }} className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-bold transition-all ${selectedCategory === "History" ? "bg-white/10 text-white" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>
                           <div className="flex items-center gap-3"><History size={18}/> History</div>
                           <span className="text-[10px] bg-white/5 px-1.5 rounded">{watched.length}</span>
                       </button>
@@ -791,7 +798,7 @@ export default function App() {
                           href="https://median.co/share/eeewoqx#apk" 
                           target="_blank" 
                           rel="noopener noreferrer" 
-                          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold text-amber-500 hover:bg-amber-500/10 transition-all border border-amber-500/10"
+                          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold text-white hover:bg-white/10 transition-all border border-white/10"
                       >
                           <Download size={18}/> Download App
                       </a>
@@ -817,7 +824,7 @@ export default function App() {
           />
       )}
 
-      <nav className={`fixed top-0 left-0 right-0 z-[60] bg-black/90 backdrop-blur-xl border-b h-16 flex items-center justify-center px-4 md:px-6 transition-all duration-300 ${isGoldTheme ? 'border-amber-500/10' : 'border-white/5'}`}>
+      <nav className={`fixed top-0 left-0 right-0 z-[60] bg-black/90 backdrop-blur-xl border-b h-16 flex items-center justify-center px-4 md:px-6 transition-all duration-300 border-white/5`}>
         <div className="flex items-center justify-between w-full max-w-7xl">
             <div className="flex items-center gap-4 md:gap-8">
                 <button 
@@ -829,23 +836,23 @@ export default function App() {
 
                 <div className="flex items-center gap-2 cursor-pointer group" onClick={resetToHome}>
                     <div className="relative group">
-                        <BrandLogo className={`${accentText} relative z-10 transition-transform duration-500 group-hover:rotate-12`} accentColor={accentText} />
-                        <div className={`absolute inset-0 blur-lg opacity-50 group-hover:opacity-80 transition-opacity duration-500 ${isGoldTheme ? 'bg-amber-500' : 'bg-red-600'}`}></div>
+                        <BrandLogo size={32} accentColor={accentText} />
+                        <div className={`absolute inset-0 blur-lg opacity-30 group-hover:opacity-60 transition-opacity duration-500 bg-white`}></div>
                     </div>
                     <div className="flex flex-col leading-none">
                         <span className="text-lg font-bold tracking-tight text-white hidden sm:block">Movie<span className={accentText}>Verse</span></span>
-                        {isExclusive && <span className={`text-[9px] uppercase tracking-[0.2em] font-bold hidden sm:block animate-pulse ${isGoldTheme ? 'text-amber-500' : 'text-red-600'}`}>Exclusive</span>}
+                        {isExclusive && <span className={`text-[9px] uppercase tracking-[0.2em] font-bold hidden sm:block animate-pulse text-white opacity-60`}>Exclusive</span>}
                     </div>
                 </div>
 
                 <div className="hidden lg:flex items-center gap-2">
-                    <button onClick={resetToHome} className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold transition-all ${selectedCategory === "All" && !searchQuery ? "bg-white/10 text-white" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>
+                    <button onClick={resetToHome} className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold transition-all ${selectedCategory === "All" && !searchQuery ? "bg-white text-black" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>
                         <Home size={18} /> Home
                     </button>
-                    <button onClick={() => { resetFilters(); setSelectedCategory("Explore"); }} className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold transition-all ${selectedCategory === "Explore" ? "bg-white/10 text-white" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>
+                    <button onClick={() => { resetFilters(); navigateTo("Explore"); }} className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold transition-all ${selectedCategory === "Explore" ? "bg-white text-black" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>
                         <Compass size={18} /> Explore
                     </button>
-                    <button onClick={() => { resetFilters(); setSelectedCategory("LiveTV"); }} className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold transition-all ${selectedCategory === "LiveTV" ? "bg-white/10 text-white" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>
+                    <button onClick={() => { resetFilters(); navigateTo("LiveTV"); }} className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold transition-all ${selectedCategory === "LiveTV" ? "bg-white text-black" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>
                         <Radio size={18} /> Live TV
                     </button>
                     
@@ -854,7 +861,7 @@ export default function App() {
                         onMouseEnter={handleBrowseEnter}
                         onMouseLeave={handleBrowseLeave}
                     >
-                        <button className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold transition-all ${["Genres", "Awards", "Anime", "Sports", "Family", "TV Shows", "Coming"].includes(selectedCategory) ? "bg-white/10 text-white" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>
+                        <button className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold transition-all ${["Genres", "Awards", "Anime", "Sports", "Family", "TV Shows", "Coming"].includes(selectedCategory) ? "bg-white text-black" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>
                             <LayoutGrid size={18} /> Browse
                         </button>
                         
@@ -866,7 +873,7 @@ export default function App() {
                                         <button 
                                             key={opt.id}
                                             onClick={() => handleBrowseAction(opt.action)}
-                                            className={`flex flex-col items-center justify-center gap-1 p-3 rounded-xl hover:bg-white/10 transition-colors ${selectedCategory === opt.id ? 'bg-white/5 text-white' : 'text-gray-400 hover:text-white'}`}
+                                            className={`flex flex-col items-center justify-center gap-1 p-3 rounded-xl hover:bg-white/10 transition-colors ${selectedCategory === opt.id ? 'bg-white text-black' : 'text-gray-400 hover:text-white'}`}
                                         >
                                             <opt.icon size={20}/>
                                             <span className="text-[10px] font-bold">{opt.label}</span>
@@ -905,9 +912,9 @@ export default function App() {
                     </button>
                     <button onClick={() => setIsNotificationOpen(true)} className="relative text-gray-400 hover:text-white transition-colors p-2 hover:bg-white/10 rounded-full">
                         <Bell size={20} />
-                        {hasUnread && <span className={`absolute top-2 right-2 w-2 h-2 rounded-full ${isGoldTheme ? 'bg-amber-500' : 'bg-red-600'}`}></span>}
+                        {hasUnread && <span className={`absolute top-2 right-2 w-2 h-2 rounded-full bg-white`}></span>}
                     </button>
-                    <button onClick={() => setIsProfileOpen(true)} className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white shadow-lg transition-transform overflow-hidden hover:scale-105 ${userProfile.avatarBackground || (isGoldTheme ? 'bg-gradient-to-br from-amber-500 to-yellow-900 shadow-amber-900/40' : 'bg-gradient-to-br from-red-600 to-red-900 shadow-red-900/40')}`}>
+                    <button onClick={() => setIsProfileOpen(true)} className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-black shadow-lg transition-transform overflow-hidden hover:scale-105 bg-white`}>
                         {userProfile.avatar ? (<img key={userProfile.avatar} src={userProfile.avatar} alt={userProfile.name} className="w-full h-full object-cover" />) : (userProfile.name.charAt(0).toUpperCase())}
                     </button>
                 </div>
@@ -917,13 +924,13 @@ export default function App() {
 
       <div className="flex pt-16">
         <main className="flex-1 min-h-[calc(100vh-4rem)] w-full">
-           {selectedCategory === "LiveTV" ? ( <LiveTV userProfile={userProfile} /> ) : selectedCategory === "Sports" ? ( <LiveSports userProfile={userProfile} /> ) : selectedCategory === "Explore" ? ( <ExplorePage apiKey={apiKey} onMovieClick={setSelectedMovie} userProfile={userProfile} /> ) : selectedCategory === "Genres" ? (
+           {selectedCategory === "LiveTV" ? ( <LiveTV userProfile={userProfile} /> ) : selectedCategory === "Sports" ? ( <LiveSports userProfile={userProfile} /> ) : selectedCategory === "Explore" ? ( <ExplorePage apiKey={apiKey} onMovieClick={openMovie} userProfile={userProfile} /> ) : selectedCategory === "Genres" ? (
                <div className="animate-in fade-in slide-in-from-bottom-4">
                    <div className="p-8 md:p-12">
                        <h1 className="text-4xl md:text-5xl font-black text-white tracking-tight mb-2">All Genres</h1>
                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6 mt-8">
                            {GENRES_LIST.map(genre => (
-                               <div key={genre} onClick={() => { resetFilters(); setSelectedCategory(genre); }} className={`relative h-40 md:h-48 rounded-2xl overflow-hidden cursor-pointer group shadow-2xl transition-all duration-500 hover:scale-[1.02] hover:shadow-white/5`}>
+                               <div key={genre} onClick={() => { resetFilters(); navigateTo(genre); }} className={`relative h-40 md:h-48 rounded-2xl overflow-hidden cursor-pointer group shadow-2xl transition-all duration-500 hover:scale-[1.02] hover:shadow-white/5`}>
                                    <div className={`absolute inset-0 bg-gradient-to-br ${GENRE_COLORS[genre] || "from-gray-700 to-black"} opacity-80 group-hover:opacity-100 transition-opacity duration-500`}></div>
                                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent"></div>
                                    <div className="absolute bottom-0 left-0 p-6 w-full">
@@ -955,7 +962,7 @@ export default function App() {
                                    <p className="text-gray-400 text-xs line-clamp-2 leading-relaxed">{franchise.overview}</p>
                                    <div className="mt-3 flex items-center justify-between">
                                        <span className="text-[10px] font-bold px-2 py-0.5 bg-white/10 rounded text-gray-300 uppercase tracking-widest">{franchise.parts?.length || 0} Films</span>
-                                       <div className={`p-1.5 rounded-full ${accentBg} text-white`}>
+                                       <div className={`p-1.5 rounded-full ${accentBg} text-black`}>
                                            <ChevronRight size={14}/>
                                        </div>
                                    </div>
@@ -974,7 +981,7 @@ export default function App() {
                                    <div key={date} className="animate-in slide-in-from-right-4 duration-500 group/timeline">
                                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 mt-4">
                                            {dateMovies.map((movie) => (
-                                               <div key={movie.id} onClick={() => setSelectedMovie(movie)} className="group cursor-pointer relative">
+                                               <div key={movie.id} onClick={() => openMovie(movie)} className="group cursor-pointer relative">
                                                    <div className="aspect-[2/3] rounded-xl overflow-hidden bg-gray-900 mb-3 relative shadow-lg">
                                                        <img src={movie.poster_path ? `${TMDB_IMAGE_BASE}${movie.poster_path}` : "https://placehold.co/300x450"} alt={movie.title} className="w-full h-full object-cover" loading="lazy" />
                                                    </div>
@@ -1003,7 +1010,7 @@ export default function App() {
                                    </div>
 
                                    <div className="absolute bottom-0 left-0 w-full p-6 md:p-12 z-20 flex flex-col items-start gap-4 md:max-w-4xl animate-in slide-in-from-bottom-10 duration-700">
-                                       <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-widest ${isGoldTheme ? 'bg-amber-500 text-black' : 'bg-red-600 text-white'}`}>
+                                       <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-widest bg-white text-black`}>
                                            Featured
                                        </span>
                                        
@@ -1011,7 +1018,7 @@ export default function App() {
                                            <img 
                                               src={`${TMDB_IMAGE_BASE}${featuredLogo}`} 
                                               alt={featuredMovie.title || featuredMovie.name} 
-                                              className="max-h-24 md:max-h-36 max-w-[80%] md:max-w-[50%] object-contain object-left mb-2 drop-shadow-2xl" 
+                                              className="max-h-24 md:max-h-36 max-w-[80%] md:max-w-[50%] object-contain object-left mb-2 drop-shadow-2xl brightness-0 invert" 
                                            />
                                        ) : (
                                           <h1 className="text-4xl md:text-6xl font-black text-white leading-tight drop-shadow-2xl">
@@ -1034,14 +1041,14 @@ export default function App() {
                                        <div className="flex flex-row items-center gap-3 w-full sm:w-auto mt-2">
                                            {isExclusive && (
                                                <button 
-                                                   onClick={() => setSelectedMovie(featuredMovie)}
-                                                   className={`flex-1 sm:flex-none px-2 py-3 sm:px-8 sm:py-3.5 text-sm sm:text-base rounded-xl font-bold flex items-center justify-center gap-3 transition-all hover:scale-105 active:scale-95 shadow-xl ${isGoldTheme ? 'bg-amber-500 text-black hover:bg-amber-400' : 'bg-white text-black hover:bg-gray-200'}`}
+                                                   onClick={() => openMovie(featuredMovie)}
+                                                   className={`flex-1 sm:flex-none px-2 py-3 sm:px-8 sm:py-3.5 text-sm sm:text-base rounded-xl font-bold flex items-center justify-center gap-3 transition-all hover:scale-105 active:scale-95 shadow-xl bg-white text-black hover:bg-gray-200`}
                                                >
                                                    <PlayCircle size={20} fill="currentColor" /> Watch Now
                                                </button>
                                            )}
                                            <button 
-                                               onClick={() => setSelectedMovie(featuredMovie)}
+                                               onClick={() => openMovie(featuredMovie)}
                                                className="flex-1 sm:flex-none px-2 py-3 sm:px-8 sm:py-3.5 text-sm sm:text-base rounded-xl font-bold flex items-center justify-center gap-3 bg-white/10 hover:bg-white/20 backdrop-blur-md text-white transition-all hover:scale-105 active:scale-95 border border-white/10"
                                            >
                                                <Info size={20}/> More Info
@@ -1071,9 +1078,9 @@ export default function App() {
                                                 { label: 'Top Rated', value: 'vote_average.desc' },
                                                 { label: 'Revenue', value: 'revenue.desc' }
                                             ].map(opt => (
-                                                <button key={opt.value} onClick={() => setSortOption(opt.value)} className={`w-full text-left px-3 py-2 text-xs font-medium rounded-lg transition-colors flex items-center justify-between ${sortOption === opt.value ? 'bg-white/10 text-white' : 'text-gray-400 hover:bg-white/5 hover:text-white'}`}>
+                                                <button key={opt.value} onClick={() => setSortOption(opt.value)} className={`w-full text-left px-3 py-2 text-xs font-medium rounded-lg transition-colors flex items-center justify-between ${sortOption === opt.value ? 'bg-white text-black' : 'text-gray-400 hover:bg-white/5 hover:text-white'}`}>
                                                     {opt.label}
-                                                    {sortOption === opt.value && <Check size={12} className={accentText}/>}
+                                                    {sortOption === opt.value && <Check size={12}/>}
                                                 </button>
                                             ))}
                                         </div>
@@ -1087,9 +1094,9 @@ export default function App() {
                                         <div className="absolute top-full left-0 w-full h-2 bg-transparent pointer-events-auto opacity-0 group-hover:block hidden"></div>
                                         <div className="absolute top-full right-0 mt-2 w-48 bg-[#1a1a1a]/95 backdrop-blur-xl border border-white/10 rounded-xl overflow-hidden shadow-2xl opacity-0 group-hover:opacity-100 scale-95 group-hover:scale-100 pointer-events-none group-hover:pointer-events-auto transition-all origin-top-right z-50 max-h-60 overflow-y-auto custom-scrollbar p-1">
                                             {['Global', 'US', 'IN', 'JP', 'KR', 'GB', 'FR', 'DE'].map(region => (
-                                                <button key={region} onClick={() => setSelectedRegion(region)} className={`w-full text-left px-3 py-2 text-xs font-medium rounded-lg transition-colors flex items-center justify-between ${selectedRegion === region ? 'bg-white/10 text-white' : 'text-gray-400 hover:bg-white/5 hover:text-white'}`}>
+                                                <button key={region} onClick={() => setSelectedRegion(region)} className={`w-full text-left px-3 py-2 text-xs font-medium rounded-lg transition-colors flex items-center justify-between ${selectedRegion === region ? 'bg-white text-black' : 'text-gray-400 hover:bg-white/5 hover:text-white'}`}>
                                                     {region === 'Global' ? 'Global' : region === 'IN' ? 'India' : region}
-                                                    {selectedRegion === region && <Check size={12} className={accentText}/>}
+                                                    {selectedRegion === region && <Check size={12}/>}
                                                 </button>
                                             ))}
                                         </div>
@@ -1103,9 +1110,9 @@ export default function App() {
                                         <div className="absolute top-full left-0 w-full h-2 bg-transparent pointer-events-auto opacity-0 group-hover:block hidden"></div>
                                         <div className="absolute top-full right-0 mt-2 w-48 bg-[#1a1a1a]/95 backdrop-blur-xl border border-white/10 rounded-xl overflow-hidden shadow-2xl opacity-0 group-hover:opacity-100 scale-95 group-hover:scale-100 pointer-events-none group-hover:pointer-events-auto transition-all origin-top-right z-50 max-h-60 overflow-y-auto custom-scrollbar p-1">
                                             {['All', 'en', 'hi', 'ja', 'ko', 'es', 'fr'].map(lang => (
-                                                <button key={lang} onClick={() => setSelectedLanguage(lang)} className={`w-full text-left px-3 py-2 text-xs font-medium rounded-lg transition-colors flex items-center justify-between ${selectedLanguage === lang ? 'bg-white/10 text-white' : 'text-gray-400 hover:bg-white/5 hover:text-white'}`}>
+                                                <button key={lang} onClick={() => setSelectedLanguage(lang)} className={`w-full text-left px-3 py-2 text-xs font-medium rounded-lg transition-colors flex items-center justify-between ${selectedLanguage === lang ? 'bg-white text-black' : 'text-gray-400 hover:bg-white/5 hover:text-white'}`}>
                                                     {lang === 'All' ? 'All Languages' : lang === 'en' ? 'English' : lang === 'hi' ? 'Hindi' : lang.toUpperCase()}
-                                                    {selectedLanguage === lang && <Check size={12} className={accentText}/>}
+                                                    {selectedLanguage === lang && <Check size={12}/>}
                                                 </button>
                                             ))}
                                         </div>
@@ -1114,14 +1121,14 @@ export default function App() {
                            </div>
 
                            <div className="px-4 md:px-12 py-8 space-y-8 relative z-10">
-                               <PosterMarquee movies={!searchQuery && selectedCategory === "All" && !currentCollection && movies.length > 0 ? movies : []} onMovieClick={setSelectedMovie} />
+                               <PosterMarquee movies={!searchQuery && selectedCategory === "All" && !currentCollection && movies.length > 0 ? movies : []} onMovieClick={openMovie} />
                                
                                {fetchError && !loading && movies.length === 0 && (
                                     <div className="flex flex-col items-center justify-center py-20 text-center animate-in fade-in">
-                                        <CloudOff size={48} className="text-red-500 mb-4 opacity-80"/>
+                                        <CloudOff size={48} className="text-white mb-4 opacity-80"/>
                                         <h3 className="text-xl font-bold text-white mb-2">Connection Issues</h3>
                                         <p className="text-gray-400 mb-6 max-w-md">We're having trouble reaching the movie database. Your internet might be unstable.</p>
-                                        <button onClick={() => fetchMovies(1, false)} className="flex items-center gap-2 px-6 py-2 bg-white/10 hover:bg-white/20 rounded-full text-white font-bold transition-all active:scale-95">
+                                        <button onClick={() => fetchMovies(1, false)} className="flex items-center gap-2 px-6 py-2 bg-white text-black rounded-full font-bold transition-all active:scale-95">
                                             <RefreshCcw size={16}/> Retry Connection
                                         </button>
                                     </div>
@@ -1133,7 +1140,7 @@ export default function App() {
                                             {selectedCategory !== "People" ? ( 
                                                 <MovieCard 
                                                     movie={movie} 
-                                                    onClick={setSelectedMovie} 
+                                                    onClick={openMovie} 
                                                     isWatched={watched.some(m => m.id === movie.id)} 
                                                     onToggleWatched={handleToggleWatched} 
                                                 /> 
@@ -1163,7 +1170,7 @@ export default function App() {
       {selectedMovie && ( 
         <MoviePage 
             movie={selectedMovie} 
-            onClose={() => setSelectedMovie(null)} 
+            onClose={closeMovie} 
             apiKey={apiKey} 
             onPersonClick={setSelectedPersonId} 
             onToggleWatchlist={(m) => toggleList(watchlist, setWatchlist, 'movieverse_watchlist', m)} 
@@ -1172,7 +1179,7 @@ export default function App() {
             isFavorite={favorites.some(m => m.id === selectedMovie.id)} 
             onToggleWatched={handleToggleWatched} 
             isWatched={watched.some(m => m.id === selectedMovie.id)} 
-            onSwitchMovie={setSelectedMovie} 
+            onSwitchMovie={openMovie} 
             onOpenListModal={() => {}} 
             userProfile={userProfile} 
             onKeywordClick={handleKeywordClick} 
@@ -1184,7 +1191,7 @@ export default function App() {
       )}
       
       <ProfilePage isOpen={isProfileOpen} onClose={() => setIsProfileOpen(false)} profile={userProfile} onSave={(p) => { setUserProfile(p); localStorage.setItem('movieverse_profile', JSON.stringify(p)); }} />
-      <PersonPage personId={selectedPersonId || 0} onClose={() => setSelectedPersonId(null)} apiKey={apiKey} onMovieClick={(m) => { setSelectedPersonId(null); setTimeout(() => setSelectedMovie(m), 300); }} />
+      <PersonPage personId={selectedPersonId || 0} onClose={() => setSelectedPersonId(null)} apiKey={apiKey} onMovieClick={(m) => { setSelectedPersonId(null); setTimeout(() => openMovie(m), 300); }} />
       <ComparisonModal isOpen={isComparisonOpen} onClose={() => setIsComparisonOpen(false)} baseMovie={comparisonBaseMovie} apiKey={apiKey} />
       <SettingsPage isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} apiKey={apiKey} setApiKey={(k) => saveSettings(k)} geminiKey={process.env.API_KEY || ""} setGeminiKey={() => {}} maturityRating={maturityRating} setMaturityRating={setMaturityRating} profile={userProfile} onUpdateProfile={setUserProfile} onLogout={handleLogout} searchHistory={searchHistory} setSearchHistory={(h) => { setSearchHistory(h); localStorage.setItem('movieverse_search_history', JSON.stringify(h)); }} watchedMovies={watched} setWatchedMovies={(m) => { setWatched(m); localStorage.setItem('movieverse_watched', JSON.stringify(m)); }} />
       <NotificationModal isOpen={isNotificationOpen} onClose={() => setIsNotificationOpen(false)} onUpdate={checkUnreadNotifications} userProfile={userProfile} />
@@ -1192,3 +1199,5 @@ export default function App() {
     </div>
   );
 }
+
+function handleLogin(profile?: UserProfile) { localStorage.setItem('movieverse_auth', 'true'); window.location.reload(); }
