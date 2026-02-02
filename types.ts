@@ -244,7 +244,6 @@ export interface Provider {
 
 export interface UserSettings {
     tmdbKey?: string;
-    geminiKey?: string;
 }
 
 export interface UserProfile {
