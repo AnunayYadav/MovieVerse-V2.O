@@ -5,18 +5,14 @@ import { safeEnv } from '../components/Shared';
 
 let supabaseInstance: SupabaseClient | null = null;
 
-// Hardcoded fallbacks REMOVED for production security.
-const DEFAULT_SUPABASE_URL = "";
-const DEFAULT_SUPABASE_KEY = "";
-
 export const getSupabase = (): SupabaseClient | null => {
     if (supabaseInstance) return supabaseInstance;
 
     const envUrl = safeEnv('VITE_SUPABASE_URL') || safeEnv('REACT_APP_SUPABASE_URL') || safeEnv('SUPABASE_URL');
     const envKey = safeEnv('VITE_SUPABASE_KEY') || safeEnv('REACT_APP_SUPABASE_KEY') || safeEnv('SUPABASE_KEY');
 
-    const url = localStorage.getItem('movieverse_supabase_url') || envUrl || DEFAULT_SUPABASE_URL;
-    const key = localStorage.getItem('movieverse_supabase_key') || envKey || DEFAULT_SUPABASE_KEY;
+    const url = localStorage.getItem('movieverse_supabase_url') || envUrl;
+    const key = localStorage.getItem('movieverse_supabase_key') || envKey;
 
     if (url && key) {
         try {

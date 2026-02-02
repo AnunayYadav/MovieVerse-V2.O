@@ -21,15 +21,12 @@ export const safeEnv = (key: string) => {
   return "";
 };
 
-// Hardcoded fallbacks REMOVED for production security.
-export const HARDCODED_TMDB_KEY = "";
-
 export const getTmdbKey = (): string => {
   return localStorage.getItem('movieverse_tmdb_key') || 
          safeEnv('VITE_TMDB_API_KEY') || 
          safeEnv('REACT_APP_TMDB_API_KEY') || 
          safeEnv('TMDB_API_KEY') || 
-         HARDCODED_TMDB_KEY;
+         "";
 };
 
 export const getWatchmodeKey = (): string => {
