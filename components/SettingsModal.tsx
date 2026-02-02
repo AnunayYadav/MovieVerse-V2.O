@@ -10,8 +10,6 @@ interface SettingsPageProps {
     onClose: () => void;
     apiKey: string;
     setApiKey: (key: string) => void;
-    geminiKey: string;
-    setGeminiKey: (key: string) => void;
     maturityRating: MaturityRating;
     setMaturityRating: (r: MaturityRating) => void;
     profile: UserProfile;

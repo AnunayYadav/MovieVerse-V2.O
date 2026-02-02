@@ -32,11 +32,6 @@ export const getTmdbKey = (): string => {
          HARDCODED_TMDB_KEY;
 };
 
-// Gemini API Key must be obtained exclusively from process.env.API_KEY
-export const getGeminiKey = (): string => {
-  return process.env.API_KEY || "";
-};
-
 export const getWatchmodeKey = (): string => {
   return safeEnv('VITE_WATCHMODE_API_KEY') || safeEnv('WATCHMODE_API_KEY') || "";
 };
