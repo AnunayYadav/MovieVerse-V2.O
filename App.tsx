@@ -292,6 +292,15 @@ export default function App() {
                 }
                 setAuthChecking(false);
             }
+
+            // Daily Keep-Alive Ping for Supabase
+            const lastPing = localStorage.getItem('movieverse_supabase_ping');
+            const todayStr = new Date().toDateString();
+            if (lastPing !== todayStr) {
+                supabase.from('user_data').select('id').limit(1).then(({ error }) => {
+                    if (!error) localStorage.setItem('movieverse_supabase_ping', todayStr);
+                });
+            }
         } else {
             const localAuth = localStorage.getItem('movieverse_auth');
             if (localAuth) {
@@ -407,7 +416,13 @@ export default function App() {
   };
 
   const saveSettings = (newTmdb: string) => {
-    if (!newTmdb) { localStorage.removeItem('movieverse_tmdb_key'); setApiKey(""); } else { setApiKey(newTmdb); localStorage.setItem('movieverse_tmdb_key', newTmdb); }
+    if (!newTmdb) { 
+        localStorage.removeItem('movieverse_tmdb_key'); 
+        setApiKey(getTmdbKey()); 
+    } else { 
+        setApiKey(newTmdb); 
+        localStorage.setItem('movieverse_tmdb_key', newTmdb); 
+    }
   };
 
   const addToSearchHistory = (query: string) => {
