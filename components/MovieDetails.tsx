@@ -27,6 +27,7 @@ interface MoviePageProps {
     onCompare?: (m: Movie) => void;
     appRegion?: string;
     onProgress?: (movie: Movie, progressData: any) => void;
+    onStartWatchParty?: (movie: Movie, season?: number, episode?: number) => void;
 }
 
 const PopularityMeter = ({ score, count, isGold }: { score: number; count: number; isGold: boolean }) => {
@@ -268,7 +269,7 @@ const MovieDetailsSkeleton = () => (
 export const MoviePage: React.FC<MoviePageProps> = ({ 
     movie, onClose, apiKey, onPersonClick, onToggleWatchlist, isWatchlisted, 
     onSwitchMovie, onOpenListModal, onToggleFavorite, isFavorite, isWatched, onToggleWatched, userProfile,
-    onKeywordClick, onCollectionClick, onCompare, appRegion = "US", onProgress
+    onKeywordClick, onCollectionClick, onCompare, appRegion = "US", onProgress, onStartWatchParty
 }) => {
     const [details, setDetails] = useState<MovieDetails | null>(null);
     const [collection, setCollection] = useState<CollectionDetails | null>(null);
@@ -520,6 +521,9 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                         <div className="flex flex-row items-center gap-3 w-full sm:w-auto mt-6">
                                             {isExclusive && (
                                                 <button onClick={handleWatchClick} className={`font-bold py-3 px-8 text-sm sm:text-base rounded-xl transition-all flex flex-1 sm:flex-none items-center justify-center gap-2 active:scale-95 shadow-xl hover:shadow-2xl ${isGoldTheme ? 'bg-gradient-to-r from-amber-600 to-amber-500 text-black shadow-amber-900/40' : 'bg-red-600 hover:bg-red-700 text-white'}`}><PlayCircle size={20} fill="currentColor" /> {movie.play_progress && movie.play_progress > 0 ? `Resume` : 'Watch'}</button>
+                                            )}
+                                            {isExclusive && (
+                                                <button onClick={() => onStartWatchParty && onStartWatchParty(displayData, playParams.season, playParams.episode)} className="font-bold py-3 px-6 text-sm sm:text-base rounded-xl bg-purple-600 hover:bg-purple-700 active:scale-95 text-white transition-all flex items-center justify-center gap-2 shadow-xl shadow-purple-900/20" title="Start a Watch Party"><Users size={20} /> Watch Party</button>
                                             )}
                                             <div className="flex items-center gap-3">
                                                 <button onClick={() => onToggleWatchlist(displayData)} className={`w-12 h-12 rounded-full glass hover:bg-white/10 flex items-center justify-center transition-all active:scale-95 group relative ${isWatchlisted ? 'text-green-400 border-green-500/30' : 'text-white'}`} title="Add to Watchlist">{isWatchlisted ? <Check size={22} strokeWidth={2.5}/> : <Plus size={22}/>}</button>

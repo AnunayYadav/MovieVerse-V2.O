@@ -21,13 +21,13 @@ ALTER TABLE public.user_data ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Allow users to read their own data" 
 ON public.user_data FOR SELECT 
 TO authenticated 
-USING (auth.uid() = id);
+USING (auth.uid()::text = id::text);
 
 CREATE POLICY "Allow users to upsert their own data" 
 ON public.user_data FOR ALL 
 TO authenticated 
-USING (auth.uid() = id) 
-WITH CHECK (auth.uid() = id);
+USING (auth.uid()::text = id::text) 
+WITH CHECK (auth.uid()::text = id::text);
 
 
 -- 2. watch_progress table: Stores detailed real-time watch progress for movies and TV shows
@@ -37,7 +37,7 @@ CREATE TABLE IF NOT EXISTS public.watch_progress (
     media_id INTEGER NOT NULL,
     media_type VARCHAR(20) NOT NULL, -- 'movie' or 'tv'
     progress DOUBLE PRECISION NOT NULL, -- percentage completed (0 to 100)
-    current_time DOUBLE PRECISION NOT NULL, -- in seconds
+    "current_time" DOUBLE PRECISION NOT NULL, -- in seconds
     duration DOUBLE PRECISION NOT NULL, -- in seconds
     season INTEGER, -- null for movies
     episode INTEGER, -- null for movies
@@ -56,23 +56,23 @@ ALTER TABLE public.watch_progress ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Allow users to read their own progress" 
 ON public.watch_progress FOR SELECT 
 TO authenticated 
-USING (auth.uid() = user_id);
+USING (auth.uid()::text = user_id::text);
 
 CREATE POLICY "Allow users to insert their own progress" 
 ON public.watch_progress FOR INSERT 
 TO authenticated 
-WITH CHECK (auth.uid() = user_id);
+WITH CHECK (auth.uid()::text = user_id::text);
 
 CREATE POLICY "Allow users to update their own progress" 
 ON public.watch_progress FOR UPDATE 
 TO authenticated 
-USING (auth.uid() = user_id)
-WITH CHECK (auth.uid() = user_id);
+USING (auth.uid()::text = user_id::text)
+WITH CHECK (auth.uid()::text = user_id::text);
 
 CREATE POLICY "Allow users to delete their own progress" 
 ON public.watch_progress FOR DELETE 
 TO authenticated 
-USING (auth.uid() = user_id);
+USING (auth.uid()::text = user_id::text);
 
 
 -- 3. notifications table: Stores application notifications
@@ -92,18 +92,18 @@ ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Allow users to read their own notifications" 
 ON public.notifications FOR SELECT 
 TO authenticated 
-USING (auth.uid() = user_id);
+USING (auth.uid()::text = user_id::text);
 
 CREATE POLICY "Allow users to insert their own notifications" 
 ON public.notifications FOR INSERT 
 TO authenticated 
-WITH CHECK (auth.uid() = user_id);
+WITH CHECK (auth.uid()::text = user_id::text);
 
 CREATE POLICY "Allow users to update/mark read their own notifications" 
 ON public.notifications FOR UPDATE 
 TO authenticated 
-USING (auth.uid() = user_id)
-WITH CHECK (auth.uid() = user_id);
+USING (auth.uid()::text = user_id::text)
+WITH CHECK (auth.uid()::text = user_id::text);
 
 
 -- 4. support_tickets table: Stores user help tickets
@@ -128,4 +128,44 @@ WITH CHECK (true);
 CREATE POLICY "Allow users to view their own tickets" 
 ON public.support_tickets FOR SELECT 
 TO authenticated 
-USING (auth.uid() = user_id);
+USING (auth.uid()::text = user_id::text);
+
+
+-- 5. watch_parties table: Stores active Watch Party room configurations and sync states
+CREATE TABLE IF NOT EXISTS public.watch_parties (
+    id VARCHAR(10) PRIMARY KEY, -- Room Code (e.g. 'ABCD')
+    host_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    media_id INTEGER NOT NULL,
+    media_type VARCHAR(20) NOT NULL, -- 'movie' or 'tv'
+    season INTEGER, -- null for movies
+    episode INTEGER, -- null for movies
+    "current_time" DOUBLE PRECISION DEFAULT 0 NOT NULL,
+    is_playing BOOLEAN DEFAULT true NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- Enable RLS for watch_parties
+ALTER TABLE public.watch_parties ENABLE ROW LEVEL SECURITY;
+
+-- RLS Policies for watch_parties
+CREATE POLICY "Allow anyone to view watch parties" 
+ON public.watch_parties FOR SELECT 
+TO authenticated, anon 
+USING (true);
+
+CREATE POLICY "Allow authenticated users to create watch parties" 
+ON public.watch_parties FOR INSERT 
+TO authenticated 
+WITH CHECK (auth.uid()::text = host_id::text);
+
+CREATE POLICY "Allow host to update watch parties" 
+ON public.watch_parties FOR UPDATE 
+TO authenticated 
+USING (auth.uid()::text = host_id::text)
+WITH CHECK (auth.uid()::text = host_id::text);
+
+CREATE POLICY "Allow host to delete watch parties" 
+ON public.watch_parties FOR DELETE 
+TO authenticated 
+USING (auth.uid()::text = host_id::text);

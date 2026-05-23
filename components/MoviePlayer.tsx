@@ -12,20 +12,26 @@ interface MoviePlayerProps {
   apiKey: string;
   onProgress?: (data: any) => void;
   color?: string;
+  forceProgress?: number;
 }
 
 export const MoviePlayer: React.FC<MoviePlayerProps> = ({ 
-  tmdbId, onClose, mediaType, isAnime, initialSeason = 1, initialEpisode = 1, onProgress, color = 'EF4444'
+  tmdbId, onClose, mediaType, isAnime, initialSeason = 1, initialEpisode = 1, onProgress, color = 'EF4444', forceProgress
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
+  const [embedUrl, setEmbedUrl] = React.useState('');
 
-  const getEmbedUrl = () => {
+  useEffect(() => {
     const isTvShow = mediaType === 'tv' || (isAnime && mediaType !== 'movie');
-    if (isTvShow) {
-        return `https://player.videasy.net/tv/${tmdbId}/${initialSeason}/${initialEpisode}?nextEpisode=true&autoplayNextEpisode=true&episodeSelector=true&overlay=true&color=${color}`;
+    let url = isTvShow 
+      ? `https://player.videasy.net/tv/${tmdbId}/${initialSeason}/${initialEpisode}?nextEpisode=true&autoplayNextEpisode=true&episodeSelector=true&overlay=true&color=${color}`
+      : `https://player.videasy.net/movie/${tmdbId}?overlay=true&color=${color}`;
+    
+    if (forceProgress && forceProgress > 0) {
+        url += `&progress=${Math.floor(forceProgress)}`;
     }
-    return `https://player.videasy.net/movie/${tmdbId}?overlay=true&color=${color}`;
-  };
+    setEmbedUrl(url);
+  }, [tmdbId, mediaType, isAnime, initialSeason, initialEpisode, color, forceProgress]);
 
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
@@ -72,14 +78,16 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
        </div>
 
       <div className="flex-1 relative w-full h-full z-0 overflow-hidden bg-black">
-        <iframe 
-            src={getEmbedUrl()}
-            className="w-full h-full absolute inset-0 bg-black"
-            title="Media Player"
-            frameBorder="0"
-            allow="autoplay; fullscreen *; picture-in-picture"
-            allowFullScreen
-        />
+        {embedUrl && (
+          <iframe 
+              src={embedUrl}
+              className="w-full h-full absolute inset-0 bg-black"
+              title="Media Player"
+              frameBorder="0"
+              allow="autoplay; fullscreen *; picture-in-picture"
+              allowFullScreen
+          />
+        )}
       </div>
     </div>
   );

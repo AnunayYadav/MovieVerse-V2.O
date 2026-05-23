@@ -333,3 +333,112 @@ export const fetchWatchProgress = async (mediaId: number, mediaType: string) => 
     }
 };
 
+// --- WATCH PARTY LIFE CYCLE ---
+
+export const createWatchPartyRoom = async (
+    mediaId: number,
+    mediaType: string,
+    season?: number,
+    episode?: number
+): Promise<string | null> => {
+    const supabase = getSupabase();
+    if (!supabase) return null;
+
+    try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return null;
+
+        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+        let roomCode = '';
+        for (let i = 0; i < 5; i++) {
+            roomCode += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+
+        const { error } = await supabase
+            .from('watch_parties')
+            .insert({
+                id: roomCode,
+                host_id: user.id,
+                media_id: mediaId,
+                media_type: mediaType,
+                season: season || null,
+                episode: episode || null,
+                current_time: 0,
+                is_playing: true,
+                updated_at: new Date().toISOString()
+            });
+
+        if (error) {
+            console.error("Error creating watch party room:", error);
+            return null;
+        }
+
+        return roomCode;
+    } catch (e) {
+        console.error("Watch party creation exception", e);
+        return null;
+    }
+};
+
+export const getWatchPartyRoom = async (roomCode: string): Promise<any | null> => {
+    const supabase = getSupabase();
+    if (!supabase) return null;
+
+    try {
+        const { data, error } = await supabase
+            .from('watch_parties')
+            .select('*')
+            .eq('id', roomCode.toUpperCase())
+            .maybeSingle();
+
+        if (error) {
+            console.error("Error fetching watch party room:", error);
+            return null;
+        }
+        return data;
+    } catch (e) {
+        console.error("Watch party fetch exception", e);
+        return null;
+    }
+};
+
+export const updateWatchPartyRoom = async (roomCode: string, updates: any): Promise<void> => {
+    const supabase = getSupabase();
+    if (!supabase) return;
+
+    try {
+        const { error } = await supabase
+            .from('watch_parties')
+            .update({
+                ...updates,
+                updated_at: new Date().toISOString()
+            })
+            .eq('id', roomCode.toUpperCase());
+
+        if (error) {
+            console.error("Error updating watch party room:", error);
+        }
+    } catch (e) {
+        console.error("Watch party update exception", e);
+    }
+};
+
+export const deleteWatchPartyRoom = async (roomCode: string): Promise<void> => {
+    const supabase = getSupabase();
+    if (!supabase) return;
+
+    try {
+        const { error } = await supabase
+            .from('watch_parties')
+            .delete()
+            .eq('id', roomCode.toUpperCase());
+
+        if (error) {
+            console.error("Error deleting watch party room:", error);
+        }
+    } catch (e) {
+        console.error("Watch party delete exception", e);
+    }
+};
+
+

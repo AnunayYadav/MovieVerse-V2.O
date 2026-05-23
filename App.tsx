@@ -8,7 +8,8 @@ import { ProfilePage, PersonPage, NotificationModal, ComparisonModal, AgeVerific
 import { SettingsPage } from './components/SettingsModal';
 import { getSearchSuggestions } from './services/gemini';
 import { LoginPage } from './components/LoginPage';
-import { getSupabase, syncUserData, fetchUserData, signOut, getNotifications, triggerSystemNotification, upsertWatchProgress } from './services/supabase';
+import { getSupabase, syncUserData, fetchUserData, signOut, getNotifications, triggerSystemNotification, upsertWatchProgress, createWatchPartyRoom, getWatchPartyRoom, updateWatchPartyRoom, deleteWatchPartyRoom } from './services/supabase';
+import { WatchPartySection } from './components/WatchParty';
 import { LiveTV } from './components/LiveTV';
 import { LiveSports } from './components/LiveSports';
 import { ExplorePage } from './components/ExplorePage';
@@ -81,6 +82,19 @@ export default function App() {
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const [isComparisonOpen, setIsComparisonOpen] = useState(false);
   const [comparisonBaseMovie, setComparisonBaseMovie] = useState<Movie | null>(null);
+  const [currentUserId, setCurrentUserId] = useState<string>('');
+
+  // --- WATCH PARTY STATE ---
+  const [activeWatchPartyRoom, setActiveWatchPartyRoom] = useState<string | null>(null);
+  const [watchPartyHostId, setWatchPartyHostId] = useState<string | null>(null);
+  const [watchPartyMovie, setWatchPartyMovie] = useState<Movie | null>(null);
+  const [watchPartyParams, setWatchPartyParams] = useState({ season: 1, episode: 1 });
+  const [watchPartyCurrentTime, setWatchPartyCurrentTime] = useState(0);
+  const [watchPartyForceProgress, setWatchPartyForceProgress] = useState<number | undefined>(undefined);
+  const [isWatchPartyJoinOpen, setIsWatchPartyJoinOpen] = useState(false);
+  const [joinRoomCode, setJoinRoomCode] = useState('');
+  const [joinRoomError, setJoinRoomError] = useState('');
+  const [watchPartyIsLoading, setWatchPartyIsLoading] = useState(false);
 
   // Scroll Lock Controller
   useEffect(() => {
@@ -155,6 +169,7 @@ export default function App() {
   const resetAuthState = useCallback(() => {
     localStorage.removeItem('movieverse_auth');
     setIsAuthenticated(false);
+    setCurrentUserId('');
     setIsCloudSync(false);
     setDataLoaded(false);
     setIsSettingsOpen(false);
@@ -221,6 +236,7 @@ export default function App() {
         };
         const handleSessionFound = async (session: any) => {
              setIsAuthenticated(true);
+             setCurrentUserId(session.user.id);
              try {
                 const cloudData = await fetchUserData();
                 let profileToSet = { name: "Guest", age: "", genres: [], enableHistory: true } as UserProfile;
@@ -494,6 +510,90 @@ export default function App() {
           
           return newWatched;
       });
+  };
+
+  const handleStartWatchParty = async (movie: Movie, season?: number, episode?: number) => {
+      const isTv = movie.media_type === 'tv' || movie.first_air_date;
+      const code = await createWatchPartyRoom(movie.id, isTv ? 'tv' : 'movie', season, episode);
+      if (code) {
+          const supabase = getSupabase();
+          const { data: { user } } = await supabase!.auth.getUser();
+          
+          setActiveWatchPartyRoom(code);
+          setWatchPartyHostId(user!.id);
+          setWatchPartyMovie(movie);
+          setWatchPartyParams({ season: season || 1, episode: episode || 1 });
+          setWatchPartyCurrentTime(0);
+          setWatchPartyForceProgress(undefined);
+          setSelectedMovie(null); // Close Details modal
+      }
+  };
+
+  const handleJoinWatchParty = async (roomCode: string) => {
+      if (!roomCode.trim()) return;
+      setWatchPartyIsLoading(true);
+      setJoinRoomError('');
+
+      try {
+          const room = await getWatchPartyRoom(roomCode);
+          if (!room) {
+              setJoinRoomError('Room not found! Check code.');
+              setWatchPartyIsLoading(false);
+              return;
+          }
+
+          const type = room.media_type;
+          const apiKey = getTmdbKey();
+          const res = await fetch(`${TMDB_BASE_URL}/${type}/${room.media_id}?api_key=${apiKey}`);
+          if (!res.ok) {
+              setJoinRoomError('Failed to fetch movie info.');
+              setWatchPartyIsLoading(false);
+              return;
+          }
+          const movieData = await res.json();
+          const movie: Movie = {
+              ...movieData,
+              media_type: type,
+              title: movieData.title || movieData.name,
+              release_date: movieData.release_date || movieData.first_air_date
+          };
+
+          setActiveWatchPartyRoom(room.id);
+          setWatchPartyHostId(room.host_id);
+          setWatchPartyMovie(movie);
+          setWatchPartyParams({ season: room.season || 1, episode: room.episode || 1 });
+          setWatchPartyCurrentTime(room.current_time || 0);
+          if (room.current_time && room.current_time > 0) {
+              setWatchPartyForceProgress(room.current_time);
+          } else {
+              setWatchPartyForceProgress(undefined);
+          }
+          
+          setIsWatchPartyJoinOpen(false);
+          setJoinRoomCode('');
+          setSelectedMovie(null);
+      } catch (err) {
+          setJoinRoomError('An error occurred joining the room.');
+      } finally {
+          setWatchPartyIsLoading(false);
+      }
+  };
+
+  const handleLeaveWatchParty = async () => {
+      if (!activeWatchPartyRoom) return;
+
+      const supabase = getSupabase();
+      const { data: { user } } = await supabase!.auth.getUser();
+
+      if (user && user.id === watchPartyHostId) {
+          await deleteWatchPartyRoom(activeWatchPartyRoom);
+      }
+
+      setActiveWatchPartyRoom(null);
+      setWatchPartyHostId(null);
+      setWatchPartyMovie(null);
+      setWatchPartyCurrentTime(0);
+      setWatchPartyForceProgress(undefined);
   };
 
   const sortMovies = useCallback((moviesList: Movie[], option: string) => {
@@ -797,6 +897,9 @@ export default function App() {
                       <button onClick={() => { resetFilters(); setSelectedCategory("Franchise"); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-all ${selectedCategory === "Franchise" ? "bg-white/10 text-white" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>
                           <Layers size={18}/> Franchise Explorer
                       </button>
+                      <button onClick={() => { setIsSidebarOpen(false); setIsWatchPartyJoinOpen(true); }} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold text-purple-400 hover:bg-purple-500/10 transition-all border border-purple-500/10 mt-2">
+                          <Users size={18}/> Join Watch Party
+                      </button>
                   </div>
 
                   <div className="space-y-1">
@@ -947,7 +1050,51 @@ export default function App() {
 
       <div className="flex pt-16">
         <main className="flex-1 min-h-[calc(100vh-4rem)] w-full">
-           {selectedCategory === "LiveTV" ? ( <LiveTV userProfile={userProfile} /> ) : selectedCategory === "Sports" ? ( <LiveSports userProfile={userProfile} /> ) : selectedCategory === "Explore" ? ( <ExplorePage apiKey={apiKey} onMovieClick={setSelectedMovie} userProfile={userProfile} /> ) : selectedCategory === "Genres" ? (
+           {activeWatchPartyRoom && watchPartyMovie ? (
+               <div className="flex flex-col lg:flex-row w-full h-[calc(100vh-4rem)] bg-black overflow-hidden animate-in fade-in duration-500">
+                   <div className="flex-1 relative bg-black h-2/3 lg:h-full">
+                       <MoviePlayer 
+                           tmdbId={watchPartyMovie.id}
+                           onClose={handleLeaveWatchParty}
+                           mediaType={watchPartyMovie.media_type || (watchPartyMovie.first_air_date ? 'tv' : 'movie')}
+                           isAnime={false}
+                           initialSeason={watchPartyParams.season}
+                           initialEpisode={watchPartyParams.episode}
+                           apiKey={apiKey}
+                           onProgress={(data) => {
+                               if (watchPartyHostId === currentUserId) {
+                                   setWatchPartyCurrentTime(data.currentTime);
+                                   
+                                   const now = Date.now();
+                                   if (!(window as any).lastWatchPartyDbUpdate || now - (window as any).lastWatchPartyDbUpdate > 5000) {
+                                       (window as any).lastWatchPartyDbUpdate = now;
+                                       updateWatchPartyRoom(activeWatchPartyRoom, {
+                                           current_time: data.currentTime
+                                       });
+                                   }
+                               }
+                           }}
+                           color={isGoldTheme ? 'F59E0B' : 'EF4444'}
+                           forceProgress={watchPartyForceProgress}
+                       />
+                   </div>
+                   <div className="w-full lg:w-80 shrink-0 h-1/3 lg:h-full">
+                       <WatchPartySection 
+                           roomCode={activeWatchPartyRoom}
+                           onLeaveParty={handleLeaveWatchParty}
+                           hostId={watchPartyHostId || ''}
+                           currentUserId={currentUserId}
+                           currentUserName={userProfile.name || 'Guest'}
+                           supabaseClient={getSupabase()}
+                           currentTime={watchPartyCurrentTime}
+                           onSyncProgress={(time) => {
+                               setWatchPartyForceProgress(time);
+                               setTimeout(() => setWatchPartyForceProgress(undefined), 1000);
+                           }}
+                       />
+                   </div>
+               </div>
+           ) : selectedCategory === "LiveTV" ? ( <LiveTV userProfile={userProfile} /> ) : selectedCategory === "Sports" ? ( <LiveSports userProfile={userProfile} /> ) : selectedCategory === "Explore" ? ( <ExplorePage apiKey={apiKey} onMovieClick={setSelectedMovie} userProfile={userProfile} /> ) : selectedCategory === "Genres" ? (
                <div className="animate-in fade-in slide-in-from-bottom-4">
                    <div className="p-8 md:p-12">
                        <h1 className="text-4xl md:text-5xl font-black text-white tracking-tight mb-2">All Genres</h1>
@@ -1210,6 +1357,7 @@ export default function App() {
             onCompare={(m) => { setIsComparisonOpen(true); setComparisonBaseMovie(m); }} 
             appRegion={appRegion}
             onProgress={handleProgressUpdate} 
+            onStartWatchParty={handleStartWatchParty}
         /> 
       )}
       
@@ -1218,6 +1366,48 @@ export default function App() {
       <ComparisonModal isOpen={isComparisonOpen} onClose={() => setIsComparisonOpen(false)} baseMovie={comparisonBaseMovie} apiKey={apiKey} />
       <SettingsPage isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} apiKey={apiKey} setApiKey={(k) => saveSettings(k)} maturityRating={maturityRating} setMaturityRating={setMaturityRating} profile={userProfile} onUpdateProfile={setUserProfile} onLogout={handleLogout} searchHistory={searchHistory} setSearchHistory={(h) => { setSearchHistory(h); localStorage.setItem('movieverse_search_history', JSON.stringify(h)); }} watchedMovies={watched} setWatchedMovies={(m) => { setWatched(m); localStorage.setItem('movieverse_watched', JSON.stringify(m)); }} />
       <NotificationModal isOpen={isNotificationOpen} onClose={() => setIsNotificationOpen(false)} onUpdate={checkUnreadNotifications} userProfile={userProfile} />
+      
+      {isWatchPartyJoinOpen && (
+          <div className="fixed inset-0 z-[120] bg-black/80 backdrop-blur-xl flex items-center justify-center p-4 animate-in fade-in duration-300">
+              <div className="bg-[#0f0f10] border border-white/10 p-8 rounded-3xl w-full max-w-[400px] shadow-2xl relative">
+                  <button 
+                      onClick={() => { setIsWatchPartyJoinOpen(false); setJoinRoomCode(''); setJoinRoomError(''); }} 
+                      className="absolute top-4 right-4 text-gray-500 hover:text-white transition-colors"
+                  >
+                      <X size={20}/>
+                  </button>
+                  <h3 className="text-xl font-black text-white mb-2 flex items-center gap-2">
+                      <Users className="text-purple-500" /> Join Watch Party
+                  </h3>
+                  <p className="text-xs text-gray-500 mb-6 font-light">Enter a room code below to join a synchronized watch session.</p>
+                  
+                  {joinRoomError && (
+                      <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-semibold p-3 rounded-xl mb-4">
+                          {joinRoomError}
+                      </div>
+                  )}
+
+                  <div className="space-y-4">
+                      <input 
+                          type="text"
+                          maxLength={5}
+                          value={joinRoomCode}
+                          onChange={(e) => setJoinRoomCode(e.target.value.toUpperCase())}
+                          placeholder="e.g. A8B9C"
+                          className="w-full h-12 bg-black/40 border border-white/10 rounded-xl px-4 text-center text-lg font-black tracking-widest text-purple-400 focus:outline-none focus:border-purple-500/50 transition-colors uppercase placeholder-gray-700"
+                      />
+                      <button 
+                          onClick={() => handleJoinWatchParty(joinRoomCode)}
+                          disabled={watchPartyIsLoading || !joinRoomCode.trim()}
+                          className="w-full h-12 bg-purple-600 hover:bg-purple-700 active:scale-95 disabled:bg-white/5 disabled:text-gray-500 text-white font-bold text-sm tracking-wide rounded-xl shadow-lg shadow-purple-900/20 transition-all flex items-center justify-center gap-2"
+                      >
+                          {watchPartyIsLoading ? <Loader2 className="animate-spin" size={18}/> : 'Enter Room'}
+                      </button>
+                  </div>
+              </div>
+          </div>
+      )}
+
       {!apiKey && loading && <div className="fixed inset-0 z-[100] bg-black"><LogoLoader /></div>}
     </div>
   );

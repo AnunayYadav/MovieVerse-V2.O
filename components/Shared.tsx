@@ -51,8 +51,8 @@ export const formatCurrency = (value: number | undefined, region: string = 'US')
 
 export const BrandLogo = ({ className = "", size = 24, accentColor = "text-red-600" }: { className?: string, size?: number, accentColor?: string }) => {
     const [imgError, setImgError] = useState(false);
-    // Path updated to favicon.png as requested
-    const logoPath = "./favicon.png";
+    // Path updated to image.png as requested
+    const logoPath = "/image.png";
 
     if (imgError) {
         return <Film size={size} className={`${accentColor} ${className}`} />;
