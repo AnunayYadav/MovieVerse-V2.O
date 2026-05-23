@@ -1,4 +1,3 @@
-
 import React, { useRef, useEffect } from 'react';
 import { X } from 'lucide-react';
 
@@ -68,7 +67,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
             className="w-full h-full absolute inset-0 bg-black"
             title="Media Player"
             frameBorder="0"
-            allow="autoplay; fullscreen; picture-in-picture"
+            allow="autoplay; fullscreen *; picture-in-picture"
             allowFullScreen
         />
       </div>
