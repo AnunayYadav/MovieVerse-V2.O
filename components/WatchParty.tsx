@@ -35,6 +35,7 @@ export const WatchPartySection: React.FC<WatchPartySectionProps> = ({
   const [copied, setCopied] = useState(false);
   const [activeTab, setActiveTab] = useState<'chat' | 'people'>('chat');
   const chatEndRef = useRef<HTMLDivElement>(null);
+  const lastBroadcastTimeRef = useRef<number>(0);
 
   const isHost = currentUserId === hostId;
 
@@ -142,6 +143,32 @@ export const WatchPartySection: React.FC<WatchPartySectionProps> = ({
     };
   }, [supabaseClient, roomCode, currentUserId, currentUserName, isHost, onSyncProgress]);
 
+  // Auto sync host progress on play/seek
+  useEffect(() => {
+    if (!isHost || !supabaseClient || !roomCode || typeof currentTime !== 'number') return;
+
+    const timeDiff = Math.abs(currentTime - lastBroadcastTimeRef.current);
+    if (timeDiff > 3) {
+      const channel = supabaseClient.channel(`watch_party:${roomCode}`);
+      channel.send({
+        type: 'broadcast',
+        event: 'seek',
+        payload: { time: currentTime },
+      }).catch(e => console.error("Error broadcasting seek:", e));
+
+      setMessages(prev => [
+        ...prev,
+        {
+          id: `sys-broadcast-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+          sender: 'System',
+          text: `⚡ Broadcasted sync position: ${formatTime(currentTime)}`,
+          timestamp: Date.now(),
+        },
+      ]);
+    }
+    lastBroadcastTimeRef.current = currentTime;
+  }, [currentTime, isHost, supabaseClient, roomCode]);
+
   // Autoscroll chat
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -176,27 +203,6 @@ export const WatchPartySection: React.FC<WatchPartySectionProps> = ({
     navigator.clipboard.writeText(roomCode);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
-  };
-
-  const handleSyncToAll = async () => {
-    if (!isHost || !supabaseClient || !roomCode) return;
-
-    const channel = supabaseClient.channel(`watch_party:${roomCode}`);
-    await channel.send({
-      type: 'broadcast',
-      event: 'seek',
-      payload: { time: currentTime },
-    });
-
-    setMessages(prev => [
-      ...prev,
-      {
-        id: `sys-${Date.now()}`,
-        sender: 'System',
-        text: `⚡ Broadcasted sync position: ${formatTime(currentTime)}`,
-        timestamp: Date.now(),
-      },
-    ]);
   };
 
   const formatTime = (secs: number) => {
@@ -234,16 +240,6 @@ export const WatchPartySection: React.FC<WatchPartySectionProps> = ({
             {copied ? <Check size={16} className="text-green-400" /> : <Copy size={16} />}
           </button>
         </div>
-
-        {/* Host Controls */}
-        {isHost && (
-          <button 
-            onClick={handleSyncToAll}
-            className="w-full h-10 bg-purple-600 hover:bg-purple-700 active:scale-95 text-white font-bold text-xs tracking-wider rounded-xl transition-all shadow-lg flex items-center justify-center gap-2"
-          >
-            🔄 Sync Everyone to Me
-          </button>
-        )}
       </div>
 
       {/* Tabs Menu */}
