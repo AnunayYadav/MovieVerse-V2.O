@@ -50,6 +50,9 @@ export const WatchPartySection: React.FC<WatchPartySectionProps> = ({
       },
     });
 
+    // Generate unique random string suffix
+    const getRandId = () => Math.random().toString(36).substring(2, 9);
+
     // 1. Listen to Broadcast Events (Chat and Seek)
     channel
       .on('broadcast', { event: 'chat' }, ({ payload }: { payload: any }) => {
@@ -70,7 +73,7 @@ export const WatchPartySection: React.FC<WatchPartySectionProps> = ({
           setMessages(prev => [
             ...prev,
             {
-              id: `sys-${Date.now()}`,
+              id: `sys-${Date.now()}-${getRandId()}`,
               sender: 'System',
               text: `🔄 Synced to Host position: ${formatTime(payload.time)}`,
               timestamp: Date.now(),
@@ -102,7 +105,7 @@ export const WatchPartySection: React.FC<WatchPartySectionProps> = ({
           setMessages(prev => [
             ...prev,
             {
-              id: `sys-join-${Date.now()}`,
+              id: `sys-join-${Date.now()}-${getRandId()}`,
               sender: 'System',
               text: `👋 ${pres.name || 'A user'} joined the party!`,
               timestamp: Date.now(),
@@ -115,7 +118,7 @@ export const WatchPartySection: React.FC<WatchPartySectionProps> = ({
           setMessages(prev => [
             ...prev,
             {
-              id: `sys-leave-${Date.now()}`,
+              id: `sys-leave-${Date.now()}-${getRandId()}`,
               sender: 'System',
               text: `🚶 ${pres.name || 'A user'} left the party.`,
               timestamp: Date.now(),
@@ -135,6 +138,7 @@ export const WatchPartySection: React.FC<WatchPartySectionProps> = ({
     // Clean up channel on unmount
     return () => {
       channel.unsubscribe();
+      supabaseClient.removeChannel(channel);
     };
   }, [supabaseClient, roomCode, currentUserId, currentUserName, isHost, onSyncProgress]);
 
@@ -147,8 +151,9 @@ export const WatchPartySection: React.FC<WatchPartySectionProps> = ({
     e.preventDefault();
     if (!inputText.trim() || !supabaseClient || !roomCode) return;
 
+    const randSuffix = Math.random().toString(36).substring(2, 9);
     const messagePayload = {
-      id: `msg-${Date.now()}`,
+      id: `msg-${Date.now()}-${randSuffix}`,
       sender: currentUserName,
       text: inputText,
       timestamp: Date.now(),

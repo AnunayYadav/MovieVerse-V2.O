@@ -597,6 +597,11 @@ export default function App() {
       setWatchPartyForceProgress(undefined);
   };
 
+  const handleWatchPartySync = useCallback((time: number) => {
+      setWatchPartyForceProgress(time);
+      setTimeout(() => setWatchPartyForceProgress(undefined), 1000);
+  }, []);
+
   const sortMovies = useCallback((moviesList: Movie[], option: string) => {
     if (!moviesList || !option) return moviesList;
     if (option === 'relevance') return moviesList;
@@ -1089,10 +1094,7 @@ export default function App() {
                            currentUserName={userProfile.name || 'Guest'}
                            supabaseClient={getSupabase()}
                            currentTime={watchPartyCurrentTime}
-                           onSyncProgress={(time) => {
-                               setWatchPartyForceProgress(time);
-                               setTimeout(() => setWatchPartyForceProgress(undefined), 1000);
-                           }}
+                           onSyncProgress={handleWatchPartySync}
                        />
                    </div>
                </div>
