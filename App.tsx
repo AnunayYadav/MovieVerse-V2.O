@@ -8,7 +8,7 @@ import { ProfilePage, PersonPage, NotificationModal, ComparisonModal, AgeVerific
 import { SettingsPage } from './components/SettingsModal';
 import { getSearchSuggestions } from './services/gemini';
 import { LoginPage } from './components/LoginPage';
-import { getSupabase, syncUserData, fetchUserData, signOut, getNotifications, triggerSystemNotification } from './services/supabase';
+import { getSupabase, syncUserData, fetchUserData, signOut, getNotifications, triggerSystemNotification, upsertWatchProgress } from './services/supabase';
 import { LiveTV } from './components/LiveTV';
 import { LiveSports } from './components/LiveSports';
 import { ExplorePage } from './components/ExplorePage';
@@ -477,6 +477,21 @@ export default function App() {
               newWatched = [updatedMovie, ...prevWatched];
           }
           localStorage.setItem('movieverse_watched', JSON.stringify(newWatched));
+          
+          // Direct sync to watch_progress table in Supabase
+          if (isCloudSync && isAuthenticated) {
+              const mediaType = movie.media_type === 'tv' || movie.first_air_date ? 'tv' : 'movie';
+              upsertWatchProgress(
+                  movie.id,
+                  mediaType,
+                  progressPercent,
+                  currentTime,
+                  duration,
+                  season,
+                  episode
+              );
+          }
+          
           return newWatched;
       });
   };

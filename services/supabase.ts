@@ -263,3 +263,73 @@ export const submitSupportTicket = async (subject: string, message: string, cont
         return false;
     }
 };
+
+// --- WATCH PROGRESS ---
+
+export const upsertWatchProgress = async (
+    mediaId: number,
+    mediaType: string,
+    progress: number,
+    currentTime: number,
+    duration: number,
+    season?: number,
+    episode?: number
+) => {
+    const supabase = getSupabase();
+    if (!supabase) return;
+
+    try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
+        const { error } = await supabase
+            .from('watch_progress')
+            .upsert({
+                user_id: user.id,
+                media_id: mediaId,
+                media_type: mediaType,
+                progress,
+                current_time: currentTime,
+                duration,
+                season: season || null,
+                episode: episode || null,
+                updated_at: new Date().toISOString()
+            }, {
+                onConflict: 'user_id,media_id,media_type'
+            });
+
+        if (error) {
+            console.error("Error upserting watch progress:", error);
+        }
+    } catch (e) {
+        console.error("Watch progress sync exception", e);
+    }
+};
+
+export const fetchWatchProgress = async (mediaId: number, mediaType: string) => {
+    const supabase = getSupabase();
+    if (!supabase) return null;
+
+    try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return null;
+
+        const { data, error } = await supabase
+            .from('watch_progress')
+            .select('*')
+            .eq('user_id', user.id)
+            .eq('media_id', mediaId)
+            .eq('media_type', mediaType)
+            .maybeSingle();
+
+        if (error) {
+            console.error("Error fetching watch progress:", error);
+            return null;
+        }
+        return data;
+    } catch (e) {
+        console.error("Watch progress fetch exception", e);
+        return null;
+    }
+};
+

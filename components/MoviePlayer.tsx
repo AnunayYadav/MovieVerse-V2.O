@@ -11,31 +11,41 @@ interface MoviePlayerProps {
   initialEpisode?: number;
   apiKey: string;
   onProgress?: (data: any) => void;
+  color?: string;
 }
 
 export const MoviePlayer: React.FC<MoviePlayerProps> = ({ 
-  tmdbId, onClose, mediaType, isAnime, onProgress
+  tmdbId, onClose, mediaType, isAnime, initialSeason = 1, initialEpisode = 1, onProgress, color = 'EF4444'
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
 
   const getEmbedUrl = () => {
-    // vidsrc.cc structure
-    // Per user request: for TV series and Anime, use the base TV path without season/episode parameters
-    if (mediaType === 'tv' || (isAnime && mediaType !== 'movie')) {
-        return `https://vidsrc.cc/v2/embed/tv/${tmdbId}`;
+    const isTvShow = mediaType === 'tv' || (isAnime && mediaType !== 'movie');
+    if (isTvShow) {
+        return `https://player.videasy.net/tv/${tmdbId}/${initialSeason}/${initialEpisode}?nextEpisode=true&autoplayNextEpisode=true&episodeSelector=true&overlay=true&color=${color}`;
     }
-    return `https://vidsrc.cc/v2/embed/movie/${tmdbId}`;
+    return `https://player.videasy.net/movie/${tmdbId}?overlay=true&color=${color}`;
   };
 
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
         try {
-            const msg = event.data;
-            if (msg && msg.type === 'PLAYER_EVENT' && msg.data) {
-                if (onProgress) onProgress(msg.data);
+            if (typeof event.data === 'string') {
+                const parsed = JSON.parse(event.data);
+                if (parsed && typeof parsed.timestamp === 'number' && typeof parsed.duration === 'number') {
+                    if (onProgress) {
+                        onProgress({
+                            currentTime: parsed.timestamp,
+                            duration: parsed.duration,
+                            event: 'time',
+                            season: parsed.season || initialSeason,
+                            episode: parsed.episode || initialEpisode
+                        });
+                    }
+                }
             }
         } catch (e) {
-            // Ignore cross-origin access errors
+            // Ignore parse errors or cross-origin access errors
         }
     };
 
@@ -43,7 +53,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     return () => {
         window.removeEventListener('message', handleMessage);
     };
-  }, [onProgress]);
+  }, [onProgress, initialSeason, initialEpisode]);
 
   return (
     <div 

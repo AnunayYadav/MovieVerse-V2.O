@@ -479,7 +479,17 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                              {showPlayer ? (
                                  <div className="absolute inset-0 z-50 animate-in fade-in duration-700 bg-black">
                                      <Suspense fallback={<div className="w-full h-full flex items-center justify-center bg-black"><Loader2 className="animate-spin text-red-600" size={40}/></div>}>
-                                         <MoviePlayer tmdbId={displayData.id} onClose={() => setShowPlayer(false)} mediaType={isTv ? 'tv' : 'movie'} isAnime={isAnime || false} apiKey={apiKey} onProgress={handlePlayerProgress} />
+                                         <MoviePlayer 
+                                             tmdbId={displayData.id} 
+                                             onClose={() => setShowPlayer(false)} 
+                                             mediaType={isTv ? 'tv' : 'movie'} 
+                                             isAnime={isAnime || false} 
+                                             apiKey={apiKey} 
+                                             onProgress={handlePlayerProgress} 
+                                             initialSeason={playParams.season}
+                                             initialEpisode={playParams.episode}
+                                             color={isGoldTheme ? 'F59E0B' : 'EF4444'}
+                                         />
                                      </Suspense>
                                  </div>
                              ) : (
