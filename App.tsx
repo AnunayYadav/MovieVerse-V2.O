@@ -996,15 +996,15 @@ export default function App() {
                         {isBrowseOpen && (
                             <>
                                 <div className="absolute top-full left-0 w-full h-4 bg-transparent z-[55]" />
-                                <div className="absolute top-[calc(100%+0.25rem)] left-0 w-90 bg-[#1a1a1a] border border-white/10 rounded-2xl shadow-2xl p-2.5 grid grid-cols-3 gap-1.5 z-[60] animate-in fade-in zoom-in-95 duration-200 origin-top-left">
+                                <div className="absolute top-[calc(100%+0.25rem)] left-1/2 -translate-x-1/2 w-[340px] bg-[#0f0f10]/95 backdrop-blur-2xl border border-white/10 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] p-3 grid grid-cols-3 gap-2 z-[60] animate-in fade-in zoom-in-95 duration-200 origin-top">
                                     {browseOptions.map(opt => (
                                         <button 
                                             key={opt.id}
                                             onClick={() => handleBrowseAction(opt.action)}
-                                            className={`flex flex-col items-center justify-center gap-1 p-3 rounded-xl hover:bg-white/10 transition-colors ${selectedCategory === opt.id ? 'bg-white/5 text-white' : 'text-gray-400 hover:text-white'}`}
+                                            className={`flex flex-col items-center justify-center gap-2 py-3 px-1 rounded-xl transition-all duration-300 hover:scale-105 active:scale-95 border ${selectedCategory === opt.id ? (isGoldTheme ? 'bg-amber-500/10 text-amber-500 border-amber-500/20' : 'bg-red-600/10 text-red-500 border-red-600/20') : 'text-gray-400 hover:text-white hover:bg-white/5 border-transparent'}`}
                                         >
-                                            <opt.icon size={20}/>
-                                            <span className="text-[10px] font-bold">{opt.label}</span>
+                                            <opt.icon size={20} className="opacity-90 group-hover:scale-115 transition-transform" />
+                                            <span className="text-[10px] font-extrabold tracking-wide uppercase whitespace-nowrap">{opt.label}</span>
                                         </button>
                                     ))}
                                 </div>
