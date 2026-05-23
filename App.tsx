@@ -10,6 +10,7 @@ import { getSearchSuggestions } from './services/gemini';
 import { LoginPage } from './components/LoginPage';
 import { getSupabase, syncUserData, fetchUserData, signOut, getNotifications, triggerSystemNotification, upsertWatchProgress, createWatchPartyRoom, getWatchPartyRoom, updateWatchPartyRoom, deleteWatchPartyRoom } from './services/supabase';
 import { WatchPartySection } from './components/WatchParty';
+import { MoviePlayer } from './components/MoviePlayer';
 import { LiveTV } from './components/LiveTV';
 import { LiveSports } from './components/LiveSports';
 import { ExplorePage } from './components/ExplorePage';
@@ -839,6 +840,7 @@ export default function App() {
       { id: "TV Shows", icon: Tv, label: "TV Shows", action: () => { resetFilters(); setSelectedCategory("TV Shows"); } },
       { id: "Coming", icon: CalendarDays, label: "Coming Soon", action: () => { resetFilters(); setSelectedCategory("Coming"); } },
       { id: "Genres", icon: Clapperboard, label: "Genres", action: () => { resetFilters(); setSelectedCategory("Genres"); } },
+      { id: "WatchParty", icon: Users, label: "Watch Party", action: () => { setIsWatchPartyJoinOpen(true); } }
   ];
 
   if (authChecking) return <div className="fixed inset-0 bg-black flex items-center justify-center"><LogoLoader /></div>;
@@ -994,7 +996,7 @@ export default function App() {
                         {isBrowseOpen && (
                             <>
                                 <div className="absolute top-full left-0 w-full h-4 bg-transparent z-[55]" />
-                                <div className="absolute top-[calc(100%+0.25rem)] left-0 w-64 bg-[#1a1a1a] border border-white/10 rounded-2xl shadow-2xl p-2 grid grid-cols-2 gap-1 z-[60] animate-in fade-in zoom-in-95 duration-200 origin-top-left">
+                                <div className="absolute top-[calc(100%+0.25rem)] left-0 w-90 bg-[#1a1a1a] border border-white/10 rounded-2xl shadow-2xl p-2.5 grid grid-cols-3 gap-1.5 z-[60] animate-in fade-in zoom-in-95 duration-200 origin-top-left">
                                     {browseOptions.map(opt => (
                                         <button 
                                             key={opt.id}
