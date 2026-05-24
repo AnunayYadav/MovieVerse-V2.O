@@ -84,6 +84,7 @@ export default function App() {
   const [isComparisonOpen, setIsComparisonOpen] = useState(false);
   const [comparisonBaseMovie, setComparisonBaseMovie] = useState<Movie | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string>('');
+  const [reminders, setReminders] = useState<number[]>([]);
 
   // --- WATCH PARTY STATE ---
   const [activeWatchPartyRoom, setActiveWatchPartyRoom] = useState<string | null>(null);
@@ -838,6 +839,39 @@ export default function App() {
       return Object.entries(groups).sort((a, b) => { if (a[0] === "TBA") return 1; if (b[0] === "TBA") return -1; return a[0].localeCompare(b[0]); });
   };
 
+  const toggleReminder = (movieId: number) => {
+      setReminders(prev => {
+          const exists = prev.includes(movieId);
+          const next = exists ? prev.filter(id => id !== movieId) : [...prev, movieId];
+          triggerSystemNotification(
+              exists ? "Reminder Cancelled" : "Reminder Set!",
+              exists ? "We won't notify you when this is released." : "You will receive a notification when this title is available."
+          );
+          return next;
+      });
+  };
+
+  const formatReleaseDate = (dateStr: string) => {
+      if (!dateStr || dateStr === 'TBA') return { month: 'TBA', day: 'TBA', year: '', full: 'Date to be Announced' };
+      try {
+          const date = new Date(dateStr);
+          if (isNaN(date.getTime())) return { month: 'TBA', day: 'TBA', year: '', full: dateStr };
+          const months = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+          const monthFull = date.toLocaleDateString('en-US', { month: 'long' });
+          const day = date.getDate();
+          const year = date.getFullYear();
+          return {
+              month: months[date.getMonth()],
+              monthLong: monthFull,
+              day: day.toString(),
+              year: year.toString(),
+              full: `${monthFull} ${day}, ${year}`
+          };
+      } catch {
+          return { month: 'TBA', day: 'TBA', year: '', full: dateStr };
+      }
+  };
+
   const browseOptions = [
       { id: "Trending", icon: TrendingUp, label: "Trending", action: resetToHome },
       { id: "Awards", icon: Award, label: "Awards", action: () => { resetFilters(); setSelectedCategory("Awards"); } },
@@ -1148,29 +1182,135 @@ export default function App() {
                        {loading && [...Array(8)].map((_, i) => <div key={i} className="aspect-[16/9] bg-white/5 rounded-2xl animate-pulse"></div>)}
                    </div>
                </div>
+           ) : selectedCategory === "Coming" ? (
+               <div className="animate-in fade-in duration-750 max-w-5xl mx-auto px-4 py-8 md:py-12">
+                   {/* Page Header */}
+                   <div className="mb-10 border-b border-white/5 pb-6">
+                       <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-white flex items-center gap-3">
+                           <span className="w-2 h-7 bg-red-600 rounded-full inline-block"></span>
+                           Coming Soon
+                       </h1>
+                       <p className="text-xs md:text-sm text-gray-400 mt-2 font-normal">
+                           Track upcoming cinematic releases scheduled worldwide. Set reminders to stay updated.
+                       </p>
+                   </div>
+
+                   <div className="relative border-l border-white/10 ml-4 md:ml-28 pl-6 md:pl-10 space-y-12">
+                       {groupMoviesByDate(movies).map(([date, dateMovies]) => {
+                           const formatted = formatReleaseDate(date);
+                           return (
+                               <div key={date} className="relative group/date">
+                                   {/* Date node marker on timeline */}
+                                   <div className="absolute -left-[31px] md:-left-[47px] top-1.5 w-4 h-4 rounded-full bg-[#030303] border-2 border-red-600 group-hover/date:bg-red-600 transition-colors duration-300 z-10" />
+
+                                   {/* Absolute date column on larger screens, relative on mobile */}
+                                   <div className="md:absolute md:-left-36 md:top-0 md:w-28 flex md:flex-col items-baseline md:items-end gap-1.5 md:gap-0.5 shrink-0 pr-4 md:text-right mb-4 md:mb-0">
+                                       <span className="text-2xl md:text-4xl font-black text-red-600 tracking-tighter leading-none">
+                                           {formatted.day}
+                                       </span>
+                                       <span className="text-xs md:text-sm font-bold text-white tracking-widest uppercase">
+                                           {formatted.month}
+                                       </span>
+                                       <span className="text-[10px] md:text-xs text-gray-500 font-semibold">
+                                           {formatted.year}
+                                       </span>
+                                   </div>
+
+                                   {/* Movies inside this date */}
+                                   <div className="space-y-6">
+                                       {dateMovies.map((movie) => (
+                                           <div 
+                                               key={movie.id} 
+                                               className="flex flex-col lg:flex-row gap-5 bg-[#0a0a0a]/80 hover:bg-zinc-950 p-4 rounded-2xl border border-white/5 hover:border-white/10 transition-all duration-300 group shadow-md"
+                                           >
+                                               {/* Cinematic widescreen backdrop instead of ugly vertical posters */}
+                                               <div 
+                                                   className="relative w-full lg:w-[280px] aspect-[16/9] rounded-xl overflow-hidden shrink-0 bg-zinc-900 border border-white/5 cursor-pointer shadow-md"
+                                                   onClick={() => setSelectedMovie(movie)}
+                                               >
+                                                   <img 
+                                                       src={movie.backdrop_path ? `${TMDB_BACKDROP_BASE}${movie.backdrop_path}` : (movie.poster_path ? `${TMDB_IMAGE_BASE}${movie.poster_path}` : "https://placehold.co/600x338/111/FFF?text=No+Preview")} 
+                                                       alt={movie.title} 
+                                                       className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-103" 
+                                                       loading="lazy" 
+                                                   />
+                                                   <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-60" />
+                                                   {/* Mini banner */}
+                                                   <span className="absolute top-2.5 left-2.5 bg-red-600/90 text-white font-black text-[8px] uppercase tracking-widest px-2 py-0.5 rounded shadow-sm font-sans">
+                                                       Soon
+                                                   </span>
+                                               </div>
+
+                                               {/* Details */}
+                                               <div className="flex-1 flex flex-col justify-between py-0.5">
+                                                   <div>
+                                                       <div className="flex items-start justify-between gap-4">
+                                                           <h3 
+                                                               className="text-base md:text-lg font-bold text-white tracking-tight hover:text-red-500 cursor-pointer transition-colors"
+                                                               onClick={() => setSelectedMovie(movie)}
+                                                           >
+                                                               {movie.title}
+                                                           </h3>
+                                                           
+                                                           {/* Action Buttons */}
+                                                           <div className="flex items-center gap-1.5 shrink-0">
+                                                               <button 
+                                                                   onClick={(e) => { e.stopPropagation(); toggleReminder(movie.id); }}
+                                                                   className={`p-1.5 rounded-full border transition-all active:scale-90 ${reminders.includes(movie.id) ? 'bg-red-600 border-red-600 text-white' : 'border-white/10 hover:border-white/20 bg-white/5 text-gray-400 hover:text-white'}`}
+                                                                   title={reminders.includes(movie.id) ? "Reminder Set" : "Notify Me"}
+                                                               >
+                                                                   <Bell size={13} fill={reminders.includes(movie.id) ? "currentColor" : "none"} />
+                                                               </button>
+                                                               <button 
+                                                                   onClick={(e) => { e.stopPropagation(); setSelectedMovie(movie); }}
+                                                                   className="p-1.5 rounded-full border border-white/10 hover:border-white/20 bg-white/5 text-gray-400 hover:text-white transition-all active:scale-90"
+                                                                   title="View Details"
+                                                               >
+                                                                   <Info size={13} />
+                                                               </button>
+                                                           </div>
+                                                       </div>
+
+                                                       <p className="text-[10px] font-bold text-red-500/90 tracking-wider uppercase mt-0.5">
+                                                           Expected {formatted.full}
+                                                       </p>
+
+                                                       <p className="text-gray-400 text-xs md:text-xs leading-relaxed mt-2.5 line-clamp-3 font-normal max-w-2xl">
+                                                           {movie.overview || "No synopsis available for this upcoming title yet. Check back closer to release."}
+                                                       </p>
+                                                   </div>
+
+                                                   {/* Metadata pills */}
+                                                   <div className="flex flex-wrap items-center gap-1.5 mt-3">
+                                                       {movie.genre_ids?.slice(0, 3).map((genreId) => {
+                                                           const genreName = GENRES_MAP[genreId];
+                                                           if (!genreName) return null;
+                                                           return (
+                                                               <span 
+                                                                   key={genreId} 
+                                                                   className="text-[8px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-white/5 border border-white/5 text-gray-400 font-sans"
+                                                               >
+                                                                   {genreName}
+                                                               </span>
+                                                           );
+                                                       })}
+                                                       {movie.vote_average > 0 && (
+                                                           <span className="flex items-center gap-1 text-[8px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-yellow-500/10 border border-yellow-500/10 text-yellow-500 font-sans">
+                                                               <Star size={7} fill="currentColor" /> {movie.vote_average.toFixed(1)} Expected
+                                                           </span>
+                                                       )}
+                                                   </div>
+                                               </div>
+                                           </div>
+                                       ))}
+                                   </div>
+                               </div>
+                           );
+                       })}
+                   </div>
+               </div>
            ) : (
                <>
-                   {selectedCategory === "Coming" && (
-                       <div className="animate-in fade-in slide-in-from-bottom-4 p-6 md:p-8">
-                           <div className="space-y-12">
-                               {groupMoviesByDate(movies).map(([date, dateMovies]) => (
-                                   <div key={date} className="animate-in slide-in-from-right-4 duration-500 group/timeline">
-                                       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 mt-4">
-                                           {dateMovies.map((movie) => (
-                                               <div key={movie.id} onClick={() => setSelectedMovie(movie)} className="group cursor-pointer relative">
-                                                   <div className="aspect-[2/3] rounded-xl overflow-hidden bg-gray-900 mb-3 relative shadow-lg">
-                                                       <img src={movie.poster_path ? `${TMDB_IMAGE_BASE}${movie.poster_path}` : "https://placehold.co/300x450"} alt={movie.title} className="w-full h-full object-cover" loading="lazy" />
-                                                   </div>
-                                                   <h4 className="font-bold text-sm text-gray-200">{movie.title}</h4>
-                                               </div>
-                                           ))}
-                                       </div>
-                                   </div>
-                               ))}
-                           </div>
-                       </div>
-                   )}
-
                    {selectedCategory !== "Coming" && selectedCategory !== "Genres" && selectedCategory !== "Countries" && selectedCategory !== "Collections" && selectedCategory !== "Franchise" && (
                        <>
                            {!searchQuery && featuredMovie && !activeCountry && !activeKeyword && !tmdbCollectionId && !currentCollection && (
