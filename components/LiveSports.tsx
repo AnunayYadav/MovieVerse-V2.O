@@ -28,10 +28,10 @@ export const LiveSports: React.FC<LiveSportsProps> = ({ userProfile }) => {
     const [selectedMatch, setSelectedMatch] = useState<APIMatch | null>(null);
 
     const isExclusive = userProfile.canWatch === true;
-    const isGoldTheme = isExclusive && userProfile.theme !== 'default';
-    const accentColor = isGoldTheme ? "text-amber-500" : "text-red-500";
-    const accentBg = isGoldTheme ? "bg-amber-500" : "bg-red-600";
-    const accentBorder = isGoldTheme ? "border-amber-500/50" : "border-red-500/50";
+    const isGoldTheme = false;
+    const accentColor = "text-red-500";
+    const accentBg = "bg-red-600";
+    const accentBorder = "border-red-500/50";
 
     // Fetch Sports Categories
     useEffect(() => {

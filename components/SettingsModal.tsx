@@ -48,11 +48,11 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
     const [expandedFaq, setExpandedFaq] = useState<number | null>(null);
 
     const isExclusive = profile.canWatch === true;
-    const isGoldTheme = isExclusive && profile.theme !== 'default';
+    const isGoldTheme = false;
     
     // Dynamic Accent Logic
-    const accentText = isGoldTheme ? "text-amber-500" : "text-red-600";
-    const accentHoverText = isGoldTheme ? "hover:text-amber-400" : "hover:text-red-400";
+    const accentText = "text-red-600";
+    const accentHoverText = "hover:text-red-400";
 
     useEffect(() => {
         if (isOpen) {
@@ -286,26 +286,6 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                                   <h3 className="text-2xl font-bold text-white mb-6">General Settings</h3>
                                   
                                   <div className="space-y-5">
-                                      {isExclusive && (
-                                          <div className={`p-5 rounded-2xl border flex items-center justify-between mb-4 transition-colors ${isGoldTheme ? 'bg-amber-900/10 border-amber-500/30' : 'bg-white/5 border-white/10'}`}>
-                                              <div className="flex items-center gap-4">
-                                                  <div className={`p-2.5 rounded-full ${isGoldTheme ? 'bg-amber-500 text-black' : 'bg-red-600 text-white'}`}>
-                                                      <Crown size={20}/>
-                                                  </div>
-                                                  <div>
-                                                      <h4 className={`text-base font-bold ${isGoldTheme ? 'text-amber-400' : 'text-white'}`}>Premium Gold Theme</h4>
-                                                      <p className="text-xs text-gray-400 mt-0.5">Exclusive new look for premium members.</p>
-                                                  </div>
-                                              </div>
-                                              <button 
-                                                onClick={handleToggleTheme}
-                                                className={`relative w-12 h-6 rounded-full transition-colors duration-300 ${isGoldTheme ? 'bg-amber-500' : 'bg-white/20'}`}
-                                              >
-                                                  <div className={`absolute top-1 left-1 bg-white w-4 h-4 rounded-full transition-transform duration-300 shadow-md ${isGoldTheme ? 'translate-x-6' : 'translate-x-0'}`}></div>
-                                              </button>
-                                          </div>
-                                      )}
-
                                       <div className="space-y-2">
                                         <div className="flex justify-between items-center">
                                             <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">TMDB API Key</label>

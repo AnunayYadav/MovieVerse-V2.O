@@ -170,11 +170,11 @@ export const LiveTV: React.FC<LiveTVProps> = ({ userProfile }) => {
     const dropdownRef = useRef<HTMLDivElement>(null);
 
     const isExclusive = userProfile.canWatch === true;
-    const isGoldTheme = isExclusive && userProfile.theme !== 'default';
+    const isGoldTheme = false;
     
-    const accentText = isGoldTheme ? "text-amber-500" : "text-red-600";
-    const accentBg = isGoldTheme ? "bg-amber-500" : "bg-red-600";
-    const accentBorder = isGoldTheme ? "border-amber-500" : "border-red-600";
+    const accentText = "text-red-600";
+    const accentBg = "bg-red-600";
+    const accentBorder = "border-red-600";
 
     // Close dropdown on click outside
     useEffect(() => {

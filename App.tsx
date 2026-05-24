@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Search, Film, Menu, TrendingUp, Tv, Ghost, Calendar, Star, X, Sparkles, Settings, Globe, Bookmark, Heart, Folder, Languages, Filter, ChevronDown, Info, Plus, Cloud, CloudOff, Clock, Bell, History, Users, Tag, Dice5, Crown, Radio, LayoutGrid, Award, Baby, Clapperboard, ChevronRight, PlayCircle, Megaphone, CalendarDays, Compass, Home, Map, Loader2, Trophy, RefreshCcw, Check, MonitorPlay, Layers, LogOut, Download } from 'lucide-react';
+import { Search, Film, Menu, TrendingUp, Tv, Ghost, Calendar, Star, X, Sparkles, Settings, Globe, Bookmark, Heart, Folder, Languages, Filter, ChevronDown, Info, Plus, Cloud, CloudOff, Clock, Bell, History, Users, Tag, Dice5, Crown, Radio, LayoutGrid, Award, Baby, Clapperboard, ChevronRight, PlayCircle, Play, Megaphone, CalendarDays, Compass, Home, Map, Loader2, Trophy, RefreshCcw, Check, MonitorPlay, Layers, LogOut, Download } from 'lucide-react';
 import { Movie, UserProfile, GENRES_MAP, GENRES_LIST, INDIAN_LANGUAGES, MaturityRating, Keyword } from './types';
 import { LogoLoader, MovieSkeleton, MovieCard, PersonCard, PosterMarquee, TMDB_BASE_URL, TMDB_BACKDROP_BASE, TMDB_IMAGE_BASE, getTmdbKey, BrandLogo } from './components/Shared';
 import { MoviePage } from './components/MovieDetails';
@@ -125,10 +125,10 @@ export default function App() {
 
   const abortControllerRef = useRef<AbortController | null>(null);
   const isExclusive = userProfile.canWatch === true;
-  const isGoldTheme = isExclusive && userProfile.theme !== 'default';
-  const accentText = isGoldTheme ? "text-amber-500" : "text-red-600";
-  const accentBg = isGoldTheme ? "bg-amber-500" : "bg-red-600";
-  const accentBgLow = isGoldTheme ? "bg-amber-500/20" : "bg-red-600/20";
+  const isGoldTheme = false;
+  const accentText = "text-red-600";
+  const accentBg = "bg-red-600";
+  const accentBgLow = "bg-red-600/20";
 
   // Shortcut Handler
   useEffect(() => {
@@ -660,7 +660,9 @@ export default function App() {
         const isStrictFilter = !isAdult || maturityRating !== 'NC-17';
         const isGeneralDiscovery = !activeCountry && !activeKeyword && !tmdbCollectionId && !currentCollection && !["People", "Franchise"].includes(selectedCategory);
         if (isGeneralDiscovery) {
-             if (appRegion) params.append("region", appRegion);
+             if (selectedRegion !== "Global") {
+                 params.append("region", selectedRegion);
+             }
              if (isStrictFilter) {
                  params.append("certification_country", "US"); 
                  params.append("certification.lte", maturityRating);
@@ -754,7 +756,7 @@ export default function App() {
             params.set("primary_release_date.lte", future.toISOString().split('T')[0]);
             params.set("sort_by", "popularity.desc"); 
             params.set("popularity.gte", "5"); 
-            if (selectedRegion === "IN") params.set("with_origin_country", "IN");
+            if (selectedRegion !== "Global") params.set("with_origin_country", selectedRegion);
         }
         else {
              params.append("sort_by", sortOption === 'relevance' ? 'popularity.desc' : sortOption);
@@ -766,7 +768,7 @@ export default function App() {
              }
              if (sortOption === "revenue.desc") params.append("vote_count.gte", "300");
              if (selectedCategory !== "All" && GENRES_MAP[selectedCategory]) params.append("with_genres", GENRES_MAP[selectedCategory].toString());
-             if (selectedRegion === "IN") params.append("with_origin_country", "IN");
+             if (selectedRegion !== "Global") params.append("with_origin_country", selectedRegion);
              if (selectedLanguage !== "All") params.append("with_original_language", selectedLanguage);
              if (filterPeriod === "future") { params.set("sort_by", "popularity.desc"); params.append("primary_release_date.gte", new Date().toISOString().split('T')[0]); }
              else if (filterPeriod === "thisYear") { params.append("primary_release_year", new Date().getFullYear().toString()); }
@@ -970,11 +972,11 @@ export default function App() {
                 <div className="flex items-center gap-2 cursor-pointer group" onClick={resetToHome}>
                     <div className="relative group">
                         <BrandLogo className={`${accentText} relative z-10 transition-transform duration-500 group-hover:rotate-12`} accentColor={accentText} />
-                        <div className={`absolute inset-0 blur-lg opacity-50 group-hover:opacity-80 transition-opacity duration-500 ${isGoldTheme ? 'bg-amber-500' : 'bg-red-600'}`}></div>
+                        <div className="absolute inset-0 blur-lg opacity-50 group-hover:opacity-80 transition-opacity duration-500 bg-red-600"></div>
                     </div>
-                    <div className="flex flex-col leading-none">
+                    <div className="flex flex-col leading-none gap-0.5">
                         <span className="text-lg font-bold tracking-tight text-white hidden sm:block">Movie<span className={accentText}>Verse</span></span>
-                        {isExclusive && <span className={`text-[9px] uppercase tracking-[0.2em] font-bold hidden sm:block animate-pulse ${isGoldTheme ? 'text-amber-500' : 'text-red-600'}`}>Exclusive</span>}
+                        {isExclusive && <span className="text-[8px] uppercase tracking-[0.15em] font-extrabold hidden sm:block px-1.5 py-0.5 rounded bg-red-600/10 border border-red-500/20 text-red-500 select-none w-max">Premium</span>}
                     </div>
                 </div>
 
@@ -1214,19 +1216,19 @@ export default function App() {
 
                                        <div className="flex flex-row items-center gap-3 w-full sm:w-auto mt-2">
                                            {isExclusive && (
-                                               <button 
-                                                   onClick={() => setSelectedMovie(featuredMovie)}
-                                                   className={`flex-1 sm:flex-none px-2 py-3 sm:px-8 sm:py-3.5 text-sm sm:text-base rounded-xl font-bold flex items-center justify-center gap-3 transition-all hover:scale-105 active:scale-95 shadow-xl ${isGoldTheme ? 'bg-amber-500 text-black hover:bg-amber-400' : 'bg-white text-black hover:bg-gray-200'}`}
-                                               >
-                                                   <PlayCircle size={20} fill="currentColor" /> Watch Now
-                                               </button>
+                                                <button 
+                                                    onClick={() => setSelectedMovie(featuredMovie)}
+                                                    className={`flex-1 sm:flex-none px-6 py-2.5 text-sm sm:text-base rounded-md font-bold flex items-center justify-center gap-2.5 transition-all hover:scale-[1.02] active:scale-95 shadow-md ${isGoldTheme ? 'bg-amber-500 text-black hover:bg-amber-600' : 'bg-white text-black hover:bg-white/90'}`}
+                                                >
+                                                    <Play size={18} fill="currentColor" /> Watch Now
+                                                </button>
                                            )}
                                            <button 
-                                               onClick={() => setSelectedMovie(featuredMovie)}
-                                               className="flex-1 sm:flex-none px-2 py-3 sm:px-8 sm:py-3.5 text-sm sm:text-base rounded-xl font-bold flex items-center justify-center gap-3 bg-white/10 hover:bg-white/20 backdrop-blur-md text-white transition-all hover:scale-105 active:scale-95 border border-white/10"
-                                           >
-                                               <Info size={20}/> More Info
-                                           </button>
+                                                onClick={() => setSelectedMovie(featuredMovie)}
+                                                className="flex-1 sm:flex-none px-6 py-2.5 text-sm sm:text-base rounded-md font-bold flex items-center justify-center gap-2.5 bg-white/20 hover:bg-white/35 backdrop-blur-md text-white transition-all hover:scale-[1.02] active:scale-95"
+                                            >
+                                                <Info size={18}/> More Info
+                                            </button>
                                        </div>
                                    </div>
                                </div>
@@ -1260,21 +1262,6 @@ export default function App() {
                                         </div>
                                     </div>
 
-                                    <div className="relative group shrink-0">
-                                        <button className="flex items-center gap-2 px-3 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-xs font-medium text-gray-200 transition-all hover:border-white/20 active:scale-95 min-w-[100px] justify-between">
-                                            <div className="flex items-center gap-2"><Globe size={14}/> <span>{selectedRegion === 'Global' ? 'Global' : selectedRegion}</span></div>
-                                            <ChevronDown size={12} className="text-gray-500 group-hover:text-white transition-colors"/>
-                                        </button>
-                                        <div className="absolute top-full left-0 w-full h-2 bg-transparent pointer-events-auto opacity-0 group-hover:block hidden"></div>
-                                        <div className="absolute top-full right-0 mt-2 w-48 bg-[#1a1a1a]/95 backdrop-blur-xl border border-white/10 rounded-xl overflow-hidden shadow-2xl opacity-0 group-hover:opacity-100 scale-95 group-hover:scale-100 pointer-events-none group-hover:pointer-events-auto transition-all origin-top-right z-50 max-h-60 overflow-y-auto custom-scrollbar p-1">
-                                            {['Global', 'US', 'IN', 'JP', 'KR', 'GB', 'FR', 'DE'].map(region => (
-                                                <button key={region} onClick={() => setSelectedRegion(region)} className={`w-full text-left px-3 py-2 text-xs font-medium rounded-lg transition-colors flex items-center justify-between ${selectedRegion === region ? 'bg-white/10 text-white' : 'text-gray-400 hover:bg-white/5 hover:text-white'}`}>
-                                                    {region === 'Global' ? 'Global' : region === 'IN' ? 'India' : region}
-                                                    {selectedRegion === region && <Check size={12} className={accentText}/>}
-                                                </button>
-                                            ))}
-                                        </div>
-                                    </div>
 
                                     <div className="relative group shrink-0">
                                         <button className="flex items-center gap-2 px-3 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-xs font-medium text-gray-200 transition-all hover:border-white/20 active:scale-95 min-w-[100px] justify-between">

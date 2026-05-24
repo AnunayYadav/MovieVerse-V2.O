@@ -295,11 +295,10 @@ export const MoviePage: React.FC<MoviePageProps> = ({
     const hasCenteredTimeline = useRef<number | null>(null);
 
     const isExclusive = userProfile.canWatch === true;
-    const isGoldTheme = isExclusive && userProfile.theme !== 'default';
-
-    const accentText = isGoldTheme ? "text-amber-500" : "text-red-500";
-    const accentBg = isGoldTheme ? "bg-amber-500" : "bg-red-500";
-    const accentShadow = isGoldTheme ? "shadow-amber-500/50" : "shadow-red-600/50";
+    const isGoldTheme = false;
+    const accentText = "text-red-500";
+    const accentBg = "bg-red-500";
+    const accentShadow = "shadow-red-600/50";
 
     useEffect(() => {
         const handleEsc = (e: KeyboardEvent) => {
@@ -452,7 +451,50 @@ export const MoviePage: React.FC<MoviePageProps> = ({
     ];
 
     const director = displayData.credits?.crew?.find(c => c.job === 'Director') || displayData.created_by?.[0];
-    const providers = displayData["watch/providers"]?.results?.[appRegion || 'US'] || displayData["watch/providers"]?.results?.['US'];
+    
+    // Watch providers with global fallback
+    const allResults = displayData["watch/providers"]?.results || {};
+    let providers = allResults[appRegion || 'US'] || allResults['US'];
+    let isGlobalProvidersFallback = false;
+    
+    if (!providers || (!providers.flatrate && !providers.rent && !providers.buy)) {
+        const aggregated: any = { link: "", flatrate: [], rent: [], buy: [] };
+        const seenFlat = new Set<number>();
+        const seenRentBuy = new Set<number>();
+        
+        for (const country of Object.keys(allResults)) {
+            const countryProviders = allResults[country];
+            if (countryProviders.flatrate) {
+                for (const p of countryProviders.flatrate) {
+                    if (!seenFlat.has(p.provider_id)) {
+                        seenFlat.add(p.provider_id);
+                        aggregated.flatrate.push(p);
+                    }
+                }
+            }
+            if (countryProviders.rent) {
+                for (const p of countryProviders.rent) {
+                    if (!seenRentBuy.has(p.provider_id)) {
+                        seenRentBuy.add(p.provider_id);
+                        aggregated.rent.push(p);
+                    }
+                }
+            }
+            if (countryProviders.buy) {
+                for (const p of countryProviders.buy) {
+                    if (!seenRentBuy.has(p.provider_id)) {
+                        seenRentBuy.add(p.provider_id);
+                        aggregated.buy.push(p);
+                    }
+                }
+            }
+        }
+        
+        if (aggregated.flatrate.length > 0 || aggregated.rent.length > 0 || aggregated.buy.length > 0) {
+            providers = aggregated;
+            isGlobalProvidersFallback = true;
+        }
+    }
 
     const SocialLink = ({ url, icon: Icon, color }: { url?: string, icon: any, color: string }) => {
         if (!url) return null;
@@ -520,16 +562,16 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                         </div>
                                         <div className="flex flex-row items-center gap-3 w-full sm:w-auto mt-6">
                                             {isExclusive && (
-                                                <button onClick={handleWatchClick} className={`font-bold py-3 px-8 text-sm sm:text-base rounded-xl transition-all flex flex-1 sm:flex-none items-center justify-center gap-2 active:scale-95 shadow-xl hover:shadow-2xl ${isGoldTheme ? 'bg-gradient-to-r from-amber-600 to-amber-500 text-black shadow-amber-900/40' : 'bg-red-600 hover:bg-red-700 text-white'}`}><PlayCircle size={20} fill="currentColor" /> {movie.play_progress && movie.play_progress > 0 ? `Resume` : 'Watch'}</button>
+                                                <button onClick={handleWatchClick} className={`flex items-center justify-center gap-2.5 px-6 py-2.5 rounded-md font-bold text-sm sm:text-base transition-all hover:scale-[1.02] active:scale-95 shadow-md flex-1 sm:flex-none ${isGoldTheme ? 'bg-amber-500 hover:bg-amber-600 text-black' : 'bg-white hover:bg-white/90 text-black'}`}><Play size={18} fill="currentColor" /> {movie.play_progress && movie.play_progress > 0 ? `Resume` : 'Watch'}</button>
                                             )}
                                             {isExclusive && (
-                                                <button onClick={() => onStartWatchParty && onStartWatchParty(displayData, playParams.season, playParams.episode)} className="font-bold py-3 px-6 text-sm sm:text-base rounded-xl bg-purple-600 hover:bg-purple-700 active:scale-95 text-white transition-all flex items-center justify-center gap-2 shadow-xl shadow-purple-900/20" title="Start a Watch Party"><Users size={20} /> Watch Party</button>
+                                                <button onClick={() => onStartWatchParty && onStartWatchParty(displayData, playParams.season, playParams.episode)} className="flex items-center justify-center gap-2 px-6 py-2.5 rounded-md font-semibold text-sm sm:text-base transition-all active:scale-95 backdrop-blur-md bg-purple-600/30 hover:bg-purple-600/50 text-white border border-purple-500/40 hover:border-purple-500/60 shadow-lg" title="Start a Watch Party"><Users size={18} /> Watch Party</button>
                                             )}
                                             <div className="flex items-center gap-3">
-                                                <button onClick={() => onToggleWatchlist(displayData)} className={`w-12 h-12 rounded-full glass hover:bg-white/10 flex items-center justify-center transition-all active:scale-95 group relative ${isWatchlisted ? 'text-green-400 border-green-500/30' : 'text-white'}`} title="Add to Watchlist">{isWatchlisted ? <Check size={22} strokeWidth={2.5}/> : <Plus size={22}/>}</button>
-                                                <button onClick={() => onToggleFavorite(displayData)} className={`w-12 h-12 rounded-full glass hover:bg-white/10 flex items-center justify-center transition-all active:scale-95 group ${isFavorite ? 'text-red-500' : 'text-white'}`} title="Add to Favorites"><Heart size={22} fill={isFavorite ? "currentColor" : "none"}/></button>
-                                                <button onClick={() => details?.external_ids?.imdb_id && window.open(`https://www.imdb.com/title/${details.external_ids.imdb_id}/parentalguide`, '_blank')} disabled={!details?.external_ids?.imdb_id} className={`w-12 h-12 rounded-full glass hover:bg-white/10 flex items-center justify-center transition-all active:scale-95 text-white ${!details?.external_ids?.imdb_id ? 'opacity-30 cursor-not-allowed' : ''}`} title="Parents Guide (IMDb)"><Shield size={22}/></button>
-                                                {details?.videos?.results?.[0] && <button onClick={() => window.open(`https://www.youtube.com/watch?v=${details.videos.results[0].key}`)} className="w-12 h-12 rounded-full glass hover:bg-white/10 flex items-center justify-center transition-all active:scale-95 text-white" title="Watch Trailer"><Play size={20} fill="currentColor" className="ml-0.5"/></button>}
+                                                <button onClick={() => onToggleWatchlist(displayData)} className={`w-10 h-10 rounded-full border flex items-center justify-center transition-all active:scale-95 group relative ${isWatchlisted ? 'text-green-400 border-green-500/40 bg-green-500/10 hover:bg-green-500/20' : 'text-white border-white/30 hover:border-white/60 bg-black/40 hover:bg-white/10'}`} title="Add to Watchlist">{isWatchlisted ? <Check size={18} strokeWidth={2.5}/> : <Plus size={18}/>}</button>
+                                                <button onClick={() => onToggleFavorite(displayData)} className={`w-10 h-10 rounded-full border flex items-center justify-center transition-all active:scale-95 group ${isFavorite ? 'text-red-500 border-red-500/40 bg-red-500/10 hover:bg-red-500/20' : 'text-white border-white/30 hover:border-white/60 bg-black/40 hover:bg-white/10'}`} title="Add to Favorites"><Heart size={18} fill={isFavorite ? "currentColor" : "none"}/></button>
+                                                <button onClick={() => details?.external_ids?.imdb_id && window.open(`https://www.imdb.com/title/${details.external_ids.imdb_id}/parentalguide`, '_blank')} disabled={!details?.external_ids?.imdb_id} className={`w-10 h-10 rounded-full border border-white/30 hover:border-white/60 bg-black/40 hover:bg-white/10 flex items-center justify-center transition-all active:scale-95 text-white ${!details?.external_ids?.imdb_id ? 'opacity-30 cursor-not-allowed' : ''}`} title="Parents Guide (IMDb)"><Shield size={18}/></button>
+                                                {details?.videos?.results?.[0] && <button onClick={() => window.open(`https://www.youtube.com/watch?v=${details.videos.results[0].key}`)} className="w-10 h-10 rounded-full border border-white/30 hover:border-white/60 bg-black/40 hover:bg-white/10 flex items-center justify-center transition-all active:scale-95 text-white" title="Watch Trailer"><Play size={16} fill="currentColor" className="ml-0.5"/></button>}
                                             </div>
                                         </div>
                                     </div>
@@ -602,7 +644,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                         <div className="grid grid-cols-2 md:grid-cols-3 gap-4 animate-in fade-in">{displayData.images?.backdrops?.slice(0, 9).map((img, i) => <img key={i} src={`${TMDB_IMAGE_BASE}${img.file_path}`} className="w-full h-auto rounded-lg cursor-pointer hover:opacity-80 transition-opacity aspect-video object-cover" onClick={() => setViewingImage(`${TMDB_BACKDROP_BASE}${img.file_path}`)} alt="Backdrop" />)}</div>
                                     )}
                                     {activeTab === 'seasons' && isTv && (
-                                        <div className="space-y-4 animate-in fade-in">{displayData.seasons?.filter(s => s.season_number > 0).map(season => <div key={season.id} className="flex gap-4 p-4 bg-white/5 rounded-xl border border-white/5 hover:border-white/10 transition-colors"><img src={season.poster_path ? `${TMDB_IMAGE_BASE}${season.poster_path}` : "https://placehold.co/100x150"} className="w-20 h-32 object-cover rounded-lg shadow-lg shrink-0" alt={season.name}/><div className="flex-1 py-1"><h3 className="text-lg font-bold text-white mb-1">{season.name}</h3><div className="flex items-center gap-3 text-xs text-gray-400 mb-3"><span className="bg-white/10 px-2 py-0.5 rounded text-white">{season.episode_count} Episodes</span><span>{season.air_date?.split('-')[0]}</span></div><p className="text-sm text-gray-400 line-clamp-2">{season.overview || `Season ${season.season_number} of ${displayData.name}.`}</p>{isExclusive && <button onClick={() => { setPlayParams({ season: season.season_number, episode: 1 }); setShowPlayer(true); }} className={`mt-3 px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-2 hover:opacity-90 transition-opacity ${isGoldTheme ? 'bg-amber-500 text-black' : 'bg-red-600 text-white'}`}><Play size={12} fill="currentColor"/> Watch</button>}</div></div>)}</div>
+                                        <div className="space-y-4 animate-in fade-in">{displayData.seasons?.filter(s => s.season_number > 0).map(season => <div key={season.id} className="flex gap-4 p-4 bg-white/5 rounded-xl border border-white/5 hover:border-white/10 transition-colors"><img src={season.poster_path ? `${TMDB_IMAGE_BASE}${season.poster_path}` : "https://placehold.co/100x150"} className="w-20 h-32 object-cover rounded-lg shadow-lg shrink-0" alt={season.name}/><div className="flex-1 py-1"><h3 className="text-lg font-bold text-white mb-1">{season.name}</h3><div className="flex items-center gap-3 text-xs text-gray-400 mb-3"><span className="bg-white/10 px-2 py-0.5 rounded text-white">{season.episode_count} Episodes</span><span>{season.air_date?.split('-')[0]}</span></div><p className="text-sm text-gray-400 line-clamp-2">{season.overview || `Season ${season.season_number} of ${displayData.name}.`}</p>{isExclusive && <button onClick={() => { setPlayParams({ season: season.season_number, episode: 1 }); setShowPlayer(true); }} className="mt-3 px-3.5 py-1.5 rounded-md text-xs font-bold flex items-center gap-1.5 bg-white hover:bg-white/90 text-black shadow-md transition-all active:scale-95 duration-200"><Play size={12} fill="currentColor"/> Watch</button>}</div></div>)}</div>
                                     )}
                                 </div>
 
@@ -621,7 +663,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                     {displayData.production_companies && displayData.production_companies.length > 0 && (
                                         <div className="bg-white/5 border border-white/5 rounded-2xl p-6"><h4 className="text-sm font-bold text-white mb-5 flex items-center gap-2"><Building2 size={14} className={accentText}/> Production</h4><div className="space-y-4">{displayData.production_companies.map((company) => <div key={company.id} className="flex items-center gap-3 group"><div className="w-10 h-10 bg-white/90 rounded-lg p-1 flex items-center justify-center shrink-0 shadow-lg group-hover:bg-white transition-colors">{company.logo_path ? <img src={`${TMDB_IMAGE_BASE}${company.logo_path}`} alt={company.name} className="max-w-full max-h-full object-contain"/> : <Building2 size={18} className="text-black/40"/>}</div><div className="min-w-0"><p className="text-xs font-bold text-white truncate leading-none mb-1">{company.name}</p><p className="text-[10px] text-gray-500">{company.origin_country || 'Global'}</p></div></div>)}</div></div>
                                     )}
-                                    <div className="bg-white/5 border border-white/5 rounded-2xl p-6"><h4 className="text-sm font-bold text-white mb-4 flex items-center gap-2"><Monitor size={14}/> Where to Watch</h4>{(providers?.flatrate || providers?.rent || providers?.buy) ? <div className="space-y-4">{providers.flatrate && <div><p className="text-[10px] text-gray-500 mb-2">Stream</p><div className="flex flex-wrap gap-2">{providers.flatrate.map(p => <img key={p.provider_id} src={`${TMDB_IMAGE_BASE}${p.logo_path}`} className="w-10 h-10 rounded-lg" title={p.provider_name} alt={p.provider_name}/>)}</div></div>}{(providers.rent || providers.buy) && <div><p className="text-[10px] text-gray-500 mb-2">Rent / Buy</p><div className="flex flex-wrap gap-2">{[...(providers.rent || []), ...(providers.buy || [])].reduce((acc: any[], curr) => { if (!acc.find(p => p.provider_id === curr.provider_id)) acc.push(curr); return acc; }, []).map(p => <img key={p.provider_id} src={`${TMDB_IMAGE_BASE}${p.logo_path}`} className="w-10 h-10 rounded-lg" title={p.provider_name} alt={p.provider_name}/>)}</div></div>}</div> : <p className="text-xs text-gray-500">No streaming information available for your region.</p>}<div className="mt-4 pt-4 border-t border-white/5 text-right"><p className="text-[10px] text-gray-600">Powered by JustWatch</p></div></div>
+                                    <div className="bg-white/5 border border-white/5 rounded-2xl p-6"><h4 className="text-sm font-bold text-white mb-4 flex items-center gap-2"><Monitor size={14}/> Where to Watch</h4>{(providers?.flatrate || providers?.rent || providers?.buy) ? <div className="space-y-4">{providers.flatrate && <div><p className="text-[10px] text-gray-500 mb-2">Stream{isGlobalProvidersFallback ? " (Other Regions)" : ""}</p><div className="flex flex-wrap gap-2">{providers.flatrate.map(p => <img key={p.provider_id} src={`${TMDB_IMAGE_BASE}${p.logo_path}`} className="w-10 h-10 rounded-lg" title={p.provider_name} alt={p.provider_name}/>)}</div></div>}{(providers.rent || providers.buy) && <div><p className="text-[10px] text-gray-500 mb-2">Rent / Buy{isGlobalProvidersFallback ? " (Other Regions)" : ""}</p><div className="flex flex-wrap gap-2">{[...(providers.rent || []), ...(providers.buy || [])].reduce((acc: any[], curr) => { if (!acc.find(p => p.provider_id === curr.provider_id)) acc.push(curr); return acc; }, []).map(p => <img key={p.provider_id} src={`${TMDB_IMAGE_BASE}${p.logo_path}`} className="w-10 h-10 rounded-lg" title={p.provider_name} alt={p.provider_name}/>)}</div></div>}</div> : <p className="text-xs text-gray-500">No streaming information available.</p>}<div className="mt-4 pt-4 border-t border-white/5 text-right"><p className="text-[10px] text-gray-600">Powered by JustWatch</p></div></div>
                                     {displayData.keywords?.keywords && displayData.keywords.keywords.length > 0 && <div className="flex flex-wrap gap-2">{displayData.keywords.keywords.slice(0, 8).map(k => <span key={k.id} onClick={() => { onClose(); onKeywordClick(k); }} className="text-[10px] bg-white/5 hover:bg-white/10 border border-white/5 px-3 py-1.5 rounded-full text-gray-400 hover:text-white cursor-pointer transition-colors">#{k.name}</span>)}</div>}
                                 </div>
                             </div>

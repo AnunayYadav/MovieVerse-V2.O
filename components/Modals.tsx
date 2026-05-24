@@ -112,7 +112,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ isOpen, onClose, profi
     
     const fileInputRef = useRef<HTMLInputElement>(null);
     const isExclusive = profile.canWatch === true;
-    const isGoldTheme = isExclusive && profile.theme !== 'default';
+    const isGoldTheme = false;
   
     useEffect(() => {
         if (isOpen) {
@@ -422,7 +422,7 @@ export const NotificationModal: React.FC<NotificationModalProps> = ({ isOpen, on
     const [notifications, setNotifications] = useState<AppNotification[]>([]);
     const [loading, setLoading] = useState(false);
     const isExclusive = userProfile?.canWatch === true;
-    const isGoldTheme = isExclusive && userProfile?.theme !== 'default';
+    const isGoldTheme = false;
 
     useEffect(() => {
         if (isOpen) {
