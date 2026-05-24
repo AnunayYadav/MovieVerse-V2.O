@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Award, TrendingUp, Tv, Film, Star, Play, Plus, LayoutGrid, Sparkles, ChevronRight, Check, AlertCircle, Loader2, ArrowLeft, ExternalLink, Globe, ChevronDown } from 'lucide-react';
 import { Movie, UserProfile, Provider } from '../types';
 import { TMDB_BASE_URL, TMDB_IMAGE_BASE, TMDB_BACKDROP_BASE, MovieCard, MovieSkeleton, getWatchmodeKey } from './Shared';
@@ -62,10 +62,15 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ apiKey, onMovieClick, 
     const [topMovies, setTopMovies] = useState<Movie[]>([]);
     const [topShows, setTopShows] = useState<Movie[]>([]);
     const [ottMovies, setOttMovies] = useState<Movie[]>([]);
+    const [ottPage, setOttPage] = useState(1);
+    const [hasMoreOtt, setHasMoreOtt] = useState(true);
+    const [loadingMore, setLoadingMore] = useState(false);
     const [platforms, setPlatforms] = useState<any[]>([]);
     const [activeOtt, setActiveOtt] = useState<number | null>(null);
     const [loading, setLoading] = useState(true);
     const [loadingPlatforms, setLoadingPlatforms] = useState(true);
+
+    const sentinelRef = useRef<HTMLDivElement | null>(null);
 
     const isExclusive = userProfile.canWatch === true;
     const isGoldTheme = false;
@@ -227,16 +232,94 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ apiKey, onMovieClick, 
         fetchRankings();
     }, [apiKey, exploreRegion]);
 
+    // Reset and fetch page 1 when provider changes or region changes
     useEffect(() => {
-        if (activeOtt) {
-            setLoading(true);
-            const targetRegion = exploreRegion === 'Global' ? (appRegion || 'US') : exploreRegion;
-            fetch(`${TMDB_BASE_URL}/discover/movie?api_key=${apiKey}&watch_region=${targetRegion}&with_watch_providers=${activeOtt}&sort_by=popularity.desc`)
-                .then(r => r.json())
-                .then(data => { setOttMovies(data.results || []); setLoading(false); })
-                .catch(() => setLoading(false));
+        if (!activeOtt) {
+            setOttMovies([]);
+            setOttPage(1);
+            setHasMoreOtt(true);
+            return;
         }
+
+        let isMounted = true;
+        const fetchInitial = async () => {
+            setLoading(true);
+            setOttPage(1);
+            setHasMoreOtt(true);
+            const targetRegion = exploreRegion === 'Global' ? (appRegion || 'US') : exploreRegion;
+            try {
+                const url = `${TMDB_BASE_URL}/discover/movie?api_key=${apiKey}&watch_region=${targetRegion}&with_watch_providers=${activeOtt}&sort_by=popularity.desc&page=1`;
+                const response = await fetch(url);
+                const data = await response.json();
+                if (isMounted) {
+                    const results = data.results || [];
+                    setOttMovies(results);
+                    setHasMoreOtt(results.length > 0 && data.total_pages > 1);
+                }
+            } catch (err) {
+                console.error(err);
+            } finally {
+                if (isMounted) {
+                    setLoading(false);
+                }
+            }
+        };
+
+        fetchInitial();
+
+        return () => {
+            isMounted = false;
+        };
     }, [activeOtt, apiKey, appRegion, exploreRegion]);
+
+    const loadMoreMovies = useCallback(async () => {
+        if (loading || loadingMore || !hasMoreOtt || !activeOtt) return;
+
+        setLoadingMore(true);
+        const nextPage = ottPage + 1;
+        const targetRegion = exploreRegion === 'Global' ? (appRegion || 'US') : exploreRegion;
+        try {
+            const url = `${TMDB_BASE_URL}/discover/movie?api_key=${apiKey}&watch_region=${targetRegion}&with_watch_providers=${activeOtt}&sort_by=popularity.desc&page=${nextPage}`;
+            const response = await fetch(url);
+            const data = await response.json();
+            const results = data.results || [];
+            if (results.length > 0) {
+                setOttMovies(prev => [...prev, ...results]);
+                setOttPage(nextPage);
+                setHasMoreOtt(nextPage < data.total_pages);
+            } else {
+                setHasMoreOtt(false);
+            }
+        } catch (err) {
+            console.error(err);
+        } finally {
+            setLoadingMore(false);
+        }
+    }, [activeOtt, apiKey, appRegion, exploreRegion, hasMoreOtt, loading, loadingMore, ottPage]);
+
+    useEffect(() => {
+        if (!activeOtt || !hasMoreOtt || loading || loadingMore) return;
+
+        const observer = new IntersectionObserver(
+            (entries) => {
+                if (entries[0].isIntersecting) {
+                    loadMoreMovies();
+                }
+            },
+            { rootMargin: '250px' }
+        );
+
+        const currentSentinel = sentinelRef.current;
+        if (currentSentinel) {
+            observer.observe(currentSentinel);
+        }
+
+        return () => {
+            if (currentSentinel) {
+                observer.unobserve(currentSentinel);
+            }
+        };
+    }, [activeOtt, hasMoreOtt, loading, loadingMore, loadMoreMovies]);
 
     const RankingRow = ({ title, items, icon: Icon }: { title: string, items: Movie[], icon: any }) => (
         <div className="mb-12">
@@ -313,6 +396,20 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ apiKey, onMovieClick, 
                             ))
                         }
                     </div>
+
+                    {/* Infinite scroll sentinel */}
+                    {activeOtt && hasMoreOtt && (
+                        <div ref={sentinelRef} className="py-12 flex justify-center items-center">
+                            {loadingMore ? (
+                                <div className="flex items-center gap-2 text-white/60">
+                                    <Loader2 className="animate-spin text-red-600" size={24} />
+                                    <span className="text-xs font-semibold uppercase tracking-widest">Loading More...</span>
+                                </div>
+                            ) : (
+                                <div className="h-4" />
+                            )}
+                        </div>
+                    )}
                 </div>
             </div>
         );
