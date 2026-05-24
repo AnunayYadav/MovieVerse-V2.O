@@ -390,25 +390,21 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ apiKey, onMovieClick, 
                     </div>
 
                     <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-6 md:gap-8">
-                        {loading ? [...Array(12)].map((_, i) => <MovieSkeleton key={i} />) : 
-                            ottMovies.map(movie => (
-                                <MovieCard key={movie.id} movie={movie} onClick={onMovieClick} isWatched={false} onToggleWatched={() => {}} />
-                            ))
-                        }
+                        {loading ? [...Array(12)].map((_, i) => <MovieSkeleton key={i} />) : (
+                            <>
+                                {ottMovies.map(movie => (
+                                    <MovieCard key={movie.id} movie={movie} onClick={onMovieClick} isWatched={false} onToggleWatched={() => {}} />
+                                ))}
+                                {loadingMore && [...Array(6)].map((_, i) => (
+                                    <MovieSkeleton key={`skeleton-${i}`} />
+                                ))}
+                            </>
+                        )}
                     </div>
 
                     {/* Infinite scroll sentinel */}
                     {activeOtt && hasMoreOtt && (
-                        <div ref={sentinelRef} className="py-12 flex justify-center items-center">
-                            {loadingMore ? (
-                                <div className="flex items-center gap-2 text-white/60">
-                                    <Loader2 className="animate-spin text-red-600" size={24} />
-                                    <span className="text-xs font-semibold uppercase tracking-widest">Loading More...</span>
-                                </div>
-                            ) : (
-                                <div className="h-4" />
-                            )}
-                        </div>
+                        <div ref={sentinelRef} className="h-12 w-full flex items-center justify-center" />
                     )}
                 </div>
             </div>
