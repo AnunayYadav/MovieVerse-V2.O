@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { Film, Star, Eye, Download, X, Check, ArrowLeft } from 'lucide-react';
 import { Movie } from '../types';
 
-export const TMDB_BASE_URL = "https://api.themoviedb.org/3";
+export const TMDB_BASE_URL = "/api/tmdb";
 export const TMDB_IMAGE_BASE = "https://image.tmdb.org/t/p/w500";
 // Optimized from 'original' to 'w1280' for better performance and lower bandwidth
 export const TMDB_BACKDROP_BASE = "https://image.tmdb.org/t/p/w1280";
