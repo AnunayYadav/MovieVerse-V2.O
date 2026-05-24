@@ -124,6 +124,169 @@ export default function App() {
       if (selectedCategory === "History") setMovies(watched);
   }, [watchlist, favorites, watched, selectedCategory]);
 
+  const isSyncingHash = useRef(false);
+
+  const syncStateFromHash = useCallback(async () => {
+      if (isSyncingHash.current) return;
+      isSyncingHash.current = true;
+
+      const hash = window.location.hash || '#/';
+      const parts = hash.split('/');
+      
+      // Reset all sub-filters to clean state before parsing hash
+      setSearchQuery("");
+      setCurrentCollection(null);
+      setTmdbCollectionId(null);
+      setActiveKeyword(null);
+      setActiveCountry(null);
+      setIsSidebarOpen(false);
+
+      let category = "All";
+      let movieToSelect: Movie | null = null;
+      let watchPartyRoomId: string | null = null;
+      let keywordToSelect: Keyword | null = null;
+      let collectionIdToSelect: number | null = null;
+      let countryToSelect: { code: string, name: string } | null = null;
+      let customCollectionKey: string | null = null;
+
+      if (hash === '#/' || hash === '') {
+          category = "All";
+      } else if (hash === '#/explore') {
+          category = "Explore";
+      } else if (hash === '#/live-tv') {
+          category = "LiveTV";
+      } else if (hash.startsWith('#/browse/')) {
+          const sub = parts[2];
+          if (sub === 'awards') category = "Awards";
+          else if (sub === 'anime') category = "Anime";
+          else if (sub === 'sports') category = "Sports";
+          else if (sub === 'family') category = "Family";
+          else if (sub === 'tv-shows') category = "TV Shows";
+          else if (sub === 'coming') category = "Coming";
+          else if (sub === 'genres') category = "Genres";
+      } else if (hash.startsWith('#/movie/')) {
+          const movieIdStr = parts[2];
+          const movieId = parseInt(movieIdStr, 10);
+          if (!isNaN(movieId)) {
+              try {
+                  const res = await fetch(`${TMDB_BASE_URL}/movie/${movieId}?api_key=${apiKey}`);
+                  const data = await res.json();
+                  if (data && data.id) {
+                      movieToSelect = data;
+                  }
+              } catch (e) {
+                  console.error("Failed to fetch movie details from hash", e);
+              }
+          }
+      } else if (hash.startsWith('#/watch-party/')) {
+          const roomId = parts[2];
+          if (roomId) {
+              try {
+                  const room = await getWatchPartyRoom(roomId);
+                  if (room) {
+                      watchPartyRoomId = roomId;
+                      setWatchPartyHostId(room.host_id);
+                      setWatchPartyParams({ season: room.season || 1, episode: room.episode || 1 });
+                      if (room.movie_id) {
+                          const res = await fetch(`${TMDB_BASE_URL}/movie/${room.movie_id}?api_key=${apiKey}`);
+                          const mData = await res.json();
+                          if (mData && mData.id) {
+                              movieToSelect = mData;
+                          }
+                      }
+                  }
+              } catch (e) {
+                  console.error("Failed to sync watch party from hash", e);
+              }
+          }
+      } else if (hash.startsWith('#/keyword/')) {
+          const keywordIdStr = parts[2];
+          const keywordId = parseInt(keywordIdStr, 10);
+          if (!isNaN(keywordId)) {
+              category = "Deep Dive";
+              keywordToSelect = { id: keywordId, name: parts[3] ? decodeURIComponent(parts[3]) : `Keyword ${keywordId}` };
+          }
+      } else if (hash.startsWith('#/collection/')) {
+          const collIdStr = parts[2];
+          const collId = parseInt(collIdStr, 10);
+          if (!isNaN(collId)) {
+              category = "Deep Dive";
+              collectionIdToSelect = collId;
+          }
+      } else if (hash.startsWith('#/country/')) {
+          const code = parts[2];
+          if (code) {
+              category = "Countries";
+              countryToSelect = { code, name: parts[3] ? decodeURIComponent(parts[3]) : code };
+          }
+      } else if (hash.startsWith('#/custom-collection/')) {
+          const key = parts[2];
+          if (key) {
+              category = "Collection";
+              customCollectionKey = key;
+          }
+      }
+
+      setSelectedCategory(category);
+      setSelectedMovie(movieToSelect);
+      setActiveWatchPartyRoom(watchPartyRoomId);
+      setActiveKeyword(keywordToSelect);
+      setTmdbCollectionId(collectionIdToSelect);
+      setActiveCountry(countryToSelect);
+      setCurrentCollection(customCollectionKey);
+
+      isSyncingHash.current = false;
+  }, [apiKey]);
+
+  useEffect(() => {
+      if (isAuthenticated) {
+          syncStateFromHash();
+          window.addEventListener('hashchange', syncStateFromHash);
+          return () => window.removeEventListener('hashchange', syncStateFromHash);
+      }
+  }, [isAuthenticated, syncStateFromHash]);
+
+  useEffect(() => {
+      if (isSyncingHash.current) return;
+      
+      let newHash = '#/';
+      if (activeWatchPartyRoom) {
+          newHash = `#/watch-party/${activeWatchPartyRoom}`;
+      } else if (selectedMovie) {
+          newHash = `#/movie/${selectedMovie.id}`;
+      } else if (selectedCategory === 'Explore') {
+          newHash = '#/explore';
+      } else if (selectedCategory === 'LiveTV') {
+          newHash = '#/live-tv';
+      } else if (selectedCategory === 'Awards') {
+          newHash = '#/browse/awards';
+      } else if (selectedCategory === 'Anime') {
+          newHash = '#/browse/anime';
+      } else if (selectedCategory === 'Sports') {
+          newHash = '#/browse/sports';
+      } else if (selectedCategory === 'Family') {
+          newHash = '#/browse/family';
+      } else if (selectedCategory === 'TV Shows') {
+          newHash = '#/browse/tv-shows';
+      } else if (selectedCategory === 'Coming') {
+          newHash = '#/browse/coming';
+      } else if (selectedCategory === 'Genres') {
+          newHash = '#/browse/genres';
+      } else if (selectedCategory === 'Deep Dive' && activeKeyword) {
+          newHash = `#/keyword/${activeKeyword.id}/${encodeURIComponent(activeKeyword.name)}`;
+      } else if (selectedCategory === 'Deep Dive' && tmdbCollectionId) {
+          newHash = `#/collection/${tmdbCollectionId}`;
+      } else if (selectedCategory === 'Countries' && activeCountry) {
+          newHash = `#/country/${activeCountry.code}/${encodeURIComponent(activeCountry.name)}`;
+      } else if (selectedCategory === 'Collection' && currentCollection) {
+          newHash = `#/custom-collection/${currentCollection}`;
+      }
+
+      if (window.location.hash !== newHash) {
+          window.location.hash = newHash;
+      }
+  }, [selectedCategory, selectedMovie, activeWatchPartyRoom, activeKeyword, tmdbCollectionId, activeCountry, currentCollection]);
+
   const abortControllerRef = useRef<AbortController | null>(null);
   const isExclusive = userProfile.canWatch === true;
   const isGoldTheme = false;

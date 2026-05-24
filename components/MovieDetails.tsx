@@ -5,6 +5,7 @@ import { Movie, MovieDetails, Season, UserProfile, Keyword, Review, CastMember, 
 import { TMDB_BASE_URL, TMDB_IMAGE_BASE, TMDB_BACKDROP_BASE, formatCurrency, ImageLightbox, PersonCard, MovieCard } from '../components/Shared';
 import { generateTrivia } from '../services/gemini';
 import { FullCreditsModal } from './Modals';
+import { triggerSystemNotification } from '../services/supabase';
 
 const MoviePlayer = React.lazy(() => import('./MoviePlayer').then(module => ({ default: module.MoviePlayer })));
 
@@ -300,6 +301,19 @@ export const MoviePage: React.FC<MoviePageProps> = ({
     const accentBg = "bg-red-500";
     const accentShadow = "shadow-red-600/50";
 
+    const handleShare = () => {
+        const shareUrl = `${window.location.origin}${window.location.pathname}#/movie/${movie.id}`;
+        navigator.clipboard.writeText(shareUrl)
+            .then(() => {
+                setCopied(true);
+                setTimeout(() => setCopied(false), 2000);
+                triggerSystemNotification("Link Copied!", `Share link for "${displayData.title}" copied to clipboard.`);
+            })
+            .catch((err) => {
+                console.error("Failed to copy link: ", err);
+            });
+    };
+
     useEffect(() => {
         const handleEsc = (e: KeyboardEvent) => {
             if (e.key === 'Escape') {
@@ -570,6 +584,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                             <div className="flex items-center gap-3">
                                                 <button onClick={() => onToggleWatchlist(displayData)} className={`w-10 h-10 rounded-full border flex items-center justify-center transition-all active:scale-95 group relative ${isWatchlisted ? 'text-green-400 border-green-500/40 bg-green-500/10 hover:bg-green-500/20' : 'text-white border-white/30 hover:border-white/60 bg-black/40 hover:bg-white/10'}`} title="Add to Watchlist">{isWatchlisted ? <Check size={18} strokeWidth={2.5}/> : <Plus size={18}/>}</button>
                                                 <button onClick={() => onToggleFavorite(displayData)} className={`w-10 h-10 rounded-full border flex items-center justify-center transition-all active:scale-95 group ${isFavorite ? 'text-red-500 border-red-500/40 bg-red-500/10 hover:bg-red-500/20' : 'text-white border-white/30 hover:border-white/60 bg-black/40 hover:bg-white/10'}`} title="Add to Favorites"><Heart size={18} fill={isFavorite ? "currentColor" : "none"}/></button>
+                                                <button onClick={handleShare} className={`w-10 h-10 rounded-full border flex items-center justify-center transition-all active:scale-95 group relative ${copied ? 'text-green-400 border-green-500/40 bg-green-500/10 hover:bg-green-500/20' : 'text-white border-white/30 hover:border-white/60 bg-black/40 hover:bg-white/10'}`} title="Share Movie">{copied ? <Check size={18} strokeWidth={2.5}/> : <Share2 size={18}/>}</button>
                                                 <button onClick={() => details?.external_ids?.imdb_id && window.open(`https://www.imdb.com/title/${details.external_ids.imdb_id}/parentalguide`, '_blank')} disabled={!details?.external_ids?.imdb_id} className={`w-10 h-10 rounded-full border border-white/30 hover:border-white/60 bg-black/40 hover:bg-white/10 flex items-center justify-center transition-all active:scale-95 text-white ${!details?.external_ids?.imdb_id ? 'opacity-30 cursor-not-allowed' : ''}`} title="Parents Guide (IMDb)"><Shield size={18}/></button>
                                                 {details?.videos?.results?.[0] && <button onClick={() => window.open(`https://www.youtube.com/watch?v=${details.videos.results[0].key}`)} className="w-10 h-10 rounded-full border border-white/30 hover:border-white/60 bg-black/40 hover:bg-white/10 flex items-center justify-center transition-all active:scale-95 text-white" title="Watch Trailer"><Play size={16} fill="currentColor" className="ml-0.5"/></button>}
                                             </div>
