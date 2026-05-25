@@ -81,7 +81,7 @@ export const LogoLoader = () => (
 );
 
 export const MovieSkeleton = () => (
-  <div className="group relative bg-white/5 rounded-xl overflow-hidden aspect-[2/3]">
+  <div className="group relative bg-white/5 rounded-xl overflow-hidden aspect-[16/9]">
     <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full animate-[shimmer_1.5s_infinite]" />
     <div className="absolute bottom-0 left-0 w-full p-4 space-y-3">
       <div className="h-4 bg-white/10 rounded-full w-3/4" />
@@ -278,9 +278,44 @@ interface MovieCardProps {
 export const MovieCard = React.forwardRef<HTMLDivElement, MovieCardProps>(({ movie, onClick, isWatched, onToggleWatched }, ref) => {
     if (!movie) return null;
   
-    const posterUrl = movie.poster_path 
-      ? `${TMDB_IMAGE_BASE}${movie.poster_path}`
-      : `https://placehold.co/500x750/111/444?text=${encodeURIComponent(movie.title || "Movie")}`;
+    const [logoUrl, setLogoUrl] = useState<string | null>(null);
+    const [logoLoading, setLogoLoading] = useState(true);
+
+    React.useEffect(() => {
+        let isMounted = true;
+        const key = getTmdbKey();
+        if (!key) {
+            setLogoLoading(false);
+            return;
+        }
+        
+        const type = movie.media_type === 'tv' || (!movie.release_date && movie.first_air_date) ? 'tv' : 'movie';
+        
+        fetch(`${TMDB_BASE_URL}/${type}/${movie.id}/images?api_key=${key}`)
+            .then(res => {
+                if (!res.ok) throw new Error();
+                return res.json();
+            })
+            .then(data => {
+                if (!isMounted) return;
+                const logo = data.logos?.find((l: any) => l.iso_639_1 === 'en') || data.logos?.[0];
+                if (logo) {
+                    setLogoUrl(`https://image.tmdb.org/t/p/w300${logo.file_path}`);
+                }
+            })
+            .catch(() => {})
+            .finally(() => {
+                if (isMounted) setLogoLoading(false);
+            });
+
+        return () => {
+            isMounted = false;
+        };
+    }, [movie.id]);
+
+    const backdropUrl = movie.backdrop_path 
+      ? `${TMDB_IMAGE_BASE}${movie.backdrop_path}`
+      : (movie.poster_path ? `${TMDB_IMAGE_BASE}${movie.poster_path}` : `https://placehold.co/600x338/111/444?text=${encodeURIComponent(movie.title || movie.name || "Movie")}`);
   
     const rating = movie.vote_average;
     const year = (movie.release_date || movie.first_air_date || "").split('-')[0];
@@ -296,12 +331,12 @@ export const MovieCard = React.forwardRef<HTMLDivElement, MovieCardProps>(({ mov
         className="group relative rounded-xl overflow-hidden cursor-pointer transition-all duration-500 ease-[cubic-bezier(0.33,1,0.68,1)] hover:z-20 hover:scale-[1.03] hover:shadow-[0_10px_40px_rgba(0,0,0,0.5)] font-sans"
         onClick={() => onClick(movie)}
       >
-        <div className="aspect-[2/3] overflow-hidden bg-white/5 relative">
+        <div className="aspect-[16/9] overflow-hidden bg-white/5 relative">
           <img 
-            src={posterUrl} 
-            alt={movie.title || "Movie Poster"} 
+            src={backdropUrl} 
+            alt={movie.title || movie.name || "Movie Poster"} 
             loading="lazy"
-            className="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-110"
+            className="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-105"
           />
           
           {showProgress && (
@@ -314,16 +349,29 @@ export const MovieCard = React.forwardRef<HTMLDivElement, MovieCardProps>(({ mov
           )}
 
           {/* Liquid Glass Overlay on Hover */}
-          <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent opacity-60 group-hover:opacity-90 transition-opacity duration-500 pointer-events-none" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/40 to-transparent opacity-85 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
           
           {/* Content Overlay */}
-          <div className="absolute inset-0 p-4 pb-6 flex flex-col justify-end translate-y-4 group-hover:translate-y-0 transition-transform duration-500 ease-[cubic-bezier(0.33,1,0.68,1)] pointer-events-none">
-             <div className="flex flex-col gap-1 mb-2">
+          <div className="absolute inset-0 p-3 flex flex-col justify-end select-none pointer-events-none">
+             <div className="flex flex-col gap-1">
                 {isFuture && (
-                  <span className="w-fit bg-red-600/90 backdrop-blur-sm text-white text-[10px] font-bold px-2 py-0.5 rounded-md shadow-lg mb-1 animate-pulse">COMING SOON</span>
+                  <span className="w-fit bg-red-600/90 backdrop-blur-sm text-white text-[9px] font-bold px-2 py-0.5 rounded-md shadow-lg mb-1 animate-pulse">COMING SOON</span>
                 )}
-                <h3 className="text-white font-bold text-base leading-tight drop-shadow-md line-clamp-2 transform translate-y-2 group-hover:translate-y-0 transition-transform duration-500 delay-75">{movie.title || movie.name}</h3>
-                <div className="flex items-center justify-between text-white/70 text-xs transform translate-y-2 group-hover:translate-y-0 transition-transform duration-500 delay-100">
+                <div className="min-h-[35px] flex items-end">
+                    {!logoLoading && logoUrl ? (
+                        <img 
+                            src={logoUrl} 
+                            alt={movie.title || movie.name} 
+                            className="max-h-[32px] max-w-[85%] object-contain drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)] group-hover:scale-105 transition-transform duration-300 origin-left"
+                            loading="lazy"
+                        />
+                    ) : (
+                        <h4 className="text-sm font-bold text-white line-clamp-1 group-hover:text-red-500 transition-colors duration-300 drop-shadow-md">
+                            {movie.title || movie.name}
+                        </h4>
+                    )}
+                </div>
+                <div className="flex items-center justify-between mt-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300 transform translate-y-1 group-hover:translate-y-0 transition-transform duration-300">
                   <span>{year || 'TBA'}</span>
                   <StarRating rating={rating} />
                 </div>

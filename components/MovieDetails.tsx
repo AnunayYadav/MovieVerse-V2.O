@@ -772,7 +772,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                         </div>
                                         More Like This
                                     </h3>
-                                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                                    <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                                         {displayData.similar.results.slice(0, 12).map(sim => {
                                             const simWithMediaType = { ...sim, media_type: isTv ? 'tv' as const : 'movie' as const };
                                             return (
