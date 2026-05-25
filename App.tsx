@@ -241,7 +241,7 @@ const MovieRow = ({
     const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
         if (!endpoint) return;
         const target = e.currentTarget;
-        if (target.scrollWidth - target.scrollLeft - target.clientWidth < 400) {
+        if (target.scrollWidth - target.scrollLeft - target.clientWidth < 1000) {
             loadNextPage();
         }
     };
@@ -878,7 +878,7 @@ export default function App() {
       if (selectedCategory !== 'All' || searchQuery || currentCollection || activeCountry || activeKeyword || tmdbCollectionId) return;
       
       const handleScroll = () => {
-          const threshold = 400;
+          const threshold = 1200;
           const isNearBottom = window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - threshold;
           
           if (isNearBottom && !isCategoriesLoading.current) {
@@ -1608,7 +1608,10 @@ export default function App() {
   const lastMovieElementRef = useCallback((node: HTMLDivElement) => {
     if (loading) return;
     if (observer.current) observer.current.disconnect();
-    observer.current = new IntersectionObserver(entries => { if (entries[0].isIntersecting && hasMore) handleLoadMore(); });
+    observer.current = new IntersectionObserver(
+        entries => { if (entries[0].isIntersecting && hasMore) handleLoadMore(); },
+        { rootMargin: '800px' }
+    );
     if (node) observer.current.observe(node);
   }, [loading, hasMore]);
 
@@ -1948,7 +1951,7 @@ export default function App() {
       </nav>
 
       <div className={`flex ${hasHeroBanner ? 'pt-0' : 'pt-16'}`}>
-        <main className="flex-1 min-h-[calc(100vh-4rem)] w-full">
+        <main className="flex-1 min-h-[calc(100vh-4rem)] w-full pb-20 md:pb-0">
            {activeWatchPartyRoom && watchPartyMovie ? (
                <div className="flex flex-col lg:flex-row w-full h-[calc(100vh-4rem)] bg-black overflow-hidden animate-in fade-in duration-500">
                    <div className="flex-1 relative bg-black h-2/3 lg:h-full">
@@ -1990,7 +1993,15 @@ export default function App() {
                        />
                    </div>
                </div>
-           ) : selectedCategory === "LiveTV" ? ( <LiveTV userProfile={userProfile} /> ) : selectedCategory === "Sports" ? ( <LiveSports userProfile={userProfile} /> ) : selectedCategory === "Explore" ? ( <ExplorePage apiKey={apiKey} onMovieClick={setSelectedMovie} userProfile={userProfile} /> ) : selectedCategory === "Genres" ? (
+           ) : selectedCategory === "LiveTV" ? ( <LiveTV userProfile={userProfile} /> ) : selectedCategory === "Sports" ? ( <LiveSports userProfile={userProfile} /> ) : selectedCategory === "Explore" && !searchQuery ? ( 
+                <ExplorePage 
+                    apiKey={apiKey} 
+                    onMovieClick={setSelectedMovie} 
+                    userProfile={userProfile} 
+                    searchQuery={searchQuery}
+                    setSearchQuery={setSearchQuery}
+                /> 
+            ) : selectedCategory === "Genres" ? (
                <div className="animate-in fade-in slide-in-from-bottom-4">
                    <div className="p-8 md:p-12">
                        <h1 className="text-4xl md:text-5xl font-black text-white tracking-tight mb-2">All Genres</h1>
@@ -2470,6 +2481,72 @@ export default function App() {
               </div>
           </div>
       )}
+
+      {/* Mobile Browse Dropdown Backdrop */}
+      {isBrowseOpen && (
+          <div 
+              className="fixed inset-0 z-[75] md:hidden bg-black/60 backdrop-blur-sm animate-in fade-in duration-300"
+              onClick={() => setIsBrowseOpen(false)}
+          />
+      )}
+
+      {/* Mobile Browse Dropdown Menu */}
+      {isBrowseOpen && (
+          <div className="fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom,0px))] left-1/2 -translate-x-1/2 w-[280px] z-[85] md:hidden bg-[#0c0c0e]/95 backdrop-blur-3xl border border-white/10 rounded-2xl shadow-[0_24px_50px_rgba(0,0,0,0.8)] p-2.5 grid grid-cols-3 gap-2 animate-in slide-in-from-bottom-5 duration-300 ease-out origin-bottom select-none">
+              {browseOptions.map(opt => {
+                  const isActive = selectedCategory === opt.id || 
+                      (opt.id === "Trending" && selectedCategory === "All") ||
+                      (opt.id === "WatchParty" && (activeWatchPartyRoom !== null || isWatchPartyJoinOpen));
+                  
+                  return (
+                      <button 
+                          key={opt.id}
+                          onClick={() => handleBrowseAction(opt.action)}
+                          className="group flex flex-col items-center justify-center gap-1 py-1.5 px-0.5 rounded-xl transition-all duration-300 hover:bg-white/5 active:scale-95 border border-transparent"
+                      >
+                          <div className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all duration-300 ${
+                              isActive 
+                                  ? 'bg-red-600 text-white shadow-[0_6px_15px_-4px_rgba(220,38,38,0.4)]' 
+                                  : 'bg-white/5 text-zinc-400 group-hover:bg-white/10 group-hover:text-white group-hover:scale-105 shadow-[inset_0_1px_1px_rgba(255,255,255,0.02)]'
+                          }`}>
+                              <opt.icon size={18} className="transition-transform duration-300 group-hover:scale-110" />
+                          </div>
+                          <span className="text-[9px] font-bold text-zinc-300 group-hover:text-white transition-colors text-center line-clamp-1">{opt.label}</span>
+                      </button>
+                  );
+              })}
+          </div>
+      )}
+
+      {/* Mobile Bottom Navigation Bar */}
+      <div className="fixed bottom-0 left-0 right-0 z-[80] md:hidden bg-[#070708]/90 backdrop-blur-2xl border-t border-white/10 pb-safe shadow-[0_-8px_30px_rgb(0,0,0,0.5)]">
+          <div className="h-16 flex items-center justify-around px-2">
+              {[
+                  { id: 'Home', label: 'Home', icon: Home, action: () => { setIsBrowseOpen(false); resetToHome(); }, activeCondition: selectedCategory === "All" && !searchQuery },
+                  { id: 'Explore', label: 'Explore', icon: Compass, action: () => { setIsBrowseOpen(false); resetFilters(); setSelectedCategory("Explore"); }, activeCondition: selectedCategory === "Explore" },
+                  { id: 'LiveTV', label: 'Live TV', icon: Radio, action: () => { setIsBrowseOpen(false); resetFilters(); setSelectedCategory("LiveTV"); }, activeCondition: selectedCategory === "LiveTV" },
+                  { id: 'Browse', label: 'Browse', icon: LayoutGrid, action: () => setIsBrowseOpen(!isBrowseOpen), activeCondition: isBrowseOpen }
+              ].map((tab) => {
+                  const Icon = tab.icon;
+                  const isActive = tab.activeCondition;
+                  return (
+                      <button 
+                          key={tab.id}
+                          onClick={tab.action}
+                          className={`flex flex-col items-center justify-center w-16 py-1 select-none cursor-pointer transition-all duration-300 active:scale-90 relative ${
+                              isActive ? 'text-red-500 font-extrabold' : 'text-zinc-400 hover:text-white'
+                          }`}
+                      >
+                          <Icon size={18} className={`transition-transform duration-300 ${isActive ? 'scale-110' : ''}`} />
+                          <span className="text-[9px] font-bold mt-1 tracking-wide">{tab.label}</span>
+                          {isActive && (
+                              <span className="absolute -top-1 w-1 h-1 bg-red-500 rounded-full animate-pulse shadow-[0_0_8px_#ef4444]" />
+                          )}
+                      </button>
+                  );
+              })}
+          </div>
+      </div>
 
       {!apiKey && loading && <div className="fixed inset-0 z-[100] bg-black"><LogoLoader /></div>}
     </div>

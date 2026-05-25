@@ -146,12 +146,13 @@ const COUNTRIES = [
 ];
 
 const ChannelSkeleton = () => (
-    <div className="relative aspect-video bg-white/5 rounded-xl overflow-hidden border border-white/5">
+    <div className="relative bg-[#0d0d0f]/60 rounded-xl overflow-hidden border border-white/5 flex flex-col shadow-lg">
         <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full animate-[shimmer_1.5s_infinite]"></div>
-        <div className="absolute inset-0 flex flex-col items-center justify-center p-4">
-            <div className="w-12 h-12 rounded-lg bg-white/10 mb-3"></div>
-            <div className="h-3 w-24 bg-white/10 rounded mb-2"></div>
-            <div className="h-2 w-16 bg-white/10 rounded"></div>
+        <div className="aspect-video w-full bg-black/20 flex items-center justify-center p-4 border-b border-white/5">
+            <div className="w-14 h-14 rounded-2xl bg-white/5"></div>
+        </div>
+        <div className="p-4 w-full space-y-2">
+            <div className="h-3 w-3/4 bg-white/10 rounded"></div>
         </div>
     </div>
 );
@@ -280,19 +281,19 @@ export const LiveTV: React.FC<LiveTVProps> = ({ userProfile }) => {
     if (!isExclusive) {
         return (
             <div className="w-full h-[calc(100vh-4rem)] flex items-center justify-center bg-[#030303] px-4">
-                <div className="text-center max-w-lg p-8 rounded-3xl bg-gradient-to-b from-white/5 to-transparent border border-white/5 shadow-2xl relative overflow-hidden">
-                    <div className={`absolute top-0 left-0 w-full h-1 ${accentBg}`}></div>
+                <div className="text-center max-w-lg p-8 rounded-3xl bg-[#0d0d0f]/60 backdrop-blur-xl border border-white/5 shadow-2xl relative overflow-hidden">
+                    <div className="absolute top-0 left-0 w-full h-1 bg-red-600"></div>
                     <div className="w-20 h-20 bg-white/5 rounded-full flex items-center justify-center mx-auto mb-6 relative">
-                        <Tv size={40} className="text-gray-500"/>
-                        <div className="absolute -bottom-1 -right-1 bg-red-600 p-2 rounded-full border-4 border-[#0a0a0a]">
+                        <Tv size={40} className="text-gray-400"/>
+                        <div className="absolute -bottom-1 -right-1 bg-red-600 p-2 rounded-full border-4 border-[#030303]">
                             <Lock size={16} className="text-white"/>
                         </div>
                     </div>
-                    <h2 className="text-3xl font-black text-white mb-4">Exclusive Access</h2>
-                    <p className="text-gray-400 mb-8 leading-relaxed">
+                    <h2 className="text-2xl font-black text-white tracking-tight mb-4">Exclusive Access</h2>
+                    <p className="text-gray-400 text-sm mb-8 leading-relaxed font-light">
                         Live TV streaming is available exclusively to premium members. Upgrade your account or ask an administrator to unlock this feature.
                     </p>
-                    <button className="px-8 py-3 bg-white text-black font-bold rounded-xl opacity-50 cursor-not-allowed">
+                    <button className="px-8 py-3 bg-white/10 text-gray-400 font-bold text-xs uppercase tracking-widest rounded-xl cursor-not-allowed border border-white/5">
                         Locked Feature
                     </button>
                 </div>
@@ -311,20 +312,24 @@ export const LiveTV: React.FC<LiveTVProps> = ({ userProfile }) => {
             )}
 
             <div className="max-w-7xl mx-auto">
-                <div className="flex flex-col xl:flex-row items-start xl:items-center justify-between mb-8 gap-6">
+                <div className="flex flex-col xl:flex-row items-start xl:items-center justify-between mb-10 gap-6 border-b border-white/5 pb-6">
                     <div>
-                        <h1 className={`text-3xl md:text-4xl font-black flex items-center gap-3 ${isGoldTheme ? 'text-white' : 'text-white'}`}>
-                            <Tv size={32} className={accentText}/> Live TV <span className={`text-xs font-bold px-2 py-0.5 rounded tracking-widest uppercase ${isGoldTheme ? 'bg-amber-500 text-black' : 'bg-red-600 text-white'}`}>Premium</span>
+                        <h1 className="text-2xl md:text-3xl font-black flex items-center gap-3 tracking-tight text-white">
+                            <span className="w-1.5 h-7 bg-red-600 rounded-full inline-block"></span>
+                            Live TV
+                            <span className="text-[10px] font-black px-2.5 py-0.5 rounded bg-red-600 text-white tracking-widest uppercase shadow-lg shadow-red-600/20">
+                                Premium
+                            </span>
                         </h1>
-                        <p className="text-gray-400 mt-2 text-sm">Stream thousands of international channels.</p>
+                        <p className="text-gray-400 mt-2 text-xs md:text-sm font-normal">Stream thousands of international television channels live in high fidelity.</p>
                     </div>
                     
                     <div className="flex flex-col md:flex-row gap-4 w-full xl:w-auto">
-                        {/* Country Dropdown - Cleaner */}
+                        {/* Country Dropdown */}
                         <div className="relative z-50" ref={dropdownRef}>
                             <button 
                                 onClick={() => setIsCountryDropdownOpen(!isCountryDropdownOpen)}
-                                className="w-full md:w-56 flex items-center justify-between px-4 py-3 rounded-xl bg-white/5 hover:bg-white/10 transition-all active:scale-95"
+                                className="w-full md:w-56 flex items-center justify-between px-4 py-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/5 hover:border-white/10 transition-all active:scale-95 backdrop-blur-md"
                             >
                                 <div className="flex items-center gap-3">
                                     <span className="text-lg">{activeCountryObj.icon}</span>
@@ -334,12 +339,12 @@ export const LiveTV: React.FC<LiveTVProps> = ({ userProfile }) => {
                             </button>
 
                             {isCountryDropdownOpen && (
-                                <div className="absolute top-full left-0 right-0 mt-2 bg-[#1a1a1a] border border-white/10 rounded-xl shadow-2xl overflow-hidden max-h-80 overflow-y-auto custom-scrollbar animate-in zoom-in-95 duration-200">
+                                <div className="absolute top-full left-0 right-0 mt-2 bg-[#0e0e10]/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-2xl overflow-hidden max-h-80 overflow-y-auto custom-scrollbar animate-in zoom-in-95 duration-200 z-50 p-1">
                                     {COUNTRIES.map(country => (
                                         <button 
                                             key={country.id}
                                             onClick={() => { setSelectedCountry(country.id); setIsCountryDropdownOpen(false); }}
-                                            className={`w-full flex items-center justify-between px-4 py-3 text-sm hover:bg-white/10 transition-colors ${selectedCountry === country.id ? (isGoldTheme ? 'bg-amber-500/10 text-amber-500' : 'bg-red-500/10 text-red-500') : 'text-gray-300'}`}
+                                            className={`w-full flex items-center justify-between px-3 py-2 text-xs font-semibold rounded-lg hover:bg-white/5 transition-colors ${selectedCountry === country.id ? 'bg-white/10 text-white font-bold' : 'text-gray-400 hover:text-white'}`}
                                         >
                                             <div className="flex items-center gap-3">
                                                 <span className="text-lg">{country.icon}</span>
@@ -352,29 +357,30 @@ export const LiveTV: React.FC<LiveTVProps> = ({ userProfile }) => {
                             )}
                         </div>
 
-                        <div className="relative w-full md:w-64">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={16} />
+                        {/* Search Input */}
+                        <div className="relative w-full md:w-64 group">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-white transition-colors" size={16} />
                             <input 
                                 type="text" 
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
                                 placeholder="Find a channel..." 
-                                className={`w-full bg-white/5 border border-transparent hover:border-white/10 rounded-xl py-3 pl-10 pr-4 text-sm focus:outline-none focus:bg-white/10 transition-colors ${isGoldTheme ? 'focus:border-amber-500/30' : 'focus:border-red-600/30'}`}
+                                className="w-full bg-white/5 border border-white/5 hover:border-white/10 rounded-xl py-3 pl-10 pr-4 text-sm focus:outline-none focus:bg-white/10 focus:border-white/20 transition-all placeholder-gray-500"
                             />
                         </div>
                     </div>
                 </div>
 
-                {/* Categories - Main Navigation */}
-                <div className="flex gap-2 overflow-x-auto pb-4 mb-6 hide-scrollbar">
+                {/* Categories - Outlined Premium Pills */}
+                <div className="flex gap-2 overflow-x-auto pb-4 mb-8 hide-scrollbar">
                     {CATEGORIES.map(cat => (
                         <button
                             key={cat.id}
                             onClick={() => setActiveCategory(cat.id)}
-                            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold whitespace-nowrap transition-all active:scale-95 ${
+                            className={`flex items-center gap-2 px-5 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-all duration-300 active:scale-95 border ${
                                 activeCategory === cat.id 
-                                ? `${isGoldTheme ? 'bg-amber-500 text-black shadow-lg shadow-amber-500/20' : 'bg-white text-black shadow-lg shadow-white/20'}` 
-                                : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white'
+                                ? 'bg-white text-black border-white shadow-md shadow-white/5' 
+                                : 'bg-transparent text-gray-300 border-white/15 hover:border-white/30 hover:bg-white/5'
                             }`}
                         >
                             <span>{cat.icon}</span> {cat.name}
@@ -383,49 +389,72 @@ export const LiveTV: React.FC<LiveTVProps> = ({ userProfile }) => {
                 </div>
 
                 {loading ? (
-                    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                        {[...Array(15)].map((_, i) => (
+                    <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-5 md:gap-6">
+                        {[...Array(18)].map((_, i) => (
                             <ChannelSkeleton key={i} />
                         ))}
                     </div>
                 ) : error ? (
-                    <div className="flex flex-col items-center justify-center py-20 text-gray-500">
-                         <Wifi size={48} className="mb-4 opacity-50"/>
-                         <p className="text-lg font-bold mb-2">Connection Issue</p>
-                         <p className="text-sm mb-6">Could not load channel list from the server.</p>
-                         <button onClick={() => fetchChannels()} className="flex items-center gap-2 px-6 py-2 bg-white/10 hover:bg-white/20 rounded-full font-bold text-white transition-colors">
-                             <RefreshCcw size={16}/> Retry
+                    <div className="flex flex-col items-center justify-center py-20 text-center max-w-md mx-auto animate-in fade-in">
+                         <Wifi size={48} className="text-red-500 mb-4 opacity-80 animate-pulse"/>
+                         <h3 className="text-xl font-bold text-white mb-2">Connection Issue</h3>
+                         <p className="text-gray-400 text-xs md:text-sm mb-6 leading-relaxed">We could not load the live channel feeds from the server. Check your network or try again.</p>
+                         <button onClick={() => fetchChannels()} className="flex items-center gap-2 px-6 py-2.5 bg-white/10 hover:bg-white/20 border border-white/5 hover:border-white/10 rounded-full font-bold text-xs text-white transition-all active:scale-95">
+                             <RefreshCcw size={14}/> Retry Feed
                          </button>
                     </div>
                 ) : (
-                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4">
+                    <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-5 md:gap-6">
                         {filteredChannels.length > 0 ? filteredChannels.map((channel) => (
                             <div 
                                 key={channel.id} 
                                 onClick={() => setSelectedChannel(channel)}
-                                className={`group bg-[#0a0a0a] border border-white/5 rounded-xl overflow-hidden cursor-pointer hover:shadow-lg transition-all duration-300 relative aspect-video flex flex-col items-center justify-center p-4 ${isGoldTheme ? 'hover:border-amber-500/50 hover:shadow-amber-900/20' : 'hover:border-red-600/50 hover:shadow-red-900/20'}`}
+                                className="group bg-[#0d0d0f]/60 backdrop-blur-xl border border-white/5 rounded-2xl overflow-hidden cursor-pointer shadow-lg hover:shadow-xl transition-all duration-500 hover:scale-[1.03] active:scale-98 flex flex-col relative"
                             >
-                                <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <div className={`p-1.5 rounded-full text-white shadow-lg ${accentBg}`}>
-                                        <Play size={12} fill="currentColor"/>
+                                {/* Upper Channel Logo/Preview Box */}
+                                <div className="w-full aspect-video relative flex items-center justify-center bg-black/30 border-b border-white/5 overflow-hidden">
+                                    {/* Live Indicator */}
+                                    <div className="absolute top-3 left-3 flex items-center gap-1.5 z-20 bg-black/60 backdrop-blur-md px-2 py-0.5 rounded-full border border-white/5">
+                                        <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse shadow-[0_0_8px_#ef4444]" />
+                                        <span className="text-[8px] font-black tracking-widest text-red-500 uppercase">Live</span>
+                                    </div>
+                                    
+                                    {/* Country Badge */}
+                                    {channel.country && (
+                                        <span className="absolute top-3 right-3 text-[9px] font-black uppercase tracking-wider bg-black/60 backdrop-blur-md px-2 py-0.5 rounded-full border border-white/5 text-gray-400 group-hover:text-white transition-colors z-20">
+                                            {channel.country}
+                                        </span>
+                                    )}
+
+                                    {/* Logo */}
+                                    <div className="w-14 h-14 bg-white/5 rounded-2xl flex items-center justify-center p-2 border border-white/5 shadow-inner group-hover:scale-105 transition-transform duration-500">
+                                         {channel.logo ? (
+                                             <img src={channel.logo} alt={channel.name} className="max-w-full max-h-full object-contain drop-shadow-md opacity-85 group-hover:opacity-100 transition-opacity" loading="lazy" onError={(e) => (e.currentTarget.style.display = 'none')}/>
+                                         ) : (
+                                             <Globe size={24} className="text-gray-500 group-hover:text-gray-400 transition-colors"/>
+                                         )}
+                                    </div>
+
+                                    {/* Center Play Button Overlay on Hover */}
+                                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+                                        <div className={`p-2.5 rounded-full text-white scale-75 group-hover:scale-100 transition-all duration-300 shadow-lg shadow-red-600/40 ${accentBg}`}>
+                                            <Play size={14} fill="currentColor"/>
+                                        </div>
                                     </div>
                                 </div>
                                 
-                                <div className="w-16 h-16 mb-3 relative flex items-center justify-center">
-                                     {channel.logo ? (
-                                         <img src={channel.logo} alt={channel.name} className="max-w-full max-h-full object-contain drop-shadow-lg opacity-80 group-hover:opacity-100 transition-opacity" loading="lazy" onError={(e) => (e.currentTarget.style.display = 'none')}/>
-                                     ) : (
-                                         <Globe size={32} className="text-gray-700"/>
-                                     )}
+                                {/* Lower Metadata Footer */}
+                                <div className="p-3.5 bg-[#0d0d0f]/20 flex flex-col justify-center min-w-0">
+                                    <p className="text-xs font-bold text-gray-300 group-hover:text-white truncate leading-none transition-colors duration-300">{channel.name}</p>
                                 </div>
-                                
-                                <p className="text-sm font-bold text-center text-gray-300 group-hover:text-white line-clamp-1 w-full px-2">{channel.name}</p>
-                                {channel.country && <div className="absolute top-2 left-2 text-[10px] font-bold bg-white/10 px-1.5 rounded text-white/50">{channel.country}</div>}
                             </div>
                         )) : (
-                            <div className="col-span-full py-20 text-center text-gray-500">
-                                <AlertCircle size={32} className="mx-auto mb-3 opacity-50"/>
-                                <p>No channels found matching "{searchQuery}" in {CATEGORIES.find(c => c.id === activeCategory)?.name} {selectedCountry !== 'ALL' ? `for ${activeCountryObj.name}` : ''}.</p>
+                            <div className="col-span-full py-20 text-center text-gray-500 flex flex-col items-center justify-center animate-in fade-in">
+                                <AlertCircle size={40} className="text-white/25 mb-4"/>
+                                <h3 className="text-lg font-bold text-white mb-1">No Channels Found</h3>
+                                <p className="text-gray-400 text-xs max-w-md px-4">
+                                    Could not find "{searchQuery}" in the {CATEGORIES.find(c => c.id === activeCategory)?.name || ""} category {selectedCountry !== 'ALL' ? `for ${activeCountryObj.name}` : ''}. Try adjusting your search query.
+                                </p>
                             </div>
                         )}
                     </div>

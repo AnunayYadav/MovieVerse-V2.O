@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Award, TrendingUp, Tv, Film, Star, Play, Plus, LayoutGrid, Sparkles, ChevronRight, Check, AlertCircle, Loader2, ArrowLeft, ExternalLink, Globe, ChevronDown } from 'lucide-react';
-import { Movie, UserProfile, Provider } from '../types';
+import { Award, TrendingUp, Tv, Film, Star, Play, Plus, LayoutGrid, Sparkles, ChevronRight, Check, AlertCircle, Loader2, ArrowLeft, ExternalLink, Globe, ChevronDown, Info, Search } from 'lucide-react';
+import { Movie, UserProfile, Provider, GENRES_MAP } from '../types';
 import { TMDB_BASE_URL, TMDB_IMAGE_BASE, TMDB_BACKDROP_BASE, MovieCard, MovieSkeleton, getWatchmodeKey, PosterMarquee } from './Shared';
 
 interface ExplorePageProps {
@@ -9,6 +9,8 @@ interface ExplorePageProps {
     onMovieClick: (m: Movie) => void;
     userProfile: UserProfile;
     appRegion?: string;
+    searchQuery?: string;
+    setSearchQuery?: (q: string) => void;
 }
 
 const REGION_NAMES: Record<string, string> = {
@@ -57,7 +59,7 @@ const getBrandCardStyle = (providerId: number) => {
     }
 };
 
-export const ExplorePage: React.FC<ExplorePageProps> = ({ apiKey, onMovieClick, userProfile, appRegion = "US" }) => {
+export const ExplorePage: React.FC<ExplorePageProps> = ({ apiKey, onMovieClick, userProfile, appRegion = "US", searchQuery, setSearchQuery }) => {
     const [exploreRegion, setExploreRegion] = useState("Global");
     const [topMovies, setTopMovies] = useState<Movie[]>([]);
     const [topShows, setTopShows] = useState<Movie[]>([]);
@@ -308,7 +310,7 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ apiKey, onMovieClick, 
                     loadMoreMovies();
                 }
             },
-            { rootMargin: '250px' }
+            { rootMargin: '800px' }
         );
 
         const currentSentinel = sentinelRef.current;
@@ -351,8 +353,8 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ apiKey, onMovieClick, 
     if (activeOtt && activeProvider) {
         return (
             <div className="fixed inset-0 z-[100] bg-black overflow-y-auto animate-in fade-in duration-500 font-sans" style={{ backgroundColor: theme.bg }}>
-                {/* Brand Header */}
-                <div className={`sticky top-0 z-50 backdrop-blur-3xl border-b border-white/10 p-4 md:p-5 flex items-center justify-between bg-gradient-to-r ${theme.gradient}`}>
+                {/* Brand Header: Transparent Absolute overlay for clean merge with Hero Banner */}
+                <div className="absolute top-0 left-0 w-full z-50 p-4 md:p-6 flex items-center justify-between bg-gradient-to-b from-black/90 via-black/30 to-transparent">
                     <div className="flex items-center gap-4 md:gap-6">
                         <button onClick={() => setActiveOtt(null)} className="p-2 hover:bg-white/10 rounded-full transition-all active:scale-90 text-white">
                             <ArrowLeft size={20}/>
@@ -367,24 +369,86 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ apiKey, onMovieClick, 
                     </div>
                 </div>
 
-                <div className="max-w-7xl mx-auto px-4 md:px-8 py-8">
-                    {/* Featured Slot */}
-                    {ottMovies[0] && (
-                        <div className="relative w-full aspect-[21/9] rounded-2xl overflow-hidden mb-8 group cursor-pointer border border-white/5" onClick={() => onMovieClick(ottMovies[0])}>
-                            <img src={`${TMDB_BACKDROP_BASE}${ottMovies[0].backdrop_path}`} className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-102" alt="Featured" />
-                            <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent" />
-                            <div className="absolute bottom-0 left-0 p-6 md:p-8 w-full flex flex-col md:flex-row md:items-end justify-between gap-4">
-                                <div className="max-w-2xl">
-                                    <span className="inline-block px-2.5 py-0.5 rounded bg-white/15 backdrop-blur-md text-[9px] font-bold text-white uppercase tracking-wider mb-3">Must Watch</span>
-                                    <h3 className="text-xl md:text-3xl font-bold text-white mb-2 leading-tight tracking-tight">{ottMovies[0].title}</h3>
-                                    <p className="text-white/70 text-xs md:text-sm line-clamp-2">{ottMovies[0].overview}</p>
-                                </div>
-                                <button className="shrink-0 flex items-center justify-center gap-2.5 px-6 py-2.5 rounded-md bg-white hover:bg-white/90 text-black font-bold text-sm md:text-base transition-all hover:scale-[1.02] active:scale-95 shadow-md">
-                                    <Play size={18} fill="currentColor"/> Watch Now
+                {/* Hero Movie Banner (merged with header) */}
+                {loading && ottMovies.length === 0 ? (
+                    <div className="relative w-full h-[70vh] md:h-[80vh] bg-white/5 animate-pulse flex items-end p-6 md:p-12">
+                        <div className="space-y-4 max-w-2xl w-full">
+                            <div className="h-6 bg-white/10 rounded w-24"></div>
+                            <div className="h-12 bg-white/10 rounded w-3/4"></div>
+                            <div className="h-4 bg-white/10 rounded w-1/2"></div>
+                            <div className="h-16 bg-white/10 rounded w-full"></div>
+                            <div className="flex gap-3">
+                                <div className="h-10 bg-white/10 rounded w-32"></div>
+                                <div className="h-10 bg-white/10 rounded w-32"></div>
+                            </div>
+                        </div>
+                    </div>
+                ) : ottMovies[0] ? (
+                    <div className="relative w-full h-[70vh] md:h-[80vh] overflow-hidden group cursor-pointer" onClick={() => onMovieClick(ottMovies[0])}>
+                        <div className="absolute inset-0">
+                            <img 
+                                src={ottMovies[0].backdrop_path ? `${TMDB_BACKDROP_BASE}${ottMovies[0].backdrop_path}` : (ottMovies[0].poster_path ? `${TMDB_IMAGE_BASE}${ottMovies[0].poster_path}` : "https://placehold.co/1920x1080/111/FFF?text=No+Preview")} 
+                                className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105" 
+                                alt={ottMovies[0].title} 
+                            />
+                            {/* Gradients using the theme background color so it blends seamlessly */}
+                            <div 
+                                className="absolute inset-0" 
+                                style={{ 
+                                    backgroundImage: `linear-gradient(to top, ${theme.bg} 0%, rgba(0, 0, 0, 0.4) 60%, transparent 100%), linear-gradient(to right, ${theme.bg} 0%, rgba(0, 0, 0, 0.2) 40%, transparent 100%)` 
+                                }} 
+                            />
+                        </div>
+                        
+                        <div className="absolute bottom-0 left-0 w-full p-6 md:p-12 z-20 flex flex-col items-start gap-4 md:max-w-4xl animate-in slide-in-from-bottom-10 duration-700">
+                            <span 
+                                className="inline-block px-3 py-1 rounded-full text-xs font-bold text-white uppercase tracking-widest shadow-md"
+                                style={{ backgroundColor: theme.accent }}
+                            >
+                                Must Watch
+                            </span>
+                            
+                            <h3 className="text-3xl md:text-5xl font-black text-white mb-2 leading-tight tracking-tight drop-shadow-2xl">
+                                {ottMovies[0].title || ottMovies[0].name}
+                            </h3>
+                            
+                            <div className="flex items-center gap-4 text-sm font-medium text-gray-300">
+                                <span className="text-green-400 font-bold">{ottMovies[0].vote_average ? ottMovies[0].vote_average.toFixed(1) : 'NR'} Rating</span>
+                                <span>•</span>
+                                <span>{ottMovies[0].release_date?.split('-')[0] || ottMovies[0].first_air_date?.split('-')[0] || 'TBA'}</span>
+                                {ottMovies[0].genre_ids && ottMovies[0].genre_ids[0] && (
+                                    <>
+                                        <span>•</span>
+                                        <span>{Object.keys(GENRES_MAP).find(key => GENRES_MAP[key] === ottMovies[0].genre_ids?.[0]) || "Movie"}</span>
+                                    </>
+                                )}
+                            </div>
+
+                            <p className="text-gray-300 text-sm md:text-lg line-clamp-3 md:line-clamp-2 max-w-2xl leading-relaxed drop-shadow-md">
+                                {ottMovies[0].overview}
+                            </p>
+                            
+                            <div className="flex flex-row items-center gap-3 w-full sm:w-auto mt-2">
+                                {isExclusive && (
+                                    <button 
+                                        onClick={(e) => { e.stopPropagation(); onMovieClick(ottMovies[0]); }}
+                                        className="flex-1 sm:flex-none px-6 py-2.5 text-sm sm:text-base rounded-md font-bold flex items-center justify-center gap-2.5 bg-white hover:bg-white/90 text-black transition-all hover:scale-[1.02] active:scale-95 shadow-md"
+                                    >
+                                        <Play size={18} fill="currentColor"/> Watch Now
+                                    </button>
+                                )}
+                                <button 
+                                    onClick={(e) => { e.stopPropagation(); onMovieClick(ottMovies[0]); }}
+                                    className="flex-1 sm:flex-none px-6 py-2.5 text-sm sm:text-base rounded-md font-bold flex items-center justify-center gap-2.5 bg-white/20 hover:bg-white/35 backdrop-blur-md text-white transition-all hover:scale-[1.02] active:scale-95"
+                                >
+                                    <Info size={18}/> More Info
                                 </button>
                             </div>
                         </div>
-                    )}
+                    </div>
+                ) : null}
+
+                <div className="max-w-7xl mx-auto px-4 md:px-8 pb-28 md:pb-16 pt-8">
 
                     <div className="flex items-center justify-between mb-8">
                         <h4 className="text-base md:text-lg font-bold tracking-tight text-white">Top Picks for You</h4>
@@ -414,8 +478,21 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ apiKey, onMovieClick, 
     }
 
     return (
-        <div className="min-h-screen bg-[#030303] text-white p-6 md:p-8 animate-in fade-in duration-700 pt-6">
+        <div className="min-h-screen bg-[#030303] text-white p-6 md:p-8 animate-in fade-in duration-700 pt-6 pb-24 md:pb-8">
             <div className="max-w-7xl mx-auto">
+                {/* Search Bar on Mobile */}
+                {setSearchQuery && (
+                    <div className="md:hidden relative group mb-6">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-white transition-colors" size={16} />
+                        <input 
+                            type="text" 
+                            value={searchQuery || ""}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            placeholder="Search movies, shows..." 
+                            className="w-full bg-white/5 border border-white/5 hover:border-white/10 rounded-xl py-3 pl-10 pr-4 text-sm focus:outline-none focus:bg-white/10 focus:border-white/20 transition-all placeholder-gray-500 text-white"
+                        />
+                    </div>
+                )}
                 <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-8 gap-4 border-b border-white/5 pb-6">
                     <div>
                         <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-white">
