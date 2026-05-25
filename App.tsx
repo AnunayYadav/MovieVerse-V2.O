@@ -535,120 +535,6 @@ const DYNAMIC_GENRES = [
 
 const DYNAMIC_YEARS = [2024, 2023, 2022, 2021, 2020, 2019, 2018, 2015, 2010, 2005, 2000, 1995, 1990];
 
-const matchCollections = (query: string) => {
-    const q = query.toLowerCase().trim();
-    if (!q) return [];
-    
-    const matches: any[] = [];
-    
-    // Check PREDEFINED_CATEGORIES
-    PREDEFINED_CATEGORIES.forEach(cat => {
-        if (cat.title.toLowerCase().includes(q) || cat.id.toLowerCase().includes(q)) {
-            matches.push({
-                type: 'predefined',
-                id: cat.id,
-                title: cat.title,
-                endpoint: cat.endpoint,
-                mediaType: cat.mediaType
-            });
-        }
-    });
-
-    // Check DEFAULT_COLLECTIONS
-    Object.entries(DEFAULT_COLLECTIONS).forEach(([key, col]: [string, any]) => {
-        if (col.title.toLowerCase().includes(q) || col.description.toLowerCase().includes(q) || key.toLowerCase().includes(q)) {
-            matches.push({
-                type: 'custom',
-                id: key,
-                title: col.title,
-                icon: col.icon,
-                description: col.description
-            });
-        }
-    });
-
-    // Special alias matches
-    if (q.includes('japan') || q.includes('anime')) {
-        if (!matches.some(m => m.id === 'japanese_anime')) {
-            const ja = PREDEFINED_CATEGORIES.find(c => c.id === 'japanese_anime');
-            if (ja) matches.push({ type: 'predefined', ...ja });
-        }
-        if (!matches.some(m => m.id === 'crunchyroll')) {
-            const cr = PREDEFINED_CATEGORIES.find(c => c.id === 'crunchyroll');
-            if (cr) matches.push({ type: 'predefined', ...cr });
-        }
-    }
-    if (q.includes('korea') || q.includes('kdrama') || q.includes('k-wave')) {
-        if (!matches.some(m => m.id === 'korean')) {
-            const ko = PREDEFINED_CATEGORIES.find(c => c.id === 'korean');
-            if (ko) matches.push({ type: 'predefined', ...ko });
-        }
-        const customKo = DEFAULT_COLLECTIONS['korean'];
-        if (customKo && !matches.some(m => m.id === 'korean')) {
-            matches.push({ type: 'custom', id: 'korean', ...customKo });
-        }
-    }
-    if (q.includes('hindi') || q.includes('bollywood') || q.includes('srk') || q.includes('shah rukh') || q.includes('khan')) {
-        if (!matches.some(m => m.id === 'hindi')) {
-            const hi = PREDEFINED_CATEGORIES.find(c => c.id === 'hindi');
-            if (hi) matches.push({ type: 'predefined', ...hi });
-        }
-        if (!matches.some(m => m.id === 'srk')) {
-            matches.push({ type: 'custom', id: 'srk', ...DEFAULT_COLLECTIONS['srk'] });
-        }
-    }
-    if (q.includes('south') || q.includes('telugu') || q.includes('tamil') || q.includes('kannada') || q.includes('rajini')) {
-        if (!matches.some(m => m.id === 'south')) {
-            const so = PREDEFINED_CATEGORIES.find(c => c.id === 'south');
-            if (so) matches.push({ type: 'predefined', ...so });
-        }
-        if (!matches.some(m => m.id === 'rajini')) {
-            matches.push({ type: 'custom', id: 'rajini', ...DEFAULT_COLLECTIONS['rajini'] });
-        }
-        if (!matches.some(m => m.id === 'south_mass')) {
-            matches.push({ type: 'custom', id: 'south_mass', ...DEFAULT_COLLECTIONS['south_mass'] });
-        }
-    }
-    if (q.includes('punjabi')) {
-        if (!matches.some(m => m.id === 'punjabi')) {
-            const pu = PREDEFINED_CATEGORIES.find(c => c.id === 'punjabi');
-            if (pu) matches.push({ type: 'predefined', ...pu });
-        }
-    }
-    if (q.includes('netflix')) {
-        if (!matches.some(m => m.id === 'netflix')) {
-            const nf = PREDEFINED_CATEGORIES.find(c => c.id === 'netflix');
-            if (nf) matches.push({ type: 'predefined', ...nf });
-        }
-    }
-    if (q.includes('prime') || q.includes('amazon')) {
-        if (!matches.some(m => m.id === 'prime')) {
-            const pr = PREDEFINED_CATEGORIES.find(c => c.id === 'prime');
-            if (pr) matches.push({ type: 'predefined', ...pr });
-        }
-    }
-    if (q.includes('disney') || q.includes('marvel') || q.includes('star wars')) {
-        if (!matches.some(m => m.id === 'disney')) {
-            const di = PREDEFINED_CATEGORIES.find(c => c.id === 'disney');
-            if (di) matches.push({ type: 'predefined', ...di });
-        }
-    }
-    if (q.includes('hbo') || q.includes('max')) {
-        if (!matches.some(m => m.id === 'hbo')) {
-            const hbo = PREDEFINED_CATEGORIES.find(c => c.id === 'hbo');
-            if (hbo) matches.push({ type: 'predefined', ...hbo });
-        }
-    }
-    if (q.includes('apple')) {
-        if (!matches.some(m => m.id === 'apple')) {
-            const ap = PREDEFINED_CATEGORIES.find(c => c.id === 'apple');
-            if (ap) matches.push({ type: 'predefined', ...ap });
-        }
-    }
-    
-    return matches;
-};
-
 export default function App() {
   const [apiKey, setApiKey] = useState(getTmdbKey());
   
@@ -709,7 +595,7 @@ export default function App() {
   const [reminders, setReminders] = useState<number[]>([]);
 
   // Homepage sections states
-  const [activeCategories, setActiveCategories] = useState<any[]>(() => PREDEFINED_CATEGORIES.slice(2, 5));
+  const [activeCategories, setActiveCategories] = useState<any[]>(() => PREDEFINED_CATEGORIES.slice(0, 3));
   const [recommendations, setRecommendations] = useState<Movie[]>([]);
   const [recBaseMovie, setRecBaseMovie] = useState<Movie | null>(null);
 
@@ -940,7 +826,7 @@ export default function App() {
 
   const loadMoreCategories = useCallback(() => {
       setActiveCategories(prev => {
-          const nextIndex = prev.length + 2;
+          const nextIndex = prev.length;
           const batchSize = 3;
           const newBatch: any[] = [];
           
@@ -2306,21 +2192,6 @@ export default function App() {
 
                                {!searchQuery && selectedCategory === "All" && !currentCollection && !activeCountry && !activeKeyword && !tmdbCollectionId ? (
                                    <div className="space-y-4 animate-in fade-in duration-700 -mx-4 md:-mx-12">
-                                       <MovieRow 
-                                           title={PREDEFINED_CATEGORIES[0].title} 
-                                           endpoint={PREDEFINED_CATEGORIES[0].endpoint} 
-                                           apiKey={apiKey} 
-                                           onMovieClick={setSelectedMovie} 
-                                       />
-                                       
-                                       <MovieRow 
-                                           title={PREDEFINED_CATEGORIES[1].title} 
-                                           endpoint={PREDEFINED_CATEGORIES[1].endpoint} 
-                                           mediaType={PREDEFINED_CATEGORIES[1].mediaType} 
-                                           apiKey={apiKey} 
-                                           onMovieClick={setSelectedMovie} 
-                                       />
-
                                        <ContinueWatchingRow watchedMovies={watched} onMovieClick={setSelectedMovie} />
                                        
                                        {watched.length > 0 && (
