@@ -902,7 +902,7 @@ export default function App() {
   const accentBgLow = "bg-red-600/20";
 
   const showStickyHeader = !!(searchQuery || selectedCategory !== "All" || currentCollection || activeCountry || activeKeyword || tmdbCollectionId);
-  const hasHeroBanner = !!(!searchQuery && featuredMovie && !activeCountry && !activeKeyword && !tmdbCollectionId && !currentCollection);
+  const hasHeroBanner = !!(selectedCategory === "All" && !searchQuery && featuredMovie && !activeCountry && !activeKeyword && !tmdbCollectionId && !currentCollection);
 
   const matchingCollections = searchQuery 
       ? PREDEFINED_CATEGORIES.filter(cat => 

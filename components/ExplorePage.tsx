@@ -414,7 +414,7 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ apiKey, onMovieClick, 
     }
 
     return (
-        <div className="min-h-screen bg-[#030303] text-white p-6 md:p-8 animate-in fade-in duration-700 pt-24">
+        <div className="min-h-screen bg-[#030303] text-white p-6 md:p-8 animate-in fade-in duration-700 pt-6">
             <div className="max-w-7xl mx-auto">
                 <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-8 gap-4 border-b border-white/5 pb-6">
                     <div>

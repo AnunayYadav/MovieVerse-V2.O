@@ -301,7 +301,7 @@ export const LiveTV: React.FC<LiveTVProps> = ({ userProfile }) => {
     }
 
     return (
-        <div className="w-full min-h-screen bg-[#030303] text-white pt-24 pb-12 px-4 md:px-8">
+        <div className="w-full min-h-screen bg-[#030303] text-white pt-6 pb-12 px-4 md:px-8">
             {selectedChannel && (
                 <LiveTVPlayer 
                     channel={selectedChannel} 
