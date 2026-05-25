@@ -27,6 +27,453 @@ const FRANCHISE_IDS = [ 86311, 131292, 131296, 131295, 115575, 10, 1241, 558216,
 
 const GENRE_COLORS: Record<string, string> = { "Action": "from-red-600 to-red-900", "Adventure": "from-orange-500 to-orange-800", "Animation": "from-pink-500 to-rose-800", "Comedy": "from-yellow-500 to-yellow-800", "Crime": "from-slate-700 to-slate-900", "Documentary": "from-emerald-600 to-emerald-900", "Drama": "from-purple-600 to-purple-900", "Family": "from-cyan-500 to-blue-800", "Fantasy": "from-indigo-500 to-indigo-900", "History": "from-amber-700 to-amber-950", "Horror": "from-gray-800 to-black", "Music": "from-fuchsia-600 to-fuchsia-900", "Mystery": "from-violet-800 to-black", "Romance": "from-rose-500 to-pink-900", "Sci-Fi": "from-teal-600 to-teal-900", "TV Movie": "from-blue-600 to-blue-900", "Thriller": "from-zinc-800 to-black", "War": "from-stone-600 to-stone-800", "Western": "from-orange-800 to-brown-900" };
 
+// Sub-component for horizontal scrolling rows of movies
+const MovieRowCard = ({ 
+    movie, 
+    onClick 
+}: { 
+    movie: Movie; 
+    onClick: () => void; 
+    key?: string | number;
+}) => {
+    const [logoUrl, setLogoUrl] = useState<string | null>(null);
+    const [logoLoading, setLogoLoading] = useState(true);
+
+    useEffect(() => {
+        let isMounted = true;
+        const key = getTmdbKey();
+        if (!key) {
+            setLogoLoading(false);
+            return;
+        }
+        
+        const type = movie.media_type === 'tv' || (!movie.release_date && movie.first_air_date) ? 'tv' : 'movie';
+        
+        fetch(`${TMDB_BASE_URL}/${type}/${movie.id}/images?api_key=${key}`)
+            .then(res => {
+                if (!res.ok) throw new Error();
+                return res.json();
+            })
+            .then(data => {
+                if (!isMounted) return;
+                const logo = data.logos?.find((l: any) => l.iso_639_1 === 'en') || data.logos?.[0];
+                if (logo) {
+                    setLogoUrl(`https://image.tmdb.org/t/p/w300${logo.file_path}`);
+                }
+            })
+            .catch(() => {})
+            .finally(() => {
+                if (isMounted) setLogoLoading(false);
+            });
+
+        return () => {
+            isMounted = false;
+        };
+    }, [movie.id]);
+
+    return (
+        <div 
+            onClick={onClick}
+            className="relative w-[220px] md:w-[260px] shrink-0 aspect-[16/9] rounded-xl overflow-hidden bg-zinc-900 border border-white/5 cursor-pointer shadow-lg hover:scale-105 hover:border-white/15 transition-all duration-500 group"
+        >
+            <img 
+                src={movie.backdrop_path ? `https://image.tmdb.org/t/p/w500${movie.backdrop_path}` : (movie.poster_path ? `https://image.tmdb.org/t/p/w500${movie.poster_path}` : `https://placehold.co/600x338?text=${encodeURIComponent(movie.title || movie.name || 'No Image')}`)} 
+                alt={movie.title || movie.name} 
+                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" 
+                loading="lazy" 
+            />
+            
+            {/* Bottom Gradient overlay - always visible at the very bottom, gets stronger/darker on hover */}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/40 to-transparent opacity-85 group-hover:opacity-100 transition-opacity duration-300" />
+            
+            {/* Content overlay */}
+            <div className="absolute inset-0 p-3 flex flex-col justify-end text-left select-none">
+                <div className="min-h-[35px] flex items-end">
+                    {!logoLoading && logoUrl ? (
+                        <img 
+                            src={logoUrl} 
+                            alt={movie.title || movie.name} 
+                            className="max-h-[32px] max-w-[85%] object-contain drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)] group-hover:scale-105 transition-transform duration-300 origin-left"
+                            loading="lazy"
+                        />
+                    ) : (
+                        <h4 className="text-sm font-bold text-white line-clamp-1 group-hover:text-red-500 transition-colors duration-300 drop-shadow-md">
+                            {movie.title || movie.name}
+                        </h4>
+                    )}
+                </div>
+                
+                <div className="flex items-center justify-between mt-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300 transform translate-y-1 group-hover:translate-y-0 transition-transform duration-300">
+                    <span className="text-[10px] text-gray-300 font-medium">
+                        {movie.release_date ? movie.release_date.split('-')[0] : (movie.first_air_date ? movie.first_air_date.split('-')[0] : '')}
+                    </span>
+                    {movie.vote_average > 0 && (
+                        <span className="bg-red-600/90 text-[9px] font-bold text-white px-1.5 py-0.5 rounded flex items-center gap-0.5 shadow-sm">
+                            <Star size={8} fill="currentColor" className="text-yellow-400" /> 
+                            {movie.vote_average.toFixed(1)}
+                        </span>
+                    )}
+                </div>
+                
+                {/* If not hovered, still show rating in the corner */}
+                <div className="absolute top-2.5 right-2.5 opacity-100 group-hover:opacity-0 transition-opacity duration-300">
+                    {movie.vote_average > 0 && (
+                        <span className="bg-black/75 backdrop-blur-md text-[9px] font-bold text-white px-1.5 py-0.5 rounded flex items-center gap-0.5 shadow-sm border border-white/5">
+                            <Star size={8} fill="currentColor" className="text-yellow-400" /> 
+                            {movie.vote_average.toFixed(1)}
+                        </span>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+};
+
+const MovieRow = ({ 
+    title, 
+    movies: staticMovies, 
+    endpoint, 
+    mediaType,
+    onMovieClick,
+    apiKey
+}: { 
+    title: string; 
+    movies?: Movie[]; 
+    endpoint?: string; 
+    mediaType?: 'movie' | 'tv';
+    onMovieClick: (m: Movie) => void;
+    apiKey?: string;
+    key?: string | number;
+}) => {
+    const [movies, setMovies] = useState<Movie[]>(staticMovies || []);
+    const [loading, setLoading] = useState(endpoint ? true : false);
+    const [loadingMore, setLoadingMore] = useState(false);
+    const [page, setPage] = useState(1);
+    const [hasMore, setHasMore] = useState(true);
+    const [isVisible, setIsVisible] = useState(false);
+    const rowRef = useRef<HTMLDivElement | null>(null);
+
+    // Sync static movies if passed
+    useEffect(() => {
+        if (staticMovies) {
+            setMovies(staticMovies);
+        }
+    }, [staticMovies]);
+
+    // Intersection Observer to detect visibility
+    useEffect(() => {
+        if (!endpoint) return;
+        const observer = new IntersectionObserver(
+            ([entry]) => {
+                if (entry.isIntersecting) {
+                    setIsVisible(true);
+                    observer.disconnect();
+                }
+            },
+            { threshold: 0.05, rootMargin: '200px' }
+        );
+        if (rowRef.current) {
+            observer.observe(rowRef.current);
+        }
+        return () => observer.disconnect();
+    }, [endpoint]);
+
+    // Fetch page 1 when row becomes visible
+    useEffect(() => {
+        if (!endpoint || !isVisible || !apiKey) return;
+        
+        let isMounted = true;
+        setLoading(true);
+        const separator = endpoint.includes('?') ? '&' : '?';
+        const url = `${endpoint}${separator}api_key=${apiKey}&page=1`;
+
+        fetch(url)
+            .then(res => res.json())
+            .then(data => {
+                if (!isMounted) return;
+                let results = data.results || [];
+                results = results.map((item: any) => ({
+                    ...item,
+                    media_type: mediaType || item.media_type || (endpoint.includes('/tv/') ? 'tv' : 'movie'),
+                    title: item.title || item.name
+                }));
+                setMovies(results);
+            })
+            .catch(err => console.error("Error fetching page 1: ", err))
+            .finally(() => {
+                if (isMounted) setLoading(false);
+            });
+
+        return () => {
+            isMounted = false;
+        };
+    }, [endpoint, isVisible, apiKey, mediaType]);
+
+    const loadNextPage = async () => {
+        if (!endpoint || !apiKey || loadingMore || !hasMore) return;
+        setLoadingMore(true);
+        const nextPage = page + 1;
+        const separator = endpoint.includes('?') ? '&' : '?';
+        const url = `${endpoint}${separator}api_key=${apiKey}&page=${nextPage}`;
+
+        try {
+            const res = await fetch(url);
+            const data = await res.json();
+            let results = data.results || [];
+            if (results.length === 0) {
+                setHasMore(false);
+            } else {
+                results = results.map((item: any) => ({
+                    ...item,
+                    media_type: mediaType || item.media_type || (endpoint.includes('/tv/') ? 'tv' : 'movie'),
+                    title: item.title || item.name
+                }));
+                setMovies(prev => [...prev, ...results]);
+                setPage(nextPage);
+            }
+        } catch (e) {
+            console.error("Error fetching next page: ", e);
+        } finally {
+            setLoadingMore(false);
+        }
+    };
+
+    const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+        if (!endpoint) return;
+        const target = e.currentTarget;
+        if (target.scrollWidth - target.scrollLeft - target.clientWidth < 400) {
+            loadNextPage();
+        }
+    };
+
+    if (!loading && (!movies || movies.length === 0)) return null;
+
+    return (
+        <div ref={rowRef} className="mb-10 animate-in fade-in duration-500">
+            <h3 className="text-lg font-bold text-white mb-4 px-4 md:px-12 tracking-tight flex items-center gap-2">
+                <span className="w-1.5 h-5 bg-red-600 rounded-full inline-block"></span>
+                {title}
+            </h3>
+            <div 
+                onScroll={handleScroll}
+                className="flex gap-5 overflow-x-auto px-4 md:px-12 pb-4 hide-scrollbar scroll-smooth"
+            >
+                {loading ? (
+                    [...Array(6)].map((_, i) => (
+                        <div key={i} className="w-[220px] md:w-[260px] shrink-0 aspect-[16/9] bg-zinc-900/45 rounded-xl animate-pulse border border-white/5"></div>
+                    ))
+                ) : (
+                    <>
+                        {movies.map((movie, idx) => (
+                            <MovieRowCard 
+                                key={`${movie.id}-${idx}`}
+                                movie={movie}
+                                onClick={() => onMovieClick(movie)}
+                            />
+                        ))}
+                        {loadingMore && (
+                            [...Array(3)].map((_, i) => (
+                                <div key={`loadmore-${i}`} className="w-[220px] md:w-[260px] shrink-0 aspect-[16/9] bg-zinc-900/45 rounded-xl animate-pulse border border-white/5 flex items-center justify-center">
+                                    <div className="w-6 h-6 border-2 border-red-600 border-t-transparent rounded-full animate-spin"></div>
+                                </div>
+                            ))
+                        )}
+                    </>
+                )}
+            </div>
+        </div>
+    );
+};
+
+// Sub-component for Continue Watching row with visual progress
+const ContinueWatchingRow = ({ 
+    watchedMovies, 
+    onMovieClick 
+}: { 
+    watchedMovies: Movie[]; 
+    onMovieClick: (m: Movie) => void;
+}) => {
+    const activeProgress = watchedMovies.filter(m => m.play_progress && m.play_progress > 0 && m.play_progress < 95);
+    if (activeProgress.length === 0) return null;
+    return (
+        <div className="mb-10 animate-in fade-in duration-500">
+            <h3 className="text-lg font-bold text-white mb-4 px-4 md:px-12 tracking-tight flex items-center gap-2">
+                <span className="w-1.5 h-5 bg-red-600 rounded-full inline-block"></span>
+                Continue Watching
+            </h3>
+            <div className="flex gap-5 overflow-x-auto px-4 md:px-12 pb-4 hide-scrollbar scroll-smooth">
+                {activeProgress.map(movie => {
+                    const progress = movie.play_progress || 0;
+                    return (
+                        <div 
+                            key={movie.id} 
+                            onClick={() => onMovieClick(movie)}
+                            className="relative w-[220px] md:w-[260px] shrink-0 aspect-[16/9] rounded-xl overflow-hidden bg-zinc-900 border border-white/5 cursor-pointer shadow-lg hover:scale-[1.03] hover:border-white/10 transition-all duration-300 group"
+                        >
+                            <img 
+                                src={movie.backdrop_path ? `https://image.tmdb.org/t/p/w500${movie.backdrop_path}` : (movie.poster_path ? `https://image.tmdb.org/t/p/w300${movie.poster_path}` : "https://placehold.co/600x338?text=No+Preview")} 
+                                alt={movie.title || movie.name} 
+                                className="w-full h-full object-cover" 
+                                loading="lazy" 
+                            />
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+                            <div className="absolute bottom-3 left-3 right-3 flex flex-col gap-1 text-left">
+                                <span className="text-xs font-bold text-white truncate drop-shadow-md">{movie.title || movie.name}</span>
+                                <div className="w-full h-1 bg-white/20 rounded-full overflow-hidden mt-1 shadow-inner">
+                                    <div className="h-full bg-red-600 transition-all duration-500" style={{ width: `${progress}%` }}></div>
+                                </div>
+                            </div>
+                        </div>
+                    );
+                })}
+            </div>
+        </div>
+    );
+};
+
+const GenreCard = ({ 
+    genreName, 
+    genreId, 
+    onClick,
+    apiKey
+}: { 
+    genreName: string; 
+    genreId: number; 
+    onClick: () => void;
+    apiKey?: string;
+    key?: string | number;
+}) => {
+    const [backdropUrl, setBackdropUrl] = useState<string | null>(null);
+
+    useEffect(() => {
+        let isMounted = true;
+        if (!apiKey) return;
+        
+        const url = `${TMDB_BASE_URL}/discover/movie?api_key=${apiKey}&with_genres=${genreId}&sort_by=popularity.desc&page=1`;
+        
+        fetch(url)
+            .then(res => {
+                if (!res.ok) throw new Error();
+                return res.json();
+            })
+            .then(data => {
+                if (!isMounted) return;
+                const results = data.results || [];
+                if (results.length > 0) {
+                    const randomIndex = Math.floor(Math.random() * Math.min(5, results.length));
+                    const movie = results[randomIndex];
+                    if (movie.backdrop_path) {
+                        setBackdropUrl(`https://image.tmdb.org/t/p/w500${movie.backdrop_path}`);
+                    } else if (movie.poster_path) {
+                        setBackdropUrl(`https://image.tmdb.org/t/p/w500${movie.poster_path}`);
+                    }
+                }
+            })
+            .catch(() => {});
+
+        return () => {
+            isMounted = false;
+        };
+    }, [genreId, apiKey]);
+
+    const fallbackImage = `https://placehold.co/600x338/111/444?text=${encodeURIComponent(genreName)}`;
+
+    return (
+        <div
+            onClick={onClick}
+            className="relative w-[180px] md:w-[220px] shrink-0 aspect-[16/9] rounded-xl overflow-hidden bg-zinc-900 border border-white/5 cursor-pointer shadow-lg hover:scale-105 hover:border-white/20 transition-all duration-500 group"
+        >
+            <img 
+                src={backdropUrl || fallbackImage} 
+                alt={genreName} 
+                className="w-full h-full object-cover opacity-60 group-hover:opacity-85 transition-all duration-500" 
+                loading="lazy" 
+            />
+            {/* Overlay with high-contrast text */}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/25 to-transparent flex items-center justify-center p-3 text-center">
+                <span className="text-white text-xs md:text-sm font-black uppercase tracking-[0.2em] drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)] group-hover:scale-105 transition-transform duration-500">
+                    {genreName}
+                </span>
+            </div>
+        </div>
+    );
+};
+
+// Sub-component for popular genres placeholders
+const PopularGenresRow = ({ 
+    onGenreSelect,
+    apiKey
+}: { 
+    onGenreSelect: (genreName: string) => void;
+    apiKey?: string;
+}) => {
+    const popular = [
+      { name: "Action", id: 28 },
+      { name: "Adventure", id: 12 },
+      { name: "Animation", id: 16 },
+      { name: "Comedy", id: 35 },
+      { name: "Drama", id: 18 },
+      { name: "Sci-Fi", id: 878 },
+      { name: "Thriller", id: 53 },
+      { name: "Horror", id: 27 },
+      { name: "Romance", id: 10749 }
+    ];
+    return (
+        <div className="mb-10 animate-in fade-in duration-500">
+            <h3 className="text-lg font-bold text-white mb-4 px-4 md:px-12 tracking-tight flex items-center gap-2">
+                <span className="w-1.5 h-5 bg-red-600 rounded-full inline-block"></span>
+                Explore Genres
+            </h3>
+            <div className="flex gap-5 overflow-x-auto px-4 md:px-12 pb-4 hide-scrollbar scroll-smooth">
+                {popular.map(genre => (
+                    <GenreCard 
+                        key={genre.name}
+                        genreName={genre.name}
+                        genreId={genre.id}
+                        apiKey={apiKey}
+                        onClick={() => onGenreSelect(genre.name)}
+                    />
+                ))}
+            </div>
+        </div>
+    );
+};
+
+const PREDEFINED_CATEGORIES = [
+    { id: 'trending_movies', title: 'Trending Movies', type: 'row', endpoint: `${TMDB_BASE_URL}/trending/movie/week` },
+    { id: 'trending_tv', title: 'Trending TV Shows', type: 'row', endpoint: `${TMDB_BASE_URL}/trending/tv/week`, mediaType: 'tv' as const },
+    { id: 'new_popular', title: 'New & Popular', type: 'row', endpoint: `${TMDB_BASE_URL}/movie/popular` },
+    { id: 'netflix', title: 'Netflix Originals', type: 'row', endpoint: `${TMDB_BASE_URL}/discover/movie?with_watch_providers=8&watch_region=US` },
+    { id: 'prime', title: 'Prime Video Picks', type: 'row', endpoint: `${TMDB_BASE_URL}/discover/movie?with_watch_providers=119&watch_region=US` },
+    { id: 'disney', title: 'Disney+ Collection', type: 'row', endpoint: `${TMDB_BASE_URL}/discover/movie?with_watch_providers=337&watch_region=US` },
+    { id: 'hbo', title: 'HBO Hits', type: 'row', endpoint: `${TMDB_BASE_URL}/discover/movie?with_watch_providers=384&watch_region=US` },
+    { id: 'apple', title: 'Apple TV+ Originals', type: 'row', endpoint: `${TMDB_BASE_URL}/discover/movie?with_watch_providers=350&watch_region=US` },
+    { id: 'crunchyroll', title: 'Crunchyroll Anime', type: 'row', endpoint: `${TMDB_BASE_URL}/discover/movie?with_genres=16&with_original_language=ja` },
+    { id: 'popular_platforms_row', title: 'Popular Across Platforms', type: 'row', endpoint: `${TMDB_BASE_URL}/trending/all/week` },
+    { id: 'hindi', title: 'Hindi Hits', type: 'row', endpoint: `${TMDB_BASE_URL}/discover/movie?with_original_language=hi&sort_by=popularity.desc` },
+    { id: 'south', title: 'South Indian Blockbusters', type: 'row', endpoint: `${TMDB_BASE_URL}/discover/movie?with_original_language=te|ta|kn&sort_by=popularity.desc` },
+    { id: 'punjabi', title: 'Punjabi Collection', type: 'row', endpoint: `${TMDB_BASE_URL}/discover/movie?with_original_language=pa&sort_by=popularity.desc` },
+    { id: 'korean', title: 'Korean Dramas', type: 'row', endpoint: `${TMDB_BASE_URL}/discover/movie?with_original_language=ko&sort_by=popularity.desc` },
+    { id: 'japanese_anime', title: 'Japanese Anime', type: 'row', endpoint: `${TMDB_BASE_URL}/discover/movie?with_genres=16&with_original_language=ja` },
+    { id: 'international', title: 'International Picks', type: 'row', endpoint: `${TMDB_BASE_URL}/discover/movie?with_original_language=en&sort_by=popularity.desc` },
+    { id: 'dubbed', title: 'Watch in Your Language (Dubbed Collection)', type: 'row', endpoint: `${TMDB_BASE_URL}/discover/movie?sort_by=popularity.desc&with_original_language=hi|te|ta` }
+];
+
+const DYNAMIC_GENRES = [
+    { name: 'Action Thrillers', genres: '28|53' },
+    { name: 'Sci-Fi & Fantasy', genres: '878|14' },
+    { name: 'Crime & Mystery dramas', genres: '80|9648' },
+    { name: 'Romantic Comedies', genres: '10749|35' },
+    { name: 'Chilling Horrors', genres: '27' },
+    { name: 'Family & Kids Specials', genres: '10751|16' },
+    { name: 'Historical Dramas', genres: '36|18' },
+    { name: 'Action & Adventure', genres: '28|12' },
+    { name: 'Documentaries', genres: '99' },
+    { name: 'War & History', genres: '10752|36' }
+];
+
+const DYNAMIC_YEARS = [2024, 2023, 2022, 2021, 2020, 2019, 2018, 2015, 2010, 2005, 2000, 1995, 1990];
+
 export default function App() {
   const [apiKey, setApiKey] = useState(getTmdbKey());
   
@@ -85,6 +532,11 @@ export default function App() {
   const [comparisonBaseMovie, setComparisonBaseMovie] = useState<Movie | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string>('');
   const [reminders, setReminders] = useState<number[]>([]);
+
+  // Homepage sections states
+  const [activeCategories, setActiveCategories] = useState<any[]>(() => PREDEFINED_CATEGORIES.slice(0, 3));
+  const [recommendations, setRecommendations] = useState<Movie[]>([]);
+  const [recBaseMovie, setRecBaseMovie] = useState<Movie | null>(null);
 
   // --- WATCH PARTY STATE ---
   const [activeWatchPartyRoom, setActiveWatchPartyRoom] = useState<string | null>(null);
@@ -286,6 +738,80 @@ export default function App() {
           window.location.hash = newHash;
       }
   }, [selectedCategory, selectedMovie, activeWatchPartyRoom, activeKeyword, tmdbCollectionId, activeCountry, currentCollection]);
+
+
+  // Load recommendations based on watch history
+  useEffect(() => {
+      const fetchRecommendations = async () => {
+          if (watched.length > 0 && apiKey && isAuthenticated) {
+              const baseMovie = watched[0];
+              setRecBaseMovie(baseMovie);
+              try {
+                  const res = await fetch(`${TMDB_BASE_URL}/movie/${baseMovie.id}/recommendations?api_key=${apiKey}`);
+                  const data = await res.json();
+                  setRecommendations(data.results?.slice(0, 12) || []);
+              } catch (e) {
+                  console.error("Failed to load recommendations: ", e);
+              }
+          }
+      };
+      fetchRecommendations();
+  }, [watched, apiKey, isAuthenticated]);
+
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
+
+  const loadMoreCategories = useCallback(() => {
+      setActiveCategories(prev => {
+          const nextIndex = prev.length;
+          const batchSize = 3;
+          const newBatch: any[] = [];
+          
+          for (let i = 0; i < batchSize; i++) {
+              const idx = nextIndex + i;
+              if (idx < PREDEFINED_CATEGORIES.length) {
+                  newBatch.push(PREDEFINED_CATEGORIES[idx]);
+              } else {
+                  const dynamicIdx = idx - PREDEFINED_CATEGORIES.length;
+                  if (dynamicIdx % 2 === 0) {
+                      const genreObj = DYNAMIC_GENRES[Math.floor(dynamicIdx / 2) % DYNAMIC_GENRES.length];
+                      newBatch.push({
+                          id: `dynamic_genre_${dynamicIdx}`,
+                          title: genreObj.name,
+                          type: 'row',
+                          endpoint: `${TMDB_BASE_URL}/discover/movie?with_genres=${genreObj.genres}&sort_by=popularity.desc`
+                      });
+                  } else {
+                      const year = DYNAMIC_YEARS[Math.floor(dynamicIdx / 2) % DYNAMIC_YEARS.length];
+                      newBatch.push({
+                          id: `dynamic_year_${dynamicIdx}`,
+                          title: `Best of ${year}`,
+                          type: 'row',
+                          endpoint: `${TMDB_BASE_URL}/discover/movie?primary_release_year=${year}&sort_by=popularity.desc`
+                      });
+                  }
+              }
+          }
+          return [...prev, ...newBatch];
+      });
+  }, []);
+
+  useEffect(() => {
+      if (selectedCategory !== 'All' || searchQuery || currentCollection || activeCountry || activeKeyword || tmdbCollectionId) return;
+      
+      const observer = new IntersectionObserver(
+          ([entry]) => {
+              if (entry.isIntersecting) {
+                  loadMoreCategories();
+              }
+          },
+          { threshold: 0.1, rootMargin: '400px' }
+      );
+      
+      if (sentinelRef.current) {
+          observer.observe(sentinelRef.current);
+      }
+      return () => observer.disconnect();
+  }, [activeCategories.length, selectedCategory, searchQuery, currentCollection, activeCountry, activeKeyword, tmdbCollectionId, loadMoreCategories]);
 
   const abortControllerRef = useRef<AbortController | null>(null);
   const isExclusive = userProfile.canWatch === true;
@@ -1598,23 +2124,66 @@ export default function App() {
                                     </div>
                                )}
 
-                               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-x-4 gap-y-8 animate-in fade-in duration-700">
-                                   {movies.map((movie, idx) => (
-                                       <div key={`${movie.id}-${idx}`} ref={idx === movies.length - 1 ? lastMovieElementRef : null} className="animate-in fade-in zoom-in-95 duration-500" style={{ animationDelay: `${idx * 50}ms` }}>
-                                            {selectedCategory !== "People" ? ( 
-                                                <MovieCard 
-                                                    movie={movie} 
-                                                    onClick={setSelectedMovie} 
-                                                    isWatched={watched.some(m => m.id === movie.id)} 
-                                                    onToggleWatched={handleToggleWatched} 
-                                                /> 
-                                            ) : (
-                                                <PersonCard person={movie} onClick={(id) => setSelectedPersonId(id)} />
-                                            )}
+                               {!searchQuery && selectedCategory === "All" && !currentCollection && !activeCountry && !activeKeyword && !tmdbCollectionId ? (
+                                   <div className="space-y-4 animate-in fade-in duration-700 -mx-4 md:-mx-12">
+                                       <ContinueWatchingRow watchedMovies={watched} onMovieClick={setSelectedMovie} />
+                                       
+                                       {watched.length > 0 && (
+                                           <MovieRow title="Watch Again" movies={watched.filter(m => !m.play_progress || m.play_progress >= 95)} onMovieClick={setSelectedMovie} />
+                                       )}
+                                       
+                                       {recBaseMovie && recommendations.length > 0 && (
+                                           <MovieRow title={`Because You Watched ${recBaseMovie.title || recBaseMovie.name}`} movies={recommendations} onMovieClick={setSelectedMovie} />
+                                       )}
+                                       
+                                       <PopularGenresRow apiKey={apiKey} onGenreSelect={(genreName) => { resetFilters(); setSelectedCategory(genreName); }} />
+                                       
+                                       {activeCategories.map(cat => {
+                                           if (cat.type === 'header') {
+                                               return (
+                                                   <div key={cat.id} className="pt-10 pb-1 px-4 md:px-12 animate-in fade-in duration-500 text-left">
+                                                       <h2 className="text-xs md:text-sm font-semibold tracking-[0.25em] text-zinc-500 uppercase">
+                                                           {cat.title}
+                                                       </h2>
+                                                   </div>
+                                               );
+                                           }
+                                           return (
+                                               <MovieRow 
+                                                   key={cat.id} 
+                                                   title={cat.title} 
+                                                   endpoint={cat.endpoint} 
+                                                   mediaType={cat.mediaType} 
+                                                   apiKey={apiKey} 
+                                                   onMovieClick={setSelectedMovie} 
+                                               />
+                                           );
+                                       })}
+                                       
+                                       {/* Sentinel for infinite vertical scrolling of categories */}
+                                       <div ref={sentinelRef} className="h-20 w-full flex items-center justify-center py-8">
+                                           <div className="w-8 h-8 border-4 border-red-600 border-t-transparent rounded-full animate-spin"></div>
                                        </div>
-                                   ))}
-                                   {loading && [...Array(12)].map((_, i) => <MovieSkeleton key={`skel-${i}`} />)}
-                               </div>
+                                   </div>
+                               ) : (
+                                   <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-x-4 gap-y-8 animate-in fade-in duration-700">
+                                       {movies.map((movie, idx) => (
+                                           <div key={`${movie.id}-${idx}`} ref={idx === movies.length - 1 ? lastMovieElementRef : null} className="animate-in fade-in zoom-in-95 duration-500" style={{ animationDelay: `${idx * 50}ms` }}>
+                                                {selectedCategory !== "People" ? ( 
+                                                    <MovieCard 
+                                                        movie={movie} 
+                                                        onClick={setSelectedMovie} 
+                                                        isWatched={watched.some(m => m.id === movie.id)} 
+                                                        onToggleWatched={handleToggleWatched} 
+                                                    /> 
+                                                ) : (
+                                                    <PersonCard person={movie} onClick={(id) => setSelectedPersonId(id)} />
+                                                )}
+                                           </div>
+                                       ))}
+                                       {loading && [...Array(12)].map((_, i) => <MovieSkeleton key={`skel-${i}`} />)}
+                                   </div>
+                               )}
                                
                                {!loading && !fetchError && movies.length === 0 && ( 
                                    <div className="text-center py-20 opacity-50 flex flex-col items-center animate-in fade-in zoom-in"> 
