@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Search, Film, Menu, TrendingUp, Tv, Ghost, Calendar, Star, X, Sparkles, Settings, Globe, Bookmark, Heart, Folder, Languages, Filter, ChevronDown, Info, Plus, Cloud, CloudOff, Clock, Bell, History, Users, Tag, Dice5, Crown, Radio, LayoutGrid, Award, Baby, Clapperboard, ChevronRight, PlayCircle, Play, Megaphone, CalendarDays, Compass, Home, Map, Loader2, Trophy, RefreshCcw, Check, MonitorPlay, Layers, LogOut, Download } from 'lucide-react';
+import { Search, Film, Menu, TrendingUp, Tv, Ghost, Calendar, Star, X, Sparkles, Settings, Globe, Bookmark, Heart, Folder, Languages, Filter, ChevronDown, Info, Plus, Cloud, CloudOff, Clock, Bell, History, Users, Tag, Dice5, Crown, Radio, LayoutGrid, Award, Baby, Clapperboard, ChevronRight, PlayCircle, Play, Megaphone, CalendarDays, Compass, Home, Map, Loader2, Trophy, RefreshCcw, Check, MonitorPlay, Layers, LogOut, Download, User } from 'lucide-react';
 import { Movie, UserProfile, GENRES_MAP, GENRES_LIST, INDIAN_LANGUAGES, MaturityRating, Keyword } from './types';
 import { LogoLoader, MovieSkeleton, MovieCard, PersonCard, TMDB_BASE_URL, TMDB_BACKDROP_BASE, TMDB_IMAGE_BASE, getTmdbKey, BrandLogo } from './components/Shared';
 import { MoviePage } from './components/MovieDetails';
@@ -622,6 +622,7 @@ export default function App() {
   }, [selectedMovie, isSettingsOpen, isProfileOpen, selectedPersonId, isNotificationOpen, isComparisonOpen, isAgeModalOpen, isSidebarOpen]);
   
   const [isBrowseOpen, setIsBrowseOpen] = useState(false);
+  const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const watchlistRef = useRef<Movie[]>([]);
   const favoritesRef = useRef<Movie[]>([]);
@@ -1656,9 +1657,11 @@ export default function App() {
       <div className={`fixed inset-y-0 left-0 z-[100] w-72 bg-black/95 backdrop-blur-2xl border-r border-white/10 transform transition-transform duration-500 ease-[cubic-bezier(0.33,1,0.68,1)] ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
           <div className="flex flex-col h-full p-6">
               <div className="flex items-center justify-between mb-8">
-                  <div className="flex items-center gap-2 cursor-pointer" onClick={resetToHome}>
-                      <BrandLogo size={32} accentColor={accentText} />
-                      <span className="text-lg font-bold tracking-tight">Movie<span className={accentText}>Verse</span></span>
+                  <div className="flex items-center justify-center cursor-pointer group relative select-none" onClick={resetToHome}>
+                      <div className="relative group flex items-center justify-center">
+                          <BrandLogo size={36} accentColor={accentText} className="relative z-10 transition-transform duration-500 group-hover:rotate-12" />
+                          <div className="absolute inset-0 blur-lg opacity-40 group-hover:opacity-75 transition-opacity duration-500 bg-red-600"></div>
+                      </div>
                   </div>
                   <button onClick={() => setIsSidebarOpen(false)} className="p-2 hover:bg-white/10 rounded-full transition-colors">
                       <X size={20}/>
@@ -1766,26 +1769,25 @@ export default function App() {
                     <Menu size={24}/>
                 </button>
 
-                <div className="flex items-center gap-2 cursor-pointer group" onClick={resetToHome}>
-                    <div className="relative group">
-                        <BrandLogo className={`${accentText} relative z-10 transition-transform duration-500 group-hover:rotate-12`} accentColor={accentText} />
-                        <div className="absolute inset-0 blur-lg opacity-50 group-hover:opacity-80 transition-opacity duration-500 bg-red-600"></div>
-                    </div>
-                    <div className="flex flex-col leading-none gap-0.5">
-                        <span className="text-lg font-bold tracking-tight text-white hidden sm:block">Movie<span className={accentText}>Verse</span></span>
-                        {isExclusive && <span className="text-[8px] uppercase tracking-[0.15em] font-extrabold hidden sm:block px-1.5 py-0.5 rounded bg-red-600/10 border border-red-500/20 text-red-500 select-none w-max">Premium</span>}
+                <div className="flex items-center justify-center cursor-pointer group relative select-none" onClick={resetToHome}>
+                    <div className="relative group flex items-center justify-center">
+                        <BrandLogo size={36} className={`${accentText} relative z-10 transition-transform duration-500 group-hover:rotate-12`} accentColor={accentText} />
+                        <div className="absolute inset-0 blur-lg opacity-40 group-hover:opacity-75 transition-opacity duration-500 bg-red-600"></div>
                     </div>
                 </div>
 
                 <div className="hidden lg:flex items-center gap-2">
-                    <button onClick={resetToHome} className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold transition-all ${selectedCategory === "All" && !searchQuery ? "bg-white/10 text-white" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>
-                        <Home size={18} /> Home
+                    <button onClick={resetToHome} className={`group flex items-center gap-2 px-5 py-2 rounded-full text-xs font-semibold tracking-wide transition-all duration-300 ${selectedCategory === "All" && !searchQuery ? "bg-white/10 text-white" : "text-zinc-400 hover:text-white hover:bg-white/5"}`}>
+                        <Home size={15} className="transition-all duration-300 group-hover:scale-110 group-hover:-translate-y-0.5" /> 
+                        <span>Home</span>
                     </button>
-                    <button onClick={() => { resetFilters(); setSelectedCategory("Explore"); }} className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold transition-all ${selectedCategory === "Explore" ? "bg-white/10 text-white" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>
-                        <Compass size={18} /> Explore
+                    <button onClick={() => { resetFilters(); setSelectedCategory("Explore"); }} className={`group flex items-center gap-2 px-5 py-2 rounded-full text-xs font-semibold tracking-wide transition-all duration-300 ${selectedCategory === "Explore" ? "bg-white/10 text-white" : "text-zinc-400 hover:text-white hover:bg-white/5"}`}>
+                        <Compass size={15} className="transition-all duration-500 group-hover:rotate-90 group-hover:scale-110" /> 
+                        <span>Explore</span>
                     </button>
-                    <button onClick={() => { resetFilters(); setSelectedCategory("LiveTV"); }} className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold transition-all ${selectedCategory === "LiveTV" ? "bg-white/10 text-white" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>
-                        <Radio size={18} /> Live TV
+                    <button onClick={() => { resetFilters(); setSelectedCategory("LiveTV"); }} className={`group flex items-center gap-2 px-5 py-2 rounded-full text-xs font-semibold tracking-wide transition-all duration-300 ${selectedCategory === "LiveTV" ? "bg-white/10 text-white" : "text-zinc-400 hover:text-white hover:bg-white/5"}`}>
+                        <Radio size={15} className="transition-all duration-300 group-hover:scale-110 group-hover:animate-pulse" /> 
+                        <span>Live TV</span>
                     </button>
                     
                     <div 
@@ -1793,24 +1795,49 @@ export default function App() {
                         onMouseEnter={handleBrowseEnter}
                         onMouseLeave={handleBrowseLeave}
                     >
-                        <button className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold transition-all ${["Genres", "Awards", "Anime", "Sports", "Family", "TV Shows", "Coming"].includes(selectedCategory) ? "bg-white/10 text-white" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>
-                            <LayoutGrid size={18} /> Browse
+                        <button className={`flex items-center gap-2 px-5 py-2 rounded-full text-xs font-semibold tracking-wide transition-all duration-300 ${
+                            isBrowseOpen || ["Genres", "Awards", "Anime", "Sports", "Family", "TV Shows", "Coming"].includes(selectedCategory)
+                                ? "bg-white/10 text-white shadow-[0_4px_20px_rgba(0,0,0,0.3)] border border-white/10" 
+                                : "text-zinc-400 hover:text-white hover:bg-white/5 border border-transparent"
+                        }`}>
+                            <LayoutGrid size={15} className={`transition-transform duration-500 ${isBrowseOpen ? 'rotate-180 scale-110' : ''}`} /> 
+                            <span>Browse</span>
+                            <ChevronDown size={12} className={`transition-transform duration-500 opacity-60 ${isBrowseOpen ? 'rotate-180' : ''}`} />
                         </button>
                         
                         {isBrowseOpen && (
                             <>
-                                <div className="absolute top-full left-0 w-full h-4 bg-transparent z-[55]" />
-                                <div className="absolute top-[calc(100%+0.25rem)] left-1/2 -translate-x-1/2 w-[340px] bg-[#0f0f10]/95 backdrop-blur-2xl border border-white/10 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] p-3 grid grid-cols-3 gap-2 z-[60] animate-in fade-in zoom-in-95 duration-200 origin-top">
-                                    {browseOptions.map(opt => (
-                                        <button 
-                                            key={opt.id}
-                                            onClick={() => handleBrowseAction(opt.action)}
-                                            className={`flex flex-col items-center justify-center gap-2 py-3 px-1 rounded-xl transition-all duration-300 hover:scale-105 active:scale-95 border ${selectedCategory === opt.id ? (isGoldTheme ? 'bg-amber-500/10 text-amber-500 border-amber-500/20' : 'bg-red-600/10 text-red-500 border-red-600/20') : 'text-gray-400 hover:text-white hover:bg-white/5 border-transparent'}`}
-                                        >
-                                            <opt.icon size={20} className="opacity-90 group-hover:scale-115 transition-transform" />
-                                            <span className="text-[10px] font-extrabold tracking-wide uppercase whitespace-nowrap">{opt.label}</span>
-                                        </button>
-                                    ))}
+                                <div className="absolute top-full left-1/2 -translate-x-1/2 w-[350px] h-[18px] bg-transparent z-[55]" />
+                                <div className="absolute top-[calc(100%+0.5rem)] left-1/2 -translate-x-1/2 w-[350px] bg-[#0c0c0e]/95 backdrop-blur-3xl border border-white/10 rounded-2xl shadow-[0_24px_50px_rgba(0,0,0,0.7)] p-4 grid grid-cols-3 gap-3 z-[60] animate-in fade-in zoom-in-[0.97] slide-in-from-top-2 duration-300 ease-out origin-top select-none">
+                                    {/* Popover Arrow */}
+                                    <div className="absolute -top-1 w-2.5 h-2.5 rotate-45 bg-[#0c0c0e] border-t border-l border-white/10 left-1/2 -translate-x-1/2 z-[-1]" />
+                                    
+                                    {browseOptions.map(opt => {
+                                        const isActive = selectedCategory === opt.id || 
+                                            (opt.id === "Trending" && selectedCategory === "All") ||
+                                            (opt.id === "WatchParty" && (activeWatchPartyRoom !== null || isWatchPartyJoinOpen));
+                                        
+                                        return (
+                                            <button 
+                                                key={opt.id}
+                                                onClick={() => handleBrowseAction(opt.action)}
+                                                className="group flex flex-col items-center justify-center gap-2 py-2 px-1 rounded-xl transition-all duration-300 hover:bg-white/5 active:scale-95 border border-transparent"
+                                            >
+                                                <div className={`w-12 h-12 rounded-[14px] flex items-center justify-center transition-all duration-300 ${
+                                                    isActive 
+                                                        ? (isGoldTheme ? 'bg-amber-500 text-black shadow-[0_8px_20px_-4px_rgba(245,158,11,0.4)]' : 'bg-red-600 text-white shadow-[0_8px_20px_-4px_rgba(220,38,38,0.4)]') 
+                                                        : 'bg-white/5 text-zinc-400 group-hover:bg-white/10 group-hover:text-white group-hover:scale-105 group-hover:shadow-[0_4px_12px_rgba(255,255,255,0.03)]'
+                                                }`}>
+                                                    <opt.icon size={22} className="transition-transform duration-300 group-hover:scale-110" />
+                                                </div>
+                                                <span className={`text-[11px] font-medium tracking-wide transition-colors duration-300 ${
+                                                    isActive 
+                                                        ? (isGoldTheme ? 'text-amber-400 font-semibold' : 'text-red-500 font-semibold') 
+                                                        : 'text-zinc-400 group-hover:text-zinc-200'
+                                                }`}>{opt.label}</span>
+                                            </button>
+                                        );
+                                    })}
                                 </div>
                             </>
                         )}
@@ -1835,20 +1862,67 @@ export default function App() {
                 </div>
 
                 <div className="flex items-center gap-3">
-                    <button 
-                        onClick={() => setIsSettingsOpen(true)} 
-                        className="text-gray-400 hover:text-white transition-colors p-2 hover:bg-white/10 rounded-full"
-                        title="Settings"
-                    >
-                        <Settings size={20} />
-                    </button>
                     <button onClick={() => setIsNotificationOpen(true)} className="relative text-gray-400 hover:text-white transition-colors p-2 hover:bg-white/10 rounded-full">
                         <Bell size={20} />
                         {hasUnread && <span className={`absolute top-2 right-2 w-2 h-2 rounded-full ${isGoldTheme ? 'bg-amber-500' : 'bg-red-600'}`}></span>}
                     </button>
-                    <button onClick={() => setIsProfileOpen(true)} className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white shadow-lg transition-transform overflow-hidden hover:scale-105 ${userProfile.avatarBackground || (isGoldTheme ? 'bg-gradient-to-br from-amber-500 to-yellow-900 shadow-amber-900/40' : 'bg-gradient-to-br from-red-600 to-red-900 shadow-red-900/40')}`}>
-                        {userProfile.avatar ? (<img key={userProfile.avatar} src={userProfile.avatar} alt={userProfile.name} className="w-full h-full object-cover" />) : (userProfile.name.charAt(0).toUpperCase())}
-                    </button>
+                    
+                    {/* Profile Dropdown Container */}
+                    <div className="relative">
+                        <button 
+                            onClick={() => setIsProfileDropdownOpen(!isProfileDropdownOpen)}
+                            className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white shadow-lg transition-all duration-300 overflow-hidden hover:scale-105 ${
+                                isProfileDropdownOpen ? (isGoldTheme ? 'ring-2 ring-amber-500 ring-offset-2 ring-offset-black' : 'ring-2 ring-red-600 ring-offset-2 ring-offset-black') : ''
+                            } ${userProfile.avatarBackground || (isGoldTheme ? 'bg-gradient-to-br from-amber-500 to-yellow-900 shadow-amber-900/40' : 'bg-gradient-to-br from-red-600 to-red-900 shadow-red-900/40')}`}
+                        >
+                            {userProfile.avatar ? (
+                                <img key={userProfile.avatar} src={userProfile.avatar} alt={userProfile.name} className="w-full h-full object-cover" />
+                            ) : (
+                                userProfile.name.charAt(0).toUpperCase()
+                            )}
+                        </button>
+
+                        {isProfileDropdownOpen && (
+                            <>
+                                {/* Click overlay to close dropdown */}
+                                <div 
+                                    className="fixed inset-0 z-[65]" 
+                                    onClick={() => setIsProfileDropdownOpen(false)}
+                                />
+                                <div className="absolute top-[calc(100%+0.75rem)] right-0 w-48 bg-[#0c0c0e]/95 backdrop-blur-3xl border border-white/10 rounded-2xl shadow-[0_20px_40px_rgba(0,0,0,0.8)] p-2 z-[70] animate-in fade-in zoom-in-[0.97] slide-in-from-top-2 duration-300 ease-out origin-top-right select-none">
+                                    {/* Dropdown Arrow */}
+                                    <div className="absolute -top-1 right-3 w-2.5 h-2.5 rotate-45 bg-[#0c0c0e] border-t border-l border-white/10 z-[-1]" />
+                                    
+                                    <div className="px-3 py-2 border-b border-white/5 mb-1 text-left">
+                                        <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider">Signed in as</p>
+                                        <p className="text-xs font-semibold text-white truncate mt-0.5">{userProfile.name || 'Guest'}</p>
+                                    </div>
+
+                                    <button 
+                                        onClick={() => {
+                                            setIsProfileOpen(true);
+                                            setIsProfileDropdownOpen(false);
+                                        }}
+                                        className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-zinc-300 hover:text-white hover:bg-white/5 rounded-xl transition-all duration-200 text-left"
+                                    >
+                                        <User size={15} className="text-zinc-400" />
+                                        Edit Profile
+                                    </button>
+
+                                    <button 
+                                        onClick={() => {
+                                            setIsSettingsOpen(true);
+                                            setIsProfileDropdownOpen(false);
+                                        }}
+                                        className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-zinc-300 hover:text-white hover:bg-white/5 rounded-xl transition-all duration-200 text-left"
+                                    >
+                                        <Settings size={15} className="text-zinc-400" />
+                                        Settings
+                                    </button>
+                                </div>
+                            </>
+                        )}
+                    </div>
                 </div>
             </div>
         </div>
