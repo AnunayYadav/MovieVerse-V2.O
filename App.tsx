@@ -758,7 +758,7 @@ export default function App() {
       fetchRecommendations();
   }, [watched, apiKey, isAuthenticated]);
 
-  const sentinelRef = useRef<HTMLDivElement | null>(null);
+  const isCategoriesLoading = useRef(false);
 
   const loadMoreCategories = useCallback(() => {
       setActiveCategories(prev => {
@@ -798,20 +798,22 @@ export default function App() {
   useEffect(() => {
       if (selectedCategory !== 'All' || searchQuery || currentCollection || activeCountry || activeKeyword || tmdbCollectionId) return;
       
-      const observer = new IntersectionObserver(
-          ([entry]) => {
-              if (entry.isIntersecting) {
-                  loadMoreCategories();
-              }
-          },
-          { threshold: 0.1, rootMargin: '400px' }
-      );
+      const handleScroll = () => {
+          const threshold = 400;
+          const isNearBottom = window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - threshold;
+          
+          if (isNearBottom && !isCategoriesLoading.current) {
+              isCategoriesLoading.current = true;
+              loadMoreCategories();
+              setTimeout(() => {
+                  isCategoriesLoading.current = false;
+              }, 1200); 
+          }
+      };
       
-      if (sentinelRef.current) {
-          observer.observe(sentinelRef.current);
-      }
-      return () => observer.disconnect();
-  }, [activeCategories.length, selectedCategory, searchQuery, currentCollection, activeCountry, activeKeyword, tmdbCollectionId, loadMoreCategories]);
+      window.addEventListener('scroll', handleScroll);
+      return () => window.removeEventListener('scroll', handleScroll);
+  }, [selectedCategory, searchQuery, currentCollection, activeCountry, activeKeyword, tmdbCollectionId, loadMoreCategories]);
 
   const abortControllerRef = useRef<AbortController | null>(null);
   const isExclusive = userProfile.canWatch === true;
@@ -2159,10 +2161,14 @@ export default function App() {
                                                />
                                            );
                                        })}
-                                       
-                                       {/* Sentinel for infinite vertical scrolling of categories */}
-                                       <div ref={sentinelRef} className="h-20 w-full flex items-center justify-center py-8">
-                                           <div className="w-8 h-8 border-4 border-red-600 border-t-transparent rounded-full animate-spin"></div>
+                                       {/* Category Row Skeletons as Loader at the bottom */}
+                                       <div className="space-y-4 animate-pulse mt-8 pb-10 -mx-4 md:-mx-12 px-4 md:px-12">
+                                           <div className="h-5 w-40 bg-zinc-800 rounded-full mb-4"></div>
+                                           <div className="flex gap-5 overflow-hidden">
+                                               {[...Array(6)].map((_, i) => (
+                                                   <div key={i} className="w-[220px] md:w-[260px] shrink-0 aspect-[16/9] bg-zinc-900 border border-white/5 rounded-xl"></div>
+                                               ))}
+                                           </div>
                                        </div>
                                    </div>
                                ) : (
