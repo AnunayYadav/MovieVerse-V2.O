@@ -142,6 +142,9 @@ export const fetchUserData = async (): Promise<UserData | null> => {
     if (data.can_watch === true) {
         fetchedProfile.canWatch = true;
     }
+    if (data.is_unhinged === true) {
+        fetchedProfile.isUnhinged = true;
+    }
 
     return {
         watchlist: data.watchlist || [],

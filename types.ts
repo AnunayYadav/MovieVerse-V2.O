@@ -253,6 +253,7 @@ export interface UserProfile {
   avatar?: string;
   avatarBackground?: string;
   canWatch?: boolean; // New Flag for Restricted Access
+  isUnhinged?: boolean; // Flag to enable unhinged/adult search
   theme?: 'default' | 'gold'; // Theme preference for exclusive users
   enableHistory?: boolean; // Toggle for history recording
   // Synced Preferences

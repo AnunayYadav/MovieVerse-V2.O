@@ -905,9 +905,19 @@ export default function App() {
   const hasHeroBanner = !!(selectedCategory === "All" && !searchQuery && featuredMovie && !activeCountry && !activeKeyword && !tmdbCollectionId && !currentCollection);
 
   const matchingCollections = searchQuery 
-      ? PREDEFINED_CATEGORIES.filter(cat => 
-          cat.title.toLowerCase().includes(searchQuery.toLowerCase().trim())
-        ) 
+      ? [
+          ...PREDEFINED_CATEGORIES.filter(cat => 
+              cat.title.toLowerCase().includes(searchQuery.toLowerCase().trim())
+          ),
+          ...(searchQuery.toLowerCase().trim() === 'adult' && userProfile.isUnhinged === true
+              ? [{
+                  id: 'adult_unhinged_collection',
+                  title: 'Unhinged Collection (18+)',
+                  type: 'row',
+                  endpoint: `${TMDB_BASE_URL}/discover/movie?include_adult=true&sort_by=popularity.desc`
+                }]
+              : [])
+        ]
       : [];
 
   // Shortcut Handler
