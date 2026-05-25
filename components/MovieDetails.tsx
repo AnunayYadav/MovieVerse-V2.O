@@ -75,10 +75,10 @@ const PopularityMeter = ({ score, count, isGold }: { score: number; count: numbe
     const stop4 = isGold ? "#fbbf24" : "#a855f7"; 
 
     return (
-        <div className="p-8 md:p-10 bg-[#0d0d0d] rounded-[2.5rem] border border-white/5 flex flex-col items-center text-center relative overflow-hidden group shadow-2xl h-full">
+        <div className="p-5 md:p-10 bg-[#0d0d0d] rounded-3xl md:rounded-[2.5rem] border border-white/5 flex flex-col items-center text-center relative overflow-hidden group shadow-2xl h-full">
             <div className={`absolute -top-24 -right-24 w-48 h-48 rounded-full blur-[100px] opacity-20 ${isGold ? 'bg-amber-500' : 'bg-red-600'}`}></div>
             
-            <div className="flex items-center gap-3 mb-10 relative z-10 w-full">
+            <div className="flex items-center gap-3 mb-6 md:mb-10 relative z-10 w-full">
                 <div className={`p-2.5 rounded-2xl shadow-lg flex items-center justify-center ${isGold ? 'bg-amber-500/10 text-amber-500 border border-amber-500/20' : 'bg-red-500/10 text-red-500 border border-red-500/20'}`}>
                     <TrendingUp size={22}/>
                 </div>
@@ -88,7 +88,7 @@ const PopularityMeter = ({ score, count, isGold }: { score: number; count: numbe
                 </div>
             </div>
 
-            <div className="relative w-64 h-36 md:w-72 md:h-40 flex-1 flex items-center justify-center">
+            <div className="relative w-48 h-28 sm:w-64 sm:h-36 md:w-72 md:h-40 flex-1 flex items-center justify-center">
                 <svg className="w-full h-full" viewBox="0 0 200 120" style={{ overflow: 'visible' }}>
                     <defs>
                         <linearGradient id="meterGradientRefined" x1="0%" y1="0%" x2="100%" y2="0%">
@@ -106,16 +106,16 @@ const PopularityMeter = ({ score, count, isGold }: { score: number; count: numbe
                     <path d="M 20 110 A 80 80 0 0 1 180 110" fill="none" stroke="url(#meterGradientRefined)" strokeWidth="16" strokeLinecap="round" strokeDasharray={circumference} strokeDashoffset={offset} filter="url(#meterGlow)" className="transition-all duration-[2200ms] ease-out" />
                 </svg>
                 <div className="absolute inset-0 flex flex-col items-center justify-end pb-2">
-                    <span className="text-5xl md:text-6xl font-black text-white tracking-tighter drop-shadow-2xl">{percentage}%</span>
+                    <span className="text-4xl md:text-6xl font-black text-white tracking-tighter drop-shadow-2xl">{percentage}%</span>
                 </div>
             </div>
             
-            <div className="mt-8 space-y-4 relative z-10 w-full flex flex-col items-center">
-                <div className={`text-[10px] font-black tracking-[0.25em] px-6 py-2 rounded-full border shadow-2xl transition-all duration-700 delay-300 animate-in zoom-in-95 ${categoryBg} ${categoryColor}`}>
+            <div className="mt-6 md:mt-8 space-y-3.5 md:space-y-4 relative z-10 w-full flex flex-col items-center">
+                <div className={`text-[9px] md:text-[10px] font-black tracking-[0.25em] px-5 py-1.5 md:px-6 md:py-2 rounded-full border shadow-2xl transition-all duration-700 delay-300 animate-in zoom-in-95 ${categoryBg} ${categoryColor}`}>
                     {category}
                 </div>
                 <div className="flex items-center gap-2 text-xs font-bold text-gray-500">
-                    <span className="text-white text-lg font-black">{positiveVotes.toLocaleString()}</span>
+                    <span className="text-white text-base md:text-lg font-black">{positiveVotes.toLocaleString()}</span>
                     <span className="opacity-40">/</span>
                     <span>{count.toLocaleString()}</span>
                     <span className="text-[9px] uppercase tracking-widest font-black ml-1">Votes</span>
@@ -158,11 +158,11 @@ const VibeChart = ({ genres, isGold }: { genres: Genre[]; isGold: boolean }) => 
     const activeItem = hoveredIndex !== null ? chartData[hoveredIndex] : null;
 
     return (
-        <div className="p-8 md:p-10 bg-[#0d0d0d] rounded-[2.5rem] border border-white/5 flex flex-col items-center relative overflow-hidden group shadow-2xl h-full">
+        <div className="p-5 md:p-10 bg-[#0d0d0d] rounded-3xl md:rounded-[2.5rem] border border-white/5 flex flex-col items-center relative overflow-hidden group shadow-2xl h-full">
             {/* Background Glow consistent with Popularity Meter - stays themed to container */}
             <div className={`absolute -top-24 -right-24 w-48 h-48 rounded-full blur-[100px] opacity-20 ${isGold ? 'bg-amber-500' : 'bg-purple-600'}`}></div>
             
-            <div className="flex items-center gap-3 mb-8 relative z-10 w-full">
+            <div className="flex items-center gap-3 mb-6 md:mb-8 relative z-10 w-full">
                 <div className={`p-2.5 rounded-2xl shadow-lg flex items-center justify-center ${isGold ? 'bg-amber-500/10 text-amber-500 border border-amber-500/20' : 'bg-purple-500/10 text-purple-500 border border-purple-500/20'}`}>
                     <PieChartIcon size={22}/>
                 </div>
@@ -172,7 +172,7 @@ const VibeChart = ({ genres, isGold }: { genres: Genre[]; isGold: boolean }) => 
                 </div>
             </div>
 
-            <div className="relative w-56 h-56 flex items-center justify-center mb-8 z-10">
+            <div className="relative w-40 h-40 md:w-56 md:h-56 flex items-center justify-center mb-6 md:mb-8 z-10">
                 <svg className="w-full h-full -rotate-90" viewBox="0 0 200 200" style={{ overflow: 'visible' }}>
                     <defs>
                         <filter id="vibeGlow" x="-50%" y="-50%" width="200%" height="200%">
@@ -217,7 +217,7 @@ const VibeChart = ({ genres, isGold }: { genres: Genre[]; isGold: boolean }) => 
                             <span className="text-[10px] font-bold text-gray-500 uppercase tracking-[0.2em] mb-1">
                                 {activeItem.name}
                             </span>
-                            <span className="text-4xl font-black text-white tracking-tighter">
+                            <span className="text-2xl md:text-4xl font-black text-white tracking-tighter">
                                 {activeItem.value}%
                             </span>
                         </div>
@@ -225,7 +225,7 @@ const VibeChart = ({ genres, isGold }: { genres: Genre[]; isGold: boolean }) => 
                 </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-x-8 gap-y-4 w-full px-2 mt-auto relative z-10">
+            <div className="grid grid-cols-2 gap-x-4 md:gap-x-8 gap-y-3 w-full px-1 md:px-2 mt-auto relative z-10">
                 {chartData.map((segment, i) => (
                     <div 
                         key={i} 
@@ -253,14 +253,14 @@ const VibeChart = ({ genres, isGold }: { genres: Genre[]; isGold: boolean }) => 
 
 const MovieDetailsSkeleton = () => (
     <div className="w-full min-h-screen flex flex-col bg-[#0a0a0a]">
-        <div className="relative h-[65vh] w-full bg-white/5 overflow-hidden">
+        <div className="relative aspect-video md:h-[70vh] md:aspect-auto w-full bg-white/5 overflow-hidden">
             <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full animate-[shimmer_1.5s_infinite]" />
-            <div className="absolute bottom-0 left-0 w-full px-10 pb-12 space-y-6">
-                <div className="h-16 bg-white/10 rounded-lg w-1/2"></div>
-                <div className="flex gap-4">
-                    <div className="h-6 bg-white/10 rounded w-24"></div>
-                    <div className="h-6 bg-white/10 rounded w-24"></div>
-                    <div className="h-6 bg-white/10 rounded w-24"></div>
+            <div className="absolute bottom-0 left-0 w-full px-4 pb-6 md:px-10 md:pb-12 space-y-4 md:space-y-6">
+                <div className="h-10 md:h-16 bg-white/10 rounded-lg w-1/2"></div>
+                <div className="flex gap-3 md:gap-4">
+                    <div className="h-4 md:h-6 bg-white/10 rounded w-16 md:w-24"></div>
+                    <div className="h-4 md:h-6 bg-white/10 rounded w-16 md:w-24"></div>
+                    <div className="h-4 md:h-6 bg-white/10 rounded w-16 md:w-24"></div>
                 </div>
             </div>
         </div>
@@ -540,72 +540,118 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                     <MovieDetailsSkeleton />
                 ) : (
                     <div className="flex flex-col pb-20">
-                        <div className="relative h-[65vh] md:h-[65vh] w-full shrink-0 bg-black overflow-hidden group/hero">
-                             {showPlayer ? (
-                                 <div className="absolute inset-0 z-50 animate-in fade-in duration-700 bg-black">
-                                     <Suspense fallback={<div className="w-full h-full flex items-center justify-center bg-black"><Loader2 className="animate-spin text-red-600" size={40}/></div>}>
-                                         <MoviePlayer 
-                                             tmdbId={displayData.id} 
-                                             onClose={() => setShowPlayer(false)} 
-                                             mediaType={isTv ? 'tv' : 'movie'} 
-                                             isAnime={isAnime || false} 
-                                             apiKey={apiKey} 
-                                             onProgress={handlePlayerProgress} 
-                                             initialSeason={playParams.season}
-                                             initialEpisode={playParams.episode}
-                                             color={isGoldTheme ? 'F59E0B' : 'EF4444'}
-                                         />
-                                     </Suspense>
-                                 </div>
-                             ) : (
-                                 <div className="absolute inset-0 w-full h-full overflow-hidden">
-                                    {trailer && (
-                                        <div className="absolute inset-0 w-full h-full pointer-events-none">
-                                            <iframe ref={iframeRef} src={`https://www.youtube.com/embed/${trailer.key}?autoplay=1&mute=1&controls=0&loop=1&playlist=${trailer.key}&showinfo=0&rel=0&iv_load_policy=3&modestbranding=1&playsinline=1&enablejsapi=1&origin=${window.location.origin}`} className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none transition-opacity duration-1000 ease-in-out w-full h-full min-w-[120%] min-h-[120%] scale-150 ${videoLoaded ? 'opacity-60' : 'opacity-0'}`} allow="autoplay; encrypted-media; gyroscope; picture-in-picture" title="Background Trailer" loading="lazy" onLoad={() => setTimeout(() => setVideoLoaded(true), 1500)} />
-                                        </div>
-                                    )}
-                                    <img src={displayData.backdrop_path ? `${TMDB_BACKDROP_BASE}${displayData.backdrop_path}` : displayData.poster_path ? `${TMDB_IMAGE_BASE}${displayData.poster_path}` : "https://placehold.co/1200x600"} alt={title} className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-1000 ${trailer && videoLoaded ? 'opacity-0' : 'opacity-100'}`} />
-                                    <div className="absolute inset-0 bg-black -z-20"></div>
-                                    <div className={`absolute -inset-1 bg-gradient-to-t from-[#0a0a0a] via-[#0a0a0a]/50 to-transparent transition-opacity duration-700 ease-in-out pointer-events-none ${videoLoaded ? 'opacity-25 group-hover:opacity-100' : 'opacity-100'}`}></div>
-                                    {trailer && videoLoaded && (
-                                        <button onClick={toggleMute} className="absolute bottom-6 right-6 z-30 p-3 bg-black/30 hover:bg-white/10 backdrop-blur-md border border-white/10 rounded-full text-white transition-all active:scale-95 group/mute hidden md:flex" title={isMuted ? "Unmute" : "Mute"}>{isMuted ? <VolumeX size={20} strokeWidth={1.5} /> : <Volume2 size={20} strokeWidth={1.5} />}</button>
-                                    )}
-                                 </div>
-                             )}
-                             {!showPlayer && (
-                                 <div className="absolute bottom-0 left-0 w-full px-6 pb-8 md:px-10 md:pb-12 flex flex-col gap-6 animate-in slide-in-from-bottom-4 duration-700 delay-100 z-10 pointer-events-none">
-                                    <div className="pointer-events-auto w-full">
-                                        {logo ? <img src={`${TMDB_IMAGE_BASE}${logo.file_path}`} alt={title} className={`max-h-16 md:max-h-24 max-w-[55%] w-auto object-contain object-left drop-shadow-2xl mb-4 origin-bottom-left -ml-1 transition-all duration-700 ease-in-out transform ${videoLoaded ? 'scale-90 opacity-70 group-hover/hero:scale-100 group-hover/hero:opacity-100' : 'scale-100 opacity-100'}`}/> : <h2 className={`text-3xl md:text-5xl font-extrabold text-white leading-tight drop-shadow-lg mb-4 transition-all duration-700 ease-in-out ${videoLoaded ? 'opacity-80 group-hover:opacity-100' : 'opacity-100'}`}>{title}</h2>}
-                                        <div className={`flex flex-wrap items-center gap-4 text-white/90 text-xs md:text-sm font-medium transition-all duration-700 ease-in-out origin-bottom ${videoLoaded ? 'opacity-0 group-hover:opacity-100' : 'opacity-100'}`}>
-                                            {ratingLabel !== 'NR' && <span className={`px-2 py-0.5 rounded text-[10px] md:text-xs font-bold shadow-lg ${ratingColor}`}>{ratingLabel}</span>}
-                                            <span className="flex items-center gap-2"><Calendar size={14} className={accentText}/> {releaseDate}</span>
-                                            <span className="flex items-center gap-2"><Clock size={14} className={accentText}/> {runtime}</span>
-                                            {displayData.vote_average && <span className="flex items-center gap-2"><Star size={14} className="text-yellow-500" fill="currentColor"/> {displayData.vote_average.toFixed(1)}</span>}
-                                        </div>
-                                        <div className="flex flex-row items-center gap-3 w-full sm:w-auto mt-6">
-                                            {isExclusive && (
-                                                <button onClick={handleWatchClick} className={`flex items-center justify-center gap-2.5 px-6 py-2.5 rounded-md font-bold text-sm sm:text-base transition-all hover:scale-[1.02] active:scale-95 shadow-md flex-1 sm:flex-none ${isGoldTheme ? 'bg-amber-500 hover:bg-amber-600 text-black' : 'bg-white hover:bg-white/90 text-black'}`}><Play size={18} fill="currentColor" /> {movie.play_progress && movie.play_progress > 0 ? `Resume` : 'Watch'}</button>
-                                            )}
-                                            {isExclusive && (
-                                                <button onClick={() => onStartWatchParty && onStartWatchParty(displayData, playParams.season, playParams.episode)} className="flex items-center justify-center gap-2 px-6 py-2.5 rounded-md font-semibold text-sm sm:text-base transition-all active:scale-95 backdrop-blur-md bg-purple-600/30 hover:bg-purple-600/50 text-white border border-purple-500/40 hover:border-purple-500/60 shadow-lg" title="Start a Watch Party"><Users size={18} /> Watch Party</button>
-                                            )}
-                                            <div className="flex items-center gap-3">
-                                                <button onClick={() => onToggleWatchlist(displayData)} className={`w-10 h-10 rounded-full border flex items-center justify-center transition-all active:scale-95 group relative ${isWatchlisted ? 'text-green-400 border-green-500/40 bg-green-500/10 hover:bg-green-500/20' : 'text-white border-white/30 hover:border-white/60 bg-black/40 hover:bg-white/10'}`} title="Add to Watchlist">{isWatchlisted ? <Check size={18} strokeWidth={2.5}/> : <Plus size={18}/>}</button>
-                                                <button onClick={() => onToggleFavorite(displayData)} className={`w-10 h-10 rounded-full border flex items-center justify-center transition-all active:scale-95 group ${isFavorite ? 'text-red-500 border-red-500/40 bg-red-500/10 hover:bg-red-500/20' : 'text-white border-white/30 hover:border-white/60 bg-black/40 hover:bg-white/10'}`} title="Add to Favorites"><Heart size={18} fill={isFavorite ? "currentColor" : "none"}/></button>
-                                                <button onClick={handleShare} className={`w-10 h-10 rounded-full border flex items-center justify-center transition-all active:scale-95 group relative ${copied ? 'text-green-400 border-green-500/40 bg-green-500/10 hover:bg-green-500/20' : 'text-white border-white/30 hover:border-white/60 bg-black/40 hover:bg-white/10'}`} title="Share Movie">{copied ? <Check size={18} strokeWidth={2.5}/> : <Share2 size={18}/>}</button>
-                                                <button onClick={() => details?.external_ids?.imdb_id && window.open(`https://www.imdb.com/title/${details.external_ids.imdb_id}/parentalguide`, '_blank')} disabled={!details?.external_ids?.imdb_id} className={`w-10 h-10 rounded-full border border-white/30 hover:border-white/60 bg-black/40 hover:bg-white/10 flex items-center justify-center transition-all active:scale-95 text-white ${!details?.external_ids?.imdb_id ? 'opacity-30 cursor-not-allowed' : ''}`} title="Parents Guide (IMDb)"><Shield size={18}/></button>
-                                                {details?.videos?.results?.[0] && <button onClick={() => window.open(`https://www.youtube.com/watch?v=${details.videos.results[0].key}`)} className="w-10 h-10 rounded-full border border-white/30 hover:border-white/60 bg-black/40 hover:bg-white/10 flex items-center justify-center transition-all active:scale-95 text-white" title="Watch Trailer"><Play size={16} fill="currentColor" className="ml-0.5"/></button>}
-                                            </div>
+                        {/* Responsive Hero Media Container (16:9 aspect-video on mobile, 70vh height on desktop) */}
+                        <div className="relative w-full aspect-video md:h-[70vh] md:aspect-auto shrink-0 bg-black overflow-hidden group/hero">
+                             <div className="absolute inset-0 w-full h-full overflow-hidden">
+                                {trailer && (
+                                    <div className="absolute inset-0 w-full h-full pointer-events-none">
+                                        <iframe ref={iframeRef} src={`https://www.youtube.com/embed/${trailer.key}?autoplay=1&mute=1&controls=0&loop=1&playlist=${trailer.key}&showinfo=0&rel=0&iv_load_policy=3&modestbranding=1&playsinline=1&enablejsapi=1&origin=${window.location.origin}`} className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none transition-opacity duration-1000 ease-in-out w-full h-full md:min-w-[115%] md:min-h-[115%] md:scale-[1.15] object-cover ${videoLoaded ? 'opacity-60' : 'opacity-0'}`} allow="autoplay; encrypted-media; gyroscope; picture-in-picture" title="Background Trailer" loading="lazy" onLoad={() => setTimeout(() => setVideoLoaded(true), 1500)} />
+                                    </div>
+                                )}
+                                <img src={displayData.backdrop_path ? `${TMDB_BACKDROP_BASE}${displayData.backdrop_path}` : displayData.poster_path ? `${TMDB_IMAGE_BASE}${displayData.poster_path}` : "https://placehold.co/1200x600"} alt={title} className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-1000 ${trailer && videoLoaded ? 'opacity-0' : 'opacity-100'}`} />
+                                <div className="absolute inset-0 bg-black -z-20"></div>
+                                <div className={`absolute -inset-1 bg-gradient-to-t from-[#0a0a0a] via-[#0a0a0a]/50 to-transparent transition-opacity duration-700 ease-in-out pointer-events-none ${videoLoaded ? 'opacity-25 group-hover/hero:opacity-100' : 'opacity-100'}`}></div>
+                                {trailer && videoLoaded && (
+                                    <button onClick={toggleMute} className="absolute bottom-6 right-6 z-30 p-3 bg-black/30 hover:bg-white/10 backdrop-blur-md border border-white/10 rounded-full text-white transition-all active:scale-95 group/mute hidden md:flex" title={isMuted ? "Unmute" : "Mute"}>{isMuted ? <VolumeX size={20} strokeWidth={1.5} /> : <Volume2 size={20} strokeWidth={1.5} />}</button>
+                                )}
+                             </div>
+
+                             {/* Desktop Overlay Content (hidden on mobile below md) */}
+                             <div className="hidden md:flex absolute bottom-0 left-0 w-full px-10 pb-12 flex-col gap-6 z-10 pointer-events-none">
+                                <div className="pointer-events-auto w-full">
+                                    {logo ? <img src={`${TMDB_IMAGE_BASE}${logo.file_path}`} alt={title} className={`max-h-24 max-w-[55%] w-auto object-contain object-left drop-shadow-2xl mb-4 origin-bottom-left -ml-1 transition-all duration-700 ease-in-out transform ${videoLoaded ? 'scale-90 opacity-70 group-hover/hero:scale-100 group-hover/hero:opacity-100' : 'scale-100 opacity-100'}`}/> : <h2 className={`text-3xl md:text-5xl font-extrabold text-white leading-tight drop-shadow-lg mb-4 transition-all duration-700 ease-in-out ${videoLoaded ? 'opacity-80 group-hover:opacity-100' : 'opacity-100'}`}>{title}</h2>}
+                                    <div className={`flex flex-wrap items-center gap-4 text-white/90 text-sm font-medium transition-all duration-700 ease-in-out origin-bottom ${videoLoaded ? 'opacity-0 group-hover:opacity-100' : 'opacity-100'}`}>
+                                        {ratingLabel !== 'NR' && <span className={`px-2 py-0.5 rounded text-xs font-bold shadow-lg ${ratingColor}`}>{ratingLabel}</span>}
+                                        <span className="flex items-center gap-2"><Calendar size={14} className={accentText}/> {releaseDate}</span>
+                                        <span className="flex items-center gap-2"><Clock size={14} className={accentText}/> {runtime}</span>
+                                        {displayData.vote_average && <span className="flex items-center gap-2"><Star size={14} className="text-yellow-500" fill="currentColor"/> {displayData.vote_average.toFixed(1)}</span>}
+                                    </div>
+                                    <div className="flex flex-row items-center gap-3 w-full sm:w-auto mt-6">
+                                        {isExclusive && (
+                                            <button onClick={handleWatchClick} className={`flex items-center justify-center gap-2.5 px-6 py-2.5 rounded-md font-bold text-sm sm:text-base transition-all hover:scale-[1.02] active:scale-95 shadow-md flex-1 sm:flex-none ${isGoldTheme ? 'bg-amber-500 hover:bg-amber-600 text-black' : 'bg-white hover:bg-white/90 text-black'}`}><Play size={18} fill="currentColor" /> {movie.play_progress && movie.play_progress > 0 ? `Resume` : 'Watch'}</button>
+                                        )}
+                                        {isExclusive && (
+                                            <button onClick={() => onStartWatchParty && onStartWatchParty(displayData, playParams.season, playParams.episode)} className="flex items-center justify-center gap-2 px-6 py-2.5 rounded-md font-semibold text-sm sm:text-base transition-all active:scale-95 backdrop-blur-md bg-purple-600/30 hover:bg-purple-600/50 text-white border border-purple-500/40 hover:border-purple-500/60 shadow-lg" title="Start a Watch Party"><Users size={18} /> Watch Party</button>
+                                        )}
+                                        <div className="flex items-center gap-3">
+                                            <button onClick={() => onToggleWatchlist(displayData)} className={`w-10 h-10 rounded-full border flex items-center justify-center transition-all active:scale-95 group relative ${isWatchlisted ? 'text-green-400 border-green-500/40 bg-green-500/10 hover:bg-green-500/20' : 'text-white border-white/30 hover:border-white/60 bg-black/40 hover:bg-white/10'}`} title="Add to Watchlist">{isWatchlisted ? <Check size={18} strokeWidth={2.5}/> : <Plus size={18}/>}</button>
+                                            <button onClick={() => onToggleFavorite(displayData)} className={`w-10 h-10 rounded-full border flex items-center justify-center transition-all active:scale-95 group ${isFavorite ? 'text-red-500 border-red-500/40 bg-red-500/10 hover:bg-red-500/20' : 'text-white border-white/30 hover:border-white/60 bg-black/40 hover:bg-white/10'}`} title="Add to Favorites"><Heart size={18} fill={isFavorite ? "currentColor" : "none"}/></button>
+                                            <button onClick={handleShare} className={`w-10 h-10 rounded-full border flex items-center justify-center transition-all active:scale-95 group relative ${copied ? 'text-green-400 border-green-500/40 bg-green-500/10 hover:bg-green-500/20' : 'text-white border-white/30 hover:border-white/60 bg-black/40 hover:bg-white/10'}`} title="Share Movie">{copied ? <Check size={18} strokeWidth={2.5}/> : <Share2 size={18}/>}</button>
+                                            <button onClick={() => details?.external_ids?.imdb_id && window.open(`https://www.imdb.com/title/${details.external_ids.imdb_id}/parentalguide`, '_blank')} disabled={!details?.external_ids?.imdb_id} className={`w-10 h-10 rounded-full border border-white/30 hover:border-white/60 bg-black/40 hover:bg-white/10 flex items-center justify-center transition-all active:scale-95 text-white ${!details?.external_ids?.imdb_id ? 'opacity-30 cursor-not-allowed' : ''}`} title="Parents Guide (IMDb)"><Shield size={18}/></button>
+                                            {details?.videos?.results?.[0] && <button onClick={() => window.open(`https://www.youtube.com/watch?v=${details.videos.results[0].key}`)} className="w-10 h-10 rounded-full border border-white/30 hover:border-white/60 bg-black/40 hover:bg-white/10 flex items-center justify-center transition-all active:scale-95 text-white" title="Watch Trailer"><Play size={16} fill="currentColor" className="ml-0.5"/></button>}
                                         </div>
                                     </div>
                                  </div>
-                             )}
+                             </div>
                         </div>
 
-                        <div className="max-w-7xl mx-auto w-full px-6 py-8 md:p-10 -mt-6 relative z-20">
-                            <div className="flex gap-8 border-b border-white/10 mb-8 overflow-x-auto hide-scrollbar">
+                        {/* Netflix-Style Mobile Details Flow Layout (visible on mobile only, below md) */}
+                        <div className="md:hidden w-full px-4 pt-5 pb-1 flex flex-col gap-3.5 select-none text-left animate-in fade-in slide-in-from-bottom-2 duration-500">
+                            {/* Logo or Text Title */}
+                            <div className="w-full">
+                                {logo ? (
+                                    <img src={`${TMDB_IMAGE_BASE}${logo.file_path}`} alt={title} className="max-h-12 max-w-[70%] object-contain object-left mb-1 drop-shadow-2xl"/>
+                                ) : (
+                                    <h2 className="text-2xl font-black text-white leading-tight drop-shadow-lg mb-1">{title}</h2>
+                                )}
+                            </div>
+
+                            {/* Metadata Row */}
+                            <div className="flex flex-wrap items-center gap-3 text-white/80 text-xs font-semibold">
+                                {ratingLabel !== 'NR' && <span className={`px-1.5 py-0.5 rounded text-[10px] font-extrabold shadow-sm ${ratingColor}`}>{ratingLabel}</span>}
+                                <span className="flex items-center gap-1.5"><Calendar size={12} className={accentText}/> {releaseDate.split(',')[1]?.trim() || releaseDate}</span>
+                                <span className="flex items-center gap-1.5"><Clock size={12} className={accentText}/> {runtime}</span>
+                                {displayData.vote_average && <span className="flex items-center gap-1.5"><Star size={12} className="text-yellow-500" fill="currentColor"/> {displayData.vote_average.toFixed(1)}</span>}
+                            </div>
+
+                            {/* Primary Buttons Grid: Play filled, Watch Party outlined */}
+                            <div className="grid grid-cols-2 gap-3 w-full mt-1.5">
+                                {isExclusive && (
+                                    <button onClick={handleWatchClick} className={`py-2 px-4 rounded-md font-extrabold text-xs flex items-center justify-center gap-2 transition-all active:scale-95 shadow-md ${isGoldTheme ? 'bg-amber-500 text-black' : 'bg-white text-black'}`}>
+                                        <Play size={14} fill="currentColor"/> {movie.play_progress && movie.play_progress > 0 ? `Resume` : 'Watch'}
+                                    </button>
+                                )}
+                                {isExclusive && (
+                                    <button onClick={() => onStartWatchParty && onStartWatchParty(displayData, playParams.season, playParams.episode)} className="py-2 px-4 rounded-md font-extrabold text-xs flex items-center justify-center gap-2 transition-all active:scale-95 bg-transparent text-white border border-white/20 hover:bg-white/5 shadow-md">
+                                        <Users size={14}/> Watch Party
+                                    </button>
+                                )}
+                            </div>
+
+                            {/* Secondary Action Buttons Compact Row */}
+                            <div className="grid grid-cols-5 gap-1 py-3 border-y border-white/5 mt-1.5 text-gray-400">
+                                <button onClick={() => onToggleWatchlist(displayData)} className="flex flex-col items-center gap-1.5 py-0.5 active:scale-95 text-center">
+                                    {isWatchlisted ? <Check size={18} className="text-green-400" strokeWidth={2.5}/> : <Plus size={18} className="text-white"/>}
+                                    <span className="text-[9px] font-bold tracking-wide mt-0.5">My List</span>
+                                </button>
+                                <button onClick={() => onToggleFavorite(displayData)} className="flex flex-col items-center gap-1.5 py-0.5 active:scale-95 text-center">
+                                    <Heart size={18} className={isFavorite ? "text-red-500 fill-red-500" : "text-white"}/>
+                                    <span className="text-[9px] font-bold tracking-wide mt-0.5">Favorite</span>
+                                </button>
+                                <button onClick={handleShare} className="flex flex-col items-center gap-1.5 py-0.5 active:scale-95 text-center">
+                                    {copied ? <Check size={18} className="text-green-400" strokeWidth={2.5}/> : <Share2 size={18} className="text-white"/>}
+                                    <span className="text-[9px] font-bold tracking-wide mt-0.5">Share</span>
+                                </button>
+                                <button onClick={() => details?.external_ids?.imdb_id && window.open(`https://www.imdb.com/title/${details.external_ids.imdb_id}/parentalguide`, '_blank')} disabled={!details?.external_ids?.imdb_id} className="flex flex-col items-center gap-1.5 py-0.5 active:scale-95 text-center disabled:opacity-30">
+                                    <Shield size={18} className="text-white"/>
+                                    <span className="text-[9px] font-bold tracking-wide mt-0.5">Parents Guide</span>
+                                </button>
+                                <button 
+                                    onClick={() => details?.videos?.results?.[0] && window.open(`https://www.youtube.com/watch?v=${details.videos.results[0].key}`)} 
+                                    disabled={!details?.videos?.results?.[0]} 
+                                    className="flex flex-col items-center gap-1.5 py-0.5 active:scale-95 text-center disabled:opacity-30"
+                                >
+                                    <PlayCircle size={18} className="text-white"/>
+                                    <span className="text-[9px] font-bold tracking-wide mt-0.5">Trailer</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Details and Tabs section wrapper */}
+                        <div className="max-w-7xl mx-auto w-full px-4 py-6 md:p-10 mt-0 md:-mt-6 relative z-20">
+                            <div className="flex gap-6 md:gap-8 border-b border-white/10 mb-6 md:mb-8 overflow-x-auto hide-scrollbar">
                                 {tabs.map(tab => (
-                                    <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`pb-4 text-base font-bold transition-all whitespace-nowrap ${activeTab === tab.id ? 'text-white border-b-2 border-white' : 'text-gray-400 hover:text-white border-b-2 border-transparent'}`}>{tab.label}</button>
+                                    <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`pb-3 text-sm md:text-base font-bold transition-all whitespace-nowrap ${activeTab === tab.id ? 'text-white border-b-2 border-white' : 'text-gray-400 hover:text-white border-b-2 border-transparent'}`}>{tab.label}</button>
                                 ))}
                             </div>
 
@@ -748,6 +794,23 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                 )}
             </div>
             {viewingImage && <ImageLightbox src={viewingImage} onClose={() => setViewingImage(null)} />}
+            {showPlayer && (
+                <div className="fixed inset-0 z-[200] bg-black animate-in fade-in duration-500">
+                    <Suspense fallback={<div className="w-full h-full flex items-center justify-center bg-black"><Loader2 className="animate-spin text-red-600" size={40}/></div>}>
+                        <MoviePlayer 
+                            tmdbId={displayData.id} 
+                            onClose={() => setShowPlayer(false)} 
+                            mediaType={isTv ? 'tv' : 'movie'} 
+                            isAnime={isAnime || false} 
+                            apiKey={apiKey} 
+                            onProgress={handlePlayerProgress} 
+                            initialSeason={playParams.season}
+                            initialEpisode={playParams.episode}
+                            color={isGoldTheme ? 'F59E0B' : 'EF4444'}
+                        />
+                    </Suspense>
+                </div>
+            )}
             <FullCreditsModal isOpen={showFullCast} onClose={() => setShowFullCast(false)} title="Full Cast" credits={displayData.credits?.cast || []} onPersonClick={onPersonClick} />
             <FullCreditsModal isOpen={showFullCrew} onClose={() => setShowFullCrew(false)} title="Full Crew" credits={displayData.credits?.crew || []} onPersonClick={onPersonClick} />
         </div>

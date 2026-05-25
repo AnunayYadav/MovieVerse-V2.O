@@ -621,6 +621,20 @@ export default function App() {
     }
   }, [selectedMovie, isSettingsOpen, isProfileOpen, selectedPersonId, isNotificationOpen, isComparisonOpen, isAgeModalOpen, isSidebarOpen]);
   
+  const [isScrolled, setIsScrolled] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      if (window.scrollY > 20) {
+        setIsScrolled(true);
+      } else {
+        setIsScrolled(false);
+      }
+    };
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
   const [isBrowseOpen, setIsBrowseOpen] = useState(false);
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -888,6 +902,7 @@ export default function App() {
   const accentBgLow = "bg-red-600/20";
 
   const showStickyHeader = !!(searchQuery || selectedCategory !== "All" || currentCollection || activeCountry || activeKeyword || tmdbCollectionId);
+  const hasHeroBanner = !!(!searchQuery && featuredMovie && !activeCountry && !activeKeyword && !tmdbCollectionId && !currentCollection);
 
   const matchingCollections = searchQuery 
       ? PREDEFINED_CATEGORIES.filter(cat => 
@@ -1759,7 +1774,11 @@ export default function App() {
           />
       )}
 
-      <nav className={`fixed top-0 left-0 right-0 z-[60] bg-black/90 backdrop-blur-xl border-b h-16 flex items-center justify-center px-4 md:px-6 transition-all duration-300 ${isGoldTheme ? 'border-amber-500/10' : 'border-white/5'}`}>
+      <nav className={`fixed top-0 left-0 right-0 z-[60] h-16 flex items-center justify-center px-4 md:px-6 transition-all duration-500 ${
+        (hasHeroBanner && !isScrolled) 
+          ? 'bg-gradient-to-b from-black/85 via-black/25 to-transparent border-transparent backdrop-blur-none' 
+          : `bg-black/90 backdrop-blur-xl border-b ${isGoldTheme ? 'border-amber-500/10' : 'border-white/5'}`
+      }`}>
         <div className="flex items-center justify-between w-full max-w-7xl">
             <div className="flex items-center gap-4 md:gap-8">
                 <button 
@@ -1928,7 +1947,7 @@ export default function App() {
         </div>
       </nav>
 
-      <div className="flex pt-16">
+      <div className={`flex ${hasHeroBanner ? 'pt-0' : 'pt-16'}`}>
         <main className="flex-1 min-h-[calc(100vh-4rem)] w-full">
            {activeWatchPartyRoom && watchPartyMovie ? (
                <div className="flex flex-col lg:flex-row w-full h-[calc(100vh-4rem)] bg-black overflow-hidden animate-in fade-in duration-500">
