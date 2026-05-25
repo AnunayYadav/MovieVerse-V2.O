@@ -274,7 +274,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
 }) => {
     const [details, setDetails] = useState<MovieDetails | null>(null);
     const [collection, setCollection] = useState<CollectionDetails | null>(null);
-    const [loading, setLoading] = useState(false);
+    const [loading, setLoading] = useState(true);
     const [trivia, setTrivia] = useState("");
     const [loadingTrivia, setLoadingTrivia] = useState(false);
     const [copied, setCopied] = useState(false);
@@ -357,18 +357,25 @@ export const MoviePage: React.FC<MoviePageProps> = ({
     useEffect(() => {
         if (!apiKey || !movie.id) return;
         setLoading(true);
+        setDetails(null);
         setCollection(null);
         hasCenteredTimeline.current = null;
         
         const type = movie.media_type === 'tv' ? 'tv' : 'movie';
         
         fetch(`${TMDB_BASE_URL}/${type}/${movie.id}?api_key=${apiKey}&append_to_response=credits,reviews,videos,release_dates,watch/providers,external_ids,similar,images,content_ratings,seasons,keywords`)
-            .then(res => res.json())
+            .then(res => {
+                if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+                return res.json();
+            })
             .then(data => {
                 setDetails(data);
                 if (data.belongs_to_collection?.id) {
                     fetch(`${TMDB_BASE_URL}/collection/${data.belongs_to_collection.id}?api_key=${apiKey}`)
-                        .then(res => res.json())
+                        .then(res => {
+                            if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+                            return res.json();
+                        })
                         .then(colData => {
                             if (colData.parts) {
                                 colData.parts.sort((a: Movie, b: Movie) => {

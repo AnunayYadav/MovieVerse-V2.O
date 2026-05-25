@@ -285,6 +285,84 @@ const MovieRow = ({
     );
 };
 
+const ContinueWatchingCard = ({ 
+    movie, 
+    onClick 
+}: { 
+    movie: Movie; 
+    onClick: () => void; 
+    key?: string | number;
+}) => {
+    const [logoUrl, setLogoUrl] = useState<string | null>(null);
+    const [logoLoading, setLogoLoading] = useState(true);
+
+    useEffect(() => {
+        let isMounted = true;
+        const key = getTmdbKey();
+        if (!key) {
+            setLogoLoading(false);
+            return;
+        }
+        
+        const type = movie.media_type === 'tv' || (!movie.release_date && movie.first_air_date) ? 'tv' : 'movie';
+        
+        fetch(`${TMDB_BASE_URL}/${type}/${movie.id}/images?api_key=${key}`)
+            .then(res => {
+                if (!res.ok) throw new Error();
+                return res.json();
+            })
+            .then(data => {
+                if (!isMounted) return;
+                const logo = data.logos?.find((l: any) => l.iso_639_1 === 'en') || data.logos?.[0];
+                if (logo) {
+                    setLogoUrl(`https://image.tmdb.org/t/p/w300${logo.file_path}`);
+                }
+            })
+            .catch(() => {})
+            .finally(() => {
+                if (isMounted) setLogoLoading(false);
+            });
+
+        return () => {
+            isMounted = false;
+        };
+    }, [movie.id]);
+
+    const progress = movie.play_progress || 0;
+
+    return (
+        <div 
+            onClick={onClick}
+            className="relative w-[220px] md:w-[260px] shrink-0 aspect-[16/9] rounded-xl overflow-hidden bg-zinc-900 border border-white/5 cursor-pointer shadow-lg hover:scale-[1.03] hover:border-white/10 transition-all duration-300 group"
+        >
+            <img 
+                src={movie.backdrop_path ? `https://image.tmdb.org/t/p/w500${movie.backdrop_path}` : (movie.poster_path ? `https://image.tmdb.org/t/p/w300${movie.poster_path}` : "https://placehold.co/600x338?text=No+Preview")} 
+                alt={movie.title || movie.name} 
+                className="w-full h-full object-cover" 
+                loading="lazy" 
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/35 to-transparent opacity-85 group-hover:opacity-100 transition-opacity duration-300" />
+            <div className="absolute bottom-3 left-3 right-3 flex flex-col gap-1 text-left pointer-events-none">
+                <div className="min-h-[30px] flex items-end">
+                    {!logoLoading && logoUrl ? (
+                        <img 
+                            src={logoUrl} 
+                            alt={movie.title || movie.name} 
+                            className="max-h-[28px] max-w-[85%] object-contain drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)] group-hover:scale-105 transition-transform duration-300 origin-left"
+                            loading="lazy"
+                        />
+                    ) : (
+                        <span className="text-xs font-bold text-white truncate drop-shadow-md">{movie.title || movie.name}</span>
+                    )}
+                </div>
+                <div className="w-full h-1 bg-white/20 rounded-full overflow-hidden mt-1.5 shadow-inner">
+                    <div className="h-full bg-red-600 transition-all duration-500" style={{ width: `${progress}%` }}></div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 // Sub-component for Continue Watching row with visual progress
 const ContinueWatchingRow = ({ 
     watchedMovies, 
@@ -302,30 +380,13 @@ const ContinueWatchingRow = ({
                 Continue Watching
             </h3>
             <div className="flex gap-5 overflow-x-auto px-4 md:px-12 pb-4 hide-scrollbar scroll-smooth">
-                {activeProgress.map(movie => {
-                    const progress = movie.play_progress || 0;
-                    return (
-                        <div 
-                            key={movie.id} 
-                            onClick={() => onMovieClick(movie)}
-                            className="relative w-[220px] md:w-[260px] shrink-0 aspect-[16/9] rounded-xl overflow-hidden bg-zinc-900 border border-white/5 cursor-pointer shadow-lg hover:scale-[1.03] hover:border-white/10 transition-all duration-300 group"
-                        >
-                            <img 
-                                src={movie.backdrop_path ? `https://image.tmdb.org/t/p/w500${movie.backdrop_path}` : (movie.poster_path ? `https://image.tmdb.org/t/p/w300${movie.poster_path}` : "https://placehold.co/600x338?text=No+Preview")} 
-                                alt={movie.title || movie.name} 
-                                className="w-full h-full object-cover" 
-                                loading="lazy" 
-                            />
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-                            <div className="absolute bottom-3 left-3 right-3 flex flex-col gap-1 text-left">
-                                <span className="text-xs font-bold text-white truncate drop-shadow-md">{movie.title || movie.name}</span>
-                                <div className="w-full h-1 bg-white/20 rounded-full overflow-hidden mt-1 shadow-inner">
-                                    <div className="h-full bg-red-600 transition-all duration-500" style={{ width: `${progress}%` }}></div>
-                                </div>
-                            </div>
-                        </div>
-                    );
-                })}
+                {activeProgress.map(movie => (
+                    <ContinueWatchingCard 
+                        key={movie.id} 
+                        movie={movie}
+                        onClick={() => onMovieClick(movie)}
+                    />
+                ))}
             </div>
         </div>
     );
@@ -534,7 +595,7 @@ export default function App() {
   const [reminders, setReminders] = useState<number[]>([]);
 
   // Homepage sections states
-  const [activeCategories, setActiveCategories] = useState<any[]>(() => PREDEFINED_CATEGORIES.slice(0, 3));
+  const [activeCategories, setActiveCategories] = useState<any[]>(() => PREDEFINED_CATEGORIES.slice(2, 5));
   const [recommendations, setRecommendations] = useState<Movie[]>([]);
   const [recBaseMovie, setRecBaseMovie] = useState<Movie | null>(null);
 
@@ -765,7 +826,7 @@ export default function App() {
 
   const loadMoreCategories = useCallback(() => {
       setActiveCategories(prev => {
-          const nextIndex = prev.length;
+          const nextIndex = prev.length + 2;
           const batchSize = 3;
           const newBatch: any[] = [];
           
@@ -2131,6 +2192,21 @@ export default function App() {
 
                                {!searchQuery && selectedCategory === "All" && !currentCollection && !activeCountry && !activeKeyword && !tmdbCollectionId ? (
                                    <div className="space-y-4 animate-in fade-in duration-700 -mx-4 md:-mx-12">
+                                       <MovieRow 
+                                           title={PREDEFINED_CATEGORIES[0].title} 
+                                           endpoint={PREDEFINED_CATEGORIES[0].endpoint} 
+                                           apiKey={apiKey} 
+                                           onMovieClick={setSelectedMovie} 
+                                       />
+                                       
+                                       <MovieRow 
+                                           title={PREDEFINED_CATEGORIES[1].title} 
+                                           endpoint={PREDEFINED_CATEGORIES[1].endpoint} 
+                                           mediaType={PREDEFINED_CATEGORIES[1].mediaType} 
+                                           apiKey={apiKey} 
+                                           onMovieClick={setSelectedMovie} 
+                                       />
+
                                        <ContinueWatchingRow watchedMovies={watched} onMovieClick={setSelectedMovie} />
                                        
                                        {watched.length > 0 && (

@@ -113,6 +113,87 @@ export const StarRating = ({ rating }: { rating: number | undefined }) => {
   );
 };
 
+const MarqueeMovieCard = ({ 
+    movie, 
+    onClick 
+}: { 
+    movie: Movie; 
+    onClick: () => void; 
+    key?: string | number;
+}) => {
+    const [logoUrl, setLogoUrl] = useState<string | null>(null);
+    const [logoLoading, setLogoLoading] = useState(true);
+
+    React.useEffect(() => {
+        let isMounted = true;
+        const key = getTmdbKey();
+        if (!key) {
+            setLogoLoading(false);
+            return;
+        }
+        
+        const type = movie.media_type === 'tv' || (!movie.release_date && movie.first_air_date) ? 'tv' : 'movie';
+        
+        fetch(`${TMDB_BASE_URL}/${type}/${movie.id}/images?api_key=${key}`)
+            .then(res => {
+                if (!res.ok) throw new Error();
+                return res.json();
+            })
+            .then(data => {
+                if (!isMounted) return;
+                const logo = data.logos?.find((l: any) => l.iso_639_1 === 'en') || data.logos?.[0];
+                if (logo) {
+                    setLogoUrl(`https://image.tmdb.org/t/p/w300${logo.file_path}`);
+                }
+            })
+            .catch(() => {})
+            .finally(() => {
+                if (isMounted) setLogoLoading(false);
+            });
+
+        return () => {
+            isMounted = false;
+        };
+    }, [movie.id]);
+
+    const backdropUrl = movie.backdrop_path 
+        ? `${TMDB_IMAGE_BASE}${movie.backdrop_path}` 
+        : (movie.poster_path ? `${TMDB_IMAGE_BASE}${movie.poster_path}` : `https://placehold.co/600x338?text=${encodeURIComponent(movie.title || movie.name || 'No Image')}`);
+
+    return (
+        <div 
+            onClick={onClick}
+            className="flex-shrink-0 w-[180px] md:w-[240px] mx-2 aspect-[16/9] rounded-xl overflow-hidden bg-zinc-900 border border-white/5 cursor-pointer shadow-lg hover:scale-105 hover:border-white/15 transition-all duration-500 group relative"
+        >
+            <img 
+                src={backdropUrl} 
+                alt={movie.title || movie.name} 
+                className="w-full h-full object-cover opacity-60 grayscale group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-500" 
+                loading="lazy" 
+            />
+            {/* Overlay */}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/35 to-transparent opacity-85 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
+            
+            <div className="absolute inset-0 p-3 flex flex-col justify-end text-left select-none pointer-events-none">
+                <div className="min-h-[25px] flex items-end">
+                    {!logoLoading && logoUrl ? (
+                        <img 
+                            src={logoUrl} 
+                            alt={movie.title || movie.name} 
+                            className="max-h-[24px] max-w-[85%] object-contain drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)] group-hover:scale-105 transition-transform duration-300 origin-left"
+                            loading="lazy"
+                        />
+                    ) : (
+                        <h4 className="text-xs font-bold text-white line-clamp-1 group-hover:text-red-500 transition-colors duration-300 drop-shadow-md">
+                            {movie.title || movie.name}
+                        </h4>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+};
+
 export const PosterMarquee = React.memo(({ movies, onMovieClick }: { movies: Movie[], onMovieClick: (m: Movie) => void }) => {
     if (!movies || movies.length === 0) return null;
     
@@ -121,25 +202,16 @@ export const PosterMarquee = React.memo(({ movies, onMovieClick }: { movies: Mov
     const marqueeMovies = [...sourceMovies, ...sourceMovies];
   
     return (
-      <div className="relative w-full overflow-hidden py-8 border-y border-white/5 bg-black/40 backdrop-blur-sm mb-8 transition-all duration-500">
+      <div className="relative w-full overflow-hidden py-6 border-y border-white/5 bg-black/40 backdrop-blur-sm mb-8 transition-all duration-500">
         <div className="absolute top-0 bottom-0 left-0 w-32 z-10 bg-gradient-to-r from-black to-transparent pointer-events-none" />
         <div className="absolute top-0 bottom-0 right-0 w-32 z-10 bg-gradient-to-l from-black to-transparent pointer-events-none" />
         <div className="flex animate-marquee hover:[animation-play-state:paused]" style={{ width: 'max-content' }}>
           {marqueeMovies.map((movie, index) => (
-             <div 
+             <MarqueeMovieCard 
                key={`${movie.id}-${index}`} 
-               className="flex-shrink-0 w-32 md:w-48 mx-3 cursor-pointer group relative transition-all duration-500 ease-out hover:scale-105 hover:z-10"
+               movie={movie}
                onClick={() => onMovieClick(movie)}
-             >
-                <div className="aspect-[2/3] rounded-xl overflow-hidden shadow-2xl group-hover:shadow-[0_0_25px_rgba(220,38,38,0.3)] transition-all duration-500">
-                    <img 
-                      src={movie.poster_path ? `${TMDB_IMAGE_BASE}${movie.poster_path}` : (movie.poster || "https://placehold.co/300x450/333/FFF?text=Movie")} 
-                      alt={movie.title || "Movie"} 
-                      loading="lazy"
-                      className="w-full h-full object-cover opacity-60 grayscale group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-500"
-                    />
-                </div>
-             </div>
+             />
           ))}
         </div>
         <style>{`
