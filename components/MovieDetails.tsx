@@ -302,7 +302,8 @@ export const MoviePage: React.FC<MoviePageProps> = ({
     const accentShadow = "shadow-red-600/50";
 
     const handleShare = () => {
-        const shareUrl = `${window.location.origin}${window.location.pathname}#/movie/${movie.id}`;
+        const type = movie.media_type === 'tv' || (!movie.release_date && movie.first_air_date) ? 'tv' : 'movie';
+        const shareUrl = `${window.location.origin}${window.location.pathname}#/${type}/${movie.id}`;
         navigator.clipboard.writeText(shareUrl)
             .then(() => {
                 setCopied(true);
@@ -711,7 +712,29 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                 </div>
                             )}
                             {displayData.similar?.results && displayData.similar.results.length > 0 && (
-                                <div className="mt-16 pt-10 border-t border-white/5"><h3 className="text-xl font-bold text-white mb-6 flex items-center gap-3"><div className="p-1.5 rounded-lg bg-yellow-500/10 text-yellow-500"><Sparkles size={20}/></div>More Like This</h3><div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">{displayData.similar.results.slice(0, 12).map(sim => <div key={sim.id} onClick={() => { onClose(); onSwitchMovie(sim); }}><MovieCard movie={sim} onClick={() => { onClose(); onSwitchMovie(sim); }} isWatched={isWatched} onToggleWatched={() => {}} /></div>)}</div></div>
+                                <div className="mt-16 pt-10 border-t border-white/5">
+                                    <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-3">
+                                        <div className="p-1.5 rounded-lg bg-yellow-500/10 text-yellow-500">
+                                            <Sparkles size={20}/>
+                                        </div>
+                                        More Like This
+                                    </h3>
+                                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                                        {displayData.similar.results.slice(0, 12).map(sim => {
+                                            const simWithMediaType = { ...sim, media_type: isTv ? 'tv' as const : 'movie' as const };
+                                            return (
+                                                <div key={sim.id} onClick={() => { onClose(); onSwitchMovie(simWithMediaType); }}>
+                                                    <MovieCard 
+                                                        movie={simWithMediaType} 
+                                                        onClick={() => { onClose(); onSwitchMovie(simWithMediaType); }} 
+                                                        isWatched={isWatched} 
+                                                        onToggleWatched={() => {}} 
+                                                    />
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
                             )}
                         </div>
                     </div>

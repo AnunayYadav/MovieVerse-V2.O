@@ -616,15 +616,17 @@ export default function App() {
           else if (sub === 'tv-shows') category = "TV Shows";
           else if (sub === 'coming') category = "Coming";
           else if (sub === 'genres') category = "Genres";
-      } else if (hash.startsWith('#/movie/')) {
+      } else if (hash.startsWith('#/movie/') || hash.startsWith('#/tv/')) {
+          const isTv = hash.startsWith('#/tv/');
           const movieIdStr = parts[2];
           const movieId = parseInt(movieIdStr, 10);
           if (!isNaN(movieId)) {
               try {
-                  const res = await fetch(`${TMDB_BASE_URL}/movie/${movieId}?api_key=${apiKey}`);
+                  const type = isTv ? 'tv' : 'movie';
+                  const res = await fetch(`${TMDB_BASE_URL}/${type}/${movieId}?api_key=${apiKey}`);
                   const data = await res.json();
                   if (data && data.id) {
-                      movieToSelect = data;
+                      movieToSelect = { ...data, media_type: type };
                   }
               } catch (e) {
                   console.error("Failed to fetch movie details from hash", e);
@@ -705,7 +707,8 @@ export default function App() {
       if (activeWatchPartyRoom) {
           newHash = `#/watch-party/${activeWatchPartyRoom}`;
       } else if (selectedMovie) {
-          newHash = `#/movie/${selectedMovie.id}`;
+          const type = selectedMovie.media_type === 'tv' || (!selectedMovie.release_date && selectedMovie.first_air_date) ? 'tv' : 'movie';
+          newHash = `#/${type}/${selectedMovie.id}`;
       } else if (selectedCategory === 'Explore') {
           newHash = '#/explore';
       } else if (selectedCategory === 'LiveTV') {
@@ -2162,9 +2165,12 @@ export default function App() {
                                            );
                                        })}
                                        {/* Category Row Skeletons as Loader at the bottom */}
-                                       <div className="space-y-4 animate-pulse mt-8 pb-10 -mx-4 md:-mx-12 px-4 md:px-12">
-                                           <div className="h-5 w-40 bg-zinc-800 rounded-full mb-4"></div>
-                                           <div className="flex gap-5 overflow-hidden">
+                                       <div className="space-y-4 animate-pulse mt-8 pb-10">
+                                           <div className="flex items-center gap-2 px-4 md:px-12 mb-4">
+                                               <div className="w-1.5 h-5 bg-zinc-800 rounded-full"></div>
+                                               <div className="h-5 w-40 bg-zinc-800 rounded-full"></div>
+                                           </div>
+                                           <div className="flex gap-5 overflow-hidden px-4 md:px-12">
                                                {[...Array(6)].map((_, i) => (
                                                    <div key={i} className="w-[220px] md:w-[260px] shrink-0 aspect-[16/9] bg-zinc-900 border border-white/5 rounded-xl"></div>
                                                ))}
