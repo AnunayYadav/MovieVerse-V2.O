@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Award, TrendingUp, Tv, Film, Star, Play, Plus, LayoutGrid, Sparkles, ChevronRight, Check, AlertCircle, Loader2, ArrowLeft, ExternalLink, Globe, ChevronDown } from 'lucide-react';
 import { Movie, UserProfile, Provider } from '../types';
-import { TMDB_BASE_URL, TMDB_IMAGE_BASE, TMDB_BACKDROP_BASE, MovieCard, MovieSkeleton, getWatchmodeKey } from './Shared';
+import { TMDB_BASE_URL, TMDB_IMAGE_BASE, TMDB_BACKDROP_BASE, MovieCard, MovieSkeleton, getWatchmodeKey, PosterMarquee } from './Shared';
 
 interface ExplorePageProps {
     apiKey: string;
@@ -69,6 +69,7 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ apiKey, onMovieClick, 
     const [activeOtt, setActiveOtt] = useState<number | null>(null);
     const [loading, setLoading] = useState(true);
     const [loadingPlatforms, setLoadingPlatforms] = useState(true);
+    const [marqueeMovies, setMarqueeMovies] = useState<Movie[]>([]);
 
     const sentinelRef = useRef<HTMLDivElement | null>(null);
 
@@ -221,6 +222,7 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ apiKey, onMovieClick, 
                     fetch(`${TMDB_BASE_URL}/trending/movie/day?api_key=${apiKey}${regionQuery}`).then(r => r.json()),
                     fetch(`${TMDB_BASE_URL}/trending/tv/day?api_key=${apiKey}${regionQuery}`).then(r => r.json())
                 ]);
+                setMarqueeMovies(moviesRes.results || []);
                 setTopMovies(moviesRes.results?.slice(0, 10) || []);
                 setTopShows(showsRes.results?.slice(0, 10).map((s:any) => ({ ...s, media_type: 'tv', title: s.name })) || []);
             } catch (e) {
@@ -437,6 +439,11 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ apiKey, onMovieClick, 
                             ))}
                         </div>
                     </div>
+                </div>
+
+                {/* Moving Posters (PosterMarquee) */}
+                <div className="-mx-6 md:-mx-8 mb-8 animate-in fade-in duration-1000">
+                    <PosterMarquee movies={marqueeMovies} onMovieClick={onMovieClick} />
                 </div>
 
                 {/* Trending Content First */}

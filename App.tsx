@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Search, Film, Menu, TrendingUp, Tv, Ghost, Calendar, Star, X, Sparkles, Settings, Globe, Bookmark, Heart, Folder, Languages, Filter, ChevronDown, Info, Plus, Cloud, CloudOff, Clock, Bell, History, Users, Tag, Dice5, Crown, Radio, LayoutGrid, Award, Baby, Clapperboard, ChevronRight, PlayCircle, Play, Megaphone, CalendarDays, Compass, Home, Map, Loader2, Trophy, RefreshCcw, Check, MonitorPlay, Layers, LogOut, Download } from 'lucide-react';
 import { Movie, UserProfile, GENRES_MAP, GENRES_LIST, INDIAN_LANGUAGES, MaturityRating, Keyword } from './types';
-import { LogoLoader, MovieSkeleton, MovieCard, PersonCard, PosterMarquee, TMDB_BASE_URL, TMDB_BACKDROP_BASE, TMDB_IMAGE_BASE, getTmdbKey, BrandLogo } from './components/Shared';
+import { LogoLoader, MovieSkeleton, MovieCard, PersonCard, TMDB_BASE_URL, TMDB_BACKDROP_BASE, TMDB_IMAGE_BASE, getTmdbKey, BrandLogo } from './components/Shared';
 import { MoviePage } from './components/MovieDetails';
 import { ProfilePage, PersonPage, NotificationModal, ComparisonModal, AgeVerificationModal } from './components/Modals';
 import { SettingsPage } from './components/SettingsModal';
@@ -2187,8 +2187,6 @@ export default function App() {
                            )}
 
                            <div className="px-4 md:px-12 py-8 space-y-8 relative z-10">
-                               <PosterMarquee movies={!searchQuery && selectedCategory === "All" && !currentCollection && movies.length > 0 ? movies : []} onMovieClick={setSelectedMovie} />
-                               
                                {fetchError && !loading && movies.length === 0 && (
                                     <div className="flex flex-col items-center justify-center py-20 text-center animate-in fade-in">
                                         <CloudOff size={48} className="text-red-500 mb-4 opacity-80"/>
@@ -2202,6 +2200,16 @@ export default function App() {
 
                                {!searchQuery && selectedCategory === "All" && !currentCollection && !activeCountry && !activeKeyword && !tmdbCollectionId ? (
                                    <div className="space-y-4 animate-in fade-in duration-700 -mx-4 md:-mx-12">
+                                       {activeCategories.slice(0, 2).map(cat => (
+                                            <MovieRow 
+                                                key={cat.id} 
+                                                title={cat.title} 
+                                                endpoint={cat.endpoint} 
+                                                mediaType={cat.mediaType} 
+                                                apiKey={apiKey} 
+                                                onMovieClick={setSelectedMovie} 
+                                            />
+                                       ))}
                                        <ContinueWatchingRow watchedMovies={watched} onMovieClick={setSelectedMovie} />
                                        
                                        {watched.length > 0 && (
@@ -2214,7 +2222,7 @@ export default function App() {
                                        
                                        <PopularGenresRow apiKey={apiKey} onGenreSelect={(genreName) => { resetFilters(); setSelectedCategory(genreName); }} />
                                        
-                                       {activeCategories.map(cat => {
+                                       {activeCategories.slice(2).map(cat => {
                                            if (cat.type === 'header') {
                                                return (
                                                    <div key={cat.id} className="pt-10 pb-1 px-4 md:px-12 animate-in fade-in duration-500 text-left">
