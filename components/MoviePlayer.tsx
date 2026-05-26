@@ -69,17 +69,30 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
             }
 
             if (parsed) {
-                const rawTime = parsed.timestamp ?? parsed.currentTime ?? parsed.current_time ?? parsed.time;
-                const rawDuration = parsed.duration ?? parsed.totalTime ?? parsed.total_time;
+                let rawTime = parsed.timestamp ?? parsed.currentTime ?? parsed.current_time ?? parsed.time;
+                let rawDuration = parsed.duration ?? parsed.totalTime ?? parsed.total_time;
 
-                if (typeof rawTime === 'number') {
-                    if (onProgress) {
+                if (rawTime === undefined && parsed.data && typeof parsed.data === 'object') {
+                    rawTime = parsed.data.timestamp ?? parsed.data.currentTime ?? parsed.data.current_time ?? parsed.data.time;
+                    rawDuration = rawDuration ?? parsed.data.duration ?? parsed.data.totalTime ?? parsed.data.total_time;
+                }
+
+                if (rawTime === undefined && parsed.payload && typeof parsed.payload === 'object') {
+                    rawTime = parsed.payload.timestamp ?? parsed.payload.currentTime ?? parsed.payload.current_time ?? parsed.payload.time;
+                    rawDuration = rawDuration ?? parsed.payload.duration ?? parsed.payload.totalTime ?? parsed.payload.total_time;
+                }
+
+                if (rawTime !== undefined && rawTime !== null) {
+                    const timeNum = Number(rawTime);
+                    const durationNum = rawDuration !== undefined && rawDuration !== null ? Number(rawDuration) : 0;
+
+                    if (!isNaN(timeNum) && onProgress) {
                         onProgress({
-                            currentTime: rawTime,
-                            duration: typeof rawDuration === 'number' ? rawDuration : 0,
+                            currentTime: timeNum,
+                            duration: !isNaN(durationNum) ? durationNum : 0,
                             event: 'time',
-                            season: parsed.season || initialSeason,
-                            episode: parsed.episode || initialEpisode
+                            season: parsed.season || parsed.data?.season || initialSeason,
+                            episode: parsed.episode || parsed.data?.episode || initialEpisode
                         });
                     }
                 }

@@ -2092,6 +2092,10 @@ export default function App() {
                                        });
                                    }
                                }
+
+                               if (watchPartyMovie) {
+                                   handleProgressUpdate(watchPartyMovie, data);
+                               }
                            }}
                            color={isGoldTheme ? 'F59E0B' : 'EF4444'}
                            forceProgress={watchPartyForceProgress}
