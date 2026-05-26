@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Send, Users, LogOut, Copy, Check, MessageSquare, ShieldAlert } from 'lucide-react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { Send, Users, LogOut, Copy, Check, MessageSquare, RefreshCw } from 'lucide-react';
 
 interface Message {
   id: string;
@@ -15,9 +15,15 @@ interface WatchPartySectionProps {
   currentUserId: string;
   currentUserName: string;
   supabaseClient: any;
-  currentTime: number;
+  currentTime: number;       // Host's broadcasted time (for host: their own time)
+  guestCurrentTime: number;  // Guest's own local playback time from iframe
   onSyncProgress: (time: number) => void;
 }
+
+// Drift thresholds
+const DRIFT_SHOW_BUTTON_SECS = 10;  // Show sync button when >10s behind/ahead
+const HEARTBEAT_INTERVAL_MS = 10000; // Host broadcasts heartbeat every 10s
+const SEEK_THRESHOLD_SECS = 5;       // Detect a host seek when time jumps >5s
 
 export const WatchPartySection: React.FC<WatchPartySectionProps> = ({
   roomCode,
@@ -27,6 +33,7 @@ export const WatchPartySection: React.FC<WatchPartySectionProps> = ({
   currentUserName,
   supabaseClient,
   currentTime,
+  guestCurrentTime,
   onSyncProgress
 }) => {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -35,14 +42,32 @@ export const WatchPartySection: React.FC<WatchPartySectionProps> = ({
   const [copied, setCopied] = useState(false);
   const [activeTab, setActiveTab] = useState<'chat' | 'people'>('chat');
   const chatEndRef = useRef<HTMLDivElement>(null);
+
+  // Sync state
+  const [hostLatestTime, setHostLatestTime] = useState<number>(0);
+  const [drift, setDrift] = useState<number>(0);
+  const [showSyncButton, setShowSyncButton] = useState(false);
   const lastBroadcastTimeRef = useRef<number>(0);
+  const heartbeatIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const channelRef = useRef<any>(null);
 
   const isHost = currentUserId === hostId;
 
+  // Utility
+  const getRandId = () => Math.random().toString(36).substring(2, 9);
+
+  const formatTime = (secs: number) => {
+    const h = Math.floor(secs / 3600);
+    const m = Math.floor((secs % 3600) / 60);
+    const s = Math.floor(secs % 60);
+    if (h > 0) return `${h}:${m < 10 ? '0' : ''}${m}:${s < 10 ? '0' : ''}${s}`;
+    return `${m}:${s < 10 ? '0' : ''}${s}`;
+  };
+
+  // ─── Channel Setup (once on mount) ────────────────────────────────
   useEffect(() => {
     if (!supabaseClient || !roomCode) return;
 
-    // Join Realtime Channel
     const channel = supabaseClient.channel(`watch_party:${roomCode}`, {
       config: {
         presence: {
@@ -51,10 +76,9 @@ export const WatchPartySection: React.FC<WatchPartySectionProps> = ({
       },
     });
 
-    // Generate unique random string suffix
-    const getRandId = () => Math.random().toString(36).substring(2, 9);
+    channelRef.current = channel;
 
-    // 1. Listen to Broadcast Events (Chat and Seek)
+    // 1. Listen to Broadcast Events
     channel
       .on('broadcast', { event: 'chat' }, ({ payload }: { payload: any }) => {
         setMessages(prev => [
@@ -67,23 +91,32 @@ export const WatchPartySection: React.FC<WatchPartySectionProps> = ({
           },
         ]);
       })
-      .on('broadcast', { event: 'seek' }, ({ payload }: { payload: any }) => {
-        // If not the host, receive seek command from host and sync player
+      .on('broadcast', { event: 'sync' }, ({ payload }: { payload: any }) => {
+        // Guests receive host's time updates (both heartbeat and seek)
         if (!isHost && typeof payload.time === 'number') {
-          onSyncProgress(payload.time);
-          setMessages(prev => [
-            ...prev,
-            {
-              id: `sys-${Date.now()}-${getRandId()}`,
-              sender: 'System',
-              text: `🔄 Synced to Host position: ${formatTime(payload.time)}`,
-              timestamp: Date.now(),
-            },
-          ]);
+          setHostLatestTime(payload.time);
+
+          if (payload.syncType === 'seek') {
+            // Host explicitly seeked — force sync the guest
+            onSyncProgress(payload.time);
+            setShowSyncButton(false);
+            setDrift(0);
+            setMessages(prev => [
+              ...prev,
+              {
+                id: `sys-${Date.now()}-${getRandId()}`,
+                sender: 'System',
+                text: `🔄 Host seeked to ${formatTime(payload.time)} — syncing...`,
+                timestamp: Date.now(),
+              },
+            ]);
+          }
+          // For heartbeat type, we just update hostLatestTime
+          // Drift is calculated in a separate effect
         }
       });
 
-    // 2. Track Presence (Joined Users)
+    // 2. Track Presence
     channel
       .on('presence', { event: 'sync' }, () => {
         const presenceState = channel.presenceState();
@@ -131,49 +164,112 @@ export const WatchPartySection: React.FC<WatchPartySectionProps> = ({
     // Subscribe
     channel.subscribe(async (status: string) => {
       if (status === 'SUBSCRIBED') {
-        // Track our presence details
         await channel.track({ name: currentUserName });
       }
     });
 
-    // Clean up channel on unmount
+    // Clean up
     return () => {
       channel.unsubscribe();
       supabaseClient.removeChannel(channel);
+      channelRef.current = null;
     };
   }, [supabaseClient, roomCode, currentUserId, currentUserName, isHost, onSyncProgress]);
 
-  // Auto sync host progress on play/seek
+  // ─── Host: Periodic Heartbeat Broadcast ───────────────────────────
+  useEffect(() => {
+    if (!isHost || !supabaseClient || !roomCode) return;
+
+    // Send heartbeat every 10s with current time
+    heartbeatIntervalRef.current = setInterval(() => {
+      const channel = channelRef.current;
+      if (!channel) return;
+
+      const time = lastBroadcastTimeRef.current;
+      if (typeof time === 'number' && time > 0) {
+        channel.send({
+          type: 'broadcast',
+          event: 'sync',
+          payload: { time, syncType: 'heartbeat' },
+        }).catch((e: any) => console.error("Heartbeat broadcast error:", e));
+      }
+    }, HEARTBEAT_INTERVAL_MS);
+
+    return () => {
+      if (heartbeatIntervalRef.current) {
+        clearInterval(heartbeatIntervalRef.current);
+        heartbeatIntervalRef.current = null;
+      }
+    };
+  }, [isHost, supabaseClient, roomCode]);
+
+  // ─── Host: Detect Seek (large time jump) and broadcast immediately ─
   useEffect(() => {
     if (!isHost || !supabaseClient || !roomCode || typeof currentTime !== 'number') return;
 
-    const timeDiff = Math.abs(currentTime - lastBroadcastTimeRef.current);
-    if (timeDiff > 3) {
-      const channel = supabaseClient.channel(`watch_party:${roomCode}`);
-      channel.send({
-        type: 'broadcast',
-        event: 'seek',
-        payload: { time: currentTime },
-      }).catch(e => console.error("Error broadcasting seek:", e));
+    const prevTime = lastBroadcastTimeRef.current;
+    const timeDiff = Math.abs(currentTime - prevTime);
 
-      setMessages(prev => [
-        ...prev,
-        {
-          id: `sys-broadcast-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
-          sender: 'System',
-          text: `⚡ Broadcasted sync position: ${formatTime(currentTime)}`,
-          timestamp: Date.now(),
-        },
-      ]);
+    if (timeDiff > SEEK_THRESHOLD_SECS && prevTime > 0) {
+      // Host seeked — broadcast immediately
+      const channel = channelRef.current;
+      if (channel) {
+        channel.send({
+          type: 'broadcast',
+          event: 'sync',
+          payload: { time: currentTime, syncType: 'seek' },
+        }).catch((e: any) => console.error("Seek broadcast error:", e));
+      }
     }
+
     lastBroadcastTimeRef.current = currentTime;
   }, [currentTime, isHost, supabaseClient, roomCode]);
 
-  // Autoscroll chat
+  // ─── Guest: Calculate Drift ───────────────────────────────────────
+  useEffect(() => {
+    if (isHost) {
+      setDrift(0);
+      setShowSyncButton(false);
+      return;
+    }
+
+    // Only compute drift when we have both times
+    if (hostLatestTime > 0 && guestCurrentTime > 0) {
+      const currentDrift = hostLatestTime - guestCurrentTime;
+      setDrift(currentDrift);
+
+      if (Math.abs(currentDrift) > DRIFT_SHOW_BUTTON_SECS) {
+        setShowSyncButton(true);
+      } else {
+        setShowSyncButton(false);
+      }
+    }
+  }, [hostLatestTime, guestCurrentTime, isHost]);
+
+  // ─── Autoscroll chat ──────────────────────────────────────────────
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
+  // ─── Manual Sync (guest clicks button) ────────────────────────────
+  const handleManualSync = useCallback(() => {
+    if (hostLatestTime > 0) {
+      onSyncProgress(hostLatestTime);
+      setShowSyncButton(false);
+      setDrift(0);
+      setMessages(prev => [
+        ...prev,
+        {
+          id: `sys-sync-${Date.now()}-${getRandId()}`,
+          sender: 'System',
+          text: `🔄 Synced to Host position: ${formatTime(hostLatestTime)}`,
+          timestamp: Date.now(),
+        },
+      ]);
+    }
+  }, [hostLatestTime, onSyncProgress]);
+
+  // ─── Send Chat Message ────────────────────────────────────────────
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!inputText.trim() || !supabaseClient || !roomCode) return;
@@ -186,15 +282,15 @@ export const WatchPartySection: React.FC<WatchPartySectionProps> = ({
       timestamp: Date.now(),
     };
 
-    // Send Broadcast Chat message to channel
-    const channel = supabaseClient.channel(`watch_party:${roomCode}`);
-    await channel.send({
-      type: 'broadcast',
-      event: 'chat',
-      payload: messagePayload,
-    });
+    const channel = channelRef.current;
+    if (channel) {
+      await channel.send({
+        type: 'broadcast',
+        event: 'chat',
+        payload: messagePayload,
+      });
+    }
 
-    // Add to local state instantly
     setMessages(prev => [...prev, messagePayload]);
     setInputText('');
   };
@@ -205,10 +301,12 @@ export const WatchPartySection: React.FC<WatchPartySectionProps> = ({
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const formatTime = (secs: number) => {
-    const m = Math.floor(secs / 60);
-    const s = Math.floor(secs % 60);
-    return `${m}:${s < 10 ? '0' : ''}${s}`;
+  // ─── Drift Display Helpers ────────────────────────────────────────
+  const getDriftLabel = () => {
+    const absDrift = Math.abs(drift);
+    if (absDrift < DRIFT_SHOW_BUTTON_SECS) return null;
+    const direction = drift > 0 ? 'behind' : 'ahead of';
+    return `${formatTime(absDrift)} ${direction} host`;
   };
 
   return (
@@ -240,6 +338,25 @@ export const WatchPartySection: React.FC<WatchPartySectionProps> = ({
             {copied ? <Check size={16} className="text-green-400" /> : <Copy size={16} />}
           </button>
         </div>
+
+        {/* Drift / Sync Button (guests only) */}
+        {!isHost && showSyncButton && (
+          <button
+            onClick={handleManualSync}
+            className="flex items-center justify-center gap-2 w-full py-2.5 bg-purple-600/20 hover:bg-purple-600 text-purple-300 hover:text-white border border-purple-500/20 hover:border-purple-500 rounded-xl text-xs font-bold transition-all active:scale-[0.98] animate-in fade-in slide-in-from-top-2 duration-300"
+          >
+            <RefreshCw size={13} className="animate-spin-slow" />
+            <span>Sync to Host — {getDriftLabel()}</span>
+          </button>
+        )}
+
+        {/* Host indicator */}
+        {isHost && (
+          <div className="flex items-center gap-2 text-[10px] text-gray-500">
+            <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+            <span>Broadcasting to {Math.max(0, participants.length - 1)} viewer{participants.length - 1 !== 1 ? 's' : ''}</span>
+          </div>
+        )}
       </div>
 
       {/* Tabs Menu */}

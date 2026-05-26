@@ -708,6 +708,7 @@ export default function App() {
   const [watchPartyParams, setWatchPartyParams] = useState({ season: 1, episode: 1 });
   const [watchPartyCurrentTime, setWatchPartyCurrentTime] = useState(0);
   const [watchPartyForceProgress, setWatchPartyForceProgress] = useState<number | undefined>(undefined);
+  const [watchPartyGuestTime, setWatchPartyGuestTime] = useState(0);
   const [isWatchPartyJoinOpen, setIsWatchPartyJoinOpen] = useState(false);
   const [joinRoomCode, setJoinRoomCode] = useState('');
   const [joinRoomError, setJoinRoomError] = useState('');
@@ -1427,6 +1428,7 @@ export default function App() {
           setWatchPartyParams({ season: season || 1, episode: episode || 1 });
           setWatchPartyCurrentTime(0);
           setWatchPartyForceProgress(undefined);
+          setWatchPartyGuestTime(0);
           setSelectedMovie(null); // Close Details modal
       }
   };
@@ -1465,6 +1467,7 @@ export default function App() {
           setWatchPartyMovie(movie);
           setWatchPartyParams({ season: room.season || 1, episode: room.episode || 1 });
           setWatchPartyCurrentTime(room.current_time || 0);
+          setWatchPartyGuestTime(0);
           if (room.current_time && room.current_time > 0) {
               setWatchPartyForceProgress(room.current_time);
           } else {
@@ -1496,6 +1499,7 @@ export default function App() {
       setWatchPartyMovie(null);
       setWatchPartyCurrentTime(0);
       setWatchPartyForceProgress(undefined);
+      setWatchPartyGuestTime(0);
   };
 
   const handleWatchPartySync = useCallback((time: number) => {
@@ -2090,6 +2094,9 @@ export default function App() {
                            initialEpisode={watchPartyParams.episode}
                            apiKey={apiKey}
                            onProgress={(data) => {
+                               // Always track local playback time for drift calculation
+                               setWatchPartyGuestTime(data.currentTime);
+
                                if (watchPartyHostId === currentUserId) {
                                    setWatchPartyCurrentTime(data.currentTime);
                                    
@@ -2115,6 +2122,7 @@ export default function App() {
                            currentUserName={userProfile.name || 'Guest'}
                            supabaseClient={getSupabase()}
                            currentTime={watchPartyCurrentTime}
+                           guestCurrentTime={watchPartyGuestTime}
                            onSyncProgress={handleWatchPartySync}
                        />
                    </div>
