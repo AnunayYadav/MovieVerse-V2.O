@@ -26,6 +26,15 @@ export const getSupabase = (): SupabaseClient | null => {
     return null;
 };
 
+// Helper: get current user ID from cached session (no network call)
+const getCurrentUserId = async (): Promise<{ id: string; email?: string } | null> => {
+    const supabase = getSupabase();
+    if (!supabase) return null;
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user) return null;
+    return { id: session.user.id, email: session.user.email };
+};
+
 // --- AUTHENTICATION ---
 
 export const signInWithGoogle = async () => {
@@ -84,7 +93,7 @@ export const syncUserData = async (userData: UserData) => {
     const supabase = getSupabase();
     if (!supabase) return;
 
-    const { data: { user } } = await supabase.auth.getUser();
+    const user = await getCurrentUserId();
     if (!user) return;
 
     const { error } = await supabase
@@ -111,7 +120,7 @@ export const fetchUserData = async (): Promise<UserData | null> => {
     const supabase = getSupabase();
     if (!supabase) return null;
 
-    const { data: { user } } = await supabase.auth.getUser();
+    const user = await getCurrentUserId();
     if (!user) return null;
 
     const { data, error } = await supabase
@@ -164,7 +173,7 @@ export const getNotifications = async (): Promise<AppNotification[]> => {
     if (!supabase) return [];
 
     try {
-        const { data: { user } } = await supabase.auth.getUser();
+        const user = await getCurrentUserId();
         if (!user) return [];
 
         const { data, error } = await supabase
@@ -194,7 +203,7 @@ export const markNotificationsRead = async () => {
     if (!supabase) return;
 
     try {
-        const { data: { user } } = await supabase.auth.getUser();
+        const user = await getCurrentUserId();
         if (!user) return;
 
         await supabase
@@ -211,7 +220,7 @@ export const sendNotification = async (title: string, message: string) => {
     const supabase = getSupabase();
     if (!supabase) return null;
 
-    const { data: { user } } = await supabase.auth.getUser();
+    const user = await getCurrentUserId();
     if (!user) return null;
 
     const { data, error } = await supabase
@@ -282,7 +291,7 @@ export const upsertWatchProgress = async (
     if (!supabase) return;
 
     try {
-        const { data: { user } } = await supabase.auth.getUser();
+        const user = await getCurrentUserId();
         if (!user) return;
 
         const { error } = await supabase
@@ -314,7 +323,7 @@ export const fetchWatchProgress = async (mediaId: number, mediaType: string) => 
     if (!supabase) return null;
 
     try {
-        const { data: { user } } = await supabase.auth.getUser();
+        const user = await getCurrentUserId();
         if (!user) return null;
 
         const { data, error } = await supabase
@@ -348,7 +357,7 @@ export const createWatchPartyRoom = async (
     if (!supabase) return null;
 
     try {
-        const { data: { user } } = await supabase.auth.getUser();
+        const user = await getCurrentUserId();
         if (!user) return null;
 
         const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
