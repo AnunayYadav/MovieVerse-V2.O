@@ -128,6 +128,145 @@ const MovieRowCard = ({
     );
 };
 
+const FranchiseHeroLogo = ({ id, fallbackName, apiKey }: { id: number, fallbackName: string, apiKey: string }) => {
+    const [logoUrl, setLogoUrl] = useState<string | null>(null);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        let isMounted = true;
+        if (!id || !apiKey) {
+            setLoading(false);
+            return;
+        }
+        fetch(`${TMDB_BASE_URL}/collection/${id}/images?api_key=${apiKey}`)
+            .then(res => res.json())
+            .then(data => {
+                if (!isMounted) return;
+                const logo = data.logos?.find((l: any) => l.iso_639_1 === 'en') || data.logos?.[0];
+                if (logo) {
+                    setLogoUrl(`https://image.tmdb.org/t/p/original${logo.file_path}`);
+                }
+            })
+            .catch(() => {})
+            .finally(() => {
+                if (isMounted) setLoading(false);
+            });
+        return () => { isMounted = false; };
+    }, [id, apiKey]);
+
+    if (!loading && logoUrl) {
+        return (
+            <img 
+                src={logoUrl} 
+                alt={fallbackName} 
+                className="max-h-20 md:max-h-32 max-w-[85%] object-contain drop-shadow-[0_4px_12px_rgba(0,0,0,0.9)] mb-2 animate-in fade-in duration-300"
+            />
+        );
+    }
+
+    return (
+        <h1 className="text-3xl md:text-5xl font-black text-white leading-tight tracking-tight drop-shadow-2xl font-sans mb-1">
+            {fallbackName}
+        </h1>
+    );
+};
+
+const FranchiseCard = ({ 
+    franchise, 
+    onClick, 
+    refProp, 
+    apiKey,
+    isGoldTheme
+}: { 
+    franchise: any; 
+    onClick: () => void; 
+    refProp?: any;
+    apiKey: string;
+    isGoldTheme: boolean;
+    key?: any;
+}) => {
+    const [logoUrl, setLogoUrl] = useState<string | null>(null);
+    const [logoLoading, setLogoLoading] = useState(true);
+
+    useEffect(() => {
+        let isMounted = true;
+        if (!apiKey || !franchise?.id) {
+            setLogoLoading(false);
+            return;
+        }
+
+        fetch(`${TMDB_BASE_URL}/collection/${franchise.id}/images?api_key=${apiKey}`)
+            .then(res => {
+                if (!res.ok) throw new Error();
+                return res.json();
+            })
+            .then(data => {
+                if (!isMounted) return;
+                const logo = data.logos?.find((l: any) => l.iso_639_1 === 'en') || data.logos?.[0];
+                if (logo) {
+                    setLogoUrl(`https://image.tmdb.org/t/p/w300${logo.file_path}`);
+                }
+            })
+            .catch(() => {})
+            .finally(() => {
+                if (isMounted) setLogoLoading(false);
+            });
+
+        return () => {
+            isMounted = false;
+        };
+    }, [franchise.id, apiKey]);
+
+    return (
+        <div 
+            ref={refProp}
+            onClick={onClick} 
+            className="group cursor-pointer bg-[#0c0c0e]/60 border border-white/5 rounded-xl md:rounded-2xl overflow-hidden transition-all duration-500 hover:scale-[1.03] hover:bg-zinc-900/40 hover:border-white/15 hover:shadow-2xl shadow-xl flex flex-col backdrop-blur-md"
+        >
+            <div className="aspect-[16/9] relative overflow-hidden bg-zinc-900">
+                <img 
+                    src={franchise.backdrop_path ? `https://image.tmdb.org/t/p/w500${franchise.backdrop_path}` : (franchise.poster_path ? `https://image.tmdb.org/t/p/w500${franchise.poster_path}` : "https://placehold.co/600x338/111/FFF?text=No+Preview")} 
+                    alt={franchise.name} 
+                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                    loading="lazy"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-[#0c0c0e] via-transparent to-transparent opacity-90"></div>
+                <span className="absolute top-2 left-2 md:top-3.5 md:left-3.5 px-2 py-0.5 rounded text-[8px] md:text-[9px] font-black uppercase tracking-wider bg-red-600 text-white shadow-md">
+                    {franchise.parts?.length || 0} Films
+                </span>
+            </div>
+            <div className="p-3 md:p-5 flex-1 flex flex-col justify-between">
+                <div>
+                    <div className="min-h-[28px] md:min-h-[36px] flex items-center mb-1.5 md:mb-2">
+                        {!logoLoading && logoUrl ? (
+                            <img 
+                                src={logoUrl} 
+                                alt={franchise.name} 
+                                className="max-h-[24px] md:max-h-[32px] max-w-[85%] object-contain drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] transition-transform duration-300 origin-left group-hover:scale-105"
+                            />
+                        ) : (
+                            <h3 className="text-sm md:text-base font-extrabold text-white group-hover:text-red-500 transition-colors duration-300 drop-shadow-md line-clamp-1">
+                                {franchise.name}
+                            </h3>
+                        )}
+                    </div>
+                    <p className="text-gray-400 text-[10px] md:text-xs line-clamp-2 md:line-clamp-3 leading-relaxed font-normal hidden sm:block">
+                        {franchise.overview || "Dive into this incredible collection of movies and follow the epic storyline."}
+                    </p>
+                </div>
+                <div className="mt-3 md:mt-5 pt-2.5 md:pt-4 border-t border-white/5 flex items-center justify-between">
+                    <span className="text-[8px] md:text-[9px] font-bold text-zinc-500 group-hover:text-zinc-300 transition-colors uppercase tracking-widest font-sans flex items-center gap-1">
+                        Explore
+                    </span>
+                    <div className="p-1 rounded-full bg-white/5 group-hover:bg-white text-zinc-400 group-hover:text-black transition-all duration-300 group-hover:translate-x-0.5">
+                        <ChevronRight size={12}/>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 const MovieRow = ({ 
     title, 
     movies: staticMovies, 
@@ -679,6 +818,10 @@ export default function App() {
   
   const [comingFilter, setComingFilter] = useState("upcoming");
 
+  const [franchiseSearchQuery, setFranchiseSearchQuery] = useState("");
+  const [activeFranchiseCategory, setActiveFranchiseCategory] = useState("All");
+  const [dynamicFranchiseIds, setDynamicFranchiseIds] = useState<number[]>([]);
+
   const [watchlist, setWatchlist] = useState<Movie[]>([]);
   const [favorites, setFavorites] = useState<Movie[]>([]);
   const [watched, setWatched] = useState<Movie[]>([]);
@@ -1082,7 +1225,10 @@ export default function App() {
   const accentBgLow = "bg-red-600/20";
 
   const showStickyHeader = !!(searchQuery || selectedCategory !== "All" || currentCollection || activeCountry || activeKeyword || tmdbCollectionId);
-  const hasHeroBanner = !!(selectedCategory === "All" && !searchQuery && featuredMovie && !activeCountry && !activeKeyword && !tmdbCollectionId && !currentCollection);
+  const hasHeroBanner = !!(
+      (selectedCategory === "All" && !searchQuery && featuredMovie && !activeCountry && !activeKeyword && !tmdbCollectionId && !currentCollection) ||
+      (selectedCategory === "Franchise" && franchiseList.length > 0)
+  );
 
   const matchingCollections = searchQuery 
       ? [
@@ -1157,6 +1303,8 @@ export default function App() {
 
   const resetFilters = () => {
       setSearchQuery("");
+      setFranchiseSearchQuery("");
+      setActiveFranchiseCategory("All");
       setCurrentCollection(null);
       setTmdbCollectionId(null);
       setActiveKeyword(null);
@@ -1635,7 +1783,7 @@ export default function App() {
          setFeaturedMovie(selectedCategory === "Watchlist" ? list[0] : null); 
          setHasMore(false); return; 
     }
-    if (["LiveTV", "Genres", "Collections", "Countries", "Franchise", "Explore"].includes(selectedCategory) && !activeCountry) return;
+    if (["LiveTV", "Genres", "Collections", "Countries", "Explore"].includes(selectedCategory) && !activeCountry) return;
     if (abortControllerRef.current) abortControllerRef.current.abort();
     const controller = new AbortController();
     abortControllerRef.current = controller;
@@ -1685,19 +1833,89 @@ export default function App() {
         }
         else if (selectedCategory === "Franchise") {
             const ITEMS_PER_PAGE = 12;
+            let finalIds = dynamicFranchiseIds;
+
+            // Step 1: Auto-discover trending collections
+            if (pageNum === 1 && (!dynamicFranchiseIds || dynamicFranchiseIds.length === 0)) {
+                try {
+                    const trendRes = await fetch(`${TMDB_BASE_URL}/trending/movie/week?api_key=${apiKey}`, { signal: controller.signal });
+                    const trendData = await trendRes.json();
+                    const trendingMovies = trendData.results || [];
+                    
+                    const detailsPromises = trendingMovies.slice(0, 20).map((m: any) => 
+                        fetch(`${TMDB_BASE_URL}/movie/${m.id}?api_key=${apiKey}`, { signal: controller.signal })
+                            .then(r => r.json())
+                            .catch(() => null)
+                    );
+                    const details = await Promise.all(detailsPromises);
+                    const discoveredCollectionIds = details
+                        .filter((d: any) => d && d.belongs_to_collection && d.belongs_to_collection.id)
+                        .map((d: any) => d.belongs_to_collection.id);
+                    
+                    const combined = Array.from(new Set([...discoveredCollectionIds, ...FRANCHISE_IDS]));
+                    setDynamicFranchiseIds(combined);
+                    finalIds = combined;
+                } catch (e) {
+                    console.error("Error discovering trending collections:", e);
+                    setDynamicFranchiseIds(FRANCHISE_IDS);
+                    finalIds = FRANCHISE_IDS;
+                }
+            } else if (!finalIds || finalIds.length === 0) {
+                finalIds = FRANCHISE_IDS;
+            }
+
+            // Step 2: Handle search queries for Franchise collections
+            if (franchiseSearchQuery) {
+                try {
+                    const searchRes = await fetch(`${TMDB_BASE_URL}/search/collection?api_key=${apiKey}&query=${encodeURIComponent(franchiseSearchQuery)}&page=${pageNum}`, { signal: controller.signal });
+                    const searchData = await searchRes.json();
+                    const searchResults = searchData.results || [];
+                    
+                    const promises = searchResults.map((col: any) => 
+                        fetch(`${TMDB_BASE_URL}/collection/${col.id}?api_key=${apiKey}`, { signal: controller.signal })
+                            .then(r => r.json())
+                            .catch(() => null)
+                    );
+                    const fullCollections = await Promise.all(promises);
+                    const valid = fullCollections.filter(d => d && d.id);
+                    
+                    if (isLoadMore) setFranchiseList(prev => [...prev, ...valid]);
+                    else setFranchiseList(valid);
+                    
+                    setHasMore(pageNum < searchData.total_pages);
+                    setLoading(false);
+                    return;
+                } catch (e) {
+                    console.error("Error searching collections:", e);
+                    setFranchiseList([]);
+                    setLoading(false);
+                    setHasMore(false);
+                    return;
+                }
+            }
+
+            // Step 3: Load regular / filtered collections
             const start = (pageNum - 1) * ITEMS_PER_PAGE;
             const end = start + ITEMS_PER_PAGE;
-            const idsToFetch = FRANCHISE_IDS.slice(start, end);
+            const idsToFetch = finalIds.slice(start, end);
+            
             if (idsToFetch.length === 0) {
                 if (pageNum === 1) setFranchiseList([]);
                 setLoading(false); setHasMore(false); return;
             }
-            const promises = idsToFetch.map(id => fetchWithRetry(`${TMDB_BASE_URL}/collection/${id}?api_key=${apiKey}`, controller.signal).then(r => r.json()).catch(() => null));
+            
+            const promises = idsToFetch.map(id => 
+                fetchWithRetry(`${TMDB_BASE_URL}/collection/${id}?api_key=${apiKey}`, controller.signal)
+                    .then(r => r.json())
+                    .catch(() => null)
+            );
             const data = await Promise.all(promises);
             const valid = data.filter(d => d && d.id);
+            
             if (isLoadMore) setFranchiseList(prev => [...prev, ...valid]);
             else setFranchiseList(valid);
-            setHasMore(end < FRANCHISE_IDS.length);
+            
+            setHasMore(end < finalIds.length);
             setLoading(false);
             return;
         }
@@ -1801,10 +2019,16 @@ export default function App() {
     } finally { 
         if (!controller.signal.aborted) setLoading(false); 
     }
-  }, [apiKey, searchQuery, selectedCategory, sortOption, appRegion, currentCollection, filterPeriod, selectedLanguage, selectedRegion, userProfile, maturityRating, sortMovies, tmdbCollectionId, activeKeyword, activeCountry, comingFilter]);
+  }, [apiKey, searchQuery, selectedCategory, sortOption, appRegion, currentCollection, filterPeriod, selectedLanguage, selectedRegion, userProfile, maturityRating, sortMovies, tmdbCollectionId, activeKeyword, activeCountry, comingFilter, franchiseSearchQuery, dynamicFranchiseIds]);
 
   useEffect(() => { const timeout = setTimeout(() => fetchMovies(1, false), searchQuery ? 800 : 300); return () => clearTimeout(timeout); }, [fetchMovies, searchQuery]);
   useEffect(() => { const fetchSuggestions = async () => { if (searchQuery.length > 3) { try { const sugs = await getSearchSuggestions(searchQuery); setSearchSuggestions(sugs); setShowSuggestions(true); } catch (e) { console.error(e); } } }; const timeout = setTimeout(fetchSuggestions, 500); return () => clearTimeout(timeout); }, [searchQuery]);
+  useEffect(() => {
+    if (selectedCategory === "Franchise") {
+      const timeout = setTimeout(() => fetchMovies(1, false), franchiseSearchQuery ? 600 : 300);
+      return () => clearTimeout(timeout);
+    }
+  }, [fetchMovies, franchiseSearchQuery, selectedCategory]);
 
   const handleLoadMore = () => { const nextPage = page + 1; setPage(nextPage); fetchMovies(nextPage, true); };
   const handleCollectionClick = (key: string) => { resetFilters(); setCurrentCollection(key); setSelectedCategory("Collection"); setIsSidebarOpen(false); };
@@ -1829,6 +2053,48 @@ export default function App() {
       movieList.forEach(m => { const date = m.release_date || "TBA"; if (!groups[date]) groups[date] = []; groups[date].push(m); });
       return Object.entries(groups).sort((a, b) => { if (a[0] === "TBA") return 1; if (b[0] === "TBA") return -1; return a[0].localeCompare(b[0]); });
   };
+
+  const filteredFranchises = franchiseList.filter(franchise => {
+      if (activeFranchiseCategory === "All") return true;
+      const name = (franchise.name || "").toLowerCase();
+      if (activeFranchiseCategory === "Superheroes") {
+          return name.includes("marvel") || name.includes("avengers") || name.includes("spider-man") || 
+                 name.includes("iron man") || name.includes("captain america") || name.includes("thor") || 
+                 name.includes("x-men") || name.includes("batman") || name.includes("superman") || 
+                 name.includes("justice league") || name.includes("wolverine") || name.includes("deadpool") ||
+                 name.includes("suicide squad") || name.includes("wonder woman") || name.includes("guardians of the");
+      }
+      if (activeFranchiseCategory === "Sci-Fi") {
+          return name.includes("star wars") || name.includes("star trek") || name.includes("matrix") || 
+                 name.includes("terminator") || name.includes("alien") || name.includes("predator") || 
+                 name.includes("avatar") || name.includes("dune") || name.includes("transformers") || 
+                 name.includes("jurassic") || name.includes("planet of the apes") || name.includes("back to the future") ||
+                 name.includes("blade runner") || name.includes("men in black") || name.includes("resident evil");
+      }
+      if (activeFranchiseCategory === "Fantasy") {
+          return name.includes("harry potter") || name.includes("lord of the rings") || name.includes("hobbit") || 
+                 name.includes("chronicles of narnia") || name.includes("percy jackson") || name.includes("twilight") || 
+                 name.includes("pirates of the caribbean") || name.includes("jumanji") || name.includes("hunger games") ||
+                 name.includes("wizarding world") || name.includes("middle-earth") || name.includes("clash of the titans");
+      }
+      if (activeFranchiseCategory === "Action") {
+          return name.includes("fast & furious") || name.includes("mission: impossible") || name.includes("james bond") || 
+                 name.includes("john wick") || name.includes("bourne") || name.includes("indiana jones") || 
+                 name.includes("die hard") || name.includes("lethal weapon") || name.includes("mad max") || 
+                 name.includes("ocean's") || name.includes("sherlock holmes") || name.includes("expendables") ||
+                 name.includes("taken") || name.includes("transporter") || name.includes("kingsman") || name.includes("bad boys");
+      }
+      if (activeFranchiseCategory === "Animation") {
+          return name.includes("toy story") || name.includes("shrek") || name.includes("ice age") || 
+                 name.includes("madagascar") || name.includes("kung fu panda") || name.includes("how to train your dragon") || 
+                 name.includes("despicable me") || name.includes("minions") || name.includes("cars") || 
+                 name.includes("finding nemo") || name.includes("monsters, inc.") || name.includes("hotel transylvania") ||
+                 name.includes("lion king") || name.includes("frozen") || name.includes("aladdin") || 
+                 name.includes("spider-verse") || name.includes("incredibles") || name.includes("megamind") ||
+                 name.includes("despicable") || name.includes("kung fu");
+      }
+      return true;
+  });
 
   const toggleReminder = (movieId: number) => {
       setReminders(prev => {
@@ -2253,38 +2519,148 @@ export default function App() {
                        </div>
                    </div>
                </div>
-           ) : selectedCategory === "Franchise" ? (
-               <div className="animate-in fade-in slide-in-from-bottom-4 p-8 md:p-12">
-                   <h1 className="text-4xl md:text-5xl font-black text-white tracking-tight mb-8">Franchise Explorer</h1>
-                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                       {franchiseList.map((franchise) => (
-                           <div key={franchise.id} onClick={() => handleTmdbCollectionClick(franchise.id)} className="group cursor-pointer bg-white/5 border border-white/10 rounded-2xl overflow-hidden transition-all hover:scale-105 hover:bg-white/10 shadow-xl">
-                               <div className="aspect-[16/9] relative overflow-hidden">
-                                   <img 
-                                       src={franchise.backdrop_path ? `${TMDB_BACKDROP_BASE}${franchise.backdrop_path}` : `${TMDB_IMAGE_BASE}${franchise.poster_path}`} 
-                                       alt={franchise.name} 
-                                       className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-                                   />
-                                   <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent"></div>
-                                   <div className="absolute bottom-4 left-4">
-                                       <h3 className="text-xl font-bold text-white drop-shadow-lg">{franchise.name}</h3>
-                                   </div>
-                               </div>
-                               <div className="p-4">
-                                   <p className="text-gray-400 text-xs line-clamp-2 leading-relaxed">{franchise.overview}</p>
-                                   <div className="mt-3 flex items-center justify-between">
-                                       <span className="text-[10px] font-bold px-2 py-0.5 bg-white/10 rounded text-gray-300 uppercase tracking-widest">{franchise.parts?.length || 0} Films</span>
-                                       <div className={`p-1.5 rounded-full ${accentBg} text-white`}>
-                                           <ChevronRight size={14}/>
-                                       </div>
-                                   </div>
-                               </div>
-                           </div>
-                       ))}
-                       {loading && [...Array(8)].map((_, i) => <div key={i} className="aspect-[16/9] bg-white/5 rounded-2xl animate-pulse"></div>)}
-                   </div>
-               </div>
-           ) : selectedCategory === "Coming" ? (
+            ) : selectedCategory === "Franchise" ? (
+                <div className="animate-in fade-in duration-750 min-h-screen pb-16 pt-2">
+                    {/* Hero Spotlight Collection */}
+                    {franchiseList.length > 0 && (
+                        (() => {
+                            const heroFranchise = filteredFranchises.find(f => f.backdrop_path) || franchiseList.find(f => f.backdrop_path) || franchiseList[0];
+                            if (!heroFranchise) return null;
+                            return (
+                                <div className="relative w-full h-[55vh] md:h-[65vh] overflow-hidden group mb-10 -mt-4 border-b border-white/5 shadow-inner">
+                                    <div className="absolute inset-0">
+                                        <img 
+                                            src={heroFranchise.backdrop_path ? `${TMDB_BACKDROP_BASE}${heroFranchise.backdrop_path}` : `${TMDB_IMAGE_BASE}${heroFranchise.poster_path}`} 
+                                            alt={heroFranchise.name} 
+                                            className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-103"
+                                        />
+                                        <div className="absolute inset-0 bg-gradient-to-t from-[#030303] via-[#030303]/60 to-transparent"></div>
+                                        <div className="absolute inset-0 bg-gradient-to-r from-[#030303] via-[#030303]/40 to-transparent"></div>
+                                    </div>
+                                    <div className="absolute bottom-0 left-0 w-full p-6 md:p-12 z-20 flex flex-col items-start gap-3.5 md:max-w-4xl animate-in slide-in-from-bottom-8 duration-700">
+                                        <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${isGoldTheme ? 'bg-amber-500 text-black shadow-lg shadow-amber-500/20' : 'bg-red-600 text-white shadow-lg shadow-red-600/20'}`}>
+                                            Spotlight Franchise
+                                        </span>
+                                        {/* Dynamic Collection Logo in Hero */}
+                                        <FranchiseHeroLogo id={heroFranchise.id} fallbackName={heroFranchise.name} apiKey={apiKey} />
+                                        <div className="flex items-center gap-3 text-xs font-bold text-gray-300">
+                                            <span className="text-green-400 font-extrabold">{heroFranchise.parts?.length || 0} Films</span>
+                                            <span>•</span>
+                                            <span className="px-2 py-0.5 rounded bg-white/10 text-white uppercase text-[9px] tracking-wider">Ultimate Collection</span>
+                                        </div>
+                                        <p className="text-gray-300 text-xs md:text-sm line-clamp-3 md:line-clamp-2 max-w-2xl leading-relaxed drop-shadow-md font-medium">
+                                            {heroFranchise.overview || "Explore the ultimate collection of films in this cinematic universe."}
+                                        </p>
+                                        <div className="flex flex-row items-center gap-3 w-full sm:w-auto mt-2">
+                                            <button 
+                                                onClick={() => handleTmdbCollectionClick(heroFranchise.id)}
+                                                className={`flex-1 sm:flex-none px-6 py-2.5 text-sm sm:text-base rounded-md font-bold flex items-center justify-center gap-2.5 transition-all hover:scale-[1.02] active:scale-95 shadow-md ${isGoldTheme ? 'bg-amber-500 text-black hover:bg-amber-600' : 'bg-white text-black hover:bg-white/90'}`}
+                                            >
+                                                <Sparkles size={18} /> Deep Dive Universe
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            );
+                        })()
+                    )}
+
+                    <div className="px-4 md:px-12 max-w-7xl mx-auto">
+                        {/* Title and Search Section */}
+                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8 border-b border-white/5 pb-6">
+                            <div>
+                                <h2 className="text-2xl md:text-3xl font-black text-white tracking-tight flex items-center gap-3">
+                                    <span className={`w-2.5 h-8 rounded-full ${isGoldTheme ? 'bg-amber-500' : 'bg-red-600'}`}></span>
+                                    Explore Universes
+                                </h2>
+                                <p className="text-zinc-500 text-xs md:text-sm mt-1">Immerse yourself in cinema's most iconic and expansive film franchises.</p>
+                            </div>
+                            
+                            {/* Search bar inside the explorer */}
+                            <div className="relative group w-full md:w-80">
+                                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-white transition-colors" size={16} />
+                                <input 
+                                    type="text" 
+                                    value={franchiseSearchQuery}
+                                    onChange={(e) => setFranchiseSearchQuery(e.target.value)}
+                                    placeholder="Search franchises..." 
+                                    className="w-full bg-[#121214] border border-white/5 hover:border-white/10 rounded-full py-2.5 pl-10 pr-4 text-xs md:text-sm focus:outline-none focus:bg-[#161619] focus:border-white/20 transition-all placeholder-gray-500 text-white shadow-inner"
+                                />
+                                {franchiseSearchQuery && (
+                                    <button 
+                                        onClick={() => setFranchiseSearchQuery("")}
+                                        className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-gray-500 hover:text-white rounded-full bg-white/5 hover:bg-white/10 transition-colors"
+                                    >
+                                        <X size={12}/>
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Apple-style Filter Chips */}
+                        <div className="flex gap-2.5 overflow-x-auto pb-4 mb-8 -mx-2 px-2 hide-scrollbar select-none">
+                            {[
+                                { id: "All", label: "All Franchises" },
+                                { id: "Superheroes", label: "Marvel & DC" },
+                                { id: "Sci-Fi", label: "Sci-Fi & Space" },
+                                { id: "Fantasy", label: "Fantasy & Magic" },
+                                { id: "Action", label: "Action & Thrillers" },
+                                { id: "Animation", label: "Animation & Family" }
+                            ].map((chip) => (
+                                <button 
+                                    key={chip.id}
+                                    onClick={() => {
+                                        setActiveFranchiseCategory(chip.id);
+                                        setFranchiseSearchQuery("");
+                                    }}
+                                    className={`shrink-0 px-5 py-2 rounded-full text-xs font-bold transition-all duration-300 border ${
+                                        activeFranchiseCategory === chip.id 
+                                            ? (isGoldTheme 
+                                                ? 'bg-amber-500 border-amber-500 text-black shadow-lg shadow-amber-500/20' 
+                                                : 'bg-white border-white text-black shadow-lg shadow-white/10')
+                                            : 'bg-white/5 border-white/5 text-zinc-400 hover:text-white hover:bg-white/10 hover:border-white/10'
+                                    }`}
+                                >
+                                    {chip.label}
+                                </button>
+                            ))}
+                        </div>
+
+                        {/* Franchise Grid */}
+                        <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 md:gap-6 lg:gap-8">
+                            {filteredFranchises.map((franchise, idx) => {
+                                const isLast = idx === filteredFranchises.length - 1;
+                                return (
+                                    <FranchiseCard 
+                                        key={franchise.id}
+                                        franchise={franchise}
+                                        onClick={() => handleTmdbCollectionClick(franchise.id)}
+                                        refProp={isLast ? lastMovieElementRef : null}
+                                        apiKey={apiKey}
+                                        isGoldTheme={isGoldTheme}
+                                    />
+                                );
+                            })}
+                            
+                            {/* Loading skeleton placeholders */}
+                            {loading && [...Array(6)].map((_, i) => (
+                                <div key={i} className="aspect-[16/10] bg-white/5 rounded-2xl animate-pulse border border-white/5"></div>
+                            ))}
+                        </div>
+
+                        {/* Empty search results fallback */}
+                        {!loading && filteredFranchises.length === 0 && (
+                            <div className="flex flex-col items-center justify-center py-20 text-center animate-in fade-in duration-500">
+                                <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mb-4 text-zinc-500 border border-white/5">
+                                    <Layers size={24}/>
+                                </div>
+                                <h3 className="text-lg font-bold text-white mb-1">No collections found</h3>
+                                <p className="text-zinc-500 text-xs md:text-sm max-w-sm">Try searching for other popular movie franchises or change the category filter.</p>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            ) : selectedCategory === "Coming" ? (
                <div className="animate-in fade-in duration-750 max-w-5xl mx-auto px-4 py-8 md:py-12">
                    {/* Page Header */}
                    <div className="mb-10 border-b border-white/5 pb-6">
