@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Send, Users, LogOut, Copy, Check, MessageSquare, RefreshCw } from 'lucide-react';
+import { Send, Users, LogOut, Copy, Check, MessageSquare, RefreshCw, Maximize2, Minimize2 } from 'lucide-react';
 
 interface Message {
   id: string;
@@ -18,6 +18,8 @@ interface WatchPartySectionProps {
   currentTime: number;       // Host's broadcasted time (for host: their own time)
   guestCurrentTime: number;  // Guest's own local playback time from iframe
   onSyncProgress: (time: number) => void;
+  isImmersive?: boolean;
+  onToggleImmersive?: () => void;
 }
 
 // Drift thresholds
@@ -34,7 +36,9 @@ export const WatchPartySection: React.FC<WatchPartySectionProps> = ({
   supabaseClient,
   currentTime,
   guestCurrentTime,
-  onSyncProgress
+  onSyncProgress,
+  isImmersive = false,
+  onToggleImmersive
 }) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState('');
@@ -50,6 +54,19 @@ export const WatchPartySection: React.FC<WatchPartySectionProps> = ({
   const lastBroadcastTimeRef = useRef<number>(0);
   const heartbeatIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const channelRef = useRef<any>(null);
+  
+  // Stable Presence Key Ref
+  const presenceKeyRef = useRef<string>('');
+  if (!presenceKeyRef.current) {
+    presenceKeyRef.current = currentUserId || `guest-${Math.random().toString(36).substring(2, 9)}`;
+  }
+
+  // Update presence key if user gets authenticated
+  useEffect(() => {
+    if (currentUserId) {
+      presenceKeyRef.current = currentUserId;
+    }
+  }, [currentUserId]);
 
   const isHost = currentUserId === hostId;
 
@@ -68,12 +85,11 @@ export const WatchPartySection: React.FC<WatchPartySectionProps> = ({
   useEffect(() => {
     if (!supabaseClient || !roomCode) return;
 
-    const presenceKey = currentUserId || `guest-${Math.random().toString(36).substring(2, 9)}`;
-
+    // Create the channel using stable key
     const channel = supabaseClient.channel(`watch_party:${roomCode}`, {
       config: {
         presence: {
-          key: presenceKey,
+          key: presenceKeyRef.current,
         },
       },
     });
@@ -133,6 +149,15 @@ export const WatchPartySection: React.FC<WatchPartySectionProps> = ({
             });
           }
         });
+
+        // Fallback: If current user is not found, guarantee they are displayed
+        const hasSelf = usersList.some(u => u.name === currentUserName || u.name.startsWith(currentUserName));
+        if (!hasSelf && currentUserName) {
+          usersList.push({
+            id: currentUserId || 'self-guest',
+            name: `${currentUserName} (You)`
+          });
+        }
 
         setParticipants(usersList);
       })
@@ -312,18 +337,34 @@ export const WatchPartySection: React.FC<WatchPartySectionProps> = ({
   };
 
   return (
-    <div className="w-full h-full flex flex-col bg-[#0b0b0c] border-l border-white/10 select-none">
+    <div className={`w-full h-full flex flex-col select-none transition-all duration-300 ${
+        isImmersive 
+            ? 'bg-[#0d0d0f]/35 backdrop-blur-md rounded-2xl' 
+            : 'bg-[#0b0b0c] border-l border-white/10'
+    }`}>
       
       {/* Header Info */}
       <div className="p-4 border-b border-white/5 bg-white/5 flex flex-col gap-3">
         <div className="flex items-center justify-between">
           <h3 className="font-extrabold text-white text-sm tracking-wide uppercase">Watch Party</h3>
-          <button 
-            onClick={onLeaveParty}
-            className="flex items-center gap-1 bg-red-600/20 text-red-400 hover:bg-red-600 hover:text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-all border border-red-500/10 active:scale-95"
-          >
-            <LogOut size={12}/> Leave
-          </button>
+          <div className="flex items-center gap-2">
+            {onToggleImmersive && (
+              <button 
+                type="button"
+                onClick={onToggleImmersive}
+                className="p-2 hover:bg-white/10 rounded-lg text-gray-400 hover:text-white transition-colors"
+                title={isImmersive ? "Exit Immersive View" : "Immersive View"}
+              >
+                {isImmersive ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+              </button>
+            )}
+            <button 
+              onClick={onLeaveParty}
+              className="flex items-center gap-1 bg-red-600/20 text-red-400 hover:bg-red-600 hover:text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-all border border-red-500/10 active:scale-95"
+            >
+              <LogOut size={12}/> Leave
+            </button>
+          </div>
         </div>
 
         {/* Room Code */}

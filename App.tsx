@@ -713,6 +713,7 @@ export default function App() {
   const [joinRoomCode, setJoinRoomCode] = useState('');
   const [joinRoomError, setJoinRoomError] = useState('');
   const [watchPartyIsLoading, setWatchPartyIsLoading] = useState(false);
+  const [isWatchPartyImmersive, setIsWatchPartyImmersive] = useState(false);
 
   // Scroll Lock Controller
   useEffect(() => {
@@ -1484,6 +1485,7 @@ export default function App() {
       setWatchPartyCurrentTime(0);
       setWatchPartyForceProgress(undefined);
       setWatchPartyGuestTime(0);
+      setIsWatchPartyImmersive(false);
   };
 
   const handleWatchPartySync = useCallback((time: number) => {
@@ -1899,6 +1901,7 @@ export default function App() {
           onClick={() => setIsSidebarOpen(false)}
       />
 
+      {!(activeWatchPartyRoom && watchPartyMovie) && (
       <nav className={`fixed top-0 left-0 right-0 z-[60] h-16 flex items-center justify-center px-4 md:px-6 transition-all duration-500 ${
         (hasHeroBanner && !isScrolled) 
           ? 'bg-gradient-to-b from-black/85 via-black/25 to-transparent border-transparent backdrop-blur-none' 
@@ -2063,12 +2066,21 @@ export default function App() {
             </div>
         </div>
       </nav>
+      )}
 
-      <div className={`flex ${hasHeroBanner ? 'pt-0' : 'pt-16'}`}>
-        <main className="flex-1 min-h-[calc(100vh-4rem)] w-full pb-20 md:pb-0">
+      <div className={`flex ${(hasHeroBanner || (activeWatchPartyRoom && watchPartyMovie)) ? 'pt-0' : 'pt-16'}`}>
+        <main className={`flex-1 w-full ${
+            (activeWatchPartyRoom && watchPartyMovie) 
+                ? 'h-screen overflow-hidden' 
+                : 'min-h-[calc(100vh-4rem)] pb-20 md:pb-0'
+        }`}>
            {activeWatchPartyRoom && watchPartyMovie ? (
-               <div className="flex flex-col lg:flex-row w-full h-[calc(100vh-4rem)] bg-black overflow-hidden animate-in fade-in duration-500">
-                   <div className="flex-1 relative bg-black h-2/3 lg:h-full">
+               <div className={`relative w-full h-full bg-black overflow-hidden animate-in fade-in duration-500 ${isWatchPartyImmersive ? '' : 'flex flex-col lg:flex-row'}`}>
+                   <div className={`bg-black transition-all duration-500 ${
+                       isWatchPartyImmersive 
+                           ? 'absolute inset-0 w-full h-full z-0' 
+                           : 'flex-1 relative h-[56.25vw] max-h-[60vh] lg:h-full lg:max-h-none'
+                   }`}>
                        <MoviePlayer 
                            tmdbId={watchPartyMovie.id}
                            onClose={handleLeaveWatchParty}
@@ -2101,7 +2113,11 @@ export default function App() {
                            forceProgress={watchPartyForceProgress}
                        />
                    </div>
-                   <div className="w-full lg:w-80 shrink-0 h-1/3 lg:h-full">
+                   <div className={`transition-all duration-500 ${
+                       isWatchPartyImmersive 
+                           ? 'absolute right-4 top-4 bottom-4 w-72 sm:w-80 z-50 rounded-2xl overflow-hidden border border-white/10 shadow-2xl opacity-40 hover:opacity-100' 
+                           : 'w-full lg:w-80 shrink-0 h-[calc(100vh-4rem-56.25vw)] lg:h-full border-t lg:border-t-0 border-white/10'
+                   }`}>
                        <WatchPartySection 
                            roomCode={activeWatchPartyRoom}
                            onLeaveParty={handleLeaveWatchParty}
@@ -2112,6 +2128,8 @@ export default function App() {
                            currentTime={watchPartyCurrentTime}
                            guestCurrentTime={watchPartyGuestTime}
                            onSyncProgress={handleWatchPartySync}
+                           isImmersive={isWatchPartyImmersive}
+                           onToggleImmersive={() => setIsWatchPartyImmersive(!isWatchPartyImmersive)}
                        />
                    </div>
                </div>
