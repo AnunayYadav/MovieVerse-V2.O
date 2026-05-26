@@ -4,7 +4,7 @@ import { Search, Film, Menu, TrendingUp, Tv, Ghost, Calendar, Star, X, Sparkles,
 import { Movie, UserProfile, GENRES_MAP, GENRES_LIST, INDIAN_LANGUAGES, MaturityRating, Keyword } from './types';
 import { LogoLoader, MovieSkeleton, MovieCard, PersonCard, TMDB_BASE_URL, TMDB_BACKDROP_BASE, TMDB_IMAGE_BASE, getTmdbKey, BrandLogo } from './components/Shared';
 import { MoviePage } from './components/MovieDetails';
-import { PersonPage, NotificationModal, ComparisonModal, AgeVerificationModal } from './components/Modals';
+import { PersonPage, NotificationModal, ComparisonModal } from './components/Modals';
 import { SettingsPage } from './components/SettingsModal';
 import { getSearchSuggestions } from './services/gemini';
 import { LoginPage } from './components/LoginPage';
@@ -688,7 +688,7 @@ export default function App() {
   const [hasUnread, setHasUnread] = useState(false);
   const [lastNotificationId, setLastNotificationId] = useState<string | null>(null);
   
-  const [isAgeModalOpen, setIsAgeModalOpen] = useState(false);
+
   const [selectedPersonId, setSelectedPersonId] = useState<number | null>(null);
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const [isComparisonOpen, setIsComparisonOpen] = useState(false);
@@ -716,13 +716,13 @@ export default function App() {
 
   // Scroll Lock Controller
   useEffect(() => {
-    const isAnyModalOpen = selectedMovie || isSettingsOpen || selectedPersonId || isNotificationOpen || isComparisonOpen || isAgeModalOpen || isSidebarOpen;
+    const isAnyModalOpen = selectedMovie || isSettingsOpen || selectedPersonId || isNotificationOpen || isComparisonOpen || isSidebarOpen;
     if (isAnyModalOpen) {
       document.body.style.overflow = 'hidden';
     } else {
       document.body.style.overflow = 'auto';
     }
-  }, [selectedMovie, isSettingsOpen, selectedPersonId, isNotificationOpen, isComparisonOpen, isAgeModalOpen, isSidebarOpen]);
+  }, [selectedMovie, isSettingsOpen, selectedPersonId, isNotificationOpen, isComparisonOpen, isSidebarOpen]);
   
   const [isScrolled, setIsScrolled] = useState(false);
 
@@ -1231,31 +1231,7 @@ export default function App() {
     return () => { if (authListener) authListener.unsubscribe(); };
   }, [resetAuthState]);
 
-  useEffect(() => {
-      if (isAuthenticated && dataLoaded) {
-          if (!userProfile.age) {
-              setIsAgeModalOpen(true);
-          } else {
-              setIsAgeModalOpen(false);
-          }
-      }
-  }, [isAuthenticated, userProfile.age, dataLoaded]);
 
-  const handleAgeSave = (newAge: string) => {
-      const updatedProfile = { ...userProfile, age: newAge };
-      setUserProfile(updatedProfile);
-      localStorage.setItem('movieverse_profile', JSON.stringify(updatedProfile));
-      if (isCloudSync) {
-          syncUserData({
-              watchlist, favorites, watched,
-              customLists: {},
-              profile: { ...updatedProfile, maturityRating, region: appRegion },
-              settings: { tmdbKey: apiKey },
-              searchHistory: searchHistory
-          });
-      }
-      setIsAgeModalOpen(false);
-  };
 
   useEffect(() => {
       if (isCloudSync && isAuthenticated && dataLoaded) {
@@ -2542,8 +2518,6 @@ export default function App() {
            )}
         </main>
       </div>
-
-      <AgeVerificationModal isOpen={isAgeModalOpen} onSave={handleAgeSave} />
 
       {selectedMovie && ( 
         <MoviePage 
