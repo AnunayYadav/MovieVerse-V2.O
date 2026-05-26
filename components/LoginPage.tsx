@@ -1,31 +1,29 @@
 
 import React, { useState } from 'react';
 import { Eye, EyeOff, Mail, Loader2, User, Calendar, ArrowRight, ChevronLeft, AlertTriangle, Check, Sparkles } from 'lucide-react';
-import { TMDB_IMAGE_BASE, BrandLogo } from './Shared';
+import { TMDB_IMAGE_BASE, BrandLogo, getTmdbKey } from './Shared';
 import { GENRES_LIST, UserProfile } from '../types';
 import { signInWithGoogle, signInWithEmail, signUpWithEmail, getSupabase } from '../services/supabase';
 
-// High-quality posters for the 3 moving columns
-const COL_1_POSTERS = [
-  "/qJ2tW6WMUDux911r6m7haRef0WH.jpg", "/saHP97rTPS5eLmrLQEcANmKrsFl.jpg",
-  "/pB8BM7pdSp6B6Ih7QZ4DrQ3PmJK.jpg", "/3bhkrj58Vtu7enYsRolD1fZdja1.jpg",
-  "/sF1U4EUQS8YHUYjNl3pTXMYjj9s.jpg", "/ow3wq89wM8qd5X7hWKxiRfsFf9C.jpg",
-  "/bMadFzhjy9T7R8J48QGq1ngWQq.jpg",  "/1E5baAaEse26fej7uHcjOgEE2t2.jpg"
+// High-quality fallback posters (classic films with verified active poster paths)
+const FALLBACK_POSTERS = [
+  "/qJ2tW6WMUDux911r6m7haRef0WH.jpg", // The Godfather
+  "/rCzpDGLbOoPwLjy3vpX3uzwwkAK.jpg", // Pulp Fiction
+  "/arw2vcBveWOVZr6pxd9KKvuNyLO.jpg", // Interstellar
+  "/ow3wq89wM8qd5X7hWKxiRfsFf9C.jpg", // The Dark Knight
+  "/9cqNxx0GxF0bflZmeSMuL5tnGzr.jpg", // The Shawshank Redemption
+  "/saHP97rTPS5eLmrLQEcANmKrsFl.jpg", // Forrest Gump
+  "/kXfqcdQKsToO0OUXHcrrNCHDBzO.jpg", // Fight Club
+  "/u3bZgnGQ9TWA758r8vn0qHnDEnO.jpg", // Inception
+  "/z2yahl2uefxDCl0nogcRBstwruJ.jpg", // The Lord of the Rings
+  "/bMadFzhjy9T7R8J48QGq1ngWQq.jpg",  // Spirited Away
+  "/1E5baAaEse26fej7uHcjOgEE2t2.jpg",  // Gladiator
+  "/pB8BM7pdSp6B6Ih7QZ4DrQ3PmJK.jpg"   // Fight Club alt
 ];
 
-const COL_2_POSTERS = [
-  "/8UlWHLMpgZm9bx6QYh0NFoq67TZ.jpg", "/6oom5QYQ2yQTMJIbnvbkBL9cHo6.jpg",
-  "/9cqNxx0GxF0bflZmeSMuL5tnGzr.jpg", "/arw2vcBveWOVZr6pxd9KKvuNyLO.jpg",
-  "/kXfqcdQKsToO0OUXHcrrNCHDBzO.jpg", "/u3bZgnGQ9TWA758r8vn0qHnDEnO.jpg",
-  "/rCzpDGLbOoPwLjy3vpX3uzwwkAK.jpg", "/z2yahl2uefxDCl0nogcRBstwruJ.jpg"
-];
-
-const COL_3_POSTERS = [
-  "/3bhkrj58Vtu7enYsRolD1fZdja1.jpg", "/bMadFzhjy9T7R8J48QGq1ngWQq.jpg",
-  "/saHP97rTPS5eLmrLQEcANmKrsFl.jpg", "/sF1U4EUQS8YHUYjNl3pTXMYjj9s.jpg",
-  "/9cqNxx0GxF0bflZmeSMuL5tnGzr.jpg", "/kXfqcdQKsToO0OUXHcrrNCHDBzO.jpg",
-  "/1E5baAaEse26fej7uHcjOgEE2t2.jpg", "/ow3wq89wM8qd5X7hWKxiRfsFf9C.jpg"
-];
+const splitPosters = (list: string[], colIndex: number) => {
+  return list.filter((_, idx) => idx % 3 === colIndex);
+};
 
 interface LoginPageProps {
   onLogin: (profile?: UserProfile) => void;
@@ -47,6 +45,53 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onOpenSettings })
   const [name, setName] = useState("");
   const [age, setAge] = useState("");
   const [selectedGenres, setSelectedGenres] = useState<string[]>([]);
+
+  // Dynamic poster columns state
+  const [col1, setCol1] = React.useState<string[]>(() => splitPosters(FALLBACK_POSTERS, 0));
+  const [col2, setCol2] = React.useState<string[]>(() => splitPosters(FALLBACK_POSTERS, 1));
+  const [col3, setCol3] = React.useState<string[]>(() => splitPosters(FALLBACK_POSTERS, 2));
+
+  React.useEffect(() => {
+    let isMounted = true;
+    const key = getTmdbKey() || localStorage.getItem('movieverse_tmdb_key');
+    if (!key) return;
+
+    Promise.all([
+      fetch(`https://api.themoviedb.org/3/trending/movie/week?api_key=${key}`).then(res => res.ok ? res.json() : null),
+      fetch(`https://api.themoviedb.org/3/movie/top_rated?api_key=${key}`).then(res => res.ok ? res.json() : null),
+      fetch(`https://api.themoviedb.org/3/movie/popular?api_key=${key}`).then(res => res.ok ? res.json() : null)
+    ]).then(([trending, topRated, popular]) => {
+      if (!isMounted) return;
+      const allMovies = [
+        ...(trending?.results || []),
+        ...(topRated?.results || []),
+        ...(popular?.results || [])
+      ];
+      // Extract unique poster paths
+      const paths = Array.from(new Set(allMovies.map(m => m.poster_path).filter(Boolean))) as string[];
+      if (paths.length >= 12) {
+        // Shuffle paths
+        const shuffled = paths.sort(() => 0.5 - Math.random());
+        const c1: string[] = [];
+        const c2: string[] = [];
+        const c3: string[] = [];
+        shuffled.forEach((p, idx) => {
+          if (idx % 3 === 0) c1.push(p);
+          else if (idx % 3 === 1) c2.push(p);
+          else c3.push(p);
+        });
+        setCol1(c1.slice(0, 10));
+        setCol2(c2.slice(0, 10));
+        setCol3(c3.slice(0, 10));
+      }
+    }).catch(err => {
+      console.warn("Dynamic posters load failed, using fallback.", err);
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
   
   // Settings check
   const supabase = getSupabase();
@@ -376,14 +421,14 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onOpenSettings })
         <div className="w-[30%] h-[150%] flex flex-col overflow-hidden select-none pointer-events-none">
             <div className="flex flex-col animate-scroll-up">
                 <div className="flex flex-col gap-4 lg:gap-6 pb-4 lg:pb-6">
-                    {COL_1_POSTERS.map((poster, i) => (
+                    {col1.map((poster, i) => (
                         <div key={`col1-1-${i}`} className="w-full aspect-[2/3] rounded-xl lg:rounded-2xl overflow-hidden shadow-2xl bg-white/5 relative border border-white/5 hover:border-red-500/30 hover:scale-[1.03] transition-all duration-500">
                             <img src={`${TMDB_IMAGE_BASE}${poster}`} className="w-full h-full object-cover opacity-80" alt="" loading="lazy" />
                         </div>
                     ))}
                 </div>
                 <div className="flex flex-col gap-4 lg:gap-6 pb-4 lg:pb-6">
-                    {COL_1_POSTERS.map((poster, i) => (
+                    {col1.map((poster, i) => (
                         <div key={`col1-2-${i}`} className="w-full aspect-[2/3] rounded-xl lg:rounded-2xl overflow-hidden shadow-2xl bg-white/5 relative border border-white/5 hover:border-red-500/30 hover:scale-[1.03] transition-all duration-500">
                             <img src={`${TMDB_IMAGE_BASE}${poster}`} className="w-full h-full object-cover opacity-80" alt="" loading="lazy" />
                         </div>
@@ -396,14 +441,14 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onOpenSettings })
         <div className="w-[30%] h-[150%] flex flex-col overflow-hidden select-none pointer-events-none">
             <div className="flex flex-col animate-scroll-down">
                 <div className="flex flex-col gap-4 lg:gap-6 pb-4 lg:pb-6">
-                    {COL_2_POSTERS.map((poster, i) => (
+                    {col2.map((poster, i) => (
                         <div key={`col2-1-${i}`} className="w-full aspect-[2/3] rounded-xl lg:rounded-2xl overflow-hidden shadow-2xl bg-white/5 relative border border-white/5 hover:border-red-500/30 hover:scale-[1.03] transition-all duration-500">
                             <img src={`${TMDB_IMAGE_BASE}${poster}`} className="w-full h-full object-cover opacity-80" alt="" loading="lazy" />
                         </div>
                     ))}
                 </div>
                 <div className="flex flex-col gap-4 lg:gap-6 pb-4 lg:pb-6">
-                    {COL_2_POSTERS.map((poster, i) => (
+                    {col2.map((poster, i) => (
                         <div key={`col2-2-${i}`} className="w-full aspect-[2/3] rounded-xl lg:rounded-2xl overflow-hidden shadow-2xl bg-white/5 relative border border-white/5 hover:border-red-500/30 hover:scale-[1.03] transition-all duration-500">
                             <img src={`${TMDB_IMAGE_BASE}${poster}`} className="w-full h-full object-cover opacity-80" alt="" loading="lazy" />
                         </div>
@@ -416,14 +461,14 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onOpenSettings })
         <div className="w-[30%] h-[150%] flex flex-col overflow-hidden select-none pointer-events-none">
             <div className="flex flex-col animate-scroll-up-slow">
                 <div className="flex flex-col gap-4 lg:gap-6 pb-4 lg:pb-6">
-                    {COL_3_POSTERS.map((poster, i) => (
+                    {col3.map((poster, i) => (
                         <div key={`col3-1-${i}`} className="w-full aspect-[2/3] rounded-xl lg:rounded-2xl overflow-hidden shadow-2xl bg-white/5 relative border border-white/5 hover:border-red-500/30 hover:scale-[1.03] transition-all duration-500">
                             <img src={`${TMDB_IMAGE_BASE}${poster}`} className="w-full h-full object-cover opacity-80" alt="" loading="lazy" />
                         </div>
                     ))}
                 </div>
                 <div className="flex flex-col gap-4 lg:gap-6 pb-4 lg:pb-6">
-                    {COL_3_POSTERS.map((poster, i) => (
+                    {col3.map((poster, i) => (
                         <div key={`col3-2-${i}`} className="w-full aspect-[2/3] rounded-xl lg:rounded-2xl overflow-hidden shadow-2xl bg-white/5 relative border border-white/5 hover:border-red-500/30 hover:scale-[1.03] transition-all duration-500">
                             <img src={`${TMDB_IMAGE_BASE}${poster}`} className="w-full h-full object-cover opacity-80" alt="" loading="lazy" />
                         </div>
