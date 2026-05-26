@@ -1078,6 +1078,7 @@ export default function App() {
   }, [isAuthenticated, syncStateFromPath]);
 
   useEffect(() => {
+      if (authChecking || !isAuthenticated) return;
       if (isSyncingPath.current) return;
       
       let newPath = '/';
