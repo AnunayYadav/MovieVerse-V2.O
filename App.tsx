@@ -715,6 +715,8 @@ export default function App() {
   const [watchPartyIsLoading, setWatchPartyIsLoading] = useState(false);
   const [isWatchPartyImmersive, setIsWatchPartyImmersive] = useState(false);
 
+  const loadedUserIdRef = useRef<string | null>(null);
+
   // Scroll Lock Controller
   useEffect(() => {
     const isAnyModalOpen = selectedMovie || isSettingsOpen || selectedPersonId || isNotificationOpen || isComparisonOpen || isSidebarOpen;
@@ -1061,6 +1063,7 @@ export default function App() {
   }, [isComparisonOpen, selectedPersonId, isSettingsOpen, isNotificationOpen, isSidebarOpen, selectedMovie]);
 
   const resetAuthState = useCallback(() => {
+    loadedUserIdRef.current = null;
     localStorage.removeItem('movieverse_auth');
     setIsAuthenticated(false);
     setCurrentUserId('');
@@ -1129,6 +1132,8 @@ export default function App() {
              setDataLoaded(true);
         };
         const handleSessionFound = async (session: any) => {
+             if (loadedUserIdRef.current === session.user.id) return;
+             loadedUserIdRef.current = session.user.id;
              setIsAuthenticated(true);
              setCurrentUserId(session.user.id);
              try {
@@ -1174,7 +1179,7 @@ export default function App() {
         const supabase = getSupabase();
         if (supabase) {
             const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-                if (event === 'SIGNED_IN' && session) {
+                if (session) {
                     handleSessionFound(session);
                 } else if (event === 'SIGNED_OUT') {
                     resetAuthState();

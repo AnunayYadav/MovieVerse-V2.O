@@ -5,25 +5,26 @@ import { TMDB_IMAGE_BASE, BrandLogo } from './Shared';
 import { GENRES_LIST, UserProfile } from '../types';
 import { signInWithGoogle, signInWithEmail, signUpWithEmail, getSupabase } from '../services/supabase';
 
-// High-quality posters for the background wall
-const BACKGROUND_POSTERS = [
+// High-quality posters for the 3 moving columns
+const COL_1_POSTERS = [
   "/qJ2tW6WMUDux911r6m7haRef0WH.jpg", "/saHP97rTPS5eLmrLQEcANmKrsFl.jpg",
   "/pB8BM7pdSp6B6Ih7QZ4DrQ3PmJK.jpg", "/3bhkrj58Vtu7enYsRolD1fZdja1.jpg",
   "/sF1U4EUQS8YHUYjNl3pTXMYjj9s.jpg", "/ow3wq89wM8qd5X7hWKxiRfsFf9C.jpg",
-  "/bMadFzhjy9T7R8J48QGq1ngWQq.jpg",  "/1E5baAaEse26fej7uHcjOgEE2t2.jpg",
+  "/bMadFzhjy9T7R8J48QGq1ngWQq.jpg",  "/1E5baAaEse26fej7uHcjOgEE2t2.jpg"
+];
+
+const COL_2_POSTERS = [
   "/8UlWHLMpgZm9bx6QYh0NFoq67TZ.jpg", "/6oom5QYQ2yQTMJIbnvbkBL9cHo6.jpg",
   "/9cqNxx0GxF0bflZmeSMuL5tnGzr.jpg", "/arw2vcBveWOVZr6pxd9KKvuNyLO.jpg",
   "/kXfqcdQKsToO0OUXHcrrNCHDBzO.jpg", "/u3bZgnGQ9TWA758r8vn0qHnDEnO.jpg",
-  "/rCzpDGLbOoPwLjy3vpX3uzwwkAK.jpg", "/z2yahl2uefxDCl0nogcRBstwruJ.jpg",
-  "/qJ2tW6WMUDux911r6m7haRef0WH.jpg", "/saHP97rTPS5eLmrLQEcANmKrsFl.jpg",
-  "/pB8BM7pdSp6B6Ih7QZ4DrQ3PmJK.jpg", "/3bhkrj58Vtu7enYsRolD1fZdja1.jpg",
-  "/sF1U4EUQS8YHUYjNl3pTXMYjj9s.jpg", "/ow3wq89wM8qd5X7hWKxiRfsFf9C.jpg",
-  "/bMadFzhjy9T7R8J48QGq1ngWQq.jpg",  "/1E5baAaEse26fej7uHcjOgEE2t2.jpg",
-  // Duplicates for seamless looping density
-  "/qJ2tW6WMUDux911r6m7haRef0WH.jpg", "/saHP97rTPS5eLmrLQEcANmKrsFl.jpg",
-  "/pB8BM7pdSp6B6Ih7QZ4DrQ3PmJK.jpg", "/3bhkrj58Vtu7enYsRolD1fZdja1.jpg",
-  "/sF1U4EUQS8YHUYjNl3pTXMYjj9s.jpg", "/ow3wq89wM8qd5X7hWKxiRfsFf9C.jpg",
-  "/bMadFzhjy9T7R8J48QGq1ngWQq.jpg",  "/1E5baAaEse26fej7uHcjOgEE2t2.jpg",
+  "/rCzpDGLbOoPwLjy3vpX3uzwwkAK.jpg", "/z2yahl2uefxDCl0nogcRBstwruJ.jpg"
+];
+
+const COL_3_POSTERS = [
+  "/3bhkrj58Vtu7enYsRolD1fZdja1.jpg", "/bMadFzhjy9T7R8J48QGq1ngWQq.jpg",
+  "/saHP97rTPS5eLmrLQEcANmKrsFl.jpg", "/sF1U4EUQS8YHUYjNl3pTXMYjj9s.jpg",
+  "/9cqNxx0GxF0bflZmeSMuL5tnGzr.jpg", "/kXfqcdQKsToO0OUXHcrrNCHDBzO.jpg",
+  "/1E5baAaEse26fej7uHcjOgEE2t2.jpg", "/ow3wq89wM8qd5X7hWKxiRfsFf9C.jpg"
 ];
 
 interface LoginPageProps {
@@ -130,43 +131,25 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onOpenSettings })
   };
 
   return (
-    <div className="fixed inset-0 z-[100] bg-[#050505] flex items-center justify-center overflow-hidden font-sans text-white selection:bg-red-500/30">
+    <div className="fixed inset-0 z-[100] bg-[#050505] flex flex-col lg:flex-row overflow-hidden font-sans text-white select-none selection:bg-red-500/30">
       
-      {/* Moving Background Wall - Angled and animated */}
-      <div className="absolute inset-[-50%] w-[200%] h-[200%] bg-black -rotate-12 opacity-30 pointer-events-none select-none overflow-hidden">
-        <div className="flex flex-wrap justify-center gap-6 animate-wall-scroll">
-             {/* Repeat array multiple times for density */}
-             {[...BACKGROUND_POSTERS, ...BACKGROUND_POSTERS, ...BACKGROUND_POSTERS, ...BACKGROUND_POSTERS].map((poster, i) => (
-               <div key={i} className="w-48 aspect-[2/3] rounded-xl overflow-hidden bg-white/5 relative grayscale hover:grayscale-0 transition-all duration-700 ease-out hover:scale-105 shadow-2xl">
-                  <img 
-                    src={`${TMDB_IMAGE_BASE}${poster}`} 
-                    className="w-full h-full object-cover opacity-60 hover:opacity-100 transition-opacity" 
-                    alt="" 
-                    loading="lazy"
-                  />
-               </div>
-             ))}
-        </div>
-      </div>
-      
-      {/* Heavy Vignette for Focus */}
-      <div className="absolute inset-0 bg-gradient-to-t from-[#050505] via-[#050505]/80 to-transparent" />
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0%,#050505_90%)]" />
-      
-      {/* Aesthetic Glass Card */}
-      <div className="relative z-10 w-full max-w-[420px] p-6 animate-in fade-in zoom-in-95 duration-700">
-         <div className="backdrop-blur-3xl bg-black/40 border border-white/10 rounded-3xl p-8 shadow-[0_0_100px_rgba(220,38,38,0.1)] relative overflow-hidden group">
-            
-            {/* Subtle light sheen */}
-            <div className="absolute -inset-[100%] bg-gradient-to-r from-transparent via-white/5 to-transparent rotate-45 pointer-events-none" />
+      {/* Left Side: Login / Signup Form */}
+      <div className="w-full lg:w-[45%] xl:w-[40%] flex flex-col items-center justify-center p-6 md:p-12 z-20 bg-[#050505]/95 lg:bg-[#050505] border-r border-white/5 relative h-full shrink-0 backdrop-blur-md lg:backdrop-blur-none">
+        
+        {/* Mobile background only - subtle vignette */}
+        <div className="absolute inset-0 bg-gradient-to-t from-[#050505] via-[#050505]/80 to-transparent lg:hidden pointer-events-none" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0%,#050505_90%)] lg:hidden pointer-events-none" />
 
+        {/* Floating Form Container */}
+        <div className="relative z-10 w-full max-w-[400px] p-4 animate-in fade-in zoom-in-95 duration-700">
+         <div className="relative overflow-hidden group">
             <div className="relative z-10 flex flex-col items-center">
                 {/* Logo & Header */}
                 <div className="mb-8 text-center">
-                   <div className="inline-flex items-center justify-center mb-4 group-hover:scale-105 transition-transform duration-500">
-                      <BrandLogo size={40} className="text-red-600 drop-shadow-[0_0_15px_rgba(220,38,38,0.6)]" />
+                   <div className="inline-flex items-center justify-center mb-5 hover:scale-105 transition-transform duration-500">
+                      <BrandLogo size={64} className="text-red-600" />
                    </div>
-                   <h1 className="text-2xl font-bold tracking-tight text-white">
+                   <h1 className="text-3xl font-black tracking-tight text-white mt-1">
                        {isLogin ? "Welcome Back" : "Join MovieVerse"}
                    </h1>
                    <p className="text-white/40 text-xs mt-2 font-medium tracking-wide">
@@ -190,7 +173,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onOpenSettings })
                 <div className="w-full">
                 {isLogin ? (
                     // LOGIN FORM
-                    <>
+                    <div key="login-section" className="space-y-4 animate-slide-left">
                         <button 
                            onClick={handleGoogleLogin}
                            className={`w-full bg-white text-black font-bold text-sm h-12 rounded-xl flex items-center justify-center gap-3 hover:bg-gray-200 transition-all active:scale-[0.98] mb-6 shadow-lg shadow-white/5 ${!supabase ? 'opacity-50 cursor-not-allowed' : ''}`}
@@ -217,7 +200,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onOpenSettings })
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
                                     placeholder="Email address" 
-                                    className="w-full h-12 bg-white/5 border border-white/5 rounded-xl pl-12 pr-4 text-white text-sm focus:outline-none focus:bg-white/10 focus:border-red-500/50 transition-all placeholder-white/20"
+                                    className="w-full h-12 bg-white/5 border-none rounded-xl pl-12 pr-4 text-white text-sm focus:outline-none focus:bg-white/10 focus:ring-1 focus:ring-red-600/30 transition-all placeholder-white/20"
                                 />
                             </div>
 
@@ -229,7 +212,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onOpenSettings })
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
                                     placeholder="Password" 
-                                    className="w-full h-12 bg-white/5 border border-white/5 rounded-xl pl-12 pr-12 text-white text-sm focus:outline-none focus:bg-white/10 focus:border-red-500/50 transition-all placeholder-white/20"
+                                    className="w-full h-12 bg-white/5 border-none rounded-xl pl-12 pr-12 text-white text-sm focus:outline-none focus:bg-white/10 focus:ring-1 focus:ring-red-600/30 transition-all placeholder-white/20"
                                 />
                                 <button 
                                     type="button"
@@ -248,10 +231,10 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onOpenSettings })
                               {loading ? <Loader2 className="animate-spin" size={20}/> : <>Sign In <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform"/></>}
                             </button>
                         </form>
-                    </>
+                    </div>
                 ) : signupStep === 1 ? (
                     // SIGNUP STEP 1
-                    <form onSubmit={handleSignupStep1} className="space-y-4 animate-in fade-in slide-in-from-right-8">
+                    <form key="signup-step-1" onSubmit={handleSignupStep1} className="space-y-4 animate-slide-right">
                         <div className="group relative">
                            <User size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30 group-focus-within:text-white transition-colors" />
                            <input 
@@ -260,7 +243,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onOpenSettings })
                               value={name}
                               onChange={(e) => setName(e.target.value)}
                               placeholder="Full Name" 
-                              className="w-full h-12 bg-white/5 border border-white/5 rounded-xl pl-12 pr-4 text-white text-sm focus:outline-none focus:bg-white/10 focus:border-red-500/50 transition-all placeholder-white/20"
+                              className="w-full h-12 bg-white/5 border-none rounded-xl pl-12 pr-4 text-white text-sm focus:outline-none focus:bg-white/10 focus:ring-1 focus:ring-red-600/30 transition-all placeholder-white/20"
                            />
                         </div>
                         
@@ -272,7 +255,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onOpenSettings })
                               value={email}
                               onChange={(e) => setEmail(e.target.value)}
                               placeholder="Email address" 
-                              className="w-full h-12 bg-white/5 border border-white/5 rounded-xl pl-12 pr-4 text-white text-sm focus:outline-none focus:bg-white/10 focus:border-red-500/50 transition-all placeholder-white/20"
+                              className="w-full h-12 bg-white/5 border-none rounded-xl pl-12 pr-4 text-white text-sm focus:outline-none focus:bg-white/10 focus:ring-1 focus:ring-red-600/30 transition-all placeholder-white/20"
                            />
                         </div>
 
@@ -283,7 +266,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onOpenSettings })
                               value={password}
                               onChange={(e) => setPassword(e.target.value)}
                               placeholder="Create Password" 
-                              className="w-full h-12 bg-white/5 border border-white/5 rounded-xl pl-4 pr-12 text-white text-sm focus:outline-none focus:bg-white/10 focus:border-red-500/50 transition-all placeholder-white/20"
+                              className="w-full h-12 bg-white/5 border-none rounded-xl pl-4 pr-12 text-white text-sm focus:outline-none focus:bg-white/10 focus:ring-1 focus:ring-red-600/30 transition-all placeholder-white/20"
                            />
                            <button 
                              type="button"
@@ -303,7 +286,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onOpenSettings })
                     </form>
                 ) : (
                     // SIGNUP STEP 2
-                    <form onSubmit={handleSignupComplete} className="space-y-6 animate-in fade-in slide-in-from-right-8">
+                    <form key="signup-step-2" onSubmit={handleSignupComplete} className="space-y-6 animate-slide-right">
                         <div className="space-y-2">
                             <label className="text-[10px] font-bold text-white/40 uppercase tracking-wider ml-1">Your Age</label>
                             <div className="group relative">
@@ -316,7 +299,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onOpenSettings })
                                   value={age}
                                   onChange={(e) => setAge(e.target.value)}
                                   placeholder="e.g. 24" 
-                                  className="w-full h-12 bg-white/5 border border-white/5 rounded-xl pl-12 pr-4 text-white text-sm focus:outline-none focus:bg-white/10 focus:border-red-500/50 transition-all placeholder-white/20"
+                                  className="w-full h-12 bg-white/5 border-none rounded-xl pl-12 pr-4 text-white text-sm focus:outline-none focus:bg-white/10 focus:ring-1 focus:ring-red-600/30 transition-all placeholder-white/20"
                                />
                             </div>
                         </div>
@@ -331,7 +314,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onOpenSettings })
                                        type="button"
                                        key={genre}
                                        onClick={() => toggleGenre(genre)}
-                                       className={`px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all border flex items-center gap-1.5 ${selectedGenres.includes(genre) ? 'bg-red-600 border-red-600 text-white shadow-lg shadow-red-900/20' : 'bg-white/5 border-white/5 text-gray-400 hover:border-white/20 hover:text-white'}`}
+                                       className={`px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all flex items-center gap-1.5 ${selectedGenres.includes(genre) ? 'bg-red-600 text-white shadow-lg shadow-red-900/20' : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white'}`}
                                      >
                                          {genre}
                                          {selectedGenres.includes(genre) && <Check size={10}/>}
@@ -378,19 +361,114 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onOpenSettings })
             </div>
          </div>
       </div>
+      </div>
+
+      {/* Right Side: Three Column Moving Film Posters */}
+      <div className="absolute lg:relative inset-0 lg:inset-auto flex-1 h-full bg-[#030303]/40 lg:bg-[#030303] overflow-hidden flex justify-center items-center gap-4 lg:gap-6 p-4 lg:p-8 opacity-25 lg:opacity-100 z-0 lg:z-10">
+        {/* Subtle grid pattern overlay */}
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:24px_24px] pointer-events-none z-10" />
+        
+        {/* Vignette shadows */}
+        <div className="absolute inset-0 bg-gradient-to-r from-[#050505] via-transparent to-[#050505] pointer-events-none z-10 hidden lg:block" />
+        <div className="absolute inset-0 bg-gradient-to-b from-[#050505] via-transparent to-[#050505] pointer-events-none z-10" />
+
+        {/* Column 1 (Scrolls Up) */}
+        <div className="w-[30%] h-[150%] flex flex-col overflow-hidden select-none pointer-events-none">
+            <div className="flex flex-col animate-scroll-up">
+                <div className="flex flex-col gap-4 lg:gap-6 pb-4 lg:pb-6">
+                    {COL_1_POSTERS.map((poster, i) => (
+                        <div key={`col1-1-${i}`} className="w-full aspect-[2/3] rounded-xl lg:rounded-2xl overflow-hidden shadow-2xl bg-white/5 relative border border-white/5 hover:border-red-500/30 hover:scale-[1.03] transition-all duration-500">
+                            <img src={`${TMDB_IMAGE_BASE}${poster}`} className="w-full h-full object-cover opacity-80" alt="" loading="lazy" />
+                        </div>
+                    ))}
+                </div>
+                <div className="flex flex-col gap-4 lg:gap-6 pb-4 lg:pb-6">
+                    {COL_1_POSTERS.map((poster, i) => (
+                        <div key={`col1-2-${i}`} className="w-full aspect-[2/3] rounded-xl lg:rounded-2xl overflow-hidden shadow-2xl bg-white/5 relative border border-white/5 hover:border-red-500/30 hover:scale-[1.03] transition-all duration-500">
+                            <img src={`${TMDB_IMAGE_BASE}${poster}`} className="w-full h-full object-cover opacity-80" alt="" loading="lazy" />
+                        </div>
+                    ))}
+                </div>
+            </div>
+        </div>
+
+        {/* Column 2 (Scrolls Down) */}
+        <div className="w-[30%] h-[150%] flex flex-col overflow-hidden select-none pointer-events-none">
+            <div className="flex flex-col animate-scroll-down">
+                <div className="flex flex-col gap-4 lg:gap-6 pb-4 lg:pb-6">
+                    {COL_2_POSTERS.map((poster, i) => (
+                        <div key={`col2-1-${i}`} className="w-full aspect-[2/3] rounded-xl lg:rounded-2xl overflow-hidden shadow-2xl bg-white/5 relative border border-white/5 hover:border-red-500/30 hover:scale-[1.03] transition-all duration-500">
+                            <img src={`${TMDB_IMAGE_BASE}${poster}`} className="w-full h-full object-cover opacity-80" alt="" loading="lazy" />
+                        </div>
+                    ))}
+                </div>
+                <div className="flex flex-col gap-4 lg:gap-6 pb-4 lg:pb-6">
+                    {COL_2_POSTERS.map((poster, i) => (
+                        <div key={`col2-2-${i}`} className="w-full aspect-[2/3] rounded-xl lg:rounded-2xl overflow-hidden shadow-2xl bg-white/5 relative border border-white/5 hover:border-red-500/30 hover:scale-[1.03] transition-all duration-500">
+                            <img src={`${TMDB_IMAGE_BASE}${poster}`} className="w-full h-full object-cover opacity-80" alt="" loading="lazy" />
+                        </div>
+                    ))}
+                </div>
+            </div>
+        </div>
+
+        {/* Column 3 (Scrolls Up) */}
+        <div className="w-[30%] h-[150%] flex flex-col overflow-hidden select-none pointer-events-none">
+            <div className="flex flex-col animate-scroll-up-slow">
+                <div className="flex flex-col gap-4 lg:gap-6 pb-4 lg:pb-6">
+                    {COL_3_POSTERS.map((poster, i) => (
+                        <div key={`col3-1-${i}`} className="w-full aspect-[2/3] rounded-xl lg:rounded-2xl overflow-hidden shadow-2xl bg-white/5 relative border border-white/5 hover:border-red-500/30 hover:scale-[1.03] transition-all duration-500">
+                            <img src={`${TMDB_IMAGE_BASE}${poster}`} className="w-full h-full object-cover opacity-80" alt="" loading="lazy" />
+                        </div>
+                    ))}
+                </div>
+                <div className="flex flex-col gap-4 lg:gap-6 pb-4 lg:pb-6">
+                    {COL_3_POSTERS.map((poster, i) => (
+                        <div key={`col3-2-${i}`} className="w-full aspect-[2/3] rounded-xl lg:rounded-2xl overflow-hidden shadow-2xl bg-white/5 relative border border-white/5 hover:border-red-500/30 hover:scale-[1.03] transition-all duration-500">
+                            <img src={`${TMDB_IMAGE_BASE}${poster}`} className="w-full h-full object-cover opacity-80" alt="" loading="lazy" />
+                        </div>
+                    ))}
+                </div>
+            </div>
+        </div>
+      </div>
       
       {/* Minimal Aesthetic Footer */}
-      <div className="absolute bottom-6 text-center w-full z-10 pointer-events-none">
+      <div className="absolute bottom-6 left-0 lg:w-[45%] xl:w-[40%] text-center w-full z-20 pointer-events-none hidden lg:block">
           <p className="text-white/10 text-[10px] font-bold tracking-[0.3em] uppercase">MovieVerse AI © 2025</p>
       </div>
 
       <style>{`
-        @keyframes scroll {
+        @keyframes scrollUp {
             0% { transform: translateY(0); }
             100% { transform: translateY(-50%); }
         }
-        .animate-wall-scroll {
-            animation: scroll 120s linear infinite;
+        @keyframes scrollDown {
+            0% { transform: translateY(-50%); }
+            100% { transform: translateY(0); }
+        }
+        .animate-scroll-up {
+            animation: scrollUp 45s linear infinite;
+        }
+        .animate-scroll-down {
+            animation: scrollDown 45s linear infinite;
+        }
+        .animate-scroll-up-slow {
+            animation: scrollUp 55s linear infinite;
+        }
+        @keyframes fadeInSlideLeft {
+            0% { opacity: 0; transform: translateX(-20px); }
+            100% { opacity: 1; transform: translateX(0); }
+        }
+        @keyframes fadeInSlideRight {
+            0% { opacity: 0; transform: translateX(20px); }
+            100% { opacity: 1; transform: translateX(0); }
+        }
+        .animate-slide-left {
+            animation: fadeInSlideLeft 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+        .animate-slide-right {
+            animation: fadeInSlideRight 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
         }
       `}</style>
     </div>
