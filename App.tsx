@@ -1340,6 +1340,16 @@ export default function App() {
       localStorage.setItem('movieverse_search_history', JSON.stringify(newHistory));
   };
 
+  // Debounce dynamic search history logging
+  useEffect(() => {
+      const query = searchQuery.trim();
+      if (!query || query.length < 2) return;
+      const timeoutId = setTimeout(() => {
+          addToSearchHistory(query);
+      }, 2000);
+      return () => clearTimeout(timeoutId);
+  }, [searchQuery]);
+
   const toggleList = (list: Movie[], setList: (l: Movie[]) => void, key: string, movie: Movie) => {
       const exists = list.some(m => m.id === movie.id);
       const newList = exists ? list.filter(m => m.id !== movie.id) : [...list, movie];
@@ -1780,6 +1790,22 @@ export default function App() {
   if (authChecking) return <div className="fixed inset-0 bg-black flex items-center justify-center"><LogoLoader /></div>;
   if (!isAuthenticated) return (<> <LoginPage onLogin={handleLogin} onOpenSettings={() => setIsSettingsOpen(true)} /> <SettingsPage isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} apiKey={apiKey} setApiKey={(k) => saveSettings(k)} maturityRating={maturityRating} setMaturityRating={setMaturityRating} profile={userProfile} onUpdateProfile={setUserProfile} onLogout={handleLogout} searchHistory={searchHistory} setSearchHistory={(h) => { setSearchHistory(h); localStorage.setItem('movieverse_search_history', JSON.stringify(h)); }} watchedMovies={watched} setWatchedMovies={(m) => { setWatched(m); localStorage.setItem('movieverse_watched', JSON.stringify(m)); }} /> </>);
 
+  const getSidebarItemClass = (isActive: boolean) => {
+      return `w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-bold transition-all duration-300 relative group/item overflow-hidden ${
+          isActive 
+          ? "bg-gradient-to-r from-red-600/15 to-transparent text-white border-l-[3px] border-red-600 pl-[11px]" 
+          : "text-zinc-400 hover:text-white hover:bg-white/5 hover:translate-x-1"
+      }`;
+  };
+
+  const getSidebarLibraryClass = (isActive: boolean) => {
+      return `w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-bold transition-all duration-300 relative group/item overflow-hidden ${
+          isActive 
+          ? "bg-gradient-to-r from-red-600/15 to-transparent text-white border-l-[3px] border-red-600 pl-[11px]" 
+          : "text-zinc-400 hover:text-white hover:bg-white/5 hover:translate-x-1"
+      }`;
+  };
+
   return (
     <div className="min-h-screen bg-[#030303] text-white font-sans selection:bg-amber-500/30 selection:text-white">
       {/* Dynamic Sidebar */}
@@ -1789,7 +1815,6 @@ export default function App() {
                   <div className="flex items-center justify-center cursor-pointer group relative select-none" onClick={resetToHome}>
                       <div className="relative group flex items-center justify-center">
                           <BrandLogo size={36} accentColor={accentText} className="relative z-10 transition-transform duration-500 group-hover:rotate-12" />
-                          <div className="absolute inset-0 blur-lg opacity-40 group-hover:opacity-75 transition-opacity duration-500 bg-red-600"></div>
                       </div>
                   </div>
                   <button onClick={() => setIsSidebarOpen(false)} className="p-2 hover:bg-white/10 rounded-full transition-colors">
@@ -1813,44 +1838,44 @@ export default function App() {
               <div className="space-y-6 overflow-y-auto custom-scrollbar flex-1 -mx-2 px-2">
                   <div className="space-y-1">
                       <p className="px-3 text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Main</p>
-                      <button onClick={resetToHome} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-all ${selectedCategory === "All" ? "bg-white/10 text-white" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>
+                      <button onClick={resetToHome} className={getSidebarItemClass(selectedCategory === "All" && !searchQuery)}>
                           <Home size={18}/> Home <span className="ml-auto text-[8px] opacity-40 hidden lg:inline">Alt+H</span>
                       </button>
-                      <button onClick={() => { resetFilters(); setSelectedCategory("Explore"); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-all ${selectedCategory === "Explore" ? "bg-white/10 text-white" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>
+                      <button onClick={() => { resetFilters(); setSelectedCategory("Explore"); }} className={getSidebarItemClass(selectedCategory === "Explore")}>
                           <Compass size={18}/> Explore <span className="ml-auto text-[8px] opacity-40 hidden lg:inline">Alt+E</span>
                       </button>
                   </div>
 
                   <div className="space-y-1">
                       <p className="px-3 text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Entertainment</p>
-                      <button onClick={() => { resetFilters(); setSelectedCategory("TV Shows"); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-all ${selectedCategory === "TV Shows" ? "bg-white/10 text-white" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>
+                      <button onClick={() => { resetFilters(); setSelectedCategory("TV Shows"); }} className={getSidebarItemClass(selectedCategory === "TV Shows")}>
                           <Tv size={18}/> TV Shows
                       </button>
-                      <button onClick={() => { resetFilters(); setSelectedCategory("LiveTV"); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-all ${selectedCategory === "LiveTV" ? "bg-white/10 text-white" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>
+                      <button onClick={() => { resetFilters(); setSelectedCategory("LiveTV"); }} className={getSidebarItemClass(selectedCategory === "LiveTV")}>
                           <Radio size={18}/> Live TV <span className="ml-auto text-[8px] opacity-40 hidden lg:inline">Alt+T</span>
                       </button>
-                      <button onClick={() => { resetFilters(); setSelectedCategory("Sports"); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-all ${selectedCategory === "Sports" ? "bg-white/10 text-white" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>
+                      <button onClick={() => { resetFilters(); setSelectedCategory("Sports"); }} className={getSidebarItemClass(selectedCategory === "Sports")}>
                           <Trophy size={18}/> Sports
                       </button>
-                      <button onClick={() => { resetFilters(); setSelectedCategory("Franchise"); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-all ${selectedCategory === "Franchise" ? "bg-white/10 text-white" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>
+                      <button onClick={() => { resetFilters(); setSelectedCategory("Franchise"); }} className={getSidebarItemClass(selectedCategory === "Franchise")}>
                           <Layers size={18}/> Franchise Explorer
                       </button>
-                      <button onClick={() => { setIsSidebarOpen(false); setIsWatchPartyJoinOpen(true); }} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold text-purple-400 hover:bg-purple-500/10 transition-all border border-purple-500/10 mt-2">
+                      <button onClick={() => { setIsSidebarOpen(false); setIsWatchPartyJoinOpen(true); }} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold text-purple-400 hover:bg-purple-500/10 transition-all border border-purple-500/10 hover:translate-x-1 duration-300 mt-2">
                           <Users size={18}/> Join Watch Party
                       </button>
                   </div>
 
                   <div className="space-y-1">
                       <p className="px-3 text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">My Library</p>
-                      <button onClick={() => { resetFilters(); setSelectedCategory("Watchlist"); }} className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-bold transition-all ${selectedCategory === "Watchlist" ? "bg-white/10 text-white" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>
+                      <button onClick={() => { resetFilters(); setSelectedCategory("Watchlist"); }} className={getSidebarLibraryClass(selectedCategory === "Watchlist")}>
                           <div className="flex items-center gap-3"><Bookmark size={18}/> Watchlist <span className="text-[8px] opacity-40 hidden lg:inline ml-1">Alt+W</span></div>
                           <span className="text-[10px] bg-white/5 px-1.5 rounded">{watchlist.length}</span>
                       </button>
-                      <button onClick={() => { resetFilters(); setSelectedCategory("Favorites"); }} className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-bold transition-all ${selectedCategory === "Favorites" ? "bg-white/10 text-white" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>
+                      <button onClick={() => { resetFilters(); setSelectedCategory("Favorites"); }} className={getSidebarLibraryClass(selectedCategory === "Favorites")}>
                           <div className="flex items-center gap-3"><Heart size={18}/> Favorites</div>
                           <span className="text-[10px] bg-white/5 px-1.5 rounded">{favorites.length}</span>
                       </button>
-                      <button onClick={() => { resetFilters(); setSelectedCategory("History"); }} className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-bold transition-all ${selectedCategory === "History" ? "bg-white/10 text-white" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>
+                      <button onClick={() => { resetFilters(); setSelectedCategory("History"); }} className={getSidebarLibraryClass(selectedCategory === "History")}>
                           <div className="flex items-center gap-3"><History size={18}/> History</div>
                           <span className="text-[10px] bg-white/5 px-1.5 rounded">{watched.length}</span>
                       </button>
@@ -1862,7 +1887,7 @@ export default function App() {
                           href="https://median.co/share/eeewoqx#apk" 
                           target="_blank" 
                           rel="noopener noreferrer" 
-                          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold text-amber-500 hover:bg-amber-500/10 transition-all border border-amber-500/10"
+                          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold text-amber-500 hover:bg-amber-500/10 transition-all border border-amber-500/10 hover:translate-x-1 duration-300"
                       >
                           <Download size={18}/> Download App
                       </a>
@@ -1870,10 +1895,10 @@ export default function App() {
               </div>
 
               <div className="mt-auto pt-6 border-t border-white/5 space-y-2">
-                  <button onClick={() => { setIsSidebarOpen(false); setIsSettingsOpen(true); }} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold text-gray-400 hover:text-white hover:bg-white/5">
+                  <button onClick={() => { setIsSidebarOpen(false); setIsSettingsOpen(true); }} className={getSidebarItemClass(isSettingsOpen)}>
                       <Settings size={18}/> Settings <span className="ml-auto text-[8px] opacity-40 hidden lg:inline">Alt+S</span>
                   </button>
-                  <button onClick={handleLogout} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold text-red-500 hover:bg-red-500/10 transition-colors">
+                  <button onClick={handleLogout} className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-bold text-red-500 hover:bg-red-500/10 hover:translate-x-1 transition-all duration-300">
                       <LogOut size={18}/> Sign Out
                   </button>
               </div>
@@ -1881,12 +1906,10 @@ export default function App() {
       </div>
 
       {/* Backdrop Overlay */}
-      {isSidebarOpen && (
-          <div 
-              className="fixed inset-0 z-[95] bg-black/60 backdrop-blur-sm animate-in fade-in duration-500"
-              onClick={() => setIsSidebarOpen(false)}
-          />
-      )}
+      <div 
+          className={`fixed inset-0 z-[95] bg-black/60 backdrop-blur-sm transition-opacity duration-300 ${isSidebarOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
+          onClick={() => setIsSidebarOpen(false)}
+      />
 
       <nav className={`fixed top-0 left-0 right-0 z-[60] h-16 flex items-center justify-center px-4 md:px-6 transition-all duration-500 ${
         (hasHeroBanner && !isScrolled) 
@@ -1905,7 +1928,6 @@ export default function App() {
                 <div className="flex items-center justify-center cursor-pointer group relative select-none" onClick={resetToHome}>
                     <div className="relative group flex items-center justify-center">
                         <BrandLogo size={36} className={`${accentText} relative z-10 transition-transform duration-500 group-hover:rotate-12`} accentColor={accentText} />
-                        <div className="absolute inset-0 blur-lg opacity-40 group-hover:opacity-75 transition-opacity duration-500 bg-red-600"></div>
                     </div>
                 </div>
 
@@ -1938,42 +1960,38 @@ export default function App() {
                             <ChevronDown size={12} className={`transition-transform duration-500 opacity-60 ${isBrowseOpen ? 'rotate-180' : ''}`} />
                         </button>
                         
-                        {isBrowseOpen && (
-                            <>
-                                <div className="absolute top-full left-1/2 -translate-x-1/2 w-[350px] h-[18px] bg-transparent z-[55]" />
-                                <div className="absolute top-[calc(100%+0.5rem)] left-1/2 -translate-x-1/2 w-[350px] bg-[#0c0c0e]/95 backdrop-blur-3xl border border-white/10 rounded-2xl shadow-[0_24px_50px_rgba(0,0,0,0.7)] p-4 grid grid-cols-3 gap-3 z-[60] animate-in fade-in zoom-in-[0.97] slide-in-from-top-2 duration-300 ease-out origin-top select-none">
-                                    {/* Popover Arrow */}
-                                    <div className="absolute -top-1 w-2.5 h-2.5 rotate-45 bg-[#0c0c0e] border-t border-l border-white/10 left-1/2 -translate-x-1/2 z-[-1]" />
-                                    
-                                    {browseOptions.map(opt => {
-                                        const isActive = selectedCategory === opt.id || 
-                                            (opt.id === "Trending" && selectedCategory === "All") ||
-                                            (opt.id === "WatchParty" && (activeWatchPartyRoom !== null || isWatchPartyJoinOpen));
-                                        
-                                        return (
-                                            <button 
-                                                key={opt.id}
-                                                onClick={() => handleBrowseAction(opt.action)}
-                                                className="group flex flex-col items-center justify-center gap-2 py-2 px-1 rounded-xl transition-all duration-300 hover:bg-white/5 active:scale-95 border border-transparent"
-                                            >
-                                                <div className={`w-12 h-12 rounded-[14px] flex items-center justify-center transition-all duration-300 ${
-                                                    isActive 
-                                                        ? (isGoldTheme ? 'bg-amber-500 text-black shadow-[0_8px_20px_-4px_rgba(245,158,11,0.4)]' : 'bg-red-600 text-white shadow-[0_8px_20px_-4px_rgba(220,38,38,0.4)]') 
-                                                        : 'bg-white/5 text-zinc-400 group-hover:bg-white/10 group-hover:text-white group-hover:scale-105 group-hover:shadow-[0_4px_12px_rgba(255,255,255,0.03)]'
-                                                }`}>
-                                                    <opt.icon size={22} className="transition-transform duration-300 group-hover:scale-110" />
-                                                </div>
-                                                <span className={`text-[11px] font-medium tracking-wide transition-colors duration-300 ${
-                                                    isActive 
-                                                        ? (isGoldTheme ? 'text-amber-400 font-semibold' : 'text-red-500 font-semibold') 
-                                                        : 'text-zinc-400 group-hover:text-zinc-200'
-                                                }`}>{opt.label}</span>
-                                            </button>
-                                        );
-                                    })}
-                                </div>
-                            </>
-                        )}
+                        <div className={`absolute top-full left-1/2 -translate-x-1/2 w-[350px] h-[18px] bg-transparent z-[55] transition-opacity duration-200 ${isBrowseOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`} />
+                        <div className={`absolute top-[calc(100%+0.5rem)] left-1/2 -translate-x-1/2 w-[350px] bg-[#0c0c0e]/95 backdrop-blur-3xl border border-white/10 rounded-2xl shadow-[0_24px_50px_rgba(0,0,0,0.7)] p-4 grid grid-cols-3 gap-3 z-[60] transition-all duration-200 transform origin-top select-none ${isBrowseOpen ? 'opacity-100 scale-100 translate-y-0 pointer-events-auto' : 'opacity-0 scale-95 -translate-y-2 pointer-events-none'}`}>
+                            {/* Popover Arrow */}
+                            <div className="absolute -top-1 w-2.5 h-2.5 rotate-45 bg-[#0c0c0e] border-t border-l border-white/10 left-1/2 -translate-x-1/2 z-[-1]" />
+                            
+                            {browseOptions.map(opt => {
+                                const isActive = selectedCategory === opt.id || 
+                                    (opt.id === "Trending" && selectedCategory === "All") ||
+                                    (opt.id === "WatchParty" && (activeWatchPartyRoom !== null || isWatchPartyJoinOpen));
+                                
+                                return (
+                                    <button 
+                                        key={opt.id}
+                                        onClick={() => handleBrowseAction(opt.action)}
+                                        className="group flex flex-col items-center justify-center gap-2 py-2 px-1 rounded-xl transition-all duration-300 hover:bg-white/5 active:scale-95 border border-transparent"
+                                    >
+                                        <div className={`w-12 h-12 rounded-[14px] flex items-center justify-center transition-all duration-300 ${
+                                            isActive 
+                                                ? (isGoldTheme ? 'bg-amber-500 text-black shadow-[0_8px_20px_-4px_rgba(245,158,11,0.4)]' : 'bg-red-600 text-white shadow-[0_8px_20px_-4px_rgba(220,38,38,0.4)]') 
+                                                : 'bg-white/5 text-zinc-400 group-hover:bg-white/10 group-hover:text-white group-hover:scale-105 group-hover:shadow-[0_4px_12px_rgba(255,255,255,0.03)]'
+                                        }`}>
+                                            <opt.icon size={22} className="transition-transform duration-300 group-hover:scale-110" />
+                                        </div>
+                                        <span className={`text-[11px] font-medium tracking-wide transition-colors duration-300 ${
+                                            isActive 
+                                                ? (isGoldTheme ? 'text-amber-400 font-semibold' : 'text-red-500 font-semibold') 
+                                                : 'text-zinc-400 group-hover:text-zinc-200'
+                                        }`}>{opt.label}</span>
+                                    </button>
+                                );
+                            })}
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1995,7 +2013,7 @@ export default function App() {
                 </div>
 
                 <div className="flex items-center gap-3">
-                    <button onClick={() => setIsNotificationOpen(true)} className="relative text-gray-400 hover:text-white transition-colors p-2 hover:bg-white/10 rounded-full">
+                    <button onClick={() => setIsNotificationOpen(!isNotificationOpen)} className="relative text-gray-400 hover:text-white transition-colors p-2 hover:bg-white/10 rounded-full">
                         <Bell size={20} />
                         {hasUnread && <span className={`absolute top-2 right-2 w-2 h-2 rounded-full ${isGoldTheme ? 'bg-amber-500' : 'bg-red-600'}`}></span>}
                     </button>
@@ -2015,46 +2033,41 @@ export default function App() {
                             )}
                         </button>
 
-                        {isProfileDropdownOpen && (
-                            <>
-                                {/* Click overlay to close dropdown */}
-                                <div 
-                                    className="fixed inset-0 z-[65]" 
-                                    onClick={() => setIsProfileDropdownOpen(false)}
-                                />
-                                <div className="absolute top-[calc(100%+0.75rem)] right-0 w-48 bg-[#0c0c0e]/95 backdrop-blur-3xl border border-white/10 rounded-2xl shadow-[0_20px_40px_rgba(0,0,0,0.8)] p-2 z-[70] animate-in fade-in zoom-in-[0.97] slide-in-from-top-2 duration-300 ease-out origin-top-right select-none">
-                                    {/* Dropdown Arrow */}
-                                    <div className="absolute -top-1 right-3 w-2.5 h-2.5 rotate-45 bg-[#0c0c0e] border-t border-l border-white/10 z-[-1]" />
-                                    
-                                    <div className="px-3 py-2 border-b border-white/5 mb-1 text-left">
-                                        <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider">Signed in as</p>
-                                        <p className="text-xs font-semibold text-white truncate mt-0.5">{userProfile.name || 'Guest'}</p>
-                                    </div>
+                        <div 
+                            className={`fixed inset-0 z-[65] transition-opacity duration-200 ${isProfileDropdownOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`} 
+                            onClick={() => setIsProfileDropdownOpen(false)}
+                        />
+                        <div className={`absolute top-[calc(100%+0.75rem)] right-0 w-48 bg-[#0c0c0e]/95 backdrop-blur-3xl border border-white/10 rounded-2xl shadow-[0_20px_40px_rgba(0,0,0,0.8)] p-2 z-[70] transition-all duration-200 transform origin-top-right select-none ${isProfileDropdownOpen ? 'opacity-100 scale-100 translate-y-0 pointer-events-auto' : 'opacity-0 scale-95 -translate-y-2 pointer-events-none'}`}>
+                            {/* Dropdown Arrow */}
+                            <div className="absolute -top-1 right-3 w-2.5 h-2.5 rotate-45 bg-[#0c0c0e] border-t border-l border-white/10 z-[-1]" />
+                            
+                            <div className="px-3 py-2 border-b border-white/5 mb-1 text-left">
+                                <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider">Signed in as</p>
+                                <p className="text-xs font-semibold text-white truncate mt-0.5">{userProfile.name || 'Guest'}</p>
+                            </div>
 
-                                    <button 
-                                        onClick={() => {
-                                            setIsSettingsOpen(true);
-                                            setIsProfileDropdownOpen(false);
-                                        }}
-                                        className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-zinc-300 hover:text-white hover:bg-white/5 rounded-xl transition-all duration-200 text-left"
-                                    >
-                                        <User size={15} className="text-zinc-400" />
-                                        Edit Profile
-                                    </button>
+                            <button 
+                                onClick={() => {
+                                    setIsSettingsOpen(true);
+                                    setIsProfileDropdownOpen(false);
+                                }}
+                                className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-zinc-300 hover:text-white hover:bg-white/5 rounded-xl transition-all duration-200 text-left"
+                            >
+                                <User size={15} className="text-zinc-400" />
+                                Edit Profile
+                            </button>
 
-                                    <button 
-                                        onClick={() => {
-                                            setIsSettingsOpen(true);
-                                            setIsProfileDropdownOpen(false);
-                                        }}
-                                        className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-zinc-300 hover:text-white hover:bg-white/5 rounded-xl transition-all duration-200 text-left"
-                                    >
-                                        <Settings size={15} className="text-zinc-400" />
-                                        Settings
-                                    </button>
-                                </div>
-                            </>
-                        )}
+                            <button 
+                                onClick={() => {
+                                    setIsSettingsOpen(true);
+                                    setIsProfileDropdownOpen(false);
+                                }}
+                                className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-zinc-300 hover:text-white hover:bg-white/5 rounded-xl transition-all duration-200 text-left"
+                            >
+                                <Settings size={15} className="text-zinc-400" />
+                                Settings
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -2550,82 +2563,77 @@ export default function App() {
       <SettingsPage isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} apiKey={apiKey} setApiKey={(k) => saveSettings(k)} maturityRating={maturityRating} setMaturityRating={setMaturityRating} profile={userProfile} onUpdateProfile={setUserProfile} onLogout={handleLogout} searchHistory={searchHistory} setSearchHistory={(h) => { setSearchHistory(h); localStorage.setItem('movieverse_search_history', JSON.stringify(h)); }} watchedMovies={watched} setWatchedMovies={(m) => { setWatched(m); localStorage.setItem('movieverse_watched', JSON.stringify(m)); }} />
       <NotificationModal isOpen={isNotificationOpen} onClose={() => setIsNotificationOpen(false)} onUpdate={checkUnreadNotifications} userProfile={userProfile} />
       
-      {isWatchPartyJoinOpen && (
-          <div className="fixed inset-0 z-[120] bg-black/80 backdrop-blur-xl flex items-center justify-center p-4 animate-in fade-in duration-300">
-              <div className="bg-[#0f0f10] border border-white/10 p-8 rounded-3xl w-full max-w-[400px] shadow-2xl relative">
-                  <button 
-                      onClick={() => { setIsWatchPartyJoinOpen(false); setJoinRoomCode(''); setJoinRoomError(''); }} 
-                      className="absolute top-4 right-4 text-gray-500 hover:text-white transition-colors"
-                  >
-                      <X size={20}/>
-                  </button>
-                  <h3 className="text-xl font-black text-white mb-2 flex items-center gap-2">
-                      <Users className="text-purple-500" /> Join Watch Party
-                  </h3>
-                  <p className="text-xs text-gray-500 mb-6 font-light">Enter a room code below to join a synchronized watch session.</p>
-                  
-                  {joinRoomError && (
-                      <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-semibold p-3 rounded-xl mb-4">
-                          {joinRoomError}
-                      </div>
-                  )}
-
-                  <div className="space-y-4">
-                      <input 
-                          type="text"
-                          maxLength={5}
-                          value={joinRoomCode}
-                          onChange={(e) => setJoinRoomCode(e.target.value.toUpperCase())}
-                          placeholder="e.g. A8B9C"
-                          className="w-full h-12 bg-black/40 border border-white/10 rounded-xl px-4 text-center text-lg font-black tracking-widest text-purple-400 focus:outline-none focus:border-purple-500/50 transition-colors uppercase placeholder-gray-700"
-                      />
-                      <button 
-                          onClick={() => handleJoinWatchParty(joinRoomCode)}
-                          disabled={watchPartyIsLoading || !joinRoomCode.trim()}
-                          className="w-full h-12 bg-purple-600 hover:bg-purple-700 active:scale-95 disabled:bg-white/5 disabled:text-gray-500 text-white font-bold text-sm tracking-wide rounded-xl shadow-lg shadow-purple-900/20 transition-all flex items-center justify-center gap-2"
-                      >
-                          {watchPartyIsLoading ? <Loader2 className="animate-spin" size={18}/> : 'Enter Room'}
-                      </button>
+      {/* Join Watch Party Modal */}
+      <div className={`fixed inset-0 z-[120] bg-black/80 backdrop-blur-xl flex items-center justify-center p-4 transition-all duration-300 ${isWatchPartyJoinOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}>
+          <div className={`bg-[#0f0f10] border border-white/10 p-8 rounded-3xl w-full max-w-[400px] shadow-2xl relative transition-all duration-300 transform ${isWatchPartyJoinOpen ? 'scale-100 opacity-100 translate-y-0' : 'scale-95 opacity-0 translate-y-4'}`}>
+              <button 
+                  onClick={() => { setIsWatchPartyJoinOpen(false); setJoinRoomCode(''); setJoinRoomError(''); }} 
+                  className="absolute top-4 right-4 text-gray-500 hover:text-white transition-colors"
+              >
+                  <X size={20}/>
+              </button>
+              <h3 className="text-xl font-black text-white mb-2 flex items-center gap-2">
+                  <Users className="text-purple-500" /> Join Watch Party
+              </h3>
+              <p className="text-xs text-gray-500 mb-6 font-light">Enter a room code below to join a synchronized watch session.</p>
+              
+              {joinRoomError && (
+                  <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-semibold p-3 rounded-xl mb-4">
+                      {joinRoomError}
                   </div>
+              )}
+
+              <div className="space-y-4">
+                  <input 
+                      type="text"
+                      maxLength={5}
+                      value={joinRoomCode}
+                      onChange={(e) => setJoinRoomCode(e.target.value.toUpperCase())}
+                      placeholder="e.g. A8B9C"
+                      className="w-full h-12 bg-black/40 border border-white/10 rounded-xl px-4 text-center text-lg font-black tracking-widest text-purple-400 focus:outline-none focus:border-purple-500/50 transition-colors uppercase placeholder-gray-700"
+                  />
+                  <button 
+                      onClick={() => handleJoinWatchParty(joinRoomCode)}
+                      disabled={watchPartyIsLoading || !joinRoomCode.trim()}
+                      className="w-full h-12 bg-purple-600 hover:bg-purple-700 active:scale-95 disabled:bg-white/5 disabled:text-gray-500 text-white font-bold text-sm tracking-wide rounded-xl shadow-lg shadow-purple-900/20 transition-all flex items-center justify-center gap-2"
+                  >
+                      {watchPartyIsLoading ? <Loader2 className="animate-spin" size={18}/> : 'Enter Room'}
+                  </button>
               </div>
           </div>
-      )}
+      </div>
 
       {/* Mobile Browse Dropdown Backdrop */}
-      {isBrowseOpen && (
-          <div 
-              className="fixed inset-0 z-[75] md:hidden bg-black/60 backdrop-blur-sm animate-in fade-in duration-300"
-              onClick={() => setIsBrowseOpen(false)}
-          />
-      )}
+      <div 
+          className={`fixed inset-0 z-[75] md:hidden bg-black/60 backdrop-blur-sm transition-opacity duration-300 ${isBrowseOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
+          onClick={() => setIsBrowseOpen(false)}
+      />
 
       {/* Mobile Browse Dropdown Menu */}
-      {isBrowseOpen && (
-          <div className="fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom,0px))] left-1/2 -translate-x-1/2 w-[280px] z-[85] md:hidden bg-[#0c0c0e]/95 backdrop-blur-3xl border border-white/10 rounded-2xl shadow-[0_24px_50px_rgba(0,0,0,0.8)] p-2.5 grid grid-cols-3 gap-2 animate-in slide-in-from-bottom-5 duration-300 ease-out origin-bottom select-none">
-              {browseOptions.map(opt => {
-                  const isActive = selectedCategory === opt.id || 
-                      (opt.id === "Trending" && selectedCategory === "All") ||
-                      (opt.id === "WatchParty" && (activeWatchPartyRoom !== null || isWatchPartyJoinOpen));
-                  
-                  return (
-                      <button 
-                          key={opt.id}
-                          onClick={() => handleBrowseAction(opt.action)}
-                          className="group flex flex-col items-center justify-center gap-1 py-1.5 px-0.5 rounded-xl transition-all duration-300 hover:bg-white/5 active:scale-95 border border-transparent"
-                      >
-                          <div className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all duration-300 ${
-                              isActive 
-                                  ? 'bg-red-600 text-white shadow-[0_6px_15px_-4px_rgba(220,38,38,0.4)]' 
-                                  : 'bg-white/5 text-zinc-400 group-hover:bg-white/10 group-hover:text-white group-hover:scale-105 shadow-[inset_0_1px_1px_rgba(255,255,255,0.02)]'
-                          }`}>
-                              <opt.icon size={18} className="transition-transform duration-300 group-hover:scale-110" />
-                          </div>
-                          <span className="text-[9px] font-bold text-zinc-300 group-hover:text-white transition-colors text-center line-clamp-1">{opt.label}</span>
-                      </button>
-                  );
-              })}
-          </div>
-      )}
+      <div className={`fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom,0px))] left-1/2 -translate-x-1/2 w-[280px] z-[85] md:hidden bg-[#0c0c0e]/95 backdrop-blur-3xl border border-white/10 rounded-2xl shadow-[0_24px_50px_rgba(0,0,0,0.8)] p-2.5 grid grid-cols-3 gap-2 transition-all duration-300 transform origin-bottom select-none ${isBrowseOpen ? 'opacity-100 scale-100 translate-y-0 pointer-events-auto' : 'opacity-0 scale-95 translate-y-4 pointer-events-none'}`}>
+          {browseOptions.map(opt => {
+              const isActive = selectedCategory === opt.id || 
+                  (opt.id === "Trending" && selectedCategory === "All") ||
+                  (opt.id === "WatchParty" && (activeWatchPartyRoom !== null || isWatchPartyJoinOpen));
+              
+              return (
+                  <button 
+                      key={opt.id}
+                      onClick={() => handleBrowseAction(opt.action)}
+                      className="group flex flex-col items-center justify-center gap-1 py-1.5 px-0.5 rounded-xl transition-all duration-300 hover:bg-white/5 active:scale-95 border border-transparent"
+                  >
+                      <div className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all duration-300 ${
+                          isActive 
+                              ? 'bg-red-600 text-white shadow-[0_6px_15px_-4px_rgba(220,38,38,0.4)]' 
+                              : 'bg-white/5 text-zinc-400 group-hover:bg-white/10 group-hover:text-white group-hover:scale-105 shadow-[inset_0_1px_1px_rgba(255,255,255,0.02)]'
+                      }`}>
+                          <opt.icon size={18} className="transition-transform duration-300 group-hover:scale-110" />
+                      </div>
+                      <span className="text-[9px] font-bold text-zinc-300 group-hover:text-white transition-colors text-center line-clamp-1">{opt.label}</span>
+                  </button>
+              );
+          })}
+      </div>
 
       {/* Mobile Bottom Navigation Bar */}
       <div className="fixed bottom-0 left-0 right-0 z-[80] md:hidden bg-[#070708]/90 backdrop-blur-2xl border-t border-white/10 pb-safe shadow-[0_-8px_30px_rgb(0,0,0,0.5)]">

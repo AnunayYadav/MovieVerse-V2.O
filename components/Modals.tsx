@@ -15,11 +15,9 @@ interface AgeVerificationModalProps {
 export const AgeVerificationModal: React.FC<AgeVerificationModalProps> = ({ isOpen, onSave }) => {
     const [age, setAge] = useState("");
     
-    if (!isOpen) return null;
-
     return (
-        <div className="fixed inset-0 z-[200] bg-black/95 backdrop-blur-md flex items-center justify-center p-4">
-            <div className="bg-[#121212] p-8 rounded-2xl w-full max-w-md text-center border border-red-600/30 shadow-2xl animate-in zoom-in-95 duration-300">
+        <div className={`fixed inset-0 z-[200] bg-black/95 backdrop-blur-md flex items-center justify-center p-4 transition-all duration-300 ${isOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}>
+            <div className={`bg-[#121212] p-8 rounded-2xl w-full max-w-md text-center border border-red-600/30 shadow-2xl transition-all duration-300 transform ${isOpen ? 'scale-100 translate-y-0 opacity-100' : 'scale-95 translate-y-4 opacity-0'}`}>
                 <div className="w-16 h-16 bg-red-600/20 rounded-full flex items-center justify-center mx-auto mb-6 text-red-500">
                     <UserCircle size={32} />
                 </div>
@@ -61,10 +59,8 @@ interface FullCreditsModalProps {
 }
 
 export const FullCreditsModal: React.FC<FullCreditsModalProps> = ({ isOpen, onClose, title, credits, onPersonClick }) => {
-    if (!isOpen) return null;
-
     return (
-        <div className="fixed inset-0 z-[150] bg-black/95 backdrop-blur-xl animate-in fade-in duration-300 flex flex-col">
+        <div className={`fixed inset-0 z-[150] bg-black/95 backdrop-blur-xl flex flex-col transition-all duration-300 transform ${isOpen ? 'opacity-100 translate-x-0 pointer-events-auto' : 'opacity-0 translate-x-10 pointer-events-none'}`}>
             <div className="p-6 border-b border-white/10 flex items-center justify-between bg-black/40">
                 <div className="flex items-center gap-4">
                     <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-full transition-colors"><ArrowLeft size={20}/></button>
@@ -106,6 +102,18 @@ export const PersonPage: React.FC<PersonPageProps> = ({ personId, onClose, apiKe
     const [details, setDetails] = useState<PersonDetails | null>(null);
     const [loading, setLoading] = useState(true);
     const [showFilmography, setShowFilmography] = useState(false);
+    const [isClosing, setIsClosing] = useState(false);
+
+    useEffect(() => {
+        if (personId) {
+            setIsClosing(false);
+        }
+    }, [personId]);
+
+    const handleClose = () => {
+        setIsClosing(true);
+        setTimeout(onClose, 350);
+    };
   
     useEffect(() => {
       if (!personId || !apiKey) return;
@@ -128,8 +136,8 @@ export const PersonPage: React.FC<PersonPageProps> = ({ personId, onClose, apiKe
     };
   
     return (
-      <div className="fixed inset-0 z-[100] bg-[#0a0a0a] overflow-y-auto custom-scrollbar animate-in slide-in-from-bottom-10 duration-500">
-        <button onClick={onClose} className="fixed top-6 left-6 z-[120] bg-black/40 hover:bg-white/10 backdrop-blur-md px-4 py-2 rounded-full text-white flex items-center gap-2 border border-white/5 text-sm font-bold active:scale-95 transition-all"><ArrowLeft size={20}/> Back</button>
+      <div className={`fixed inset-0 z-[100] bg-[#0a0a0a] overflow-y-auto custom-scrollbar ${isClosing ? 'animate-slide-out-bottom' : 'animate-slide-in-bottom'}`}>
+        <button onClick={handleClose} className="fixed top-6 left-6 z-[120] bg-black/40 hover:bg-white/10 backdrop-blur-md px-4 py-2 rounded-full text-white flex items-center gap-2 border border-white/5 text-sm font-bold active:scale-95 transition-all"><ArrowLeft size={20}/> Back</button>
 
           {loading ? (
              <div className="h-screen flex items-center justify-center flex-col gap-4">
@@ -221,11 +229,10 @@ export const NotificationModal: React.FC<NotificationModalProps> = ({ isOpen, on
         onUpdate?.();
     };
 
-    if (!isOpen) return null;
-
     return (
-        <div className="fixed top-16 right-4 md:right-20 z-[90] w-80 animate-in slide-in-from-top-2 fade-in zoom-in-95 duration-200">
-            <div className="bg-[#0c0c0e]/95 backdrop-blur-3xl border border-white/10 rounded-2xl w-80 shadow-2xl p-4 flex flex-col">
+        <div className={`fixed inset-0 z-[90] transition-all duration-300 ${isOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}>
+            <div className="fixed inset-0 bg-transparent" onClick={onClose}></div>
+            <div className={`absolute top-16 right-4 md:right-20 w-80 bg-[#0c0c0e]/95 backdrop-blur-3xl border border-white/10 rounded-2xl shadow-2xl p-4 flex flex-col pointer-events-auto transition-all duration-300 transform origin-top-right select-none ${isOpen ? 'scale-100 translate-y-0 opacity-100' : 'scale-95 -translate-y-2 opacity-0'}`}>
                 <div className="flex justify-between items-center pb-3 border-b border-white/5 mb-2">
                     <div className="flex items-center gap-2">
                         <button onClick={onClose} className="text-zinc-400 hover:text-white p-1 hover:bg-white/5 rounded transition-all"><ArrowLeft size={16}/></button>
@@ -244,7 +251,7 @@ export const NotificationModal: React.FC<NotificationModalProps> = ({ isOpen, on
                              ))}
                          </div>
                     ) : notifications.length === 0 ? (
-                        <div className="py-10 flex flex-col items-center justify-center text-zinc-500 text-center animate-in fade-in">
+                        <div className="py-10 flex flex-col items-center justify-center text-zinc-500 text-center">
                             <Inbox size={20} className="mb-1.5 opacity-40"/>
                             <p className="text-[11px] font-semibold">Your inbox is empty</p>
                         </div>
@@ -262,7 +269,6 @@ export const NotificationModal: React.FC<NotificationModalProps> = ({ isOpen, on
                     )}
                 </div>
             </div>
-            <div className="fixed inset-0 -z-10" onClick={onClose}></div>
         </div>
     );
 };
@@ -317,7 +323,7 @@ export const ComparisonModal: React.FC<ComparisonModalProps> = ({ isOpen, onClos
             .catch(() => setLoading2(false));
     };
 
-    if (!isOpen || !baseMovie) return null;
+    if (!baseMovie) return null;
 
     const ComparisonBar = ({ val1, val2, max, format, inverse = false }: { val1: number, val2: number, max: number, format: (v: number) => string, inverse?: boolean }) => {
         const p1 = Math.min((val1 / max) * 100, 100) || 0;
@@ -340,8 +346,8 @@ export const ComparisonModal: React.FC<ComparisonModalProps> = ({ isOpen, onClos
     };
 
     return (
-        <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-black/90 backdrop-blur-xl animate-in fade-in duration-300">
-            <div className="glass-panel w-full max-w-5xl rounded-2xl overflow-hidden shadow-2xl relative flex flex-col max-h-[90vh]">
+        <div className={`fixed inset-0 z-[150] flex items-center justify-center p-4 bg-black/90 backdrop-blur-xl transition-all duration-300 ${isOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}>
+            <div className={`glass-panel w-full max-w-5xl rounded-2xl overflow-hidden shadow-2xl relative flex flex-col max-h-[90vh] transition-all duration-300 transform ${isOpen ? 'scale-100 opacity-100 translate-y-0' : 'scale-95 opacity-0 translate-y-4'}`}>
                 <div className="p-6 border-b border-white/10 flex justify-between items-center bg-black/40">
                     <div className="flex items-center gap-4">
                         <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-full transition-colors"><ArrowLeft size={20}/></button>

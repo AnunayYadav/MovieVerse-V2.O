@@ -247,10 +247,8 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
         { q: "Can I watch movies here?", a: "No, MovieVerse AI is purely a discovery and tracking platform. We do not host or stream any video content." }
     ];
 
-    if (!isOpen) return null;
-
     return (
-        <div className="fixed inset-0 z-[100] bg-[#030303] overflow-y-auto animate-in fade-in duration-300 font-sans">
+        <div className={`fixed inset-0 z-[100] bg-[#030303] overflow-y-auto font-sans transition-all duration-300 ${isOpen ? 'opacity-100 pointer-events-auto scale-100' : 'opacity-0 pointer-events-none scale-98'}`}>
             {/* Inner Content Centered Wrapper */}
             <div className="max-w-5xl mx-auto px-6 py-12 md:py-16 relative">
                 

@@ -70,15 +70,33 @@ export const BrandLogo = ({ className = "", size = 24, accentColor = "text-red-6
     );
 };
 
-export const LogoLoader = () => (
-  <div className="flex flex-col items-center justify-center gap-4 animate-in fade-in zoom-in duration-700 py-20 font-sans">
-    <div className="relative">
-      <div className="absolute inset-0 bg-red-600 blur-2xl opacity-20 animate-pulse rounded-full"></div>
-      <BrandLogo size={48} className="animate-[spin_3s_linear_infinite] relative z-10 drop-shadow-[0_0_15px_rgba(220,38,38,0.5)]" />
+export const LogoLoader = () => {
+  const videoRef = React.useRef<HTMLVideoElement>(null);
+  React.useEffect(() => {
+    if (videoRef.current) {
+      videoRef.current.playbackRate = 1.85;
+    }
+  }, []);
+
+  return (
+    <div className="flex flex-col items-center justify-center gap-1 animate-in fade-in duration-500 py-20 font-sans">
+      <div className="relative w-36 h-36 flex items-center justify-center">
+        <video 
+          ref={videoRef}
+          src="/loader.mp4" 
+          autoPlay 
+          loop 
+          muted 
+          playsInline 
+          className="w-full h-full object-contain relative z-10"
+        />
+      </div>
+      <p className="text-[11px] font-light uppercase tracking-[0.4em] text-zinc-400 -mt-4 select-none">
+        LOADING MOVIEVERSE
+      </p>
     </div>
-    <p className="text-white/80 text-xs font-bold tracking-[0.3em] animate-pulse">LOADING MOVIEVERSE</p>
-  </div>
-);
+  );
+};
 
 export const MovieSkeleton = () => (
   <div className="group relative bg-white/5 rounded-xl overflow-hidden aspect-[16/9]">

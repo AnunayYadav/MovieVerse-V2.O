@@ -312,6 +312,12 @@ export const MoviePage: React.FC<MoviePageProps> = ({
     const accentBg = "bg-red-500";
     const accentShadow = "shadow-red-600/50";
 
+    const [isClosing, setIsClosing] = useState(false);
+    const handleClose = () => {
+        setIsClosing(true);
+        setTimeout(onClose, 350);
+    };
+
     const handleShare = () => {
         const type = movie.media_type === 'tv' || (!movie.release_date && movie.first_air_date) ? 'tv' : 'movie';
         const shareUrl = `${window.location.origin}${window.location.pathname}#/${type}/${movie.id}`;
@@ -349,6 +355,8 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                     e.stopPropagation();
                     return;
                 }
+                handleClose();
+                e.stopPropagation();
             }
         };
         window.addEventListener('keydown', handleEsc, true);
@@ -473,7 +481,12 @@ export const MoviePage: React.FC<MoviePageProps> = ({
         return () => observer.disconnect();
     }, [collection, movie.id]);
 
-    const handleWatchClick = () => setShowPlayer(true);
+    const handleWatchClick = () => {
+        setShowPlayer(true);
+        if (onProgress) {
+            onProgress(movie, { currentTime: 0, duration: 3600, event: 'time', season: playParams.season, episode: playParams.episode });
+        }
+    };
     const handlePlayerProgress = (data: any) => {
         if (onProgress) {
             onProgress(movie, { ...data, season: playParams.season, episode: playParams.episode });
@@ -575,10 +588,10 @@ export const MoviePage: React.FC<MoviePageProps> = ({
     };
 
     return (
-        <div className="fixed inset-0 z-[100] bg-[#0a0a0a] overflow-y-auto custom-scrollbar animate-in slide-in-from-right-10 duration-500">
+        <div className={`fixed inset-0 z-[100] bg-[#0a0a0a] overflow-y-auto custom-scrollbar ${isClosing ? 'animate-fade-out' : 'animate-fade-in'}`}>
             <div className="relative w-full min-h-screen flex flex-col">
                 {!showPlayer && (
-                    <button onClick={onClose} className="fixed top-6 left-6 z-[120] bg-black/40 hover:bg-white/10 backdrop-blur-md px-4 py-2 rounded-full text-white/80 hover:text-white transition-all hover:scale-105 active:scale-95 border border-white/5 flex items-center gap-2 group">
+                    <button onClick={handleClose} className="fixed top-6 left-6 z-[120] bg-black/40 hover:bg-white/10 backdrop-blur-md px-4 py-2 rounded-full text-white/80 hover:text-white transition-all hover:scale-105 active:scale-95 border border-white/5 flex items-center gap-2 group">
                         <ArrowLeft size={20} /><span className="hidden md:inline font-bold text-sm">Back</span>
                     </button>
                 )}
@@ -902,6 +915,9 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                                         if (isExclusive) {
                                                                             setPlayParams({ season: selectedSeason, episode: episode.episode_number });
                                                                             setShowPlayer(true);
+                                                                            if (onProgress) {
+                                                                                onProgress(movie, { currentTime: 0, duration: 3600, event: 'time', season: selectedSeason, episode: episode.episode_number });
+                                                                            }
                                                                         }
                                                                     }}
                                                                     className="flex gap-3 sm:gap-4 p-2.5 sm:p-4 bg-white/5 hover:bg-white/10 rounded-xl sm:rounded-2xl border border-white/5 hover:border-white/10 transition-all cursor-pointer group relative overflow-hidden text-left"
