@@ -4,7 +4,7 @@ import { Search, Film, Menu, TrendingUp, Tv, Ghost, Calendar, Star, X, Sparkles,
 import { Movie, UserProfile, GENRES_MAP, GENRES_LIST, INDIAN_LANGUAGES, MaturityRating, Keyword } from './types';
 import { LogoLoader, MovieSkeleton, MovieCard, PersonCard, TMDB_BASE_URL, TMDB_BACKDROP_BASE, TMDB_IMAGE_BASE, getTmdbKey, BrandLogo } from './components/Shared';
 import { MoviePage } from './components/MovieDetails';
-import { ProfilePage, PersonPage, NotificationModal, ComparisonModal, AgeVerificationModal } from './components/Modals';
+import { PersonPage, NotificationModal, ComparisonModal, AgeVerificationModal } from './components/Modals';
 import { SettingsPage } from './components/SettingsModal';
 import { getSearchSuggestions } from './services/gemini';
 import { LoginPage } from './components/LoginPage';
@@ -184,25 +184,81 @@ const MovieRow = ({
         
         let isMounted = true;
         setLoading(true);
-        const separator = endpoint.includes('?') ? '&' : '?';
-        const url = `${endpoint}${separator}api_key=${apiKey}&page=1`;
+        
+        const isAdultQuery = endpoint.includes('include_adult=true');
+        
+        const fetchAdultMovies = async () => {
+            let accumulatedMovies: Movie[] = [];
+            let currentPage = 1;
+            const maxPagesToTry = 15;
+            let reachedEnd = false;
 
-        fetch(url)
-            .then(res => res.json())
-            .then(data => {
-                if (!isMounted) return;
-                let results = data.results || [];
-                results = results.map((item: any) => ({
-                    ...item,
-                    media_type: mediaType || item.media_type || (endpoint.includes('/tv/') ? 'tv' : 'movie'),
-                    title: item.title || item.name
-                }));
-                setMovies(results);
-            })
-            .catch(err => console.error("Error fetching page 1: ", err))
-            .finally(() => {
-                if (isMounted) setLoading(false);
-            });
+            while (accumulatedMovies.length < 10 && currentPage <= maxPagesToTry && !reachedEnd) {
+                const separator = endpoint.includes('?') ? '&' : '?';
+                const url = `${endpoint}${separator}api_key=${apiKey}&page=${currentPage}`;
+                try {
+                    const res = await fetch(url);
+                    if (!res.ok) {
+                        reachedEnd = true;
+                        break;
+                    }
+                    const data = await res.json();
+                    const rawResults = data.results || [];
+                    if (rawResults.length === 0) {
+                        reachedEnd = true;
+                        break;
+                    }
+                    const filtered = rawResults
+                        .filter((item: any) => item.adult === true)
+                        .map((item: any) => ({
+                            ...item,
+                            media_type: mediaType || item.media_type || (endpoint.includes('/tv/') ? 'tv' : 'movie'),
+                            title: item.title || item.name
+                        }));
+                    accumulatedMovies = [...accumulatedMovies, ...filtered];
+                    currentPage++;
+                } catch (e) {
+                    console.error("Error in adult loop fetch: ", e);
+                    break;
+                }
+            }
+
+            if (isMounted) {
+                setMovies(accumulatedMovies);
+                setPage(currentPage - 1);
+                if (reachedEnd || currentPage > maxPagesToTry) {
+                    setHasMore(false);
+                }
+                setLoading(false);
+            }
+        };
+
+        const fetchNormalMovies = () => {
+            const separator = endpoint.includes('?') ? '&' : '?';
+            const url = `${endpoint}${separator}api_key=${apiKey}&page=1`;
+            fetch(url)
+                .then(res => res.json())
+                .then(data => {
+                    if (!isMounted) return;
+                    let results = data.results || [];
+                    results = results.map((item: any) => ({
+                        ...item,
+                        media_type: mediaType || item.media_type || (endpoint.includes('/tv/') ? 'tv' : 'movie'),
+                        title: item.title || item.name
+                    }));
+                    setMovies(results);
+                })
+                .catch(err => console.error("Error fetching page 1: ", err))
+                .finally(() => {
+                    if (isMounted) setLoading(false);
+                });
+        };
+
+        if (isAdultQuery) {
+            fetchAdultMovies();
+        } else {
+            fetchNormalMovies();
+        }
 
         return () => {
             isMounted = false;
@@ -212,29 +268,76 @@ const MovieRow = ({
     const loadNextPage = async () => {
         if (!endpoint || !apiKey || loadingMore || !hasMore) return;
         setLoadingMore(true);
-        const nextPage = page + 1;
-        const separator = endpoint.includes('?') ? '&' : '?';
-        const url = `${endpoint}${separator}api_key=${apiKey}&page=${nextPage}`;
+        
+        const isAdultQuery = endpoint.includes('include_adult=true');
+        
+        if (isAdultQuery) {
+            let accumulatedMovies: Movie[] = [];
+            let currentPage = page + 1;
+            const maxPagesToTry = currentPage + 10;
+            let reachedEnd = false;
 
-        try {
-            const res = await fetch(url);
-            const data = await res.json();
-            let results = data.results || [];
-            if (results.length === 0) {
-                setHasMore(false);
-            } else {
-                results = results.map((item: any) => ({
-                    ...item,
-                    media_type: mediaType || item.media_type || (endpoint.includes('/tv/') ? 'tv' : 'movie'),
-                    title: item.title || item.name
-                }));
-                setMovies(prev => [...prev, ...results]);
-                setPage(nextPage);
+            while (accumulatedMovies.length < 5 && currentPage <= maxPagesToTry && !reachedEnd) {
+                const separator = endpoint.includes('?') ? '&' : '?';
+                const url = `${endpoint}${separator}api_key=${apiKey}&page=${currentPage}`;
+                try {
+                    const res = await fetch(url);
+                    if (!res.ok) {
+                        reachedEnd = true;
+                        break;
+                    }
+                    const data = await res.json();
+                    const rawResults = data.results || [];
+                    if (rawResults.length === 0) {
+                        reachedEnd = true;
+                        break;
+                    }
+                    const filtered = rawResults
+                        .filter((item: any) => item.adult === true)
+                        .map((item: any) => ({
+                            ...item,
+                            media_type: mediaType || item.media_type || (endpoint.includes('/tv/') ? 'tv' : 'movie'),
+                            title: item.title || item.name
+                        }));
+                    accumulatedMovies = [...accumulatedMovies, ...filtered];
+                    currentPage++;
+                } catch (e) {
+                    console.error("Error in adult next page loop fetch: ", e);
+                    break;
+                }
             }
-        } catch (e) {
-            console.error("Error fetching next page: ", e);
-        } finally {
+
+            setMovies(prev => [...prev, ...accumulatedMovies]);
+            setPage(currentPage - 1);
+            if (reachedEnd || currentPage > maxPagesToTry) {
+                setHasMore(false);
+            }
             setLoadingMore(false);
+        } else {
+            const nextPage = page + 1;
+            const separator = endpoint.includes('?') ? '&' : '?';
+            const url = `${endpoint}${separator}api_key=${apiKey}&page=${nextPage}`;
+
+            try {
+                const res = await fetch(url);
+                const data = await res.json();
+                let results = data.results || [];
+                if (results.length === 0) {
+                    setHasMore(false);
+                } else {
+                    results = results.map((item: any) => ({
+                        ...item,
+                        media_type: mediaType || item.media_type || (endpoint.includes('/tv/') ? 'tv' : 'movie'),
+                        title: item.title || item.name
+                    }));
+                    setMovies(prev => [...prev, ...results]);
+                    setPage(nextPage);
+                }
+            } catch (e) {
+                console.error("Error fetching next page: ", e);
+            } finally {
+                setLoadingMore(false);
+            }
         }
     };
 
@@ -586,7 +689,6 @@ export default function App() {
   const [lastNotificationId, setLastNotificationId] = useState<string | null>(null);
   
   const [isAgeModalOpen, setIsAgeModalOpen] = useState(false);
-  const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [selectedPersonId, setSelectedPersonId] = useState<number | null>(null);
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const [isComparisonOpen, setIsComparisonOpen] = useState(false);
@@ -613,13 +715,13 @@ export default function App() {
 
   // Scroll Lock Controller
   useEffect(() => {
-    const isAnyModalOpen = selectedMovie || isSettingsOpen || isProfileOpen || selectedPersonId || isNotificationOpen || isComparisonOpen || isAgeModalOpen || isSidebarOpen;
+    const isAnyModalOpen = selectedMovie || isSettingsOpen || selectedPersonId || isNotificationOpen || isComparisonOpen || isAgeModalOpen || isSidebarOpen;
     if (isAnyModalOpen) {
       document.body.style.overflow = 'hidden';
     } else {
       document.body.style.overflow = 'auto';
     }
-  }, [selectedMovie, isSettingsOpen, isProfileOpen, selectedPersonId, isNotificationOpen, isComparisonOpen, isAgeModalOpen, isSidebarOpen]);
+  }, [selectedMovie, isSettingsOpen, selectedPersonId, isNotificationOpen, isComparisonOpen, isAgeModalOpen, isSidebarOpen]);
   
   const [isScrolled, setIsScrolled] = useState(false);
 
@@ -929,7 +1031,6 @@ export default function App() {
         if (isComparisonOpen) return setIsComparisonOpen(false);
         if (selectedPersonId) return setSelectedPersonId(null);
         if (isSettingsOpen) return setIsSettingsOpen(false);
-        if (isProfileOpen) return setIsProfileOpen(false);
         if (isNotificationOpen) return setIsNotificationOpen(false);
         if (isSidebarOpen) return setIsSidebarOpen(false);
         if (selectedMovie) return setSelectedMovie(null);
@@ -955,7 +1056,7 @@ export default function App() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isComparisonOpen, selectedPersonId, isSettingsOpen, isProfileOpen, isNotificationOpen, isSidebarOpen, selectedMovie]);
+  }, [isComparisonOpen, selectedPersonId, isSettingsOpen, isNotificationOpen, isSidebarOpen, selectedMovie]);
 
   const resetAuthState = useCallback(() => {
     localStorage.removeItem('movieverse_auth');
@@ -1932,7 +2033,7 @@ export default function App() {
 
                                     <button 
                                         onClick={() => {
-                                            setIsProfileOpen(true);
+                                            setIsSettingsOpen(true);
                                             setIsProfileDropdownOpen(false);
                                         }}
                                         className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-zinc-300 hover:text-white hover:bg-white/5 rounded-xl transition-all duration-200 text-left"
@@ -2444,8 +2545,6 @@ export default function App() {
             onStartWatchParty={handleStartWatchParty}
         /> 
       )}
-      
-      <ProfilePage isOpen={isProfileOpen} onClose={() => setIsProfileOpen(false)} profile={userProfile} onSave={(p) => { setUserProfile(p); localStorage.setItem('movieverse_profile', JSON.stringify(p)); }} />
       <PersonPage personId={selectedPersonId || 0} onClose={() => setSelectedPersonId(null)} apiKey={apiKey} onMovieClick={(m) => { setSelectedPersonId(null); setTimeout(() => setSelectedMovie(m), 300); }} />
       <ComparisonModal isOpen={isComparisonOpen} onClose={() => setIsComparisonOpen(false)} baseMovie={comparisonBaseMovie} apiKey={apiKey} />
       <SettingsPage isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} apiKey={apiKey} setApiKey={(k) => saveSettings(k)} maturityRating={maturityRating} setMaturityRating={setMaturityRating} profile={userProfile} onUpdateProfile={setUserProfile} onLogout={handleLogout} searchHistory={searchHistory} setSearchHistory={(h) => { setSearchHistory(h); localStorage.setItem('movieverse_search_history', JSON.stringify(h)); }} watchedMovies={watched} setWatchedMovies={(m) => { setWatched(m); localStorage.setItem('movieverse_watched', JSON.stringify(m)); }} />

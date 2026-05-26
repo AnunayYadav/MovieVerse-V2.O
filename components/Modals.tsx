@@ -94,228 +94,6 @@ export const FullCreditsModal: React.FC<FullCreditsModalProps> = ({ isOpen, onCl
     );
 };
 
-// PROFILE PAGE
-interface ProfilePageProps {
-    isOpen: boolean;
-    onClose: () => void;
-    profile: UserProfile;
-    onSave: (p: UserProfile) => void;
-}
-
-export const ProfilePage: React.FC<ProfilePageProps> = ({ isOpen, onClose, profile, onSave }) => {
-    const [name, setName] = useState(profile.name || "");
-    const [age, setAge] = useState(profile.age || "");
-    const [selectedGenres, setSelectedGenres] = useState<string[]>(profile.genres || []);
-    const [avatar, setAvatar] = useState(profile.avatar || "");
-    const [avatarBg, setAvatarBg] = useState(profile.avatarBackground || "bg-gradient-to-br from-red-600 to-red-900");
-    const [error, setError] = useState("");
-    
-    const fileInputRef = useRef<HTMLInputElement>(null);
-    const isExclusive = profile.canWatch === true;
-    const isGoldTheme = false;
-  
-    useEffect(() => {
-        if (isOpen) {
-            setName(profile.name || "");
-            setAge(profile.age || "");
-            setSelectedGenres(profile.genres || []);
-            setAvatar(profile.avatar || "");
-            setAvatarBg(profile.avatarBackground || (isGoldTheme ? "bg-gradient-to-br from-amber-500 to-yellow-900" : "bg-gradient-to-br from-red-600 to-red-900"));
-            setError("");
-        }
-    }, [isOpen, profile, isGoldTheme]);
-    
-    const AVATARS = [
-        { seed: "Felix", name: "Maverick" },
-        { seed: "Aneka", name: "Siren" },
-        { seed: "Zack", name: "Cipher" },
-        { seed: "Midnight", name: "Noir" },
-        { seed: "Shadow", name: "Vantage" },
-        { seed: "Bandit", name: "Rogue" },
-        { seed: "Luna", name: "Eclipse" },
-        { seed: "Leo", name: "Titan" }
-    ];
-
-    const BACKGROUNDS = [
-        { id: "default", class: isGoldTheme ? "bg-gradient-to-br from-amber-500 to-yellow-900" : "bg-gradient-to-br from-red-600 to-red-900", name: "Default" },
-        { id: "dark", class: "bg-gradient-to-br from-gray-900 to-black", name: "Dark Void" },
-        { id: "crimson", class: "bg-gradient-to-br from-red-950 to-black", name: "Blood Moon" },
-        { id: "steel", class: "bg-gradient-to-br from-zinc-700 to-zinc-900", name: "Dark Metal" },
-        { id: "abyss", class: "bg-black", name: "Abyss" },
-        ...(isExclusive ? [{ id: "gold", class: "bg-gradient-to-br from-yellow-400 via-amber-500 to-yellow-700", name: "Pure Gold" }] : [])
-    ];
-  
-    const toggleGenre = (genre: string) => {
-        setSelectedGenres(prev => 
-            prev.includes(genre) ? prev.filter(g => g !== genre) : [...prev, genre]
-        );
-    };
-
-    const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (file) {
-            if (file.size > 5 * 1024 * 1024) { 
-                setError("Image too large. Max 5MB.");
-                return;
-            }
-            if (!file.type.startsWith('image/')) {
-                setError("Please upload a valid image file.");
-                return;
-            }
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                if (e.target?.result) {
-                    setAvatar(e.target.result as string);
-                    setError("");
-                }
-            };
-            reader.readAsDataURL(file);
-        }
-    };
-  
-    const handleSave = () => {
-        const ageNum = parseInt(age);
-        if (!name.trim()) {
-            setError("Display name is required.");
-            return;
-        }
-        if (!age || isNaN(ageNum) || ageNum < 10 || ageNum > 120) {
-            setError("Age must be between 10 and 120.");
-            return;
-        }
-        if (selectedGenres.length < 3) {
-             setError("Please select at least 3 genres to personalize your feed.");
-             return;
-        }
-        onSave({ ...profile, name, age, genres: selectedGenres, avatar, avatarBackground: avatarBg });
-        onClose();
-    };
-
-    const selectAvatar = (seed: string) => {
-        setAvatar(`https://api.dicebear.com/9.x/avataaars/svg?seed=${seed}`);
-    };
-  
-    if (!isOpen) return null;
-  
-    return (
-      <div className="fixed inset-0 z-[100] bg-[#0a0a0a] overflow-y-auto animate-in slide-in-from-bottom-10 duration-500">
-         <div className="max-w-4xl mx-auto min-h-screen flex flex-col p-6 md:p-8">
-             {/* Header */}
-             <div className="flex items-center gap-4 mb-8">
-                 <button onClick={onClose} className="text-white/80 hover:text-white transition-colors bg-white/5 p-2 rounded-full hover:bg-white/10 hover:scale-105 active:scale-95"><ArrowLeft size={24}/></button>
-                 <div>
-                    <h2 className="text-2xl font-bold text-white flex items-center gap-3"><UserCircle size={28} className="text-red-500"/> Edit Profile</h2>
-                    <p className="text-xs text-gray-400 mt-1">Update your persona and viewing preferences.</p>
-                 </div>
-             </div>
-             
-             <div className="flex-1">
-                {error && (
-                    <div className="mb-6 p-3 bg-red-500/10 border border-red-500/20 rounded-xl flex items-center gap-3 text-red-200 text-xs font-medium animate-in slide-in-from-top-2 duration-300">
-                        <div className="bg-red-500/20 p-1 rounded-full"><AlertCircle size={14}/></div>
-                        {error}
-                    </div>
-                )}
-
-                <div className="flex flex-col lg:flex-row gap-8">
-                    {/* Left Column: Identity */}
-                    <div className="w-full lg:w-1/2 space-y-6">
-                        <div className="space-y-5">
-                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Avatar & Style</label>
-                            <div className="flex justify-center lg:justify-start">
-                                <div className="relative group">
-                                    <div className={`w-32 h-32 rounded-full flex items-center justify-center text-4xl font-bold text-white shadow-2xl overflow-hidden border-4 transition-colors duration-500 ${avatarBg} ${isGoldTheme ? 'border-amber-500/50 shadow-amber-900/30' : 'border-white/10 shadow-black/50'}`}>
-                                        {avatar ? <img src={avatar} className="w-full h-full object-cover animate-in fade-in duration-500" alt="avatar"/> : name.charAt(0).toUpperCase()}
-                                    </div>
-                                    <div className="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer border-4 border-white/30 duration-300" onClick={() => setAvatar("")}>
-                                        <RefreshCcw size={28} className="text-white"/>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <div className="bg-white/5 p-5 rounded-2xl border border-white/5">
-                                <p className="text-[10px] text-gray-500 font-bold mb-3 uppercase flex items-center gap-2"><PaintBucket size={12}/> Background Theme</p>
-                                <div className="flex gap-3 flex-wrap">
-                                    {BACKGROUNDS.map(bg => (
-                                        <button 
-                                            key={bg.id}
-                                            onClick={() => setAvatarBg(bg.class)}
-                                            className={`w-7 h-7 rounded-full ${bg.class} border-2 transition-all duration-300 ring-2 ring-transparent ${avatarBg === bg.class ? 'border-white scale-110 shadow-xl ring-white/20' : 'border-transparent hover:border-white/50 hover:scale-105'}`}
-                                            title={bg.name}
-                                        />
-                                    ))}
-                                </div>
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-3">
-                                <button type="button" onClick={() => fileInputRef.current?.click()} className="py-3 bg-white/5 hover:bg-white/10 border border-white/5 rounded-xl text-xs font-bold text-white transition-all flex items-center justify-center gap-2 group active:scale-95">
-                                    <Upload size={16} className="group-hover:-translate-y-0.5 transition-transform"/> Upload Photo
-                                    <input type="file" ref={fileInputRef} onChange={handleFileUpload} accept="image/*" className="hidden" />
-                                </button>
-                                <button type="button" onClick={() => selectAvatar(AVATARS[Math.floor(Math.random() * AVATARS.length)].seed)} className="py-3 bg-white/5 hover:bg-white/10 border border-white/5 rounded-xl text-xs font-bold text-white transition-all flex items-center justify-center gap-2 group active:scale-95">
-                                    <Dice5 size={16} className="group-hover:rotate-180 transition-transform duration-500"/> Randomize
-                                </button>
-                            </div>
-                        </div>
-
-                        <div className="space-y-5 pt-5 border-t border-white/5">
-                            <div className="space-y-1.5">
-                                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider ml-1">Display Name</label>
-                                <div className="relative group">
-                                    <UserCircle size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30 group-focus-within:text-white transition-colors duration-300"/>
-                                    <input type="text" value={name} onChange={(e) => setName(e.target.value)} className={`w-full bg-white/5 border border-white/5 rounded-xl py-3 pl-11 pr-4 text-white focus:bg-white/10 focus:outline-none transition-all duration-300 text-sm hover:bg-white/10 ${isGoldTheme ? 'focus:border-amber-500' : 'focus:border-red-500'}`} placeholder="Your Name" />
-                                </div>
-                            </div>
-                            <div className="space-y-1.5">
-                                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider ml-1">Age</label>
-                                <div className="relative group">
-                                    <UserCircle size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30 group-focus-within:text-white transition-colors duration-300"/>
-                                    <input type="number" value={age} min="10" max="120" onChange={(e) => { const val = parseInt(e.target.value); if (!e.target.value || (val >= 0 && val <= 130)) { setAge(e.target.value); }}} className={`w-full bg-white/5 border border-white/5 rounded-xl py-3 pl-11 pr-4 text-white focus:bg-white/10 focus:outline-none transition-all duration-300 text-sm hover:bg-white/10 ${isGoldTheme ? 'focus:border-amber-500' : 'focus:border-red-500'}`} placeholder="10-120" />
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Right Column: Preferences */}
-                    <div className="flex-1 space-y-6">
-                        <div className="bg-white/5 rounded-2xl p-6 border border-white/5 h-full">
-                            <div className="flex justify-between items-center mb-5">
-                                <h3 className="text-base font-bold text-white flex items-center gap-2"><Heart size={18} className={isGoldTheme ? "text-amber-500" : "text-red-500"}/> Content Interests</h3>
-                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md transition-colors duration-300 ${selectedGenres.length >= 3 ? 'bg-green-500/20 text-green-400' : 'bg-yellow-500/20 text-yellow-400'}`}>
-                                    {selectedGenres.length} Selected
-                                </span>
-                            </div>
-                            <p className="text-xs text-gray-400 mb-5 leading-relaxed">Select at least 3 genres to help us personalize your "For You" feed and AI recommendations.</p>
-                            
-                            <div className="flex flex-wrap gap-2">
-                                {GENRES_LIST.map(genre => (
-                                    <button 
-                                    key={genre}
-                                    onClick={() => toggleGenre(genre)}
-                                    className={`px-3 py-2 rounded-xl text-xs font-bold transition-all duration-300 border flex items-center gap-1.5 active:scale-95 ${selectedGenres.includes(genre) ? (isGoldTheme ? 'bg-amber-500 border-amber-500 text-black shadow-lg shadow-amber-500/30' : 'bg-red-600 border-red-600 text-white shadow-lg shadow-red-900/30') : 'bg-black/40 border-white/5 text-gray-400 hover:text-white hover:bg-white/5'}`}
-                                    >
-                                        {genre}
-                                        {selectedGenres.includes(genre) && <Check size={12} className="animate-in zoom-in duration-200"/>}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-             </div>
-             
-             {/* Footer */}
-             <div className="mt-8 pt-6 border-t border-white/5 flex justify-end gap-3 sticky bottom-0 bg-[#0a0a0a]/90 backdrop-blur-lg p-6 -mx-6 -mb-6">
-                 <button onClick={onClose} className="px-6 py-3 rounded-xl text-sm font-bold text-gray-400 hover:text-white hover:bg-white/5 transition-all duration-300">Cancel</button>
-                 <button onClick={handleSave} className={`px-8 py-3 bg-white text-black font-bold rounded-xl transition-all duration-300 active:scale-[0.98] shadow-lg hover:shadow-white/20 text-sm ${isGoldTheme ? 'bg-gradient-to-r from-amber-500 to-yellow-500 text-black hover:to-amber-400' : 'bg-white hover:bg-gray-200'}`}>
-                     Save Changes
-                 </button>
-             </div>
-         </div>
-      </div>
-    );
-};
-
 // PERSON PAGE
 interface PersonPageProps {
     personId: number;
@@ -447,37 +225,38 @@ export const NotificationModal: React.FC<NotificationModalProps> = ({ isOpen, on
 
     return (
         <div className="fixed top-16 right-4 md:right-20 z-[90] w-80 animate-in slide-in-from-top-2 fade-in zoom-in-95 duration-200">
-            <div className="glass-panel rounded-xl overflow-hidden shadow-2xl border border-white/10">
-                <div className="p-4 border-b border-white/5 flex justify-between items-center bg-black/40">
-                    <div className="flex items-center gap-3">
-                        <button onClick={onClose} className="text-gray-400 hover:text-white transition-colors hover:scale-110 active:scale-95"><ArrowLeft size={18}/></button>
-                        <h3 className="text-sm font-bold text-white flex items-center gap-2"><Bell size={14} className={isGoldTheme ? "text-amber-500" : "text-red-500"}/> Notifications</h3>
+            <div className="bg-[#0c0c0e]/95 backdrop-blur-3xl border border-white/10 rounded-2xl w-80 shadow-2xl p-4 flex flex-col">
+                <div className="flex justify-between items-center pb-3 border-b border-white/5 mb-2">
+                    <div className="flex items-center gap-2">
+                        <button onClick={onClose} className="text-zinc-400 hover:text-white p-1 hover:bg-white/5 rounded transition-all"><ArrowLeft size={16}/></button>
+                        <h3 className="text-xs font-extrabold text-white uppercase tracking-wider flex items-center gap-1.5"><Bell size={13} className="text-red-500"/> Inbox</h3>
                     </div>
+                    {notifications.some(n => !n.read) && (
+                        <button onClick={handleMarkAllRead} className="text-[10px] text-red-500 hover:text-red-400 font-extrabold uppercase tracking-wider hover:underline transition-all">Mark all read</button>
+                    )}
                 </div>
                 
-                <div className="max-h-80 overflow-y-auto custom-scrollbar min-h-[150px]">
+                <div className="max-h-72 overflow-y-auto custom-scrollbar space-y-2 mt-1">
                     {loading ? (
-                         <div className="p-4 space-y-3">
+                         <div className="space-y-3 py-2">
                              {[...Array(3)].map((_,i) => (
-                                 <div key={i} className="space-y-2">
-                                     <div className="h-3 bg-white/10 rounded w-1/3 animate-pulse"></div>
-                                 </div>
+                                 <div key={i} className="h-10 bg-white/5 rounded-xl animate-pulse"></div>
                              ))}
                          </div>
                     ) : notifications.length === 0 ? (
-                        <div className="h-40 flex flex-col items-center justify-center text-gray-500 animate-in fade-in">
-                            <Inbox size={24} className="mb-2 opacity-50"/>
-                            <p className="text-xs">All caught up!</p>
+                        <div className="py-10 flex flex-col items-center justify-center text-zinc-500 text-center animate-in fade-in">
+                            <Inbox size={20} className="mb-1.5 opacity-40"/>
+                            <p className="text-[11px] font-semibold">Your inbox is empty</p>
                         </div>
                     ) : (
                         notifications.map(n => (
-                            <div key={n.id} className={`p-4 border-b border-white/5 hover:bg-white/5 transition-colors ${!n.read ? 'bg-white/5' : ''}`}>
-                                <div className="flex justify-between items-start mb-1 gap-2">
-                                    <p className={`text-sm leading-snug ${!n.read ? 'text-white font-bold' : 'text-gray-300'}`}>{n.title}</p>
-                                    {!n.read && <div className={`w-2 h-2 rounded-full mt-1.5 shrink-0 animate-pulse ${isGoldTheme ? 'bg-amber-500' : 'bg-red-500'}`}></div>}
+                            <div key={n.id} className={`p-3 rounded-xl border border-transparent transition-all relative flex flex-col ${!n.read ? 'bg-white/5 border-l-2 border-l-red-600' : 'bg-transparent hover:bg-white/5'}`}>
+                                <div className="flex justify-between items-start gap-2 mb-1">
+                                    <p className={`text-xs leading-snug ${!n.read ? 'text-white font-bold' : 'text-zinc-300 font-medium'}`}>{n.title}</p>
+                                    {!n.read && <div className="w-1.5 h-1.5 rounded-full bg-red-500 mt-1 shrink-0"></div>}
                                 </div>
-                                <p className="text-xs text-gray-400 mb-1 line-clamp-2">{n.message}</p>
-                                <p className="text-[10px] text-gray-600">{n.time}</p>
+                                <p className="text-[11px] text-zinc-400 leading-normal line-clamp-2">{n.message}</p>
+                                <p className="text-[9px] text-zinc-600 mt-1.5 font-medium">{n.time}</p>
                             </div>
                         ))
                     )}
