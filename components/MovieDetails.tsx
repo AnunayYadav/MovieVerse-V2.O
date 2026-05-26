@@ -272,6 +272,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
     onSwitchMovie, onOpenListModal, onToggleFavorite, isFavorite, isWatched, onToggleWatched, userProfile,
     onKeywordClick, onCollectionClick, onCompare, appRegion = "US", onProgress, onStartWatchParty
 }) => {
+    const resolvedMediaType = movie.media_type === 'tv' || (!movie.release_date && movie.first_air_date) ? 'tv' : 'movie';
     const [details, setDetails] = useState<MovieDetails | null>(null);
     const [collection, setCollection] = useState<CollectionDetails | null>(null);
     const [loading, setLoading] = useState(true);
@@ -319,7 +320,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
     };
 
     const handleShare = () => {
-        const type = movie.media_type === 'tv' || (!movie.release_date && movie.first_air_date) ? 'tv' : 'movie';
+        const type = resolvedMediaType;
         const shareUrl = `${window.location.origin}${window.location.pathname}#/${type}/${movie.id}`;
         navigator.clipboard.writeText(shareUrl)
             .then(() => {
@@ -380,7 +381,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
         setCollection(null);
         hasCenteredTimeline.current = null;
         
-        const type = movie.media_type === 'tv' ? 'tv' : 'movie';
+        const type = resolvedMediaType;
         
         fetch(`${TMDB_BASE_URL}/${type}/${movie.id}?api_key=${apiKey}&append_to_response=credits,reviews,videos,release_dates,watch/providers,external_ids,similar,images,content_ratings,seasons,keywords`)
             .then(res => {
@@ -422,7 +423,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
         setEpisodes([]);
         setEpisodeSearch("");
         setExpandedReviews({});
-    }, [movie.id, apiKey, movie.media_type]);
+    }, [movie.id, apiKey, resolvedMediaType]);
 
     useEffect(() => {
         if (activeTab === 'overview' && !trivia && !loadingTrivia && details) {

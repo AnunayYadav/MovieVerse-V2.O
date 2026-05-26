@@ -16,7 +16,7 @@ export const AgeVerificationModal: React.FC<AgeVerificationModalProps> = ({ isOp
     const [age, setAge] = useState("");
     
     return (
-        <div className={`fixed inset-0 z-[200] bg-black/95 backdrop-blur-md flex items-center justify-center p-4 transition-all duration-300 ${isOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}>
+        <div className={`fixed inset-0 z-[200] flex items-center justify-center p-4 transition-all duration-300 ${isOpen ? 'visible opacity-100 pointer-events-auto bg-black/95 backdrop-blur-md' : 'invisible opacity-0 pointer-events-none bg-black/0 backdrop-blur-none'}`}>
             <div className={`bg-[#121212] p-8 rounded-2xl w-full max-w-md text-center border border-red-600/30 shadow-2xl transition-all duration-300 transform ${isOpen ? 'scale-100 translate-y-0 opacity-100' : 'scale-95 translate-y-4 opacity-0'}`}>
                 <div className="w-16 h-16 bg-red-600/20 rounded-full flex items-center justify-center mx-auto mb-6 text-red-500">
                     <UserCircle size={32} />
@@ -60,7 +60,7 @@ interface FullCreditsModalProps {
 
 export const FullCreditsModal: React.FC<FullCreditsModalProps> = ({ isOpen, onClose, title, credits, onPersonClick }) => {
     return (
-        <div className={`fixed inset-0 z-[150] bg-black/95 backdrop-blur-xl flex flex-col transition-all duration-300 transform ${isOpen ? 'opacity-100 translate-x-0 pointer-events-auto' : 'opacity-0 translate-x-10 pointer-events-none'}`}>
+        <div className={`fixed inset-0 z-[150] flex flex-col transition-all duration-300 transform ${isOpen ? 'visible opacity-100 translate-x-0 pointer-events-auto bg-black/95 backdrop-blur-xl' : 'invisible opacity-0 translate-x-10 pointer-events-none bg-black/0 backdrop-blur-none'}`}>
             <div className="p-6 border-b border-white/10 flex items-center justify-between bg-black/40">
                 <div className="flex items-center gap-4">
                     <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-full transition-colors"><ArrowLeft size={20}/></button>
@@ -230,9 +230,9 @@ export const NotificationModal: React.FC<NotificationModalProps> = ({ isOpen, on
     };
 
     return (
-        <div className={`fixed inset-0 z-[90] transition-all duration-300 ${isOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}>
-            <div className="fixed inset-0 bg-transparent" onClick={onClose}></div>
-            <div className={`absolute top-16 right-4 md:right-20 w-80 bg-[#0c0c0e]/95 backdrop-blur-3xl border border-white/10 rounded-2xl shadow-2xl p-4 flex flex-col pointer-events-auto transition-all duration-300 transform origin-top-right select-none ${isOpen ? 'scale-100 translate-y-0 opacity-100' : 'scale-95 -translate-y-2 opacity-0'}`}>
+        <div className={`fixed inset-0 z-[90] transition-all duration-300 ${isOpen ? 'visible opacity-100 pointer-events-auto' : 'invisible opacity-0 pointer-events-none'}`}>
+            {isOpen && <div className="fixed inset-0 bg-transparent" onClick={onClose}></div>}
+            <div className={`absolute top-16 right-4 md:right-20 w-80 bg-[#0c0c0e]/95 backdrop-blur-3xl border border-white/10 rounded-2xl shadow-2xl p-4 flex flex-col transition-all duration-300 transform origin-top-right select-none ${isOpen ? 'scale-100 translate-y-0 opacity-100 pointer-events-auto' : 'scale-95 -translate-y-2 opacity-0 pointer-events-none'}`}>
                 <div className="flex justify-between items-center pb-3 border-b border-white/5 mb-2">
                     <div className="flex items-center gap-2">
                         <button onClick={onClose} className="text-zinc-400 hover:text-white p-1 hover:bg-white/5 rounded transition-all"><ArrowLeft size={16}/></button>
@@ -346,8 +346,8 @@ export const ComparisonModal: React.FC<ComparisonModalProps> = ({ isOpen, onClos
     };
 
     return (
-        <div className={`fixed inset-0 z-[150] flex items-center justify-center p-4 bg-black/90 backdrop-blur-xl transition-all duration-300 ${isOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}>
-            <div className={`glass-panel w-full max-w-5xl rounded-2xl overflow-hidden shadow-2xl relative flex flex-col max-h-[90vh] transition-all duration-300 transform ${isOpen ? 'scale-100 opacity-100 translate-y-0' : 'scale-95 opacity-0 translate-y-4'}`}>
+        <div className={`fixed inset-0 z-[150] flex items-center justify-center p-4 transition-all duration-300 ${isOpen ? 'visible opacity-100 pointer-events-auto bg-black/90 backdrop-blur-xl' : 'invisible opacity-0 pointer-events-none bg-black/0 backdrop-blur-none'}`}>
+            <div className={`glass-panel w-full max-w-5xl rounded-2xl overflow-hidden shadow-2xl relative flex flex-col max-h-[90vh] transition-all duration-300 transform ${isOpen ? 'scale-100 opacity-100 pointer-events-auto' : 'scale-95 opacity-0 pointer-events-none'}`}>
                 <div className="p-6 border-b border-white/10 flex justify-between items-center bg-black/40">
                     <div className="flex items-center gap-4">
                         <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-full transition-colors"><ArrowLeft size={20}/></button>

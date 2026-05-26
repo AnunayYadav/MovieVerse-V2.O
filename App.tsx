@@ -1905,9 +1905,9 @@ export default function App() {
           </div>
       </div>
 
-      {/* Backdrop Overlay */}
+      {/* Sidebar Backdrop Overlay */}
       <div 
-          className={`fixed inset-0 z-[95] bg-black/60 backdrop-blur-sm transition-opacity duration-300 ${isSidebarOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
+          className={`fixed inset-0 z-[95] transition-all duration-300 ${isSidebarOpen ? 'visible opacity-100 pointer-events-auto bg-black/60 backdrop-blur-sm' : 'invisible opacity-0 pointer-events-none bg-black/0 backdrop-blur-none'}`}
           onClick={() => setIsSidebarOpen(false)}
       />
 
@@ -2033,11 +2033,13 @@ export default function App() {
                             )}
                         </button>
 
-                        <div 
-                            className={`fixed inset-0 z-[65] transition-opacity duration-200 ${isProfileDropdownOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`} 
-                            onClick={() => setIsProfileDropdownOpen(false)}
-                        />
-                        <div className={`absolute top-[calc(100%+0.75rem)] right-0 w-48 bg-[#0c0c0e]/95 backdrop-blur-3xl border border-white/10 rounded-2xl shadow-[0_20px_40px_rgba(0,0,0,0.8)] p-2 z-[70] transition-all duration-200 transform origin-top-right select-none ${isProfileDropdownOpen ? 'opacity-100 scale-100 translate-y-0 pointer-events-auto' : 'opacity-0 scale-95 -translate-y-2 pointer-events-none'}`}>
+                        {isProfileDropdownOpen && (
+                            <div 
+                                className="fixed inset-0 z-[65]" 
+                                onClick={() => setIsProfileDropdownOpen(false)}
+                            />
+                        )}
+                        <div className={`absolute top-[calc(100%+0.75rem)] right-0 w-48 bg-[#0c0c0e]/95 backdrop-blur-3xl border border-white/10 rounded-2xl shadow-[0_20px_40px_rgba(0,0,0,0.8)] p-2 z-[70] transition-all duration-200 transform origin-top-right select-none ${isProfileDropdownOpen ? 'visible opacity-100 scale-100 translate-y-0 pointer-events-auto' : 'invisible opacity-0 scale-95 -translate-y-2 pointer-events-none'}`}>
                             {/* Dropdown Arrow */}
                             <div className="absolute -top-1 right-3 w-2.5 h-2.5 rotate-45 bg-[#0c0c0e] border-t border-l border-white/10 z-[-1]" />
                             
@@ -2537,6 +2539,7 @@ export default function App() {
 
       {selectedMovie && ( 
         <MoviePage 
+            key={selectedMovie.id}
             movie={selectedMovie} 
             onClose={() => setSelectedMovie(null)} 
             apiKey={apiKey} 
@@ -2558,14 +2561,14 @@ export default function App() {
             onStartWatchParty={handleStartWatchParty}
         /> 
       )}
-      <PersonPage personId={selectedPersonId || 0} onClose={() => setSelectedPersonId(null)} apiKey={apiKey} onMovieClick={(m) => { setSelectedPersonId(null); setTimeout(() => setSelectedMovie(m), 300); }} />
+      <PersonPage key={selectedPersonId || 0} personId={selectedPersonId || 0} onClose={() => setSelectedPersonId(null)} apiKey={apiKey} onMovieClick={(m) => { setSelectedPersonId(null); setTimeout(() => setSelectedMovie(m), 300); }} />
       <ComparisonModal isOpen={isComparisonOpen} onClose={() => setIsComparisonOpen(false)} baseMovie={comparisonBaseMovie} apiKey={apiKey} />
       <SettingsPage isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} apiKey={apiKey} setApiKey={(k) => saveSettings(k)} maturityRating={maturityRating} setMaturityRating={setMaturityRating} profile={userProfile} onUpdateProfile={setUserProfile} onLogout={handleLogout} searchHistory={searchHistory} setSearchHistory={(h) => { setSearchHistory(h); localStorage.setItem('movieverse_search_history', JSON.stringify(h)); }} watchedMovies={watched} setWatchedMovies={(m) => { setWatched(m); localStorage.setItem('movieverse_watched', JSON.stringify(m)); }} />
       <NotificationModal isOpen={isNotificationOpen} onClose={() => setIsNotificationOpen(false)} onUpdate={checkUnreadNotifications} userProfile={userProfile} />
       
       {/* Join Watch Party Modal */}
-      <div className={`fixed inset-0 z-[120] bg-black/80 backdrop-blur-xl flex items-center justify-center p-4 transition-all duration-300 ${isWatchPartyJoinOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}>
-          <div className={`bg-[#0f0f10] border border-white/10 p-8 rounded-3xl w-full max-w-[400px] shadow-2xl relative transition-all duration-300 transform ${isWatchPartyJoinOpen ? 'scale-100 opacity-100 translate-y-0' : 'scale-95 opacity-0 translate-y-4'}`}>
+      <div className={`fixed inset-0 z-[120] flex items-center justify-center p-4 transition-all duration-300 ${isWatchPartyJoinOpen ? 'visible opacity-100 pointer-events-auto bg-black/80 backdrop-blur-xl' : 'invisible opacity-0 pointer-events-none bg-black/0 backdrop-blur-none'}`}>
+          <div className={`bg-[#0f0f10] border border-white/10 p-8 rounded-3xl w-full max-w-[400px] shadow-2xl relative transition-all duration-300 transform ${isWatchPartyJoinOpen ? 'scale-100 opacity-100 pointer-events-auto' : 'scale-95 opacity-0 translate-y-4 pointer-events-none'}`}>
               <button 
                   onClick={() => { setIsWatchPartyJoinOpen(false); setJoinRoomCode(''); setJoinRoomError(''); }} 
                   className="absolute top-4 right-4 text-gray-500 hover:text-white transition-colors"
@@ -2605,12 +2608,12 @@ export default function App() {
 
       {/* Mobile Browse Dropdown Backdrop */}
       <div 
-          className={`fixed inset-0 z-[75] md:hidden bg-black/60 backdrop-blur-sm transition-opacity duration-300 ${isBrowseOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
+          className={`fixed inset-0 z-[75] md:hidden transition-all duration-300 ${isBrowseOpen ? 'visible opacity-100 pointer-events-auto bg-black/60 backdrop-blur-sm' : 'invisible opacity-0 pointer-events-none bg-black/0 backdrop-blur-none'}`}
           onClick={() => setIsBrowseOpen(false)}
       />
 
       {/* Mobile Browse Dropdown Menu */}
-      <div className={`fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom,0px))] left-1/2 -translate-x-1/2 w-[280px] z-[85] md:hidden bg-[#0c0c0e]/95 backdrop-blur-3xl border border-white/10 rounded-2xl shadow-[0_24px_50px_rgba(0,0,0,0.8)] p-2.5 grid grid-cols-3 gap-2 transition-all duration-300 transform origin-bottom select-none ${isBrowseOpen ? 'opacity-100 scale-100 translate-y-0 pointer-events-auto' : 'opacity-0 scale-95 translate-y-4 pointer-events-none'}`}>
+      <div className={`fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom,0px))] left-1/2 -translate-x-1/2 w-[280px] z-[85] md:hidden bg-[#0c0c0e]/95 backdrop-blur-3xl border border-white/10 rounded-2xl shadow-[0_24px_50px_rgba(0,0,0,0.8)] p-2.5 grid grid-cols-3 gap-2 transition-all duration-300 transform origin-bottom select-none ${isBrowseOpen ? 'visible opacity-100 scale-100 translate-y-0 pointer-events-auto' : 'invisible opacity-0 scale-95 translate-y-4 pointer-events-none'}`}>
           {browseOptions.map(opt => {
               const isActive = selectedCategory === opt.id || 
                   (opt.id === "Trending" && selectedCategory === "All") ||

@@ -248,7 +248,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
     ];
 
     return (
-        <div className={`fixed inset-0 z-[100] bg-[#030303] overflow-y-auto font-sans transition-all duration-300 ${isOpen ? 'opacity-100 pointer-events-auto scale-100' : 'opacity-0 pointer-events-none scale-98'}`}>
+        <div className={`fixed inset-0 z-[100] bg-[#030303] overflow-y-auto font-sans transition-all duration-300 ${isOpen ? 'visible opacity-100 pointer-events-auto scale-100' : 'invisible opacity-0 pointer-events-none scale-98'}`}>
             {/* Inner Content Centered Wrapper */}
             <div className="max-w-5xl mx-auto px-6 py-12 md:py-16 relative">
                 
