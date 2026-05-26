@@ -1396,10 +1396,14 @@ export default function App() {
       const code = await createWatchPartyRoom(movie.id, isTv ? 'tv' : 'movie', season, episode);
       if (code) {
           const supabase = getSupabase();
-          const { data: { user } } = await supabase!.auth.getUser();
+          let hostId = currentUserId;
+          if (supabase && !hostId) {
+              const { data: { session } } = await supabase.auth.getSession();
+              hostId = session?.user?.id || '';
+          }
           
           setActiveWatchPartyRoom(code);
-          setWatchPartyHostId(user!.id);
+          setWatchPartyHostId(hostId || null);
           setWatchPartyMovie(movie);
           setWatchPartyParams({ season: season || 1, episode: episode || 1 });
           setWatchPartyCurrentTime(0);
@@ -1464,9 +1468,13 @@ export default function App() {
       if (!activeWatchPartyRoom) return;
 
       const supabase = getSupabase();
-      const { data: { user } } = await supabase!.auth.getUser();
+      let hostId = currentUserId;
+      if (supabase && !hostId) {
+          const { data: { session } } = await supabase.auth.getSession();
+          hostId = session?.user?.id || '';
+      }
 
-      if (user && user.id === watchPartyHostId) {
+      if (hostId && hostId === watchPartyHostId) {
           await deleteWatchPartyRoom(activeWatchPartyRoom);
       }
 

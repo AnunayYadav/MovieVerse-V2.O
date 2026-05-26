@@ -78,12 +78,13 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
             const fetchUser = async () => {
                 const supabase = getSupabase();
                 if (supabase) {
-                    const { data: { user } } = await supabase.auth.getUser();
+                    const { data: { session } } = await supabase.auth.getSession();
+                    const user = session?.user;
                     if (user) {
                         setUserEmail(user.email || "No Email");
                         setUserId(user.id);
                         setJoinDate(new Date(user.created_at).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }));
-                        setProvider(user.app_metadata.provider || "Email");
+                        setProvider(user.app_metadata?.provider || "Email");
                     } else {
                         // Guest Fallback
                         setUserEmail("guest@movieverse.ai");

@@ -259,7 +259,7 @@ export const submitSupportTicket = async (subject: string, message: string, cont
     if (!supabase) return true; 
 
     try {
-        const { data: { user } } = await supabase.auth.getUser();
+        const user = await getCurrentUserId();
         const { error } = await supabase
             .from('support_tickets')
             .insert({
