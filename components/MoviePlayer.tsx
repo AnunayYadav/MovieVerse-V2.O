@@ -33,8 +33,8 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                          lastMediaRef.current.e !== initialEpisode;
 
     const baseUrl = isTvShow 
-      ? `https://player.videasy.net/tv/${tmdbId}/${initialSeason}/${initialEpisode}?nextEpisode=true&autoplayNextEpisode=true&episodeSelector=true&overlay=true&color=${color}`
-      : `https://player.videasy.net/movie/${tmdbId}?overlay=true&color=${color}`;
+      ? `https://player.videasy.net/tv/${tmdbId}/${initialSeason}/${initialEpisode}?nextEpisode=true&autoplayNextEpisode=true&episodeSelector=true&overlay=true&color=${color}&autoplay=true`
+      : `https://player.videasy.net/movie/${tmdbId}?overlay=true&color=${color}&autoplay=true`;
 
     if (mediaChanged) {
         lastMediaRef.current = { id: tmdbId, type: mediaType, s: initialSeason, e: initialEpisode };
