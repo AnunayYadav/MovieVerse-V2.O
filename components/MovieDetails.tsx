@@ -29,6 +29,17 @@ interface MoviePageProps {
     appRegion?: string;
     onProgress?: (movie: Movie, progressData: any) => void;
     onStartWatchParty?: (movie: Movie, season?: number, episode?: number) => void;
+    
+    // Routing-related props
+    initialShowPlayer?: boolean;
+    initialPlayParams?: { season: number; episode: number };
+    onPlayStateChange?: (playing: boolean, season?: number, episode?: number) => void;
+    activeTab?: string;
+    onTabChange?: (tab: string) => void;
+    showFullCast?: boolean;
+    onShowFullCastChange?: (show: boolean) => void;
+    showFullCrew?: boolean;
+    onShowFullCrewChange?: (show: boolean) => void;
 }
 
 const PopularityMeter = ({ score, count, isGold }: { score: number; count: number; isGold: boolean }) => {
@@ -270,7 +281,16 @@ const MovieDetailsSkeleton = () => (
 export const MoviePage: React.FC<MoviePageProps> = ({ 
     movie, onClose, apiKey, onPersonClick, onToggleWatchlist, isWatchlisted, 
     onSwitchMovie, onOpenListModal, onToggleFavorite, isFavorite, isWatched, onToggleWatched, userProfile,
-    onKeywordClick, onCollectionClick, onCompare, appRegion = "US", onProgress, onStartWatchParty
+    onKeywordClick, onCollectionClick, onCompare, appRegion = "US", onProgress, onStartWatchParty,
+    initialShowPlayer = false,
+    initialPlayParams = { season: 1, episode: 1 },
+    onPlayStateChange,
+    activeTab: activeTabProp = "overview",
+    onTabChange,
+    showFullCast: showFullCastProp = false,
+    onShowFullCastChange,
+    showFullCrew: showFullCrewProp = false,
+    onShowFullCrewChange
 }) => {
     const resolvedMediaType = movie.media_type === 'tv' || (!movie.release_date && movie.first_air_date) ? 'tv' : 'movie';
     const [details, setDetails] = useState<MovieDetails | null>(null);
@@ -279,14 +299,14 @@ export const MoviePage: React.FC<MoviePageProps> = ({
     const [trivia, setTrivia] = useState("");
     const [loadingTrivia, setLoadingTrivia] = useState(false);
     const [copied, setCopied] = useState(false);
-    const [activeTab, setActiveTab] = useState("overview");
+    const [activeTab, setActiveTab] = useState(activeTabProp);
     const [selectedSeason, setSelectedSeason] = useState(1);
     const [episodes, setEpisodes] = useState<any[]>([]);
     const [episodesLoading, setEpisodesLoading] = useState(false);
     const [episodeSearch, setEpisodeSearch] = useState("");
     const [viewingImage, setViewingImage] = useState<string | null>(null);
-    const [showPlayer, setShowPlayer] = useState(false);
-    const [playParams, setPlayParams] = useState({ season: 1, episode: 1 });
+    const [showPlayer, setShowPlayer] = useState(initialShowPlayer);
+    const [playParams, setPlayParams] = useState(initialPlayParams);
     const [expandedReviews, setExpandedReviews] = useState<Record<string, boolean>>({});
     
     const toggleReviewExpand = (reviewId: string) => {
@@ -296,8 +316,44 @@ export const MoviePage: React.FC<MoviePageProps> = ({
         }));
     };
     
-    const [showFullCast, setShowFullCast] = useState(false);
-    const [showFullCrew, setShowFullCrew] = useState(false);
+    const [showFullCast, setShowFullCast] = useState(showFullCastProp);
+    const [showFullCrew, setShowFullCrew] = useState(showFullCrewProp);
+
+    useEffect(() => { setActiveTab(activeTabProp); }, [activeTabProp]);
+    useEffect(() => { setShowPlayer(initialShowPlayer); }, [initialShowPlayer]);
+    useEffect(() => { setPlayParams(initialPlayParams); }, [initialPlayParams.season, initialPlayParams.episode]);
+    useEffect(() => { setShowFullCast(showFullCastProp); }, [showFullCastProp]);
+    useEffect(() => { setShowFullCrew(showFullCrewProp); }, [showFullCrewProp]);
+
+    useEffect(() => {
+        if (onTabChange && activeTab !== activeTabProp) {
+            onTabChange(activeTab);
+        }
+    }, [activeTab, onTabChange, activeTabProp]);
+
+    useEffect(() => {
+        if (onPlayStateChange && showPlayer !== initialShowPlayer) {
+            onPlayStateChange(showPlayer, playParams.season, playParams.episode);
+        }
+    }, [showPlayer, onPlayStateChange, initialShowPlayer, playParams]);
+
+    useEffect(() => {
+        if (onPlayStateChange && showPlayer && (playParams.season !== initialPlayParams.season || playParams.episode !== initialPlayParams.episode)) {
+            onPlayStateChange(showPlayer, playParams.season, playParams.episode);
+        }
+    }, [playParams, showPlayer, onPlayStateChange, initialPlayParams]);
+
+    useEffect(() => {
+        if (onShowFullCastChange && showFullCast !== showFullCastProp) {
+            onShowFullCastChange(showFullCast);
+        }
+    }, [showFullCast, onShowFullCastChange, showFullCastProp]);
+
+    useEffect(() => {
+        if (onShowFullCrewChange && showFullCrew !== showFullCrewProp) {
+            onShowFullCrewChange(showFullCrew);
+        }
+    }, [showFullCrew, onShowFullCrewChange, showFullCrewProp]);
 
     const [videoLoaded, setVideoLoaded] = useState(false);
     const [isMuted, setIsMuted] = useState(true);

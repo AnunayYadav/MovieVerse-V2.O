@@ -12,7 +12,6 @@ import { getSupabase, syncUserData, fetchUserData, signOut, getNotifications, tr
 import { WatchPartySection } from './components/WatchParty';
 import { MoviePlayer } from './components/MoviePlayer';
 import { LiveTV } from './components/LiveTV';
-import { LiveSports } from './components/LiveSports';
 import { ExplorePage } from './components/ExplorePage';
 
 const DEFAULT_COLLECTIONS: any = {
@@ -690,6 +689,14 @@ export default function App() {
   
 
   const [selectedPersonId, setSelectedPersonId] = useState<number | null>(null);
+  
+  // Routing-related details & player states
+  const [activeDetailsTab, setActiveDetailsTab] = useState("overview");
+  const [showDetailsCast, setShowDetailsCast] = useState(false);
+  const [showDetailsCrew, setShowDetailsCrew] = useState(false);
+  const [isWatching, setIsWatching] = useState(false);
+  const [watchSeason, setWatchSeason] = useState(1);
+  const [watchEpisode, setWatchEpisode] = useState(1);
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const [isComparisonOpen, setIsComparisonOpen] = useState(false);
   const [comparisonBaseMovie, setComparisonBaseMovie] = useState<Movie | null>(null);
@@ -783,6 +790,15 @@ export default function App() {
       let collectionIdToSelect: number | null = null;
       let countryToSelect: { code: string, name: string } | null = null;
       let customCollectionKey: string | null = null;
+      let personIdToSelect: number | null = null;
+
+      // Details-related states to sync
+      let detailsTab = "overview";
+      let showCast = false;
+      let showCrew = false;
+      let watching = false;
+      let season = 1;
+      let episode = 1;
 
       if (path === '/' || path === '') {
           category = "All";
@@ -794,11 +810,22 @@ export default function App() {
           const sub = parts[2];
           if (sub === 'awards') category = "Awards";
           else if (sub === 'anime') category = "Anime";
-          else if (sub === 'sports') category = "Sports";
           else if (sub === 'family') category = "Family";
           else if (sub === 'tv-shows') category = "TV Shows";
           else if (sub === 'coming') category = "Coming";
           else if (sub === 'genres') category = "Genres";
+          else if (sub === 'franchise') category = "Franchise";
+      } else if (path.startsWith('/library/')) {
+          const sub = parts[2];
+          if (sub === 'watchlist') category = "Watchlist";
+          else if (sub === 'favorites') category = "Favorites";
+          else if (sub === 'history') category = "History";
+      } else if (path.startsWith('/person/')) {
+          const personIdStr = parts[2];
+          const personId = parseInt(personIdStr, 10);
+          if (!isNaN(personId)) {
+              personIdToSelect = personId;
+          }
       } else if (path.startsWith('/movie/') || path.startsWith('/tv/')) {
           const isTv = path.startsWith('/tv/');
           const movieIdStr = parts[2];
@@ -814,6 +841,22 @@ export default function App() {
               } catch (e) {
                   console.error("Failed to fetch movie details from path", e);
               }
+          }
+
+          // Parse details path segments
+          const action = parts[3];
+          if (action === 'watch') {
+              watching = true;
+              if (isTv && parts[4] && parts[5]) {
+                  season = parseInt(parts[4], 10) || 1;
+                  episode = parseInt(parts[5], 10) || 1;
+              }
+          } else if (action === 'cast') {
+              showCast = true;
+          } else if (action === 'crew') {
+              showCrew = true;
+          } else if (['reviews', 'media', 'seasons'].includes(action)) {
+              detailsTab = action;
           }
       } else if (path.startsWith('/watch-party/')) {
           const roomId = parts[2];
@@ -871,6 +914,14 @@ export default function App() {
       setTmdbCollectionId(collectionIdToSelect);
       setActiveCountry(countryToSelect);
       setCurrentCollection(customCollectionKey);
+      setSelectedPersonId(personIdToSelect);
+
+      setActiveDetailsTab(detailsTab);
+      setShowDetailsCast(showCast);
+      setShowDetailsCrew(showCrew);
+      setIsWatching(watching);
+      setWatchSeason(season);
+      setWatchEpisode(episode);
 
       isSyncingPath.current = false;
   }, [apiKey]);
@@ -889,9 +940,25 @@ export default function App() {
       let newPath = '/';
       if (activeWatchPartyRoom) {
           newPath = `/watch-party/${activeWatchPartyRoom}`;
+      } else if (selectedPersonId) {
+          newPath = `/person/${selectedPersonId}`;
       } else if (selectedMovie) {
           const type = selectedMovie.media_type === 'tv' || (!selectedMovie.release_date && selectedMovie.first_air_date) ? 'tv' : 'movie';
-          newPath = `/${type}/${selectedMovie.id}`;
+          if (isWatching) {
+              if (type === 'tv') {
+                  newPath = `/tv/${selectedMovie.id}/watch/${watchSeason}/${watchEpisode}`;
+              } else {
+                  newPath = `/movie/${selectedMovie.id}/watch`;
+              }
+          } else if (showDetailsCast) {
+              newPath = `/${type}/${selectedMovie.id}/cast`;
+          } else if (showDetailsCrew) {
+              newPath = `/${type}/${selectedMovie.id}/crew`;
+          } else if (activeDetailsTab !== 'overview') {
+              newPath = `/${type}/${selectedMovie.id}/${activeDetailsTab}`;
+          } else {
+              newPath = `/${type}/${selectedMovie.id}`;
+          }
       } else if (selectedCategory === 'Explore') {
           newPath = '/explore';
       } else if (selectedCategory === 'LiveTV') {
@@ -900,8 +967,6 @@ export default function App() {
           newPath = '/browse/awards';
       } else if (selectedCategory === 'Anime') {
           newPath = '/browse/anime';
-      } else if (selectedCategory === 'Sports') {
-          newPath = '/browse/sports';
       } else if (selectedCategory === 'Family') {
           newPath = '/browse/family';
       } else if (selectedCategory === 'TV Shows') {
@@ -910,6 +975,14 @@ export default function App() {
           newPath = '/browse/coming';
       } else if (selectedCategory === 'Genres') {
           newPath = '/browse/genres';
+      } else if (selectedCategory === 'Franchise') {
+          newPath = '/browse/franchise';
+      } else if (selectedCategory === 'Watchlist') {
+          newPath = '/library/watchlist';
+      } else if (selectedCategory === 'Favorites') {
+          newPath = '/library/favorites';
+      } else if (selectedCategory === 'History') {
+          newPath = '/library/history';
       } else if (selectedCategory === 'Deep Dive' && activeKeyword) {
           newPath = `/keyword/${activeKeyword.id}/${encodeURIComponent(activeKeyword.name)}`;
       } else if (selectedCategory === 'Deep Dive' && tmdbCollectionId) {
@@ -923,7 +996,7 @@ export default function App() {
       if (window.location.pathname !== newPath) {
           history.pushState(null, '', newPath);
       }
-  }, [selectedCategory, selectedMovie, activeWatchPartyRoom, activeKeyword, tmdbCollectionId, activeCountry, currentCollection]);
+  }, [selectedCategory, selectedMovie, selectedPersonId, activeWatchPartyRoom, activeKeyword, tmdbCollectionId, activeCountry, currentCollection, isWatching, watchSeason, watchEpisode, showDetailsCast, showDetailsCrew, activeDetailsTab]);
 
 
   // Load recommendations based on watch history
@@ -1562,7 +1635,7 @@ export default function App() {
          setFeaturedMovie(selectedCategory === "Watchlist" ? list[0] : null); 
          setHasMore(false); return; 
     }
-    if (["LiveTV", "Sports", "Genres", "Collections", "Countries", "Franchise", "Explore"].includes(selectedCategory) && !activeCountry) return;
+    if (["LiveTV", "Genres", "Collections", "Countries", "Franchise", "Explore"].includes(selectedCategory) && !activeCountry) return;
     if (abortControllerRef.current) abortControllerRef.current.abort();
     const controller = new AbortController();
     abortControllerRef.current = controller;
@@ -1716,7 +1789,7 @@ export default function App() {
             });
         } else {
             setMovies(finalResults);
-            if (!activeCountry && !activeKeyword && !tmdbCollectionId && !currentCollection && !["People", "Anime", "Family", "Awards", "India", "Coming", "Collections", "Genres", "Countries", "Franchise", "Sports", "Explore"].includes(selectedCategory) && finalResults.length > 0 && !searchQuery) {
+            if (!activeCountry && !activeKeyword && !tmdbCollectionId && !currentCollection && !["People", "Anime", "Family", "Awards", "India", "Coming", "Collections", "Genres", "Countries", "Franchise", "Explore"].includes(selectedCategory) && finalResults.length > 0 && !searchQuery) {
                 setFeaturedMovie(finalResults.find((m: Movie) => m.backdrop_path) || finalResults[0]);
             } else setFeaturedMovie(null);
         }
@@ -1794,7 +1867,7 @@ export default function App() {
       { id: "Trending", icon: TrendingUp, label: "Trending", action: resetToHome },
       { id: "Awards", icon: Award, label: "Awards", action: () => { resetFilters(); setSelectedCategory("Awards"); } },
       { id: "Anime", icon: Ghost, label: "Anime", action: () => { resetFilters(); setSelectedCategory("Anime"); } },
-      { id: "Sports", icon: Trophy, label: "Sports", action: () => { resetFilters(); setSelectedCategory("Sports"); } },
+      { id: "Franchise", icon: Layers, label: "Franchises", action: () => { resetFilters(); setSelectedCategory("Franchise"); } },
       { id: "Family", icon: Baby, label: "Family", action: () => { resetFilters(); setSelectedCategory("Family"); } },
       { id: "TV Shows", icon: Tv, label: "TV Shows", action: () => { resetFilters(); setSelectedCategory("TV Shows"); } },
       { id: "Coming", icon: CalendarDays, label: "Coming Soon", action: () => { resetFilters(); setSelectedCategory("Coming"); } },
@@ -1869,11 +1942,8 @@ export default function App() {
                       <button onClick={() => { resetFilters(); setSelectedCategory("LiveTV"); }} className={getSidebarItemClass(selectedCategory === "LiveTV")}>
                           <Radio size={18}/> Live TV <span className="ml-auto text-[8px] opacity-40 hidden lg:inline">Alt+T</span>
                       </button>
-                      <button onClick={() => { resetFilters(); setSelectedCategory("Sports"); }} className={getSidebarItemClass(selectedCategory === "Sports")}>
-                          <Trophy size={18}/> Sports
-                      </button>
                       <button onClick={() => { resetFilters(); setSelectedCategory("Franchise"); }} className={getSidebarItemClass(selectedCategory === "Franchise")}>
-                          <Layers size={18}/> Franchise Explorer
+                          <Layers size={18}/> Franchises
                       </button>
                       <button onClick={() => { setIsSidebarOpen(false); setIsWatchPartyJoinOpen(true); }} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold text-purple-400 hover:bg-purple-500/10 transition-all border border-purple-500/10 hover:translate-x-1 duration-300 mt-2">
                           <Users size={18}/> Join Watch Party
@@ -1967,7 +2037,7 @@ export default function App() {
                         onMouseLeave={handleBrowseLeave}
                     >
                         <button className={`flex items-center gap-2 px-5 py-2 rounded-full text-xs font-semibold tracking-wide transition-all duration-300 ${
-                            isBrowseOpen || ["Genres", "Awards", "Anime", "Sports", "Family", "TV Shows", "Coming"].includes(selectedCategory)
+                            isBrowseOpen || ["Genres", "Awards", "Anime", "Franchise", "Family", "TV Shows", "Coming"].includes(selectedCategory)
                                 ? "bg-white/10 text-white shadow-[0_4px_20px_rgba(0,0,0,0.3)] border border-white/10" 
                                 : "text-zinc-400 hover:text-white hover:bg-white/5 border border-transparent"
                         }`}>
@@ -2158,7 +2228,7 @@ export default function App() {
                        />
                    </div>
                </div>
-           ) : selectedCategory === "LiveTV" ? ( <LiveTV userProfile={userProfile} /> ) : selectedCategory === "Sports" ? ( <LiveSports userProfile={userProfile} /> ) : selectedCategory === "Explore" && !searchQuery ? ( 
+           ) : selectedCategory === "LiveTV" ? ( <LiveTV userProfile={userProfile} /> ) : selectedCategory === "Explore" && !searchQuery ? ( 
                 <ExplorePage 
                     apiKey={apiKey} 
                     onMovieClick={setSelectedMovie} 
@@ -2578,7 +2648,13 @@ export default function App() {
         <MoviePage 
             key={selectedMovie.id}
             movie={selectedMovie} 
-            onClose={() => setSelectedMovie(null)} 
+            onClose={() => {
+                setSelectedMovie(null);
+                setActiveDetailsTab("overview");
+                setShowDetailsCast(false);
+                setShowDetailsCrew(false);
+                setIsWatching(false);
+            }} 
             apiKey={apiKey} 
             onPersonClick={setSelectedPersonId} 
             onToggleWatchlist={(m) => toggleList(watchlist, setWatchlist, 'movieverse_watchlist', m)} 
@@ -2587,7 +2663,13 @@ export default function App() {
             isFavorite={favorites.some(m => m.id === selectedMovie.id)} 
             onToggleWatched={handleToggleWatched} 
             isWatched={watched.some(m => m.id === selectedMovie.id)} 
-            onSwitchMovie={setSelectedMovie} 
+            onSwitchMovie={(m) => {
+                setSelectedMovie(m);
+                setActiveDetailsTab("overview");
+                setShowDetailsCast(false);
+                setShowDetailsCrew(false);
+                setIsWatching(false);
+            }} 
             onOpenListModal={() => {}} 
             userProfile={userProfile} 
             onKeywordClick={handleKeywordClick} 
@@ -2596,6 +2678,19 @@ export default function App() {
             appRegion={appRegion}
             onProgress={handleProgressUpdate} 
             onStartWatchParty={handleStartWatchParty}
+            initialShowPlayer={isWatching}
+            initialPlayParams={{ season: watchSeason, episode: watchEpisode }}
+            onPlayStateChange={(playing, s, e) => {
+                setIsWatching(playing);
+                if (s !== undefined) setWatchSeason(s);
+                if (e !== undefined) setWatchEpisode(e);
+            }}
+            activeTab={activeDetailsTab}
+            onTabChange={setActiveDetailsTab}
+            showFullCast={showDetailsCast}
+            onShowFullCastChange={setShowDetailsCast}
+            showFullCrew={showDetailsCrew}
+            onShowFullCrewChange={setShowDetailsCrew}
         /> 
       )}
       <PersonPage key={selectedPersonId || 0} personId={selectedPersonId || 0} onClose={() => setSelectedPersonId(null)} apiKey={apiKey} onMovieClick={(m) => { setSelectedPersonId(null); setTimeout(() => setSelectedMovie(m), 300); }} />
