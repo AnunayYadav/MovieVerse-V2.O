@@ -41,10 +41,14 @@ export const signInWithGoogle = async () => {
     const supabase = getSupabase();
     if (!supabase) throw new Error("Supabase not configured");
     
+    // Use origin + pathname (without hash) to avoid conflicts with hash routing.
+    // Supabase appends #access_token=... to this URL after OAuth completes.
+    const redirectUrl = window.location.origin + window.location.pathname;
+    
     const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-            redirectTo: window.location.origin
+            redirectTo: redirectUrl
         }
     });
     if (error) throw error;

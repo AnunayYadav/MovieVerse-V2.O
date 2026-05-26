@@ -765,6 +765,13 @@ export default function App() {
       isSyncingHash.current = true;
 
       const hash = window.location.hash || '#/';
+
+      // Skip processing if this is an OAuth callback hash (e.g. #access_token=...)
+      if (hash.includes('access_token=') || hash.includes('error=')) {
+          isSyncingHash.current = false;
+          return;
+      }
+
       const parts = hash.split('/');
       
       // Reset all sub-filters to clean state before parsing hash
@@ -1136,6 +1143,14 @@ export default function App() {
              loadedUserIdRef.current = session.user.id;
              setIsAuthenticated(true);
              setCurrentUserId(session.user.id);
+
+             // Clean up OAuth hash fragment from URL after successful auth
+             const currentHash = window.location.hash;
+             if (currentHash.includes('access_token=') || currentHash.includes('token_type=')) {
+                 // Replace the OAuth hash with the clean app root hash
+                 window.location.hash = '#/';
+             }
+
              try {
                 const cloudData = await fetchUserData();
                 let profileToSet = { name: "Guest", age: "", genres: [], enableHistory: true } as UserProfile;
@@ -1187,10 +1202,24 @@ export default function App() {
                 }
             });
             authListener = subscription;
+            // Check if we're in an OAuth callback — the hash contains access_token
+            const isOAuthCallback = window.location.hash.includes('access_token=');
+
             try {
                 const { data: { session } } = await supabase.auth.getSession();
                 if (session) {
                     handleSessionFound(session);
+                } else if (isOAuthCallback) {
+                    // OAuth callback detected: Supabase's onAuthStateChange will fire
+                    // shortly with the session from the hash fragment.
+                    // Keep authChecking = true so we show the loader, not the login page.
+                    // Set a safety timeout in case something goes wrong.
+                    setTimeout(() => {
+                        setAuthChecking(prev => {
+                            // Only force-stop if still checking (session never arrived)
+                            return prev ? false : prev;
+                        });
+                    }, 8000);
                 } else {
                     const localAuth = localStorage.getItem('movieverse_auth');
                     if (localAuth) {
