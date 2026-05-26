@@ -68,10 +68,12 @@ export const WatchPartySection: React.FC<WatchPartySectionProps> = ({
   useEffect(() => {
     if (!supabaseClient || !roomCode) return;
 
+    const presenceKey = currentUserId || `guest-${Math.random().toString(36).substring(2, 9)}`;
+
     const channel = supabaseClient.channel(`watch_party:${roomCode}`, {
       config: {
         presence: {
-          key: currentUserId,
+          key: presenceKey,
         },
       },
     });
@@ -186,7 +188,7 @@ export const WatchPartySection: React.FC<WatchPartySectionProps> = ({
       if (!channel) return;
 
       const time = lastBroadcastTimeRef.current;
-      if (typeof time === 'number' && time > 0) {
+      if (typeof time === 'number' && time >= 0) {
         channel.send({
           type: 'broadcast',
           event: 'sync',

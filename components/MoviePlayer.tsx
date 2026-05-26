@@ -21,28 +21,62 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const [embedUrl, setEmbedUrl] = React.useState('');
 
+  const lastMediaRef = useRef<{ id: number; type: string; s?: number; e?: number } | null>(null);
+  const lastAppliedProgressRef = useRef<number | undefined>(undefined);
+
   useEffect(() => {
     const isTvShow = mediaType === 'tv' || (isAnime && mediaType !== 'movie');
-    let url = isTvShow 
+    const mediaChanged = !lastMediaRef.current || 
+                         lastMediaRef.current.id !== tmdbId || 
+                         lastMediaRef.current.type !== mediaType || 
+                         lastMediaRef.current.s !== initialSeason || 
+                         lastMediaRef.current.e !== initialEpisode;
+
+    const baseUrl = isTvShow 
       ? `https://player.videasy.net/tv/${tmdbId}/${initialSeason}/${initialEpisode}?nextEpisode=true&autoplayNextEpisode=true&episodeSelector=true&overlay=true&color=${color}`
       : `https://player.videasy.net/movie/${tmdbId}?overlay=true&color=${color}`;
-    
-    if (forceProgress && forceProgress > 0) {
-        url += `&progress=${Math.floor(forceProgress)}`;
+
+    if (mediaChanged) {
+        lastMediaRef.current = { id: tmdbId, type: mediaType, s: initialSeason, e: initialEpisode };
+        lastAppliedProgressRef.current = forceProgress;
+        
+        let url = baseUrl;
+        if (forceProgress && forceProgress > 0) {
+            url += `&progress=${Math.floor(forceProgress)}`;
+        }
+        setEmbedUrl(url);
+    } else {
+        const hasNewProgress = forceProgress !== undefined && forceProgress !== lastAppliedProgressRef.current;
+        if (hasNewProgress) {
+            lastAppliedProgressRef.current = forceProgress;
+            setEmbedUrl(`${baseUrl}&progress=${Math.floor(forceProgress!)}`);
+        }
     }
-    setEmbedUrl(url);
   }, [tmdbId, mediaType, isAnime, initialSeason, initialEpisode, color, forceProgress]);
 
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
         try {
+            let parsed: any = null;
             if (typeof event.data === 'string') {
-                const parsed = JSON.parse(event.data);
-                if (parsed && typeof parsed.timestamp === 'number' && typeof parsed.duration === 'number') {
+                try {
+                    parsed = JSON.parse(event.data);
+                } catch (_) {
+                    return;
+                }
+            } else if (event.data && typeof event.data === 'object') {
+                parsed = event.data;
+            }
+
+            if (parsed) {
+                const rawTime = parsed.timestamp ?? parsed.currentTime ?? parsed.current_time ?? parsed.time;
+                const rawDuration = parsed.duration ?? parsed.totalTime ?? parsed.total_time;
+
+                if (typeof rawTime === 'number') {
                     if (onProgress) {
                         onProgress({
-                            currentTime: parsed.timestamp,
-                            duration: parsed.duration,
+                            currentTime: rawTime,
+                            duration: typeof rawDuration === 'number' ? rawDuration : 0,
                             event: 'time',
                             season: parsed.season || initialSeason,
                             episode: parsed.episode || initialEpisode
