@@ -1386,22 +1386,26 @@ export default function App() {
                         }
                     }
                     setIsCloudSync(true);
+                    
+                    const meta = session.user.user_metadata;
+                    if (meta) {
+                        if (profileToSet.name === "Guest" || !profileToSet.name) {
+                            profileToSet.name = meta.full_name || meta.name || profileToSet.name;
+                        }
+                        if (!profileToSet.avatar) {
+                            profileToSet.avatar = meta.avatar_url || meta.picture;
+                        }
+                    }
+                    setUserProfile(profileToSet);
                 } else {
-                    setIsCloudSync(true);
+                    console.warn("Failed to retrieve user data from cloud (cloudData was null). Falling back to local storage and disabling cloud sync to prevent data overwrite.");
+                    loadLocalState();
+                    setIsCloudSync(false);
                 }
-                const meta = session.user.user_metadata;
-                if (meta) {
-                    if (profileToSet.name === "Guest" || !profileToSet.name) {
-                        profileToSet.name = meta.full_name || meta.name || profileToSet.name;
-                    }
-                    if (!profileToSet.avatar) {
-                        profileToSet.avatar = meta.avatar_url || meta.picture;
-                    }
-                }
-                setUserProfile(profileToSet);
              } catch (err) {
                  console.error("Cloud fetch error", err);
                  loadLocalState();
+                 setIsCloudSync(false);
              }
              setDataLoaded(true);
              setAuthChecking(false);
