@@ -321,7 +321,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
 
     const handleShare = () => {
         const type = resolvedMediaType;
-        const shareUrl = `${window.location.origin}${window.location.pathname}#/${type}/${movie.id}`;
+        const shareUrl = `${window.location.origin}/${type}/${movie.id}`;
         navigator.clipboard.writeText(shareUrl)
             .then(() => {
                 setCopied(true);

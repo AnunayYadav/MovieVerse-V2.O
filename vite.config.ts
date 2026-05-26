@@ -16,6 +16,8 @@ export default defineConfig(({ mode }) => {
           }
         }
       },
+      // Ensure all routes fall back to index.html for SPA pathname routing
+      appType: 'spa',
       plugins: [react()],
       define: {
         'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY),

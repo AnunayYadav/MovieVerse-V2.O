@@ -758,23 +758,17 @@ export default function App() {
       if (selectedCategory === "History") setMovies(watched);
   }, [watchlist, favorites, watched, selectedCategory]);
 
-  const isSyncingHash = useRef(false);
+  const isSyncingPath = useRef(false);
 
-  const syncStateFromHash = useCallback(async () => {
-      if (isSyncingHash.current) return;
-      isSyncingHash.current = true;
+  const syncStateFromPath = useCallback(async () => {
+      if (isSyncingPath.current) return;
+      isSyncingPath.current = true;
 
-      const hash = window.location.hash || '#/';
-
-      // Skip processing if this is an OAuth callback hash (e.g. #access_token=...)
-      if (hash.includes('access_token=') || hash.includes('error=')) {
-          isSyncingHash.current = false;
-          return;
-      }
-
-      const parts = hash.split('/');
+      const path = window.location.pathname || '/';
+      const parts = path.split('/');
+      // parts[0] is always '' (before leading /), so parts[1] is the first segment
       
-      // Reset all sub-filters to clean state before parsing hash
+      // Reset all sub-filters to clean state before parsing path
       setSearchQuery("");
       setCurrentCollection(null);
       setTmdbCollectionId(null);
@@ -790,13 +784,13 @@ export default function App() {
       let countryToSelect: { code: string, name: string } | null = null;
       let customCollectionKey: string | null = null;
 
-      if (hash === '#/' || hash === '') {
+      if (path === '/' || path === '') {
           category = "All";
-      } else if (hash === '#/explore') {
+      } else if (path === '/explore') {
           category = "Explore";
-      } else if (hash === '#/live-tv') {
+      } else if (path === '/live-tv') {
           category = "LiveTV";
-      } else if (hash.startsWith('#/browse/')) {
+      } else if (path.startsWith('/browse/')) {
           const sub = parts[2];
           if (sub === 'awards') category = "Awards";
           else if (sub === 'anime') category = "Anime";
@@ -805,8 +799,8 @@ export default function App() {
           else if (sub === 'tv-shows') category = "TV Shows";
           else if (sub === 'coming') category = "Coming";
           else if (sub === 'genres') category = "Genres";
-      } else if (hash.startsWith('#/movie/') || hash.startsWith('#/tv/')) {
-          const isTv = hash.startsWith('#/tv/');
+      } else if (path.startsWith('/movie/') || path.startsWith('/tv/')) {
+          const isTv = path.startsWith('/tv/');
           const movieIdStr = parts[2];
           const movieId = parseInt(movieIdStr, 10);
           if (!isNaN(movieId)) {
@@ -818,10 +812,10 @@ export default function App() {
                       movieToSelect = { ...data, media_type: type };
                   }
               } catch (e) {
-                  console.error("Failed to fetch movie details from hash", e);
+                  console.error("Failed to fetch movie details from path", e);
               }
           }
-      } else if (hash.startsWith('#/watch-party/')) {
+      } else if (path.startsWith('/watch-party/')) {
           const roomId = parts[2];
           if (roomId) {
               try {
@@ -839,30 +833,30 @@ export default function App() {
                       }
                   }
               } catch (e) {
-                  console.error("Failed to sync watch party from hash", e);
+                  console.error("Failed to sync watch party from path", e);
               }
           }
-      } else if (hash.startsWith('#/keyword/')) {
+      } else if (path.startsWith('/keyword/')) {
           const keywordIdStr = parts[2];
           const keywordId = parseInt(keywordIdStr, 10);
           if (!isNaN(keywordId)) {
               category = "Deep Dive";
               keywordToSelect = { id: keywordId, name: parts[3] ? decodeURIComponent(parts[3]) : `Keyword ${keywordId}` };
           }
-      } else if (hash.startsWith('#/collection/')) {
+      } else if (path.startsWith('/collection/')) {
           const collIdStr = parts[2];
           const collId = parseInt(collIdStr, 10);
           if (!isNaN(collId)) {
               category = "Deep Dive";
               collectionIdToSelect = collId;
           }
-      } else if (hash.startsWith('#/country/')) {
+      } else if (path.startsWith('/country/')) {
           const code = parts[2];
           if (code) {
               category = "Countries";
               countryToSelect = { code, name: parts[3] ? decodeURIComponent(parts[3]) : code };
           }
-      } else if (hash.startsWith('#/custom-collection/')) {
+      } else if (path.startsWith('/custom-collection/')) {
           const key = parts[2];
           if (key) {
               category = "Collection";
@@ -878,56 +872,56 @@ export default function App() {
       setActiveCountry(countryToSelect);
       setCurrentCollection(customCollectionKey);
 
-      isSyncingHash.current = false;
+      isSyncingPath.current = false;
   }, [apiKey]);
 
   useEffect(() => {
       if (isAuthenticated) {
-          syncStateFromHash();
-          window.addEventListener('hashchange', syncStateFromHash);
-          return () => window.removeEventListener('hashchange', syncStateFromHash);
+          syncStateFromPath();
+          window.addEventListener('popstate', syncStateFromPath);
+          return () => window.removeEventListener('popstate', syncStateFromPath);
       }
-  }, [isAuthenticated, syncStateFromHash]);
+  }, [isAuthenticated, syncStateFromPath]);
 
   useEffect(() => {
-      if (isSyncingHash.current) return;
+      if (isSyncingPath.current) return;
       
-      let newHash = '#/';
+      let newPath = '/';
       if (activeWatchPartyRoom) {
-          newHash = `#/watch-party/${activeWatchPartyRoom}`;
+          newPath = `/watch-party/${activeWatchPartyRoom}`;
       } else if (selectedMovie) {
           const type = selectedMovie.media_type === 'tv' || (!selectedMovie.release_date && selectedMovie.first_air_date) ? 'tv' : 'movie';
-          newHash = `#/${type}/${selectedMovie.id}`;
+          newPath = `/${type}/${selectedMovie.id}`;
       } else if (selectedCategory === 'Explore') {
-          newHash = '#/explore';
+          newPath = '/explore';
       } else if (selectedCategory === 'LiveTV') {
-          newHash = '#/live-tv';
+          newPath = '/live-tv';
       } else if (selectedCategory === 'Awards') {
-          newHash = '#/browse/awards';
+          newPath = '/browse/awards';
       } else if (selectedCategory === 'Anime') {
-          newHash = '#/browse/anime';
+          newPath = '/browse/anime';
       } else if (selectedCategory === 'Sports') {
-          newHash = '#/browse/sports';
+          newPath = '/browse/sports';
       } else if (selectedCategory === 'Family') {
-          newHash = '#/browse/family';
+          newPath = '/browse/family';
       } else if (selectedCategory === 'TV Shows') {
-          newHash = '#/browse/tv-shows';
+          newPath = '/browse/tv-shows';
       } else if (selectedCategory === 'Coming') {
-          newHash = '#/browse/coming';
+          newPath = '/browse/coming';
       } else if (selectedCategory === 'Genres') {
-          newHash = '#/browse/genres';
+          newPath = '/browse/genres';
       } else if (selectedCategory === 'Deep Dive' && activeKeyword) {
-          newHash = `#/keyword/${activeKeyword.id}/${encodeURIComponent(activeKeyword.name)}`;
+          newPath = `/keyword/${activeKeyword.id}/${encodeURIComponent(activeKeyword.name)}`;
       } else if (selectedCategory === 'Deep Dive' && tmdbCollectionId) {
-          newHash = `#/collection/${tmdbCollectionId}`;
+          newPath = `/collection/${tmdbCollectionId}`;
       } else if (selectedCategory === 'Countries' && activeCountry) {
-          newHash = `#/country/${activeCountry.code}/${encodeURIComponent(activeCountry.name)}`;
+          newPath = `/country/${activeCountry.code}/${encodeURIComponent(activeCountry.name)}`;
       } else if (selectedCategory === 'Collection' && currentCollection) {
-          newHash = `#/custom-collection/${currentCollection}`;
+          newPath = `/custom-collection/${currentCollection}`;
       }
 
-      if (window.location.hash !== newHash) {
-          window.location.hash = newHash;
+      if (window.location.pathname !== newPath) {
+          history.pushState(null, '', newPath);
       }
   }, [selectedCategory, selectedMovie, activeWatchPartyRoom, activeKeyword, tmdbCollectionId, activeCountry, currentCollection]);
 
@@ -1145,10 +1139,9 @@ export default function App() {
              setCurrentUserId(session.user.id);
 
              // Clean up OAuth hash fragment from URL after successful auth
-             const currentHash = window.location.hash;
-             if (currentHash.includes('access_token=') || currentHash.includes('token_type=')) {
-                 // Replace the OAuth hash with the clean app root hash
-                 window.location.hash = '#/';
+             if (window.location.hash && (window.location.hash.includes('access_token=') || window.location.hash.includes('token_type='))) {
+                 // Remove the OAuth hash fragment, keep the current pathname
+                 history.replaceState(null, '', window.location.pathname);
              }
 
              try {
@@ -1203,6 +1196,8 @@ export default function App() {
             });
             authListener = subscription;
             // Check if we're in an OAuth callback — the hash contains access_token
+            // With pathname routing, Supabase OAuth tokens arrive in the hash fragment
+            // while the app routes live in the pathname — no conflict.
             const isOAuthCallback = window.location.hash.includes('access_token=');
 
             try {
@@ -1210,15 +1205,11 @@ export default function App() {
                 if (session) {
                     handleSessionFound(session);
                 } else if (isOAuthCallback) {
-                    // OAuth callback detected: Supabase's onAuthStateChange will fire
-                    // shortly with the session from the hash fragment.
+                    // OAuth callback: Supabase's onAuthStateChange will fire shortly
+                    // with the session parsed from the hash fragment.
                     // Keep authChecking = true so we show the loader, not the login page.
-                    // Set a safety timeout in case something goes wrong.
                     setTimeout(() => {
-                        setAuthChecking(prev => {
-                            // Only force-stop if still checking (session never arrived)
-                            return prev ? false : prev;
-                        });
+                        setAuthChecking(prev => prev ? false : prev);
                     }, 8000);
                 } else {
                     const localAuth = localStorage.getItem('movieverse_auth');
