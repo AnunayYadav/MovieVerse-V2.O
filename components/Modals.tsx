@@ -1,53 +1,9 @@
-
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { UserCircle, X, ListPlus, Plus, Check, Loader2, Film, AlertCircle, BrainCircuit, Search, Star, RefreshCcw, Bell, CheckCheck, Inbox, Heart, PaintBucket, Upload, Facebook, Instagram, Twitter, Globe, Scale, DollarSign, Clock, Trophy, ChevronRight, ChevronDown, Calendar, ArrowUp, ArrowDown, TrendingUp, History, ArrowLeft, MoreHorizontal, Dice5, Shield, ExternalLink } from 'lucide-react';
 import { UserProfile, Movie, GENRES_LIST, PersonDetails, AppNotification, MovieDetails } from '../types';
-import { TMDB_BASE_URL, TMDB_IMAGE_BASE, TMDB_BACKDROP_BASE, formatCurrency, MovieSkeleton } from './Shared';
+import { TMDB_BASE_URL, TMDB_IMAGE_BASE, TMDB_BACKDROP_BASE, formatCurrency, MovieSkeleton, ImageLightbox } from './Shared';
 import { generateSmartRecommendations } from '../services/gemini';
 import { getNotifications, markNotificationsRead } from '../services/supabase';
-
-// AGE VERIFICATION MODAL (Uncloseable)
-interface AgeVerificationModalProps {
-    isOpen: boolean;
-    onSave: (age: string) => void;
-}
-
-export const AgeVerificationModal: React.FC<AgeVerificationModalProps> = ({ isOpen, onSave }) => {
-    const [age, setAge] = useState("");
-    
-    return (
-        <div className={`fixed inset-0 z-[200] flex items-center justify-center p-4 transition-all duration-300 ${isOpen ? 'visible opacity-100 pointer-events-auto bg-black/95 backdrop-blur-md' : 'invisible opacity-0 pointer-events-none bg-black/0 backdrop-blur-none'}`}>
-            <div className={`bg-[#121212] p-8 rounded-2xl w-full max-w-md text-center border border-red-600/30 shadow-2xl transition-all duration-300 transform ${isOpen ? 'scale-100 translate-y-0 opacity-100' : 'scale-95 translate-y-4 opacity-0'}`}>
-                <div className="w-16 h-16 bg-red-600/20 rounded-full flex items-center justify-center mx-auto mb-6 text-red-500">
-                    <UserCircle size={32} />
-                </div>
-                <h2 className="text-2xl font-bold text-white mb-2">Age Verification Required</h2>
-                <p className="text-gray-400 mb-8 text-sm leading-relaxed">
-                    To provide personalized recommendations and ensure appropriate content content (18+), please confirm your age to continue.
-                </p>
-                <div className="relative mb-6">
-                    <input 
-                        type="number" 
-                        value={age} 
-                        onChange={(e) => setAge(e.target.value)} 
-                        placeholder="Enter your age (e.g. 24)"
-                        className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-4 text-white focus:border-red-600 focus:outline-none text-center text-lg font-bold placeholder-white/20 transition-colors"
-                        min="10"
-                        max="120"
-                        autoFocus
-                    />
-                </div>
-                <button 
-                    onClick={() => { if(age && !isNaN(parseInt(age)) && parseInt(age) > 0) onSave(age); }}
-                    disabled={!age}
-                    className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-4 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98] shadow-lg shadow-red-900/20"
-                >
-                    Continue to MovieVerse
-                </button>
-            </div>
-        </div>
-    );
-};
 
 // FULL CREDITS MODAL
 interface FullCreditsModalProps {
@@ -141,17 +97,63 @@ const ActorMovieCard = ({ movie, onClick }: { movie: Movie; onClick: () => void;
     );
 };
 
+const TimelineMovieCard = ({ movie, onClick }: { movie: Movie; onClick: () => void; key?: React.Key }) => {
+    const backdropUrl = movie.backdrop_path 
+      ? `${TMDB_IMAGE_BASE}${movie.backdrop_path}`
+      : (movie.poster_path ? `${TMDB_IMAGE_BASE}${movie.poster_path}` : `https://placehold.co/600x338/111/444?text=${encodeURIComponent(movie.title || movie.name || "Movie")}`);
+    
+    const year = (movie.release_date || movie.first_air_date || "").split('-')[0] || 'TBA';
+    const rating = movie.vote_average;
+
+    return (
+        <div className="flex flex-col items-center shrink-0">
+            {/* Timeline node */}
+            <div className="relative mb-4 flex flex-col items-center">
+                <span className="bg-red-600/10 border border-red-500/30 text-red-500 font-extrabold text-[9px] px-2.5 py-0.5 rounded-full mb-2 shadow relative z-10 backdrop-blur-md">
+                    {year}
+                </span>
+                <div className="w-2.5 h-2.5 rounded-full bg-red-600 ring-4 ring-red-500/20 z-10" />
+            </div>
+
+            {/* Landscape card */}
+            <div 
+                onClick={onClick}
+                className="w-44 sm:w-52 md:w-60 aspect-[16/9] rounded-xl overflow-hidden bg-white/5 border border-white/5 cursor-pointer shadow-lg hover:scale-[1.03] hover:border-white/20 transition-all duration-500 group relative text-left"
+            >
+                <img 
+                    src={backdropUrl} 
+                    alt={movie.title || movie.name} 
+                    className="w-full h-full object-cover opacity-85 group-hover:scale-105 group-hover:opacity-100 transition-all duration-700 ease-out" 
+                    loading="lazy" 
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/35 to-transparent opacity-90 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
+                
+                <div className="absolute inset-0 p-3 flex flex-col justify-end select-none pointer-events-none">
+                    <h4 className="text-xs md:text-sm font-bold text-white line-clamp-1 group-hover:text-red-500 transition-colors duration-300 drop-shadow-md">
+                        {movie.title || movie.name}
+                    </h4>
+                    <div className="flex items-center justify-between mt-1 text-[10px] text-gray-400 opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-y-1 group-hover:translate-y-0">
+                        <span>{rating > 0 ? `⭐ ${rating.toFixed(1)}` : 'NR'}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 const HorizontalScrollRow = ({ 
     title, 
     movies, 
     limit, 
+    loadingMore,
     onLoadMore, 
     onMovieClick 
 }: { 
     title: string; 
     movies: Movie[]; 
     limit: number; 
-    onLoadMore?: () => void; 
+    loadingMore: boolean;
+    onLoadMore: () => void; 
     onMovieClick: (m: Movie) => void; 
 }) => {
     if (!movies || movies.length === 0) return null;
@@ -159,13 +161,25 @@ const HorizontalScrollRow = ({
     const visibleMovies = movies.slice(0, limit);
     const hasMore = movies.length > limit;
 
+    const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+        const target = e.currentTarget;
+        if (target.scrollWidth - target.scrollLeft - target.clientWidth < 200) {
+            if (hasMore && !loadingMore) {
+                onLoadMore();
+            }
+        }
+    };
+
     return (
         <div className="mb-10 text-left animate-in fade-in duration-500">
-            <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+            <h3 className="text-sm md:text-base font-bold text-white mb-4 flex items-center gap-2">
                 <span className="w-1 h-5 bg-red-600 rounded-full" />
                 {title}
             </h3>
-            <div className="flex overflow-x-auto gap-5 pb-4 hide-scrollbar scroll-smooth">
+            <div 
+                onScroll={handleScroll}
+                className="flex overflow-x-auto gap-5 pb-4 hide-scrollbar scroll-smooth"
+            >
                 {visibleMovies.map((movie) => (
                     <ActorMovieCard 
                         key={movie.id} 
@@ -173,14 +187,149 @@ const HorizontalScrollRow = ({
                         onClick={() => onMovieClick(movie)} 
                     />
                 ))}
-                {hasMore && onLoadMore && (
-                    <button 
-                        onClick={onLoadMore}
-                        className="shrink-0 w-44 sm:w-52 md:w-60 aspect-[16/9] rounded-xl bg-white/5 border border-dashed border-white/10 hover:border-white/20 flex flex-col items-center justify-center cursor-pointer transition-all hover:scale-[1.02] active:scale-95 text-gray-400 hover:text-white"
+                {loadingMore && (
+                    <>
+                        <div className="shrink-0 w-44 sm:w-52 md:w-60 aspect-[16/9] bg-white/5 border border-white/5 rounded-xl overflow-hidden relative animate-pulse flex items-end p-3">
+                            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full animate-[shimmer_1.5s_infinite]" />
+                            <div className="space-y-2 w-3/4">
+                                <div className="h-3 bg-white/10 rounded w-full" />
+                                <div className="h-2 bg-white/10 rounded w-1/2" />
+                            </div>
+                        </div>
+                        <div className="shrink-0 w-44 sm:w-52 md:w-60 aspect-[16/9] bg-white/5 border border-white/5 rounded-xl overflow-hidden relative animate-pulse flex items-end p-3">
+                            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full animate-[shimmer_1.5s_infinite]" />
+                            <div className="space-y-2 w-3/4">
+                                <div className="h-3 bg-white/10 rounded w-full" />
+                                <div className="h-2 bg-white/10 rounded w-1/2" />
+                            </div>
+                        </div>
+                    </>
+                )}
+            </div>
+        </div>
+    );
+};
+
+const TimelineScrollRow = ({ 
+    title, 
+    movies, 
+    limit, 
+    loadingMore,
+    onLoadMore, 
+    onMovieClick 
+}: { 
+    title: string; 
+    movies: Movie[]; 
+    limit: number; 
+    loadingMore: boolean;
+    onLoadMore: () => void; 
+    onMovieClick: (m: Movie) => void; 
+}) => {
+    if (!movies || movies.length === 0) return null;
+
+    const visibleMovies = movies.slice(0, limit);
+    const hasMore = movies.length > limit;
+
+    const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+        const target = e.currentTarget;
+        if (target.scrollWidth - target.scrollLeft - target.clientWidth < 200) {
+            if (hasMore && !loadingMore) {
+                onLoadMore();
+            }
+        }
+    };
+
+    return (
+        <div className="mb-10 text-left animate-in fade-in duration-500">
+            <h3 className="text-sm md:text-base font-bold text-white mb-4 flex items-center gap-2">
+                <span className="w-1 h-5 bg-red-600 rounded-full" />
+                {title}
+            </h3>
+            <div className="relative">
+                {/* Horizontal timeline track */}
+                <div className="absolute top-[28px] left-0 right-0 h-[2px] bg-white/10 z-0" />
+                
+                <div 
+                    onScroll={handleScroll}
+                    className="flex overflow-x-auto gap-5 pb-4 hide-scrollbar scroll-smooth relative z-10"
+                >
+                    {visibleMovies.map((movie) => (
+                        <TimelineMovieCard 
+                            key={movie.id} 
+                            movie={movie} 
+                            onClick={() => onMovieClick(movie)} 
+                        />
+                    ))}
+                    {loadingMore && (
+                        <>
+                            <div className="shrink-0 w-44 sm:w-52 md:w-60 aspect-[16/9] bg-white/5 border border-white/5 rounded-xl animate-pulse mt-[42px]" />
+                            <div className="shrink-0 w-44 sm:w-52 md:w-60 aspect-[16/9] bg-white/5 border border-white/5 rounded-xl animate-pulse mt-[42px]" />
+                        </>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+};
+
+const HorizontalPhotoRow = ({ 
+    title, 
+    photos, 
+    limit, 
+    loadingMore,
+    onLoadMore, 
+    onPhotoClick 
+}: { 
+    title: string; 
+    photos: any[]; 
+    limit: number; 
+    loadingMore: boolean;
+    onLoadMore: () => void; 
+    onPhotoClick: (src: string) => void; 
+}) => {
+    if (!photos || photos.length === 0) return null;
+
+    const visiblePhotos = photos.slice(0, limit);
+    const hasMore = photos.length > limit;
+
+    const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+        const target = e.currentTarget;
+        if (target.scrollWidth - target.scrollLeft - target.clientWidth < 200) {
+            if (hasMore && !loadingMore) {
+                onLoadMore();
+            }
+        }
+    };
+
+    return (
+        <div className="mb-10 text-left animate-in fade-in duration-500">
+            <h3 className="text-sm md:text-base font-bold text-white mb-4 flex items-center gap-2">
+                <span className="w-1 h-5 bg-red-600 rounded-full" />
+                {title}
+            </h3>
+            <div 
+                onScroll={handleScroll}
+                className="flex overflow-x-auto gap-4 pb-4 hide-scrollbar scroll-smooth"
+            >
+                {visiblePhotos.map((photo, i) => (
+                    <div 
+                        key={i} 
+                        onClick={() => onPhotoClick(`${TMDB_BACKDROP_BASE}${photo.file_path}`)}
+                        className="shrink-0 w-28 sm:w-32 md:w-36 aspect-[2/3] rounded-xl overflow-hidden cursor-pointer border border-white/5 hover:border-white/20 transition-all hover:scale-105 active:scale-95 shadow-md relative"
                     >
-                        <ChevronRight size={24} className="mb-1 text-red-500 animate-pulse" />
-                        <span className="text-xs font-bold uppercase tracking-wider">Load More</span>
-                    </button>
+                        <img 
+                            src={`${TMDB_IMAGE_BASE}${photo.file_path}`} 
+                            className="w-full h-full object-cover" 
+                            alt="Actor portrait" 
+                            loading="lazy" 
+                        />
+                    </div>
+                ))}
+                {loadingMore && (
+                    <>
+                        <div className="shrink-0 w-28 sm:w-32 md:w-36 aspect-[2/3] bg-white/5 border border-white/5 rounded-xl animate-pulse" />
+                        <div className="shrink-0 w-28 sm:w-32 md:w-36 aspect-[2/3] bg-white/5 border border-white/5 rounded-xl animate-pulse" />
+                    </>
                 )}
             </div>
         </div>
@@ -199,20 +348,143 @@ export const PersonPage: React.FC<PersonPageProps> = ({ personId, onClose, apiKe
     const [details, setDetails] = useState<PersonDetails | null>(null);
     const [loading, setLoading] = useState(true);
     const [isClosing, setIsClosing] = useState(false);
+    const [viewingImage, setViewingImage] = useState<string | null>(null);
 
-    // Row pagination states
+    // Row pagination limits and loading states
     const [boxOfficeLimit, setBoxOfficeLimit] = useState(15);
-    const [upcomingLimit, setUpcomingLimit] = useState(15);
-    const [knownForLimit, setKnownForLimit] = useState(15);
+    const [loadingBoxOffice, setLoadingBoxOffice] = useState(false);
+    
+    const [timelineLimit, setTimelineLimit] = useState(15);
+    const [loadingTimeline, setLoadingTimeline] = useState(false);
 
+    const [actingLimit, setActingLimit] = useState(15);
+    const [loadingActing, setLoadingActing] = useState(false);
+
+    const [cameosLimit, setCameosLimit] = useState(15);
+    const [loadingCameos, setLoadingCameos] = useState(false);
+
+    const [voiceLimit, setVoiceLimit] = useState(15);
+    const [loadingVoice, setLoadingVoice] = useState(false);
+
+    const [directingWritingLimit, setDirectingWritingLimit] = useState(15);
+    const [loadingDirectingWriting, setLoadingDirectingWriting] = useState(false);
+
+    const [producingLimit, setProducingLimit] = useState(15);
+    const [loadingProducing, setLoadingProducing] = useState(false);
+
+    const [upcomingLimit, setUpcomingLimit] = useState(15);
+    const [loadingUpcoming, setLoadingUpcoming] = useState(false);
+
+    const [photosLimit, setPhotosLimit] = useState(12);
+    const [loadingPhotos, setLoadingPhotos] = useState(false);
+
+    // Reset pagination states on actor changes
     useEffect(() => {
         if (personId) {
             setIsClosing(false);
             setBoxOfficeLimit(15);
+            setTimelineLimit(15);
+            setActingLimit(15);
+            setCameosLimit(15);
+            setVoiceLimit(15);
+            setDirectingWritingLimit(15);
+            setProducingLimit(15);
             setUpcomingLimit(15);
-            setKnownForLimit(15);
+            setPhotosLimit(12);
+
+            setLoadingBoxOffice(false);
+            setLoadingTimeline(false);
+            setLoadingActing(false);
+            setLoadingCameos(false);
+            setLoadingVoice(false);
+            setLoadingDirectingWriting(false);
+            setLoadingProducing(false);
+            setLoadingUpcoming(false);
+            setLoadingPhotos(false);
         }
     }, [personId]);
+
+    // Handlers for infinite loading row pagination
+    const handleLoadMoreBoxOffice = useCallback(() => {
+        if (loadingBoxOffice) return;
+        setLoadingBoxOffice(true);
+        setTimeout(() => {
+            setBoxOfficeLimit(prev => prev + 15);
+            setLoadingBoxOffice(false);
+        }, 500);
+    }, [loadingBoxOffice]);
+
+    const handleLoadMoreTimeline = useCallback(() => {
+        if (loadingTimeline) return;
+        setLoadingTimeline(true);
+        setTimeout(() => {
+            setTimelineLimit(prev => prev + 15);
+            setLoadingTimeline(false);
+        }, 550);
+    }, [loadingTimeline]);
+
+    const handleLoadMoreActing = useCallback(() => {
+        if (loadingActing) return;
+        setLoadingActing(true);
+        setTimeout(() => {
+            setActingLimit(prev => prev + 15);
+            setLoadingActing(false);
+        }, 500);
+    }, [loadingActing]);
+
+    const handleLoadMoreCameos = useCallback(() => {
+        if (loadingCameos) return;
+        setLoadingCameos(true);
+        setTimeout(() => {
+            setCameosLimit(prev => prev + 15);
+            setLoadingCameos(false);
+        }, 500);
+    }, [loadingCameos]);
+
+    const handleLoadMoreVoice = useCallback(() => {
+        if (loadingVoice) return;
+        setLoadingVoice(true);
+        setTimeout(() => {
+            setVoiceLimit(prev => prev + 15);
+            setLoadingVoice(false);
+        }, 500);
+    }, [loadingVoice]);
+
+    const handleLoadMoreDirectingWriting = useCallback(() => {
+        if (loadingDirectingWriting) return;
+        setLoadingDirectingWriting(true);
+        setTimeout(() => {
+            setDirectingWritingLimit(prev => prev + 15);
+            setLoadingDirectingWriting(false);
+        }, 500);
+    }, [loadingDirectingWriting]);
+
+    const handleLoadMoreProducing = useCallback(() => {
+        if (loadingProducing) return;
+        setLoadingProducing(true);
+        setTimeout(() => {
+            setProducingLimit(prev => prev + 15);
+            setLoadingProducing(false);
+        }, 500);
+    }, [loadingProducing]);
+
+    const handleLoadMoreUpcoming = useCallback(() => {
+        if (loadingUpcoming) return;
+        setLoadingUpcoming(true);
+        setTimeout(() => {
+            setUpcomingLimit(prev => prev + 15);
+            setLoadingUpcoming(false);
+        }, 500);
+    }, [loadingUpcoming]);
+
+    const handleLoadMorePhotos = useCallback(() => {
+        if (loadingPhotos) return;
+        setLoadingPhotos(true);
+        setTimeout(() => {
+            setPhotosLimit(prev => prev + 12);
+            setLoadingPhotos(false);
+        }, 450);
+    }, [loadingPhotos]);
 
     const handleClose = () => {
         setIsClosing(true);
@@ -271,13 +543,61 @@ export const PersonPage: React.FC<PersonPageProps> = ({ personId, onClose, apiKe
             return dA.localeCompare(dB);
         });
 
-        // 3. Known For
-        const knownFor = sortedByPop;
+        // 3. Chronological Career Timeline (Oldest first)
+        const timeline = [...mergedCredits]
+            .filter(m => m.release_date || m.first_air_date)
+            .sort((a, b) => {
+                const dA = a.release_date || a.first_air_date || '0000';
+                const dB = b.release_date || b.first_air_date || '0000';
+                return dA.localeCompare(dB);
+            });
+
+        // 4. Main Acting Roles (excluding self, cameo, uncredited, archive, voice)
+        const actingRoles = sortedByPop.filter(m => {
+            const char = ((m as any).character || "").toLowerCase();
+            return !char.includes("self") && 
+                   !char.includes("cameo") && 
+                   !char.includes("uncredited") && 
+                   !char.includes("archive") && 
+                   !char.includes("voice");
+        });
+
+        // 5. Cameos & Self appearances
+        const cameos = sortedByPop.filter(m => {
+            const char = ((m as any).character || "").toLowerCase();
+            return char.includes("self") || 
+                   char.includes("cameo") || 
+                   char.includes("uncredited") || 
+                   char.includes("archive");
+        });
+
+        // 6. Voice Roles
+        const voiceRoles = sortedByPop.filter(m => {
+            const char = ((m as any).character || "").toLowerCase();
+            return char.includes("voice");
+        });
+
+        // 7. Directing / Writing
+        const directingWriting = sortedByPop.filter(m => {
+            const job = ((m as any).job || "").toLowerCase();
+            return job.includes("director") || job.includes("writer") || job.includes("screenplay");
+        });
+
+        // 8. Producer Roles
+        const producing = sortedByPop.filter(m => {
+            const job = ((m as any).job || "").toLowerCase();
+            return job.includes("producer");
+        });
 
         return {
             boxOffice: finalBoxOffice,
             upcoming,
-            knownFor
+            timeline,
+            acting: actingRoles,
+            cameos,
+            voice: voiceRoles,
+            directingWriting,
+            producing
         };
     }, [mergedCredits]);
 
@@ -387,27 +707,93 @@ export const PersonPage: React.FC<PersonPageProps> = ({ personId, onClose, apiKe
 
                               {/* Horizontal Rows */}
                               <div className="space-y-4">
+                                  {/* Photos Gallery */}
+                                  <HorizontalPhotoRow 
+                                      title="Photos Gallery" 
+                                      photos={details.images?.profiles || []} 
+                                      limit={photosLimit} 
+                                      loadingMore={loadingPhotos}
+                                      onLoadMore={handleLoadMorePhotos}
+                                      onPhotoClick={(src) => setViewingImage(src)} 
+                                  />
+
+                                  {/* Box Office Hits */}
                                   <HorizontalScrollRow 
                                       title="Box Office Hits" 
                                       movies={categories.boxOffice} 
                                       limit={boxOfficeLimit} 
-                                      onLoadMore={() => setBoxOfficeLimit(prev => prev + 15)} 
+                                      loadingMore={loadingBoxOffice}
+                                      onLoadMore={handleLoadMoreBoxOffice} 
                                       onMovieClick={onMovieClick} 
                                   />
 
+                                  {/* Career Timeline */}
+                                  <TimelineScrollRow 
+                                      title="Career Timeline" 
+                                      movies={categories.timeline} 
+                                      limit={timelineLimit} 
+                                      loadingMore={loadingTimeline}
+                                      onLoadMore={handleLoadMoreTimeline} 
+                                      onMovieClick={onMovieClick} 
+                                  />
+
+                                  {/* Main Acting Roles */}
                                   <HorizontalScrollRow 
-                                      title="Known For" 
-                                      movies={categories.knownFor} 
-                                      limit={knownForLimit} 
-                                      onLoadMore={() => setKnownForLimit(prev => prev + 15)} 
+                                      title="Main Acting Roles" 
+                                      movies={categories.acting} 
+                                      limit={actingLimit} 
+                                      loadingMore={loadingActing}
+                                      onLoadMore={handleLoadMoreActing} 
                                       onMovieClick={onMovieClick} 
                                   />
 
+                                  {/* Directing & Writing */}
+                                  <HorizontalScrollRow 
+                                      title="Directing & Writing" 
+                                      movies={categories.directingWriting} 
+                                      limit={directingWritingLimit} 
+                                      loadingMore={loadingDirectingWriting}
+                                      onLoadMore={handleLoadMoreDirectingWriting} 
+                                      onMovieClick={onMovieClick} 
+                                  />
+
+                                  {/* Producer Roles */}
+                                  <HorizontalScrollRow 
+                                      title="Production Credits" 
+                                      movies={categories.producing} 
+                                      limit={producingLimit} 
+                                      loadingMore={loadingProducing}
+                                      onLoadMore={handleLoadMoreProducing} 
+                                      onMovieClick={onMovieClick} 
+                                  />
+
+                                  {/* Cameos & Self Appearances */}
+                                  <HorizontalScrollRow 
+                                      title="Cameos & Self Appearances" 
+                                      movies={categories.cameos} 
+                                      limit={cameosLimit} 
+                                      loadingMore={loadingCameos}
+                                      onLoadMore={handleLoadMoreCameos} 
+                                      onMovieClick={onMovieClick} 
+                                  />
+
+                                  {/* Voice Roles */}
+                                  <HorizontalScrollRow 
+                                      title="Voice Roles" 
+                                      movies={categories.voice} 
+                                      limit={voiceLimit} 
+                                      loadingMore={loadingVoice}
+                                      onLoadMore={handleLoadMoreVoice} 
+                                      onMovieClick={onMovieClick} 
+                                  />
+
+                                  {/* Upcoming Projects */}
                                   <HorizontalScrollRow 
                                       title="Upcoming Projects" 
                                       movies={categories.upcoming} 
                                       limit={upcomingLimit} 
-                                      onLoadMore={() => setUpcomingLimit(prev => prev + 15)} 
+                                      loadingMore={loadingUpcoming}
+                                      onLoadMore={handleLoadMoreUpcoming} 
                                       onMovieClick={onMovieClick} 
                                   />
                               </div>
@@ -416,6 +802,7 @@ export const PersonPage: React.FC<PersonPageProps> = ({ personId, onClose, apiKe
                  </div>
              </div>
           ) : null}
+          {viewingImage && <ImageLightbox src={viewingImage} onClose={() => setViewingImage(null)} />}
       </div>
     );
 };
