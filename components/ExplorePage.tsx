@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Award, TrendingUp, Tv, Film, Star, Play, Plus, LayoutGrid, Sparkles, ChevronRight, Check, AlertCircle, Loader2, ArrowLeft, ExternalLink, Globe, ChevronDown, Info, Search } from 'lucide-react';
+import { Award, TrendingUp, Tv, Film, Star, Play, Plus, LayoutGrid, Sparkles, ChevronRight, Check, AlertCircle, Loader2, ArrowLeft, ExternalLink, Globe, ChevronDown, Info, Search, X } from 'lucide-react';
 import { Movie, UserProfile, Provider, GENRES_MAP } from '../types';
 import { TMDB_BASE_URL, TMDB_IMAGE_BASE, TMDB_BACKDROP_BASE, MovieCard, MovieSkeleton, getWatchmodeKey, PosterMarquee } from './Shared';
 
@@ -72,6 +72,11 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ apiKey, onMovieClick, 
     const [loading, setLoading] = useState(true);
     const [loadingPlatforms, setLoadingPlatforms] = useState(true);
     const [marqueeMovies, setMarqueeMovies] = useState<Movie[]>([]);
+
+    const [ottSearchInput, setOttSearchInput] = useState("");
+    const [ottSearchQuery, setOttSearchQuery] = useState("");
+    const [ottSearchResults, setOttSearchResults] = useState<Movie[]>([]);
+    const [searching, setSearching] = useState(false);
 
     const sentinelRef = useRef<HTMLDivElement | null>(null);
 
@@ -238,6 +243,11 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ apiKey, onMovieClick, 
 
     // Reset and fetch page 1 when provider changes or region changes
     useEffect(() => {
+        setOttSearchInput("");
+        setOttSearchQuery("");
+        setOttSearchResults([]);
+        setSearching(false);
+
         if (!activeOtt) {
             setOttMovies([]);
             setOttPage(1);
@@ -275,6 +285,83 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ apiKey, onMovieClick, 
             isMounted = false;
         };
     }, [activeOtt, apiKey, appRegion, exploreRegion]);
+
+    // Debounce OTT search input
+    useEffect(() => {
+        const handler = setTimeout(() => {
+            setOttSearchQuery(ottSearchInput);
+        }, 400);
+        return () => clearTimeout(handler);
+    }, [ottSearchInput]);
+
+    // Fetch search results for active OTT
+    useEffect(() => {
+        if (!activeOtt || !ottSearchQuery.trim()) {
+            setOttSearchResults([]);
+            setSearching(false);
+            return;
+        }
+
+        let isMounted = true;
+        const searchOTT = async () => {
+            setSearching(true);
+            const targetRegion = exploreRegion === 'Global' ? (appRegion || 'US') : exploreRegion;
+            try {
+                const searchUrl = `${TMDB_BASE_URL}/search/multi?api_key=${apiKey}&query=${encodeURIComponent(ottSearchQuery)}&language=en-US&page=1&include_adult=false`;
+                const searchRes = await fetch(searchUrl);
+                const searchData = await searchRes.json();
+                const rawResults = searchData.results || [];
+                
+                const validResults = rawResults.filter((item: any) => item.media_type === 'movie' || item.media_type === 'tv');
+                const itemsToVerify = validResults.slice(0, 12);
+                
+                const verifiedResults = await Promise.all(itemsToVerify.map(async (item: any) => {
+                    try {
+                        const providerUrl = `${TMDB_BASE_URL}/${item.media_type}/${item.id}/watch/providers?api_key=${apiKey}`;
+                        const providerRes = await fetch(providerUrl);
+                        const providerData = await providerRes.json();
+                        const providers = providerData.results || {};
+                        const regionData = providers[targetRegion] || {};
+                        const allProviders = [
+                            ...(regionData.flatrate || []),
+                            ...(regionData.free || []),
+                            ...(regionData.ads || []),
+                            ...(regionData.rent || []),
+                            ...(regionData.buy || [])
+                        ];
+                        const hasProvider = allProviders.some((p: any) => p.provider_id === activeOtt);
+                        if (hasProvider) {
+                            return {
+                                ...item,
+                                title: item.title || item.name
+                            } as Movie;
+                        }
+                        return null;
+                    } catch (err) {
+                        console.error("Error verifying watch provider for id", item.id, err);
+                        return null;
+                    }
+                }));
+
+                if (isMounted) {
+                    const finalMatches = verifiedResults.filter((item): item is Movie => item !== null);
+                    setOttSearchResults(finalMatches);
+                }
+            } catch (err) {
+                console.error("Error in OTT search flow:", err);
+            } finally {
+                if (isMounted) {
+                    setSearching(false);
+                }
+            }
+        };
+
+        searchOTT();
+
+        return () => {
+            isMounted = false;
+        };
+    }, [ottSearchQuery, activeOtt, apiKey, appRegion, exploreRegion]);
 
     const loadMoreMovies = useCallback(async () => {
         if (loading || loadingMore || !hasMoreOtt || !activeOtt) return;
@@ -367,112 +454,185 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ apiKey, onMovieClick, 
                             </div>
                         </div>
                     </div>
+
+                    {/* Styled Search Bar inside OTT section */}
+                    <div className="relative flex items-center w-36 sm:w-60 md:w-72 transition-all duration-300 focus-within:w-44 sm:focus-within:w-68 md:focus-within:w-80 z-50">
+                        <Search 
+                            className="absolute left-3.5 transition-colors duration-300 pointer-events-none" 
+                            size={15} 
+                            style={{ color: ottSearchInput ? theme.accent : 'rgba(255,255,255,0.4)' }} 
+                        />
+                        <input 
+                            id="ott-section-search-input"
+                            type="text" 
+                            value={ottSearchInput}
+                            onChange={(e) => setOttSearchInput(e.target.value)}
+                            placeholder={`Search ${activeProvider.provider_name}...`} 
+                            className="w-full bg-white/5 border border-white/10 hover:border-white/20 rounded-full py-1.5 pl-10 pr-9 text-xs focus:outline-none focus:bg-black/60 focus:border-white/40 focus:ring-1 transition-all placeholder-white/30 text-white shadow-inner"
+                            style={{ 
+                                borderColor: ottSearchInput ? `${theme.accent}40` : undefined,
+                                boxShadow: ottSearchInput ? `0 0 12px ${theme.accent}15` : undefined
+                            }}
+                        />
+                        {ottSearchInput && (
+                            <button 
+                                onClick={() => setOttSearchInput("")} 
+                                className="absolute right-3 p-1 hover:bg-white/10 rounded-full text-white/40 hover:text-white transition-all"
+                            >
+                                <X size={12} />
+                            </button>
+                        )}
+                    </div>
                 </div>
 
-                {/* Hero Movie Banner (merged with header) */}
-                {loading && ottMovies.length === 0 ? (
-                    <div className="relative w-full h-[70vh] md:h-[80vh] bg-white/5 animate-pulse flex items-end p-6 md:p-12">
-                        <div className="space-y-4 max-w-2xl w-full">
-                            <div className="h-6 bg-white/10 rounded w-24"></div>
-                            <div className="h-12 bg-white/10 rounded w-3/4"></div>
-                            <div className="h-4 bg-white/10 rounded w-1/2"></div>
-                            <div className="h-16 bg-white/10 rounded w-full"></div>
-                            <div className="flex gap-3">
-                                <div className="h-10 bg-white/10 rounded w-32"></div>
-                                <div className="h-10 bg-white/10 rounded w-32"></div>
+                {ottSearchQuery ? (
+                    <div className="max-w-7xl mx-auto px-4 md:px-8 pb-28 md:pb-16 pt-24 sm:pt-28">
+                        <div className="flex items-center justify-between mb-8 border-b border-white/5 pb-4">
+                            <h4 className="text-base md:text-lg font-bold tracking-tight text-white flex items-center gap-2">
+                                <Search size={18} style={{ color: theme.accent }} />
+                                <span>Search Results for "{ottSearchQuery}" on {activeProvider.provider_name}</span>
+                            </h4>
+                            {searching && (
+                                <Loader2 size={16} className="text-white/60 animate-spin" />
+                            )}
+                        </div>
+
+                        {searching && ottSearchResults.length === 0 ? (
+                            <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 md:gap-8">
+                                {[...Array(8)].map((_, i) => <MovieSkeleton key={i} />)}
                             </div>
-                        </div>
+                        ) : ottSearchResults.length > 0 ? (
+                            <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 md:gap-8 animate-in fade-in duration-500">
+                                {ottSearchResults.map(movie => (
+                                    <MovieCard 
+                                        key={movie.id} 
+                                        movie={movie} 
+                                        onClick={onMovieClick} 
+                                        isWatched={false} 
+                                        onToggleWatched={() => {}} 
+                                    />
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="flex flex-col items-center justify-center py-20 text-center animate-in fade-in zoom-in-95 duration-500">
+                                <div className="p-4 rounded-full bg-white/5 border border-white/10 text-white/40 mb-4">
+                                    <Search size={32} style={{ color: theme.accent }} />
+                                </div>
+                                <h3 className="text-lg font-bold text-white mb-2">No Matches Found</h3>
+                                <p className="text-sm text-white/50 max-w-sm">
+                                    We couldn't find any movies or shows matching "{ottSearchQuery}" on {activeProvider.provider_name} in your region.
+                                </p>
+                            </div>
+                        )}
                     </div>
-                ) : ottMovies[0] ? (
-                    <div className="relative w-full h-[70vh] md:h-[80vh] overflow-hidden group cursor-pointer" onClick={() => onMovieClick(ottMovies[0])}>
-                        <div className="absolute inset-0">
-                            <img 
-                                src={ottMovies[0].backdrop_path ? `${TMDB_BACKDROP_BASE}${ottMovies[0].backdrop_path}` : (ottMovies[0].poster_path ? `${TMDB_IMAGE_BASE}${ottMovies[0].poster_path}` : "https://placehold.co/1920x1080/111/FFF?text=No+Preview")} 
-                                className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105" 
-                                alt={ottMovies[0].title} 
-                            />
-                            {/* Gradients using the theme background color so it blends seamlessly */}
-                            <div 
-                                className="absolute inset-0" 
-                                style={{ 
-                                    backgroundImage: `linear-gradient(to top, ${theme.bg} 0%, rgba(0, 0, 0, 0.4) 60%, transparent 100%), linear-gradient(to right, ${theme.bg} 0%, rgba(0, 0, 0, 0.2) 40%, transparent 100%)` 
-                                }} 
-                            />
-                        </div>
-                        
-                        <div className="absolute bottom-0 left-0 w-full p-6 md:p-12 z-20 flex flex-col items-start gap-4 md:max-w-4xl animate-in slide-in-from-bottom-10 duration-700">
-                            <span 
-                                className="inline-block px-3 py-1 rounded-full text-xs font-bold text-white uppercase tracking-widest shadow-md"
-                                style={{ backgroundColor: theme.accent }}
-                            >
-                                Must Watch
-                            </span>
-                            
-                            <h3 className="text-3xl md:text-5xl font-black text-white mb-2 leading-tight tracking-tight drop-shadow-2xl">
-                                {ottMovies[0].title || ottMovies[0].name}
-                            </h3>
-                            
-                            <div className="flex items-center gap-4 text-sm font-medium text-gray-300">
-                                <span className="text-green-400 font-bold">{ottMovies[0].vote_average ? ottMovies[0].vote_average.toFixed(1) : 'NR'} Rating</span>
-                                <span>•</span>
-                                <span>{ottMovies[0].release_date?.split('-')[0] || ottMovies[0].first_air_date?.split('-')[0] || 'TBA'}</span>
-                                {ottMovies[0].genre_ids && ottMovies[0].genre_ids[0] && (
-                                    <>
+                ) : (
+                    <>
+                        {/* Hero Movie Banner (merged with header) */}
+                        {loading && ottMovies.length === 0 ? (
+                            <div className="relative w-full h-[70vh] md:h-[80vh] bg-white/5 animate-pulse flex items-end p-6 md:p-12">
+                                <div className="space-y-4 max-w-2xl w-full">
+                                    <div className="h-6 bg-white/10 rounded w-24"></div>
+                                    <div className="h-12 bg-white/10 rounded w-3/4"></div>
+                                    <div className="h-4 bg-white/10 rounded w-1/2"></div>
+                                    <div className="h-16 bg-white/10 rounded w-full"></div>
+                                    <div className="flex gap-3">
+                                        <div className="h-10 bg-white/10 rounded w-32"></div>
+                                        <div className="h-10 bg-white/10 rounded w-32"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        ) : ottMovies[0] ? (
+                            <div className="relative w-full h-[70vh] md:h-[80vh] overflow-hidden group cursor-pointer" onClick={() => onMovieClick(ottMovies[0])}>
+                                <div className="absolute inset-0">
+                                    <img 
+                                        src={ottMovies[0].backdrop_path ? `${TMDB_BACKDROP_BASE}${ottMovies[0].backdrop_path}` : (ottMovies[0].poster_path ? `${TMDB_IMAGE_BASE}${ottMovies[0].poster_path}` : "https://placehold.co/1920x1080/111/FFF?text=No+Preview")} 
+                                        className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105" 
+                                        alt={ottMovies[0].title} 
+                                    />
+                                    {/* Gradients using the theme background color so it blends seamlessly */}
+                                    <div 
+                                        className="absolute inset-0" 
+                                        style={{ 
+                                            backgroundImage: `linear-gradient(to top, ${theme.bg} 0%, rgba(0, 0, 0, 0.4) 60%, transparent 100%), linear-gradient(to right, ${theme.bg} 0%, rgba(0, 0, 0, 0.2) 40%, transparent 100%)` 
+                                        }} 
+                                    />
+                                </div>
+                                
+                                <div className="absolute bottom-0 left-0 w-full p-6 md:p-12 z-20 flex flex-col items-start gap-4 md:max-w-4xl animate-in slide-in-from-bottom-10 duration-700">
+                                    <span 
+                                        className="inline-block px-3 py-1 rounded-full text-xs font-bold text-white uppercase tracking-widest shadow-md"
+                                        style={{ backgroundColor: theme.accent }}
+                                    >
+                                        Must Watch
+                                    </span>
+                                    
+                                    <h3 className="text-3xl md:text-5xl font-black text-white mb-2 leading-tight tracking-tight drop-shadow-2xl">
+                                        {ottMovies[0].title || ottMovies[0].name}
+                                    </h3>
+                                    
+                                    <div className="flex items-center gap-4 text-sm font-medium text-gray-300">
+                                        <span className="text-green-400 font-bold">{ottMovies[0].vote_average ? ottMovies[0].vote_average.toFixed(1) : 'NR'} Rating</span>
                                         <span>•</span>
-                                        <span>{Object.keys(GENRES_MAP).find(key => GENRES_MAP[key] === ottMovies[0].genre_ids?.[0]) || "Movie"}</span>
+                                        <span>{ottMovies[0].release_date?.split('-')[0] || ottMovies[0].first_air_date?.split('-')[0] || 'TBA'}</span>
+                                        {ottMovies[0].genre_ids && ottMovies[0].genre_ids[0] && (
+                                            <>
+                                                <span>•</span>
+                                                <span>{Object.keys(GENRES_MAP).find(key => GENRES_MAP[key] === ottMovies[0].genre_ids?.[0]) || "Movie"}</span>
+                                            </>
+                                        )}
+                                    </div>
+
+                                    <p className="text-gray-300 text-sm md:text-lg line-clamp-3 md:line-clamp-2 max-w-2xl leading-relaxed drop-shadow-md">
+                                        {ottMovies[0].overview}
+                                    </p>
+                                    
+                                    <div className="flex flex-row items-center gap-3 w-full sm:w-auto mt-2">
+                                        {isExclusive && (
+                                            <button 
+                                                onClick={(e) => { e.stopPropagation(); onMovieClick(ottMovies[0]); }}
+                                                className="flex-1 sm:flex-none px-6 py-2.5 text-sm sm:text-base rounded-md font-bold flex items-center justify-center gap-2.5 bg-white hover:bg-white/90 text-black transition-all hover:scale-[1.02] active:scale-95 shadow-md"
+                                            >
+                                                <Play size={18} fill="currentColor"/> Watch Now
+                                            </button>
+                                        )}
+                                        <button 
+                                            onClick={(e) => { e.stopPropagation(); onMovieClick(ottMovies[0]); }}
+                                            className="flex-1 sm:flex-none px-6 py-2.5 text-sm sm:text-base rounded-md font-bold flex items-center justify-center gap-2.5 bg-white/20 hover:bg-white/35 backdrop-blur-md text-white transition-all hover:scale-[1.02] active:scale-95"
+                                        >
+                                            <Info size={18}/> More Info
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        ) : null}
+
+                        <div className="max-w-7xl mx-auto px-4 md:px-8 pb-28 md:pb-16 pt-8">
+
+                            <div className="flex items-center justify-between mb-8">
+                                <h4 className="text-base md:text-lg font-bold tracking-tight text-white">Top Picks for You</h4>
+                                <span className="text-[9px] font-bold uppercase tracking-wider opacity-60 px-2 py-0.5 rounded bg-white/5 border border-white/10">Syncing...</span>
+                            </div>
+
+                            <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 md:gap-8">
+                                {loading ? [...Array(12)].map((_, i) => <MovieSkeleton key={i} />) : (
+                                    <>
+                                        {ottMovies.map(movie => (
+                                            <MovieCard key={movie.id} movie={movie} onClick={onMovieClick} isWatched={false} onToggleWatched={() => {}} />
+                                        ))}
+                                        {loadingMore && [...Array(6)].map((_, i) => (
+                                            <MovieSkeleton key={`skeleton-${i}`} />
+                                        ))}
                                     </>
                                 )}
                             </div>
 
-                            <p className="text-gray-300 text-sm md:text-lg line-clamp-3 md:line-clamp-2 max-w-2xl leading-relaxed drop-shadow-md">
-                                {ottMovies[0].overview}
-                            </p>
-                            
-                            <div className="flex flex-row items-center gap-3 w-full sm:w-auto mt-2">
-                                {isExclusive && (
-                                    <button 
-                                        onClick={(e) => { e.stopPropagation(); onMovieClick(ottMovies[0]); }}
-                                        className="flex-1 sm:flex-none px-6 py-2.5 text-sm sm:text-base rounded-md font-bold flex items-center justify-center gap-2.5 bg-white hover:bg-white/90 text-black transition-all hover:scale-[1.02] active:scale-95 shadow-md"
-                                    >
-                                        <Play size={18} fill="currentColor"/> Watch Now
-                                    </button>
-                                )}
-                                <button 
-                                    onClick={(e) => { e.stopPropagation(); onMovieClick(ottMovies[0]); }}
-                                    className="flex-1 sm:flex-none px-6 py-2.5 text-sm sm:text-base rounded-md font-bold flex items-center justify-center gap-2.5 bg-white/20 hover:bg-white/35 backdrop-blur-md text-white transition-all hover:scale-[1.02] active:scale-95"
-                                >
-                                    <Info size={18}/> More Info
-                                </button>
-                            </div>
+                            {/* Infinite scroll sentinel */}
+                            {activeOtt && hasMoreOtt && (
+                                <div ref={sentinelRef} className="h-12 w-full flex items-center justify-center" />
+                            )}
                         </div>
-                    </div>
-                ) : null}
-
-                <div className="max-w-7xl mx-auto px-4 md:px-8 pb-28 md:pb-16 pt-8">
-
-                    <div className="flex items-center justify-between mb-8">
-                        <h4 className="text-base md:text-lg font-bold tracking-tight text-white">Top Picks for You</h4>
-                        <span className="text-[9px] font-bold uppercase tracking-wider opacity-60 px-2 py-0.5 rounded bg-white/5 border border-white/10">Syncing...</span>
-                    </div>
-
-                    <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 md:gap-8">
-                        {loading ? [...Array(12)].map((_, i) => <MovieSkeleton key={i} />) : (
-                            <>
-                                {ottMovies.map(movie => (
-                                    <MovieCard key={movie.id} movie={movie} onClick={onMovieClick} isWatched={false} onToggleWatched={() => {}} />
-                                ))}
-                                {loadingMore && [...Array(6)].map((_, i) => (
-                                    <MovieSkeleton key={`skeleton-${i}`} />
-                                ))}
-                            </>
-                        )}
-                    </div>
-
-                    {/* Infinite scroll sentinel */}
-                    {activeOtt && hasMoreOtt && (
-                        <div ref={sentinelRef} className="h-12 w-full flex items-center justify-center" />
-                    )}
-                </div>
+                    </>
+                )}
             </div>
         );
     }
