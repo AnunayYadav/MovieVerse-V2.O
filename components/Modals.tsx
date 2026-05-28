@@ -215,6 +215,8 @@ const TimelineScrollRow = ({
     movies, 
     limit, 
     loadingMore,
+    isDescending,
+    onToggle,
     onLoadMore, 
     onMovieClick 
 }: { 
@@ -222,6 +224,8 @@ const TimelineScrollRow = ({
     movies: Movie[]; 
     limit: number; 
     loadingMore: boolean;
+    isDescending: boolean;
+    onToggle: () => void;
     onLoadMore: () => void; 
     onMovieClick: (m: Movie) => void; 
 }) => {
@@ -241,10 +245,19 @@ const TimelineScrollRow = ({
 
     return (
         <div className="mb-10 text-left animate-in fade-in duration-500">
-            <h3 className="text-sm md:text-base font-bold text-white mb-4 flex items-center gap-2">
-                <span className="w-1 h-5 bg-red-600 rounded-full" />
-                {title}
-            </h3>
+            <div className="flex items-center justify-between mb-4">
+                <h3 className="text-sm md:text-base font-bold text-white flex items-center gap-2">
+                    <span className="w-1 h-5 bg-red-600 rounded-full" />
+                    {title}
+                </h3>
+                <button 
+                    onClick={onToggle}
+                    className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white transition-all border border-white/5 active:scale-95 flex items-center justify-center shadow-md"
+                    title={isDescending ? "Sort Oldest First" : "Sort Newest First"}
+                >
+                    {isDescending ? <ArrowDown size={15} className="text-red-500" /> : <ArrowUp size={15} className="text-red-500" />}
+                </button>
+            </div>
             <div className="relative">
                 {/* Horizontal timeline track */}
                 <div className="absolute top-[28px] left-0 right-0 h-[2px] bg-white/10 z-0" />
@@ -272,69 +285,6 @@ const TimelineScrollRow = ({
     );
 };
 
-const HorizontalPhotoRow = ({ 
-    title, 
-    photos, 
-    limit, 
-    loadingMore,
-    onLoadMore, 
-    onPhotoClick 
-}: { 
-    title: string; 
-    photos: any[]; 
-    limit: number; 
-    loadingMore: boolean;
-    onLoadMore: () => void; 
-    onPhotoClick: (src: string) => void; 
-}) => {
-    if (!photos || photos.length === 0) return null;
-
-    const visiblePhotos = photos.slice(0, limit);
-    const hasMore = photos.length > limit;
-
-    const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
-        const target = e.currentTarget;
-        if (target.scrollWidth - target.scrollLeft - target.clientWidth < 200) {
-            if (hasMore && !loadingMore) {
-                onLoadMore();
-            }
-        }
-    };
-
-    return (
-        <div className="mb-10 text-left animate-in fade-in duration-500">
-            <h3 className="text-sm md:text-base font-bold text-white mb-4 flex items-center gap-2">
-                <span className="w-1 h-5 bg-red-600 rounded-full" />
-                {title}
-            </h3>
-            <div 
-                onScroll={handleScroll}
-                className="flex overflow-x-auto gap-4 pb-4 hide-scrollbar scroll-smooth"
-            >
-                {visiblePhotos.map((photo, i) => (
-                    <div 
-                        key={i} 
-                        onClick={() => onPhotoClick(`${TMDB_BACKDROP_BASE}${photo.file_path}`)}
-                        className="shrink-0 w-28 sm:w-32 md:w-36 aspect-[2/3] rounded-xl overflow-hidden cursor-pointer border border-white/5 hover:border-white/20 transition-all hover:scale-105 active:scale-95 shadow-md relative"
-                    >
-                        <img 
-                            src={`${TMDB_IMAGE_BASE}${photo.file_path}`} 
-                            className="w-full h-full object-cover" 
-                            alt="Actor portrait" 
-                            loading="lazy" 
-                        />
-                    </div>
-                ))}
-                {loadingMore && (
-                    <>
-                        <div className="shrink-0 w-28 sm:w-32 md:w-36 aspect-[2/3] bg-white/5 border border-white/5 rounded-xl animate-pulse" />
-                        <div className="shrink-0 w-28 sm:w-32 md:w-36 aspect-[2/3] bg-white/5 border border-white/5 rounded-xl animate-pulse" />
-                    </>
-                )}
-            </div>
-        </div>
-    );
-};
 
 // PERSON PAGE
 interface PersonPageProps {
@@ -349,6 +299,7 @@ export const PersonPage: React.FC<PersonPageProps> = ({ personId, onClose, apiKe
     const [loading, setLoading] = useState(true);
     const [isClosing, setIsClosing] = useState(false);
     const [viewingImage, setViewingImage] = useState<string | null>(null);
+    const [isTimelineDescending, setIsTimelineDescending] = useState(false);
 
     // Row pagination limits and loading states
     const [boxOfficeLimit, setBoxOfficeLimit] = useState(15);
@@ -375,9 +326,6 @@ export const PersonPage: React.FC<PersonPageProps> = ({ personId, onClose, apiKe
     const [upcomingLimit, setUpcomingLimit] = useState(15);
     const [loadingUpcoming, setLoadingUpcoming] = useState(false);
 
-    const [photosLimit, setPhotosLimit] = useState(12);
-    const [loadingPhotos, setLoadingPhotos] = useState(false);
-
     // Reset pagination states on actor changes
     useEffect(() => {
         if (personId) {
@@ -390,7 +338,7 @@ export const PersonPage: React.FC<PersonPageProps> = ({ personId, onClose, apiKe
             setDirectingWritingLimit(15);
             setProducingLimit(15);
             setUpcomingLimit(15);
-            setPhotosLimit(12);
+            setIsTimelineDescending(false);
 
             setLoadingBoxOffice(false);
             setLoadingTimeline(false);
@@ -400,7 +348,6 @@ export const PersonPage: React.FC<PersonPageProps> = ({ personId, onClose, apiKe
             setLoadingDirectingWriting(false);
             setLoadingProducing(false);
             setLoadingUpcoming(false);
-            setLoadingPhotos(false);
         }
     }, [personId]);
 
@@ -477,15 +424,6 @@ export const PersonPage: React.FC<PersonPageProps> = ({ personId, onClose, apiKe
         }, 500);
     }, [loadingUpcoming]);
 
-    const handleLoadMorePhotos = useCallback(() => {
-        if (loadingPhotos) return;
-        setLoadingPhotos(true);
-        setTimeout(() => {
-            setPhotosLimit(prev => prev + 12);
-            setLoadingPhotos(false);
-        }, 450);
-    }, [loadingPhotos]);
-
     const handleClose = () => {
         setIsClosing(true);
         setTimeout(onClose, 350);
@@ -543,13 +481,13 @@ export const PersonPage: React.FC<PersonPageProps> = ({ personId, onClose, apiKe
             return dA.localeCompare(dB);
         });
 
-        // 3. Chronological Career Timeline (Oldest first)
+        // 3. Chronological Career Timeline (Oldest first or Newest first)
         const timeline = [...mergedCredits]
             .filter(m => m.release_date || m.first_air_date)
             .sort((a, b) => {
                 const dA = a.release_date || a.first_air_date || '0000';
                 const dB = b.release_date || b.first_air_date || '0000';
-                return dA.localeCompare(dB);
+                return isTimelineDescending ? dB.localeCompare(dA) : dA.localeCompare(dB);
             });
 
         // 4. Main Acting Roles (excluding self, cameo, uncredited, archive, voice)
@@ -599,7 +537,7 @@ export const PersonPage: React.FC<PersonPageProps> = ({ personId, onClose, apiKe
             directingWriting,
             producing
         };
-    }, [mergedCredits]);
+    }, [mergedCredits, isTimelineDescending]);
 
     const heroBackdrop = useMemo(() => {
         if (!mergedCredits || mergedCredits.length === 0) return null;
@@ -707,16 +645,6 @@ export const PersonPage: React.FC<PersonPageProps> = ({ personId, onClose, apiKe
 
                               {/* Horizontal Rows */}
                               <div className="space-y-4">
-                                  {/* Photos Gallery */}
-                                  <HorizontalPhotoRow 
-                                      title="Photos Gallery" 
-                                      photos={details.images?.profiles || []} 
-                                      limit={photosLimit} 
-                                      loadingMore={loadingPhotos}
-                                      onLoadMore={handleLoadMorePhotos}
-                                      onPhotoClick={(src) => setViewingImage(src)} 
-                                  />
-
                                   {/* Box Office Hits */}
                                   <HorizontalScrollRow 
                                       title="Box Office Hits" 
@@ -733,6 +661,8 @@ export const PersonPage: React.FC<PersonPageProps> = ({ personId, onClose, apiKe
                                       movies={categories.timeline} 
                                       limit={timelineLimit} 
                                       loadingMore={loadingTimeline}
+                                      isDescending={isTimelineDescending}
+                                      onToggle={() => setIsTimelineDescending(prev => !prev)}
                                       onLoadMore={handleLoadMoreTimeline} 
                                       onMovieClick={onMovieClick} 
                                   />
