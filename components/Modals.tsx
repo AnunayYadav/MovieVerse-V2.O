@@ -1,8 +1,8 @@
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { UserCircle, X, ListPlus, Plus, Check, Loader2, Film, AlertCircle, BrainCircuit, Search, Star, RefreshCcw, Bell, CheckCheck, Inbox, Heart, PaintBucket, Upload, Facebook, Instagram, Twitter, Globe, Scale, DollarSign, Clock, Trophy, ChevronRight, ChevronDown, Calendar, ArrowUp, ArrowDown, TrendingUp, History, ArrowLeft, MoreHorizontal, Dice5, Shield, ExternalLink } from 'lucide-react';
 import { UserProfile, Movie, GENRES_LIST, PersonDetails, AppNotification, MovieDetails } from '../types';
-import { TMDB_BASE_URL, TMDB_IMAGE_BASE, formatCurrency, MovieSkeleton } from './Shared';
+import { TMDB_BASE_URL, TMDB_IMAGE_BASE, TMDB_BACKDROP_BASE, formatCurrency, MovieSkeleton } from './Shared';
 import { generateSmartRecommendations } from '../services/gemini';
 import { getNotifications, markNotificationsRead } from '../services/supabase';
 
@@ -90,6 +90,103 @@ export const FullCreditsModal: React.FC<FullCreditsModalProps> = ({ isOpen, onCl
     );
 };
 
+// PERSON MOVIE CARD & SCROLL ROW HELPERS
+const ActorMovieCard = ({ movie, onClick }: { movie: Movie; onClick: () => void; key?: React.Key }) => {
+    const backdropUrl = movie.backdrop_path 
+      ? `${TMDB_IMAGE_BASE}${movie.backdrop_path}`
+      : (movie.poster_path ? `${TMDB_IMAGE_BASE}${movie.poster_path}` : `https://placehold.co/600x338/111/444?text=${encodeURIComponent(movie.title || movie.name || "Movie")}`);
+    
+    const year = (movie.release_date || movie.first_air_date || "").split('-')[0];
+    const rating = movie.vote_average;
+
+    return (
+        <div 
+            onClick={onClick}
+            className="shrink-0 w-44 sm:w-52 md:w-60 aspect-[16/9] rounded-xl overflow-hidden bg-white/5 border border-white/5 cursor-pointer shadow-lg hover:scale-[1.03] hover:border-white/20 transition-all duration-500 group relative text-left"
+        >
+            <img 
+                src={backdropUrl} 
+                alt={movie.title || movie.name} 
+                className="w-full h-full object-cover opacity-85 group-hover:scale-105 group-hover:opacity-100 transition-all duration-700 ease-out" 
+                loading="lazy" 
+            />
+            {/* Gradient Overlay */}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/35 to-transparent opacity-90 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
+            
+            {/* Content overlay */}
+            <div className="absolute inset-0 p-3 flex flex-col justify-end text-left select-none pointer-events-none">
+                <h4 className="text-xs md:text-sm font-bold text-white line-clamp-1 group-hover:text-red-500 transition-colors duration-300 drop-shadow-md">
+                    {movie.title || movie.name}
+                </h4>
+                <div className="flex items-center justify-between mt-1 text-[10px] text-gray-400 opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-y-1 group-hover:translate-y-0">
+                    <span>{year || 'TBA'}</span>
+                    {rating > 0 && (
+                        <div className="flex items-center gap-1 text-yellow-500 font-bold">
+                            <Star size={10} fill="currentColor"/> {rating.toFixed(1)}
+                        </div>
+                    )}
+                </div>
+                {/* Character Played or Job if present */}
+                {(movie as any).character ? (
+                    <p className="text-[9px] text-red-400 font-semibold truncate mt-0.5 opacity-80 group-hover:opacity-100 transition-opacity">
+                        as {(movie as any).character}
+                    </p>
+                ) : (movie as any).job ? (
+                    <p className="text-[9px] text-amber-500 font-semibold truncate mt-0.5 opacity-80 group-hover:opacity-100 transition-opacity">
+                        {(movie as any).job}
+                    </p>
+                ) : null}
+            </div>
+        </div>
+    );
+};
+
+const HorizontalScrollRow = ({ 
+    title, 
+    movies, 
+    limit, 
+    onLoadMore, 
+    onMovieClick 
+}: { 
+    title: string; 
+    movies: Movie[]; 
+    limit: number; 
+    onLoadMore?: () => void; 
+    onMovieClick: (m: Movie) => void; 
+}) => {
+    if (!movies || movies.length === 0) return null;
+
+    const visibleMovies = movies.slice(0, limit);
+    const hasMore = movies.length > limit;
+
+    return (
+        <div className="mb-10 text-left animate-in fade-in duration-500">
+            <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                <span className="w-1 h-5 bg-red-600 rounded-full" />
+                {title}
+            </h3>
+            <div className="flex overflow-x-auto gap-5 pb-4 hide-scrollbar scroll-smooth">
+                {visibleMovies.map((movie) => (
+                    <ActorMovieCard 
+                        key={movie.id} 
+                        movie={movie} 
+                        onClick={() => onMovieClick(movie)} 
+                    />
+                ))}
+                {hasMore && onLoadMore && (
+                    <button 
+                        onClick={onLoadMore}
+                        className="shrink-0 w-44 sm:w-52 md:w-60 aspect-[16/9] rounded-xl bg-white/5 border border-dashed border-white/10 hover:border-white/20 flex flex-col items-center justify-center cursor-pointer transition-all hover:scale-[1.02] active:scale-95 text-gray-400 hover:text-white"
+                    >
+                        <ChevronRight size={24} className="mb-1 text-red-500 animate-pulse" />
+                        <span className="text-xs font-bold uppercase tracking-wider">Load More</span>
+                    </button>
+                )}
+            </div>
+        </div>
+    );
+};
+
 // PERSON PAGE
 interface PersonPageProps {
     personId: number;
@@ -101,12 +198,19 @@ interface PersonPageProps {
 export const PersonPage: React.FC<PersonPageProps> = ({ personId, onClose, apiKey, onMovieClick }) => {
     const [details, setDetails] = useState<PersonDetails | null>(null);
     const [loading, setLoading] = useState(true);
-    const [showFilmography, setShowFilmography] = useState(false);
     const [isClosing, setIsClosing] = useState(false);
+
+    // Row pagination states
+    const [boxOfficeLimit, setBoxOfficeLimit] = useState(15);
+    const [upcomingLimit, setUpcomingLimit] = useState(15);
+    const [knownForLimit, setKnownForLimit] = useState(15);
 
     useEffect(() => {
         if (personId) {
             setIsClosing(false);
+            setBoxOfficeLimit(15);
+            setUpcomingLimit(15);
+            setKnownForLimit(15);
         }
     }, [personId]);
 
@@ -123,73 +227,193 @@ export const PersonPage: React.FC<PersonPageProps> = ({ personId, onClose, apiKe
         .then(data => { setDetails(data); setLoading(false); })
         .catch(err => { console.error("Person fetch error", err); setLoading(false); setDetails(null); });
     }, [personId, apiKey]);
+
+    const mergedCredits = useMemo(() => {
+        if (!details?.combined_credits) return [];
+        const seen = new Set<number>();
+        const list: Movie[] = [];
+
+        if (details.combined_credits.cast) {
+            details.combined_credits.cast.forEach(item => {
+                if (!seen.has(item.id)) {
+                    seen.add(item.id);
+                    list.push(item);
+                }
+            });
+        }
+
+        if (details.combined_credits.crew) {
+            details.combined_credits.crew.forEach(item => {
+                if (!seen.has(item.id)) {
+                    seen.add(item.id);
+                    list.push(item);
+                }
+            });
+        }
+        return list;
+    }, [details]);
+
+    const categories = useMemo(() => {
+        const sortedByPop = [...mergedCredits].sort((a, b) => (b.popularity || 0) - (a.popularity || 0));
+
+        // 1. Box Office Hits
+        const boxOffice = sortedByPop.filter(m => (m.vote_average || 0) >= 6.5 && (m.vote_count || 0) >= 100);
+        const finalBoxOffice = boxOffice.length >= 4 ? boxOffice : sortedByPop.slice(0, 12);
+
+        // 2. Upcoming Projects
+        const todayStr = new Date().toISOString().split('T')[0];
+        const upcoming = mergedCredits.filter(m => {
+            const dateStr = m.release_date || m.first_air_date;
+            return dateStr ? dateStr > todayStr : false;
+        }).sort((a, b) => {
+            const dA = a.release_date || a.first_air_date || '9999';
+            const dB = b.release_date || b.first_air_date || '9999';
+            return dA.localeCompare(dB);
+        });
+
+        // 3. Known For
+        const knownFor = sortedByPop;
+
+        return {
+            boxOffice: finalBoxOffice,
+            upcoming,
+            knownFor
+        };
+    }, [mergedCredits]);
+
+    const heroBackdrop = useMemo(() => {
+        if (!mergedCredits || mergedCredits.length === 0) return null;
+        const withBackdrop = mergedCredits
+            .filter(m => m.backdrop_path)
+            .sort((a, b) => (b.popularity || 0) - (a.popularity || 0));
+        return withBackdrop[0]?.backdrop_path || null;
+    }, [mergedCredits]);
   
     if (!personId) return null;
 
     const SocialLink = ({ url, icon: Icon, color }: { url?: string, icon: any, color: string }) => {
         if (!url) return null;
         return (
-            <a href={url} target="_blank" rel="noopener noreferrer" className={`p-2 rounded-full bg-white/5 hover:bg-white/10 transition-colors ${color} border border-white/5`}>
+            <a href={url} target="_blank" rel="noopener noreferrer" className={`p-2.5 rounded-full bg-black/40 hover:bg-white/10 transition-all hover:scale-105 active:scale-95 text-white border border-white/10 flex items-center justify-center shadow-md ${color}`}>
                 <Icon size={16}/>
             </a>
         );
     };
   
     return (
-      <div className={`fixed inset-0 z-[100] bg-[#0a0a0a] overflow-y-auto custom-scrollbar ${isClosing ? 'animate-slide-out-bottom' : 'animate-slide-in-bottom'}`}>
-        <button onClick={handleClose} className="fixed top-6 left-6 z-[120] bg-black/40 hover:bg-white/10 backdrop-blur-md px-4 py-2 rounded-full text-white flex items-center gap-2 border border-white/5 text-sm font-bold active:scale-95 transition-all"><ArrowLeft size={20}/> Back</button>
-
+      <div className={`fixed inset-0 z-[100] bg-[#0a0a0a] overflow-y-auto custom-scrollbar select-none ${isClosing ? 'animate-slide-out-bottom' : 'animate-slide-in-bottom'}`}>
           {loading ? (
              <div className="h-screen flex items-center justify-center flex-col gap-4">
                  <div className="w-20 h-20 rounded-full border-4 border-white/5 border-t-red-600 animate-spin"></div>
-                 <p className="text-gray-500 text-sm animate-pulse">Loading Details...</p>
+                 <p className="text-gray-500 text-sm animate-pulse uppercase tracking-wider font-bold">Loading Details...</p>
              </div>
           ) : details ? (
-             <div className="flex flex-col lg:flex-row min-h-screen">
-                  {/* Left Column: Image & Quick Info */}
-                  <div className="w-full lg:w-80 shrink-0 bg-black/40 p-6 lg:h-screen lg:sticky lg:top-0 lg:overflow-y-auto border-r border-white/5 flex flex-col items-center text-center">
-                    <img 
-                        src={details.profile_path ? `${TMDB_IMAGE_BASE}${details.profile_path}` : "https://placehold.co/300x450/333/FFF?text=No+Image"} 
-                        alt={details.name} 
-                        className="w-48 rounded-xl shadow-2xl border border-white/10 mb-6 object-cover aspect-[2/3] animate-in fade-in zoom-in duration-500" 
-                    />
-                    
-                    <h2 className="text-2xl font-bold text-white mb-1">{details.name}</h2>
-                    <p className="text-red-400 text-xs font-bold tracking-wider uppercase mb-6">{details.known_for_department}</p>
-
-                    {/* Social Links */}
-                    <div className="flex justify-center gap-3 mb-6">
-                        {details.external_ids?.imdb_id && <SocialLink url={`https://www.imdb.com/name/${details.external_ids.imdb_id}`} icon={Film} color="text-yellow-400"/>}
-                        {details.external_ids?.instagram_id && <SocialLink url={`https://instagram.com/${details.external_ids.instagram_id}`} icon={Instagram} color="text-pink-400"/>}
-                        {details.external_ids?.twitter_id && <SocialLink url={`https://twitter.com/${details.external_ids.twitter_id}`} icon={Twitter} color="text-blue-400"/>}
-                        {details.external_ids?.facebook_id && <SocialLink url={`https://facebook.com/${details.external_ids.facebook_id}`} icon={Facebook} color="text-blue-600"/>}
-                        {details.homepage && <SocialLink url={details.homepage} icon={Globe} color="text-green-400"/>}
-                    </div>
-
-                    <div className="space-y-3 w-full text-left">
-                      <div className="bg-white/5 p-3 rounded-xl border border-white/5"><span className="text-white/40 block text-[10px] uppercase font-bold tracking-wider mb-0.5">Born</span><span className="text-white font-medium text-sm">{details.birthday || 'N/A'}</span></div>
-                      <div className="bg-white/5 p-3 rounded-xl border border-white/5"><span className="text-white/40 block text-[10px] uppercase font-bold tracking-wider mb-0.5">Place of Birth</span><span className="text-white font-medium text-sm">{details.place_of_birth || 'N/A'}</span></div>
-                    </div>
-                  </div>
-
-                  {/* Right Column: Bio & Credits */}
-                  <div className="flex-1 p-6 lg:p-10">
-                    <h3 className="text-xl font-bold text-white mb-3">Biography</h3>
-                    <p className="text-gray-300 text-sm leading-relaxed mb-8 whitespace-pre-line max-w-4xl">{details.biography || "No biography available."}</p>
-                    
-                    <div className="flex items-center justify-between mb-5">
-                        <h3 className="text-lg font-bold text-white flex items-center gap-2"><Film size={18} className="text-red-500"/> Known For</h3>
-                    </div>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-4">
-                        {details.combined_credits?.cast?.sort((a: any,b: any) => b.popularity - a.popularity).slice(0, 10).map((movie: Movie) => (
-                          <div key={movie.id} onClick={() => onMovieClick(movie)} className="cursor-pointer group">
-                            <div className="aspect-[2/3] rounded-lg overflow-hidden mb-2 relative border border-white/5 shadow-lg"><img src={movie.poster_path ? `${TMDB_IMAGE_BASE}${movie.poster_path}` : "https://placehold.co/100x150"} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 ease-out" alt={movie.title || movie.name} /></div>
-                            <p className="text-xs font-bold text-white truncate group-hover:text-red-400 transition-colors">{movie.title || movie.name}</p>
-                            <p className="text-[10px] text-gray-500 mt-0.5">{movie.release_date?.split('-')[0] || movie.first_air_date?.split('-')[0]}</p>
-                          </div>
-                        ))}
+             <div className="w-full flex flex-col pb-20">
+                 {/* Top Hero Banner with Blurred Backdrop */}
+                 <div className="relative w-full h-[35vh] sm:h-[45vh] md:h-[50vh] overflow-hidden bg-[#0c0c0e]">
+                     {heroBackdrop ? (
+                         <img 
+                             src={`${TMDB_BACKDROP_BASE}${heroBackdrop}`} 
+                             className="w-full h-full object-cover opacity-35 filter blur-[2px]" 
+                             alt=""
+                         />
+                     ) : (
+                         <div className="w-full h-full bg-gradient-to-br from-red-950/20 to-zinc-950" />
+                     )}
+                     {/* Gradient Overlays */}
+                     <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0a] via-black/40 to-transparent" />
+                     <div className="absolute inset-0 bg-gradient-to-b from-black/80 via-transparent to-transparent h-24" />
+                     
+                     {/* Back Button */}
+                     <button onClick={handleClose} className="absolute top-6 left-6 z-[120] bg-black/40 hover:bg-white/10 backdrop-blur-md px-4 py-2 rounded-full text-white/80 hover:text-white flex items-center gap-2 border border-white/5 text-sm font-bold active:scale-95 transition-all shadow-xl"><ArrowLeft size={18}/> Back</button>
+                     
+                     {/* Hero Floating Card Content */}
+                     <div className="absolute bottom-6 left-6 md:left-12 flex flex-col md:flex-row items-center md:items-end gap-6 z-10 w-[calc(100%-3rem)] md:w-[calc(100%-6rem)]">
+                         <div className="w-28 h-28 md:w-36 md:h-36 rounded-2xl overflow-hidden border-4 border-white/10 shadow-2xl bg-zinc-900 shrink-0 transform hover:scale-[1.02] transition-transform duration-500 shadow-black/80">
+                             <img 
+                                 src={details.profile_path ? `${TMDB_IMAGE_BASE}${details.profile_path}` : `https://ui-avatars.com/api/?name=${details.name}&background=333&color=fff`} 
+                                 alt={details.name} 
+                                 className="w-full h-full object-cover"
+                             />
+                         </div>
+                         <div className="text-center md:text-left flex-1 min-w-0">
+                             <p className="text-red-500 text-xs font-black tracking-[0.25em] uppercase mb-1.5">{details.known_for_department}</p>
+                             <h2 className="text-2xl md:text-4xl lg:text-5xl font-black text-white leading-tight drop-shadow-md mb-3">{details.name}</h2>
+                             
+                             {/* Social Links */}
+                             <div className="flex justify-center md:justify-start gap-3">
+                                 {details.external_ids?.imdb_id && <SocialLink url={`https://www.imdb.com/name/${details.external_ids.imdb_id}`} icon={Film} color="hover:text-yellow-400 hover:border-yellow-400/30"/>}
+                                 {details.external_ids?.instagram_id && <SocialLink url={`https://instagram.com/${details.external_ids.instagram_id}`} icon={Instagram} color="hover:text-pink-400 hover:border-pink-400/30"/>}
+                                 {details.external_ids?.twitter_id && <SocialLink url={`https://twitter.com/${details.external_ids.twitter_id}`} icon={Twitter} color="hover:text-sky-400 hover:border-sky-400/30"/>}
+                                 {details.external_ids?.facebook_id && <SocialLink url={`https://facebook.com/${details.external_ids.facebook_id}`} icon={Facebook} color="hover:text-blue-500 hover:border-blue-500/30"/>}
+                                 {details.homepage && <SocialLink url={details.homepage} icon={Globe} color="hover:text-emerald-400 hover:border-emerald-400/30"/>}
+                             </div>
+                         </div>
                      </div>
-                  </div>
+                 </div>
+
+                 {/* Content Section */}
+                 <div className="max-w-7xl mx-auto px-6 md:px-12 py-10 w-full">
+                     <div className="flex flex-col lg:flex-row gap-10">
+                          {/* Left Column: Personal info & Bio on Desktop */}
+                          <div className="w-full lg:w-80 shrink-0 space-y-6">
+                              <div className="bg-[#121214]/60 border border-white/5 p-6 rounded-2xl shadow-xl backdrop-blur-md">
+                                  <h3 className="text-xs font-black text-white uppercase tracking-[0.2em] mb-4 border-b border-white/5 pb-2">Personal Info</h3>
+                                  <div className="space-y-4 text-left">
+                                      <div>
+                                          <span className="text-white/40 block text-[9px] uppercase font-bold tracking-wider mb-1">Born</span>
+                                          <span className="text-zinc-200 font-semibold text-sm">{details.birthday || 'N/A'}</span>
+                                      </div>
+                                      <div>
+                                          <span className="text-white/40 block text-[9px] uppercase font-bold tracking-wider mb-1">Place of Birth</span>
+                                          <span className="text-zinc-200 font-semibold text-sm leading-relaxed">{details.place_of_birth || 'N/A'}</span>
+                                      </div>
+                                  </div>
+                              </div>
+                              
+                              <div className="hidden lg:block bg-[#121214]/60 border border-white/5 p-6 rounded-2xl shadow-xl backdrop-blur-md text-left">
+                                  <h3 className="text-xs font-black text-white uppercase tracking-[0.2em] mb-3 border-b border-white/5 pb-2">Biography</h3>
+                                  <p className="text-gray-400 text-xs leading-relaxed whitespace-pre-line max-h-96 overflow-y-auto custom-scrollbar pr-1">{details.biography || "No biography available."}</p>
+                              </div>
+                          </div>
+
+                          {/* Right Column: Bio (on mobile) & Scrollable Lists */}
+                          <div className="flex-1 min-w-0">
+                              {/* Mobile Biography */}
+                              <div className="lg:hidden bg-[#121214]/60 border border-white/5 p-6 rounded-2xl shadow-xl backdrop-blur-md mb-8 text-left">
+                                  <h3 className="text-xs font-black text-white uppercase tracking-[0.2em] mb-3 border-b border-white/5 pb-2">Biography</h3>
+                                  <p className="text-gray-400 text-xs leading-relaxed whitespace-pre-line">{details.biography || "No biography available."}</p>
+                              </div>
+
+                              {/* Horizontal Rows */}
+                              <div className="space-y-4">
+                                  <HorizontalScrollRow 
+                                      title="Box Office Hits" 
+                                      movies={categories.boxOffice} 
+                                      limit={boxOfficeLimit} 
+                                      onLoadMore={() => setBoxOfficeLimit(prev => prev + 15)} 
+                                      onMovieClick={onMovieClick} 
+                                  />
+
+                                  <HorizontalScrollRow 
+                                      title="Known For" 
+                                      movies={categories.knownFor} 
+                                      limit={knownForLimit} 
+                                      onLoadMore={() => setKnownForLimit(prev => prev + 15)} 
+                                      onMovieClick={onMovieClick} 
+                                  />
+
+                                  <HorizontalScrollRow 
+                                      title="Upcoming Projects" 
+                                      movies={categories.upcoming} 
+                                      limit={upcomingLimit} 
+                                      onLoadMore={() => setUpcomingLimit(prev => prev + 15)} 
+                                      onMovieClick={onMovieClick} 
+                                  />
+                              </div>
+                          </div>
+                     </div>
+                 </div>
              </div>
           ) : null}
       </div>
