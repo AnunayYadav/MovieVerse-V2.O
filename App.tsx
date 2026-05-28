@@ -323,80 +323,24 @@ const MovieRow = ({
         let isMounted = true;
         setLoading(true);
         
-        const isAdultQuery = endpoint.includes('include_adult=true');
-        
-        const fetchAdultMovies = async () => {
-            let accumulatedMovies: Movie[] = [];
-            let currentPage = 1;
-            const maxPagesToTry = 15;
-            let reachedEnd = false;
-
-            while (accumulatedMovies.length < 10 && currentPage <= maxPagesToTry && !reachedEnd) {
-                const separator = endpoint.includes('?') ? '&' : '?';
-                const url = `${endpoint}${separator}api_key=${apiKey}&page=${currentPage}`;
-                try {
-                    const res = await fetch(url);
-                    if (!res.ok) {
-                        reachedEnd = true;
-                        break;
-                    }
-                    const data = await res.json();
-                    const rawResults = data.results || [];
-                    if (rawResults.length === 0) {
-                        reachedEnd = true;
-                        break;
-                    }
-                    const filtered = rawResults
-                        .filter((item: any) => item.adult === true)
-                        .map((item: any) => ({
-                            ...item,
-                            media_type: mediaType || item.media_type || (endpoint.includes('/tv/') ? 'tv' : 'movie'),
-                            title: item.title || item.name
-                        }));
-                    accumulatedMovies = [...accumulatedMovies, ...filtered];
-                    currentPage++;
-                } catch (e) {
-                    console.error("Error in adult loop fetch: ", e);
-                    break;
-                }
-            }
-
-            if (isMounted) {
-                setMovies(accumulatedMovies);
-                setPage(currentPage - 1);
-                if (reachedEnd || currentPage > maxPagesToTry) {
-                    setHasMore(false);
-                }
-                setLoading(false);
-            }
-        };
-
-        const fetchNormalMovies = () => {
-            const separator = endpoint.includes('?') ? '&' : '?';
-            const url = `${endpoint}${separator}api_key=${apiKey}&page=1`;
-            fetch(url)
-                .then(res => res.json())
-                .then(data => {
-                    if (!isMounted) return;
-                    let results = data.results || [];
-                    results = results.map((item: any) => ({
-                        ...item,
-                        media_type: mediaType || item.media_type || (endpoint.includes('/tv/') ? 'tv' : 'movie'),
-                        title: item.title || item.name
-                    }));
-                    setMovies(results);
-                })
-                .catch(err => console.error("Error fetching page 1: ", err))
-                .finally(() => {
-                    if (isMounted) setLoading(false);
-                });
-        };
-
-        if (isAdultQuery) {
-            fetchAdultMovies();
-        } else {
-            fetchNormalMovies();
-        }
+        const separator = endpoint.includes('?') ? '&' : '?';
+        const url = `${endpoint}${separator}api_key=${apiKey}&page=1`;
+        fetch(url)
+            .then(res => res.json())
+            .then(data => {
+                if (!isMounted) return;
+                let results = data.results || [];
+                results = results.map((item: any) => ({
+                    ...item,
+                    media_type: mediaType || item.media_type || (endpoint.includes('/tv/') ? 'tv' : 'movie'),
+                    title: item.title || item.name
+                }));
+                setMovies(results);
+            })
+            .catch(err => console.error("Error fetching page 1: ", err))
+            .finally(() => {
+                if (isMounted) setLoading(false);
+            });
 
         return () => {
             isMounted = false;
@@ -407,75 +351,29 @@ const MovieRow = ({
         if (!endpoint || !apiKey || loadingMore || !hasMore) return;
         setLoadingMore(true);
         
-        const isAdultQuery = endpoint.includes('include_adult=true');
-        
-        if (isAdultQuery) {
-            let accumulatedMovies: Movie[] = [];
-            let currentPage = page + 1;
-            const maxPagesToTry = currentPage + 10;
-            let reachedEnd = false;
+        const nextPage = page + 1;
+        const separator = endpoint.includes('?') ? '&' : '?';
+        const url = `${endpoint}${separator}api_key=${apiKey}&page=${nextPage}`;
 
-            while (accumulatedMovies.length < 5 && currentPage <= maxPagesToTry && !reachedEnd) {
-                const separator = endpoint.includes('?') ? '&' : '?';
-                const url = `${endpoint}${separator}api_key=${apiKey}&page=${currentPage}`;
-                try {
-                    const res = await fetch(url);
-                    if (!res.ok) {
-                        reachedEnd = true;
-                        break;
-                    }
-                    const data = await res.json();
-                    const rawResults = data.results || [];
-                    if (rawResults.length === 0) {
-                        reachedEnd = true;
-                        break;
-                    }
-                    const filtered = rawResults
-                        .filter((item: any) => item.adult === true)
-                        .map((item: any) => ({
-                            ...item,
-                            media_type: mediaType || item.media_type || (endpoint.includes('/tv/') ? 'tv' : 'movie'),
-                            title: item.title || item.name
-                        }));
-                    accumulatedMovies = [...accumulatedMovies, ...filtered];
-                    currentPage++;
-                } catch (e) {
-                    console.error("Error in adult next page loop fetch: ", e);
-                    break;
-                }
-            }
-
-            setMovies(prev => [...prev, ...accumulatedMovies]);
-            setPage(currentPage - 1);
-            if (reachedEnd || currentPage > maxPagesToTry) {
+        try {
+            const res = await fetch(url);
+            const data = await res.json();
+            let results = data.results || [];
+            if (results.length === 0) {
                 setHasMore(false);
+            } else {
+                results = results.map((item: any) => ({
+                    ...item,
+                    media_type: mediaType || item.media_type || (endpoint.includes('/tv/') ? 'tv' : 'movie'),
+                    title: item.title || item.name
+                }));
+                setMovies(prev => [...prev, ...results]);
+                setPage(nextPage);
             }
+        } catch (e) {
+            console.error("Error fetching next page: ", e);
+        } finally {
             setLoadingMore(false);
-        } else {
-            const nextPage = page + 1;
-            const separator = endpoint.includes('?') ? '&' : '?';
-            const url = `${endpoint}${separator}api_key=${apiKey}&page=${nextPage}`;
-
-            try {
-                const res = await fetch(url);
-                const data = await res.json();
-                let results = data.results || [];
-                if (results.length === 0) {
-                    setHasMore(false);
-                } else {
-                    results = results.map((item: any) => ({
-                        ...item,
-                        media_type: mediaType || item.media_type || (endpoint.includes('/tv/') ? 'tv' : 'movie'),
-                        title: item.title || item.name
-                    }));
-                    setMovies(prev => [...prev, ...results]);
-                    setPage(nextPage);
-                }
-            } catch (e) {
-                console.error("Error fetching next page: ", e);
-            } finally {
-                setLoadingMore(false);
-            }
         }
     };
 
@@ -1301,7 +1199,7 @@ export default function App() {
           ...PREDEFINED_CATEGORIES.filter(cat => 
               cat.title.toLowerCase().includes(searchQuery.toLowerCase().trim())
           ),
-          ...(searchQuery.toLowerCase().trim() === 'adult' && userProfile.isUnhinged === true
+          ...(((searchQuery.toLowerCase().includes('adult') || searchQuery.toLowerCase().includes('unhinged')) && userProfile.isUnhinged === true)
               ? [{
                   id: 'adult_unhinged_collection',
                   title: 'Unhinged Collection (18+)',
