@@ -309,6 +309,14 @@ export const MoviePage: React.FC<MoviePageProps> = ({
     const [playParams, setPlayParams] = useState(initialPlayParams);
     const [expandedReviews, setExpandedReviews] = useState<Record<string, boolean>>({});
     
+    // Media category and pagination states
+    const [mediaCategory, setMediaCategory] = useState<'backdrops' | 'posters' | 'logos'>('backdrops');
+    const [visibleImagesCount, setVisibleImagesCount] = useState(12);
+
+    useEffect(() => {
+        setVisibleImagesCount(12);
+    }, [mediaCategory, activeTab]);
+
     const toggleReviewExpand = (reviewId: string) => {
         setExpandedReviews(prev => ({
             ...prev,
@@ -881,7 +889,168 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                         </div>
                                     )}
                                     {activeTab === 'media' && (
-                                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 animate-in fade-in">{displayData.images?.backdrops?.slice(0, 9).map((img, i) => <img key={i} src={`${TMDB_IMAGE_BASE}${img.file_path}`} className="w-full h-auto rounded-lg cursor-pointer hover:opacity-80 transition-opacity aspect-video object-cover" onClick={() => setViewingImage(`${TMDB_BACKDROP_BASE}${img.file_path}`)} alt="Backdrop" />)}</div>
+                                        <div className="space-y-6 animate-in fade-in">
+                                            {/* Sub-category Pill Switcher */}
+                                            <div className="flex gap-2 pb-4 border-b border-white/5 overflow-x-auto hide-scrollbar">
+                                                <button
+                                                    onClick={() => setMediaCategory('backdrops')}
+                                                    className={`px-4 py-2 rounded-xl text-xs font-bold transition-all duration-300 active:scale-95 border ${
+                                                        mediaCategory === 'backdrops'
+                                                            ? 'bg-red-600/10 text-red-500 border-red-500/20'
+                                                            : 'bg-transparent text-gray-400 border-white/10 hover:border-white/20 hover:text-white'
+                                                    }`}
+                                                >
+                                                    Snapshots ({displayData.images?.backdrops?.length || 0})
+                                                </button>
+                                                <button
+                                                    onClick={() => setMediaCategory('posters')}
+                                                    className={`px-4 py-2 rounded-xl text-xs font-bold transition-all duration-300 active:scale-95 border ${
+                                                        mediaCategory === 'posters'
+                                                            ? 'bg-red-600/10 text-red-500 border-red-500/20'
+                                                            : 'bg-transparent text-gray-400 border-white/10 hover:border-white/20 hover:text-white'
+                                                    }`}
+                                                >
+                                                    Posters ({displayData.images?.posters?.length || 0})
+                                                </button>
+                                                <button
+                                                    onClick={() => setMediaCategory('logos')}
+                                                    className={`px-4 py-2 rounded-xl text-xs font-bold transition-all duration-300 active:scale-95 border ${
+                                                        mediaCategory === 'logos'
+                                                            ? 'bg-red-600/10 text-red-500 border-red-500/20'
+                                                            : 'bg-transparent text-gray-400 border-white/10 hover:border-white/20 hover:text-white'
+                                                    }`}
+                                                >
+                                                    Logos ({displayData.images?.logos?.length || 0})
+                                                </button>
+                                            </div>
+
+                                            {/* Content grids based on category */}
+                                            {mediaCategory === 'backdrops' && (
+                                                <div className="space-y-6">
+                                                    {displayData.images?.backdrops?.length ? (
+                                                        <>
+                                                            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                                                                {displayData.images.backdrops.slice(0, visibleImagesCount).map((img, i) => (
+                                                                    <div 
+                                                                        key={i} 
+                                                                        onClick={() => setViewingImage(`${TMDB_BACKDROP_BASE}${img.file_path}`)}
+                                                                        className="group relative aspect-video rounded-xl overflow-hidden cursor-pointer bg-white/5 border border-white/5 hover:border-white/20 transition-all hover:scale-[1.02] shadow-md"
+                                                                    >
+                                                                        <img 
+                                                                            src={`${TMDB_IMAGE_BASE}${img.file_path}`} 
+                                                                            className="w-full h-full object-cover transition-opacity duration-300 group-hover:opacity-90" 
+                                                                            alt="Snapshot"
+                                                                            loading="lazy"
+                                                                        />
+                                                                        <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                                                            <span className="text-[10px] uppercase font-black tracking-widest text-white bg-black/60 px-3 py-1.5 rounded-full border border-white/10 backdrop-blur-md">View Full</span>
+                                                                        </div>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                            {displayData.images.backdrops.length > visibleImagesCount && (
+                                                                <div className="flex justify-center pt-2">
+                                                                    <button 
+                                                                        onClick={() => setVisibleImagesCount(prev => prev + 12)}
+                                                                        className="px-6 py-2.5 rounded-full border border-white/10 hover:border-white/20 hover:bg-white/5 transition-all text-xs font-bold text-gray-300 hover:text-white active:scale-95"
+                                                                    >
+                                                                        Load More Snapshots
+                                                                    </button>
+                                                                </div>
+                                                            )}
+                                                        </>
+                                                    ) : (
+                                                        <div className="text-center py-12 text-gray-500 border border-white/5 rounded-2xl text-xs">
+                                                            No snapshots available.
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
+
+                                            {mediaCategory === 'posters' && (
+                                                <div className="space-y-6">
+                                                    {displayData.images?.posters?.length ? (
+                                                        <>
+                                                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                                                                {displayData.images.posters.slice(0, visibleImagesCount).map((img, i) => (
+                                                                    <div 
+                                                                        key={i} 
+                                                                        onClick={() => setViewingImage(`${TMDB_BACKDROP_BASE}${img.file_path}`)}
+                                                                        className="group relative aspect-[2/3] rounded-xl overflow-hidden cursor-pointer bg-white/5 border border-white/5 hover:border-white/20 transition-all hover:scale-[1.02] shadow-md"
+                                                                    >
+                                                                        <img 
+                                                                            src={`${TMDB_IMAGE_BASE}${img.file_path}`} 
+                                                                            className="w-full h-full object-cover transition-opacity duration-300 group-hover:opacity-90" 
+                                                                            alt="Poster"
+                                                                            loading="lazy"
+                                                                        />
+                                                                        <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                                                            <span className="text-[10px] uppercase font-black tracking-widest text-white bg-black/60 px-3 py-1.5 rounded-full border border-white/10 backdrop-blur-md">View Full</span>
+                                                                        </div>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                            {displayData.images.posters.length > visibleImagesCount && (
+                                                                <div className="flex justify-center pt-2">
+                                                                    <button 
+                                                                        onClick={() => setVisibleImagesCount(prev => prev + 12)}
+                                                                        className="px-6 py-2.5 rounded-full border border-white/10 hover:border-white/20 hover:bg-white/5 transition-all text-xs font-bold text-gray-300 hover:text-white active:scale-95"
+                                                                    >
+                                                                        Load More Posters
+                                                                    </button>
+                                                                </div>
+                                                            )}
+                                                        </>
+                                                    ) : (
+                                                        <div className="text-center py-12 text-gray-500 border border-white/5 rounded-2xl text-xs">
+                                                            No posters available.
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
+
+                                            {mediaCategory === 'logos' && (
+                                                <div className="space-y-6">
+                                                    {displayData.images?.logos?.length ? (
+                                                        <>
+                                                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                                                                {displayData.images.logos.slice(0, visibleImagesCount).map((img, i) => (
+                                                                    <div 
+                                                                        key={i} 
+                                                                        onClick={() => setViewingImage(`${TMDB_BACKDROP_BASE}${img.file_path}`)}
+                                                                        className="group relative aspect-[2/1] rounded-xl overflow-hidden cursor-pointer flex items-center justify-center p-4 bg-[#141416]/50 border border-white/5 hover:border-white/20 transition-all hover:scale-[1.02] shadow-md backdrop-blur-md"
+                                                                    >
+                                                                        <img 
+                                                                            src={`${TMDB_IMAGE_BASE}${img.file_path}`} 
+                                                                            className="max-w-full max-h-full object-contain filter drop-shadow-lg transition-transform duration-300 group-hover:scale-105" 
+                                                                            alt="Logo"
+                                                                            loading="lazy"
+                                                                        />
+                                                                        <div className="absolute inset-0 bg-black/10 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                                                            <span className="text-[10px] uppercase font-black tracking-widest text-white bg-black/60 px-3 py-1.5 rounded-full border border-white/10 backdrop-blur-md">View Full</span>
+                                                                        </div>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                            {displayData.images.logos.length > visibleImagesCount && (
+                                                                <div className="flex justify-center pt-2">
+                                                                    <button 
+                                                                        onClick={() => setVisibleImagesCount(prev => prev + 12)}
+                                                                        className="px-6 py-2.5 rounded-full border border-white/10 hover:border-white/20 hover:bg-white/5 transition-all text-xs font-bold text-gray-300 hover:text-white active:scale-95"
+                                                                    >
+                                                                        Load More Logos
+                                                                    </button>
+                                                                </div>
+                                                            )}
+                                                        </>
+                                                    ) : (
+                                                        <div className="text-center py-12 text-gray-500 border border-white/5 rounded-2xl text-xs">
+                                                            No logos available.
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
                                     )}
                                     {activeTab === 'seasons' && isTv && (
                                         <div className="space-y-4 animate-in fade-in select-none text-left">
