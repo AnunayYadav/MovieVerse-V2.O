@@ -273,7 +273,8 @@ const MovieRow = ({
     endpoint, 
     mediaType,
     onMovieClick,
-    apiKey
+    apiKey,
+    adultOnly
 }: { 
     title: string; 
     movies?: Movie[]; 
@@ -282,6 +283,7 @@ const MovieRow = ({
     onMovieClick: (m: Movie) => void;
     apiKey?: string;
     key?: string | number;
+    adultOnly?: boolean;
 }) => {
     const [movies, setMovies] = useState<Movie[]>(staticMovies || []);
     const [loading, setLoading] = useState(endpoint ? true : false);
@@ -335,6 +337,7 @@ const MovieRow = ({
                     media_type: mediaType || item.media_type || (endpoint.includes('/tv/') ? 'tv' : 'movie'),
                     title: item.title || item.name
                 }));
+                if (adultOnly) results = results.filter((item: any) => item.adult === true);
                 setMovies(results);
             })
             .catch(err => console.error("Error fetching page 1: ", err))
@@ -367,6 +370,7 @@ const MovieRow = ({
                     media_type: mediaType || item.media_type || (endpoint.includes('/tv/') ? 'tv' : 'movie'),
                     title: item.title || item.name
                 }));
+                if (adultOnly) results = results.filter((item: any) => item.adult === true);
                 setMovies(prev => [...prev, ...results]);
                 setPage(nextPage);
             }
@@ -1202,7 +1206,7 @@ export default function App() {
           ...(((searchQuery.toLowerCase().includes('adult') || searchQuery.toLowerCase().includes('unhinged')) && userProfile.isUnhinged === true)
               ? [{
                   id: 'adult_unhinged_collection',
-                  title: 'Unhinged Collection (18+)',
+                  title: 'Unhinged Section',
                   type: 'row',
                   endpoint: `${TMDB_BASE_URL}/discover/movie?include_adult=true&sort_by=popularity.desc`
                 }]
@@ -1955,6 +1959,7 @@ export default function App() {
              if (endpoint.includes("/search/multi")) results = results.filter((m: any) => m.media_type === 'movie' || m.media_type === 'tv');
              results = results.filter((m: any) => {
                  if (!m.poster_path) return false;
+                 if (m.adult === true) return false;
                  if (m.media_type === 'movie' && m.runtime > 0 && m.runtime < 40 && !m.genre_ids?.includes(16)) return false; 
                  return true;
              });
@@ -2950,7 +2955,8 @@ export default function App() {
                                                        endpoint={cat.endpoint} 
                                                        mediaType={cat.mediaType} 
                                                        apiKey={apiKey} 
-                                                       onMovieClick={setSelectedMovie} 
+                                                       onMovieClick={setSelectedMovie}
+                                                       adultOnly={cat.id === 'adult_unhinged_collection'}
                                                    />
                                                ))}
                                            </div>
