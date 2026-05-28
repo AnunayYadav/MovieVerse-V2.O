@@ -794,6 +794,7 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [fetchError, setFetchError] = useState(false);
   const [selectedMovie, setSelectedMovie] = useState<Movie | null>(null);
+  const [modalHistory, setModalHistory] = useState<Array<{ type: 'movie' | 'person'; data: any }>>([]);
   const [featuredMovie, setFeaturedMovie] = useState<Movie | null>(null);
   const [featuredLogo, setFeaturedLogo] = useState<string | null>(null);
   
@@ -845,6 +846,62 @@ export default function App() {
   const [comparisonBaseMovie, setComparisonBaseMovie] = useState<Movie | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string>('');
   const [reminders, setReminders] = useState<number[]>([]);
+
+  // Synchronize modal history stack
+  useEffect(() => {
+      if (isSyncingPath.current) return;
+
+      const currentTop = modalHistory[modalHistory.length - 1];
+
+      // Case 1: Both closed (both are null)
+      if (!selectedMovie && !selectedPersonId) {
+          if (modalHistory.length > 0) {
+              const nextHistory = modalHistory.slice(0, -1);
+              setModalHistory(nextHistory);
+              
+              const newTop = nextHistory[nextHistory.length - 1];
+              if (newTop) {
+                  if (newTop.type === 'movie') {
+                      setSelectedMovie(newTop.data);
+                  } else if (newTop.type === 'person') {
+                      setSelectedPersonId(newTop.data);
+                  }
+              }
+          }
+          return;
+      }
+
+      // Case 2: User opened a movie
+      if (selectedMovie && (!currentTop || currentTop.type !== 'movie' || currentTop.data.id !== selectedMovie.id)) {
+          const idx = modalHistory.findIndex(x => x.type === 'movie' && x.data.id === selectedMovie.id);
+          if (idx >= 0) {
+              setModalHistory(modalHistory.slice(0, idx + 1));
+          } else {
+              setModalHistory(prev => [...prev, { type: 'movie', data: selectedMovie }]);
+          }
+          return;
+      }
+
+      // Case 3: User opened a person
+      if (selectedPersonId && (!currentTop || currentTop.type !== 'person' || currentTop.data !== selectedPersonId)) {
+          const idx = modalHistory.findIndex(x => x.type === 'person' && x.data === selectedPersonId);
+          if (idx >= 0) {
+              setModalHistory(modalHistory.slice(0, idx + 1));
+          } else {
+              setModalHistory(prev => [...prev, { type: 'person', data: selectedPersonId }]);
+          }
+          return;
+      }
+
+      // Case 4: One of the modals was closed manually
+      if (currentTop) {
+          if (currentTop.type === 'person' && !selectedPersonId && selectedMovie) {
+              setModalHistory(prev => prev.slice(0, -1));
+          } else if (currentTop.type === 'movie' && !selectedMovie && selectedPersonId) {
+              setModalHistory(prev => prev.slice(0, -1));
+          }
+      }
+  }, [selectedMovie, selectedPersonId]);
 
   // Homepage sections states
   const [activeCategories, setActiveCategories] = useState<any[]>(() => PREDEFINED_CATEGORIES.slice(0, 3));
@@ -1058,6 +1115,14 @@ export default function App() {
       setActiveCountry(countryToSelect);
       setCurrentCollection(customCollectionKey);
       setSelectedPersonId(personIdToSelect);
+
+      if (movieToSelect) {
+          setModalHistory([{ type: 'movie', data: movieToSelect }]);
+      } else if (personIdToSelect) {
+          setModalHistory([{ type: 'person', data: personIdToSelect }]);
+      } else {
+          setModalHistory([]);
+      }
 
       setActiveDetailsTab(detailsTab);
       setShowDetailsCast(showCast);
@@ -3074,7 +3139,7 @@ export default function App() {
             onShowFullCrewChange={setShowDetailsCrew}
         /> 
       )}
-      <PersonPage key={selectedPersonId || 0} personId={selectedPersonId || 0} onClose={() => setSelectedPersonId(null)} apiKey={apiKey} onMovieClick={(m) => { setSelectedPersonId(null); setTimeout(() => setSelectedMovie(m), 300); }} />
+      <PersonPage key={selectedPersonId || 0} personId={selectedPersonId || 0} onClose={() => setSelectedPersonId(null)} apiKey={apiKey} onMovieClick={(m) => { setSelectedPersonId(null); setSelectedMovie(m); }} />
       <ComparisonModal isOpen={isComparisonOpen} onClose={() => setIsComparisonOpen(false)} baseMovie={comparisonBaseMovie} apiKey={apiKey} />
       <SettingsPage isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} apiKey={apiKey} setApiKey={(k) => saveSettings(k)} maturityRating={maturityRating} setMaturityRating={setMaturityRating} profile={userProfile} onUpdateProfile={setUserProfile} onLogout={handleLogout} searchHistory={searchHistory} setSearchHistory={(h) => { setSearchHistory(h); localStorage.setItem('movieverse_search_history', JSON.stringify(h)); }} watchedMovies={watched} setWatchedMovies={(m) => { setWatched(m); localStorage.setItem('movieverse_watched', JSON.stringify(m)); }} />
       <NotificationModal isOpen={isNotificationOpen} onClose={() => setIsNotificationOpen(false)} onUpdate={checkUnreadNotifications} userProfile={userProfile} />
