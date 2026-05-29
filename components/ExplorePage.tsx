@@ -262,7 +262,7 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ apiKey, onMovieClick, 
             setHasMoreOtt(true);
             const targetRegion = exploreRegion === 'Global' ? (appRegion || 'US') : exploreRegion;
             try {
-                const url = `${TMDB_BASE_URL}/discover/movie?api_key=${apiKey}&watch_region=${targetRegion}&with_watch_providers=${activeOtt}&sort_by=popularity.desc&page=1`;
+                const url = `${TMDB_BASE_URL}/discover/movie?api_key=${apiKey}&watch_region=${targetRegion}&with_watch_providers=${activeOtt}&sort_by=popularity.desc&page=1&include_adult=${userProfile.isUnhinged ? 'true' : 'false'}`;
                 const response = await fetch(url);
                 const data = await response.json();
                 if (isMounted) {
@@ -307,7 +307,7 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ apiKey, onMovieClick, 
             setSearching(true);
             const targetRegion = exploreRegion === 'Global' ? (appRegion || 'US') : exploreRegion;
             try {
-                const searchUrl = `${TMDB_BASE_URL}/search/multi?api_key=${apiKey}&query=${encodeURIComponent(ottSearchQuery)}&language=en-US&page=1&include_adult=false`;
+                const searchUrl = `${TMDB_BASE_URL}/search/multi?api_key=${apiKey}&query=${encodeURIComponent(ottSearchQuery)}&language=en-US&page=1&include_adult=${userProfile.isUnhinged ? 'true' : 'false'}`;
                 const searchRes = await fetch(searchUrl);
                 const searchData = await searchRes.json();
                 const rawResults = searchData.results || [];
@@ -370,7 +370,7 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ apiKey, onMovieClick, 
         const nextPage = ottPage + 1;
         const targetRegion = exploreRegion === 'Global' ? (appRegion || 'US') : exploreRegion;
         try {
-            const url = `${TMDB_BASE_URL}/discover/movie?api_key=${apiKey}&watch_region=${targetRegion}&with_watch_providers=${activeOtt}&sort_by=popularity.desc&page=${nextPage}`;
+            const url = `${TMDB_BASE_URL}/discover/movie?api_key=${apiKey}&watch_region=${targetRegion}&with_watch_providers=${activeOtt}&sort_by=popularity.desc&page=${nextPage}&include_adult=${userProfile.isUnhinged ? 'true' : 'false'}`;
             const response = await fetch(url);
             const data = await response.json();
             const results = data.results || [];

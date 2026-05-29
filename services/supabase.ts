@@ -110,6 +110,7 @@ export const syncUserData = async (userData: UserData) => {
             watched: userData.watched,
             custom_lists: userData.customLists,
             profile: userData.profile,
+            is_unhinged: userData.profile.isUnhinged === true,
             settings: userData.settings,
             search_history: userData.searchHistory,
             updated_at: new Date().toISOString()

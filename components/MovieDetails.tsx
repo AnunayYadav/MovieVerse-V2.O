@@ -293,6 +293,10 @@ export const MoviePage: React.FC<MoviePageProps> = ({
     onShowFullCrewChange
 }) => {
     const resolvedMediaType = movie.media_type === 'tv' || (!movie.release_date && movie.first_air_date) ? 'tv' : 'movie';
+    const onPlayStateChangeRef = useRef(onPlayStateChange);
+    useEffect(() => {
+        onPlayStateChangeRef.current = onPlayStateChange;
+    }, [onPlayStateChange]);
     const [details, setDetails] = useState<MovieDetails | null>(null);
     const [collection, setCollection] = useState<CollectionDetails | null>(null);
     const [loading, setLoading] = useState(true);
@@ -305,7 +309,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
     const [episodesLoading, setEpisodesLoading] = useState(false);
     const [episodeSearch, setEpisodeSearch] = useState("");
     const [viewingImage, setViewingImage] = useState<string | null>(null);
-    const [showPlayer, setShowPlayer] = useState(initialShowPlayer);
+    const showPlayer = initialShowPlayer;
     const [playParams, setPlayParams] = useState(initialPlayParams);
     const [expandedReviews, setExpandedReviews] = useState<Record<string, boolean>>({});
     
@@ -328,7 +332,6 @@ export const MoviePage: React.FC<MoviePageProps> = ({
     const [showFullCrew, setShowFullCrew] = useState(showFullCrewProp);
 
     useEffect(() => { setActiveTab(activeTabProp); }, [activeTabProp]);
-    useEffect(() => { setShowPlayer(initialShowPlayer); }, [initialShowPlayer]);
     useEffect(() => { setPlayParams(initialPlayParams); }, [initialPlayParams.season, initialPlayParams.episode]);
     useEffect(() => { setShowFullCast(showFullCastProp); }, [showFullCastProp]);
     useEffect(() => { setShowFullCrew(showFullCrewProp); }, [showFullCrewProp]);
@@ -338,18 +341,6 @@ export const MoviePage: React.FC<MoviePageProps> = ({
             onTabChange(activeTab);
         }
     }, [activeTab, onTabChange, activeTabProp]);
-
-    useEffect(() => {
-        if (onPlayStateChange && showPlayer !== initialShowPlayer) {
-            onPlayStateChange(showPlayer, playParams.season, playParams.episode);
-        }
-    }, [showPlayer, onPlayStateChange, initialShowPlayer, playParams]);
-
-    useEffect(() => {
-        if (onPlayStateChange && showPlayer && (playParams.season !== initialPlayParams.season || playParams.episode !== initialPlayParams.episode)) {
-            onPlayStateChange(showPlayer, playParams.season, playParams.episode);
-        }
-    }, [playParams, showPlayer, onPlayStateChange, initialPlayParams]);
 
     useEffect(() => {
         if (onShowFullCastChange && showFullCast !== showFullCastProp) {
@@ -416,7 +407,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                     return;
                 }
                 if (showPlayer) {
-                    setShowPlayer(false);
+                    onPlayStateChangeRef.current?.(false);
                     e.stopPropagation();
                     return;
                 }
@@ -481,7 +472,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
             .catch(() => setLoading(false));
         setTrivia("");
         setActiveTab("overview");
-        setShowPlayer(false);
+        onPlayStateChangeRef.current?.(false);
         setVideoLoaded(false); 
         setIsMuted(true); 
         setEpisodes([]);
@@ -547,7 +538,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
     }, [collection, movie.id]);
 
     const handleWatchClick = () => {
-        setShowPlayer(true);
+        onPlayStateChangeRef.current?.(true, playParams.season, playParams.episode);
         if (onProgress) {
             onProgress(movie, { currentTime: 0, duration: 3600, event: 'time', season: playParams.season, episode: playParams.episode });
         }
@@ -1140,7 +1131,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                                     onClick={() => {
                                                                         if (isExclusive) {
                                                                             setPlayParams({ season: selectedSeason, episode: episode.episode_number });
-                                                                            setShowPlayer(true);
+                                                                            onPlayStateChangeRef.current?.(true, selectedSeason, episode.episode_number);
                                                                             if (onProgress) {
                                                                                 onProgress(movie, { currentTime: 0, duration: 3600, event: 'time', season: selectedSeason, episode: episode.episode_number });
                                                                             }
@@ -1369,7 +1360,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                     <Suspense fallback={<div className="w-full h-full flex items-center justify-center bg-black"><Loader2 className="animate-spin text-red-600" size={40}/></div>}>
                         <MoviePlayer 
                             tmdbId={displayData.id} 
-                            onClose={() => setShowPlayer(false)} 
+                            onClose={() => onPlayStateChangeRef.current?.(false)} 
                             mediaType={isTv ? 'tv' : 'movie'} 
                             isAnime={isAnime || false} 
                             apiKey={apiKey} 
