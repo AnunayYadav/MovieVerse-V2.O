@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { UserCircle, X, Check, Settings, ShieldCheck, RefreshCcw, HelpCircle, FileText, Lock, LogOut, Calendar, Mail, User, BrainCircuit, Pencil, CheckCheck, Loader2, ChevronDown, ChevronUp, Fingerprint, Copy, Crown, History, Trash2, Search, Clock, ArrowLeft, Upload, Dice5, PaintBucket, Shield, AlertCircle } from 'lucide-react';
+import { UserCircle, X, Check, Settings, ShieldCheck, RefreshCcw, HelpCircle, FileText, Lock, LogOut, Calendar, Mail, User, BrainCircuit, Pencil, CheckCheck, Loader2, ChevronDown, ChevronUp, Fingerprint, Copy, Crown, History, Trash2, Search, Clock, ArrowLeft, Upload, Dice5, PaintBucket, AlertCircle } from 'lucide-react';
 import { UserProfile, MaturityRating, Movie, GENRES_LIST } from '../types';
 import { getSupabase, submitSupportTicket } from '../services/supabase';
 import { TMDB_IMAGE_BASE } from './Shared';
@@ -43,7 +43,6 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
     const [profileGenres, setProfileGenres] = useState<string[]>(profile.genres || []);
     const [profileAvatar, setProfileAvatar] = useState(profile.avatar || "");
     const [profileAvatarBg, setProfileAvatarBg] = useState(profile.avatarBackground || "bg-gradient-to-br from-red-600 to-red-900");
-    const [profileIsUnhinged, setProfileIsUnhinged] = useState(profile.isUnhinged || false);
     const [profileError, setProfileError] = useState("");
     const [isSaving, setIsSaving] = useState(false);
 
@@ -71,7 +70,6 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
             setProfileGenres(profile.genres || []);
             setProfileAvatar(profile.avatar || "");
             setProfileAvatarBg(profile.avatarBackground || "bg-gradient-to-br from-red-600 to-red-900");
-            setProfileIsUnhinged(profile.isUnhinged || false);
             setProfileError("");
 
             // Fetch real user data from Supabase
@@ -136,7 +134,6 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                 genres: profileGenres,
                 avatar: profileAvatar,
                 avatarBackground: profileAvatarBg,
-                isUnhinged: profileIsUnhinged,
                 maturityRating: maturityRating
             };
 
@@ -454,7 +451,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                                 </div>
                                 <div>
                                     <p className="text-sm font-semibold text-white">{profileName || "User"}</p>
-                                    <p className="text-xs text-zinc-500 mt-0.5">Rating Restriction: {maturityRating} • {profileIsUnhinged ? "Unhinged (18+) search active" : "Normal search"}</p>
+                                    <p className="text-xs text-zinc-500 mt-0.5">Rating Restriction: {maturityRating}</p>
                                 </div>
                             </div>
                             {isProfileExpanded ? <ChevronUp size={18} className="text-zinc-500" /> : <ChevronDown size={18} className="text-zinc-500" />}
@@ -568,30 +565,6 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                                             </button>
                                         ))}
                                     </div>
-                                </div>
-
-                                {/* Unhinged Mode flag */}
-                                <div className="pt-4 border-t border-zinc-900 flex items-center justify-between">
-                                    <div className="pr-4">
-                                        <p className="text-xs font-semibold text-white flex items-center gap-1.5">
-                                            <Shield size={14} className="text-red-500" /> Unhinged Mode (18+ Search)
-                                        </p>
-                                        <p className="text-[11px] text-zinc-500 mt-0.5">Allows querying the adult collection when searching the term "adult". Age verification required.</p>
-                                    </div>
-                                    <button 
-                                        type="button"
-                                        onClick={() => {
-                                            const ageNum = parseInt(profileAge || "0");
-                                            if (ageNum < 18) {
-                                                alert("You must be 18 or older to activate unhinged mode.");
-                                                return;
-                                            }
-                                            setProfileIsUnhinged(!profileIsUnhinged);
-                                        }}
-                                        className={`relative w-11 h-6 rounded-full transition-colors shrink-0 ${profileIsUnhinged ? 'bg-red-600' : 'bg-zinc-800'}`}
-                                    >
-                                        <div className={`absolute top-1 left-1 bg-white w-4 h-4 rounded-full transition-transform ${profileIsUnhinged ? 'translate-x-5' : 'translate-x-0'}`} />
-                                    </button>
                                 </div>
 
                                 {/* Genre Tags Edit panel */}

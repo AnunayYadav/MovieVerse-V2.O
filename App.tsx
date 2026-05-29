@@ -422,7 +422,6 @@ const MovieRow = ({
     mediaType,
     onMovieClick,
     apiKey,
-    adultOnly,
     sortOption,
     selectedLanguage
 }: { 
@@ -433,7 +432,6 @@ const MovieRow = ({
     onMovieClick: (m: Movie) => void;
     apiKey?: string;
     key?: string | number;
-    adultOnly?: boolean;
     sortOption?: string;
     selectedLanguage?: string;
 }) => {
@@ -552,7 +550,6 @@ const MovieRow = ({
                     media_type: mediaType || item.media_type || (finalEndpoint.includes('/tv/') ? 'tv' : 'movie'),
                     title: item.title || item.name
                 }));
-                if (adultOnly) results = results.filter((item: any) => item.adult === true);
                 
                 // Secondary Client-side filtering as a fallback
                 if (selectedLanguage && selectedLanguage !== 'All' && !finalEndpoint.includes('/discover/')) {
@@ -574,7 +571,7 @@ const MovieRow = ({
         return () => {
             isMounted = false;
         };
-    }, [endpoint, isVisible, apiKey, mediaType, sortOption, selectedLanguage, adultOnly, sortMovies, getFinalEndpoint]);
+    }, [endpoint, isVisible, apiKey, mediaType, sortOption, selectedLanguage, sortMovies, getFinalEndpoint]);
 
     const loadNextPage = async () => {
         if (!endpoint || !apiKey || loadingMore || !hasMore) return;
@@ -597,7 +594,6 @@ const MovieRow = ({
                     media_type: mediaType || item.media_type || (finalEndpoint.includes('/tv/') ? 'tv' : 'movie'),
                     title: item.title || item.name
                 }));
-                if (adultOnly) results = results.filter((item: any) => item.adult === true);
                 
                 if (selectedLanguage && selectedLanguage !== 'All' && !finalEndpoint.includes('/discover/')) {
                     results = results.filter((item: any) => item.original_language === selectedLanguage);
@@ -1467,19 +1463,9 @@ export default function App() {
   );
 
   const matchingCollections = searchQuery 
-      ? [
-          ...PREDEFINED_CATEGORIES.filter(cat => 
-              cat.title.toLowerCase().includes(searchQuery.toLowerCase().trim())
-          ),
-          ...(((searchQuery.toLowerCase().includes('adult') || searchQuery.toLowerCase().includes('unhinged')) && userProfile.isUnhinged === true)
-              ? [{
-                  id: 'adult_unhinged_collection',
-                  title: 'Unhinged Section',
-                  type: 'row',
-                  endpoint: `${TMDB_BASE_URL}/discover/movie?include_adult=true&with_keywords=9748|190342|155823&sort_by=popularity.desc`
-                }]
-              : [])
-        ]
+      ? PREDEFINED_CATEGORIES.filter(cat => 
+            cat.title.toLowerCase().includes(searchQuery.toLowerCase().trim())
+        )
       : [];
 
   // Shortcut Handler
@@ -2033,7 +2019,7 @@ export default function App() {
     const isAdult = !isNaN(userAge) && userAge >= 18;
     try {
         let endpoint = "/discover/movie";
-        const params = new URLSearchParams({ api_key: apiKey, page: pageNum.toString(), language: "en-US", include_adult: userProfile.isUnhinged === true ? "true" : "false" });
+        const params = new URLSearchParams({ api_key: apiKey, page: pageNum.toString(), language: "en-US", include_adult: "false" });
         const isStrictFilter = !isAdult || maturityRating !== 'NC-17';
         const isGeneralDiscovery = !activeCountry && !activeKeyword && !tmdbCollectionId && !currentCollection && !["People", "Franchise"].includes(selectedCategory);
         if (isGeneralDiscovery) {
@@ -3814,7 +3800,6 @@ export default function App() {
                                                                 mediaType={cat.mediaType} 
                                                                 apiKey={apiKey} 
                                                                 onMovieClick={setSelectedMovie}
-                                                                adultOnly={cat.id === 'adult_unhinged_collection'}
                                                                 sortOption={sortOption}
                                                                 selectedLanguage={selectedLanguage}
                                                             />

@@ -110,7 +110,6 @@ export const syncUserData = async (userData: UserData) => {
             watched: userData.watched,
             custom_lists: userData.customLists,
             profile: userData.profile,
-            is_unhinged: userData.profile.isUnhinged === true,
             settings: userData.settings,
             search_history: userData.searchHistory,
             updated_at: new Date().toISOString()
@@ -155,9 +154,6 @@ export const fetchUserData = async (): Promise<UserData | null> => {
     const fetchedProfile = data.profile || { name: "", age: "", genres: [] };
     if (data.can_watch === true) {
         fetchedProfile.canWatch = true;
-    }
-    if (data.is_unhinged === true) {
-        fetchedProfile.isUnhinged = true;
     }
 
     return {
