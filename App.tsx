@@ -552,7 +552,7 @@ const MovieRow = ({
                     media_type: mediaType || item.media_type || (finalEndpoint.includes('/tv/') ? 'tv' : 'movie'),
                     title: item.title || item.name
                 }));
-                if (adultOnly) results = results.filter((item: any) => item.adult === true);
+                if (adultOnly) results = results.filter((item: any) => item.adult === true || !item.genre_ids?.includes(10751));
                 
                 // Secondary Client-side filtering as a fallback
                 if (selectedLanguage && selectedLanguage !== 'All' && !finalEndpoint.includes('/discover/')) {
@@ -597,7 +597,7 @@ const MovieRow = ({
                     media_type: mediaType || item.media_type || (finalEndpoint.includes('/tv/') ? 'tv' : 'movie'),
                     title: item.title || item.name
                 }));
-                if (adultOnly) results = results.filter((item: any) => item.adult === true);
+                if (adultOnly) results = results.filter((item: any) => item.adult === true || !item.genre_ids?.includes(10751));
                 
                 if (selectedLanguage && selectedLanguage !== 'All' && !finalEndpoint.includes('/discover/')) {
                     results = results.filter((item: any) => item.original_language === selectedLanguage);
@@ -1476,7 +1476,7 @@ export default function App() {
                   id: 'adult_unhinged_collection',
                   title: 'Unhinged Section',
                   type: 'row',
-                  endpoint: `${TMDB_BASE_URL}/discover/movie?include_adult=true&sort_by=popularity.desc`
+                  endpoint: `${TMDB_BASE_URL}/discover/movie?include_adult=true&with_keywords=9748|190342|155823&sort_by=popularity.desc`
                 }]
               : [])
         ]
