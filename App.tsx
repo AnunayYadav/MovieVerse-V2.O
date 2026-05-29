@@ -893,7 +893,7 @@ const PREDEFINED_CATEGORIES = [
     { id: 'south', title: 'South Indian Blockbusters', type: 'row', endpoint: `${TMDB_BASE_URL}/discover/movie?with_original_language=te|ta|kn&sort_by=popularity.desc` },
     { id: 'punjabi', title: 'Punjabi Collection', type: 'row', endpoint: `${TMDB_BASE_URL}/discover/movie?with_original_language=pa&sort_by=popularity.desc` },
     { id: 'korean', title: 'Korean Dramas', type: 'row', endpoint: `${TMDB_BASE_URL}/discover/movie?with_original_language=ko&sort_by=popularity.desc` },
-    { id: 'japanese_anime', title: 'Japanese Anime', type: 'row', endpoint: `${TMDB_BASE_URL}/discover/movie?with_genres=16&with_original_language=ja` },
+    { id: 'japanese_cinema', title: 'Japanese Cinema', type: 'row', endpoint: `${TMDB_BASE_URL}/discover/movie?with_original_language=ja&sort_by=popularity.desc` },
     { id: 'international', title: 'International Picks', type: 'row', endpoint: `${TMDB_BASE_URL}/discover/movie?with_original_language=en&sort_by=popularity.desc` },
     { id: 'dubbed', title: 'Watch in Your Language (Dubbed Collection)', type: 'row', endpoint: `${TMDB_BASE_URL}/discover/movie?sort_by=popularity.desc&with_original_language=hi|te|ta` }
 ];
@@ -908,7 +908,20 @@ const DYNAMIC_GENRES = [
     { name: 'Historical Dramas', genres: '36|18' },
     { name: 'Action & Adventure', genres: '28|12' },
     { name: 'Documentaries', genres: '99' },
-    { name: 'War & History', genres: '10752|36' }
+    { name: 'War & History', genres: '10752|36' },
+    { name: 'Oscar Winners', params: { sort_by: 'vote_average.desc', 'vote_count.gte': '2000' } },
+    { name: 'Oscar Nominated', params: { sort_by: 'vote_average.desc', 'vote_count.gte': '1000' } },
+    { name: 'IMDb 8+ Movies', params: { 'vote_average.gte': '8', 'vote_count.gte': '1000', sort_by: 'vote_average.desc' } },
+    { name: 'Cult Classics', params: { 'primary_release_date.lte': '2010-01-01', 'vote_average.gte': '7.5', 'vote_count.gte': '800', sort_by: 'popularity.desc' } },
+    { name: 'Mind-Bending Movies', params: { with_genres: '9648|878', 'vote_average.gte': '7.2', 'vote_count.gte': '500', sort_by: 'popularity.desc' } },
+    { name: 'Feel Good Movies', params: { with_genres: '35|10751|10749', sort_by: 'popularity.desc' } },
+    { name: 'Dark Thrillers', params: { with_genres: '53|80|27', sort_by: 'popularity.desc' } },
+    { name: 'Family Night', params: { with_genres: '10751|16', sort_by: 'popularity.desc' } },
+    { name: 'Weekend Binge', params: { sort_by: 'popularity.desc' }, type: 'tv' as const },
+    { name: 'Based on True Story', params: { with_keywords: '9672', sort_by: 'popularity.desc' } },
+    { name: 'Superhero Movies', params: { with_keywords: '9715', sort_by: 'popularity.desc' } },
+    { name: 'Anime Movies', params: { with_genres: '16', with_original_language: 'ja', sort_by: 'popularity.desc' } },
+    { name: 'Anime Series', params: { with_genres: '16', with_original_language: 'ja', sort_by: 'popularity.desc' }, type: 'tv' as const }
 ];
 
 const DYNAMIC_YEARS = [2024, 2023, 2022, 2021, 2020, 2019, 2018, 2015, 2010, 2005, 2000, 1995, 1990];
@@ -922,6 +935,7 @@ export default function App() {
   const [dataLoaded, setDataLoaded] = useState(false); 
 
   const [movies, setMovies] = useState<Movie[]>([]);
+  const [activeCategoryRows, setActiveCategoryRows] = useState<any[]>([]);
   const [franchiseList, setFranchiseList] = useState<any[]>([]); 
   const [searchQuery, setSearchQuery] = useState("");
   const [searchSuggestions, setSearchSuggestions] = useState<string[]>([]);
@@ -1364,6 +1378,7 @@ export default function App() {
   }, [watched, apiKey, isAuthenticated]);
 
   const isCategoriesLoading = useRef(false);
+  const isCategoryRowsLoading = useRef(false);
 
   const loadMoreCategories = useCallback(() => {
       setActiveCategories(prev => {
@@ -1377,21 +1392,57 @@ export default function App() {
                   newBatch.push(PREDEFINED_CATEGORIES[idx]);
               } else {
                   const dynamicIdx = idx - PREDEFINED_CATEGORIES.length;
-                  if (dynamicIdx % 2 === 0) {
-                      const genreObj = DYNAMIC_GENRES[Math.floor(dynamicIdx / 2) % DYNAMIC_GENRES.length];
+                  if (dynamicIdx < DYNAMIC_YEARS.length) {
+                      const year = DYNAMIC_YEARS[dynamicIdx];
                       newBatch.push({
-                          id: `dynamic_genre_${dynamicIdx}`,
-                          title: genreObj.name,
-                          type: 'row',
-                          endpoint: `${TMDB_BASE_URL}/discover/movie?with_genres=${genreObj.genres}&sort_by=popularity.desc`
-                      });
-                  } else {
-                      const year = DYNAMIC_YEARS[Math.floor(dynamicIdx / 2) % DYNAMIC_YEARS.length];
-                      newBatch.push({
-                          id: `dynamic_year_${dynamicIdx}`,
+                          id: `dynamic_year_${year}`,
                           title: `Best of ${year}`,
                           type: 'row',
                           endpoint: `${TMDB_BASE_URL}/discover/movie?primary_release_year=${year}&sort_by=popularity.desc`
+                      });
+                  } else if (dynamicIdx < DYNAMIC_YEARS.length + DYNAMIC_GENRES.length) {
+                      const genreObj = DYNAMIC_GENRES[dynamicIdx - DYNAMIC_YEARS.length];
+                      let endpoint = "";
+                      if (genreObj.genres) {
+                          endpoint = `${TMDB_BASE_URL}/discover/movie?with_genres=${genreObj.genres}&sort_by=popularity.desc`;
+                      } else if (genreObj.params) {
+                          const queryParams = new URLSearchParams();
+                          Object.entries(genreObj.params).forEach(([k, v]) => queryParams.append(k, v));
+                          const base = genreObj.type === 'tv' ? 'tv' : 'movie';
+                          endpoint = `${TMDB_BASE_URL}/discover/${base}?${queryParams.toString()}`;
+                      }
+                      newBatch.push({
+                          id: `dynamic_genre_${genreObj.name.replace(/\s+/g, '_')}`,
+                          title: genreObj.name,
+                          type: 'row',
+                          mediaType: genreObj.type,
+                          endpoint: endpoint
+                      });
+                  } else {
+                      const combIdx = dynamicIdx - DYNAMIC_YEARS.length - DYNAMIC_GENRES.length;
+                      const yearIdx = Math.floor(combIdx / DYNAMIC_GENRES.length) % DYNAMIC_YEARS.length;
+                      const genreIdx = combIdx % DYNAMIC_GENRES.length;
+                      const year = DYNAMIC_YEARS[yearIdx];
+                      const genreObj = DYNAMIC_GENRES[genreIdx];
+                      
+                      let endpoint = "";
+                      if (genreObj.genres) {
+                          endpoint = `${TMDB_BASE_URL}/discover/movie?with_genres=${genreObj.genres}&primary_release_year=${year}&sort_by=popularity.desc`;
+                      } else if (genreObj.params) {
+                          const queryParams = new URLSearchParams();
+                          Object.entries(genreObj.params).forEach(([k, v]) => queryParams.append(k, v));
+                          const yearParamKey = genreObj.type === 'tv' ? 'first_air_date_year' : 'primary_release_year';
+                          queryParams.append(yearParamKey, year.toString());
+                          const base = genreObj.type === 'tv' ? 'tv' : 'movie';
+                          endpoint = `${TMDB_BASE_URL}/discover/${base}?${queryParams.toString()}`;
+                      }
+
+                      newBatch.push({
+                          id: `dynamic_combined_${year}_${genreObj.name.replace(/\s+/g, '_')}`,
+                          title: `${genreObj.name} of ${year}`,
+                          type: 'row',
+                          mediaType: genreObj.type,
+                          endpoint: endpoint
                       });
                   }
               }
@@ -1400,25 +1451,7 @@ export default function App() {
       });
   }, []);
 
-  useEffect(() => {
-      if (selectedCategory !== 'All' || searchQuery || currentCollection || activeCountry || activeKeyword || tmdbCollectionId) return;
-      
-      const handleScroll = () => {
-          const threshold = 1200;
-          const isNearBottom = window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - threshold;
-          
-          if (isNearBottom && !isCategoriesLoading.current) {
-              isCategoriesLoading.current = true;
-              loadMoreCategories();
-              setTimeout(() => {
-                  isCategoriesLoading.current = false;
-              }, 1200); 
-          }
-      };
-      
-      window.addEventListener('scroll', handleScroll);
-      return () => window.removeEventListener('scroll', handleScroll);
-  }, [selectedCategory, searchQuery, currentCollection, activeCountry, activeKeyword, tmdbCollectionId, loadMoreCategories]);
+  // Infinite scroll listener for categories is now combined and defined below loadMoreCategoryRows
 
   const abortControllerRef = useRef<AbortController | null>(null);
   const isExclusive = userProfile.canWatch === true;
@@ -1429,7 +1462,7 @@ export default function App() {
 
   const showStickyHeader = !["Genres", "Franchise", "Explore", "LiveTV"].includes(selectedCategory);
   const hasHeroBanner = !!(
-      (!searchQuery && featuredMovie && !["People", "Coming", "Collections", "Genres", "Franchise", "Explore"].includes(selectedCategory)) ||
+      (!searchQuery && featuredMovie && !["People", "Coming", "Collections", "Genres", "Franchise", "Explore", "LiveTV"].includes(selectedCategory)) ||
       (selectedCategory === "Franchise" && franchiseList.length > 0)
   );
 
@@ -2257,7 +2290,7 @@ export default function App() {
     if (node) observer.current.observe(node);
   }, [loading, hasMore]);
 
-  const getCategoryRows = useCallback(() => {
+  const getBaseCategoryRows = useCallback(() => {
       const todayStr = new Date().toISOString().split('T')[0];
       const rows: Array<{ id: string; title: string; endpoint: string; mediaType?: 'movie' | 'tv' }> = [];
       const getLangParam = () => {
@@ -2479,6 +2512,395 @@ export default function App() {
 
       return rows;
   }, [selectedCategory, activeKeyword, activeCountry, currentCollection, selectedLanguage]);
+
+  const getCategoryRowAt = useCallback((index: number) => {
+      const getLangParam = () => {
+          return selectedLanguage !== "All" ? `&with_original_language=${selectedLanguage}` : "";
+      };
+
+      const baseRows = getBaseCategoryRows();
+      if (index < baseRows.length) {
+          return baseRows[index];
+      }
+
+      const genreId = GENRES_MAP[selectedCategory] || (selectedCategory === "Family" ? 10751 : null);
+      const filteredGenres = genreId 
+          ? DYNAMIC_GENRES.filter(g => !g.genres || !g.genres.split('|').includes(genreId.toString()))
+          : DYNAMIC_GENRES;
+
+      const dynamicIdx = index - baseRows.length;
+
+      // Determine if we do Year-only, Genre-only, or Combined
+      let rowType: 'year' | 'genre' | 'combined' = 'combined';
+      let year = DYNAMIC_YEARS[0];
+      let genreObj = DYNAMIC_GENRES[0];
+
+      if (dynamicIdx < DYNAMIC_YEARS.length) {
+          rowType = 'year';
+          year = DYNAMIC_YEARS[dynamicIdx];
+      } else if (dynamicIdx < DYNAMIC_YEARS.length + filteredGenres.length) {
+          rowType = 'genre';
+          genreObj = filteredGenres[dynamicIdx - DYNAMIC_YEARS.length];
+      } else {
+          rowType = 'combined';
+          const combIdx = dynamicIdx - DYNAMIC_YEARS.length - filteredGenres.length;
+          const yearIdx = Math.floor(combIdx / filteredGenres.length) % DYNAMIC_YEARS.length;
+          const genreIdx = combIdx % filteredGenres.length;
+          year = DYNAMIC_YEARS[yearIdx];
+          genreObj = filteredGenres[genreIdx];
+      }
+
+      const getDynamicRowEndpoint = (baseEndpoint: string, isCombined: boolean) => {
+          if (genreObj.genres) {
+              const separator = baseEndpoint.includes('?') ? '&' : '?';
+              let end = `${baseEndpoint}${separator}with_genres=${genreObj.genres}&sort_by=popularity.desc`;
+              if (isCombined) {
+                  const yearParamKey = genreObj.type === 'tv' ? 'first_air_date_year' : 'primary_release_year';
+                  end += `&${yearParamKey}=${year}`;
+              }
+              return end;
+          }
+          if (genreObj.params) {
+              const urlParts = baseEndpoint.split('?');
+              const path = urlParts[0];
+              const queryParams = new URLSearchParams(urlParts[1] || '');
+              Object.entries(genreObj.params).forEach(([k, v]) => queryParams.set(k, v));
+              if (isCombined) {
+                  const yearParamKey = genreObj.type === 'tv' ? 'first_air_date_year' : 'primary_release_year';
+                  queryParams.set(yearParamKey, year.toString());
+              }
+              return `${path}?${queryParams.toString()}`;
+          }
+          return baseEndpoint;
+      };
+
+      const sanitizeId = (name: string) => name.replace(/\s+/g, '_');
+
+      // A. Custom Collection
+      if (currentCollection && DEFAULT_COLLECTIONS[currentCollection]) {
+          const baseParams = DEFAULT_COLLECTIONS[currentCollection].params;
+          const toQueryString = (params: any) => {
+              const urlParams = new URLSearchParams();
+              Object.keys(params).forEach(key => urlParams.append(key, params[key]));
+              return urlParams.toString();
+          };
+          const baseEndpoint = `${TMDB_BASE_URL}/discover/movie?${toQueryString(baseParams)}${getLangParam()}`;
+
+          if (rowType === 'year') {
+              return {
+                  id: `${currentCollection}_year_${year}`,
+                  title: `Best of ${year}`,
+                  endpoint: `${TMDB_BASE_URL}/discover/movie?${toQueryString(baseParams)}&primary_release_year=${year}&sort_by=popularity.desc${getLangParam()}`
+              };
+          } else if (rowType === 'genre') {
+              return {
+                  id: `${currentCollection}_genre_${sanitizeId(genreObj.name)}`,
+                  title: `${genreObj.name}`,
+                  mediaType: genreObj.type,
+                  endpoint: getDynamicRowEndpoint(baseEndpoint, false)
+              };
+          } else {
+              return {
+                  id: `${currentCollection}_comb_${year}_${sanitizeId(genreObj.name)}`,
+                  title: `${genreObj.name} of ${year}`,
+                  mediaType: genreObj.type,
+                  endpoint: getDynamicRowEndpoint(baseEndpoint, true)
+              };
+          }
+      }
+
+      // B. Keyword
+      if (activeKeyword) {
+          const kid = activeKeyword.id;
+          const kname = activeKeyword.name;
+          const baseEndpoint = `${TMDB_BASE_URL}/discover/movie?with_keywords=${kid}${getLangParam()}`;
+
+          if (rowType === 'year') {
+              return {
+                  id: `keyword_${kid}_year_${year}`,
+                  title: `Best of ${year} - ${kname}`,
+                  endpoint: `${TMDB_BASE_URL}/discover/movie?with_keywords=${kid}&primary_release_year=${year}&sort_by=popularity.desc${getLangParam()}`
+              };
+          } else if (rowType === 'genre') {
+              return {
+                  id: `keyword_${kid}_genre_${sanitizeId(genreObj.name)}`,
+                  title: `${genreObj.name} (${kname})`,
+                  mediaType: genreObj.type,
+                  endpoint: getDynamicRowEndpoint(baseEndpoint, false)
+              };
+          } else {
+              return {
+                  id: `keyword_${kid}_comb_${year}_${sanitizeId(genreObj.name)}`,
+                  title: `${genreObj.name} of ${year} (${kname})`,
+                  mediaType: genreObj.type,
+                  endpoint: getDynamicRowEndpoint(baseEndpoint, true)
+              };
+          }
+      }
+
+      // C. Country
+      if (activeCountry) {
+          const code = activeCountry.code;
+          const name = activeCountry.name;
+          const baseEndpoint = `${TMDB_BASE_URL}/discover/movie?with_origin_country=${code}${getLangParam()}`;
+
+          if (rowType === 'year') {
+              return {
+                  id: `country_${code}_year_${year}`,
+                  title: `Best of ${year} from ${name}`,
+                  endpoint: `${TMDB_BASE_URL}/discover/movie?with_origin_country=${code}&primary_release_year=${year}&sort_by=popularity.desc${getLangParam()}`
+              };
+          } else if (rowType === 'genre') {
+              return {
+                  id: `country_${code}_genre_${sanitizeId(genreObj.name)}`,
+                  title: `${genreObj.name} from ${name}`,
+                  mediaType: genreObj.type,
+                  endpoint: getDynamicRowEndpoint(baseEndpoint, false)
+              };
+          } else {
+              return {
+                  id: `country_${code}_comb_${year}_${sanitizeId(genreObj.name)}`,
+                  title: `${genreObj.name} of ${year} from ${name}`,
+                  mediaType: genreObj.type,
+                  endpoint: getDynamicRowEndpoint(baseEndpoint, true)
+              };
+          }
+      }
+
+      // D. TV Shows
+      if (selectedCategory === "TV Shows") {
+          const baseEndpoint = `${TMDB_BASE_URL}/discover/tv?${getLangParam().replace('&', '')}`;
+
+          if (rowType === 'year') {
+              return {
+                  id: `tv_year_${year}`,
+                  title: `Best TV Shows of ${year}`,
+                  endpoint: `${TMDB_BASE_URL}/discover/tv?first_air_date_year=${year}&sort_by=popularity.desc${getLangParam()}`,
+                  mediaType: 'tv' as const
+              };
+          } else if (rowType === 'genre') {
+              return {
+                  id: `tv_genre_${sanitizeId(genreObj.name)}`,
+                  title: `TV ${genreObj.name}`,
+                  mediaType: 'tv' as const,
+                  endpoint: getDynamicRowEndpoint(baseEndpoint, false)
+              };
+          } else {
+              return {
+                  id: `tv_comb_${year}_${sanitizeId(genreObj.name)}`,
+                  title: `TV ${genreObj.name} of ${year}`,
+                  mediaType: 'tv' as const,
+                  endpoint: getDynamicRowEndpoint(baseEndpoint, true)
+              };
+          }
+      }
+
+      // E. Anime
+      if (selectedCategory === "Anime") {
+          const baseEndpoint = `${TMDB_BASE_URL}/discover/tv?with_genres=16&with_original_language=ja`;
+
+          if (rowType === 'year') {
+              return {
+                  id: `anime_year_${year}`,
+                  title: `Anime Hits of ${year}`,
+                  endpoint: `${TMDB_BASE_URL}/discover/tv?with_genres=16&with_original_language=ja&first_air_date_year=${year}&sort_by=popularity.desc`,
+                  mediaType: 'tv' as const
+              };
+          } else if (rowType === 'genre') {
+              return {
+                  id: `anime_genre_${sanitizeId(genreObj.name)}`,
+                  title: `${genreObj.name} Anime`,
+                  mediaType: 'tv' as const,
+                  endpoint: getDynamicRowEndpoint(baseEndpoint, false)
+              };
+          } else {
+              return {
+                  id: `anime_comb_${year}_${sanitizeId(genreObj.name)}`,
+                  title: `${genreObj.name} Anime of ${year}`,
+                  mediaType: 'tv' as const,
+                  endpoint: getDynamicRowEndpoint(baseEndpoint, true)
+              };
+          }
+      }
+
+      // F. Awards
+      if (selectedCategory === "Awards") {
+          const baseEndpoint = `${TMDB_BASE_URL}/discover/movie?sort_by=vote_average.desc&vote_count.gte=100${getLangParam()}`;
+
+          if (rowType === 'year') {
+              return {
+                  id: `awards_year_${year}`,
+                  title: `Award Winners of ${year}`,
+                  endpoint: `${TMDB_BASE_URL}/discover/movie?primary_release_year=${year}&sort_by=vote_average.desc&vote_count.gte=100${getLangParam()}`
+              };
+          } else if (rowType === 'genre') {
+              return {
+                  id: `awards_genre_${sanitizeId(genreObj.name)}`,
+                  title: `Acclaimed ${genreObj.name}`,
+                  mediaType: genreObj.type,
+                  endpoint: getDynamicRowEndpoint(baseEndpoint, false)
+              };
+          } else {
+              return {
+                  id: `awards_comb_${year}_${sanitizeId(genreObj.name)}`,
+                  title: `Acclaimed ${genreObj.name} of ${year}`,
+                  mediaType: genreObj.type,
+                  endpoint: getDynamicRowEndpoint(baseEndpoint, true)
+              };
+          }
+      }
+
+      // G. India
+      if (selectedCategory === "India") {
+          const baseEndpoint = `${TMDB_BASE_URL}/discover/movie?with_origin_country=IN${getLangParam()}`;
+
+          if (rowType === 'year') {
+              return {
+                  id: `india_year_${year}`,
+                  title: `Best of ${year} (Indian Cinema)`,
+                  endpoint: `${TMDB_BASE_URL}/discover/movie?with_origin_country=IN&primary_release_year=${year}&sort_by=popularity.desc${getLangParam()}`
+              };
+          } else if (rowType === 'genre') {
+              return {
+                  id: `india_genre_${sanitizeId(genreObj.name)}`,
+                  title: `Indian ${genreObj.name}`,
+                  mediaType: genreObj.type,
+                  endpoint: getDynamicRowEndpoint(baseEndpoint, false)
+              };
+          } else {
+              return {
+                  id: `india_comb_${year}_${sanitizeId(genreObj.name)}`,
+                  title: `Indian ${genreObj.name} of ${year}`,
+                  mediaType: genreObj.type,
+                  endpoint: getDynamicRowEndpoint(baseEndpoint, true)
+              };
+          }
+      }
+
+      // H. Standard Genre
+      if (genreId) {
+          const baseEndpoint = `${TMDB_BASE_URL}/discover/movie?with_genres=${genreId}${getLangParam()}`;
+
+          if (rowType === 'year') {
+              return {
+                  id: `genre_${genreId}_year_${year}`,
+                  title: `Best of ${year} (${selectedCategory})`,
+                  endpoint: `${TMDB_BASE_URL}/discover/movie?with_genres=${genreId}&primary_release_year=${year}&sort_by=popularity.desc${getLangParam()}`
+              };
+          } else if (rowType === 'genre') {
+              let endpoint = "";
+              if (genreObj.genres) {
+                  let finalGenres = `${genreId}`;
+                  if (!genreObj.genres.split('|').includes(genreId.toString())) {
+                      finalGenres = `${genreId},${genreObj.genres}`;
+                  }
+                  endpoint = `${TMDB_BASE_URL}/discover/movie?with_genres=${finalGenres}&sort_by=popularity.desc${getLangParam()}`;
+              } else if (genreObj.params) {
+                  const queryParams = new URLSearchParams();
+                  Object.entries(genreObj.params).forEach(([k, v]) => queryParams.set(k, v));
+                  if (!queryParams.has('with_genres')) {
+                      queryParams.set('with_genres', genreId.toString());
+                  } else {
+                      const currentVal = queryParams.get('with_genres') || '';
+                      if (!currentVal.split(',').includes(genreId.toString())) {
+                          queryParams.set('with_genres', `${genreId},${currentVal}`);
+                      }
+                  }
+                  const base = genreObj.type === 'tv' ? 'tv' : 'movie';
+                  endpoint = `${TMDB_BASE_URL}/discover/${base}?${queryParams.toString()}${getLangParam()}`;
+              }
+              return {
+                  id: `genre_${genreId}_mix_${sanitizeId(genreObj.name)}`,
+                  title: `${genreObj.name} in ${selectedCategory}`,
+                  mediaType: genreObj.type,
+                  endpoint: endpoint
+              };
+          } else {
+              let endpoint = "";
+              if (genreObj.genres) {
+                  let finalGenres = `${genreId}`;
+                  if (!genreObj.genres.split('|').includes(genreId.toString())) {
+                      finalGenres = `${genreId},${genreObj.genres}`;
+                  }
+                  endpoint = `${TMDB_BASE_URL}/discover/movie?with_genres=${finalGenres}&primary_release_year=${year}&sort_by=popularity.desc${getLangParam()}`;
+              } else if (genreObj.params) {
+                  const queryParams = new URLSearchParams();
+                  Object.entries(genreObj.params).forEach(([k, v]) => queryParams.set(k, v));
+                  if (!queryParams.has('with_genres')) {
+                      queryParams.set('with_genres', genreId.toString());
+                  } else {
+                      const currentVal = queryParams.get('with_genres') || '';
+                      if (!currentVal.split(',').includes(genreId.toString())) {
+                          queryParams.set('with_genres', `${genreId},${currentVal}`);
+                      }
+                  }
+                  const yearParamKey = genreObj.type === 'tv' ? 'first_air_date_year' : 'primary_release_year';
+                  queryParams.set(yearParamKey, year.toString());
+                  const base = genreObj.type === 'tv' ? 'tv' : 'movie';
+                  endpoint = `${TMDB_BASE_URL}/discover/${base}?${queryParams.toString()}${getLangParam()}`;
+              }
+              return {
+                  id: `genre_${genreId}_comb_${year}_${sanitizeId(genreObj.name)}`,
+                  title: `${genreObj.name} of ${year} in ${selectedCategory}`,
+                  mediaType: genreObj.type,
+                  endpoint: endpoint
+              };
+          }
+      }
+
+      return {
+          id: `fallback_${index}`,
+          title: `More Releases`,
+          endpoint: `${TMDB_BASE_URL}/discover/movie?sort_by=popularity.desc${getLangParam()}`
+      };
+  }, [selectedCategory, activeKeyword, activeCountry, currentCollection, selectedLanguage, getBaseCategoryRows]);
+
+  useEffect(() => {
+      const initialRows = [
+          getCategoryRowAt(0),
+          getCategoryRowAt(1),
+          getCategoryRowAt(2)
+      ];
+      setActiveCategoryRows(initialRows);
+  }, [selectedCategory, activeKeyword, activeCountry, currentCollection, selectedLanguage, getCategoryRowAt]);
+
+  const loadMoreCategoryRows = useCallback(() => {
+      setActiveCategoryRows(prev => {
+          const nextIndex = prev.length;
+          const batchSize = 3;
+          const newBatch: any[] = [];
+          for (let i = 0; i < batchSize; i++) {
+              newBatch.push(getCategoryRowAt(nextIndex + i));
+          }
+          return [...prev, ...newBatch];
+      });
+  }, [getCategoryRowAt]);
+
+  useEffect(() => {
+      const isHomepage = selectedCategory === 'All' && !searchQuery && !currentCollection && !activeCountry && !activeKeyword && !tmdbCollectionId;
+      const isDynamicCategory = !searchQuery && !["People", "Coming", "Collections", "Genres", "Franchise", "Explore", "Watchlist", "Favorites", "History"].includes(selectedCategory) && !tmdbCollectionId;
+
+      if (!isHomepage && !isDynamicCategory) return;
+      
+      const handleScroll = () => {
+          const threshold = 1400;
+          const isNearBottom = window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - threshold;
+          
+          if (isNearBottom) {
+              if (isHomepage && !isCategoriesLoading.current) {
+                  isCategoriesLoading.current = true;
+                  loadMoreCategories();
+                  setTimeout(() => { isCategoriesLoading.current = false; }, 1200);
+              } else if (isDynamicCategory && !isCategoryRowsLoading.current) {
+                  isCategoryRowsLoading.current = true;
+                  loadMoreCategoryRows();
+                  setTimeout(() => { isCategoryRowsLoading.current = false; }, 1200);
+              }
+          }
+      };
+      window.addEventListener('scroll', handleScroll);
+      return () => window.removeEventListener('scroll', handleScroll);
+  }, [selectedCategory, searchQuery, currentCollection, activeCountry, activeKeyword, tmdbCollectionId, loadMoreCategories, loadMoreCategoryRows]);
 
   const groupMoviesByDate = (movieList: Movie[]) => {
       const groups: Record<string, Movie[]> = {};
@@ -3356,7 +3778,7 @@ export default function App() {
                                     <div className="space-y-8">
                                         {!searchQuery && !["People", "Coming", "Collections", "Genres", "Franchise", "Explore", "Watchlist", "Favorites", "History"].includes(selectedCategory) && !tmdbCollectionId ? (
                                             <div className="space-y-4 animate-in fade-in duration-700 -mx-4 md:-mx-12">
-                                                {getCategoryRows().map(cat => (
+                                                {activeCategoryRows.map(cat => (
                                                      <MovieRow 
                                                          key={cat.id} 
                                                          title={cat.title} 
@@ -3368,6 +3790,17 @@ export default function App() {
                                                          selectedLanguage={selectedLanguage}
                                                      />
                                                 ))}
+                                                <div className="space-y-4 animate-pulse mt-8 pb-10">
+                                                    <div className="flex items-center gap-2 px-4 md:px-12 mb-4">
+                                                        <div className="w-1.5 h-5 bg-zinc-800 rounded-full"></div>
+                                                        <div className="h-5 w-40 bg-zinc-800 rounded-full"></div>
+                                                    </div>
+                                                    <div className="flex gap-5 overflow-hidden px-4 md:px-12">
+                                                        {[...Array(6)].map((_, i) => (
+                                                            <div key={i} className="w-[220px] md:w-[260px] shrink-0 aspect-[16/9] bg-zinc-900 border border-white/5 rounded-xl"></div>
+                                                        ))}
+                                                    </div>
+                                                </div>
                                             </div>
                                         ) : (
                                             <>
