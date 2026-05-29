@@ -313,6 +313,20 @@ export const MoviePage: React.FC<MoviePageProps> = ({
     const [playParams, setPlayParams] = useState(initialPlayParams);
     const [expandedReviews, setExpandedReviews] = useState<Record<string, boolean>>({});
     
+    // Custom Seasons Dropdown State
+    const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+    const dropdownRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+                setIsDropdownOpen(false);
+            }
+        };
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, []);
+
     // Media category and pagination states
     const [mediaCategory, setMediaCategory] = useState<'backdrops' | 'posters' | 'logos'>('backdrops');
     const [visibleImagesCount, setVisibleImagesCount] = useState(12);
@@ -363,10 +377,10 @@ export const MoviePage: React.FC<MoviePageProps> = ({
     const hasCenteredTimeline = useRef<number | null>(null);
 
     const isExclusive = userProfile.canWatch === true;
-    const isGoldTheme = false;
-    const accentText = "text-red-500";
-    const accentBg = "bg-red-500";
-    const accentShadow = "shadow-red-600/50";
+    const isGoldTheme = userProfile?.theme === 'gold';
+    const accentText = isGoldTheme ? "text-amber-500" : "text-red-500";
+    const accentBg = isGoldTheme ? "bg-amber-500" : "bg-red-500";
+    const accentShadow = isGoldTheme ? "shadow-amber-600/50" : "shadow-red-600/50";
 
     const [isClosing, setIsClosing] = useState(false);
     const handleClose = () => {
@@ -1048,24 +1062,52 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                             {/* Season and Episode Control Header */}
                                             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-white/5">
                                                 <div className="flex items-center gap-2">
-                                                    <div className="w-1 h-5 sm:h-6 bg-red-600 rounded-full" />
+                                                    <div className={`w-1 h-5 sm:h-6 ${accentBg} rounded-full`} />
                                                     <h3 className="text-sm sm:text-base md:text-lg font-bold text-white uppercase tracking-wider">Episodes</h3>
                                                 </div>
                                                 <div className="flex items-center gap-2 w-full sm:w-auto">
                                                     {/* Season Selector Dropdown */}
-                                                    <div className="relative shrink-0">
-                                                        <select
-                                                            value={selectedSeason}
-                                                            onChange={(e) => setSelectedSeason(Number(e.target.value))}
-                                                            className="appearance-none bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 px-2.5 py-1.5 pr-7 rounded-lg text-white text-[10px] sm:text-xs font-bold cursor-pointer transition-all focus:outline-none focus:ring-1 focus:ring-red-500"
+                                                    <div className="relative shrink-0 z-30" ref={dropdownRef}>
+                                                        <button
+                                                            onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                                                            className="flex items-center justify-between gap-3 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 px-3.5 py-2 rounded-xl text-white text-[10px] sm:text-xs font-bold cursor-pointer transition-all duration-300 focus:outline-none select-none min-w-[140px] sm:min-w-[160px] active:scale-[0.98]"
                                                         >
-                                                            {displayData.seasons?.filter(s => s.season_number > 0).map((s) => (
-                                                                <option key={s.id} value={s.season_number} className="bg-[#141416] text-white">
-                                                                    {s.name} ({s.episode_count} Ep)
-                                                                </option>
-                                                            ))}
-                                                        </select>
-                                                        <ChevronDown size={11} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                                                            <span className="truncate">
+                                                                {displayData.seasons?.find(s => s.season_number === selectedSeason)?.name || `Season ${selectedSeason}`} 
+                                                                {(() => {
+                                                                    const s = displayData.seasons?.find(s => s.season_number === selectedSeason);
+                                                                    return s ? ` (${s.episode_count} Ep)` : '';
+                                                                })()}
+                                                            </span>
+                                                            <ChevronDown size={14} className={`text-gray-400 transition-transform duration-300 ${isDropdownOpen ? 'rotate-180 text-white' : ''}`} />
+                                                        </button>
+
+                                                        {isDropdownOpen && (
+                                                            <div className="absolute right-0 mt-2 min-w-[160px] sm:min-w-[180px] bg-[#0c0c0e]/95 backdrop-blur-3xl border border-white/10 rounded-xl shadow-[0_12px_40px_rgba(0,0,0,0.8)] p-1.5 z-50 transition-all duration-200 transform origin-top-right max-h-60 overflow-y-auto custom-scrollbar animate-in fade-in slide-in-from-top-2">
+                                                                {displayData.seasons?.filter(s => s.season_number > 0).map((s) => {
+                                                                    const isActive = s.season_number === selectedSeason;
+                                                                    return (
+                                                                        <button
+                                                                            key={s.id}
+                                                                            onClick={() => {
+                                                                                setSelectedSeason(s.season_number);
+                                                                                setIsDropdownOpen(false);
+                                                                            }}
+                                                                            className={`w-full text-left px-3 py-2 text-xs font-bold rounded-lg transition-all flex items-center justify-between gap-4 ${
+                                                                                isActive 
+                                                                                    ? `${accentBg} text-white` 
+                                                                                    : 'text-gray-400 hover:bg-white/5 hover:text-white'
+                                                                            }`}
+                                                                        >
+                                                                            <span className="truncate">{s.name}</span>
+                                                                            <span className={`text-[10px] shrink-0 ${isActive ? 'text-white/80' : 'text-zinc-500'}`}>
+                                                                                {s.episode_count} Ep
+                                                                            </span>
+                                                                        </button>
+                                                                    );
+                                                                })}
+                                                            </div>
+                                                        )}
                                                     </div>
 
                                                     {/* Episode Search Bar */}
@@ -1076,7 +1118,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                             placeholder="Search episode..."
                                                             value={episodeSearch}
                                                             onChange={(e) => setEpisodeSearch(e.target.value)}
-                                                            className="w-full bg-white/5 border border-white/10 hover:border-white/20 pl-8 pr-6 py-1.5 rounded-lg text-[10px] sm:text-xs text-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-red-500 transition-all"
+                                                            className={`w-full bg-white/5 border border-white/10 hover:border-white/20 pl-8 pr-6 py-1.5 rounded-lg text-[10px] sm:text-xs text-white placeholder-gray-500 focus:outline-none focus:ring-1 ${isGoldTheme ? 'focus:ring-amber-500' : 'focus:ring-red-500'} transition-all`}
                                                         />
                                                         {episodeSearch && (
                                                             <button

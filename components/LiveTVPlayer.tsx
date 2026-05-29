@@ -271,8 +271,19 @@ export const LiveTVPlayer: React.FC<LiveTVPlayerProps> = ({ channel, onClose, is
             >
                 {loading && !error && (
                     <div className="absolute inset-0 flex flex-col items-center justify-center text-white z-10 bg-black/60 backdrop-blur-[2px] pointer-events-none transition-all">
-                        <div className="relative flex items-center justify-center mb-6">
-                            <Loader2 size={56} className={`animate-spin ${accentColor}`}/>
+                        <div className="relative flex items-center justify-center mb-6 w-16 h-16">
+                            {/* Track ring */}
+                            <div className="absolute inset-0 rounded-full border-[3px] border-white/5" />
+                            {/* Spinning ring (GPU-accelerated) */}
+                            <div 
+                                className={`absolute inset-0 rounded-full border-[3px] border-transparent border-t-current ${accentColor} animate-spin`}
+                                style={{ 
+                                    animationDuration: '0.85s', 
+                                    willChange: 'transform',
+                                    transform: 'translateZ(0)'
+                                }}
+                            />
+                            {/* Inner icon */}
                             <Radio size={20} className="absolute text-white animate-pulse" />
                         </div>
                         <p className="font-semibold animate-pulse text-xs tracking-widest text-white/90 uppercase">Connecting Live Feed...</p>
