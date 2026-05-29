@@ -460,7 +460,6 @@ export const LiveTV: React.FC<LiveTVProps> = ({ userProfile }) => {
                 <LiveTVPlayer 
                     channel={selectedChannel} 
                     onClose={() => setSelectedChannel(null)} 
-                    isGoldTheme={false}
                 />
             )}
 

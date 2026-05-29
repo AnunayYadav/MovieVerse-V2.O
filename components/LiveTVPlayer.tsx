@@ -5,10 +5,9 @@ import { LiveChannel } from '../types';
 interface LiveTVPlayerProps {
     channel: LiveChannel;
     onClose: () => void;
-    isGoldTheme?: boolean;
 }
 
-export const LiveTVPlayer: React.FC<LiveTVPlayerProps> = ({ channel, onClose, isGoldTheme = false }) => {
+export const LiveTVPlayer: React.FC<LiveTVPlayerProps> = ({ channel, onClose }) => {
     const videoRef = useRef<HTMLVideoElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
     const [error, setError] = useState<string | null>(null);
@@ -24,9 +23,9 @@ export const LiveTVPlayer: React.FC<LiveTVPlayerProps> = ({ channel, onClose, is
     const controlsTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     // Dynamic Colors
-    const accentColor = isGoldTheme ? 'text-amber-500' : 'text-red-500';
-    const accentBg = isGoldTheme ? 'bg-amber-500' : 'bg-red-600';
-    const sliderClass = isGoldTheme ? 'accent-amber-500' : 'accent-red-500';
+    const accentColor = 'text-red-500';
+    const accentBg = 'bg-red-600';
+    const sliderClass = 'accent-red-500';
 
     const handleMouseMove = useCallback(() => {
         setShowControls(true);

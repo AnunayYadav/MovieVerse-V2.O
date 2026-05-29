@@ -327,7 +327,6 @@ const MovieRowCard = ({
 
 const ComingSoonCard = ({
     movie,
-    isGoldTheme,
     reminders,
     toggleReminder,
     setSelectedMovie,
@@ -335,7 +334,6 @@ const ComingSoonCard = ({
     apiKey
 }: {
     movie: Movie;
-    isGoldTheme: boolean;
     reminders: number[];
     toggleReminder: (id: number) => void;
     setSelectedMovie: (m: Movie) => void;
@@ -375,7 +373,7 @@ const ComingSoonCard = ({
 
     return (
         <div
-            className={`shrink-0 w-[220px] md:w-[280px] flex flex-col bg-[#0f0f12]/60 backdrop-blur-md rounded-2xl border ${isGoldTheme ? 'border-white/5 hover:border-amber-500/20' : 'border-white/5 hover:border-zinc-700/40'} hover:bg-zinc-900/60 transition-all duration-300 group shadow-[0_8px_30px_rgb(0,0,0,0.5)] hover:shadow-[0_8px_30px_rgba(0,0,0,0.8)]`}
+            className="shrink-0 w-[220px] md:w-[280px] flex flex-col bg-[#0f0f12]/60 backdrop-blur-md rounded-2xl border border-white/5 hover:border-zinc-700/40 hover:bg-zinc-900/60 transition-all duration-300 group shadow-[0_8px_30px_rgb(0,0,0,0.5)] hover:shadow-[0_8px_30px_rgba(0,0,0,0.8)]"
         >
             {/* Cinematic widescreen backdrop */}
             <div
@@ -403,7 +401,7 @@ const ComingSoonCard = ({
                     </div>
                 </div>
 
-                <span className={`absolute top-2.5 left-2.5 font-black text-[8px] uppercase tracking-widest px-2 py-0.5 rounded shadow-sm font-sans ${isGoldTheme ? 'bg-amber-500 text-black' : 'bg-red-600/90 text-white'}`}>
+                <span className="absolute top-2.5 left-2.5 font-black text-[8px] uppercase tracking-widest px-2 py-0.5 rounded shadow-sm font-sans bg-red-600/90 text-white">
                     Soon
                 </span>
             </div>
@@ -413,7 +411,7 @@ const ComingSoonCard = ({
                 <div>
                     <div className="flex items-start justify-between gap-3">
                         <h3
-                            className={`text-xs md:text-sm font-bold text-white tracking-tight ${isGoldTheme ? 'hover:text-amber-400' : 'hover:text-red-500'} cursor-pointer transition-colors line-clamp-1 flex-1`}
+                            className="text-xs md:text-sm font-bold text-white tracking-tight hover:text-red-500 cursor-pointer transition-colors line-clamp-1 flex-1"
                             onClick={() => setSelectedMovie(movie)}
                             title={movie.title}
                         >
@@ -424,7 +422,7 @@ const ComingSoonCard = ({
                         <div className="flex items-center gap-1.5 shrink-0">
                             <button
                                 onClick={(e) => { e.stopPropagation(); toggleReminder(movie.id); }}
-                                className={`p-1.5 rounded-full border transition-all duration-300 active:scale-90 ${reminders.includes(movie.id) ? (isGoldTheme ? 'bg-amber-500 border-amber-500 text-black' : 'bg-red-600 border-red-600 text-white') : 'border-white/10 hover:border-white/20 bg-white/5 text-zinc-400 hover:text-white'}`}
+                                className={`p-1.5 rounded-full border transition-all duration-300 active:scale-90 ${reminders.includes(movie.id) ? 'bg-red-600 border-red-600 text-white' : 'border-white/10 hover:border-white/20 bg-white/5 text-zinc-400 hover:text-white'}`}
                                 title={reminders.includes(movie.id) ? "Reminder Set" : "Notify Me"}
                             >
                                 <Bell size={10} fill={reminders.includes(movie.id) ? "currentColor" : "none"} />
@@ -439,7 +437,7 @@ const ComingSoonCard = ({
                         </div>
                     </div>
 
-                    <p className={`text-[9px] font-bold tracking-wider uppercase mt-0.5 ${isGoldTheme ? 'text-amber-500/90' : 'text-red-500/90'}`}>
+                    <p className="text-[9px] font-bold tracking-wider uppercase mt-0.5 text-red-500/90">
                         Expected {formatted.full}
                     </p>
 
@@ -463,7 +461,7 @@ const ComingSoonCard = ({
                         );
                     })}
                     {movie.vote_average > 0 && (
-                        <span className={`flex items-center gap-0.5 text-[7.5px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded border font-sans transition-all duration-300 ${isGoldTheme ? 'bg-amber-500/10 border-amber-500/10 text-amber-500 hover:bg-amber-500/20' : 'bg-yellow-500/10 border-yellow-500/10 text-yellow-500 hover:bg-yellow-500/20'}`}>
+                        <span className="flex items-center gap-0.5 text-[7.5px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded border font-sans transition-all duration-300 bg-yellow-500/10 border-yellow-500/10 text-yellow-500 hover:bg-yellow-500/20">
                             <Star size={6.5} fill="currentColor" /> {movie.vote_average.toFixed(1)} Expected
                         </span>
                     )}
@@ -520,14 +518,12 @@ const FranchiseCard = ({
     franchise,
     onClick,
     refProp,
-    apiKey,
-    isGoldTheme
+    apiKey
 }: {
     franchise: any;
     onClick: () => void;
     refProp?: any;
     apiKey: string;
-    isGoldTheme: boolean;
     key?: any;
 }) => {
     const [logoUrl, setLogoUrl] = useState<string | null>(null);
@@ -1648,10 +1644,9 @@ export default function App() {
 
     const abortControllerRef = useRef<AbortController | null>(null);
     const isExclusive = userProfile.canWatch === true;
-    const isGoldTheme = userProfile?.theme === 'gold';
-    const accentText = isGoldTheme ? "text-amber-500" : "text-red-600";
-    const accentBg = isGoldTheme ? "bg-amber-500" : "bg-red-600";
-    const accentBgLow = isGoldTheme ? "bg-amber-500/20" : "bg-red-600/20";
+    const accentText = "text-red-600";
+    const accentBg = "bg-red-600";
+    const accentBgLow = "bg-red-600/20";
 
     const showStickyHeader = !["Categories", "Franchise", "Explore", "LiveTV"].includes(selectedCategory);
     const hasHeroBanner = !!(
@@ -3329,7 +3324,7 @@ export default function App() {
             {!(activeWatchPartyRoom && watchPartyMovie) && (
                 <nav className={`fixed top-0 left-0 right-0 z-[60] h-16 flex items-center justify-center px-4 md:px-6 transition-all duration-500 ${(hasHeroBanner && !isScrolled)
                         ? 'bg-gradient-to-b from-black/85 via-black/25 to-transparent border-transparent backdrop-blur-none'
-                        : `bg-black/90 backdrop-blur-xl border-b ${isGoldTheme ? 'border-amber-500/10' : 'border-white/5'}`
+                        : 'bg-black/90 backdrop-blur-xl border-b border-white/5'
                     }`}>
                     <div className="flex items-center justify-between w-full max-w-7xl">
                         <div className="flex items-center gap-4 md:gap-8">
@@ -3391,13 +3386,13 @@ export default function App() {
                                                     className="group flex flex-col items-center justify-center gap-2 py-2 px-1 rounded-xl transition-all duration-300 hover:bg-white/5 active:scale-95 border border-transparent"
                                                 >
                                                     <div className={`w-12 h-12 rounded-[14px] flex items-center justify-center transition-all duration-300 ${isActive
-                                                            ? (isGoldTheme ? 'bg-amber-500 text-black shadow-[0_8px_20px_-4px_rgba(245,158,11,0.4)]' : 'bg-red-600 text-white shadow-[0_8px_20px_-4px_rgba(220,38,38,0.4)]')
+                                                            ? 'bg-red-600 text-white shadow-[0_8px_20px_-4px_rgba(220,38,38,0.4)]'
                                                             : 'bg-white/5 text-zinc-400 group-hover:bg-white/10 group-hover:text-white group-hover:scale-105 group-hover:shadow-[0_4px_12px_rgba(255,255,255,0.03)]'
                                                         }`}>
                                                         <opt.icon size={22} className="transition-transform duration-300 group-hover:scale-110" />
                                                     </div>
                                                     <span className={`text-[11px] font-medium tracking-wide transition-colors duration-300 ${isActive
-                                                            ? (isGoldTheme ? 'text-amber-400 font-semibold' : 'text-red-500 font-semibold')
+                                                            ? 'text-red-500 font-semibold'
                                                             : 'text-zinc-400 group-hover:text-zinc-200'
                                                         }`}>{opt.label}</span>
                                                 </button>
@@ -3427,15 +3422,15 @@ export default function App() {
                             <div className="flex items-center gap-3">
                                 <button onClick={() => setIsNotificationOpen(!isNotificationOpen)} className="relative text-gray-400 hover:text-white transition-colors p-2 hover:bg-white/10 rounded-full">
                                     <Bell size={20} />
-                                    {hasUnread && <span className={`absolute top-2 right-2 w-2 h-2 rounded-full ${isGoldTheme ? 'bg-amber-500' : 'bg-red-600'}`}></span>}
+                                    {hasUnread && <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-red-600"></span>}
                                 </button>
 
                                 {/* Profile Dropdown Container */}
                                 <div className="relative">
                                     <button
                                         onClick={() => setIsProfileDropdownOpen(!isProfileDropdownOpen)}
-                                        className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white shadow-lg transition-all duration-300 overflow-hidden hover:scale-105 ${isProfileDropdownOpen ? (isGoldTheme ? 'ring-2 ring-amber-500 ring-offset-2 ring-offset-black' : 'ring-2 ring-red-600 ring-offset-2 ring-offset-black') : ''
-                                            } ${userProfile.avatarBackground || (isGoldTheme ? 'bg-gradient-to-br from-amber-500 to-yellow-900 shadow-amber-900/40' : 'bg-gradient-to-br from-red-600 to-red-900 shadow-red-900/40')}`}
+                                        className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white shadow-lg transition-all duration-300 overflow-hidden hover:scale-105 ${isProfileDropdownOpen ? 'ring-2 ring-red-600 ring-offset-2 ring-offset-black' : ''
+                                            } ${userProfile.avatarBackground || 'bg-gradient-to-br from-red-600 to-red-900 shadow-red-900/40'}`}
                                     >
                                         {userProfile.avatar ? (
                                             <img key={userProfile.avatar} src={userProfile.avatar} alt={userProfile.name} className="w-full h-full object-cover" />
@@ -3527,7 +3522,7 @@ export default function App() {
                                             handleProgressUpdate(watchPartyMovie, data);
                                         }
                                     }}
-                                    color={isGoldTheme ? 'F59E0B' : 'EF4444'}
+                                    color="EF4444"
                                     forceProgress={watchPartyForceProgress}
                                 />
                             </div>
@@ -3564,7 +3559,7 @@ export default function App() {
                                 <div className="mb-8 border-b border-white/5 pb-6">
                                     <div>
                                         <h2 className="text-2xl md:text-3xl font-black text-white tracking-tight flex items-center gap-3">
-                                            <span className={`w-2.5 h-8 rounded-full ${isGoldTheme ? 'bg-amber-500' : 'bg-red-600'}`}></span>
+                                            <span className="w-2.5 h-8 rounded-full bg-red-600"></span>
                                             Categories
                                         </h2>
                                         <p className="text-zinc-500 text-xs md:text-sm mt-1">Browse and find movies sorted by genres and special sub-categories.</p>
@@ -3652,7 +3647,7 @@ export default function App() {
                                                 <div className="absolute inset-0 bg-gradient-to-r from-[#030303] via-[#030303]/40 to-transparent"></div>
                                             </div>
                                             <div className="absolute bottom-0 left-0 w-full p-6 md:p-12 z-20 flex flex-col items-start gap-3.5 md:max-w-4xl animate-in slide-in-from-bottom-8 duration-700">
-                                                <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${isGoldTheme ? 'bg-amber-500 text-black shadow-lg shadow-amber-500/20' : 'bg-red-600 text-white shadow-lg shadow-red-600/20'}`}>
+                                                <span className="px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest bg-red-600 text-white shadow-lg shadow-red-600/20">
                                                     Spotlight Franchise
                                                 </span>
                                                 {/* Dynamic Collection Logo in Hero */}
@@ -3668,7 +3663,7 @@ export default function App() {
                                                 <div className="flex flex-row items-center gap-3 w-full sm:w-auto mt-2">
                                                     <button
                                                         onClick={() => handleTmdbCollectionClick(heroFranchise.id)}
-                                                        className={`flex-1 sm:flex-none px-6 py-2.5 text-sm sm:text-base rounded-md font-bold flex items-center justify-center gap-2.5 transition-all hover:scale-[1.02] active:scale-95 shadow-md ${isGoldTheme ? 'bg-amber-500 text-black hover:bg-amber-600' : 'bg-white text-black hover:bg-white/90'}`}
+                                                        className="flex-1 sm:flex-none px-6 py-2.5 text-sm sm:text-base rounded-md font-bold flex items-center justify-center gap-2.5 transition-all hover:scale-[1.02] active:scale-95 shadow-md bg-white text-black hover:bg-white/90"
                                                     >
                                                         <Sparkles size={18} /> Deep Dive Universe
                                                     </button>
@@ -3684,7 +3679,7 @@ export default function App() {
                                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8 border-b border-white/5 pb-6">
                                     <div>
                                         <h2 className="text-2xl md:text-3xl font-black text-white tracking-tight flex items-center gap-3">
-                                            <span className={`w-2.5 h-8 rounded-full ${isGoldTheme ? 'bg-amber-500' : 'bg-red-600'}`}></span>
+                                            <span className="w-2.5 h-8 rounded-full bg-red-600"></span>
                                             Explore Universes
                                         </h2>
                                         <p className="text-zinc-500 text-xs md:text-sm mt-1">Immerse yourself in cinema's most iconic and expansive film franchises.</p>
@@ -3728,9 +3723,7 @@ export default function App() {
                                                 setFranchiseSearchQuery("");
                                             }}
                                             className={`shrink-0 px-5 py-2 rounded-full text-xs font-bold transition-all duration-300 border ${activeFranchiseCategory === chip.id
-                                                    ? (isGoldTheme
-                                                        ? 'bg-amber-500 border-amber-500 text-black shadow-lg shadow-amber-500/20'
-                                                        : 'bg-white border-white text-black shadow-lg shadow-white/10')
+                                                    ? 'bg-white border-white text-black shadow-lg shadow-white/10'
                                                     : 'bg-white/5 border-white/5 text-zinc-400 hover:text-white hover:bg-white/10 hover:border-white/10'
                                                 }`}
                                         >
@@ -3750,7 +3743,6 @@ export default function App() {
                                                 onClick={() => handleTmdbCollectionClick(franchise.id)}
                                                 refProp={isLast ? lastMovieElementRef : null}
                                                 apiKey={apiKey}
-                                                isGoldTheme={isGoldTheme}
                                             />
                                         );
                                     })}
@@ -3819,7 +3811,6 @@ export default function App() {
                                                     <ComingSoonCard
                                                         key={movie.id}
                                                         movie={movie}
-                                                        isGoldTheme={isGoldTheme}
                                                         reminders={reminders}
                                                         toggleReminder={toggleReminder}
                                                         setSelectedMovie={setSelectedMovie}
@@ -3850,7 +3841,7 @@ export default function App() {
                                             </div>
 
                                             <div className="absolute bottom-0 left-0 w-full p-6 md:p-12 z-20 flex flex-col items-start gap-4 md:max-w-4xl animate-in slide-in-from-bottom-10 duration-700">
-                                                <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-widest ${isGoldTheme ? 'bg-amber-500 text-black' : 'bg-red-600 text-white'}`}>
+                                                <span className="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-widest bg-red-600 text-white">
                                                     Featured
                                                 </span>
 
@@ -3882,7 +3873,7 @@ export default function App() {
                                                     {isExclusive && (
                                                         <button
                                                             onClick={() => setSelectedMovie(featuredMovie)}
-                                                            className={`flex-1 sm:flex-none px-6 py-2.5 text-sm sm:text-base rounded-md font-bold flex items-center justify-center gap-2.5 transition-all hover:scale-[1.02] active:scale-95 shadow-md ${isGoldTheme ? 'bg-amber-500 text-black hover:bg-amber-600' : 'bg-white text-black hover:bg-white/90'}`}
+                                                            className="flex-1 sm:flex-none px-6 py-2.5 text-sm sm:text-base rounded-md font-bold flex items-center justify-center gap-2.5 transition-all hover:scale-[1.02] active:scale-95 shadow-md bg-white text-black hover:bg-white/90"
                                                         >
                                                             <Play size={18} fill="currentColor" /> Watch Now
                                                         </button>

@@ -81,7 +81,6 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ apiKey, onMovieClick, 
     const sentinelRef = useRef<HTMLDivElement | null>(null);
 
     const isExclusive = userProfile.canWatch === true;
-    const isGoldTheme = false;
     const activeProvider = platforms.find(p => p.provider_id === activeOtt);
     const theme = activeOtt ? (BRAND_THEMES[activeOtt] || DEFAULT_THEME) : DEFAULT_THEME;
     const regionName = REGION_NAMES[exploreRegion] || 'Worldwide';

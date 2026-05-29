@@ -255,7 +255,7 @@ export interface UserProfile {
   avatar?: string;
   avatarBackground?: string;
   canWatch?: boolean; // New Flag for Restricted Access
-  theme?: 'default' | 'gold'; // Theme preference for exclusive users
+  theme?: 'default'; // Theme preference for exclusive users
   enableHistory?: boolean; // Toggle for history recording
   // Synced Preferences
   maturityRating?: MaturityRating;

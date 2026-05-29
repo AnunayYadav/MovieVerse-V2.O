@@ -107,7 +107,7 @@ interface MoviePageProps {
     onShowFullCrewChange?: (show: boolean) => void;
 }
 
-const PopularityMeter = ({ score, count, isGold }: { score: number; count: number; isGold: boolean }) => {
+const PopularityMeter = ({ score, count }: { score: number; count: number }) => {
     const percentage = Math.round(score * 10);
     const positiveVotes = Math.round((score / 10) * count);
     
@@ -129,8 +129,8 @@ const PopularityMeter = ({ score, count, isGold }: { score: number; count: numbe
         categoryBg = "bg-emerald-500/10 border-emerald-500/20";
     } else {
         category = "PERFECTION";
-        categoryColor = isGold ? "text-amber-400" : "text-purple-400";
-        categoryBg = isGold ? "bg-amber-500/10 border-amber-500/20" : "bg-purple-500/10 border-purple-500/20";
+        categoryColor = "text-purple-400";
+        categoryBg = "bg-purple-500/10 border-purple-500/20";
     }
 
     const radius = 80;
@@ -148,14 +148,14 @@ const PopularityMeter = ({ score, count, isGold }: { score: number; count: numbe
     const stop1 = "#ef4444"; 
     const stop2 = "#f59e0b"; 
     const stop3 = "#10b981"; 
-    const stop4 = isGold ? "#fbbf24" : "#a855f7"; 
+    const stop4 = "#a855f7"; 
 
     return (
         <div className="p-5 md:p-10 bg-[#0d0d0d] rounded-3xl md:rounded-[2.5rem] border border-white/5 flex flex-col items-center text-center relative overflow-hidden group shadow-2xl h-full">
-            <div className={`absolute -top-24 -right-24 w-48 h-48 rounded-full blur-[100px] opacity-20 ${isGold ? 'bg-amber-500' : 'bg-red-600'}`}></div>
+            <div className="absolute -top-24 -right-24 w-48 h-48 rounded-full blur-[100px] opacity-20 bg-red-600"></div>
             
             <div className="flex items-center gap-3 mb-6 md:mb-10 relative z-10 w-full">
-                <div className={`p-2.5 rounded-2xl shadow-lg flex items-center justify-center ${isGold ? 'bg-amber-500/10 text-amber-500 border border-amber-500/20' : 'bg-red-500/10 text-red-500 border border-red-500/20'}`}>
+                <div className="p-2.5 rounded-2xl shadow-lg flex items-center justify-center bg-red-500/10 text-red-500 border border-red-500/20">
                     <TrendingUp size={22}/>
                 </div>
                 <div className="text-left">
@@ -201,7 +201,7 @@ const PopularityMeter = ({ score, count, isGold }: { score: number; count: numbe
     );
 };
 
-const VibeChart = ({ genres, isGold }: { genres: Genre[]; isGold: boolean }) => {
+const VibeChart = ({ genres }: { genres: Genre[] }) => {
     const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
     const [animate, setAnimate] = useState(false);
 
@@ -236,10 +236,10 @@ const VibeChart = ({ genres, isGold }: { genres: Genre[]; isGold: boolean }) => 
     return (
         <div className="p-5 md:p-10 bg-[#0d0d0d] rounded-3xl md:rounded-[2.5rem] border border-white/5 flex flex-col items-center relative overflow-hidden group shadow-2xl h-full">
             {/* Background Glow consistent with Popularity Meter - stays themed to container */}
-            <div className={`absolute -top-24 -right-24 w-48 h-48 rounded-full blur-[100px] opacity-20 ${isGold ? 'bg-amber-500' : 'bg-purple-600'}`}></div>
+            <div className="absolute -top-24 -right-24 w-48 h-48 rounded-full blur-[100px] opacity-20 bg-purple-600"></div>
             
             <div className="flex items-center gap-3 mb-6 md:mb-8 relative z-10 w-full">
-                <div className={`p-2.5 rounded-2xl shadow-lg flex items-center justify-center ${isGold ? 'bg-amber-500/10 text-amber-500 border border-amber-500/20' : 'bg-purple-500/10 text-purple-500 border border-purple-500/20'}`}>
+                <div className="p-2.5 rounded-2xl shadow-lg flex items-center justify-center bg-purple-500/10 text-purple-500 border border-purple-500/20">
                     <PieChartIcon size={22}/>
                 </div>
                 <div className="text-left">
@@ -442,10 +442,9 @@ export const MoviePage: React.FC<MoviePageProps> = ({
     const hasCenteredTimeline = useRef<number | null>(null);
 
     const isExclusive = userProfile.canWatch === true;
-    const isGoldTheme = userProfile?.theme === 'gold';
-    const accentText = isGoldTheme ? "text-amber-500" : "text-red-500";
-    const accentBg = isGoldTheme ? "bg-amber-500" : "bg-red-500";
-    const accentShadow = isGoldTheme ? "shadow-amber-600/50" : "shadow-red-600/50";
+    const accentText = "text-red-500";
+    const accentBg = "bg-red-500";
+    const accentShadow = "shadow-red-600/50";
 
     const [isClosing, setIsClosing] = useState(false);
     const handleClose = () => {
@@ -763,7 +762,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                     </div>
                                     <div className="flex flex-row items-center gap-3 w-full sm:w-auto mt-6">
                                         {isExclusive && (
-                                            <button onClick={handleWatchClick} className={`flex items-center justify-center gap-2.5 px-6 py-2.5 rounded-md font-bold text-sm sm:text-base transition-all hover:scale-[1.02] active:scale-95 shadow-md flex-1 sm:flex-none ${isGoldTheme ? 'bg-amber-500 hover:bg-amber-600 text-black' : 'bg-white hover:bg-white/90 text-black'}`}><Play size={18} fill="currentColor" /> {movie.play_progress && movie.play_progress > 0 ? `Resume` : 'Watch'}</button>
+                                            <button onClick={handleWatchClick} className="flex items-center justify-center gap-2.5 px-6 py-2.5 rounded-md font-bold text-sm sm:text-base transition-all hover:scale-[1.02] active:scale-95 shadow-md flex-1 sm:flex-none bg-white hover:bg-white/90 text-black"><Play size={18} fill="currentColor" /> {movie.play_progress && movie.play_progress > 0 ? `Resume` : 'Watch'}</button>
                                         )}
                                         {isExclusive && (
                                             <button onClick={() => onStartWatchParty && onStartWatchParty(displayData, playParams.season, playParams.episode)} className="flex items-center justify-center gap-2 px-6 py-2.5 rounded-md font-bold text-sm sm:text-base transition-all hover:scale-[1.02] active:scale-95 bg-transparent text-white border border-white/20 hover:bg-white/5 shadow-md" title="Start a Watch Party"><Users size={18} /> Watch Party</button>
@@ -802,7 +801,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                             {/* Primary Buttons Grid: Play filled, Watch Party outlined */}
                             <div className="grid grid-cols-2 gap-3 w-full mt-1.5">
                                 {isExclusive && (
-                                    <button onClick={handleWatchClick} className={`py-2 px-4 rounded-md font-extrabold text-xs flex items-center justify-center gap-2 transition-all active:scale-95 shadow-md ${isGoldTheme ? 'bg-amber-500 text-black' : 'bg-white text-black'}`}>
+                                    <button onClick={handleWatchClick} className="py-2 px-4 rounded-md font-extrabold text-xs flex items-center justify-center gap-2 transition-all active:scale-95 shadow-md bg-white text-black">
                                         <Play size={14} fill="currentColor"/> {movie.play_progress && movie.play_progress > 0 ? `Resume` : 'Watch'}
                                     </button>
                                 )}
@@ -914,8 +913,8 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                             </div>
 
                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-12">
-                                                {displayData.vote_count > 0 && <PopularityMeter score={displayData.vote_average} count={displayData.vote_count} isGold={isGoldTheme} />}
-                                                {displayData.genres && displayData.genres.length > 0 && <VibeChart genres={displayData.genres} isGold={isGoldTheme} />}
+                                                {displayData.vote_count > 0 && <PopularityMeter score={displayData.vote_average} count={displayData.vote_count} />}
+                                                {displayData.genres && displayData.genres.length > 0 && <VibeChart genres={displayData.genres} />}
                                             </div>
                                         </div>
                                     )}
@@ -945,7 +944,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                     {review.content.length > 280 && (
                                                         <button
                                                             onClick={() => toggleReviewExpand(review.id)}
-                                                            className={`mt-2.5 text-xs font-bold ${isGoldTheme ? 'text-amber-500 hover:text-amber-400' : 'text-red-500 hover:text-red-400'} transition-colors focus:outline-none`}
+                                                            className="mt-2.5 text-xs font-bold text-red-500 hover:text-red-400 transition-colors focus:outline-none"
                                                         >
                                                             {expandedReviews[review.id] ? 'Show Less' : 'Read More'}
                                                         </button>
@@ -1183,7 +1182,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                             placeholder="Search episode..."
                                                             value={episodeSearch}
                                                             onChange={(e) => setEpisodeSearch(e.target.value)}
-                                                            className={`w-full bg-white/5 border border-white/10 hover:border-white/20 pl-8 pr-6 py-1.5 rounded-lg text-[10px] sm:text-xs text-white placeholder-gray-500 focus:outline-none focus:ring-1 ${isGoldTheme ? 'focus:ring-amber-500' : 'focus:ring-red-500'} transition-all`}
+                                                            className="w-full bg-white/5 border border-white/10 hover:border-white/20 pl-8 pr-6 py-1.5 rounded-lg text-[10px] sm:text-xs text-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-red-500 transition-all"
                                                         />
                                                         {episodeSearch && (
                                                             <button
@@ -1438,7 +1437,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                 <div className="mt-16 pt-10 border-t border-white/10">
                                     <div className="flex flex-col gap-8 mb-12">
                                         <div className="flex items-center gap-3">
-                                            <div className={`p-2 rounded-xl ${isGoldTheme ? 'bg-amber-500/10 text-amber-500' : 'bg-red-500/10 text-red-500'}`}><Layers size={24}/></div>
+                                            <div className="p-2 rounded-xl bg-red-500/10 text-red-500"><Layers size={24}/></div>
                                             <div><h3 className="text-2xl font-black text-white tracking-tight">{collection.name}</h3><p className="text-xs text-gray-500 font-bold uppercase tracking-widest mt-1">Chronological Order</p></div>
                                         </div>
                                         <div className="relative w-full">
@@ -1449,7 +1448,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                     const partYear = part.release_date?.split('-')[0] || 'TBA';
                                                     return (
                                                         <div key={part.id} ref={isCurrent ? activeTimelineItemRef : null} className="flex flex-col items-center shrink-0 w-32 md:w-44 group">
-                                                            <div onClick={() => { if(!isCurrent) { onClose(); onSwitchMovie(part); } }} className={`relative aspect-[2/3] w-full rounded-2xl overflow-hidden cursor-pointer transition-all duration-500 ease-[cubic-bezier(0.23,1,0.32,1)] mb-8 border-2 ${isCurrent ? `${isGoldTheme ? 'border-amber-500 shadow-[0_0_30px_rgba(245,158,11,0.4)] scale-105' : 'border-red-500 shadow-[0_0_30px_rgba(239,68,68,0.4)] scale-105'} z-20` : 'border-white/5 group-hover:border-white/20 opacity-80 hover:opacity-100'}`}><img src={part.poster_path ? `${TMDB_IMAGE_BASE}${part.poster_path}` : "https://placehold.co/300x450"} className={`w-full h-full object-cover transition-transform duration-700 group-hover:scale-110`} alt={part.title}/>{isCurrent && <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex items-end justify-center p-3"><span className="text-[10px] font-black uppercase tracking-widest text-white shadow-lg">Viewing Now</span></div>}</div>
+                                                            <div onClick={() => { if(!isCurrent) { onClose(); onSwitchMovie(part); } }} className={`relative aspect-[2/3] w-full rounded-2xl overflow-hidden cursor-pointer transition-all duration-500 ease-[cubic-bezier(0.23,1,0.32,1)] mb-8 border-2 ${isCurrent ? 'border-red-500 shadow-[0_0_30px_rgba(239,68,68,0.4)] scale-105 z-20' : 'border-white/5 group-hover:border-white/20 opacity-80 hover:opacity-100'}`}><img src={part.poster_path ? `${TMDB_IMAGE_BASE}${part.poster_path}` : "https://placehold.co/300x450"} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" alt={part.title}/>{isCurrent && <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex items-end justify-center p-3"><span className="text-[10px] font-black uppercase tracking-widest text-white shadow-lg">Viewing Now</span></div>}</div>
                                                             <div className={`mb-4 px-3 py-1 rounded-full text-[11px] font-black shadow-lg transition-all duration-500 ${isCurrent ? `${accentBg} text-white` : 'bg-white/5 text-gray-400 group-hover:text-white'}`}>{partYear}</div>
                                                             <div className="relative mb-6"><div className={`w-3 h-3 rounded-full transition-all duration-500 shadow-xl ${isCurrent ? `${accentBg} scale-150 ring-4 ring-white/10` : 'bg-white/20 scale-100 group-hover:bg-white/40'}`} />{isCurrent && <div className={`absolute inset-0 w-3 h-3 rounded-full animate-ping ${accentBg} opacity-75`}></div>}</div>
                                                             <div className="text-center w-full px-2"><h4 className={`font-bold text-xs md:text-sm leading-tight transition-colors duration-300 line-clamp-2 ${isCurrent ? 'text-white' : 'text-gray-500 group-hover:text-gray-300'}`}>{part.title}</h4></div>
@@ -1501,7 +1500,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                             onProgress={handlePlayerProgress} 
                             initialSeason={playParams.season}
                             initialEpisode={playParams.episode}
-                            color={isGoldTheme ? 'F59E0B' : 'EF4444'}
+                            color="EF4444"
                         />
                     </Suspense>
                 </div>

@@ -749,7 +749,6 @@ export const NotificationModal: React.FC<NotificationModalProps> = ({ isOpen, on
     const [notifications, setNotifications] = useState<AppNotification[]>([]);
     const [loading, setLoading] = useState(false);
     const isExclusive = userProfile?.canWatch === true;
-    const isGoldTheme = false;
 
     useEffect(() => {
         if (isOpen) {

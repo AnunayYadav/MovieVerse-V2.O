@@ -234,8 +234,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
         { id: "dark", class: "bg-gradient-to-br from-gray-900 to-black", name: "Dark Void" },
         { id: "crimson", class: "bg-gradient-to-br from-red-950 to-black", name: "Blood Moon" },
         { id: "steel", class: "bg-gradient-to-br from-zinc-700 to-zinc-900", name: "Dark Metal" },
-        { id: "abyss", class: "bg-black", name: "Abyss" },
-        ...(isExclusive ? [{ id: "gold", class: "bg-gradient-to-br from-yellow-400 via-amber-500 to-yellow-700", name: "Pure Gold" }] : [])
+        { id: "abyss", class: "bg-black", name: "Abyss" }
     ];
 
     const FAQs = [
