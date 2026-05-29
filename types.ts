@@ -17,6 +17,7 @@ export interface Movie {
   genres?: Genre[];
   media_type?: 'movie' | 'tv' | 'person';
   original_language?: string;
+  origin_country?: string[];
   runtime?: number;
   episode_run_time?: number[];
   adult?: boolean;
@@ -95,6 +96,7 @@ export interface MovieDetails extends Movie {
   tagline: string;
   production_companies?: ProductionCompany[];
   spoken_languages?: SpokenLanguage[];
+  production_countries?: Array<{ iso_3166_1: string; name: string }>;
   credits?: {
     cast: CastMember[];
     crew: CrewMember[];

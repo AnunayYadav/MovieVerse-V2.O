@@ -9,6 +9,71 @@ import { triggerSystemNotification } from '../services/supabase';
 
 const MoviePlayer = React.lazy(() => import('./MoviePlayer').then(module => ({ default: module.MoviePlayer })));
 
+const LANGUAGES_FULL_MAP: Record<string, string> = {
+    en: "English",
+    hi: "Hindi",
+    ja: "Japanese",
+    ko: "Korean",
+    es: "Spanish",
+    fr: "French",
+    de: "German",
+    it: "Italian",
+    zh: "Chinese",
+    cn: "Chinese",
+    ru: "Russian",
+    pt: "Portuguese",
+    ml: "Malayalam",
+    ta: "Tamil",
+    te: "Telugu",
+    kn: "Kannada",
+    pa: "Punjabi",
+    bn: "Bengali",
+    gu: "Gujarati",
+    mr: "Marathi",
+    ar: "Arabic",
+    tr: "Turkish",
+    vi: "Vietnamese",
+    th: "Thai",
+    id: "Indonesian",
+    pl: "Polish",
+    nl: "Dutch",
+    sv: "Swedish",
+    no: "Norwegian",
+    da: "Danish",
+    fi: "Finnish"
+};
+
+const COUNTRIES_FULL_MAP: Record<string, string> = {
+    US: "United States",
+    IN: "India",
+    GB: "United Kingdom",
+    CA: "Canada",
+    AU: "Australia",
+    FR: "France",
+    DE: "Germany",
+    IT: "Italy",
+    JP: "Japan",
+    KR: "South Korea",
+    ES: "Spain",
+    MX: "Mexico",
+    BR: "Brazil",
+    CN: "China",
+    RU: "Russia",
+    HK: "Hong Kong",
+    TW: "Taiwan",
+    SE: "Sweden",
+    NL: "Netherlands",
+    DK: "Denmark",
+    NO: "Norway",
+    FI: "Finland",
+    NZ: "New Zealand",
+    IE: "Ireland",
+    ZA: "South Africa",
+    CH: "Switzerland",
+    AT: "Austria",
+    BE: "Belgium"
+};
+
 interface MoviePageProps {
     movie: Movie;
     onClose: () => void;
@@ -1262,10 +1327,37 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                         </div>
 
                                         <div className="pt-4 border-t border-white/5 space-y-3">
-                                            <div className="flex items-center justify-between">
-                                                <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1.5"><Languages size={12}/> Original Language</span>
-                                                <span className="text-[10px] bg-red-600/10 border border-red-500/20 px-2 py-0.5 rounded text-red-400 font-bold uppercase tracking-widest">{displayData.original_language?.toUpperCase() || 'EN'}</span>
-                                            </div>
+                                            {(() => {
+                                                const originalLangCode = displayData.original_language?.toLowerCase() || 'en';
+                                                const spokenLangMatch = displayData.spoken_languages?.find(lang => lang.iso_639_1 === originalLangCode);
+                                                const originalLangFull = spokenLangMatch?.english_name || spokenLangMatch?.name || LANGUAGES_FULL_MAP[originalLangCode] || originalLangCode.toUpperCase();
+
+                                                const getProductionCountriesList = () => {
+                                                    if (displayData.production_countries && displayData.production_countries.length > 0) {
+                                                        return displayData.production_countries.map(c => COUNTRIES_FULL_MAP[c.iso_3166_1.toUpperCase()] || c.name);
+                                                    }
+                                                    if (displayData.origin_country && displayData.origin_country.length > 0) {
+                                                        return displayData.origin_country.map(code => COUNTRIES_FULL_MAP[code.toUpperCase()] || code.toUpperCase());
+                                                    }
+                                                    return [];
+                                                };
+                                                const productionCountries = getProductionCountriesList();
+
+                                                return (
+                                                    <>
+                                                        <div className="flex items-center justify-between">
+                                                            <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1.5"><Languages size={12}/> Original Language</span>
+                                                            <span className="text-[10px] bg-red-600/10 border border-red-500/20 px-2 py-0.5 rounded text-red-400 font-bold uppercase tracking-widest">{originalLangFull}</span>
+                                                        </div>
+                                                        {productionCountries.length > 0 && (
+                                                            <div className="flex items-center justify-between">
+                                                                <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1.5"><Globe size={12}/> Origin Country</span>
+                                                                <span className="text-[10px] bg-purple-600/10 border border-purple-500/20 px-2 py-0.5 rounded text-purple-400 font-bold uppercase tracking-widest truncate max-w-[150px]" title={productionCountries.join(", ")}>{productionCountries.join(", ")}</span>
+                                                            </div>
+                                                        )}
+                                                    </>
+                                                );
+                                            })()}
                                             {displayData.spoken_languages && displayData.spoken_languages.length > 0 && (
                                                 <div className="space-y-2">
                                                     <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1.5"><Headphones size={10}/> Spoken / Dubbed</p>
