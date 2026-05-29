@@ -128,6 +128,154 @@ const MovieRowCard = ({
     );
 };
 
+const ComingSoonCard = ({
+    movie,
+    isGoldTheme,
+    reminders,
+    toggleReminder,
+    setSelectedMovie,
+    formatted,
+    apiKey
+}: {
+    movie: Movie;
+    isGoldTheme: boolean;
+    reminders: number[];
+    toggleReminder: (id: number) => void;
+    setSelectedMovie: (m: Movie) => void;
+    formatted: any;
+    apiKey: string;
+    key?: string | number;
+}) => {
+    const [logoUrl, setLogoUrl] = useState<string | null>(null);
+    const [logoLoading, setLogoLoading] = useState(true);
+
+    useEffect(() => {
+        let isMounted = true;
+        if (!apiKey || !movie.id) {
+            setLogoLoading(false);
+            return;
+        }
+        const type = movie.media_type === 'tv' || (!movie.release_date && movie.first_air_date) ? 'tv' : 'movie';
+        
+        fetch(`${TMDB_BASE_URL}/${type}/${movie.id}/images?api_key=${apiKey}`)
+            .then(res => res.json())
+            .then(data => {
+                if (!isMounted) return;
+                const logo = data.logos?.find((l: any) => l.iso_639_1 === 'en') || data.logos?.[0];
+                if (logo) {
+                    setLogoUrl(`https://image.tmdb.org/t/p/w300${logo.file_path}`);
+                }
+            })
+            .catch(() => {})
+            .finally(() => {
+                if (isMounted) setLogoLoading(false);
+            });
+
+        return () => {
+            isMounted = false;
+        };
+    }, [movie.id, apiKey]);
+
+    return (
+        <div 
+            className={`shrink-0 w-[220px] md:w-[280px] flex flex-col bg-[#0f0f12]/60 backdrop-blur-md rounded-2xl border ${isGoldTheme ? 'border-white/5 hover:border-amber-500/20' : 'border-white/5 hover:border-zinc-700/40'} hover:bg-zinc-900/60 transition-all duration-300 group shadow-[0_8px_30px_rgb(0,0,0,0.5)] hover:shadow-[0_8px_30px_rgba(0,0,0,0.8)]`}
+        >
+            {/* Cinematic widescreen backdrop */}
+            <div 
+                className="relative w-full aspect-[16/9] rounded-t-2xl overflow-hidden bg-zinc-900 border-b border-white/5 cursor-pointer"
+                onClick={() => setSelectedMovie(movie)}
+            >
+                <img 
+                    src={movie.backdrop_path ? `${TMDB_BACKDROP_BASE}${movie.backdrop_path}` : (movie.poster_path ? `${TMDB_IMAGE_BASE}${movie.poster_path}` : "https://placehold.co/600x338/111/FFF?text=No+Preview")} 
+                    alt={movie.title} 
+                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" 
+                    loading="lazy" 
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/40 to-transparent opacity-85 group-hover:opacity-100 transition-opacity duration-300" />
+                
+                {/* Logo overlay on poster */}
+                <div className="absolute inset-0 p-3 flex flex-col justify-end text-left select-none pointer-events-none">
+                    <div className="min-h-[25px] flex items-end">
+                        {!logoLoading && logoUrl ? (
+                            <img 
+                                src={logoUrl} 
+                                alt={movie.title} 
+                                className="max-h-[26px] max-w-[85%] object-contain drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)] transition-transform duration-300 origin-left group-hover:scale-105"
+                            />
+                        ) : null}
+                    </div>
+                </div>
+
+                <span className={`absolute top-2.5 left-2.5 font-black text-[8px] uppercase tracking-widest px-2 py-0.5 rounded shadow-sm font-sans ${isGoldTheme ? 'bg-amber-500 text-black' : 'bg-red-600/90 text-white'}`}>
+                    Soon
+                </span>
+            </div>
+
+            {/* Details */}
+            <div className="p-3.5 flex-1 flex flex-col justify-between">
+                <div>
+                    <div className="flex items-start justify-between gap-3">
+                        <h3 
+                            className={`text-xs md:text-sm font-bold text-white tracking-tight ${isGoldTheme ? 'hover:text-amber-400' : 'hover:text-red-500'} cursor-pointer transition-colors line-clamp-1 flex-1`}
+                            onClick={() => setSelectedMovie(movie)}
+                            title={movie.title}
+                        >
+                            {movie.title}
+                        </h3>
+                        
+                        {/* Action Buttons */}
+                        <div className="flex items-center gap-1.5 shrink-0">
+                            <button 
+                                onClick={(e) => { e.stopPropagation(); toggleReminder(movie.id); }}
+                                className={`p-1.5 rounded-full border transition-all duration-300 active:scale-90 ${reminders.includes(movie.id) ? (isGoldTheme ? 'bg-amber-500 border-amber-500 text-black' : 'bg-red-600 border-red-600 text-white') : 'border-white/10 hover:border-white/20 bg-white/5 text-zinc-400 hover:text-white'}`}
+                                title={reminders.includes(movie.id) ? "Reminder Set" : "Notify Me"}
+                            >
+                                <Bell size={10} fill={reminders.includes(movie.id) ? "currentColor" : "none"} />
+                            </button>
+                            <button 
+                                onClick={(e) => { e.stopPropagation(); setSelectedMovie(movie); }}
+                                className="p-1.5 rounded-full border border-white/10 hover:border-white/20 bg-white/5 text-zinc-400 hover:text-white transition-all duration-300 active:scale-90"
+                                title="View Details"
+                            >
+                                <Info size={10} />
+                            </button>
+                        </div>
+                    </div>
+
+                    <p className={`text-[9px] font-bold tracking-wider uppercase mt-0.5 ${isGoldTheme ? 'text-amber-500/90' : 'text-red-500/90'}`}>
+                        Expected {formatted.full}
+                    </p>
+
+                    <p className="text-zinc-400 text-[11px] leading-normal mt-1.5 line-clamp-2 font-normal">
+                        {movie.overview || "No synopsis available for this upcoming title yet. Check back closer to release."}
+                    </p>
+                </div>
+
+                {/* Metadata pills */}
+                <div className="flex flex-wrap items-center gap-1 mt-3 pt-2 border-t border-white/5">
+                    {movie.genre_ids?.slice(0, 2).map((genreId) => {
+                        const genreName = GENRES_MAP[genreId];
+                        if (!genreName) return null;
+                        return (
+                            <span 
+                                key={genreId} 
+                                className="text-[7.5px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-white/5 border border-white/5 text-zinc-400 font-sans"
+                            >
+                                {genreName}
+                            </span>
+                        );
+                    })}
+                    {movie.vote_average > 0 && (
+                        <span className={`flex items-center gap-0.5 text-[7.5px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded border font-sans transition-all duration-300 ${isGoldTheme ? 'bg-amber-500/10 border-amber-500/10 text-amber-500 hover:bg-amber-500/20' : 'bg-yellow-500/10 border-yellow-500/10 text-yellow-500 hover:bg-yellow-500/20'}`}>
+                            <Star size={6.5} fill="currentColor" /> {movie.vote_average.toFixed(1)} Expected
+                        </span>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+};
+
 const FranchiseHeroLogo = ({ id, fallbackName, apiKey }: { id: number, fallbackName: string, apiKey: string }) => {
     const [logoUrl, setLogoUrl] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
@@ -274,7 +422,9 @@ const MovieRow = ({
     mediaType,
     onMovieClick,
     apiKey,
-    adultOnly
+    adultOnly,
+    sortOption,
+    selectedLanguage
 }: { 
     title: string; 
     movies?: Movie[]; 
@@ -284,6 +434,8 @@ const MovieRow = ({
     apiKey?: string;
     key?: string | number;
     adultOnly?: boolean;
+    sortOption?: string;
+    selectedLanguage?: string;
 }) => {
     const [movies, setMovies] = useState<Movie[]>(staticMovies || []);
     const [loading, setLoading] = useState(endpoint ? true : false);
@@ -293,12 +445,33 @@ const MovieRow = ({
     const [isVisible, setIsVisible] = useState(false);
     const rowRef = useRef<HTMLDivElement | null>(null);
 
+    const sortMovies = useCallback((moviesList: Movie[], option?: string) => {
+        if (!moviesList || !option) return moviesList;
+        if (option === 'relevance') return moviesList;
+        const sorted = [...moviesList];
+        switch (option) {
+            case "popularity.desc": return sorted.sort((a, b) => (b.popularity || 0) - (a.popularity || 0));
+            case "revenue.desc": return sorted.sort((a: any, b: any) => (b.revenue || 0) - (a.revenue || 0));
+            case "primary_release_date.desc": return sorted.sort((a, b) => new Date(b.release_date || b.first_air_date || "").getTime() - new Date(a.release_date || a.first_air_date || "").getTime());
+            case "primary_release_date.asc": return sorted.sort((a, b) => new Date(a.release_date || a.first_air_date || "").getTime() - new Date(b.release_date || b.first_air_date || "").getTime());
+            case "vote_average.desc": return sorted.sort((a, b) => (b.vote_average || 0) - (a.vote_average || 0));
+            default: return sorted;
+        }
+    }, []);
+
     // Sync static movies if passed
     useEffect(() => {
         if (staticMovies) {
-            setMovies(staticMovies);
+            let results = [...staticMovies];
+            if (selectedLanguage && selectedLanguage !== 'All') {
+                results = results.filter((item: any) => item.original_language === selectedLanguage);
+            }
+            if (sortOption) {
+                results = sortMovies(results, sortOption);
+            }
+            setMovies(results);
         }
-    }, [staticMovies]);
+    }, [staticMovies, selectedLanguage, sortOption, sortMovies]);
 
     // Intersection Observer to detect visibility
     useEffect(() => {
@@ -318,15 +491,57 @@ const MovieRow = ({
         return () => observer.disconnect();
     }, [endpoint]);
 
-    // Fetch page 1 when row becomes visible
+    const getFinalEndpoint = useCallback((baseEndpoint: string) => {
+        let finalEndpoint = baseEndpoint;
+        if (finalEndpoint.includes('/discover/') || finalEndpoint.includes('/trending/')) {
+            const searchParams = new URLSearchParams();
+            if (sortOption) {
+                if (finalEndpoint.includes('sort_by=')) {
+                    finalEndpoint = finalEndpoint.replace(/([?&])sort_by=[^&]*/, '');
+                }
+                searchParams.set('sort_by', sortOption);
+                if (sortOption === 'vote_average.desc') {
+                    if (finalEndpoint.includes('vote_count.gte=')) {
+                        finalEndpoint = finalEndpoint.replace(/([?&])vote_count\.gte=[^&]*/, '');
+                    }
+                    searchParams.set('vote_count.gte', '100');
+                } else if (sortOption === 'revenue.desc') {
+                    if (finalEndpoint.includes('vote_count.gte=')) {
+                        finalEndpoint = finalEndpoint.replace(/([?&])vote_count\.gte=[^&]*/, '');
+                    }
+                    searchParams.set('vote_count.gte', '300');
+                }
+            }
+
+            if (selectedLanguage && selectedLanguage !== 'All') {
+                if (finalEndpoint.includes('with_original_language=')) {
+                    finalEndpoint = finalEndpoint.replace(/([?&])with_original_language=[^&]*/, '');
+                }
+                searchParams.set('with_original_language', selectedLanguage);
+            }
+
+            finalEndpoint = finalEndpoint.replace(/\?&/, '?').replace(/&&+/, '&');
+            const newParams = searchParams.toString();
+            if (newParams) {
+                finalEndpoint = `${finalEndpoint}${finalEndpoint.includes('?') ? '&' : '?'}${newParams}`;
+            }
+        }
+        return finalEndpoint;
+    }, [sortOption, selectedLanguage]);
+
+    // Fetch page 1 when row becomes visible or when sort/filter options change
     useEffect(() => {
         if (!endpoint || !isVisible || !apiKey) return;
         
         let isMounted = true;
         setLoading(true);
+        setPage(1);
+        setHasMore(true);
+
+        const finalEndpoint = getFinalEndpoint(endpoint);
+        const separator = finalEndpoint.includes('?') ? '&' : '?';
+        const url = `${finalEndpoint}${separator}api_key=${apiKey}&page=1`;
         
-        const separator = endpoint.includes('?') ? '&' : '?';
-        const url = `${endpoint}${separator}api_key=${apiKey}&page=1`;
         fetch(url)
             .then(res => res.json())
             .then(data => {
@@ -334,10 +549,21 @@ const MovieRow = ({
                 let results = data.results || [];
                 results = results.map((item: any) => ({
                     ...item,
-                    media_type: mediaType || item.media_type || (endpoint.includes('/tv/') ? 'tv' : 'movie'),
+                    media_type: mediaType || item.media_type || (finalEndpoint.includes('/tv/') ? 'tv' : 'movie'),
                     title: item.title || item.name
                 }));
                 if (adultOnly) results = results.filter((item: any) => item.adult === true);
+                
+                // Secondary Client-side filtering as a fallback
+                if (selectedLanguage && selectedLanguage !== 'All' && !finalEndpoint.includes('/discover/')) {
+                    results = results.filter((item: any) => item.original_language === selectedLanguage);
+                }
+                
+                // Client-side sorting for perfect order
+                if (sortOption) {
+                    results = sortMovies(results, sortOption);
+                }
+                
                 setMovies(results);
             })
             .catch(err => console.error("Error fetching page 1: ", err))
@@ -348,15 +574,16 @@ const MovieRow = ({
         return () => {
             isMounted = false;
         };
-    }, [endpoint, isVisible, apiKey, mediaType]);
+    }, [endpoint, isVisible, apiKey, mediaType, sortOption, selectedLanguage, adultOnly, sortMovies, getFinalEndpoint]);
 
     const loadNextPage = async () => {
         if (!endpoint || !apiKey || loadingMore || !hasMore) return;
         setLoadingMore(true);
         
         const nextPage = page + 1;
-        const separator = endpoint.includes('?') ? '&' : '?';
-        const url = `${endpoint}${separator}api_key=${apiKey}&page=${nextPage}`;
+        const finalEndpoint = getFinalEndpoint(endpoint);
+        const separator = finalEndpoint.includes('?') ? '&' : '?';
+        const url = `${finalEndpoint}${separator}api_key=${apiKey}&page=${nextPage}`;
 
         try {
             const res = await fetch(url);
@@ -367,11 +594,19 @@ const MovieRow = ({
             } else {
                 results = results.map((item: any) => ({
                     ...item,
-                    media_type: mediaType || item.media_type || (endpoint.includes('/tv/') ? 'tv' : 'movie'),
+                    media_type: mediaType || item.media_type || (finalEndpoint.includes('/tv/') ? 'tv' : 'movie'),
                     title: item.title || item.name
                 }));
                 if (adultOnly) results = results.filter((item: any) => item.adult === true);
-                setMovies(prev => [...prev, ...results]);
+                
+                if (selectedLanguage && selectedLanguage !== 'All' && !finalEndpoint.includes('/discover/')) {
+                    results = results.filter((item: any) => item.original_language === selectedLanguage);
+                }
+                
+                setMovies(prev => {
+                    const combined = [...prev, ...results];
+                    return sortOption ? sortMovies(combined, sortOption) : combined;
+                });
                 setPage(nextPage);
             }
         } catch (e) {
@@ -1192,9 +1427,9 @@ export default function App() {
   const accentBg = "bg-red-600";
   const accentBgLow = "bg-red-600/20";
 
-  const showStickyHeader = !!(searchQuery || selectedCategory !== "All" || currentCollection || activeCountry || activeKeyword || tmdbCollectionId);
+  const showStickyHeader = !["Genres", "Franchise", "Explore", "LiveTV"].includes(selectedCategory);
   const hasHeroBanner = !!(
-      (selectedCategory === "All" && !searchQuery && featuredMovie && !activeCountry && !activeKeyword && !tmdbCollectionId && !currentCollection) ||
+      (!searchQuery && featuredMovie && !["People", "Coming", "Collections", "Genres", "Franchise", "Explore"].includes(selectedCategory)) ||
       (selectedCategory === "Franchise" && franchiseList.length > 0)
   );
 
@@ -1980,7 +2215,8 @@ export default function App() {
             });
         } else {
             setMovies(finalResults);
-            if (!activeCountry && !activeKeyword && !tmdbCollectionId && !currentCollection && !["People", "Anime", "Family", "Awards", "India", "Coming", "Collections", "Genres", "Countries", "Franchise", "Explore"].includes(selectedCategory) && finalResults.length > 0 && !searchQuery) {
+            const hasHero = !["People", "Coming", "Collections", "Genres", "Franchise", "Explore"].includes(selectedCategory) && !searchQuery;
+            if (hasHero && finalResults.length > 0) {
                 setFeaturedMovie(finalResults.find((m: Movie) => m.backdrop_path) || finalResults[0]);
             } else setFeaturedMovie(null);
         }
@@ -2020,6 +2256,229 @@ export default function App() {
     );
     if (node) observer.current.observe(node);
   }, [loading, hasMore]);
+
+  const getCategoryRows = useCallback(() => {
+      const todayStr = new Date().toISOString().split('T')[0];
+      const rows: Array<{ id: string; title: string; endpoint: string; mediaType?: 'movie' | 'tv' }> = [];
+      const getLangParam = () => {
+          return selectedLanguage !== "All" ? `&with_original_language=${selectedLanguage}` : "";
+      };
+
+      // 1. Check Custom Collection
+      if (currentCollection && DEFAULT_COLLECTIONS[currentCollection]) {
+          const baseParams = DEFAULT_COLLECTIONS[currentCollection].params;
+          const toQueryString = (params: any) => {
+              const urlParams = new URLSearchParams();
+              Object.keys(params).forEach(key => urlParams.append(key, params[key]));
+              return urlParams.toString();
+          };
+
+          rows.push({
+              id: `${currentCollection}_popular`,
+              title: `Popular Hits`,
+              endpoint: `${TMDB_BASE_URL}/discover/movie?${toQueryString({ ...baseParams, sort_by: "popularity.desc" })}${getLangParam()}`
+          });
+          rows.push({
+              id: `${currentCollection}_top_rated`,
+              title: `Highly Rated`,
+              endpoint: `${TMDB_BASE_URL}/discover/movie?${toQueryString({ ...baseParams, sort_by: "vote_average.desc", "vote_count.gte": 20 })}${getLangParam()}`
+          });
+          rows.push({
+              id: `${currentCollection}_action`,
+              title: `Action & Thrillers`,
+              endpoint: `${TMDB_BASE_URL}/discover/movie?${toQueryString({ ...baseParams, with_genres: "28|53", sort_by: "popularity.desc" })}${getLangParam()}`
+          });
+          rows.push({
+              id: `${currentCollection}_drama`,
+              title: `Drama & Romance`,
+              endpoint: `${TMDB_BASE_URL}/discover/movie?${toQueryString({ ...baseParams, with_genres: "18|10749", sort_by: "popularity.desc" })}${getLangParam()}`
+          });
+          return rows;
+      }
+
+      // 2. Check Keyword
+      if (activeKeyword) {
+          const kid = activeKeyword.id;
+          const kname = activeKeyword.name;
+          rows.push({
+              id: `keyword_${kid}_trending`,
+              title: `Trending in "${kname}"`,
+              endpoint: `${TMDB_BASE_URL}/discover/movie?with_keywords=${kid}&sort_by=popularity.desc${getLangParam()}`
+          });
+          rows.push({
+              id: `keyword_${kid}_top_rated`,
+              title: `Top Rated "${kname}"`,
+              endpoint: `${TMDB_BASE_URL}/discover/movie?with_keywords=${kid}&sort_by=vote_average.desc&vote_count.gte=10${getLangParam()}`
+          });
+          rows.push({
+              id: `keyword_${kid}_action`,
+              title: `Action & Adventure`,
+              endpoint: `${TMDB_BASE_URL}/discover/movie?with_keywords=${kid}&with_genres=28|12&sort_by=popularity.desc${getLangParam()}`
+          });
+          rows.push({
+              id: `keyword_${kid}_scifi`,
+              title: `Sci-Fi & Fantasy`,
+              endpoint: `${TMDB_BASE_URL}/discover/movie?with_keywords=${kid}&with_genres=878|14&sort_by=popularity.desc${getLangParam()}`
+          });
+          return rows;
+      }
+
+      // 3. Check Country
+      if (activeCountry) {
+          const code = activeCountry.code;
+          const name = activeCountry.name;
+          rows.push({
+              id: `country_${code}_trending`,
+              title: `Trending in ${name}`,
+              endpoint: `${TMDB_BASE_URL}/discover/movie?with_origin_country=${code}&sort_by=popularity.desc${getLangParam()}`
+          });
+          rows.push({
+              id: `country_${code}_top_rated`,
+              title: `Top Rated from ${name}`,
+              endpoint: `${TMDB_BASE_URL}/discover/movie?with_origin_country=${code}&sort_by=vote_average.desc&vote_count.gte=20${getLangParam()}`
+          });
+          rows.push({
+              id: `country_${code}_action`,
+              title: `Action & Thrillers`,
+              endpoint: `${TMDB_BASE_URL}/discover/movie?with_origin_country=${code}&with_genres=28|53&sort_by=popularity.desc${getLangParam()}`
+          });
+          rows.push({
+              id: `country_${code}_comedy`,
+              title: `Comedies`,
+              endpoint: `${TMDB_BASE_URL}/discover/movie?with_origin_country=${code}&with_genres=35&sort_by=popularity.desc${getLangParam()}`
+          });
+          return rows;
+      }
+
+      // 4. Check TV Shows
+      if (selectedCategory === "TV Shows") {
+          rows.push({
+              id: `tv_trending`,
+              title: `Trending TV Shows`,
+              endpoint: `${TMDB_BASE_URL}/trending/tv/week`,
+              mediaType: 'tv'
+          });
+          rows.push({
+              id: `tv_top_rated`,
+              title: `Top Rated TV Shows`,
+              endpoint: `${TMDB_BASE_URL}/tv/top_rated`,
+              mediaType: 'tv'
+          });
+          rows.push({
+              id: `tv_drama`,
+              title: `Popular TV Dramas`,
+              endpoint: `${TMDB_BASE_URL}/discover/tv?with_genres=18&sort_by=popularity.desc${getLangParam()}`,
+              mediaType: 'tv'
+          });
+          rows.push({
+              id: `tv_comedy`,
+              title: `Popular TV Comedies`,
+              endpoint: `${TMDB_BASE_URL}/discover/tv?with_genres=35&sort_by=popularity.desc${getLangParam()}`,
+              mediaType: 'tv'
+          });
+          return rows;
+      }
+
+      // 5. Check Anime
+      if (selectedCategory === "Anime") {
+          rows.push({
+              id: `anime_trending`,
+              title: `Trending Anime Series`,
+              endpoint: `${TMDB_BASE_URL}/discover/tv?with_genres=16&with_original_language=ja&sort_by=popularity.desc`,
+              mediaType: 'tv'
+          });
+          rows.push({
+              id: `anime_movies`,
+              title: `Anime Movies`,
+              endpoint: `${TMDB_BASE_URL}/discover/movie?with_genres=16&with_original_language=ja&sort_by=popularity.desc`
+          });
+          rows.push({
+              id: `anime_top_rated`,
+              title: `Top Rated Anime`,
+              endpoint: `${TMDB_BASE_URL}/discover/tv?with_genres=16&with_original_language=ja&sort_by=vote_average.desc&vote_count.gte=50`,
+              mediaType: 'tv'
+          });
+          return rows;
+      }
+
+      // 6. Check Awards
+      if (selectedCategory === "Awards") {
+          rows.push({
+              id: `awards_oscars`,
+              title: `Oscar Winners & Contenders`,
+              endpoint: `${TMDB_BASE_URL}/discover/movie?sort_by=vote_average.desc&vote_count.gte=1000${getLangParam()}`
+          });
+          rows.push({
+              id: `awards_all_time`,
+              title: `All-Time Greats`,
+              endpoint: `${TMDB_BASE_URL}/discover/movie?sort_by=vote_average.desc&vote_count.gte=3000${getLangParam()}`
+          });
+          rows.push({
+              id: `awards_modern`,
+              title: `Modern Classics`,
+              endpoint: `${TMDB_BASE_URL}/discover/movie?primary_release_date.gte=2010-01-01&sort_by=vote_average.desc&vote_count.gte=1500${getLangParam()}`
+          });
+          return rows;
+      }
+
+      // 7. Check India
+      if (selectedCategory === "India") {
+          rows.push({
+              id: `india_trending`,
+              title: `Trending in India`,
+              endpoint: `${TMDB_BASE_URL}/discover/movie?with_origin_country=IN&sort_by=popularity.desc${getLangParam()}`
+          });
+          rows.push({
+              id: `india_top_rated`,
+              title: `Top Rated Indian Cinema`,
+              endpoint: `${TMDB_BASE_URL}/discover/movie?with_origin_country=IN&sort_by=vote_average.desc&vote_count.gte=50${getLangParam()}`
+          });
+          rows.push({
+              id: `india_hindi`,
+              title: `Bollywood Hits (Hindi)`,
+              endpoint: `${TMDB_BASE_URL}/discover/movie?with_origin_country=IN&with_original_language=hi&sort_by=popularity.desc${getLangParam()}`
+          });
+          rows.push({
+              id: `india_south`,
+              title: `South Indian Mass`,
+              endpoint: `${TMDB_BASE_URL}/discover/movie?with_origin_country=IN&with_original_language=te|ta|kn&sort_by=popularity.desc${getLangParam()}`
+          });
+          return rows;
+      }
+
+      // 8. Standard Genre
+      const genreId = GENRES_MAP[selectedCategory] || (selectedCategory === "Family" ? 10751 : null);
+      if (genreId) {
+          rows.push({
+              id: `genre_${genreId}_trending`,
+              title: `Trending in ${selectedCategory}`,
+              endpoint: `${TMDB_BASE_URL}/discover/movie?with_genres=${genreId}&sort_by=popularity.desc${getLangParam()}`
+          });
+          rows.push({
+              id: `genre_${genreId}_top_rated`,
+              title: `Top Rated ${selectedCategory}`,
+              endpoint: `${TMDB_BASE_URL}/discover/movie?with_genres=${genreId}&sort_by=vote_average.desc&vote_count.gte=100${getLangParam()}`
+          });
+          rows.push({
+              id: `genre_${genreId}_blockbusters`,
+              title: `Blockbusters`,
+              endpoint: `${TMDB_BASE_URL}/discover/movie?with_genres=${genreId}&sort_by=revenue.desc&vote_count.gte=50${getLangParam()}`
+          });
+          rows.push({
+              id: `genre_${genreId}_classics`,
+              title: `Classics`,
+              endpoint: `${TMDB_BASE_URL}/discover/movie?with_genres=${genreId}&primary_release_date.lte=2015-01-01&sort_by=vote_average.desc&vote_count.gte=200${getLangParam()}`
+          });
+          rows.push({
+              id: `genre_${genreId}_international`,
+              title: `International Hits`,
+              endpoint: `${TMDB_BASE_URL}/discover/movie?with_genres=${genreId}&sort_by=popularity.desc&with_original_language=ja|ko|es|fr|hi|te|ta`
+          });
+          return rows;
+      }
+
+      return rows;
+  }, [selectedCategory, activeKeyword, activeCountry, currentCollection, selectedLanguage]);
 
   const groupMoviesByDate = (movieList: Movie[]) => {
       const groups: Record<string, Movie[]> = {};
@@ -2634,7 +3093,7 @@ export default function App() {
                     </div>
                 </div>
             ) : selectedCategory === "Coming" ? (
-               <div className="animate-in fade-in duration-750 max-w-5xl mx-auto px-4 py-8 md:py-12">
+               <div className="animate-in fade-in duration-750 px-4 md:px-12 py-8 md:py-12">
                    {/* Page Header */}
                    <div className="mb-10 border-b border-white/5 pb-6">
                        <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-white flex items-center gap-3">
@@ -2646,113 +3105,46 @@ export default function App() {
                        </p>
                    </div>
 
-                   <div className="relative border-l border-white/10 ml-4 md:ml-28 pl-6 md:pl-10 space-y-12">
+                   <div className="space-y-12">
                        {groupMoviesByDate(movies).map(([date, dateMovies]) => {
                            const formatted = formatReleaseDate(date);
                            return (
-                               <div key={date} className="relative group/date">
-                                   {/* Date node marker on timeline */}
-                                   <div className="absolute -left-[31px] md:-left-[47px] top-1.5 w-4 h-4 rounded-full bg-[#030303] border-2 border-red-600 group-hover/date:bg-red-600 transition-colors duration-300 z-10" />
-
-                                   {/* Absolute date column on larger screens, relative on mobile */}
-                                   <div className="md:absolute md:-left-36 md:top-0 md:w-28 flex md:flex-col items-baseline md:items-end gap-1.5 md:gap-0.5 shrink-0 pr-4 md:text-right mb-4 md:mb-0">
-                                       <span className="text-2xl md:text-4xl font-black text-red-600 tracking-tighter leading-none">
+                               <div key={date} className="relative group/date -mx-4 md:-mx-12">
+                                   {/* Date Row Header */}
+                                   <div className="flex items-end gap-3 mb-5 px-4 md:px-12">
+                                       <span 
+                                           className="text-5xl md:text-7xl font-black tracking-tighter leading-none select-none transition-all duration-500"
+                                           style={{ 
+                                               color: '#000', 
+                                               WebkitTextStroke: '1.8px rgba(255,255,255,0.3)', 
+                                               fontFamily: 'Outfit, Inter, sans-serif' 
+                                           }}
+                                       >
                                            {formatted.day}
                                        </span>
-                                       <span className="text-xs md:text-sm font-bold text-white tracking-widest uppercase">
-                                           {formatted.month}
-                                       </span>
-                                       <span className="text-[10px] md:text-xs text-gray-500 font-semibold">
-                                           {formatted.year}
-                                       </span>
+                                       <div className="flex flex-col mb-1.5">
+                                           <span className="text-xs md:text-sm font-bold text-white tracking-widest uppercase leading-tight">
+                                               {formatted.month}
+                                           </span>
+                                           <span className="text-[9px] md:text-xs text-zinc-500 font-semibold tracking-wider leading-none mt-0.5">
+                                               {formatted.year}
+                                           </span>
+                                       </div>
                                    </div>
 
-                                   {/* Movies inside this date */}
-                                   <div className="space-y-6">
+                                   {/* Horizontal Scroll of Movies */}
+                                   <div className="flex gap-4 md:gap-6 overflow-x-auto pb-4 pt-1 px-4 md:px-12 hide-scrollbar scroll-smooth">
                                        {dateMovies.map((movie) => (
-                                           <div 
-                                               key={movie.id} 
-                                               className="flex flex-col lg:flex-row gap-5 bg-[#0a0a0a]/80 hover:bg-zinc-950 p-4 rounded-2xl border border-white/5 hover:border-white/10 transition-all duration-300 group shadow-md"
-                                           >
-                                               {/* Cinematic widescreen backdrop instead of ugly vertical posters */}
-                                               <div 
-                                                   className="relative w-full lg:w-[280px] aspect-[16/9] rounded-xl overflow-hidden shrink-0 bg-zinc-900 border border-white/5 cursor-pointer shadow-md"
-                                                   onClick={() => setSelectedMovie(movie)}
-                                               >
-                                                   <img 
-                                                       src={movie.backdrop_path ? `${TMDB_BACKDROP_BASE}${movie.backdrop_path}` : (movie.poster_path ? `${TMDB_IMAGE_BASE}${movie.poster_path}` : "https://placehold.co/600x338/111/FFF?text=No+Preview")} 
-                                                       alt={movie.title} 
-                                                       className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-103" 
-                                                       loading="lazy" 
-                                                   />
-                                                   <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-60" />
-                                                   {/* Mini banner */}
-                                                   <span className="absolute top-2.5 left-2.5 bg-red-600/90 text-white font-black text-[8px] uppercase tracking-widest px-2 py-0.5 rounded shadow-sm font-sans">
-                                                       Soon
-                                                   </span>
-                                               </div>
-
-                                               {/* Details */}
-                                               <div className="flex-1 flex flex-col justify-between py-0.5">
-                                                   <div>
-                                                       <div className="flex items-start justify-between gap-4">
-                                                           <h3 
-                                                               className="text-base md:text-lg font-bold text-white tracking-tight hover:text-red-500 cursor-pointer transition-colors"
-                                                               onClick={() => setSelectedMovie(movie)}
-                                                           >
-                                                               {movie.title}
-                                                           </h3>
-                                                           
-                                                           {/* Action Buttons */}
-                                                           <div className="flex items-center gap-1.5 shrink-0">
-                                                               <button 
-                                                                   onClick={(e) => { e.stopPropagation(); toggleReminder(movie.id); }}
-                                                                   className={`p-1.5 rounded-full border transition-all active:scale-90 ${reminders.includes(movie.id) ? 'bg-red-600 border-red-600 text-white' : 'border-white/10 hover:border-white/20 bg-white/5 text-gray-400 hover:text-white'}`}
-                                                                   title={reminders.includes(movie.id) ? "Reminder Set" : "Notify Me"}
-                                                               >
-                                                                   <Bell size={13} fill={reminders.includes(movie.id) ? "currentColor" : "none"} />
-                                                               </button>
-                                                               <button 
-                                                                   onClick={(e) => { e.stopPropagation(); setSelectedMovie(movie); }}
-                                                                   className="p-1.5 rounded-full border border-white/10 hover:border-white/20 bg-white/5 text-gray-400 hover:text-white transition-all active:scale-90"
-                                                                   title="View Details"
-                                                               >
-                                                                   <Info size={13} />
-                                                               </button>
-                                                           </div>
-                                                       </div>
-
-                                                       <p className="text-[10px] font-bold text-red-500/90 tracking-wider uppercase mt-0.5">
-                                                           Expected {formatted.full}
-                                                       </p>
-
-                                                       <p className="text-gray-400 text-xs md:text-xs leading-relaxed mt-2.5 line-clamp-3 font-normal max-w-2xl">
-                                                           {movie.overview || "No synopsis available for this upcoming title yet. Check back closer to release."}
-                                                       </p>
-                                                   </div>
-
-                                                   {/* Metadata pills */}
-                                                   <div className="flex flex-wrap items-center gap-1.5 mt-3">
-                                                       {movie.genre_ids?.slice(0, 3).map((genreId) => {
-                                                           const genreName = GENRES_MAP[genreId];
-                                                           if (!genreName) return null;
-                                                           return (
-                                                               <span 
-                                                                   key={genreId} 
-                                                                   className="text-[8px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-white/5 border border-white/5 text-gray-400 font-sans"
-                                                               >
-                                                                   {genreName}
-                                                               </span>
-                                                           );
-                                                       })}
-                                                       {movie.vote_average > 0 && (
-                                                           <span className="flex items-center gap-1 text-[8px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-yellow-500/10 border border-yellow-500/10 text-yellow-500 font-sans">
-                                                               <Star size={7} fill="currentColor" /> {movie.vote_average.toFixed(1)} Expected
-                                                           </span>
-                                                       )}
-                                                   </div>
-                                               </div>
-                                           </div>
+                                           <ComingSoonCard 
+                                               key={movie.id}
+                                               movie={movie}
+                                               isGoldTheme={isGoldTheme}
+                                               reminders={reminders}
+                                               toggleReminder={toggleReminder}
+                                               setSelectedMovie={setSelectedMovie}
+                                               formatted={formatted}
+                                               apiKey={apiKey}
+                                           />
                                        ))}
                                    </div>
                                </div>
@@ -2760,11 +3152,11 @@ export default function App() {
                        })}
                    </div>
                </div>
-           ) : (
+            ) : (
                <>
-                   {selectedCategory !== "Coming" && selectedCategory !== "Genres" && selectedCategory !== "Countries" && selectedCategory !== "Collections" && selectedCategory !== "Franchise" && (
+                   {selectedCategory !== "Coming" && selectedCategory !== "Genres" && selectedCategory !== "Franchise" && (
                        <>
-                           {!searchQuery && featuredMovie && !activeCountry && !activeKeyword && !tmdbCollectionId && !currentCollection && (
+                           {!searchQuery && featuredMovie && !["People", "Coming", "Collections", "Genres", "Franchise", "Explore"].includes(selectedCategory) && (
                                <div className="relative w-full h-[70vh] md:h-[80vh] overflow-hidden group">
                                    <div className="absolute inset-0">
                                        <img 
@@ -2896,16 +3288,30 @@ export default function App() {
                                                 mediaType={cat.mediaType} 
                                                 apiKey={apiKey} 
                                                 onMovieClick={setSelectedMovie} 
+                                                sortOption={sortOption}
+                                                selectedLanguage={selectedLanguage}
                                             />
                                        ))}
                                        <ContinueWatchingRow watchedMovies={watched} onMovieClick={setSelectedMovie} />
                                        
                                        {watched.length > 0 && (
-                                           <MovieRow title="Watch Again" movies={watched.filter(m => !m.play_progress || m.play_progress >= 95)} onMovieClick={setSelectedMovie} />
+                                            <MovieRow 
+                                                title="Watch Again" 
+                                                movies={watched.filter(m => !m.play_progress || m.play_progress >= 95)} 
+                                                onMovieClick={setSelectedMovie} 
+                                                sortOption={sortOption}
+                                                selectedLanguage={selectedLanguage}
+                                            />
                                        )}
                                        
                                        {recBaseMovie && recommendations.length > 0 && (
-                                           <MovieRow title={`Because You Watched ${recBaseMovie.title || recBaseMovie.name}`} movies={recommendations} onMovieClick={setSelectedMovie} />
+                                            <MovieRow 
+                                                title={`Because You Watched ${recBaseMovie.title || recBaseMovie.name}`} 
+                                                movies={recommendations} 
+                                                onMovieClick={setSelectedMovie} 
+                                                sortOption={sortOption}
+                                                selectedLanguage={selectedLanguage}
+                                            />
                                        )}
                                        
                                        <PopularGenresRow apiKey={apiKey} onGenreSelect={(genreName) => { resetFilters(); setSelectedCategory(genreName); }} />
@@ -2928,6 +3334,8 @@ export default function App() {
                                                    mediaType={cat.mediaType} 
                                                    apiKey={apiKey} 
                                                    onMovieClick={setSelectedMovie} 
+                                                   sortOption={sortOption}
+                                                   selectedLanguage={selectedLanguage}
                                                />
                                            );
                                        })}
@@ -2945,40 +3353,61 @@ export default function App() {
                                        </div>
                                    </div>
                                ) : (
-                                   <div className="space-y-8">
-                                       {matchingCollections.length > 0 && (
-                                           <div className="space-y-6 -mx-4 md:-mx-12">
-                                               {matchingCollections.map(cat => (
-                                                   <MovieRow 
-                                                       key={cat.id} 
-                                                       title={cat.title} 
-                                                       endpoint={cat.endpoint} 
-                                                       mediaType={cat.mediaType} 
-                                                       apiKey={apiKey} 
-                                                       onMovieClick={setSelectedMovie}
-                                                       adultOnly={cat.id === 'adult_unhinged_collection'}
-                                                   />
-                                               ))}
-                                           </div>
-                                       )}
-                                       <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-x-4 gap-y-8 animate-in fade-in duration-700">
-                                           {movies.map((movie, idx) => (
-                                               <div key={`${movie.id}-${idx}`} ref={idx === movies.length - 1 ? lastMovieElementRef : null} className="animate-in fade-in zoom-in-95 duration-500" style={{ animationDelay: `${idx * 50}ms` }}>
-                                                    {selectedCategory !== "People" ? ( 
-                                                        <MovieCard 
-                                                            movie={movie} 
-                                                            onClick={setSelectedMovie} 
-                                                            isWatched={watched.some(m => m.id === movie.id)} 
-                                                            onToggleWatched={handleToggleWatched} 
-                                                        /> 
-                                                    ) : (
-                                                        <PersonCard person={movie} onClick={(id) => setSelectedPersonId(id)} />
-                                                    )}
-                                               </div>
-                                           ))}
-                                           {loading && [...Array(12)].map((_, i) => <MovieSkeleton key={`skel-${i}`} />)}
-                                       </div>
-                                   </div>
+                                    <div className="space-y-8">
+                                        {!searchQuery && !["People", "Coming", "Collections", "Genres", "Franchise", "Explore", "Watchlist", "Favorites", "History"].includes(selectedCategory) && !tmdbCollectionId ? (
+                                            <div className="space-y-4 animate-in fade-in duration-700 -mx-4 md:-mx-12">
+                                                {getCategoryRows().map(cat => (
+                                                     <MovieRow 
+                                                         key={cat.id} 
+                                                         title={cat.title} 
+                                                         endpoint={cat.endpoint} 
+                                                         mediaType={cat.mediaType} 
+                                                         apiKey={apiKey} 
+                                                         onMovieClick={setSelectedMovie} 
+                                                         sortOption={sortOption}
+                                                         selectedLanguage={selectedLanguage}
+                                                     />
+                                                ))}
+                                            </div>
+                                        ) : (
+                                            <>
+                                                {matchingCollections.length > 0 && (
+                                                    <div className="space-y-6 -mx-4 md:-mx-12">
+                                                        {matchingCollections.map(cat => (
+                                                            <MovieRow 
+                                                                key={cat.id} 
+                                                                title={cat.title} 
+                                                                endpoint={cat.endpoint} 
+                                                                mediaType={cat.mediaType} 
+                                                                apiKey={apiKey} 
+                                                                onMovieClick={setSelectedMovie}
+                                                                adultOnly={cat.id === 'adult_unhinged_collection'}
+                                                                sortOption={sortOption}
+                                                                selectedLanguage={selectedLanguage}
+                                                            />
+                                                        ))}
+                                                    </div>
+                                                )}
+                                                <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-x-4 gap-y-8 animate-in fade-in duration-700">
+                                                    {movies.map((movie, idx) => (
+                                                        <div key={`${movie.id}-${idx}`} ref={idx === movies.length - 1 ? lastMovieElementRef : null} className="animate-in fade-in zoom-in-95 duration-500" style={{ animationDelay: `${idx * 50}ms` }}>
+                                                             {selectedCategory !== "People" ? ( 
+                                                                 <MovieCard 
+                                                                     movie={movie} 
+                                                                     onClick={setSelectedMovie} 
+                                                                     isWatched={watched.some(m => m.id === movie.id)} 
+                                                                     onToggleWatched={handleToggleWatched} 
+                                                                 /> 
+                                                             ) : (
+                                                                 <PersonCard person={movie} onClick={(id) => setSelectedPersonId(id)} />
+                                                             )}
+                                                        </div>
+                                                    ))}
+                                                    {loading && [...Array(12)].map((_, i) => <MovieSkeleton key={`skel-${i}`} />)}
+                                                </div>
+                                            </>
+                                        )}
+                                    </div>
                                )}
                                
                                {!loading && !fetchError && movies.length === 0 && ( 
