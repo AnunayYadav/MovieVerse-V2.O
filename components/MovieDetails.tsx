@@ -359,6 +359,8 @@ export const MoviePage: React.FC<MoviePageProps> = ({
 }) => {
     const resolvedMediaType = movie.media_type === 'tv' || (!movie.release_date && movie.first_air_date) ? 'tv' : 'movie';
     const onPlayStateChangeRef = useRef(onPlayStateChange);
+    const isInitialMountRef = useRef(true);
+    const tabChangedByUserRef = useRef(false);
     useEffect(() => {
         onPlayStateChangeRef.current = onPlayStateChange;
     }, [onPlayStateChange]);
@@ -415,8 +417,11 @@ export const MoviePage: React.FC<MoviePageProps> = ({
     useEffect(() => { setShowFullCast(showFullCastProp); }, [showFullCastProp]);
     useEffect(() => { setShowFullCrew(showFullCrewProp); }, [showFullCrewProp]);
 
+    // Only notify parent of tab changes that were initiated by the USER (clicking a tab),
+    // not by prop-sync or movie-fetch resets. This prevents the ping-pong loop.
     useEffect(() => {
-        if (onTabChange && activeTab !== activeTabProp) {
+        if (tabChangedByUserRef.current && onTabChange && activeTab !== activeTabProp) {
+            tabChangedByUserRef.current = false;
             onTabChange(activeTab);
         }
     }, [activeTab, onTabChange, activeTabProp]);
@@ -549,8 +554,17 @@ export const MoviePage: React.FC<MoviePageProps> = ({
             })
             .catch(() => setLoading(false));
         setTrivia("");
-        setActiveTab("overview");
-        onPlayStateChangeRef.current?.(false);
+
+        // On initial mount, RESPECT the props (initialShowPlayer, activeTabProp)
+        // so that URL-driven state like /tv/123/watch/1/3 or /tv/123/seasons works.
+        // Only reset on subsequent movie switches (e.g., clicking a similar movie).
+        if (isInitialMountRef.current) {
+            isInitialMountRef.current = false;
+        } else {
+            setActiveTab("overview");
+            onPlayStateChangeRef.current?.(false);
+        }
+
         setVideoLoaded(false); 
         setIsMuted(true); 
         setEpisodes([]);

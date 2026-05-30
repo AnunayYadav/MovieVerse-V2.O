@@ -1187,31 +1187,24 @@ export default function App() {
     const [currentUserId, setCurrentUserId] = useState<string>('');
     const [reminders, setReminders] = useState<number[]>([]);
 
-    // Synchronize modal history stack
+    // Synchronize modal history stack — ONE-WAY PUSH ONLY
+    // This effect only RECORDS state changes to the history stack.
+    // It NEVER restores selectedMovie/selectedPersonId from the stack.
+    // Back-navigation is handled exclusively by popstate → syncStateFromPath.
     useEffect(() => {
         if (isSyncingPath.current) return;
 
-        const currentTop = modalHistory[modalHistory.length - 1];
-
-        // Case 1: Both closed (both are null)
+        // Both closed — clear the history stack
         if (!selectedMovie && !selectedPersonId) {
             if (modalHistory.length > 0) {
-                const nextHistory = modalHistory.slice(0, -1);
-                setModalHistory(nextHistory);
-
-                const newTop = nextHistory[nextHistory.length - 1];
-                if (newTop) {
-                    if (newTop.type === 'movie') {
-                        setSelectedMovie(newTop.data);
-                    } else if (newTop.type === 'person') {
-                        setSelectedPersonId(newTop.data);
-                    }
-                }
+                setModalHistory([]);
             }
             return;
         }
 
-        // Case 2: User opened a movie
+        const currentTop = modalHistory[modalHistory.length - 1];
+
+        // Movie opened — push or trim to it
         if (selectedMovie && (!currentTop || currentTop.type !== 'movie' || currentTop.data.id !== selectedMovie.id)) {
             const idx = modalHistory.findIndex(x => x.type === 'movie' && x.data.id === selectedMovie.id);
             if (idx >= 0) {
@@ -1222,7 +1215,7 @@ export default function App() {
             return;
         }
 
-        // Case 3: User opened a person
+        // Person opened — push or trim to it
         if (selectedPersonId && (!currentTop || currentTop.type !== 'person' || currentTop.data !== selectedPersonId)) {
             const idx = modalHistory.findIndex(x => x.type === 'person' && x.data === selectedPersonId);
             if (idx >= 0) {
@@ -1231,15 +1224,6 @@ export default function App() {
                 setModalHistory(prev => [...prev, { type: 'person', data: selectedPersonId }]);
             }
             return;
-        }
-
-        // Case 4: One of the modals was closed manually
-        if (currentTop) {
-            if (currentTop.type === 'person' && !selectedPersonId && selectedMovie) {
-                setModalHistory(prev => prev.slice(0, -1));
-            } else if (currentTop.type === 'movie' && !selectedMovie && selectedPersonId) {
-                setModalHistory(prev => prev.slice(0, -1));
-            }
         }
     }, [selectedMovie, selectedPersonId]);
 
@@ -1306,6 +1290,8 @@ export default function App() {
     }, [watchlist, favorites, watched, selectedCategory]);
 
     const isSyncingPath = useRef(false);
+    const urlPushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const lastPushedPathRef = useRef<string>(window.location.pathname);
 
     const syncStateFromPath = useCallback(async () => {
         if (isSyncingPath.current) return;
@@ -1471,7 +1457,12 @@ export default function App() {
         setWatchSeason(season);
         setWatchEpisode(episode);
 
-        isSyncingPath.current = false;
+        // Keep isSyncingPath active across the full React batch to prevent
+        // the state→URL effect from firing before all state updates settle.
+        // setTimeout(0) runs after the current React commit phase.
+        setTimeout(() => {
+            isSyncingPath.current = false;
+        }, 0);
     }, [apiKey]);
 
     useEffect(() => {
@@ -1482,69 +1473,88 @@ export default function App() {
         }
     }, [isAuthenticated, syncStateFromPath]);
 
+    // Debounced URL sync: coalesces multiple rapid state changes into a single pushState call.
+    // This prevents URL flickering when React batches multiple setState calls.
     useEffect(() => {
         if (authChecking || !isAuthenticated) return;
         if (isSyncingPath.current) return;
 
-        let newPath = '/';
-        if (activeWatchPartyRoom) {
-            newPath = `/watch-party/${activeWatchPartyRoom}`;
-        } else if (selectedPersonId) {
-            newPath = `/person/${selectedPersonId}`;
-        } else if (selectedMovie) {
-            const type = selectedMovie.media_type === 'tv' || (!selectedMovie.release_date && selectedMovie.first_air_date) ? 'tv' : 'movie';
-            if (isWatching) {
-                if (type === 'tv') {
-                    newPath = `/tv/${selectedMovie.id}/watch/${watchSeason}/${watchEpisode}`;
-                } else {
-                    newPath = `/movie/${selectedMovie.id}/watch`;
-                }
-            } else if (showDetailsCast) {
-                newPath = `/${type}/${selectedMovie.id}/cast`;
-            } else if (showDetailsCrew) {
-                newPath = `/${type}/${selectedMovie.id}/crew`;
-            } else if (activeDetailsTab !== 'overview') {
-                newPath = `/${type}/${selectedMovie.id}/${activeDetailsTab}`;
-            } else {
-                newPath = `/${type}/${selectedMovie.id}`;
-            }
-        } else if (selectedCategory === 'Explore') {
-            newPath = '/explore';
-        } else if (selectedCategory === 'LiveTV') {
-            newPath = '/live-tv';
-        } else if (selectedCategory === 'Awards') {
-            newPath = '/browse/awards';
-        } else if (selectedCategory === 'Anime') {
-            newPath = '/browse/anime';
-        } else if (selectedCategory === 'Family') {
-            newPath = '/browse/family';
-        } else if (selectedCategory === 'TV Shows') {
-            newPath = '/browse/tv-shows';
-        } else if (selectedCategory === 'Coming') {
-            newPath = '/browse/coming';
-        } else if (selectedCategory === 'Categories') {
-            newPath = '/browse/categories';
-        } else if (selectedCategory === 'Franchise') {
-            newPath = '/browse/franchise';
-        } else if (selectedCategory === 'Watchlist') {
-            newPath = '/library/watchlist';
-        } else if (selectedCategory === 'Favorites') {
-            newPath = '/library/favorites';
-        } else if (selectedCategory === 'History') {
-            newPath = '/library/history';
-        } else if (selectedCategory === 'Deep Dive' && activeKeyword) {
-            newPath = `/keyword/${activeKeyword.id}/${encodeURIComponent(activeKeyword.name)}`;
-        } else if (selectedCategory === 'Deep Dive' && tmdbCollectionId) {
-            newPath = `/collection/${tmdbCollectionId}`;
-        } else if (selectedCategory === 'Countries' && activeCountry) {
-            newPath = `/country/${activeCountry.code}/${encodeURIComponent(activeCountry.name)}`;
-        } else if (selectedCategory === 'Collection' && currentCollection) {
-            newPath = `/custom-collection/${currentCollection}`;
+        // Cancel any pending URL push from a previous render
+        if (urlPushTimerRef.current) {
+            clearTimeout(urlPushTimerRef.current);
         }
 
-        if (window.location.pathname !== newPath) {
-            history.pushState(null, '', newPath);
-        }
+        urlPushTimerRef.current = setTimeout(() => {
+            // Re-check the guard inside the timeout — state may have been synced in the meantime
+            if (isSyncingPath.current) return;
+
+            let newPath = '/';
+            if (activeWatchPartyRoom) {
+                newPath = `/watch-party/${activeWatchPartyRoom}`;
+            } else if (selectedPersonId) {
+                newPath = `/person/${selectedPersonId}`;
+            } else if (selectedMovie) {
+                const type = selectedMovie.media_type === 'tv' || (!selectedMovie.release_date && selectedMovie.first_air_date) ? 'tv' : 'movie';
+                if (isWatching) {
+                    if (type === 'tv') {
+                        newPath = `/tv/${selectedMovie.id}/watch/${watchSeason}/${watchEpisode}`;
+                    } else {
+                        newPath = `/movie/${selectedMovie.id}/watch`;
+                    }
+                } else if (showDetailsCast) {
+                    newPath = `/${type}/${selectedMovie.id}/cast`;
+                } else if (showDetailsCrew) {
+                    newPath = `/${type}/${selectedMovie.id}/crew`;
+                } else if (activeDetailsTab !== 'overview') {
+                    newPath = `/${type}/${selectedMovie.id}/${activeDetailsTab}`;
+                } else {
+                    newPath = `/${type}/${selectedMovie.id}`;
+                }
+            } else if (selectedCategory === 'Explore') {
+                newPath = '/explore';
+            } else if (selectedCategory === 'LiveTV') {
+                newPath = '/live-tv';
+            } else if (selectedCategory === 'Awards') {
+                newPath = '/browse/awards';
+            } else if (selectedCategory === 'Anime') {
+                newPath = '/browse/anime';
+            } else if (selectedCategory === 'Family') {
+                newPath = '/browse/family';
+            } else if (selectedCategory === 'TV Shows') {
+                newPath = '/browse/tv-shows';
+            } else if (selectedCategory === 'Coming') {
+                newPath = '/browse/coming';
+            } else if (selectedCategory === 'Categories') {
+                newPath = '/browse/categories';
+            } else if (selectedCategory === 'Franchise') {
+                newPath = '/browse/franchise';
+            } else if (selectedCategory === 'Watchlist') {
+                newPath = '/library/watchlist';
+            } else if (selectedCategory === 'Favorites') {
+                newPath = '/library/favorites';
+            } else if (selectedCategory === 'History') {
+                newPath = '/library/history';
+            } else if (selectedCategory === 'Deep Dive' && activeKeyword) {
+                newPath = `/keyword/${activeKeyword.id}/${encodeURIComponent(activeKeyword.name)}`;
+            } else if (selectedCategory === 'Deep Dive' && tmdbCollectionId) {
+                newPath = `/collection/${tmdbCollectionId}`;
+            } else if (selectedCategory === 'Countries' && activeCountry) {
+                newPath = `/country/${activeCountry.code}/${encodeURIComponent(activeCountry.name)}`;
+            } else if (selectedCategory === 'Collection' && currentCollection) {
+                newPath = `/custom-collection/${currentCollection}`;
+            }
+
+            if (window.location.pathname !== newPath && lastPushedPathRef.current !== newPath) {
+                lastPushedPathRef.current = newPath;
+                history.pushState(null, '', newPath);
+            }
+        }, 0);
+
+        return () => {
+            if (urlPushTimerRef.current) {
+                clearTimeout(urlPushTimerRef.current);
+            }
+        };
     }, [selectedCategory, selectedMovie, selectedPersonId, activeWatchPartyRoom, activeKeyword, tmdbCollectionId, activeCountry, currentCollection, isWatching, watchSeason, watchEpisode, showDetailsCast, showDetailsCrew, activeDetailsTab]);
 
 
