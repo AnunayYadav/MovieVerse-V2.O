@@ -862,7 +862,10 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                 {tabs.map(tab => (
                                     <button 
                                         key={tab.id} 
-                                        onClick={() => setActiveTab(tab.id)} 
+                                        onClick={() => {
+                                            tabChangedByUserRef.current = true;
+                                            setActiveTab(tab.id);
+                                        }} 
                                         className={`px-5 py-2 rounded-full text-xs md:text-sm font-bold transition-all duration-300 whitespace-nowrap active:scale-95 border ${
                                             activeTab === tab.id 
                                                 ? 'bg-white text-black border-white shadow-md shadow-white/5' 
