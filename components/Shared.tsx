@@ -131,6 +131,64 @@ export const StarRating = ({ rating }: { rating: number | undefined }) => {
   );
 };
 
+const getMovieAgeInYears = (releaseDateStr?: string): number => {
+  if (!releaseDateStr) return 5; // Default to 5 years (classic) if date is unknown
+  try {
+    const releaseDate = new Date(releaseDateStr);
+    const currentDate = new Date();
+    const diffMs = currentDate.getTime() - releaseDate.getTime();
+    if (isNaN(diffMs) || diffMs < 0) return 0;
+    return diffMs / (1000 * 60 * 60 * 24 * 365.25);
+  } catch (e) {
+    return 5;
+  }
+};
+
+export const getMovieVerseRating = (
+  id: number,
+  voteAverage: number,
+  popularity: number = 0,
+  voteCount: number = 0,
+  releaseDate?: string
+): number => {
+  if (!voteAverage) return 0;
+  
+  // 1. Bayesian Quality Score
+  const C = 6.8; // average rating
+  const M = 1500; // confidence threshold
+  const Q = (voteCount * voteAverage + M * C) / (voteCount + M);
+  
+  // 2. Confidence Multiplier
+  const conf = 1 + 0.05 * Math.min(1, Math.log10(voteCount + 1) / 5);
+  
+  // 3. Age Stability Factor
+  const ageInYears = getMovieAgeInYears(releaseDate);
+  const age = 0.96 + 0.04 * Math.min(1, ageInYears / 5);
+  
+  // 4. Popularity Relevance
+  const pop = 1 + 0.02 * Math.min(1, Math.log10(popularity + 1) / 4);
+  
+  // Final MovieVerse platform score
+  let mvRating = Q * conf * age * pop;
+  mvRating = Math.max(1.0, Math.min(10.0, mvRating));
+  return parseFloat(mvRating.toFixed(1));
+};
+
+export const MVRatingBadge = ({ rating, size = 14 }: { rating: number | undefined, size?: number }) => {
+  if (rating === undefined || rating === null) return <span className="text-white/30 text-xs italic">NR</span>;
+  const numRating = typeof rating === 'number' ? rating : parseFloat(rating);
+  if (isNaN(numRating)) return <span className="text-white/30 text-xs italic">NR</span>;
+  
+  return (
+    <div className="flex items-center gap-1 font-sans">
+      <img src="/mvrating.png" alt="MV Rating" style={{ width: size, height: size }} className="object-contain" />
+      <span className="text-sm font-bold text-white/95">
+        {numRating.toFixed(1)}
+      </span>
+    </div>
+  );
+};
+
 const MarqueeMovieCard = ({ 
     movie, 
     onClick 
@@ -391,7 +449,7 @@ export const MovieCard = React.forwardRef<HTMLDivElement, MovieCardProps>(({ mov
                 </div>
                 <div className="flex items-center justify-between mt-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300 transform translate-y-1 group-hover:translate-y-0 transition-transform duration-300">
                   <span>{year || 'TBA'}</span>
-                  <StarRating rating={rating} />
+                  <MVRatingBadge rating={getMovieVerseRating(movie.id, movie.vote_average, movie.popularity, movie.vote_count, movie.release_date || movie.first_air_date)} size={14} />
                 </div>
              </div>
           </div>

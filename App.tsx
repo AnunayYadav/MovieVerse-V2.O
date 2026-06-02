@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Search, Film, Menu, TrendingUp, Tv, Ghost, Calendar, Star, X, Sparkles, Settings, Globe, Bookmark, Heart, Folder, Languages, Filter, ChevronDown, Info, Plus, Cloud, CloudOff, Clock, Bell, History, Users, Tag, Dice5, Crown, Radio, LayoutGrid, Award, Baby, Clapperboard, ChevronRight, PlayCircle, Play, Megaphone, CalendarDays, Compass, Home, Map, Loader2, Trophy, RefreshCcw, Check, MonitorPlay, Layers, LogOut, Download, User } from 'lucide-react';
 import { Movie, UserProfile, GENRES_MAP, GENRES_LIST, INDIAN_LANGUAGES, MaturityRating, Keyword } from './types';
-import { LogoLoader, MovieSkeleton, MovieCard, PersonCard, TMDB_BASE_URL, TMDB_BACKDROP_BASE, TMDB_IMAGE_BASE, getTmdbKey, BrandLogo } from './components/Shared';
+import { LogoLoader, MovieSkeleton, MovieCard, PersonCard, TMDB_BASE_URL, TMDB_BACKDROP_BASE, TMDB_IMAGE_BASE, getTmdbKey, BrandLogo, getMovieVerseRating } from './components/Shared';
 import { MoviePage } from './components/MovieDetails';
 import { PersonPage, NotificationModal, ComparisonModal } from './components/Modals';
 import { SettingsPage } from './components/SettingsModal';
@@ -304,9 +304,9 @@ const MovieRowCard = ({
                         {movie.release_date ? movie.release_date.split('-')[0] : (movie.first_air_date ? movie.first_air_date.split('-')[0] : '')}
                     </span>
                     {movie.vote_average > 0 && (
-                        <span className="bg-red-600/90 text-[9px] font-bold text-white px-1.5 py-0.5 rounded flex items-center gap-0.5 shadow-sm">
-                            <Star size={8} fill="currentColor" className="text-yellow-400" />
-                            {movie.vote_average.toFixed(1)}
+                        <span className="text-xs font-bold text-white/90 flex items-center gap-1">
+                            <img src="/mvrating.png" alt="MV Rating" className="w-3.5 h-3.5 object-contain" />
+                            {getMovieVerseRating(movie.id, movie.vote_average, movie.popularity, movie.vote_count, movie.release_date || movie.first_air_date).toFixed(1)}
                         </span>
                     )}
                 </div>
