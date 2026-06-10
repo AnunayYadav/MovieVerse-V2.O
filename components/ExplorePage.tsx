@@ -124,50 +124,59 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ apiKey, onMovieClick, 
             seenNames.add(normName);
             result.push(platform);
         }
-        return result.slice(0, 12);
+        return result; // Show all providers to allow endless scrolling without duplicates
     })();
 
     useEffect(() => {
         const fetchPlatforms = async () => {
             setLoadingPlatforms(true);
             const wmKey = getWatchmodeKey();
-            const targetRegion = exploreRegion === 'Global' ? (appRegion || 'US') : exploreRegion;
             try {
+                // If region is Global, fetch watch providers from multiple popular countries to represent a comprehensive global list
+                const regionsToFetch = exploreRegion === 'Global' 
+                    ? ['US', 'IN', 'JP', 'KR', 'GB', 'FR', 'DE', 'CA', 'AU', 'BR', 'MX', 'ES', 'IT']
+                    : [exploreRegion];
+
+                // Fetch watch providers for each region in parallel
+                const tmdbPromises = regionsToFetch.map(async (reg) => {
+                    try {
+                        const res = await fetch(`${TMDB_BASE_URL}/watch/providers/movie?api_key=${apiKey}&watch_region=${reg}`);
+                        if (!res.ok) throw new Error(`Status ${res.status}`);
+                        const data = await res.json();
+                        return { region: reg, results: data.results || [] };
+                    } catch (err) {
+                        console.error(`Error fetching providers for region ${reg}:`, err);
+                        return { region: reg, results: [] };
+                    }
+                });
+
+                const responses = await Promise.all(tmdbPromises);
+                
+                // For Watchmode, fetch for default appRegion or 'US'
                 let wmSources: any[] = [];
                 if (wmKey) {
-                    const wmRes = await fetch(`https://api.watchmode.com/v1/sources/?apiKey=${wmKey}&regions=${targetRegion}`);
-                    wmSources = await wmRes.json();
+                    const targetRegion = exploreRegion === 'Global' ? (appRegion || 'US') : exploreRegion;
+                    try {
+                        const wmRes = await fetch(`https://api.watchmode.com/v1/sources/?apiKey=${wmKey}&regions=${targetRegion}`);
+                        if (wmRes.ok) wmSources = await wmRes.json();
+                    } catch (e) {
+                        console.error("Watchmode fetch error:", e);
+                    }
                 }
 
-                const tmdbRes = await fetch(`${TMDB_BASE_URL}/watch/providers/movie?api_key=${apiKey}&watch_region=${targetRegion}`);
-                const tmdbData = await tmdbRes.json();
-                
-                if (tmdbData.results) {
-                    const mappedPlatforms = tmdbData.results
-                        .map((provider: Provider) => {
-                            const wmMatch = Array.isArray(wmSources) ? wmSources.find(s => 
-                                s.name?.toLowerCase().replace(/\s+/g, '') === 
-                                provider.provider_name?.toLowerCase().replace(/\s+/g, '')
-                            ) : null;
+                const seenIds = new Set<number>();
+                const seenNormNames = new Set<string>();
+                const combinedProviders: any[] = [];
 
-                            // Prefer TMDB's high-res provider logo path over Watchmode's smaller logo url
-                            return {
-                                provider_id: provider.provider_id,
-                                provider_name: provider.provider_name,
-                                logo_path: provider.logo_path ? `https://image.tmdb.org/t/p/original${provider.logo_path}` : (wmMatch?.logo_url || ""),
-                                isWM: !!wmMatch
-                            };
-                        });
+                for (const resp of responses) {
+                    const reg = resp.region;
+                    for (const provider of resp.results) {
+                        const providerId = provider.provider_id;
+                        const providerName = provider.provider_name;
+                        if (!providerName || !providerId) continue;
 
-                    // Filter out channel add-ons and duplicate brand providers
-                    const seenNames = new Set<string>();
-                    const filteredPlatforms: any[] = [];
-                    
-                    for (const provider of mappedPlatforms) {
-                        const name = provider.provider_name;
-                        const lowerName = name.toLowerCase();
-                        
-                        // Skip sub-channels and add-ons to prevent duplication
+                        const lowerName = providerName.toLowerCase();
+                        // Skip sub-channels, add-ons, and stores to keep it ultra premium and clean
                         if (
                             lowerName.includes('channel') || 
                             lowerName.includes('on prime') || 
@@ -175,12 +184,14 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ apiKey, onMovieClick, 
                             lowerName.includes('add-on') || 
                             lowerName.includes('addon') ||
                             lowerName.includes('via') ||
-                            lowerName.includes('subscription')
+                            lowerName.includes('subscription') ||
+                            lowerName.includes('store') ||
+                            lowerName.includes('freevee')
                         ) {
                             continue;
                         }
 
-                        // Normalize names to group duplicates (e.g. Amazon Video vs Amazon Prime Video)
+                        // Normalize names to group duplicates
                         let normName = lowerName
                             .replace('plus', '')
                             .replace('+', '')
@@ -189,27 +200,45 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ apiKey, onMovieClick, 
                             .trim()
                             .replace(/\s+/g, '');
 
-                        if (seenNames.has(normName)) {
+                        if (seenIds.has(providerId) || seenNormNames.has(normName)) {
+                            // Find the existing provider in the list and append this region
+                            const existing = combinedProviders.find(p => p.provider_id === providerId || p.normName === normName);
+                            if (existing && !existing.regions.includes(reg)) {
+                                existing.regions.push(reg);
+                            }
                             continue;
                         }
-                        
-                        seenNames.add(normName);
-                        filteredPlatforms.push(provider);
+
+                        seenIds.add(providerId);
+                        seenNormNames.add(normName);
+
+                        const wmMatch = Array.isArray(wmSources) ? wmSources.find(s => 
+                            s.name?.toLowerCase().replace(/\s+/g, '') === providerName.toLowerCase().replace(/\s+/g, '')
+                        ) : null;
+
+                        combinedProviders.push({
+                            provider_id: providerId,
+                            provider_name: providerName,
+                            normName: normName,
+                            logo_path: provider.logo_path ? `https://image.tmdb.org/t/p/original${provider.logo_path}` : (wmMatch?.logo_url || ""),
+                            regions: [reg],
+                            isWM: !!wmMatch
+                        });
                     }
-
-                    // Sort so popular platforms are displayed first
-                    filteredPlatforms.sort((a: any, b: any) => {
-                        const aPri = [8, 337, 119, 384, 350, 15].indexOf(a.provider_id);
-                        const bPri = [8, 337, 119, 384, 350, 15].indexOf(b.provider_id);
-                        if (aPri !== -1 && bPri !== -1) return aPri - bPri;
-                        if (aPri !== -1) return -1;
-                        if (bPri !== -1) return 1;
-                        return 0;
-                    });
-
-                    // Keep top 12 primary streaming apps
-                    setPlatforms(filteredPlatforms.slice(0, 12)); 
                 }
+
+                // Sort so popular platforms are displayed first
+                combinedProviders.sort((a: any, b: any) => {
+                    const aPri = [8, 337, 119, 384, 350, 15].indexOf(a.provider_id);
+                    const bPri = [8, 337, 119, 384, 350, 15].indexOf(b.provider_id);
+                    if (aPri !== -1 && bPri !== -1) return aPri - bPri;
+                    if (aPri !== -1) return -1;
+                    if (bPri !== -1) return 1;
+                    return 0;
+                });
+
+                // Do not slice so we show all providers (scrolling endlessly)
+                setPlatforms(combinedProviders);
             } catch (e) {
                 console.error(e);
             } finally {
@@ -259,7 +288,18 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ apiKey, onMovieClick, 
             setLoading(true);
             setOttPage(1);
             setHasMoreOtt(true);
-            const targetRegion = exploreRegion === 'Global' ? (appRegion || 'US') : exploreRegion;
+            
+            // Choose the correct region for this specific provider when exploreRegion is Global
+            let targetRegion = exploreRegion === 'Global' ? (appRegion || 'US') : exploreRegion;
+            if (exploreRegion === 'Global' && activeProvider && activeProvider.regions) {
+                const userReg = appRegion || 'US';
+                if (activeProvider.regions.includes(userReg)) {
+                    targetRegion = userReg;
+                } else if (activeProvider.regions.length > 0) {
+                    targetRegion = activeProvider.regions[0];
+                }
+            }
+
             try {
                 const url = `${TMDB_BASE_URL}/discover/movie?api_key=${apiKey}&watch_region=${targetRegion}&with_watch_providers=${activeOtt}&sort_by=popularity.desc&page=1`;
                 const response = await fetch(url);
@@ -283,7 +323,7 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ apiKey, onMovieClick, 
         return () => {
             isMounted = false;
         };
-    }, [activeOtt, apiKey, appRegion, exploreRegion]);
+    }, [activeOtt, apiKey, appRegion, exploreRegion, activeProvider]);
 
     // Debounce OTT search input
     useEffect(() => {
@@ -304,7 +344,18 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ apiKey, onMovieClick, 
         let isMounted = true;
         const searchOTT = async () => {
             setSearching(true);
-            const targetRegion = exploreRegion === 'Global' ? (appRegion || 'US') : exploreRegion;
+            
+            // Choose the correct region for this specific provider when exploreRegion is Global
+            let targetRegion = exploreRegion === 'Global' ? (appRegion || 'US') : exploreRegion;
+            if (exploreRegion === 'Global' && activeProvider && activeProvider.regions) {
+                const userReg = appRegion || 'US';
+                if (activeProvider.regions.includes(userReg)) {
+                    targetRegion = userReg;
+                } else if (activeProvider.regions.length > 0) {
+                    targetRegion = activeProvider.regions[0];
+                }
+            }
+
             try {
                 const searchUrl = `${TMDB_BASE_URL}/search/multi?api_key=${apiKey}&query=${encodeURIComponent(ottSearchQuery)}&language=en-US&page=1&include_adult=false`;
                 const searchRes = await fetch(searchUrl);
@@ -360,14 +411,25 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ apiKey, onMovieClick, 
         return () => {
             isMounted = false;
         };
-    }, [ottSearchQuery, activeOtt, apiKey, appRegion, exploreRegion]);
+    }, [ottSearchQuery, activeOtt, apiKey, appRegion, exploreRegion, activeProvider]);
 
     const loadMoreMovies = useCallback(async () => {
         if (loading || loadingMore || !hasMoreOtt || !activeOtt) return;
 
         setLoadingMore(true);
         const nextPage = ottPage + 1;
-        const targetRegion = exploreRegion === 'Global' ? (appRegion || 'US') : exploreRegion;
+        
+        // Choose the correct region for this specific provider when exploreRegion is Global
+        let targetRegion = exploreRegion === 'Global' ? (appRegion || 'US') : exploreRegion;
+        if (exploreRegion === 'Global' && activeProvider && activeProvider.regions) {
+            const userReg = appRegion || 'US';
+            if (activeProvider.regions.includes(userReg)) {
+                targetRegion = userReg;
+            } else if (activeProvider.regions.length > 0) {
+                targetRegion = activeProvider.regions[0];
+            }
+        }
+
         try {
             const url = `${TMDB_BASE_URL}/discover/movie?api_key=${apiKey}&watch_region=${targetRegion}&with_watch_providers=${activeOtt}&sort_by=popularity.desc&page=${nextPage}`;
             const response = await fetch(url);
@@ -385,7 +447,7 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ apiKey, onMovieClick, 
         } finally {
             setLoadingMore(false);
         }
-    }, [activeOtt, apiKey, appRegion, exploreRegion, hasMoreOtt, loading, loadingMore, ottPage]);
+    }, [activeOtt, apiKey, appRegion, exploreRegion, hasMoreOtt, loading, loadingMore, ottPage, activeProvider]);
 
     useEffect(() => {
         if (!activeOtt || !hasMoreOtt || loading || loadingMore) return;
