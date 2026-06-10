@@ -19,7 +19,38 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   tmdbId, onClose, mediaType, isAnime, initialSeason = 1, initialEpisode = 1, onProgress, color = 'EF4444', forceProgress
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
   const [embedUrl, setEmbedUrl] = React.useState('');
+
+  const isTV = typeof window !== 'undefined' && (
+    /Android TV|GoogleTV|AFT|Tizen|Web0S|SmartTV/i.test(navigator.userAgent) || 
+    navigator.userAgent.includes("MovieVerseTV") ||
+    (window as any).Capacitor?.platform === 'android' ||
+    window.location.search.includes("tv=true")
+  );
+
+  const focusIframe = () => {
+    if (isTV && iframeRef.current) {
+      console.log("MovieVerse TV: Focusing iframe player content");
+      try {
+        iframeRef.current.focus();
+        iframeRef.current.contentWindow?.focus();
+      } catch (e) {
+        console.warn("MovieVerse TV: Failed to focus player contentWindow", e);
+      }
+    }
+  };
+
+  const handleIframeLoad = () => {
+    focusIframe();
+  };
+
+  useEffect(() => {
+    if (embedUrl) {
+      const timer = setTimeout(focusIframe, 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [embedUrl]);
 
   const lastMediaRef = useRef<{ id: number; type: string; s?: number; e?: number } | null>(null);
   const lastAppliedProgressRef = useRef<number | undefined>(undefined);
@@ -116,6 +147,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
        {/* Close Button Overlay */}
        <div className="absolute top-0 right-0 z-[100] p-6 opacity-0 group-hover/player:opacity-100 transition-opacity duration-300 pointer-events-none">
           <button 
+            id="tv-player-close-btn"
             onClick={onClose}
             className="pointer-events-auto bg-black/40 hover:bg-red-600 text-white p-2 rounded-lg transition-all shadow-lg active:scale-95 h-10 w-10 flex items-center justify-center border border-white/10"
             title="Close Player"
@@ -127,7 +159,9 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
       <div className="flex-1 relative w-full h-full z-0 overflow-hidden bg-black">
         {embedUrl && (
           <iframe 
+              ref={iframeRef}
               src={embedUrl}
+              onLoad={handleIframeLoad}
               className="w-full h-full absolute inset-0 bg-black"
               title="Media Player"
               frameBorder="0"

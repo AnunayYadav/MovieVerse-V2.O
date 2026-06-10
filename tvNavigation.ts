@@ -1,3 +1,4 @@
+import { App } from '@capacitor/app';
 
 export function enableTVNavigation() {
   // Detect if running on TV or Capacitor Android TV app (or debugging with ?tv=true)
@@ -17,6 +18,45 @@ export function enableTVNavigation() {
 
   // Initialize auto-tabindex mapping for interactive elements
   const observer = initAutoTabIndex();
+
+  // Register native Android TV back button listener using Capacitor
+  let backButtonListener: any = null;
+  if ((window as any).Capacitor) {
+    try {
+      backButtonListener = App.addListener('backButton', () => {
+        console.log("MovieVerse TV: Native back button event intercepted");
+
+        // 1. First priority: Close video player if active
+        const playerCloseBtn = document.getElementById('tv-player-close-btn');
+        if (playerCloseBtn) {
+          console.log("MovieVerse TV: Programmatically closing media player");
+          playerCloseBtn.click();
+          return;
+        }
+
+        // 2. Second priority: Close any active modal / overlay
+        const activeContainer = getActiveContainer();
+        if (activeContainer && activeContainer !== document.body) {
+          console.log("MovieVerse TV: Programmatically closing active container modal");
+          const closeBtn = activeContainer.querySelector('button');
+          if (closeBtn) {
+            closeBtn.click();
+          } else {
+            // Fallback Escape dispatch
+            const escEvent = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true });
+            document.dispatchEvent(escEvent);
+          }
+          return;
+        }
+
+        // 3. Third priority: Exit application if on homepage
+        console.log("MovieVerse TV: No active overlays. Exiting application.");
+        App.exitApp();
+      });
+    } catch (err) {
+      console.warn("MovieVerse TV: Capacitor App plugin failed to initialize listener", err);
+    }
+  }
 
   // Listen for D-pad navigation keys
   document.addEventListener("keydown", (e) => {
@@ -138,9 +178,12 @@ export function enableTVNavigation() {
     }
   });
 
-  // Clean up observer if needed (though navigation lives for the page lifecycle)
+  // Clean up observer and listeners
   return () => {
     observer.disconnect();
+    if (backButtonListener) {
+      backButtonListener.remove();
+    }
   };
 }
 
@@ -320,10 +363,9 @@ function injectTvStyles() {
       background-color: rgba(10, 10, 10, 0.98) !important;
     }
     
-    /* Keep player close button visible on TV */
-    .tv-navigation-enabled .group\\/player > div {
-      opacity: 1 !important;
-      pointer-events: auto !important;
+    /* Hide player close button on TV as we use physical Back button instead */
+    .tv-navigation-enabled #tv-player-close-btn {
+      display: none !important;
     }
     
     /* Flatten nested scrollable containers inside fixed pages for TV D-pad navigation */
