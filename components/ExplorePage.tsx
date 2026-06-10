@@ -59,7 +59,7 @@ const getBrandCardStyle = (providerId: number) => {
     }
 };
 
-const getSubcategoriesConfig = (providerId: number) => {
+const getSubcategoriesConfig = (providerId: number, providerName: string) => {
     switch (providerId) {
         case 8: // Netflix
             return [
@@ -98,10 +98,10 @@ const getSubcategoriesConfig = (providerId: number) => {
             ];
         default: // Generalized
             return [
-                { id: 'gen_action', label: 'Action & Thrillers', genres: '28,53' },
-                { id: 'gen_comedy', label: 'Comedy Hits', genres: '35' },
-                { id: 'gen_drama', label: 'Acclaimed Dramas', genres: '18' },
-                { id: 'gen_family', label: 'Family Movies', genres: '10751' }
+                { id: 'gen_popular', label: `Popular on ${providerName}`, genres: '' },
+                { id: 'gen_action', label: `Action & Adventure on ${providerName}`, genres: '28,12' },
+                { id: 'gen_comedy', label: `Comedies on ${providerName}`, genres: '35' },
+                { id: 'gen_drama', label: `Drama Masterpieces on ${providerName}`, genres: '18' }
             ];
     }
 };
@@ -125,23 +125,14 @@ const SubcategoryRow: React.FC<SubcategoryRowProps> = ({ title, items, onMovieCl
                 {items.map((movie) => (
                     <div 
                         key={movie.id} 
-                        className="relative shrink-0 w-[110px] sm:w-[130px] md:w-[160px] cursor-pointer group" 
-                        onClick={() => onMovieClick(movie)}
+                        className="shrink-0 w-[180px] sm:w-[220px] md:w-[260px]"
                     >
-                        <div className="relative aspect-[2/3] rounded-xl overflow-hidden bg-zinc-900/60 border border-white/5 group-hover:border-white/20 transition-all duration-300 shadow-lg group-hover:scale-[1.04] group-hover:shadow-xl">
-                            <img 
-                                src={movie.poster_path ? `${TMDB_IMAGE_BASE}${movie.poster_path}` : "https://placehold.co/300x450?text=No+Poster"} 
-                                className="w-full h-full object-cover" 
-                                alt={movie.title || movie.name} 
-                                loading="lazy" 
-                            />
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-2.5">
-                                <p className="text-[10px] md:text-xs font-bold text-white line-clamp-2 leading-tight">{movie.title || movie.name}</p>
-                                <div className="flex items-center gap-1.5 mt-1 text-[8px] md:text-[9px] font-semibold text-green-400">
-                                    <span>★ {movie.vote_average ? movie.vote_average.toFixed(1) : 'NR'}</span>
-                                </div>
-                            </div>
-                        </div>
+                        <MovieCard 
+                            movie={movie} 
+                            onClick={onMovieClick} 
+                            isWatched={false} 
+                            onToggleWatched={() => {}} 
+                        />
                     </div>
                 ))}
             </div>
@@ -516,7 +507,7 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ apiKey, onMovieClick, 
         let isMounted = true;
         const fetchSubcategories = async () => {
             setLoadingSubcategories(true);
-            const config = getSubcategoriesConfig(activeOtt);
+            const config = getSubcategoriesConfig(activeOtt, activeProvider?.provider_name || 'this App');
             
             // Choose the correct region for this specific provider when exploreRegion is Global
             let targetRegion = exploreRegion === 'Global' ? (appRegion || 'US') : exploreRegion;
@@ -532,7 +523,8 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ apiKey, onMovieClick, 
             try {
                 const promises = config.map(async (cat) => {
                     try {
-                        const url = `${TMDB_BASE_URL}/discover/movie?api_key=${apiKey}&watch_region=${targetRegion}&with_watch_providers=${activeOtt}&with_genres=${cat.genres}&sort_by=popularity.desc&page=1`;
+                        const genreParam = cat.genres ? `&with_genres=${cat.genres}` : '';
+                        const url = `${TMDB_BASE_URL}/discover/movie?api_key=${apiKey}&watch_region=${targetRegion}&with_watch_providers=${activeOtt}${genreParam}&sort_by=popularity.desc&page=1`;
                         const res = await fetch(url);
                         if (!res.ok) throw new Error(`Status ${res.status}`);
                         const data = await res.json();
@@ -827,12 +819,12 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ apiKey, onMovieClick, 
                             {/* Horizontal scrollable subcategories */}
                             {loadingSubcategories ? (
                                 <div className="space-y-12 mb-12">
-                                    {getSubcategoriesConfig(activeOtt).map((cat, idx) => (
+                                    {getSubcategoriesConfig(activeOtt, activeProvider?.provider_name || 'this App').map((cat, idx) => (
                                         <div key={idx} className="mb-10">
                                             <div className="h-5 bg-white/10 rounded w-48 mb-4 animate-pulse"></div>
                                             <div className="flex gap-4 overflow-x-auto pb-4 hide-scrollbar">
                                                 {[...Array(6)].map((_, i) => (
-                                                    <div key={i} className="shrink-0 w-[110px] sm:w-[130px] md:w-[160px] aspect-[2/3] bg-white/5 rounded-xl border border-white/5 animate-pulse"></div>
+                                                    <div key={i} className="shrink-0 w-[180px] sm:w-[220px] md:w-[260px] aspect-[16/9] bg-white/5 rounded-xl border border-white/5 animate-pulse"></div>
                                                 ))}
                                             </div>
                                         </div>
@@ -840,7 +832,7 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ apiKey, onMovieClick, 
                                 </div>
                             ) : (
                                 <div className="mb-12">
-                                    {getSubcategoriesConfig(activeOtt).map(cat => (
+                                    {getSubcategoriesConfig(activeOtt, activeProvider?.provider_name || 'this App').map(cat => (
                                         <SubcategoryRow 
                                             key={cat.id} 
                                             title={cat.label} 
