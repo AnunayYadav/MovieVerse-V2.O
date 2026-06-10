@@ -3304,12 +3304,11 @@ export default function App() {
                         <div className="space-y-1 pt-4">
                             <p className="px-3 text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Apps</p>
                             <a
-                                href="https://median.co/share/eeewoqx#apk"
-                                target="_blank"
-                                rel="noopener noreferrer"
+                                href="/movieverse-tv.apk"
+                                download="movieverse-tv.apk"
                                 className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold text-amber-500 hover:bg-amber-500/10 transition-all border border-amber-500/10 hover:translate-x-1 duration-300"
                             >
-                                <Download size={18} /> Download App
+                                <Download size={18} /> Download TV APK
                             </a>
                         </div>
                     </div>
