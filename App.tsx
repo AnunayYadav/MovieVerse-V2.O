@@ -3464,14 +3464,21 @@ export default function App() {
                                 </button>
                             </div>
 
-                            <div className="space-y-1 pt-4">
-                                <p className="px-3 text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Apps</p>
+                            <div className="space-y-2 pt-4">
+                                <p className="px-3 text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">Apps</p>
                                 <a
                                     href={updateInfo ? `/movieverse-tv-v${updateInfo.version}.apk` : "/movieverse-tv-v1.0.2.apk"}
                                     download={updateInfo ? `movieverse-tv-v${updateInfo.version}.apk` : "movieverse-tv-v1.0.2.apk"}
-                                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold text-amber-500 hover:bg-amber-500/10 transition-all border border-amber-500/10 hover:translate-x-1 duration-300"
+                                    className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-bold text-amber-500 hover:bg-amber-500/10 transition-all border border-amber-500/10 hover:translate-x-1 duration-300"
                                 >
-                                    <Download size={18} /> Download TV APK
+                                    <Download size={16} /> Download TV APK (Classic)
+                                </a>
+                                <a
+                                    href="/movieverse-tv-native.apk"
+                                    download="movieverse-tv-native.apk"
+                                    className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-bold text-red-500 hover:bg-red-500/10 transition-all border border-red-500/10 hover:translate-x-1 duration-300"
+                                >
+                                    <Download size={16} /> Download TV APK (Native)
                                 </a>
                             </div>
                         </div>
