@@ -59,6 +59,96 @@ const getBrandCardStyle = (providerId: number) => {
     }
 };
 
+const getSubcategoriesConfig = (providerId: number) => {
+    switch (providerId) {
+        case 8: // Netflix
+            return [
+                { id: 'netflix_action', label: 'Action & Thrillers', genres: '28,53' },
+                { id: 'netflix_drama', label: 'Drama Masterpieces', genres: '18' },
+                { id: 'netflix_comedy', label: 'Comedy & Romance', genres: '35,10749' },
+                { id: 'netflix_scifi', label: 'Sci-Fi & Fantasy', genres: '878,14' }
+            ];
+        case 337: // Disney+
+            return [
+                { id: 'disney_animation', label: 'Disney & Pixar Animation', genres: '16' },
+                { id: 'disney_adventure', label: 'Action & Adventure', genres: '28,12' },
+                { id: 'disney_scifi', label: 'Star Wars & Sci-Fi', genres: '878' },
+                { id: 'disney_family', label: 'Family Classics', genres: '10751' }
+            ];
+        case 119: // Prime Video
+            return [
+                { id: 'prime_action', label: 'Action Blockbusters', genres: '28,12' },
+                { id: 'prime_drama', label: 'Award-Winning Dramas', genres: '18' },
+                { id: 'prime_scifi', label: 'Sci-Fi & Thrillers', genres: '878,53' },
+                { id: 'prime_family', label: 'Family Movie Night', genres: '10751' }
+            ];
+        case 384: // Max
+            return [
+                { id: 'max_dc', label: 'DC & Action Hits', genres: '28' },
+                { id: 'max_drama', label: 'HBO & Max Drama Masterpieces', genres: '18' },
+                { id: 'max_mystery', label: 'Mystery & Crime', genres: '80,9648' },
+                { id: 'max_comedy', label: 'Comedies & Variety', genres: '35' }
+            ];
+        case 350: // Apple TV+
+            return [
+                { id: 'apple_drama', label: 'Acclaimed Dramas', genres: '18' },
+                { id: 'apple_scifi', label: 'Sci-Fi & Thrillers', genres: '878,53' },
+                { id: 'apple_comedy', label: 'Comedies', genres: '35' },
+                { id: 'apple_docs', label: 'Documentaries', genres: '99' }
+            ];
+        default: // Generalized
+            return [
+                { id: 'gen_action', label: 'Action & Thrillers', genres: '28,53' },
+                { id: 'gen_comedy', label: 'Comedy Hits', genres: '35' },
+                { id: 'gen_drama', label: 'Acclaimed Dramas', genres: '18' },
+                { id: 'gen_family', label: 'Family Movies', genres: '10751' }
+            ];
+    }
+};
+
+interface SubcategoryRowProps {
+    title: string;
+    items: Movie[];
+    onMovieClick: (m: Movie) => void;
+}
+
+const SubcategoryRow: React.FC<SubcategoryRowProps> = ({ title, items, onMovieClick }) => {
+    if (!items || items.length === 0) return null;
+    return (
+        <div className="mb-10">
+            <div className="flex items-center justify-between mb-4">
+                <h4 className="text-sm md:text-base font-bold tracking-tight text-white/90">
+                    {title}
+                </h4>
+            </div>
+            <div className="flex gap-4 overflow-x-auto pb-4 pt-1 hide-scrollbar -mx-4 px-4 md:-mx-8 md:px-8">
+                {items.map((movie) => (
+                    <div 
+                        key={movie.id} 
+                        className="relative shrink-0 w-[110px] sm:w-[130px] md:w-[160px] cursor-pointer group" 
+                        onClick={() => onMovieClick(movie)}
+                    >
+                        <div className="relative aspect-[2/3] rounded-xl overflow-hidden bg-zinc-900/60 border border-white/5 group-hover:border-white/20 transition-all duration-300 shadow-lg group-hover:scale-[1.04] group-hover:shadow-xl">
+                            <img 
+                                src={movie.poster_path ? `${TMDB_IMAGE_BASE}${movie.poster_path}` : "https://placehold.co/300x450?text=No+Poster"} 
+                                className="w-full h-full object-cover" 
+                                alt={movie.title || movie.name} 
+                                loading="lazy" 
+                            />
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-2.5">
+                                <p className="text-[10px] md:text-xs font-bold text-white line-clamp-2 leading-tight">{movie.title || movie.name}</p>
+                                <div className="flex items-center gap-1.5 mt-1 text-[8px] md:text-[9px] font-semibold text-green-400">
+                                    <span>★ {movie.vote_average ? movie.vote_average.toFixed(1) : 'NR'}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+};
+
 export const ExplorePage: React.FC<ExplorePageProps> = ({ apiKey, onMovieClick, userProfile, appRegion = "US", searchQuery, setSearchQuery }) => {
     const [exploreRegion, setExploreRegion] = useState("Global");
     const [topMovies, setTopMovies] = useState<Movie[]>([]);
@@ -77,6 +167,9 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ apiKey, onMovieClick, 
     const [ottSearchQuery, setOttSearchQuery] = useState("");
     const [ottSearchResults, setOttSearchResults] = useState<Movie[]>([]);
     const [searching, setSearching] = useState(false);
+
+    const [subcategoriesData, setSubcategoriesData] = useState<Record<string, Movie[]>>({});
+    const [loadingSubcategories, setLoadingSubcategories] = useState(false);
 
     const sentinelRef = useRef<HTMLDivElement | null>(null);
 
@@ -413,6 +506,68 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ apiKey, onMovieClick, 
         };
     }, [ottSearchQuery, activeOtt, apiKey, appRegion, exploreRegion, activeProvider]);
 
+    // Fetch subcategories for active OTT
+    useEffect(() => {
+        if (!activeOtt) {
+            setSubcategoriesData({});
+            return;
+        }
+
+        let isMounted = true;
+        const fetchSubcategories = async () => {
+            setLoadingSubcategories(true);
+            const config = getSubcategoriesConfig(activeOtt);
+            
+            // Choose the correct region for this specific provider when exploreRegion is Global
+            let targetRegion = exploreRegion === 'Global' ? (appRegion || 'US') : exploreRegion;
+            if (exploreRegion === 'Global' && activeProvider && activeProvider.regions) {
+                const userReg = appRegion || 'US';
+                if (activeProvider.regions.includes(userReg)) {
+                    targetRegion = userReg;
+                } else if (activeProvider.regions.length > 0) {
+                    targetRegion = activeProvider.regions[0];
+                }
+            }
+
+            try {
+                const promises = config.map(async (cat) => {
+                    try {
+                        const url = `${TMDB_BASE_URL}/discover/movie?api_key=${apiKey}&watch_region=${targetRegion}&with_watch_providers=${activeOtt}&with_genres=${cat.genres}&sort_by=popularity.desc&page=1`;
+                        const res = await fetch(url);
+                        if (!res.ok) throw new Error(`Status ${res.status}`);
+                        const data = await res.json();
+                        return { id: cat.id, label: cat.label, movies: data.results || [] };
+                    } catch (err) {
+                        console.error(`Error fetching category ${cat.label}:`, err);
+                        return { id: cat.id, label: cat.label, movies: [] };
+                    }
+                });
+
+                const results = await Promise.all(promises);
+                const newData: Record<string, Movie[]> = {};
+                results.forEach(res => {
+                    newData[res.id] = res.movies;
+                });
+                
+                if (isMounted) {
+                    setSubcategoriesData(newData);
+                }
+            } catch (err) {
+                console.error("Error fetching subcategories:", err);
+            } finally {
+                if (isMounted) {
+                    setLoadingSubcategories(false);
+                }
+            }
+        };
+
+        fetchSubcategories();
+
+        return () => {
+            isMounted = false;
+        };
+    }, [activeOtt, apiKey, appRegion, exploreRegion, activeProvider]);
+
     const loadMoreMovies = useCallback(async () => {
         if (loading || loadingMore || !hasMoreOtt || !activeOtt) return;
 
@@ -668,6 +823,33 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ apiKey, onMovieClick, 
                         ) : null}
 
                         <div className="max-w-7xl mx-auto px-4 md:px-8 pb-28 md:pb-16 pt-8">
+
+                            {/* Horizontal scrollable subcategories */}
+                            {loadingSubcategories ? (
+                                <div className="space-y-12 mb-12">
+                                    {getSubcategoriesConfig(activeOtt).map((cat, idx) => (
+                                        <div key={idx} className="mb-10">
+                                            <div className="h-5 bg-white/10 rounded w-48 mb-4 animate-pulse"></div>
+                                            <div className="flex gap-4 overflow-x-auto pb-4 hide-scrollbar">
+                                                {[...Array(6)].map((_, i) => (
+                                                    <div key={i} className="shrink-0 w-[110px] sm:w-[130px] md:w-[160px] aspect-[2/3] bg-white/5 rounded-xl border border-white/5 animate-pulse"></div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className="mb-12">
+                                    {getSubcategoriesConfig(activeOtt).map(cat => (
+                                        <SubcategoryRow 
+                                            key={cat.id} 
+                                            title={cat.label} 
+                                            items={subcategoriesData[cat.id] || []} 
+                                            onMovieClick={onMovieClick}
+                                        />
+                                    ))}
+                                </div>
+                            )}
 
                             <div className="flex items-center justify-between mb-8">
                                 <h4 className="text-base md:text-lg font-bold tracking-tight text-white">Top Picks for You</h4>
