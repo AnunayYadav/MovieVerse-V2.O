@@ -1,6 +1,9 @@
 import { App } from '@capacitor/app';
+import { init, useFocusable } from '@noriginmedia/norigin-spatial-navigation';
+import React, { useEffect } from 'react';
 
 let cleanupTvNavigation: (() => void) | null = null;
+let noriginInitialized = false;
 
 export function enableTVNavigation() {
   const checkTV = () => {
@@ -34,14 +37,20 @@ export function enableTVNavigation() {
 }
 
 function enableTVNavigationActual() {
-  console.log("MovieVerse AI: Spatial TV navigation enabled");
+  console.log("MovieVerse AI: Norigin Spatial TV navigation enabled");
+
+  // Initialize Norigin Spatial Navigation library
+  if (!noriginInitialized) {
+    init({
+      debug: false,
+      visualDebug: false,
+    });
+    noriginInitialized = true;
+  }
 
   // Add navigation helper classes and custom focus CSS
   document.body.classList.add("tv-navigation-enabled");
   injectTvStyles();
-
-  // Initialize auto-tabindex mapping for interactive elements
-  const observer = initAutoTabIndex();
 
   // Register native Android TV back button listener using Capacitor
   let backButtonListener: any = null;
@@ -82,12 +91,8 @@ function enableTVNavigationActual() {
     }
   }
 
-  // Listen for D-pad navigation keys
-  const keyListener = (e: KeyboardEvent) => {
-    const keys = ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Enter", "Backspace", "Escape"];
-    if (!keys.includes(e.key)) return;
-
-    // Handle Android TV Back Button (Backspace / Escape)
+  // Listen for BACK keys (Backspace / Escape) to close modals/sidebars
+  const backKeyListener = (e: KeyboardEvent) => {
     if (e.key === "Backspace" || e.key === "Escape") {
       const active = document.activeElement as HTMLElement;
       const isTyping = active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA');
@@ -96,133 +101,87 @@ function enableTVNavigationActual() {
         // Dispatch standard Escape key event to close active modals/sidebars
         const escEvent = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true });
         document.dispatchEvent(escEvent);
-        return;
       }
-      return;
-    }
-
-    // Identify the active modal/view container to isolate navigation
-    const activeContainer = getActiveContainer();
-
-    // Query focusable elements within the active container
-    const focusable = Array.from(
-      activeContainer.querySelectorAll<HTMLElement>(
-        'a, button, input, textarea, select, iframe, [tabindex="0"], .cursor-pointer'
-      )
-    ).filter(el => {
-      const rect = el.getBoundingClientRect();
-      const style = getComputedStyle(el);
-
-      // Prevent focus from leaking into closed/translated sidebar or invisible elements
-      if (el.closest('.translate-x-full, .-translate-x-full, .invisible, .opacity-0')) {
-        return false;
-      }
-
-      if (style.pointerEvents === 'none') {
-        return false;
-      }
-
-      return (
-        rect.width > 0 &&
-        rect.height > 0 &&
-        style.visibility !== 'hidden' &&
-        style.display !== 'none' &&
-        style.opacity !== '0'
-      );
-    });
-
-    const active = document.activeElement as HTMLElement;
-    
-    // If no element in the active container is focused, focus the first one
-    if (!active || !activeContainer.contains(active) || active === document.body) {
-      if (focusable.length > 0) {
-        focusable[0].focus();
-        smartScrollIntoView(focusable[0]);
-      }
-      return;
-    }
-
-    // Enter Key -> Click focused element (or focus iframe content)
-    if (e.key === "Enter") {
-      const isTyping = active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA');
-      if (!isTyping) {
-        e.preventDefault();
-        if (active.tagName === 'IFRAME') {
-          try {
-            (active as HTMLIFrameElement).focus();
-            (active as HTMLIFrameElement).contentWindow?.focus();
-          } catch(err) {}
-        } else {
-          active.click();
-        }
-      }
-      return;
-    }
-
-    // Spatial Navigation Algorithm
-    e.preventDefault();
-    const activeRect = active.getBoundingClientRect();
-    const activeCenter = {
-      x: activeRect.left + activeRect.width / 2,
-      y: activeRect.top + activeRect.height / 2
-    };
-
-    let bestElement: HTMLElement | null = null;
-    let minDistance = Infinity;
-
-    focusable.forEach(el => {
-      if (el === active) return;
-      const rect = el.getBoundingClientRect();
-      const center = {
-        x: rect.left + rect.width / 2,
-        y: rect.top + rect.height / 2
-      };
-
-      const dx = center.x - activeCenter.x;
-      const dy = center.y - activeCenter.y;
-
-      // Verify direction bounds
-      let isCorrectDirection = false;
-      if (e.key === "ArrowUp") isCorrectDirection = dy < -5;
-      if (e.key === "ArrowDown") isCorrectDirection = dy > 5;
-      if (e.key === "ArrowLeft") isCorrectDirection = dx < -5;
-      if (e.key === "ArrowRight") isCorrectDirection = dx > 5;
-
-      if (isCorrectDirection) {
-        // Weight non-primary axes to prefer direct alignment
-        const isVertical = e.key === "ArrowUp" || e.key === "ArrowDown";
-        const weightX = isVertical ? 4 : 1;
-        const weightY = isVertical ? 1 : 4;
-
-        const distance = Math.sqrt(
-          Math.pow(dx, 2) * weightX +
-          Math.pow(dy, 2) * weightY
-        );
-
-        if (distance < minDistance) {
-          minDistance = distance;
-          bestElement = el;
-        }
-      }
-    });
-
-    if (bestElement) {
-      (bestElement as HTMLElement).focus();
-      smartScrollIntoView(bestElement);
     }
   };
 
-  document.addEventListener("keydown", keyListener);
+  document.addEventListener("keydown", backKeyListener);
 
-  // Clean up observer and listeners
+  // Clean up listeners
   return () => {
-    observer.disconnect();
-    document.removeEventListener("keydown", keyListener);
+    document.removeEventListener("keydown", backKeyListener);
     if (backButtonListener) {
       backButtonListener.remove();
     }
   };
 }
+
+/**
+ * Custom React hook wrapping useFocusable from Norigin Spatial Navigation.
+ * Automatically triggers smartScrollIntoView and toggles tv-focused class list and input focus.
+ */
+export function useTvFocus(config?: any) {
+  const isTvMode = typeof document !== 'undefined' && document.body.classList.contains("tv-navigation-enabled");
+
+  const { ref, focused, focusSelf, ...rest } = useFocusable({
+    ...config,
+    focusable: isTvMode && (config?.focusable !== false),
+    onFocus: (layout, props) => {
+      if (isTvMode && ref.current) {
+        smartScrollIntoView(ref.current);
+      }
+      if (config?.onFocus) {
+        config.onFocus(layout, props);
+      }
+    }
+  });
+
+  // Manage tv-focused class and native focus for input elements without forcing repeatedly
+  useEffect(() => {
+    if (!isTvMode || !ref.current) return;
+    if (focused) {
+      ref.current.classList.add('tv-focused');
+      if (ref.current.tagName === 'INPUT') {
+        ref.current.focus();
+      }
+    } else {
+      ref.current.classList.remove('tv-focused');
+    }
+  }, [focused, isTvMode]);
+
+  return { ref, focused, focusSelf, ...rest };
+}
+
+export function TvFocusButton({ children, onClick, className, ...props }: any) {
+  const { ref } = useTvFocus({
+    onEnterPress: onClick
+  });
+  return React.createElement('button', { ref, onClick, className, ...props }, children);
+}
+
+export const TvFocusInput = React.forwardRef((props: any, ref: any) => {
+  const { ref: focusRef } = useTvFocus({
+    onEnterPress: () => {
+      if (props.onSubmit) {
+        props.onSubmit();
+      }
+    }
+  });
+
+  const combinedRef = (node: any) => {
+    focusRef.current = node;
+    if (typeof ref === 'function') {
+      ref(node);
+    } else if (ref) {
+      ref.current = node;
+    }
+  };
+
+  const inputProps = { ...props, ref: combinedRef };
+  delete inputProps.onSubmit;
+
+  return React.createElement('input', inputProps);
+});
 
 /**
  * Finds the top-most visible modal container or sidebar to trap focus.
@@ -270,97 +229,67 @@ function getActiveContainer(): HTMLElement {
 }
 
 /**
- * Dynamically maps tabindex="0" to all interactive elements on render.
+ * Optimized row-based and viewport-relative scrolling helper.
+ * Uses fast layout offset lookups and edge detection (only scrolls near boundaries).
  */
-function initAutoTabIndex(): MutationObserver {
-  const assignTabIndex = (element: HTMLElement) => {
-    const isInteractive = 
-      element.tagName === 'A' ||
-      element.tagName === 'BUTTON' ||
-      element.tagName === 'INPUT' ||
-      element.tagName === 'TEXTAREA' ||
-      element.tagName === 'SELECT' ||
-      element.tagName === 'IFRAME' ||
-      element.classList.contains('cursor-pointer') ||
-      element.hasAttribute('onClick') ||
-      element.getAttribute('role') === 'button';
-
-    if (isInteractive && !element.hasAttribute('tabindex')) {
-      element.setAttribute('tabindex', '0');
-    }
-  };
-
-  // Run on load
-  document.querySelectorAll<HTMLElement>('*').forEach(assignTabIndex);
-
-  // Monitor DOM modifications for dynamically loaded React nodes
-  const observer = new MutationObserver((mutations) => {
-    mutations.forEach(mutation => {
-      mutation.addedNodes.forEach(node => {
-        if (node instanceof HTMLElement) {
-          assignTabIndex(node);
-          node.querySelectorAll<HTMLElement>('*').forEach(assignTabIndex);
-        }
-      });
-    });
-  });
-
-  observer.observe(document.body, { childList: true, subtree: true });
-  return observer;
-}
-
-/**
- * Center the focused element instantly. Using instant scrolling (auto) on TV
- * eliminates rendering lag and frame stutters on low-power TV chipsets.
- */
-function smartScrollIntoView(element: HTMLElement) {
+export function smartScrollIntoView(element: HTMLElement) {
   let parent = element.parentElement;
-  let isFixed = false;
+  let depth = 0;
+  
+  while (parent && depth < 4) {
+    const isScrollContainer = 
+      parent.classList.contains('overflow-x-auto') || 
+      parent.classList.contains('overflow-y-auto') || 
+      parent.classList.contains('hide-scrollbar') ||
+      parent.tagName === 'MAIN' ||
+      parent.id === 'root';
 
-  while (parent) {
-    const style = getComputedStyle(parent);
-    if (style.position === 'fixed') {
-      isFixed = true;
-    }
-
-    const isScrollableX = parent.scrollWidth > parent.clientWidth && (style.overflowX === 'auto' || style.overflowX === 'scroll');
-    const isScrollableY = parent.scrollHeight > parent.clientHeight && (style.overflowY === 'auto' || style.overflowY === 'scroll');
-
-    if (isScrollableX || isScrollableY) {
-      const parentRect = parent.getBoundingClientRect();
-      const elRect = element.getBoundingClientRect();
-
-      if (isScrollableX) {
-        const targetScrollLeft = parent.scrollLeft + (elRect.left - parentRect.left) - (parentRect.width / 2) + (elRect.width / 2);
-        parent.scrollTo({ left: targetScrollLeft, behavior: 'auto' });
+    if (isScrollContainer) {
+      const parentWidth = parent.clientWidth;
+      const parentHeight = parent.clientHeight;
+      
+      const elLeft = element.offsetLeft;
+      const elWidth = element.offsetWidth;
+      const parentScrollLeft = parent.scrollLeft;
+      
+      // Horizontal scrolling with 120px edge-detection padding
+      const paddingX = 120;
+      if (elLeft < parentScrollLeft + paddingX) {
+        parent.scrollTo({ left: Math.max(0, elLeft - paddingX), behavior: 'auto' });
+      } else if ((elLeft + elWidth) > (parentScrollLeft + parentWidth - paddingX)) {
+        parent.scrollTo({ left: elLeft + elWidth - parentWidth + paddingX, behavior: 'auto' });
       }
 
-      if (isScrollableY) {
-        const targetScrollTop = parent.scrollTop + (elRect.top - parentRect.top) - (parentRect.height / 2) + (elRect.height / 2);
-        parent.scrollTo({ top: targetScrollTop, behavior: 'auto' });
+      // Vertical scrolling with 80px edge-detection padding
+      const paddingY = 80;
+      const elTop = element.offsetTop;
+      const elHeight = element.offsetHeight;
+      const parentScrollTop = parent.scrollTop;
+      
+      if (elTop < parentScrollTop + paddingY) {
+        parent.scrollTo({ top: Math.max(0, elTop - paddingY), behavior: 'auto' });
+      } else if ((elTop + elHeight) > (parentScrollTop + parentHeight - paddingY)) {
+        parent.scrollTo({ top: elTop + elHeight - parentHeight + paddingY, behavior: 'auto' });
       }
-    }
-
-    if (parent === document.body || parent === document.documentElement) {
       break;
     }
+    
     parent = parent.parentElement;
+    depth++;
   }
 
-  // Only scroll the window/body if the element is not inside a fixed overlay container
-  if (!isFixed) {
-    const rect = element.getBoundingClientRect();
-    const isInViewport = rect.top >= 50 && rect.bottom <= window.innerHeight - 50;
-    if (!isInViewport) {
-      const currentScrollTop = window.scrollY || window.pageYOffset || 0;
-      const targetScrollTop = currentScrollTop + rect.top - (window.innerHeight / 2) + (rect.height / 2);
-      window.scrollTo({ top: targetScrollTop, behavior: 'auto' });
-    }
+  // Scroll window if the element is out of the screen's vertical viewport bounds
+  const elRect = element.getBoundingClientRect();
+  const isInViewport = elRect.top >= 80 && elRect.bottom <= window.innerHeight - 80;
+  if (!isInViewport) {
+    const currentScrollTop = window.scrollY || window.pageYOffset || 0;
+    const targetScrollTop = currentScrollTop + elRect.top - (window.innerHeight / 2) + (elRect.height / 2);
+    window.scrollTo({ top: targetScrollTop, behavior: 'auto' });
   }
 }
 
 /**
- * Injects premium focus outlines and global transition-disabling styles.
+ * Injects high-performance focus outlines, containment rules, and specific disables.
  */
 function injectTvStyles() {
   const styleId = "tv-navigation-custom-styles";
@@ -369,31 +298,55 @@ function injectTvStyles() {
   const styleEl = document.createElement("style");
   styleEl.id = styleId;
   styleEl.innerHTML = `
-    /* Disable performance-heavy transition animations globally on TV to eliminate remote input lag */
-    .tv-navigation-enabled * {
+    /* Disable transitions only on interactive elements to prevent lag */
+    .tv-navigation-enabled .tv-focused,
+    .tv-navigation-enabled button,
+    .tv-navigation-enabled a,
+    .tv-navigation-enabled input,
+    .tv-navigation-enabled [role="button"],
+    .tv-navigation-enabled .movie-card {
       transition: none !important;
       animation-duration: 0s !important;
       animation-delay: 0s !important;
     }
 
-    /* Snappy TV remote focus style - solid high-contrast white outline and immediate scale-up */
-    .tv-navigation-enabled :focus {
-      outline: 2.5px solid #ffffff !important;
-      outline-offset: 2px !important;
-      transform: scale(1.04) !important;
+    /* CSS Containment and hardware acceleration for cards and focused items */
+    .tv-navigation-enabled .movie-card,
+    .tv-navigation-enabled .tv-focused {
+      contain: layout paint !important;
+      will-change: transform !important;
+    }
+
+    /* Snappy TV remote focus style using tv-focused class with subtle scale */
+    .tv-navigation-enabled .tv-focused {
+      outline: 3.5px solid #ffffff !important;
+      outline-offset: 2.5px !important;
+      transform: scale(1.02) !important;
       box-shadow: none !important;
       z-index: 9999 !important;
     }
     
-    /* Focused interactive items get a soft translucent background if they don't have a solid white bg */
-    .tv-navigation-enabled button:focus:not(.bg-white),
-    .tv-navigation-enabled a:focus:not(.bg-white),
-    .tv-navigation-enabled .cursor-pointer:focus:not(.bg-white) {
+    /* Disable performance-heavy box-shadows, text-shadows, and filters globally on TV */
+    .tv-navigation-enabled *,
+    .tv-navigation-enabled .shadow-2xl,
+    .tv-navigation-enabled .shadow-xl,
+    .tv-navigation-enabled .shadow-lg,
+    .tv-navigation-enabled .shadow-md,
+    .tv-navigation-enabled .shadow {
+      box-shadow: none !important;
+      text-shadow: none !important;
+      filter: none !important;
+    }
+    
+    /* Focused interactive items get a soft translucent background */
+    .tv-navigation-enabled button.tv-focused:not(.bg-white),
+    .tv-navigation-enabled a.tv-focused:not(.bg-white),
+    .tv-navigation-enabled .cursor-pointer.tv-focused:not(.bg-white) {
       background-color: rgba(255, 255, 255, 0.18) !important;
       color: #ffffff !important;
     }
     
-    /* Disable performance-heavy backdrop blur filters on TV to resolve lagging issues */
+    /* Disable performance-heavy backdrop blur filters on TV */
     .tv-navigation-enabled .backdrop-blur-md,
     .tv-navigation-enabled .backdrop-blur-lg,
     .tv-navigation-enabled .backdrop-blur-xl,

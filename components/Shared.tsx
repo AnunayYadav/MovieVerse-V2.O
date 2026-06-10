@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { Film, Star, Eye, Download, X, Check, ArrowLeft } from 'lucide-react';
 import { Movie } from '../types';
+import { useTvFocus } from '../tvNavigation';
 
 const isTVApp = 
   typeof window !== 'undefined' && (
@@ -13,9 +14,46 @@ const isTVApp =
 
 // Point to the hosted Vercel deployment of the proxy to prevent buffering/throttling inside India
 export const TMDB_BASE_URL = isTVApp ? "https://movieverseofficial.vercel.app/api/tmdb" : "/api/tmdb";
-export const TMDB_IMAGE_BASE = "https://image.tmdb.org/t/p/w500";
-// Optimized from 'original' to 'w1280' for better performance and lower bandwidth
-export const TMDB_BACKDROP_BASE = "https://image.tmdb.org/t/p/w1280";
+export const TMDB_IMAGE_BASE = isTVApp 
+    ? "https://image.tmdb.org/t/p/w342" 
+    : "https://image.tmdb.org/t/p/w500";
+
+export const TMDB_BACKDROP_BASE = isTVApp 
+    ? "https://image.tmdb.org/t/p/w780" 
+    : "https://image.tmdb.org/t/p/w1280";
+
+// Standard, high-performance in-memory cache for fetch requests
+const fetchCache = new Map<string, any>();
+export async function cachedFetch(url: string) {
+    if (fetchCache.has(url)) {
+        return fetchCache.get(url);
+    }
+    const response = await fetch(url);
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    const data = await response.json();
+    fetchCache.set(url, data);
+    return data;
+}
+
+const originalFetch = typeof window !== 'undefined' ? window.fetch : null;
+export const tvFetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+    const urlStr = typeof input === 'string' ? input : (input instanceof URL ? input.href : input.url);
+    const isTvMode = typeof document !== 'undefined' && document.body.classList.contains("tv-navigation-enabled");
+    if (isTvMode && originalFetch && urlStr.includes('/api/tmdb') && (!init || !init.method || init.method.toUpperCase() === 'GET')) {
+        try {
+            const data = await cachedFetch(urlStr);
+            return {
+                ok: true,
+                status: 200,
+                json: async () => data,
+                text: async () => JSON.stringify(data),
+            } as any;
+        } catch (e) {
+            console.error("tvFetch: cachedFetch failed, falling back to original fetch:", e);
+        }
+    }
+    return originalFetch ? originalFetch(input, init) : fetch(input, init);
+};
 
 // --- CENTRALIZED CONFIGURATION ---
 
@@ -360,11 +398,24 @@ interface MovieCardProps {
     onToggleWatched: (m: Movie) => void;
 }
 
-export const MovieCard = React.forwardRef<HTMLDivElement, MovieCardProps>(({ movie, onClick, isWatched, onToggleWatched }, ref) => {
+export const MovieCard = React.memo(React.forwardRef<HTMLDivElement, MovieCardProps>(({ movie, onClick, isWatched, onToggleWatched }, ref) => {
     if (!movie) return null;
   
     const [logoUrl, setLogoUrl] = useState<string | null>(null);
     const [logoLoading, setLogoLoading] = useState(true);
+
+    const { ref: focusRef } = useTvFocus({
+        onEnterPress: () => onClick(movie)
+    });
+
+    const combinedRef = (node: HTMLDivElement | null) => {
+        focusRef.current = node;
+        if (typeof ref === 'function') {
+            ref(node);
+        } else if (ref) {
+            (ref as any).current = node;
+        }
+    };
 
     React.useEffect(() => {
         if (isTVApp) {
@@ -416,7 +467,7 @@ export const MovieCard = React.forwardRef<HTMLDivElement, MovieCardProps>(({ mov
   
     return (
       <div 
-        ref={ref}
+        ref={combinedRef}
         className="group relative rounded-xl overflow-hidden cursor-pointer transition-all duration-500 ease-[cubic-bezier(0.33,1,0.68,1)] hover:z-20 hover:scale-[1.03] hover:shadow-[0_10px_40px_rgba(0,0,0,0.5)] font-sans"
         onClick={() => onClick(movie)}
       >
@@ -425,6 +476,7 @@ export const MovieCard = React.forwardRef<HTMLDivElement, MovieCardProps>(({ mov
             src={backdropUrl} 
             alt={movie.title || movie.name || "Movie Poster"} 
             loading="lazy"
+            decoding="async"
             className="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-105"
           />
           
@@ -480,15 +532,28 @@ export const MovieCard = React.forwardRef<HTMLDivElement, MovieCardProps>(({ mov
         </div>
       </div>
     );
-});
+}));
 
 interface PersonCardProps {
     person: Movie; 
     onClick: (p: any) => void;
 }
 
-export const PersonCard = React.forwardRef<HTMLDivElement, PersonCardProps>(({ person, onClick }, ref) => {
+export const PersonCard = React.memo(React.forwardRef<HTMLDivElement, PersonCardProps>(({ person, onClick }, ref) => {
     if (!person) return null;
+
+    const { ref: focusRef } = useTvFocus({
+        onEnterPress: () => onClick(person.id)
+    });
+
+    const combinedRef = (node: HTMLDivElement | null) => {
+        focusRef.current = node;
+        if (typeof ref === 'function') {
+            ref(node);
+        } else if (ref) {
+            (ref as any).current = node;
+        }
+    };
 
     const imageUrl = person.profile_path 
       ? `${TMDB_IMAGE_BASE}${person.profile_path}`
@@ -496,7 +561,7 @@ export const PersonCard = React.forwardRef<HTMLDivElement, PersonCardProps>(({ p
 
     return (
         <div 
-            ref={ref}
+            ref={combinedRef}
             className="group relative rounded-full md:rounded-xl overflow-hidden cursor-pointer transition-all duration-500 hover:scale-105 hover:z-20 hover:shadow-xl font-sans"
             onClick={() => onClick(person.id)}
         >
@@ -505,6 +570,7 @@ export const PersonCard = React.forwardRef<HTMLDivElement, PersonCardProps>(({ p
                     src={imageUrl} 
                     alt={person.name} 
                     loading="lazy"
+                    decoding="async"
                     className="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-110"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-80" />
@@ -515,4 +581,4 @@ export const PersonCard = React.forwardRef<HTMLDivElement, PersonCardProps>(({ p
             </div>
         </div>
     );
-});
+}));

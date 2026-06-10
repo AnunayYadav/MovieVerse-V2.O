@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Search, Film, Menu, TrendingUp, Tv, Ghost, Calendar, Star, X, Sparkles, Settings, Globe, Bookmark, Heart, Folder, Languages, Filter, ChevronDown, Info, Plus, Cloud, CloudOff, Clock, Bell, History, Users, Tag, Dice5, Crown, Radio, LayoutGrid, Award, Baby, Clapperboard, ChevronRight, PlayCircle, Play, Megaphone, CalendarDays, Compass, Home, Map, Loader2, Trophy, RefreshCcw, Check, MonitorPlay, Layers, LogOut, Download, User } from 'lucide-react';
 import { App as CapApp } from '@capacitor/app';
 import { Movie, UserProfile, GENRES_MAP, GENRES_LIST, INDIAN_LANGUAGES, MaturityRating, Keyword } from './types';
-import { LogoLoader, MovieSkeleton, MovieCard, PersonCard, TMDB_BASE_URL, TMDB_BACKDROP_BASE, TMDB_IMAGE_BASE, getTmdbKey, BrandLogo, getMovieVerseRating } from './components/Shared';
+import { LogoLoader, MovieSkeleton, MovieCard, PersonCard, TMDB_BASE_URL, TMDB_BACKDROP_BASE, TMDB_IMAGE_BASE, getTmdbKey, BrandLogo, getMovieVerseRating, tvFetch } from './components/Shared';
 import { MoviePage } from './components/MovieDetails';
 import { PersonPage, NotificationModal, ComparisonModal } from './components/Modals';
 import { SettingsPage } from './components/SettingsModal';
@@ -13,6 +13,9 @@ import { WatchPartySection } from './components/WatchParty';
 import { MoviePlayer } from './components/MoviePlayer';
 import { LiveTV } from './components/LiveTV';
 import { ExplorePage } from './components/ExplorePage';
+import { useTvFocus, TvFocusButton, TvFocusInput } from './tvNavigation';
+
+const fetch = tvFetch;
 
 const isTVApp = typeof window !== 'undefined' && (
     /Android TV|GoogleTV|AFT|Tizen|Web0S|SmartTV/i.test(navigator.userAgent) || 
@@ -242,6 +245,10 @@ const MovieRowCard = ({
     const [logoUrl, setLogoUrl] = useState<string | null>(null);
     const [logoLoading, setLogoLoading] = useState(true);
 
+    const { ref } = useTvFocus({
+        onEnterPress: () => onClick()
+    });
+
     useEffect(() => {
         let isMounted = true;
         const key = getTmdbKey();
@@ -276,6 +283,7 @@ const MovieRowCard = ({
 
     return (
         <div
+            ref={ref}
             onClick={onClick}
             className="relative w-[220px] md:w-[260px] shrink-0 aspect-[16/9] rounded-xl overflow-hidden bg-zinc-900 border border-white/5 cursor-pointer shadow-lg hover:scale-105 hover:border-white/15 transition-all duration-500 group"
         >
@@ -351,6 +359,10 @@ const ComingSoonCard = ({
     const [logoUrl, setLogoUrl] = useState<string | null>(null);
     const [logoLoading, setLogoLoading] = useState(true);
 
+    const { ref } = useTvFocus({
+        onEnterPress: () => setSelectedMovie(movie)
+    });
+
     useEffect(() => {
         let isMounted = true;
         if (!apiKey || !movie.id) {
@@ -380,7 +392,9 @@ const ComingSoonCard = ({
 
     return (
         <div
-            className="shrink-0 w-[220px] md:w-[280px] flex flex-col bg-[#0f0f12]/60 backdrop-blur-md rounded-2xl border border-white/5 hover:border-zinc-700/40 hover:bg-zinc-900/60 transition-all duration-300 group shadow-[0_8px_30px_rgb(0,0,0,0.5)] hover:shadow-[0_8px_30px_rgba(0,0,0,0.8)]"
+            ref={ref}
+            onClick={() => setSelectedMovie(movie)}
+            className="shrink-0 w-[220px] md:w-[280px] flex flex-col bg-[#0f0f12]/60 backdrop-blur-md rounded-2xl border border-white/5 hover:border-zinc-700/40 hover:bg-zinc-900/60 transition-all duration-300 group shadow-[0_8px_30px_rgb(0,0,0,0.5)] hover:shadow-[0_8px_30px_rgba(0,0,0,0.8)] cursor-pointer"
         >
             {/* Cinematic widescreen backdrop */}
             <div
@@ -536,6 +550,19 @@ const FranchiseCard = ({
     const [logoUrl, setLogoUrl] = useState<string | null>(null);
     const [logoLoading, setLogoLoading] = useState(true);
 
+    const { ref: focusRef } = useTvFocus({
+        onEnterPress: () => onClick()
+    });
+
+    const combinedRef = (node: HTMLDivElement | null) => {
+        focusRef.current = node;
+        if (typeof refProp === 'function') {
+            refProp(node);
+        } else if (refProp) {
+            refProp.current = node;
+        }
+    };
+
     useEffect(() => {
         let isMounted = true;
         if (!apiKey || !franchise?.id) {
@@ -567,7 +594,7 @@ const FranchiseCard = ({
 
     return (
         <div
-            ref={refProp}
+            ref={combinedRef}
             onClick={onClick}
             className="group cursor-pointer bg-[#0c0c0e]/60 border border-white/5 rounded-xl md:rounded-2xl overflow-hidden transition-all duration-500 hover:scale-[1.03] hover:bg-zinc-900/40 hover:border-white/15 hover:shadow-2xl shadow-xl flex flex-col backdrop-blur-md"
         >
@@ -870,6 +897,10 @@ const ContinueWatchingCard = ({
     const [logoUrl, setLogoUrl] = useState<string | null>(null);
     const [logoLoading, setLogoLoading] = useState(true);
 
+    const { ref } = useTvFocus({
+        onEnterPress: () => onClick()
+    });
+
     useEffect(() => {
         let isMounted = true;
         const key = getTmdbKey();
@@ -906,6 +937,7 @@ const ContinueWatchingCard = ({
 
     return (
         <div
+            ref={ref}
             onClick={onClick}
             className="relative w-[220px] md:w-[260px] shrink-0 aspect-[16/9] rounded-xl overflow-hidden bg-zinc-900 border border-white/5 cursor-pointer shadow-lg hover:scale-[1.03] hover:border-white/10 transition-all duration-300 group"
         >
@@ -980,6 +1012,10 @@ const GenreCard = ({
 }) => {
     const [backdropUrl, setBackdropUrl] = useState<string | null>(null);
 
+    const { ref } = useTvFocus({
+        onEnterPress: () => onClick()
+    });
+
     useEffect(() => {
         let isMounted = true;
         if (!apiKey) return;
@@ -1015,6 +1051,7 @@ const GenreCard = ({
 
     return (
         <div
+            ref={ref}
             onClick={onClick}
             className="relative w-[180px] md:w-[220px] shrink-0 aspect-[16/9] rounded-xl overflow-hidden bg-zinc-900 border border-white/5 cursor-pointer shadow-lg hover:scale-105 hover:border-white/20 transition-all duration-500 group"
         >
@@ -1242,6 +1279,8 @@ export default function App() {
     const [selectedRegion, setSelectedRegion] = useState("Global");
     const [selectedLanguage, setSelectedLanguage] = useState("All");
     const [maturityRating, setMaturityRating] = useState<MaturityRating>('NC-17');
+    const [isSortDropdownOpen, setIsSortDropdownOpen] = useState(false);
+    const [isLanguageDropdownOpen, setIsLanguageDropdownOpen] = useState(false);
 
     const [comingFilter, setComingFilter] = useState("upcoming");
 
@@ -3479,32 +3518,32 @@ export default function App() {
                             </div>
 
                             <div className={`${isTV ? 'flex' : 'hidden lg:flex'} items-center gap-2`}>
-                                <button onClick={resetToHome} className={`group flex items-center gap-2 px-5 py-2 rounded-full text-xs font-semibold tracking-wide transition-all duration-300 ${selectedCategory === "All" && !searchQuery ? "bg-white/10 text-white" : "text-zinc-400 hover:text-white hover:bg-white/5"}`}>
+                                <TvFocusButton onClick={resetToHome} className={`group flex items-center gap-2 px-5 py-2 rounded-full text-xs font-semibold tracking-wide transition-all duration-300 ${selectedCategory === "All" && !searchQuery ? "bg-white/10 text-white" : "text-zinc-400 hover:text-white hover:bg-white/5"}`}>
                                     <Home size={15} className="transition-all duration-300 group-hover:scale-110 group-hover:-translate-y-0.5" />
                                     <span>Home</span>
-                                </button>
-                                <button onClick={() => { resetFilters(); setSelectedCategory("Explore"); }} className={`group flex items-center gap-2 px-5 py-2 rounded-full text-xs font-semibold tracking-wide transition-all duration-300 ${selectedCategory === "Explore" ? "bg-white/10 text-white" : "text-zinc-400 hover:text-white hover:bg-white/5"}`}>
+                                </TvFocusButton>
+                                <TvFocusButton onClick={() => { resetFilters(); setSelectedCategory("Explore"); }} className={`group flex items-center gap-2 px-5 py-2 rounded-full text-xs font-semibold tracking-wide transition-all duration-300 ${selectedCategory === "Explore" ? "bg-white/10 text-white" : "text-zinc-400 hover:text-white hover:bg-white/5"}`}>
                                     <Compass size={15} className="transition-all duration-500 group-hover:rotate-90 group-hover:scale-110" />
                                     <span>Explore</span>
-                                </button>
-                                <button onClick={() => { resetFilters(); setSelectedCategory("LiveTV"); }} className={`group flex items-center gap-2 px-5 py-2 rounded-full text-xs font-semibold tracking-wide transition-all duration-300 ${selectedCategory === "LiveTV" ? "bg-white/10 text-white" : "text-zinc-400 hover:text-white hover:bg-white/5"}`}>
+                                </TvFocusButton>
+                                <TvFocusButton onClick={() => { resetFilters(); setSelectedCategory("LiveTV"); }} className={`group flex items-center gap-2 px-5 py-2 rounded-full text-xs font-semibold tracking-wide transition-all duration-300 ${selectedCategory === "LiveTV" ? "bg-white/10 text-white" : "text-zinc-400 hover:text-white hover:bg-white/5"}`}>
                                     <Radio size={15} className="transition-all duration-300 group-hover:scale-110 group-hover:animate-pulse" />
                                     <span>Live TV</span>
-                                </button>
+                                </TvFocusButton>
 
                                 <div
                                     className="relative flex items-center h-full"
                                     onMouseEnter={handleBrowseEnter}
                                     onMouseLeave={handleBrowseLeave}
                                 >
-                                    <button className={`flex items-center gap-2 px-5 py-2 rounded-full text-xs font-semibold tracking-wide transition-all duration-300 ${isBrowseOpen || ["Categories", "Awards", "Anime", "Franchise", "Family", "TV Shows", "Coming"].includes(selectedCategory)
+                                    <TvFocusButton onClick={() => setIsBrowseOpen(!isBrowseOpen)} className={`flex items-center gap-2 px-5 py-2 rounded-full text-xs font-semibold tracking-wide transition-all duration-300 ${isBrowseOpen || ["Categories", "Awards", "Anime", "Franchise", "Family", "TV Shows", "Coming"].includes(selectedCategory)
                                             ? "bg-white/10 text-white shadow-[0_4px_20px_rgba(0,0,0,0.3)] border border-white/10"
                                             : "text-zinc-400 hover:text-white hover:bg-white/5 border border-transparent"
                                         }`}>
                                         <LayoutGrid size={15} className={`transition-transform duration-500 ${isBrowseOpen ? 'rotate-180 scale-110' : ''}`} />
                                         <span>Browse</span>
                                         <ChevronDown size={12} className={`transition-transform duration-500 opacity-60 ${isBrowseOpen ? 'rotate-180' : ''}`} />
-                                    </button>
+                                    </TvFocusButton>
 
                                     <div className={`absolute top-full left-1/2 -translate-x-1/2 w-[350px] h-[18px] bg-transparent z-[55] transition-opacity duration-200 ${isBrowseOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`} />
                                     <div className={`absolute top-[calc(100%+0.5rem)] left-1/2 -translate-x-1/2 w-[350px] bg-[#0c0c0e]/95 backdrop-blur-3xl border border-white/10 rounded-2xl shadow-[0_24px_50px_rgba(0,0,0,0.7)] p-4 grid grid-cols-3 gap-3 z-[60] transition-all duration-200 transform origin-top select-none ${isBrowseOpen ? 'opacity-100 scale-100 translate-y-0 pointer-events-auto' : 'opacity-0 scale-95 -translate-y-2 pointer-events-none'}`}>
@@ -3517,7 +3556,7 @@ export default function App() {
                                                 (opt.id === "WatchParty" && (activeWatchPartyRoom !== null || isWatchPartyJoinOpen));
 
                                             return (
-                                                <button
+                                                <TvFocusButton
                                                     key={opt.id}
                                                     onClick={() => handleBrowseAction(opt.action)}
                                                     className="group flex flex-col items-center justify-center gap-2 py-2 px-1 rounded-xl transition-all duration-300 hover:bg-white/5 active:scale-95 border border-transparent"
@@ -3532,7 +3571,7 @@ export default function App() {
                                                             ? 'text-red-500 font-semibold'
                                                             : 'text-zinc-400 group-hover:text-zinc-200'
                                                         }`}>{opt.label}</span>
-                                                </button>
+                                                </TvFocusButton>
                                             );
                                         })}
                                     </div>
@@ -3542,7 +3581,7 @@ export default function App() {
 
                         <div className="flex items-center gap-4">
                             <div className="relative w-32 sm:w-48 md:w-64 lg:w-80 group">
-                                <input
+                                <TvFocusInput
                                     ref={searchInputRef}
                                     type="text"
                                     placeholder={selectedCategory === "Categories" ? (window.innerWidth < 640 ? "Search..." : "Search categories...") : (window.innerWidth < 640 ? "Search..." : "Search... (Press /)")}
@@ -3552,6 +3591,7 @@ export default function App() {
                                     onFocus={() => setShowSuggestions(true)}
                                     onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
                                     onKeyDown={(e) => { if (e.key === 'Enter') handleSearchSubmit(searchQuery); }}
+                                    onSubmit={() => handleSearchSubmit(searchQuery)}
                                 />
                                 <Search className={`absolute left-2.5 md:left-3 top-1/2 -translate-y-1/2 text-gray-500 transition-colors ${loading && searchQuery ? "text-white animate-pulse" : "group-focus-within:text-white"}`} size={14} />
                             </div>
@@ -3798,12 +3838,12 @@ export default function App() {
                                                     {heroFranchise.overview || "Explore the ultimate collection of films in this cinematic universe."}
                                                 </p>
                                                 <div className="flex flex-row items-center gap-3 w-full sm:w-auto mt-2">
-                                                    <button
+                                                    <TvFocusButton
                                                         onClick={() => handleTmdbCollectionClick(heroFranchise.id)}
                                                         className="flex-1 sm:flex-none px-6 py-2.5 text-sm sm:text-base rounded-md font-bold flex items-center justify-center gap-2.5 transition-all hover:scale-[1.02] active:scale-95 shadow-md bg-white text-black hover:bg-white/90"
                                                     >
                                                         <Sparkles size={18} /> Deep Dive Universe
-                                                    </button>
+                                                    </TvFocusButton>
                                                 </div>
                                             </div>
                                         </div>
@@ -4008,19 +4048,19 @@ export default function App() {
 
                                                 <div className="flex flex-row items-center gap-3 w-full sm:w-auto mt-2">
                                                     {isExclusive && (
-                                                        <button
+                                                        <TvFocusButton
                                                             onClick={() => setSelectedMovie(featuredMovie)}
                                                             className="flex-1 sm:flex-none px-6 py-2.5 text-sm sm:text-base rounded-md font-bold flex items-center justify-center gap-2.5 transition-all hover:scale-[1.02] active:scale-95 shadow-md bg-white text-black hover:bg-white/90"
                                                         >
                                                             <Play size={18} fill="currentColor" /> Watch Now
-                                                        </button>
+                                                        </TvFocusButton>
                                                     )}
-                                                    <button
+                                                    <TvFocusButton
                                                         onClick={() => setSelectedMovie(featuredMovie)}
                                                         className="flex-1 sm:flex-none px-6 py-2.5 text-sm sm:text-base rounded-md font-bold flex items-center justify-center gap-2.5 bg-white/20 hover:bg-white/35 backdrop-blur-md text-white transition-all hover:scale-[1.02] active:scale-95"
                                                     >
                                                         <Info size={18} /> More Info
-                                                    </button>
+                                                    </TvFocusButton>
                                                 </div>
                                             </div>
                                         </div>
@@ -4035,39 +4075,39 @@ export default function App() {
 
                                             <div className="flex items-center gap-2 flex-wrap">
                                                 <div className="relative group shrink-0">
-                                                    <button className="flex items-center gap-2 px-3 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-xs font-medium text-gray-200 transition-all hover:border-white/20 active:scale-95 min-w-[100px] justify-between">
+                                                    <TvFocusButton onClick={() => setIsSortDropdownOpen(!isSortDropdownOpen)} className="flex items-center gap-2 px-3 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-xs font-medium text-gray-200 transition-all hover:border-white/20 active:scale-95 min-w-[100px] justify-between">
                                                         <div className="flex items-center gap-2"><Filter size={14} /> <span>Sort</span></div>
                                                         <ChevronDown size={12} className="text-gray-500 group-hover:text-white transition-colors" />
-                                                    </button>
+                                                    </TvFocusButton>
                                                     <div className="absolute top-full left-0 w-full h-2 bg-transparent pointer-events-auto opacity-0 group-hover:block hidden"></div>
-                                                    <div className="absolute top-full right-0 mt-2 w-48 bg-[#1a1a1a]/95 backdrop-blur-xl border border-white/10 rounded-xl overflow-hidden shadow-2xl opacity-0 group-hover:opacity-100 scale-95 group-hover:scale-100 pointer-events-none group-hover:pointer-events-auto transition-all origin-top-right z-50 p-1">
+                                                    <div className={`absolute top-full right-0 mt-2 w-48 bg-[#1a1a1a]/95 backdrop-blur-xl border border-white/10 rounded-xl overflow-hidden shadow-2xl transition-all origin-top-right z-50 p-1 ${isSortDropdownOpen ? 'opacity-100 scale-100 pointer-events-auto' : 'opacity-0 scale-95 pointer-events-none group-hover:opacity-100 group-hover:scale-100 group-hover:pointer-events-auto'}`}>
                                                         {[
                                                             { label: 'Popularity', value: 'popularity.desc' },
                                                             { label: 'Newest First', value: 'primary_release_date.desc' },
                                                             { label: 'Top Rated', value: 'vote_average.desc' },
                                                             { label: 'Revenue', value: 'revenue.desc' }
                                                         ].map(opt => (
-                                                            <button key={opt.value} onClick={() => setSortOption(opt.value)} className={`w-full text-left px-3 py-2 text-xs font-medium rounded-lg transition-colors flex items-center justify-between ${sortOption === opt.value ? 'bg-white/10 text-white' : 'text-gray-400 hover:bg-white/5 hover:text-white'}`}>
+                                                            <TvFocusButton key={opt.value} onClick={() => { setSortOption(opt.value); setIsSortDropdownOpen(false); }} className={`w-full text-left px-3 py-2 text-xs font-medium rounded-lg transition-colors flex items-center justify-between ${sortOption === opt.value ? 'bg-white/10 text-white' : 'text-zinc-400 hover:bg-white/5 hover:text-white'}`}>
                                                                 {opt.label}
                                                                 {sortOption === opt.value && <Check size={12} className={accentText} />}
-                                                            </button>
+                                                            </TvFocusButton>
                                                         ))}
                                                     </div>
                                                 </div>
 
 
                                                 <div className="relative group shrink-0">
-                                                    <button className="flex items-center gap-2 px-3 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-xs font-medium text-gray-200 transition-all hover:border-white/20 active:scale-95 min-w-[100px] justify-between">
+                                                    <TvFocusButton onClick={() => setIsLanguageDropdownOpen(!isLanguageDropdownOpen)} className="flex items-center gap-2 px-3 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-xs font-medium text-gray-200 transition-all hover:border-white/20 active:scale-95 min-w-[100px] justify-between">
                                                         <div className="flex items-center gap-2"><Languages size={14} /> <span>{selectedLanguage === 'All' ? 'All' : selectedLanguage.toUpperCase()}</span></div>
                                                         <ChevronDown size={12} className="text-gray-500 group-hover:text-white transition-colors" />
-                                                    </button>
+                                                    </TvFocusButton>
                                                     <div className="absolute top-full left-0 w-full h-2 bg-transparent pointer-events-auto opacity-0 group-hover:block hidden"></div>
-                                                    <div className="absolute top-full right-0 mt-2 w-48 bg-[#1a1a1a]/95 backdrop-blur-xl border border-white/10 rounded-xl overflow-hidden shadow-2xl opacity-0 group-hover:opacity-100 scale-95 group-hover:scale-100 pointer-events-none group-hover:pointer-events-auto transition-all origin-top-right z-50 max-h-60 overflow-y-auto custom-scrollbar p-1">
+                                                    <div className={`absolute top-full right-0 mt-2 w-48 bg-[#1a1a1a]/95 backdrop-blur-xl border border-white/10 rounded-xl overflow-hidden shadow-2xl transition-all origin-top-right z-50 max-h-60 overflow-y-auto custom-scrollbar p-1 ${isLanguageDropdownOpen ? 'opacity-100 scale-100 pointer-events-auto' : 'opacity-0 scale-95 pointer-events-none group-hover:opacity-100 group-hover:scale-100 group-hover:pointer-events-auto'}`}>
                                                         {['All', 'en', 'hi', 'ja', 'ko', 'es', 'fr'].map(lang => (
-                                                            <button key={lang} onClick={() => setSelectedLanguage(lang)} className={`w-full text-left px-3 py-2 text-xs font-medium rounded-lg transition-colors flex items-center justify-between ${selectedLanguage === lang ? 'bg-white/10 text-white' : 'text-gray-400 hover:bg-white/5 hover:text-white'}`}>
+                                                            <TvFocusButton key={lang} onClick={() => { setSelectedLanguage(lang); setIsLanguageDropdownOpen(false); }} className={`w-full text-left px-3 py-2 text-xs font-medium rounded-lg transition-colors flex items-center justify-between ${selectedLanguage === lang ? 'bg-white/10 text-white' : 'text-zinc-400 hover:bg-white/5 hover:text-white'}`}>
                                                                 {lang === 'All' ? 'All Languages' : lang === 'en' ? 'English' : lang === 'hi' ? 'Hindi' : lang.toUpperCase()}
                                                                 {selectedLanguage === lang && <Check size={12} className={accentText} />}
-                                                            </button>
+                                                            </TvFocusButton>
                                                         ))}
                                                     </div>
                                                 </div>

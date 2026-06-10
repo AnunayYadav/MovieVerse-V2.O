@@ -2,7 +2,10 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Award, TrendingUp, Tv, Film, Star, Play, Plus, LayoutGrid, Sparkles, ChevronRight, Check, AlertCircle, Loader2, ArrowLeft, ExternalLink, Globe, ChevronDown, Info, Search, X } from 'lucide-react';
 import { Movie, UserProfile, Provider, GENRES_MAP } from '../types';
-import { TMDB_BASE_URL, TMDB_IMAGE_BASE, TMDB_BACKDROP_BASE, MovieCard, MovieSkeleton, getWatchmodeKey, PosterMarquee } from './Shared';
+import { TMDB_BASE_URL, TMDB_IMAGE_BASE, TMDB_BACKDROP_BASE, MovieCard, MovieSkeleton, getWatchmodeKey, PosterMarquee, tvFetch } from './Shared';
+import { useTvFocus, TvFocusButton, TvFocusInput } from '../tvNavigation';
+
+const fetch = tvFetch;
 
 interface ExplorePageProps {
     apiKey: string;
@@ -214,6 +217,7 @@ const SubcategoryRow: React.FC<SubcategoryRowProps> = ({ title, items, onMovieCl
 
 export const ExplorePage: React.FC<ExplorePageProps> = ({ apiKey, onMovieClick, userProfile, appRegion = "US", searchQuery, setSearchQuery }) => {
     const [exploreRegion, setExploreRegion] = useState("Global");
+    const [isRegionDropdownOpen, setIsRegionDropdownOpen] = useState(false);
     const [topMovies, setTopMovies] = useState<Movie[]>([]);
     const [topShows, setTopShows] = useState<Movie[]>([]);
     const [ottMovies, setOttMovies] = useState<Movie[]>([]);
@@ -693,6 +697,29 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ apiKey, onMovieClick, 
         };
     }, [activeOtt, hasMoreOtt, loading, loadingMore, loadMoreMovies]);
 
+    const TrendingMovieItem = ({ movie, idx, onMovieClick }: { movie: Movie, idx: number, onMovieClick: (m: Movie) => void }) => {
+        const { ref } = useTvFocus({
+            onEnterPress: () => onMovieClick(movie)
+        });
+        return (
+            <div 
+                ref={ref}
+                key={movie.id} 
+                className="relative shrink-0 w-[140px] md:w-[200px] flex items-end group cursor-pointer focus:outline-none" 
+                onClick={() => onMovieClick(movie)}
+            >
+                <div className="absolute -bottom-6 left-0 z-0 text-[120px] md:text-[180px] font-black leading-none select-none pointer-events-none transition-all duration-700 transform group-hover:scale-105 opacity-70 group-hover:opacity-95"
+                    style={{ color: '#000', WebkitTextStroke: '1.5px rgba(255,255,255,0.3)', transform: 'translateX(-25%)', fontFamily: 'Inter, sans-serif' }}>
+                    {idx + 1}
+                </div>
+                <div className="relative z-10 w-[80%] ml-auto aspect-[2/3] rounded-lg overflow-hidden bg-zinc-900 shadow-xl transition-all duration-500 group-hover:-translate-y-2 border border-white/5 group-hover:border-white/10">
+                    <img src={movie.poster_path ? `${TMDB_IMAGE_BASE}${movie.poster_path}` : "https://placehold.co/300x450"} className="w-full h-full object-cover" alt={movie.title} loading="lazy" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                </div>
+            </div>
+        );
+    };
+
     const RankingRow = ({ title, items, icon: Icon }: { title: string, items: Movie[], icon: any }) => (
         <div className="mb-12">
             <div className="flex items-center justify-between mb-4 px-2">
@@ -703,16 +730,12 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ apiKey, onMovieClick, 
             </div>
             <div className="flex gap-4 md:gap-8 overflow-x-auto pb-6 pt-2 px-2 hide-scrollbar">
                 {items.map((movie, idx) => (
-                    <div key={movie.id} className="relative shrink-0 w-[140px] md:w-[200px] flex items-end group cursor-pointer" onClick={() => onMovieClick(movie)}>
-                        <div className="absolute -bottom-6 left-0 z-0 text-[120px] md:text-[180px] font-black leading-none select-none pointer-events-none transition-all duration-700 transform group-hover:scale-105 opacity-70 group-hover:opacity-95"
-                            style={{ color: '#000', WebkitTextStroke: '1.5px rgba(255,255,255,0.3)', transform: 'translateX(-25%)', fontFamily: 'Inter, sans-serif' }}>
-                            {idx + 1}
-                        </div>
-                        <div className="relative z-10 w-[80%] ml-auto aspect-[2/3] rounded-lg overflow-hidden bg-zinc-900 shadow-xl transition-all duration-500 group-hover:-translate-y-2 border border-white/5 group-hover:border-white/10">
-                            <img src={movie.poster_path ? `${TMDB_IMAGE_BASE}${movie.poster_path}` : "https://placehold.co/300x450"} className="w-full h-full object-cover" alt={movie.title} loading="lazy" />
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                        </div>
-                    </div>
+                    <TrendingMovieItem 
+                        key={movie.id}
+                        movie={movie}
+                        idx={idx}
+                        onMovieClick={onMovieClick}
+                    />
                 ))}
             </div>
         </div>
@@ -724,9 +747,9 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ apiKey, onMovieClick, 
                 {/* Brand Header: Transparent Absolute overlay for clean merge with Hero Banner */}
                 <div className="absolute top-0 left-0 w-full z-50 p-4 md:p-6 flex items-center justify-between bg-gradient-to-b from-black/90 via-black/30 to-transparent">
                     <div className="flex items-center gap-4 md:gap-6">
-                        <button onClick={() => setActiveOtt(null)} className="p-2 hover:bg-white/10 rounded-full transition-all active:scale-90 text-white">
+                        <TvFocusButton onClick={() => setActiveOtt(null)} className="p-2 hover:bg-white/10 rounded-full transition-all active:scale-95 text-white">
                             <ArrowLeft size={20}/>
-                        </button>
+                        </TvFocusButton>
                         <div className="flex items-center gap-3">
                             <img src={activeProvider.logo_path} className="h-8 md:h-10 w-auto object-contain rounded-lg shadow-lg" alt={activeProvider.provider_name} />
                             <div>
@@ -743,11 +766,11 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ apiKey, onMovieClick, 
                             size={15} 
                             style={{ color: ottSearchInput ? theme.accent : 'rgba(255,255,255,0.4)' }} 
                         />
-                        <input 
+                        <TvFocusInput 
                             id="ott-section-search-input"
                             type="text" 
                             value={ottSearchInput}
-                            onChange={(e) => setOttSearchInput(e.target.value)}
+                            onChange={(e: any) => setOttSearchInput(e.target.value)}
                             placeholder={`Search ${activeProvider.provider_name}...`} 
                             className="w-full bg-white/5 border border-white/10 hover:border-white/20 rounded-full py-1.5 pl-10 pr-9 text-xs focus:outline-none focus:bg-black/60 focus:border-white/40 focus:ring-1 transition-all placeholder-white/30 text-white shadow-inner"
                             style={{ 
@@ -756,12 +779,12 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ apiKey, onMovieClick, 
                             }}
                         />
                         {ottSearchInput && (
-                            <button 
+                            <TvFocusButton 
                                 onClick={() => setOttSearchInput("")} 
                                 className="absolute right-3 p-1 hover:bg-white/10 rounded-full text-white/40 hover:text-white transition-all"
                             >
                                 <X size={12} />
-                            </button>
+                            </TvFocusButton>
                         )}
                     </div>
                 </div>
@@ -869,19 +892,19 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ apiKey, onMovieClick, 
                                     
                                     <div className="flex flex-row items-center gap-3 w-full sm:w-auto mt-2">
                                         {isExclusive && (
-                                            <button 
-                                                onClick={(e) => { e.stopPropagation(); onMovieClick(ottMovies[0]); }}
+                                            <TvFocusButton 
+                                                onClick={(e: any) => { e?.stopPropagation(); onMovieClick(ottMovies[0]); }}
                                                 className="flex-1 sm:flex-none px-6 py-2.5 text-sm sm:text-base rounded-md font-bold flex items-center justify-center gap-2.5 bg-white hover:bg-white/90 text-black transition-all hover:scale-[1.02] active:scale-95 shadow-md"
                                             >
                                                 <Play size={18} fill="currentColor"/> Watch Now
-                                            </button>
+                                            </TvFocusButton>
                                         )}
-                                        <button 
-                                            onClick={(e) => { e.stopPropagation(); onMovieClick(ottMovies[0]); }}
+                                        <TvFocusButton 
+                                            onClick={(e: any) => { e?.stopPropagation(); onMovieClick(ottMovies[0]); }}
                                             className="flex-1 sm:flex-none px-6 py-2.5 text-sm sm:text-base rounded-md font-bold flex items-center justify-center gap-2.5 bg-white/20 hover:bg-white/35 backdrop-blur-md text-white transition-all hover:scale-[1.02] active:scale-95"
                                         >
                                             <Info size={18}/> More Info
-                                        </button>
+                                        </TvFocusButton>
                                     </div>
                                 </div>
                             </div>
@@ -969,20 +992,31 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ apiKey, onMovieClick, 
                         <p className="text-white/60 text-xs md:text-sm mt-1 max-w-xl font-normal">The most watched movies and TV shows across all networks right now.</p>
                     </div>
                     
-                    <div className="relative group shrink-0 self-end md:self-auto">
-                        <button className="flex items-center gap-2 px-3 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-xs font-medium text-gray-200 transition-all hover:border-white/20 active:scale-95 min-w-[100px] justify-between">
+                    <div className="relative shrink-0 self-end md:self-auto">
+                        <TvFocusButton 
+                            onClick={() => setIsRegionDropdownOpen(!isRegionDropdownOpen)}
+                            className="flex items-center gap-2 px-3 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-xs font-medium text-gray-200 transition-all hover:border-white/20 active:scale-95 min-w-[100px] justify-between"
+                        >
                             <div className="flex items-center gap-2"><Globe size={14}/> <span>{exploreRegion === 'Global' ? 'Worldwide' : exploreRegion}</span></div>
-                            <ChevronDown size={12} className="text-gray-500 group-hover:text-white transition-colors"/>
-                        </button>
-                        <div className="absolute top-full left-0 w-full h-2 bg-transparent pointer-events-auto opacity-0 group-hover:block hidden"></div>
-                        <div className="absolute top-full right-0 mt-2 w-48 bg-[#1a1a1a]/95 backdrop-blur-xl border border-white/10 rounded-xl overflow-hidden shadow-2xl opacity-0 group-hover:opacity-100 scale-95 group-hover:scale-100 pointer-events-none group-hover:pointer-events-auto transition-all origin-top-right z-50 max-h-60 overflow-y-auto custom-scrollbar p-1">
-                            {['Global', 'US', 'IN', 'JP', 'KR', 'GB', 'FR', 'DE'].map(region => (
-                                <button key={region} onClick={() => setExploreRegion(region)} className={`w-full text-left px-3 py-2 text-xs font-medium rounded-lg transition-colors flex items-center justify-between ${exploreRegion === region ? 'bg-white/10 text-white' : 'text-gray-400 hover:bg-white/5 hover:text-white'}`}>
-                                    {region === 'Global' ? 'Worldwide' : region === 'IN' ? 'India' : region}
-                                    {exploreRegion === region && <Check size={12} className="text-red-600"/>}
-                                </button>
-                            ))}
-                        </div>
+                            <ChevronDown size={12} className="text-gray-500 transition-colors"/>
+                        </TvFocusButton>
+                        {isRegionDropdownOpen && (
+                            <div className="absolute top-full right-0 mt-2 w-48 bg-[#1a1a1a]/95 backdrop-blur-xl border border-white/10 rounded-xl overflow-hidden shadow-2xl transition-all origin-top-right z-50 max-h-60 overflow-y-auto custom-scrollbar p-1">
+                                {['Global', 'US', 'IN', 'JP', 'KR', 'GB', 'FR', 'DE'].map(region => (
+                                    <TvFocusButton 
+                                        key={region} 
+                                        onClick={() => {
+                                            setExploreRegion(region);
+                                            setIsRegionDropdownOpen(false);
+                                        }} 
+                                        className={`w-full text-left px-3 py-2 text-xs font-medium rounded-lg transition-colors flex items-center justify-between ${exploreRegion === region ? 'bg-white/10 text-white' : 'text-gray-400 hover:bg-white/5 hover:text-white'}`}
+                                    >
+                                        {region === 'Global' ? 'Worldwide' : region === 'IN' ? 'India' : region}
+                                        {exploreRegion === region && <Check size={12} className="text-red-600"/>}
+                                    </TvFocusButton>
+                                ))}
+                            </div>
+                        )}
                     </div>
                 </div>
 
@@ -1012,7 +1046,7 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ apiKey, onMovieClick, 
                         ) : (
                             filteredForRender.map(platform => (
                                 <div key={platform.provider_id} className="flex flex-col group cursor-pointer">
-                                    <button 
+                                    <TvFocusButton 
                                         onClick={() => setActiveOtt(platform.provider_id)}
                                         className={`w-full aspect-[16/10] rounded-2xl border flex items-center justify-center p-6 transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] relative overflow-hidden shadow-lg group-hover:shadow-2xl group-hover:scale-105 active:scale-95 ${getBrandCardStyle(platform.provider_id)}`}
                                     >
@@ -1020,13 +1054,13 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ apiKey, onMovieClick, 
                                             src={platform.logo_path} 
                                             className="h-[55%] w-auto max-w-[80%] object-contain rounded-xl transition-all duration-500 transform group-hover:scale-110 drop-shadow-[0_4px_12px_rgba(0,0,0,0.5)]" 
                                             alt={platform.provider_name}
-                                            onError={(e) => { e.currentTarget.src = "https://placehold.co/200x200/111/FFF?text=" + platform.provider_name; }}
+                                            onError={(e: any) => { e.currentTarget.src = "https://placehold.co/200x200/111/FFF?text=" + platform.provider_name; }}
                                         />
                                         {/* Cinematic overlay sheen */}
                                         <div className="absolute inset-0 bg-gradient-to-tr from-white/0 via-white/5 to-white/10 opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
                                         {/* Thin inset border */}
                                         <div className="absolute inset-0 ring-1 ring-inset ring-black/35 rounded-2xl pointer-events-none" />
-                                    </button>
+                                    </TvFocusButton>
                                     <span className="text-[10px] md:text-[11px] font-bold text-gray-500 group-hover:text-white transition-colors duration-300 mt-3 text-center uppercase tracking-wider font-sans">
                                         {platform.provider_name}
                                     </span>

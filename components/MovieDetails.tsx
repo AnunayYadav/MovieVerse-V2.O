@@ -2,10 +2,13 @@
 import React, { useState, useEffect, Suspense, useRef, useMemo } from 'react';
 import { X, Info, Calendar, Clock, Star, Play, Bookmark, Heart, Share2, Clapperboard, Sparkles, Loader2, Tag, MessageCircle, Globe, Facebook, Instagram, Twitter, Film, PlayCircle, Eye, Volume2, VolumeX, Users, ArrowLeft, Lightbulb, DollarSign, Trophy, Tv, Check, Mic2, Video, PenTool, ChevronRight, ChevronDown, Search, Monitor, Plus, Layers, Shield, Building2, Languages, Headphones, Activity, Target, TrendingUp, PieChart as PieChartIcon } from 'lucide-react';
 import { Movie, MovieDetails, Season, UserProfile, Keyword, Review, CastMember, CrewMember, CollectionDetails, Genre } from '../types';
-import { TMDB_BASE_URL, TMDB_IMAGE_BASE, TMDB_BACKDROP_BASE, formatCurrency, ImageLightbox, PersonCard, MovieCard } from '../components/Shared';
+import { TMDB_BASE_URL, TMDB_IMAGE_BASE, TMDB_BACKDROP_BASE, formatCurrency, ImageLightbox, PersonCard, MovieCard, tvFetch } from '../components/Shared';
 import { generateTrivia } from '../services/gemini';
 import { FullCreditsModal } from './Modals';
 import { triggerSystemNotification } from '../services/supabase';
+import { useTvFocus, TvFocusButton } from '../tvNavigation';
+
+const fetch = tvFetch;
 
 const isTV = typeof window !== 'undefined' && (
     /Android TV|GoogleTV|AFT|Tizen|Web0S|SmartTV/i.test(navigator.userAgent) || 
@@ -349,6 +352,60 @@ const MovieDetailsSkeleton = () => (
         </div>
     </div>
 );
+
+const EpisodeListItem = ({ episode, selectedSeason, isExclusive, movie, onPlayStateChangeRef, onProgress, onClick, epThumbnail, epRuntime, epAirDate }: any) => {
+    const { ref } = useTvFocus({
+        onEnterPress: onClick
+    });
+    return (
+        <div 
+            ref={ref}
+            onClick={onClick}
+            className="flex gap-3 sm:gap-4 p-2.5 sm:p-4 bg-white/5 hover:bg-white/10 rounded-xl sm:rounded-2xl border border-white/5 hover:border-white/10 transition-all cursor-pointer group relative overflow-hidden text-left"
+        >
+            {/* Thumbnail */}
+            <div className="relative aspect-video w-28 sm:w-36 md:w-44 shrink-0 rounded-lg sm:rounded-xl overflow-hidden shadow-md bg-black/40">
+                <img 
+                    src={epThumbnail} 
+                    alt={episode.name} 
+                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" 
+                    loading="lazy"
+                />
+                <div className="absolute bottom-1 left-1 px-1 rounded bg-black/85 text-[8px] sm:text-[10px] font-black text-white z-10 border border-white/5 shadow">
+                    {episode.episode_number}
+                </div>
+                {isExclusive && (
+                    <div className="absolute inset-0 bg-black/55 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+                        <div className="p-1.5 sm:p-2.5 bg-red-600 text-white rounded-full scale-90 group-hover:scale-100 transition-all duration-300 shadow-lg shadow-red-600/40">
+                            <Play size={10} fill="currentColor" className="sm:scale-125" />
+                        </div>
+                    </div>
+                )}
+            </div>
+
+            {/* Info */}
+            <div className="flex-1 min-w-0 flex flex-col justify-center">
+                <h4 className="text-xs sm:text-sm md:text-base font-bold text-white group-hover:text-red-500 transition-colors leading-tight mb-0.5 sm:mb-1 truncate">
+                    {episode.name}
+                </h4>
+                <div className="flex flex-wrap items-center gap-1.5 sm:gap-2.5 text-[8px] sm:text-[10px] md:text-xs text-gray-400 mb-1 sm:mb-2 font-semibold">
+                    {epRuntime && (
+                        <span className="flex items-center gap-0.5"><Clock size={10} className="text-red-500" /> {epRuntime}</span>
+                    )}
+                    {epAirDate && (
+                        <span className="flex items-center gap-0.5"><Calendar size={10} /> {epAirDate}</span>
+                    )}
+                    {episode.vote_average > 0 && (
+                        <span className="flex items-center gap-0.5 text-yellow-500"><Star size={10} fill="currentColor" /> {episode.vote_average.toFixed(1)}</span>
+                    )}
+                </div>
+                <p className="text-[9px] sm:text-xs text-gray-400 leading-normal line-clamp-2">
+                    {episode.overview || "No synopsis available for this episode."}
+                </p>
+            </div>
+        </div>
+    );
+};
 
 export const MoviePage: React.FC<MoviePageProps> = ({ 
     movie, onClose, apiKey, onPersonClick, onToggleWatchlist, isWatchlisted, 
@@ -746,9 +803,9 @@ export const MoviePage: React.FC<MoviePageProps> = ({
         <div className={`fixed inset-0 z-[100] bg-[#0a0a0a] overflow-y-auto custom-scrollbar ${isClosing ? 'animate-fade-out' : 'animate-fade-in'}`}>
             <div className="relative w-full min-h-screen flex flex-col">
                 {!showPlayer && (
-                    <button onClick={handleClose} className="fixed top-6 left-6 z-[120] bg-black/40 hover:bg-white/10 backdrop-blur-md px-4 py-2 rounded-full text-white/80 hover:text-white transition-all hover:scale-105 active:scale-95 border border-white/5 flex items-center gap-2 group">
+                    <TvFocusButton onClick={handleClose} className="fixed top-6 left-6 z-[120] bg-black/40 hover:bg-white/10 backdrop-blur-md px-4 py-2 rounded-full text-white/80 hover:text-white transition-all hover:scale-105 active:scale-95 border border-white/5 flex items-center gap-2 group">
                         <ArrowLeft size={20} /><span className="hidden md:inline font-bold text-sm">Back</span>
-                    </button>
+                    </TvFocusButton>
                 )}
                 
                 {loading && !details ? (
@@ -767,7 +824,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                 <div className="absolute inset-0 bg-black -z-20"></div>
                                 <div className={`absolute -inset-1 bg-gradient-to-t from-[#0a0a0a] via-[#0a0a0a]/50 to-transparent transition-opacity duration-700 ease-in-out pointer-events-none ${videoLoaded ? 'opacity-25 group-hover/hero:opacity-100' : 'opacity-100'}`}></div>
                                  {trailer && videoLoaded && (
-                                     <button onClick={toggleMute} className="absolute bottom-4 right-4 md:bottom-6 md:right-6 z-30 p-2 sm:p-3 bg-black/30 hover:bg-white/10 backdrop-blur-md border border-white/10 rounded-full text-white transition-all active:scale-95 group/mute flex" title={isMuted ? "Unmute" : "Mute"}>{isMuted ? <VolumeX size={20} strokeWidth={1.5} /> : <Volume2 size={20} strokeWidth={1.5} />}</button>
+                                     <TvFocusButton onClick={toggleMute} className="absolute bottom-4 right-4 md:bottom-6 md:right-6 z-30 p-2 sm:p-3 bg-black/30 hover:bg-white/10 backdrop-blur-md border border-white/10 rounded-full text-white transition-all active:scale-95 group/mute flex" title={isMuted ? "Unmute" : "Mute"}>{isMuted ? <VolumeX size={20} strokeWidth={1.5} /> : <Volume2 size={20} strokeWidth={1.5} />}</TvFocusButton>
                                  )}
                              </div>
 
@@ -780,20 +837,20 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                         <span className="flex items-center gap-2"><Calendar size={14} className={accentText}/> {releaseDate}</span>
                                         <span className="flex items-center gap-2"><Clock size={14} className={accentText}/> {runtime}</span>
                                         {displayData.vote_average && <span className="flex items-center gap-2"><Star size={14} className="text-yellow-500" fill="currentColor"/> {displayData.vote_average.toFixed(1)}</span>}
-                                    </div>
+                                     </div>
                                     <div className="flex flex-row items-center gap-3 w-full sm:w-auto mt-6">
                                         {isExclusive && (
-                                            <button onClick={handleWatchClick} className="flex items-center justify-center gap-2.5 px-6 py-2.5 rounded-md font-bold text-sm sm:text-base transition-all hover:scale-[1.02] active:scale-95 shadow-md flex-1 sm:flex-none bg-white hover:bg-white/90 text-black"><Play size={18} fill="currentColor" /> {movie.play_progress && movie.play_progress > 0 ? `Resume` : 'Watch'}</button>
+                                            <TvFocusButton onClick={handleWatchClick} className="flex items-center justify-center gap-2.5 px-6 py-2.5 rounded-md font-bold text-sm sm:text-base transition-all hover:scale-[1.02] active:scale-95 shadow-md flex-1 sm:flex-none bg-white hover:bg-white/90 text-black"><Play size={18} fill="currentColor" /> {movie.play_progress && movie.play_progress > 0 ? `Resume` : 'Watch'}</TvFocusButton>
                                         )}
                                         {isExclusive && (
-                                            <button onClick={() => onStartWatchParty && onStartWatchParty(displayData, playParams.season, playParams.episode)} className="flex items-center justify-center gap-2 px-6 py-2.5 rounded-md font-bold text-sm sm:text-base transition-all hover:scale-[1.02] active:scale-95 bg-transparent text-white border border-white/20 hover:bg-white/5 shadow-md" title="Start a Watch Party"><Users size={18} /> Watch Party</button>
+                                            <TvFocusButton onClick={() => onStartWatchParty && onStartWatchParty(displayData, playParams.season, playParams.episode)} className="flex items-center justify-center gap-2 px-6 py-2.5 rounded-md font-bold text-sm sm:text-base transition-all hover:scale-[1.02] active:scale-95 bg-transparent text-white border border-white/20 hover:bg-white/5 shadow-md" title="Start a Watch Party"><Users size={18} /> Watch Party</TvFocusButton>
                                         )}
                                         <div className="flex items-center gap-3">
-                                            <button onClick={() => onToggleWatchlist(displayData)} className={`w-10 h-10 rounded-full border flex items-center justify-center transition-all active:scale-95 group relative ${isWatchlisted ? 'text-green-400 border-green-500 bg-transparent hover:bg-green-500/10' : 'text-white border-white/20 hover:border-white/40 bg-transparent hover:bg-white/5'}`} title="Add to Watchlist">{isWatchlisted ? <Check size={18} strokeWidth={2.5}/> : <Plus size={18}/>}</button>
-                                            <button onClick={() => onToggleFavorite(displayData)} className={`w-10 h-10 rounded-full border flex items-center justify-center transition-all active:scale-95 group ${isFavorite ? 'text-red-500 border-red-500 bg-transparent hover:bg-red-500/10' : 'text-white border-white/20 hover:border-white/40 bg-transparent hover:bg-white/5'}`} title="Add to Favorites"><Heart size={18} fill={isFavorite ? "currentColor" : "none"}/></button>
-                                            <button onClick={handleShare} className={`w-10 h-10 rounded-full border flex items-center justify-center transition-all active:scale-95 group relative ${copied ? 'text-green-400 border-green-500 bg-transparent hover:bg-green-500/10' : 'text-white border-white/20 hover:border-white/40 bg-transparent hover:bg-white/5'}`} title="Share Movie">{copied ? <Check size={18} strokeWidth={2.5}/> : <Share2 size={18}/>}</button>
-                                            <button onClick={() => details?.external_ids?.imdb_id && window.open(`https://www.imdb.com/title/${details.external_ids.imdb_id}/parentalguide`, '_blank')} disabled={!details?.external_ids?.imdb_id} className={`w-10 h-10 rounded-full border border-white/20 hover:border-white/40 bg-transparent hover:bg-white/5 flex items-center justify-center transition-all active:scale-95 text-white ${!details?.external_ids?.imdb_id ? 'opacity-30 cursor-not-allowed' : ''}`} title="Parents Guide (IMDb)"><Shield size={18}/></button>
-                                            {details?.videos?.results?.[0] && <button onClick={() => window.open(`https://www.youtube.com/watch?v=${details.videos.results[0].key}`)} className="w-10 h-10 rounded-full border border-white/20 hover:border-white/40 bg-transparent hover:bg-white/5 flex items-center justify-center transition-all active:scale-95 text-white" title="Watch Trailer"><Play size={16} fill="currentColor" className="ml-0.5"/></button>}
+                                            <TvFocusButton onClick={() => onToggleWatchlist(displayData)} className={`w-10 h-10 rounded-full border flex items-center justify-center transition-all active:scale-95 group relative ${isWatchlisted ? 'text-green-400 border-green-500 bg-transparent hover:bg-green-500/10' : 'text-white border-white/20 hover:border-white/40 bg-transparent hover:bg-white/5'}`} title="Add to Watchlist">{isWatchlisted ? <Check size={18} strokeWidth={2.5}/> : <Plus size={18}/>}</TvFocusButton>
+                                            <TvFocusButton onClick={() => onToggleFavorite(displayData)} className={`w-10 h-10 rounded-full border flex items-center justify-center transition-all active:scale-95 group ${isFavorite ? 'text-red-500 border-red-500 bg-transparent hover:bg-red-500/10' : 'text-white border-white/20 hover:border-white/40 bg-transparent hover:bg-white/5'}`} title="Add to Favorites"><Heart size={18} fill={isFavorite ? "currentColor" : "none"}/></TvFocusButton>
+                                            <TvFocusButton onClick={handleShare} className={`w-10 h-10 rounded-full border flex items-center justify-center transition-all active:scale-95 group relative ${copied ? 'text-green-400 border-green-500 bg-transparent hover:bg-green-500/10' : 'text-white border-white/20 hover:border-white/40 bg-transparent hover:bg-white/5'}`} title="Share Movie">{copied ? <Check size={18} strokeWidth={2.5}/> : <Share2 size={18}/>}</TvFocusButton>
+                                            <TvFocusButton onClick={() => details?.external_ids?.imdb_id && window.open(`https://www.imdb.com/title/${details.external_ids.imdb_id}/parentalguide`, '_blank')} disabled={!details?.external_ids?.imdb_id} className={`w-10 h-10 rounded-full border border-white/20 hover:border-white/40 bg-transparent hover:bg-white/5 flex items-center justify-center transition-all active:scale-95 text-white ${!details?.external_ids?.imdb_id ? 'opacity-30 cursor-not-allowed' : ''}`} title="Parents Guide (IMDb)"><Shield size={18}/></TvFocusButton>
+                                            {details?.videos?.results?.[0] && <TvFocusButton onClick={() => window.open(`https://www.youtube.com/watch?v=${details.videos.results[0].key}`)} className="w-10 h-10 rounded-full border border-white/20 hover:border-white/40 bg-transparent hover:bg-white/5 flex items-center justify-center transition-all active:scale-95 text-white" title="Watch Trailer"><Play size={16} fill="currentColor" className="ml-0.5"/></TvFocusButton>}
                                         </div>
                                     </div>
                                  </div>
@@ -822,43 +879,43 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                             {/* Primary Buttons Grid: Play filled, Watch Party outlined */}
                             <div className="grid grid-cols-2 gap-3 w-full mt-1.5">
                                 {isExclusive && (
-                                    <button onClick={handleWatchClick} className="py-2 px-4 rounded-md font-extrabold text-xs flex items-center justify-center gap-2 transition-all active:scale-95 shadow-md bg-white text-black">
+                                    <TvFocusButton onClick={handleWatchClick} className="py-2 px-4 rounded-md font-extrabold text-xs flex items-center justify-center gap-2 transition-all active:scale-95 shadow-md bg-white text-black">
                                         <Play size={14} fill="currentColor"/> {movie.play_progress && movie.play_progress > 0 ? `Resume` : 'Watch'}
-                                    </button>
+                                    </TvFocusButton>
                                 )}
                                 {isExclusive && (
-                                    <button onClick={() => onStartWatchParty && onStartWatchParty(displayData, playParams.season, playParams.episode)} className="py-2 px-4 rounded-md font-extrabold text-xs flex items-center justify-center gap-2 transition-all active:scale-95 bg-transparent text-white border border-white/20 hover:bg-white/5 shadow-md">
+                                    <TvFocusButton onClick={() => onStartWatchParty && onStartWatchParty(displayData, playParams.season, playParams.episode)} className="py-2 px-4 rounded-md font-extrabold text-xs flex items-center justify-center gap-2 transition-all active:scale-95 bg-transparent text-white border border-white/20 hover:bg-white/5 shadow-md">
                                         <Users size={14}/> Watch Party
-                                    </button>
+                                    </TvFocusButton>
                                 )}
                             </div>
 
                             {/* Secondary Action Buttons Compact Row */}
                             <div className="grid grid-cols-5 gap-1 py-3 border-y border-white/5 mt-1.5 text-gray-400">
-                                <button onClick={() => onToggleWatchlist(displayData)} className="flex flex-col items-center gap-1.5 py-0.5 active:scale-95 text-center">
+                                <TvFocusButton onClick={() => onToggleWatchlist(displayData)} className="flex flex-col items-center gap-1.5 py-0.5 active:scale-95 text-center">
                                     {isWatchlisted ? <Check size={18} className="text-green-400" strokeWidth={2.5}/> : <Plus size={18} className="text-white"/>}
                                     <span className="text-[9px] font-bold tracking-wide mt-0.5">My List</span>
-                                </button>
-                                <button onClick={() => onToggleFavorite(displayData)} className="flex flex-col items-center gap-1.5 py-0.5 active:scale-95 text-center">
+                                </TvFocusButton>
+                                <TvFocusButton onClick={() => onToggleFavorite(displayData)} className="flex flex-col items-center gap-1.5 py-0.5 active:scale-95 text-center">
                                     <Heart size={18} className={isFavorite ? "text-red-500 fill-red-500" : "text-white"}/>
                                     <span className="text-[9px] font-bold tracking-wide mt-0.5">Favorite</span>
-                                </button>
-                                <button onClick={handleShare} className="flex flex-col items-center gap-1.5 py-0.5 active:scale-95 text-center">
+                                </TvFocusButton>
+                                <TvFocusButton onClick={handleShare} className="flex flex-col items-center gap-1.5 py-0.5 active:scale-95 text-center">
                                     {copied ? <Check size={18} className="text-green-400" strokeWidth={2.5}/> : <Share2 size={18} className="text-white"/>}
                                     <span className="text-[9px] font-bold tracking-wide mt-0.5">Share</span>
-                                </button>
-                                <button onClick={() => details?.external_ids?.imdb_id && window.open(`https://www.imdb.com/title/${details.external_ids.imdb_id}/parentalguide`, '_blank')} disabled={!details?.external_ids?.imdb_id} className="flex flex-col items-center gap-1.5 py-0.5 active:scale-95 text-center disabled:opacity-30">
+                                </TvFocusButton>
+                                <TvFocusButton onClick={() => details?.external_ids?.imdb_id && window.open(`https://www.imdb.com/title/${details.external_ids.imdb_id}/parentalguide`, '_blank')} disabled={!details?.external_ids?.imdb_id} className="flex flex-col items-center gap-1.5 py-0.5 active:scale-95 text-center disabled:opacity-30">
                                     <Shield size={18} className="text-white"/>
                                     <span className="text-[9px] font-bold tracking-wide mt-0.5">Parents Guide</span>
-                                </button>
-                                <button 
+                                </TvFocusButton>
+                                <TvFocusButton 
                                     onClick={() => details?.videos?.results?.[0] && window.open(`https://www.youtube.com/watch?v=${details.videos.results[0].key}`)} 
                                     disabled={!details?.videos?.results?.[0]} 
                                     className="flex flex-col items-center gap-1.5 py-0.5 active:scale-95 text-center disabled:opacity-30"
                                 >
                                     <PlayCircle size={18} className="text-white"/>
                                     <span className="text-[9px] font-bold tracking-wide mt-0.5">Trailer</span>
-                                </button>
+                                </TvFocusButton>
                             </div>
                         </div>
 
@@ -867,7 +924,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                             {/* Premium Tab Navigation Outlined Pills */}
                             <div className="flex gap-3 mb-8 overflow-x-auto hide-scrollbar w-full py-1">
                                 {tabs.map(tab => (
-                                    <button 
+                                    <TvFocusButton 
                                         key={tab.id} 
                                         onClick={() => {
                                             tabChangedByUserRef.current = true;
@@ -880,7 +937,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                         }`}
                                     >
                                         {tab.label}
-                                    </button>
+                                    </TvFocusButton>
                                 ))}
                             </div>
 
@@ -917,22 +974,22 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                 <h3 className="text-xl font-bold text-white mb-6">Top Cast</h3>
                                                 <div className="flex overflow-x-auto gap-6 pb-4 hide-scrollbar">
                                                     {displayData.credits?.cast?.slice(0, 10).map((person) => (
-                                                        <div key={person.id} onClick={() => onPersonClick(person.id)} className="flex flex-col items-center text-center group cursor-pointer shrink-0 w-24">
+                                                        <TvFocusButton key={person.id} onClick={() => onPersonClick(person.id)} className="flex flex-col items-center text-center group cursor-pointer shrink-0 w-24 bg-transparent p-0 border border-transparent">
                                                             <div className="w-20 h-20 md:w-24 md:h-24 rounded-full overflow-hidden mb-3 border-2 border-transparent group-hover:border-white/20 transition-all shadow-lg"><img src={person.profile_path ? `${TMDB_IMAGE_BASE}${person.profile_path}` : `https://ui-avatars.com/api/?name=${person.name}&background=333&color=fff`} alt={person.name} className="w-full h-full object-cover"/></div>
                                                             <h4 className="text-xs md:text-sm font-bold text-white leading-tight mb-1 line-clamp-2">{person.name}</h4>
                                                             <p className="text-[10px] md:text-xs text-gray-500 line-clamp-1">{person.character}</p>
-                                                        </div>
+                                                        </TvFocusButton>
                                                     ))}
-                                                    <button onClick={() => setShowFullCast(true)} className="flex flex-col items-center justify-center shrink-0 w-24 h-24 rounded-full bg-white/5 hover:bg-white/10 border border-white/5 transition-all group"><ChevronRight size={24} className="text-gray-400 group-hover:text-white mb-1"/><span className="text-[10px] font-bold text-gray-400 group-hover:text-white">View All</span></button>
+                                                    <TvFocusButton onClick={() => setShowFullCast(true)} className="flex flex-col items-center justify-center shrink-0 w-24 h-24 rounded-full bg-white/5 hover:bg-white/10 border border-white/5 transition-all group"><ChevronRight size={24} className="text-gray-400 group-hover:text-white mb-1"/><span className="text-[10px] font-bold text-gray-400 group-hover:text-white">View All</span></TvFocusButton>
                                                 </div>
                                             </div>
                                             <div>
                                                 <h3 className="text-xl font-bold text-white mb-6">Crew</h3>
                                                 <div className="flex overflow-x-auto gap-6 pb-4 hide-scrollbar">
                                                     {displayData.credits?.crew?.slice(0, 5).map((person) => (
-                                                        <div key={`${person.id}-${person.job}`} onClick={() => onPersonClick(person.id)} className="flex flex-col items-center text-center shrink-0 w-20 cursor-pointer group"><div className="w-16 h-16 md:w-20 md:h-20 rounded-full overflow-hidden mb-3 bg-white/5 transition-all duration-500 border border-transparent group-hover:border-white/20"><img src={person.profile_path ? `${TMDB_IMAGE_BASE}${person.profile_path}` : `https://ui-avatars.com/api/?name=${person.name}&background=333&color=fff`} alt={person.name} className="w-full h-full object-cover"/></div><h4 className="text-xs font-bold text-white leading-tight mb-1 line-clamp-2">{person.name}</h4><p className="text-[10px] text-gray-500 line-clamp-1">{person.job}</p></div>
+                                                        <TvFocusButton key={`${person.id}-${person.job}`} onClick={() => onPersonClick(person.id)} className="flex flex-col items-center text-center shrink-0 w-20 cursor-pointer group bg-transparent p-0 border border-transparent"><div className="w-16 h-16 md:w-20 md:h-20 rounded-full overflow-hidden mb-3 bg-white/5 transition-all duration-500 border border-transparent group-hover:border-white/20"><img src={person.profile_path ? `${TMDB_IMAGE_BASE}${person.profile_path}` : `https://ui-avatars.com/api/?name=${person.name}&background=333&color=fff`} alt={person.name} className="w-full h-full object-cover"/></div><h4 className="text-xs font-bold text-white leading-tight mb-1 line-clamp-2">{person.name}</h4><p className="text-[10px] text-gray-500 line-clamp-1">{person.job}</p></TvFocusButton>
                                                     ))}
-                                                    <button onClick={() => setShowFullCrew(true)} className="flex flex-col items-center justify-center shrink-0 w-20 h-20 rounded-full bg-white/5 hover:bg-white/10 border border-white/5 transition-all group"><ChevronRight size={20} className="text-gray-400 group-hover:text-white mb-1"/><span className="text-[10px] font-bold text-gray-400 group-hover:text-white">View All</span></button>
+                                                    <TvFocusButton onClick={() => setShowFullCrew(true)} className="flex flex-col items-center justify-center shrink-0 w-20 h-20 rounded-full bg-white/5 hover:bg-white/10 border border-white/5 transition-all group"><ChevronRight size={20} className="text-gray-400 group-hover:text-white mb-1"/><span className="text-[10px] font-bold text-gray-400 group-hover:text-white">View All</span></TvFocusButton>
                                                 </div>
                                             </div>
 
@@ -966,12 +1023,12 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                         {review.content}
                                                     </p>
                                                     {review.content.length > 280 && (
-                                                        <button
+                                                        <TvFocusButton
                                                             onClick={() => toggleReviewExpand(review.id)}
                                                             className="mt-2.5 text-xs font-bold text-red-500 hover:text-red-400 transition-colors focus:outline-none"
                                                         >
                                                             {expandedReviews[review.id] ? 'Show Less' : 'Read More'}
-                                                        </button>
+                                                        </TvFocusButton>
                                                     )}
                                                 </div>
                                             )) : (
@@ -985,7 +1042,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                         <div className="space-y-6 animate-in fade-in">
                                             {/* Sub-category Pill Switcher */}
                                             <div className="flex gap-2 pb-4 border-b border-white/5 overflow-x-auto hide-scrollbar">
-                                                <button
+                                                <TvFocusButton
                                                     onClick={() => setMediaCategory('backdrops')}
                                                     className={`px-4 py-2 rounded-xl text-xs font-bold transition-all duration-300 active:scale-95 border ${
                                                         mediaCategory === 'backdrops'
@@ -994,8 +1051,8 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                     }`}
                                                 >
                                                     Snapshots ({displayData.images?.backdrops?.length || 0})
-                                                </button>
-                                                <button
+                                                </TvFocusButton>
+                                                <TvFocusButton
                                                     onClick={() => setMediaCategory('posters')}
                                                     className={`px-4 py-2 rounded-xl text-xs font-bold transition-all duration-300 active:scale-95 border ${
                                                         mediaCategory === 'posters'
@@ -1004,8 +1061,8 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                     }`}
                                                 >
                                                     Posters ({displayData.images?.posters?.length || 0})
-                                                </button>
-                                                <button
+                                                </TvFocusButton>
+                                                <TvFocusButton
                                                     onClick={() => setMediaCategory('logos')}
                                                     className={`px-4 py-2 rounded-xl text-xs font-bold transition-all duration-300 active:scale-95 border ${
                                                         mediaCategory === 'logos'
@@ -1014,7 +1071,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                     }`}
                                                 >
                                                     Logos ({displayData.images?.logos?.length || 0})
-                                                </button>
+                                                </TvFocusButton>
                                             </div>
 
                                             {/* Content grids based on category */}
@@ -1024,31 +1081,31 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                         <>
                                                             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                                                                 {displayData.images.backdrops.slice(0, visibleImagesCount).map((img, i) => (
-                                                                    <div 
+                                                                    <TvFocusButton 
                                                                         key={i} 
                                                                         onClick={() => setViewingImage(`${TMDB_BACKDROP_BASE}${img.file_path}`)}
-                                                                        className="group relative aspect-video rounded-xl overflow-hidden cursor-pointer bg-white/5 border border-white/5 hover:border-white/20 transition-all hover:scale-[1.02] shadow-md"
+                                                                        className="group relative aspect-video rounded-xl overflow-hidden cursor-pointer bg-white/5 border border-white/5 hover:border-white/20 transition-all hover:scale-[1.02] shadow-md p-0"
                                                                     >
                                                                         <img 
                                                                             src={`${TMDB_IMAGE_BASE}${img.file_path}`} 
-                                                                            className="w-full h-full object-cover transition-opacity duration-300 group-hover:opacity-90" 
+                                                                            className="w-full h-full object-cover transition-opacity duration-300 group-hover:opacity-90 animate-none" 
                                                                             alt="Snapshot"
                                                                             loading="lazy"
                                                                         />
                                                                         <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                                                                             <span className="text-[10px] uppercase font-black tracking-widest text-white bg-black/60 px-3 py-1.5 rounded-full border border-white/10 backdrop-blur-md">View Full</span>
                                                                         </div>
-                                                                    </div>
+                                                                    </TvFocusButton>
                                                                 ))}
                                                             </div>
                                                             {displayData.images.backdrops.length > visibleImagesCount && (
                                                                 <div className="flex justify-center pt-2">
-                                                                    <button 
+                                                                    <TvFocusButton 
                                                                         onClick={() => setVisibleImagesCount(prev => prev + 12)}
                                                                         className="px-6 py-2.5 rounded-full border border-white/10 hover:border-white/20 hover:bg-white/5 transition-all text-xs font-bold text-gray-300 hover:text-white active:scale-95"
                                                                     >
                                                                         Load More Snapshots
-                                                                    </button>
+                                                                    </TvFocusButton>
                                                                 </div>
                                                             )}
                                                         </>
@@ -1066,31 +1123,31 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                         <>
                                                             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
                                                                 {displayData.images.posters.slice(0, visibleImagesCount).map((img, i) => (
-                                                                    <div 
+                                                                    <TvFocusButton 
                                                                         key={i} 
                                                                         onClick={() => setViewingImage(`${TMDB_BACKDROP_BASE}${img.file_path}`)}
-                                                                        className="group relative aspect-[2/3] rounded-xl overflow-hidden cursor-pointer bg-white/5 border border-white/5 hover:border-white/20 transition-all hover:scale-[1.02] shadow-md"
+                                                                        className="group relative aspect-[2/3] rounded-xl overflow-hidden cursor-pointer bg-white/5 border border-white/5 hover:border-white/20 transition-all hover:scale-[1.02] shadow-md p-0"
                                                                     >
                                                                         <img 
                                                                             src={`${TMDB_IMAGE_BASE}${img.file_path}`} 
-                                                                            className="w-full h-full object-cover transition-opacity duration-300 group-hover:opacity-90" 
+                                                                            className="w-full h-full object-cover transition-opacity duration-300 group-hover:opacity-90 animate-none" 
                                                                             alt="Poster"
                                                                             loading="lazy"
                                                                         />
                                                                         <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                                                                             <span className="text-[10px] uppercase font-black tracking-widest text-white bg-black/60 px-3 py-1.5 rounded-full border border-white/10 backdrop-blur-md">View Full</span>
                                                                         </div>
-                                                                    </div>
+                                                                    </TvFocusButton>
                                                                 ))}
                                                             </div>
                                                             {displayData.images.posters.length > visibleImagesCount && (
                                                                 <div className="flex justify-center pt-2">
-                                                                    <button 
+                                                                    <TvFocusButton 
                                                                         onClick={() => setVisibleImagesCount(prev => prev + 12)}
                                                                         className="px-6 py-2.5 rounded-full border border-white/10 hover:border-white/20 hover:bg-white/5 transition-all text-xs font-bold text-gray-300 hover:text-white active:scale-95"
                                                                     >
                                                                         Load More Posters
-                                                                    </button>
+                                                                    </TvFocusButton>
                                                                 </div>
                                                             )}
                                                         </>
@@ -1108,31 +1165,31 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                         <>
                                                             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
                                                                 {displayData.images.logos.slice(0, visibleImagesCount).map((img, i) => (
-                                                                    <div 
+                                                                    <TvFocusButton 
                                                                         key={i} 
                                                                         onClick={() => setViewingImage(`${TMDB_BACKDROP_BASE}${img.file_path}`)}
                                                                         className="group relative aspect-[2/1] rounded-xl overflow-hidden cursor-pointer flex items-center justify-center p-4 bg-[#141416]/50 border border-white/5 hover:border-white/20 transition-all hover:scale-[1.02] shadow-md backdrop-blur-md"
                                                                     >
                                                                         <img 
                                                                             src={`${TMDB_IMAGE_BASE}${img.file_path}`} 
-                                                                            className="max-w-full max-h-full object-contain filter drop-shadow-lg transition-transform duration-300 group-hover:scale-105" 
+                                                                            className="max-w-full max-h-full object-contain filter drop-shadow-lg transition-transform duration-300 group-hover:scale-105 animate-none" 
                                                                             alt="Logo"
                                                                             loading="lazy"
                                                                         />
                                                                         <div className="absolute inset-0 bg-black/10 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                                                                             <span className="text-[10px] uppercase font-black tracking-widest text-white bg-black/60 px-3 py-1.5 rounded-full border border-white/10 backdrop-blur-md">View Full</span>
                                                                         </div>
-                                                                    </div>
+                                                                    </TvFocusButton>
                                                                 ))}
                                                             </div>
                                                             {displayData.images.logos.length > visibleImagesCount && (
                                                                 <div className="flex justify-center pt-2">
-                                                                    <button 
+                                                                    <TvFocusButton 
                                                                         onClick={() => setVisibleImagesCount(prev => prev + 12)}
                                                                         className="px-6 py-2.5 rounded-full border border-white/10 hover:border-white/20 hover:bg-white/5 transition-all text-xs font-bold text-gray-300 hover:text-white active:scale-95"
                                                                     >
                                                                         Load More Logos
-                                                                    </button>
+                                                                    </TvFocusButton>
                                                                 </div>
                                                             )}
                                                         </>
@@ -1156,7 +1213,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                 <div className="flex items-center gap-2 w-full sm:w-auto">
                                                     {/* Season Selector Dropdown */}
                                                     <div className="relative shrink-0 z-30" ref={dropdownRef}>
-                                                        <button
+                                                        <TvFocusButton
                                                             onClick={() => setIsDropdownOpen(!isDropdownOpen)}
                                                             className="flex items-center justify-between gap-3 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 px-3.5 py-2 rounded-xl text-white text-[10px] sm:text-xs font-bold cursor-pointer transition-all duration-300 focus:outline-none select-none min-w-[140px] sm:min-w-[160px] active:scale-[0.98]"
                                                         >
@@ -1168,14 +1225,14 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                                 })()}
                                                             </span>
                                                             <ChevronDown size={14} className={`text-gray-400 transition-transform duration-300 ${isDropdownOpen ? 'rotate-180 text-white' : ''}`} />
-                                                        </button>
+                                                        </TvFocusButton>
 
                                                         {isDropdownOpen && (
                                                             <div className="absolute right-0 mt-2 min-w-[160px] sm:min-w-[180px] bg-[#0c0c0e]/95 backdrop-blur-3xl border border-white/10 rounded-xl shadow-[0_12px_40px_rgba(0,0,0,0.8)] p-1.5 z-50 transition-all duration-200 transform origin-top-right max-h-60 overflow-y-auto custom-scrollbar animate-in fade-in slide-in-from-top-2">
                                                                 {displayData.seasons?.filter(s => s.season_number > 0).map((s) => {
                                                                     const isActive = s.season_number === selectedSeason;
                                                                     return (
-                                                                        <button
+                                                                        <TvFocusButton
                                                                             key={s.id}
                                                                             onClick={() => {
                                                                                 setSelectedSeason(s.season_number);
@@ -1191,7 +1248,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                                             <span className={`text-[10px] shrink-0 ${isActive ? 'text-white/80' : 'text-zinc-500'}`}>
                                                                                 {s.episode_count} Ep
                                                                             </span>
-                                                                        </button>
+                                                                        </TvFocusButton>
                                                                     );
                                                                 })}
                                                             </div>

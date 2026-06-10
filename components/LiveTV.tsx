@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Tv, Play, Search, AlertCircle, RefreshCcw, Wifi, Globe, Loader2, Lock, ChevronDown, Check, Info } from 'lucide-react';
 import { LiveChannel, UserProfile } from '../types';
 import { LiveTVPlayer } from './LiveTVPlayer';
+import { useTvFocus, TvFocusButton, TvFocusInput } from '../tvNavigation';
 
 interface LiveTVProps {
     userProfile: UserProfile;
@@ -167,8 +168,12 @@ const LiveTVCard: React.FC<{
     channel, 
     onPlay 
 }) => {
+    const { ref } = useTvFocus({
+        onEnterPress: onPlay
+    });
     return (
         <div 
+            ref={ref}
             onClick={onPlay}
             className="relative w-[200px] md:w-[240px] shrink-0 aspect-[16/9] rounded-xl overflow-hidden bg-zinc-900/60 backdrop-blur-md border border-white/5 cursor-pointer shadow-lg hover:scale-105 hover:border-white/20 hover:shadow-2xl transition-all duration-500 group select-none flex flex-col justify-between"
         >
@@ -513,7 +518,7 @@ export const LiveTV: React.FC<LiveTVProps> = ({ userProfile }) => {
                     <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
                         {/* Country Selector Dropdown */}
                         <div className="relative z-50 w-full sm:w-60" ref={dropdownRef}>
-                            <button 
+                            <TvFocusButton 
                                 onClick={() => setIsCountryDropdownOpen(!isCountryDropdownOpen)}
                                 className="w-full h-10 flex items-center justify-between px-4 rounded-xl bg-white/5 hover:bg-white/10 border border-white/5 hover:border-white/10 transition-all active:scale-95 backdrop-blur-md"
                             >
@@ -522,22 +527,22 @@ export const LiveTV: React.FC<LiveTVProps> = ({ userProfile }) => {
                                     <span className="text-xs font-bold truncate">{activeCountryObj.name}</span>
                                 </div>
                                 <ChevronDown size={14} className={`transition-transform duration-300 text-white/50 shrink-0 ${isCountryDropdownOpen ? 'rotate-180' : ''}`}/>
-                            </button>
+                            </TvFocusButton>
 
                             {isCountryDropdownOpen && (
                                 <div className="absolute top-full left-0 right-0 mt-2 bg-[#0e0e10]/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-2xl overflow-hidden max-h-80 overflow-y-auto custom-scrollbar animate-in zoom-in-95 duration-200 z-50 p-1">
                                     {COUNTRIES.map(country => (
-                                        <button 
+                                        <TvFocusButton 
                                             key={country.id}
                                             onClick={() => { setSelectedCountry(country.id); setIsCountryDropdownOpen(false); }}
-                                            className={`w-full flex items-center justify-between px-3 py-2 text-xs font-semibold rounded-lg hover:bg-white/5 transition-colors ${selectedCountry === country.id ? 'bg-white/10 text-white font-bold' : 'text-gray-400 hover:text-white'}`}
+                                            className={`w-full flex items-center justify-between px-3 py-2 text-xs font-semibold rounded-lg hover:bg-white/5 transition-colors ${selectedCountry === country.id ? 'bg-white/10 text-white font-bold' : 'text-zinc-400 hover:text-white'}`}
                                         >
                                             <div className="flex items-center gap-3 min-w-0 flex-1 text-left">
                                                 <span className="text-base shrink-0">{country.icon}</span>
                                                 <span className="font-medium text-[11px] truncate">{country.name}</span>
                                             </div>
                                             {selectedCountry === country.id && <Check size={12} className="shrink-0 text-white/80 ml-2" />}
-                                        </button>
+                                        </TvFocusButton>
                                     ))}
                                 </div>
                             )}
@@ -546,10 +551,10 @@ export const LiveTV: React.FC<LiveTVProps> = ({ userProfile }) => {
                         {/* Channel Search Input */}
                         <div className="relative w-full sm:w-60 group h-10">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-white transition-colors" size={14} />
-                            <input 
+                            <TvFocusInput 
                                 type="text" 
                                 value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
+                                onChange={(e: any) => setSearchQuery(e.target.value)}
                                 placeholder="Search channel name..." 
                                 className="w-full h-full bg-white/5 border border-white/5 hover:border-white/10 rounded-xl pl-9 pr-4 text-xs focus:outline-none focus:bg-white/10 focus:border-white/20 transition-all placeholder-gray-500"
                             />
