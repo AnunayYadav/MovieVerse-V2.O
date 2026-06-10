@@ -60,9 +60,12 @@ const getBrandCardStyle = (providerId: number) => {
 };
 
 const getSubcategoriesConfig = (providerId: number, providerName: string) => {
+    // 1. Start with the platform-specific curated base genres
+    let baseCategories: Array<{ id: string, label: string, genres?: string, year?: number }> = [];
+    
     switch (providerId) {
         case 8: // Netflix
-            return [
+            baseCategories = [
                 { id: 'netflix_popular', label: 'Popular on Netflix', genres: '' },
                 { id: 'netflix_action', label: 'Action & Adventure', genres: '28,12' },
                 { id: 'netflix_drama', label: 'Award-Winning Dramas', genres: '18' },
@@ -74,8 +77,9 @@ const getSubcategoriesConfig = (providerId: number, providerName: string) => {
                 { id: 'netflix_doc', label: 'Insightful Documentaries', genres: '99' },
                 { id: 'netflix_family', label: 'Family Movie Night', genres: '10751,16' }
             ];
+            break;
         case 337: // Disney+
-            return [
+            baseCategories = [
                 { id: 'disney_popular', label: 'Popular on Disney+', genres: '' },
                 { id: 'disney_animation', label: 'Disney & Pixar Animation', genres: '16' },
                 { id: 'disney_adventure', label: 'Marvel & Action Adventure', genres: '28,12' },
@@ -87,8 +91,9 @@ const getSubcategoriesConfig = (providerId: number, providerName: string) => {
                 { id: 'disney_musical', label: 'Music & Musicals', genres: '10402' },
                 { id: 'disney_comedy', label: 'Comedy Hits', genres: '35' }
             ];
+            break;
         case 119: // Prime Video
-            return [
+            baseCategories = [
                 { id: 'prime_popular', label: 'Popular on Prime Video', genres: '' },
                 { id: 'prime_action', label: 'Action Blockbusters', genres: '28,12' },
                 { id: 'prime_drama', label: 'Award-Winning Dramas', genres: '18' },
@@ -100,8 +105,9 @@ const getSubcategoriesConfig = (providerId: number, providerName: string) => {
                 { id: 'prime_horror', label: 'Horror & Dark Thrillers', genres: '27,53' },
                 { id: 'prime_docs', label: 'Fascinating Documentaries', genres: '99' }
             ];
+            break;
         case 384: // Max
-            return [
+            baseCategories = [
                 { id: 'max_popular', label: 'Popular on Max', genres: '' },
                 { id: 'max_drama', label: 'HBO & Max Drama Masterpieces', genres: '18' },
                 { id: 'max_dc', label: 'DC & Action Blockbusters', genres: '28' },
@@ -113,8 +119,9 @@ const getSubcategoriesConfig = (providerId: number, providerName: string) => {
                 { id: 'max_horror', label: 'Horror & Supernatural', genres: '27' },
                 { id: 'max_family', label: 'Family & Adventure', genres: '10751,12' }
             ];
+            break;
         case 350: // Apple TV+
-            return [
+            baseCategories = [
                 { id: 'apple_popular', label: 'Popular on Apple TV+', genres: '' },
                 { id: 'apple_drama', label: 'Acclaimed Dramas', genres: '18' },
                 { id: 'apple_scifi', label: 'Sci-Fi & Thrillers', genres: '878,53' },
@@ -125,8 +132,9 @@ const getSubcategoriesConfig = (providerId: number, providerName: string) => {
                 { id: 'apple_family', label: 'Family & Animation', genres: '10751,16' },
                 { id: 'apple_romance', label: 'Romance & Drama', genres: '10749,18' }
             ];
+            break;
         default: // Generalized
-            return [
+            baseCategories = [
                 { id: 'gen_popular', label: `Popular on ${providerName}`, genres: '' },
                 { id: 'gen_action', label: `Action & Adventure on ${providerName}`, genres: '28,12' },
                 { id: 'gen_comedy', label: `Comedies on ${providerName}`, genres: '35' },
@@ -138,7 +146,36 @@ const getSubcategoriesConfig = (providerId: number, providerName: string) => {
                 { id: 'gen_romance', label: `Romance & Heartfelt on ${providerName}`, genres: '10749' },
                 { id: 'gen_docs', label: `Documentaries on ${providerName}`, genres: '99' }
             ];
+            break;
     }
+
+    // 2. Dynamic Year-Wise Categories (Current year 2026 down to 2020)
+    const years = [2026, 2025, 2024, 2023, 2022, 2020];
+    const yearCategories = years.map(y => ({
+        id: `yr_${y}_${providerId}`,
+        label: `Best of ${y}`,
+        genres: '',
+        year: y
+    }));
+
+    // 3. Dynamic Genre + Year combinations
+    const combinationCategories = [
+        { id: `comb_act_2026_${providerId}`, label: 'Action Blockbusters (2026)', genres: '28,12', year: 2026 },
+        { id: `comb_com_2026_${providerId}`, label: 'New Comedy Releases (2026)', genres: '35', year: 2026 },
+        { id: `comb_dra_2026_${providerId}`, label: 'Dramatic Releases (2026)', genres: '18', year: 2026 },
+        { id: `comb_act_2025_${providerId}`, label: 'Action Hits of 2025', genres: '28,12', year: 2025 },
+        { id: `comb_com_2025_${providerId}`, label: 'Top Comedies of 2025', genres: '35', year: 2025 },
+        { id: `comb_dra_2025_${providerId}`, label: 'Dramas of 2025', genres: '18', year: 2025 },
+        { id: `comb_sci_2025_${providerId}`, label: 'Sci-Fi Hits of 2025', genres: '878', year: 2025 },
+        { id: `comb_act_2024_${providerId}`, label: 'Action Hits of 2024', genres: '28,12', year: 2024 },
+        { id: `comb_sci_2024_${providerId}`, label: 'Sci-Fi & Thrillers of 2024', genres: '878,53', year: 2024 },
+        { id: `comb_com_2024_${providerId}`, label: 'Comedies of 2024', genres: '35', year: 2024 },
+        { id: `comb_dra_2024_${providerId}`, label: 'Dramas of 2024', genres: '18', year: 2024 },
+        { id: `comb_act_2023_${providerId}`, label: 'Action Hits of 2023', genres: '28,12', year: 2023 }
+    ];
+
+    // Combine them all: base genres, then years, then combination hits!
+    return [...baseCategories, ...yearCategories, ...combinationCategories];
 };
 
 interface SubcategoryRowProps {
@@ -559,7 +596,8 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ apiKey, onMovieClick, 
                 const promises = config.map(async (cat) => {
                     try {
                         const genreParam = cat.genres ? `&with_genres=${cat.genres}` : '';
-                        const url = `${TMDB_BASE_URL}/discover/movie?api_key=${apiKey}&watch_region=${targetRegion}&with_watch_providers=${activeOtt}${genreParam}&sort_by=popularity.desc&page=1`;
+                        const yearParam = cat.year ? `&primary_release_year=${cat.year}` : '';
+                        const url = `${TMDB_BASE_URL}/discover/movie?api_key=${apiKey}&watch_region=${targetRegion}&with_watch_providers=${activeOtt}${genreParam}${yearParam}&sort_by=popularity.desc&page=1`;
                         const res = await fetch(url);
                         if (!res.ok) throw new Error(`Status ${res.status}`);
                         const data = await res.json();
