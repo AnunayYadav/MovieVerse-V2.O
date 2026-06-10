@@ -1128,6 +1128,7 @@ export default function App() {
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [showUpdateModal, setShowUpdateModal] = useState(false);
     const [updateInfo, setUpdateInfo] = useState<{ version: string; apkUrl: string; releaseNotes: string } | null>(null);
+    const [currentVersion, setCurrentVersion] = useState("1.0");
 
     const [isTV, setIsTV] = useState(() => {
         if (typeof window === 'undefined') return false;
@@ -1169,6 +1170,7 @@ export default function App() {
                     const info = await CapApp.getInfo();
                     localVersion = info.version;
                 }
+                setCurrentVersion(localVersion);
 
                 console.log("MovieVerse TV: Checking for updates. Local version:", localVersion);
                 const res = await fetch("https://movieverseofficial.vercel.app/version.json?t=" + Date.now());
@@ -4319,7 +4321,7 @@ export default function App() {
                         <div className="flex gap-4 items-center bg-white/5 border border-white/5 rounded-2xl p-4 mb-6">
                             <div className="text-center flex-1">
                                 <p className="text-[9px] text-zinc-500 font-bold uppercase tracking-wider">Current</p>
-                                <p className="text-lg font-black text-zinc-400">v1.0</p>
+                                <p className="text-lg font-black text-zinc-400">v{currentVersion}</p>
                             </div>
                             <div className="h-8 w-[1px] bg-white/10" />
                             <div className="text-center flex-1">
