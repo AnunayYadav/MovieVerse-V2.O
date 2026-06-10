@@ -38,9 +38,9 @@ export function enableTVNavigation() {
         const activeContainer = getActiveContainer();
         if (activeContainer && activeContainer !== document.body) {
           console.log("MovieVerse TV: Programmatically closing active container modal");
-          const closeBtn = activeContainer.querySelector('button');
+          const closeBtn = activeContainer.querySelector('[data-modal-close="true"]') || activeContainer.querySelector('button');
           if (closeBtn) {
-            closeBtn.click();
+            (closeBtn as HTMLElement).click();
           } else {
             // Fallback Escape dispatch
             const escEvent = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true });

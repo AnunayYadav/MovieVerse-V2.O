@@ -1,6 +1,6 @@
-
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Search, Film, Menu, TrendingUp, Tv, Ghost, Calendar, Star, X, Sparkles, Settings, Globe, Bookmark, Heart, Folder, Languages, Filter, ChevronDown, Info, Plus, Cloud, CloudOff, Clock, Bell, History, Users, Tag, Dice5, Crown, Radio, LayoutGrid, Award, Baby, Clapperboard, ChevronRight, PlayCircle, Play, Megaphone, CalendarDays, Compass, Home, Map, Loader2, Trophy, RefreshCcw, Check, MonitorPlay, Layers, LogOut, Download, User } from 'lucide-react';
+import { App as CapApp } from '@capacitor/app';
 import { Movie, UserProfile, GENRES_MAP, GENRES_LIST, INDIAN_LANGUAGES, MaturityRating, Keyword } from './types';
 import { LogoLoader, MovieSkeleton, MovieCard, PersonCard, TMDB_BASE_URL, TMDB_BACKDROP_BASE, TMDB_IMAGE_BASE, getTmdbKey, BrandLogo, getMovieVerseRating } from './components/Shared';
 import { MoviePage } from './components/MovieDetails';
@@ -13,6 +13,13 @@ import { WatchPartySection } from './components/WatchParty';
 import { MoviePlayer } from './components/MoviePlayer';
 import { LiveTV } from './components/LiveTV';
 import { ExplorePage } from './components/ExplorePage';
+
+const isTVApp = typeof window !== 'undefined' && (
+    /Android TV|GoogleTV|AFT|Tizen|Web0S|SmartTV/i.test(navigator.userAgent) || 
+    navigator.userAgent.includes("MovieVerseTV") ||
+    (window as any).Capacitor?.platform === 'android' ||
+    window.location.search.includes("tv=true")
+);
 
 const DEFAULT_COLLECTIONS: any = {
     "srk": { title: "King Khan", params: { with_cast: "35742", sort_by: "popularity.desc" }, icon: "👑", backdrop: "https://image.tmdb.org/t/p/original/2uiMdrO15s597M3E27az2Z2gSgD.jpg", description: "The Badshah of Bollywood. Romance, Action, and Charm." },
@@ -1119,6 +1126,62 @@ export default function App() {
     const [apiKey, setApiKey] = useState(getTmdbKey());
 
     const [isAuthenticated, setIsAuthenticated] = useState(false);
+    const [showUpdateModal, setShowUpdateModal] = useState(false);
+    const [updateInfo, setUpdateInfo] = useState<{ version: string; apkUrl: string; releaseNotes: string } | null>(null);
+
+    useEffect(() => {
+        const checkUpdates = async () => {
+            if (!isTVApp) return;
+
+            try {
+                let localVersion = "1.0";
+                if ((window as any).Capacitor?.isPluginAvailable('App')) {
+                    const info = await CapApp.getInfo();
+                    localVersion = info.version;
+                }
+
+                console.log("MovieVerse TV: Checking for updates. Local version:", localVersion);
+                const res = await fetch("https://movieverseofficial.vercel.app/version.json?t=" + Date.now());
+                if (res.ok) {
+                    const data = await res.json();
+                    console.log("MovieVerse TV: Latest remote version info:", data);
+                    
+                    const isNewer = (curr: string, lat: string) => {
+                        const parse = (v: string) => v.split('.').map(x => parseInt(x, 10) || 0);
+                        const curParts = parse(curr);
+                        const latParts = parse(lat);
+                        for (let i = 0; i < Math.max(curParts.length, latParts.length); i++) {
+                            const c = curParts[i] || 0;
+                            const l = latParts[i] || 0;
+                            if (l > c) return true;
+                            if (c > l) return false;
+                        }
+                        return false;
+                    };
+
+                    if (isNewer(localVersion, data.version)) {
+                        console.log("MovieVerse TV: Newer version available!", data.version);
+                        setUpdateInfo(data);
+                        setShowUpdateModal(true);
+                    }
+                }
+            } catch (err) {
+                console.error("MovieVerse TV: Update check failed:", err);
+            }
+        };
+
+        checkUpdates();
+    }, []);
+
+    useEffect(() => {
+        if (showUpdateModal) {
+            const timer = setTimeout(() => {
+                const btn = document.querySelector('[data-update-btn="true"]');
+                if (btn) (btn as HTMLElement).focus();
+            }, 500);
+            return () => clearTimeout(timer);
+        }
+    }, [showUpdateModal]);
     const [authChecking, setAuthChecking] = useState(true);
     const [isCloudSync, setIsCloudSync] = useState(false);
     const [dataLoaded, setDataLoaded] = useState(false);
@@ -4167,6 +4230,60 @@ export default function App() {
             <ComparisonModal isOpen={isComparisonOpen} onClose={() => setIsComparisonOpen(false)} baseMovie={comparisonBaseMovie} apiKey={apiKey} />
             <SettingsPage isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} apiKey={apiKey} setApiKey={(k) => saveSettings(k)} maturityRating={maturityRating} setMaturityRating={setMaturityRating} profile={userProfile} onUpdateProfile={setUserProfile} onLogout={handleLogout} searchHistory={searchHistory} setSearchHistory={(h) => { setSearchHistory(h); localStorage.setItem('movieverse_search_history', JSON.stringify(h)); }} watchedMovies={watched} setWatchedMovies={(m) => { setWatched(m); localStorage.setItem('movieverse_watched', JSON.stringify(m)); }} />
             <NotificationModal isOpen={isNotificationOpen} onClose={() => setIsNotificationOpen(false)} onUpdate={checkUnreadNotifications} userProfile={userProfile} />
+
+            {showUpdateModal && updateInfo && (
+                <div className="fixed inset-0 z-[210] flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-300">
+                    <div className="bg-[#0f0f10] border border-white/10 p-8 rounded-3xl w-full max-w-[480px] shadow-2xl relative animate-in zoom-in-95 duration-300 text-left">
+                        <div className="flex items-center gap-3 mb-4">
+                            <div className="p-3 rounded-2xl bg-red-500/10 text-red-500 border border-red-500/20">
+                                <Download size={24} />
+                            </div>
+                            <div>
+                                <h3 className="text-xl font-black text-white tracking-tight">Update MovieVerse</h3>
+                                <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest mt-0.5">New Build Ready</p>
+                            </div>
+                        </div>
+
+                        <div className="flex gap-4 items-center bg-white/5 border border-white/5 rounded-2xl p-4 mb-6">
+                            <div className="text-center flex-1">
+                                <p className="text-[9px] text-zinc-500 font-bold uppercase tracking-wider">Current</p>
+                                <p className="text-lg font-black text-zinc-400">v1.0</p>
+                            </div>
+                            <div className="h-8 w-[1px] bg-white/10" />
+                            <div className="text-center flex-1">
+                                <p className="text-[9px] text-red-500 font-bold uppercase tracking-wider">Latest</p>
+                                <p className="text-lg font-black text-white">v{updateInfo.version}</p>
+                            </div>
+                        </div>
+
+                        <div className="space-y-2 mb-8">
+                            <p className="text-[10px] text-zinc-400 font-black uppercase tracking-wider">What's New</p>
+                            <div className="text-xs text-zinc-400 leading-relaxed font-medium bg-black/40 border border-white/5 rounded-xl p-4 max-h-32 overflow-y-auto custom-scrollbar text-zinc-300">
+                                {updateInfo.releaseNotes}
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3">
+                            <button
+                                data-update-btn="true"
+                                onClick={() => {
+                                    window.open(updateInfo.apkUrl, '_blank');
+                                }}
+                                className="h-12 bg-red-600 hover:bg-red-700 active:scale-95 text-white font-bold text-sm tracking-wide rounded-xl shadow-lg shadow-red-950/20 transition-all flex items-center justify-center gap-2 cursor-pointer"
+                            >
+                                <Download size={16} /> Update Now
+                            </button>
+                            <button
+                                data-modal-close="true"
+                                onClick={() => setShowUpdateModal(false)}
+                                className="h-12 bg-white/5 hover:bg-white/10 active:scale-95 text-zinc-300 font-bold text-sm tracking-wide rounded-xl border border-white/5 transition-all flex items-center justify-center cursor-pointer"
+                            >
+                                Later
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Join Watch Party Modal */}
             <div className={`fixed inset-0 z-[120] flex items-center justify-center p-4 transition-all duration-300 ${isWatchPartyJoinOpen ? 'visible opacity-100 pointer-events-auto bg-black/80 backdrop-blur-xl' : 'invisible opacity-0 pointer-events-none bg-black/0 backdrop-blur-none'}`}>
