@@ -1129,9 +1129,39 @@ export default function App() {
     const [showUpdateModal, setShowUpdateModal] = useState(false);
     const [updateInfo, setUpdateInfo] = useState<{ version: string; apkUrl: string; releaseNotes: string } | null>(null);
 
+    const [isTV, setIsTV] = useState(() => {
+        if (typeof window === 'undefined') return false;
+        return (
+            /Android TV|GoogleTV|AFT|Tizen|Web0S|SmartTV/i.test(navigator.userAgent) || 
+            navigator.userAgent.includes("MovieVerseTV") ||
+            (window as any).Capacitor?.platform === 'android' ||
+            window.location.search.includes("tv=true")
+        );
+    });
+
+    useEffect(() => {
+        const checkTV = () => {
+            const result = 
+                /Android TV|GoogleTV|AFT|Tizen|Web0S|SmartTV/i.test(navigator.userAgent) || 
+                navigator.userAgent.includes("MovieVerseTV") ||
+                (window as any).Capacitor?.platform === 'android' ||
+                window.location.search.includes("tv=true");
+            if (result) {
+                setIsTV(true);
+            }
+        };
+        checkTV();
+        const timer = setTimeout(checkTV, 300);
+        const timer2 = setTimeout(checkTV, 800);
+        return () => {
+            clearTimeout(timer);
+            clearTimeout(timer2);
+        };
+    }, []);
+
     useEffect(() => {
         const checkUpdates = async () => {
-            if (!isTVApp) return;
+            if (!isTV) return;
 
             try {
                 let localVersion = "1.0";
@@ -1171,7 +1201,7 @@ export default function App() {
         };
 
         checkUpdates();
-    }, []);
+    }, [isTV]);
 
     useEffect(() => {
         if (showUpdateModal) {
@@ -1249,6 +1279,42 @@ export default function App() {
     const [comparisonBaseMovie, setComparisonBaseMovie] = useState<Movie | null>(null);
     const [currentUserId, setCurrentUserId] = useState<string>('');
     const [reminders, setReminders] = useState<number[]>([]);
+
+    // Halt video playback when app goes to background / minimized / locked
+    useEffect(() => {
+        const handleVisibilityChange = () => {
+            if (document.hidden) {
+                console.log("MovieVerse TV: Tab hidden. Pausing background playback.");
+                setIsWatching(false);
+            }
+        };
+
+        let stateListener: any = null;
+        const registerAppStateListener = async () => {
+            if ((window as any).Capacitor?.isPluginAvailable('App')) {
+                try {
+                    stateListener = await CapApp.addListener('appStateChange', ({ isActive }) => {
+                        console.log("MovieVerse TV: App state changed. isActive:", isActive);
+                        if (!isActive) {
+                            setIsWatching(false);
+                        }
+                    });
+                } catch (e) {
+                    console.error("MovieVerse TV: Failed to register appStateChange listener:", e);
+                }
+            }
+        };
+
+        document.addEventListener("visibilitychange", handleVisibilityChange);
+        registerAppStateListener();
+
+        return () => {
+            document.removeEventListener("visibilitychange", handleVisibilityChange);
+            if (stateListener) {
+                stateListener.remove();
+            }
+        };
+    }, []);
 
     // Synchronize modal history stack — ONE-WAY PUSH ONLY
     // This effect only RECORDS state changes to the history stack.
@@ -3294,104 +3360,108 @@ export default function App() {
 
     return (
         <div className="min-h-screen bg-[#030303] text-white font-sans selection:bg-amber-500/30 selection:text-white">
-            {/* Dynamic Sidebar */}
-            <div className={`fixed inset-y-0 left-0 z-[100] w-72 bg-black/95 backdrop-blur-2xl border-r border-white/10 transform transition-transform duration-500 ease-[cubic-bezier(0.33,1,0.68,1)] ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-                <div className="flex flex-col h-full p-6">
-                    <div className="flex items-center justify-between mb-8">
-                        <div className="flex items-center justify-center cursor-pointer group relative select-none" onClick={resetToHome}>
-                            <div className="relative group flex items-center justify-center">
-                                <BrandLogo size={36} accentColor={accentText} className="relative z-10 transition-transform duration-500 group-hover:rotate-12" />
+            {!isTV && (
+              <>
+                {/* Dynamic Sidebar */}
+                <div className={`fixed inset-y-0 left-0 z-[100] w-72 bg-black/95 backdrop-blur-2xl border-r border-white/10 transform transition-transform duration-500 ease-[cubic-bezier(0.33,1,0.68,1)] ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+                    <div className="flex flex-col h-full p-6">
+                        <div className="flex items-center justify-between mb-8">
+                            <div className="flex items-center justify-center cursor-pointer group relative select-none" onClick={resetToHome}>
+                                <div className="relative group flex items-center justify-center">
+                                    <BrandLogo size={36} accentColor={accentText} className="relative z-10 transition-transform duration-500 group-hover:rotate-12" />
+                                </div>
+                            </div>
+                            <button onClick={() => setIsSidebarOpen(false)} className="p-2 hover:bg-white/10 rounded-full transition-colors">
+                                <X size={20} />
+                            </button>
+                        </div>
+
+                        {/* Mobile Search */}
+                        <div className="mb-8 md:hidden relative group">
+                            <input
+                                type="text"
+                                placeholder={selectedCategory === "Categories" ? "Search categories..." : "Search... (Press /)"}
+                                className="w-full bg-white/5 border border-white/10 rounded-xl py-2.5 pl-10 pr-4 text-sm focus:outline-none focus:border-white/30"
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                onKeyDown={(e) => e.key === 'Enter' && handleSearchSubmit(searchQuery)}
+                            />
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={16} />
+                        </div>
+
+                        <div className="space-y-6 overflow-y-auto custom-scrollbar flex-1 -mx-2 px-2">
+                            <div className="space-y-1">
+                                <p className="px-3 text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Main</p>
+                                <button onClick={resetToHome} className={getSidebarItemClass(selectedCategory === "All" && !searchQuery)}>
+                                    <Home size={18} /> Home <span className="ml-auto text-[8px] opacity-40 hidden lg:inline">Alt+H</span>
+                                </button>
+                                <button onClick={() => { resetFilters(); setSelectedCategory("Explore"); }} className={getSidebarItemClass(selectedCategory === "Explore")}>
+                                    <Compass size={18} /> Explore <span className="ml-auto text-[8px] opacity-40 hidden lg:inline">Alt+E</span>
+                                </button>
+                            </div>
+
+                            <div className="space-y-1">
+                                <p className="px-3 text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Entertainment</p>
+                                <button onClick={() => { resetFilters(); setSelectedCategory("TV Shows"); }} className={getSidebarItemClass(selectedCategory === "TV Shows")}>
+                                    <Tv size={18} /> TV Shows
+                                </button>
+                                <button onClick={() => { resetFilters(); setSelectedCategory("LiveTV"); }} className={getSidebarItemClass(selectedCategory === "LiveTV")}>
+                                    <Radio size={18} /> Live TV <span className="ml-auto text-[8px] opacity-40 hidden lg:inline">Alt+T</span>
+                                </button>
+                                <button onClick={() => { resetFilters(); setSelectedCategory("Franchise"); }} className={getSidebarItemClass(selectedCategory === "Franchise")}>
+                                    <Layers size={18} /> Franchises
+                                </button>
+                                <button onClick={() => { setIsSidebarOpen(false); setIsWatchPartyJoinOpen(true); }} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold text-purple-400 hover:bg-purple-500/10 transition-all border border-purple-500/10 hover:translate-x-1 duration-300 mt-2">
+                                    <Users size={18} /> Join Watch Party
+                                </button>
+                            </div>
+
+                            <div className="space-y-1">
+                                <p className="px-3 text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">My Library</p>
+                                <button onClick={() => { resetFilters(); setSelectedCategory("Watchlist"); }} className={getSidebarLibraryClass(selectedCategory === "Watchlist")}>
+                                    <div className="flex items-center gap-3"><Bookmark size={18} /> Watchlist <span className="text-[8px] opacity-40 hidden lg:inline ml-1">Alt+W</span></div>
+                                    <span className="text-[10px] bg-white/5 px-1.5 rounded">{watchlist.length}</span>
+                                </button>
+                                <button onClick={() => { resetFilters(); setSelectedCategory("Favorites"); }} className={getSidebarLibraryClass(selectedCategory === "Favorites")}>
+                                    <div className="flex items-center gap-3"><Heart size={18} /> Favorites</div>
+                                    <span className="text-[10px] bg-white/5 px-1.5 rounded">{favorites.length}</span>
+                                </button>
+                                <button onClick={() => { resetFilters(); setSelectedCategory("History"); }} className={getSidebarLibraryClass(selectedCategory === "History")}>
+                                    <div className="flex items-center gap-3"><History size={18} /> History</div>
+                                    <span className="text-[10px] bg-white/5 px-1.5 rounded">{watched.length}</span>
+                                </button>
+                            </div>
+
+                            <div className="space-y-1 pt-4">
+                                <p className="px-3 text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Apps</p>
+                                <a
+                                    href="/movieverse-tv.apk"
+                                    download="movieverse-tv.apk"
+                                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold text-amber-500 hover:bg-amber-500/10 transition-all border border-amber-500/10 hover:translate-x-1 duration-300"
+                                >
+                                    <Download size={18} /> Download TV APK
+                                </a>
                             </div>
                         </div>
-                        <button onClick={() => setIsSidebarOpen(false)} className="p-2 hover:bg-white/10 rounded-full transition-colors">
-                            <X size={20} />
-                        </button>
-                    </div>
 
-                    {/* Mobile Search */}
-                    <div className="mb-8 md:hidden relative group">
-                        <input
-                            type="text"
-                            placeholder={selectedCategory === "Categories" ? "Search categories..." : "Search... (Press /)"}
-                            className="w-full bg-white/5 border border-white/10 rounded-xl py-2.5 pl-10 pr-4 text-sm focus:outline-none focus:border-white/30"
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            onKeyDown={(e) => e.key === 'Enter' && handleSearchSubmit(searchQuery)}
-                        />
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={16} />
-                    </div>
-
-                    <div className="space-y-6 overflow-y-auto custom-scrollbar flex-1 -mx-2 px-2">
-                        <div className="space-y-1">
-                            <p className="px-3 text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Main</p>
-                            <button onClick={resetToHome} className={getSidebarItemClass(selectedCategory === "All" && !searchQuery)}>
-                                <Home size={18} /> Home <span className="ml-auto text-[8px] opacity-40 hidden lg:inline">Alt+H</span>
+                        <div className="mt-auto pt-6 border-t border-white/5 space-y-2">
+                            <button onClick={() => { setIsSidebarOpen(false); setIsSettingsOpen(true); }} className={getSidebarItemClass(isSettingsOpen)}>
+                                <Settings size={18} /> Settings <span className="ml-auto text-[8px] opacity-40 hidden lg:inline">Alt+S</span>
                             </button>
-                            <button onClick={() => { resetFilters(); setSelectedCategory("Explore"); }} className={getSidebarItemClass(selectedCategory === "Explore")}>
-                                <Compass size={18} /> Explore <span className="ml-auto text-[8px] opacity-40 hidden lg:inline">Alt+E</span>
+                            <button onClick={handleLogout} className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-bold text-red-500 hover:bg-red-500/10 hover:translate-x-1 transition-all duration-300">
+                                <LogOut size={18} /> Sign Out
                             </button>
                         </div>
-
-                        <div className="space-y-1">
-                            <p className="px-3 text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Entertainment</p>
-                            <button onClick={() => { resetFilters(); setSelectedCategory("TV Shows"); }} className={getSidebarItemClass(selectedCategory === "TV Shows")}>
-                                <Tv size={18} /> TV Shows
-                            </button>
-                            <button onClick={() => { resetFilters(); setSelectedCategory("LiveTV"); }} className={getSidebarItemClass(selectedCategory === "LiveTV")}>
-                                <Radio size={18} /> Live TV <span className="ml-auto text-[8px] opacity-40 hidden lg:inline">Alt+T</span>
-                            </button>
-                            <button onClick={() => { resetFilters(); setSelectedCategory("Franchise"); }} className={getSidebarItemClass(selectedCategory === "Franchise")}>
-                                <Layers size={18} /> Franchises
-                            </button>
-                            <button onClick={() => { setIsSidebarOpen(false); setIsWatchPartyJoinOpen(true); }} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold text-purple-400 hover:bg-purple-500/10 transition-all border border-purple-500/10 hover:translate-x-1 duration-300 mt-2">
-                                <Users size={18} /> Join Watch Party
-                            </button>
-                        </div>
-
-                        <div className="space-y-1">
-                            <p className="px-3 text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">My Library</p>
-                            <button onClick={() => { resetFilters(); setSelectedCategory("Watchlist"); }} className={getSidebarLibraryClass(selectedCategory === "Watchlist")}>
-                                <div className="flex items-center gap-3"><Bookmark size={18} /> Watchlist <span className="text-[8px] opacity-40 hidden lg:inline ml-1">Alt+W</span></div>
-                                <span className="text-[10px] bg-white/5 px-1.5 rounded">{watchlist.length}</span>
-                            </button>
-                            <button onClick={() => { resetFilters(); setSelectedCategory("Favorites"); }} className={getSidebarLibraryClass(selectedCategory === "Favorites")}>
-                                <div className="flex items-center gap-3"><Heart size={18} /> Favorites</div>
-                                <span className="text-[10px] bg-white/5 px-1.5 rounded">{favorites.length}</span>
-                            </button>
-                            <button onClick={() => { resetFilters(); setSelectedCategory("History"); }} className={getSidebarLibraryClass(selectedCategory === "History")}>
-                                <div className="flex items-center gap-3"><History size={18} /> History</div>
-                                <span className="text-[10px] bg-white/5 px-1.5 rounded">{watched.length}</span>
-                            </button>
-                        </div>
-
-                        <div className="space-y-1 pt-4">
-                            <p className="px-3 text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Apps</p>
-                            <a
-                                href="/movieverse-tv.apk"
-                                download="movieverse-tv.apk"
-                                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold text-amber-500 hover:bg-amber-500/10 transition-all border border-amber-500/10 hover:translate-x-1 duration-300"
-                            >
-                                <Download size={18} /> Download TV APK
-                            </a>
-                        </div>
-                    </div>
-
-                    <div className="mt-auto pt-6 border-t border-white/5 space-y-2">
-                        <button onClick={() => { setIsSidebarOpen(false); setIsSettingsOpen(true); }} className={getSidebarItemClass(isSettingsOpen)}>
-                            <Settings size={18} /> Settings <span className="ml-auto text-[8px] opacity-40 hidden lg:inline">Alt+S</span>
-                        </button>
-                        <button onClick={handleLogout} className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-bold text-red-500 hover:bg-red-500/10 hover:translate-x-1 transition-all duration-300">
-                            <LogOut size={18} /> Sign Out
-                        </button>
                     </div>
                 </div>
-            </div>
 
-            {/* Sidebar Backdrop Overlay */}
-            <div
-                className={`fixed inset-0 z-[95] transition-all duration-300 ${isSidebarOpen ? 'visible opacity-100 pointer-events-auto bg-black/60 backdrop-blur-sm' : 'invisible opacity-0 pointer-events-none bg-black/0 backdrop-blur-none'}`}
-                onClick={() => setIsSidebarOpen(false)}
-            />
+                {/* Sidebar Backdrop Overlay */}
+                <div
+                    className={`fixed inset-0 z-[95] transition-all duration-300 ${isSidebarOpen ? 'visible opacity-100 pointer-events-auto bg-black/60 backdrop-blur-sm' : 'invisible opacity-0 pointer-events-none bg-black/0 backdrop-blur-none'}`}
+                    onClick={() => setIsSidebarOpen(false)}
+                />
+              </>
+            )}
 
             {!(activeWatchPartyRoom && watchPartyMovie) && (
                 <nav className={`fixed top-0 left-0 right-0 z-[60] h-16 flex items-center justify-center px-4 md:px-6 transition-all duration-500 ${(hasHeroBanner && !isScrolled)
@@ -3400,12 +3470,14 @@ export default function App() {
                     }`}>
                     <div className="flex items-center justify-between w-full max-w-7xl">
                         <div className="flex items-center gap-4 md:gap-8">
-                            <button
-                                onClick={() => setIsSidebarOpen(true)}
-                                className="p-2 -ml-2 hover:bg-white/10 rounded-full transition-colors text-white"
-                            >
-                                <Menu size={24} />
-                            </button>
+                            {!isTV && (
+                                <button
+                                    onClick={() => setIsSidebarOpen(true)}
+                                    className="p-2 -ml-2 hover:bg-white/10 rounded-full transition-colors text-white"
+                                >
+                                    <Menu size={24} />
+                                </button>
+                            )}
 
                             <div className="flex items-center justify-center cursor-pointer group relative select-none" onClick={resetToHome}>
                                 <div className="relative group flex items-center justify-center">

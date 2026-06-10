@@ -1,15 +1,39 @@
 import { App } from '@capacitor/app';
 
+let cleanupTvNavigation: (() => void) | null = null;
+
 export function enableTVNavigation() {
-  // Detect if running on TV or Capacitor Android TV app (or debugging with ?tv=true)
-  const isTV = 
-    /Android TV|GoogleTV|AFT|Tizen|Web0S|SmartTV/i.test(navigator.userAgent) || 
-    navigator.userAgent.includes("MovieVerseTV") ||
-    (window as any).Capacitor?.platform === 'android' ||
-    window.location.search.includes("tv=true");
+  const checkTV = () => {
+    return (
+      /Android TV|GoogleTV|AFT|Tizen|Web0S|SmartTV/i.test(navigator.userAgent) || 
+      navigator.userAgent.includes("MovieVerseTV") ||
+      (window as any).Capacitor?.platform === 'android' ||
+      window.location.search.includes("tv=true")
+    );
+  };
 
-  if (!isTV) return;
+  // If already enabled, do not re-enable
+  if (document.body.classList.contains("tv-navigation-enabled")) {
+    return;
+  }
 
+  if (!checkTV()) {
+    // Retry in case Capacitor is loading asynchronously
+    const retryInterval = setInterval(() => {
+      if (checkTV()) {
+        clearInterval(retryInterval);
+        cleanupTvNavigation = enableTVNavigationActual();
+      }
+    }, 100);
+    // Timeout after 3 seconds to avoid infinite polling if not on TV
+    setTimeout(() => clearInterval(retryInterval), 3000);
+    return;
+  }
+
+  cleanupTvNavigation = enableTVNavigationActual();
+}
+
+function enableTVNavigationActual() {
   console.log("MovieVerse AI: Spatial TV navigation enabled");
 
   // Add navigation helper classes and custom focus CSS
@@ -59,7 +83,7 @@ export function enableTVNavigation() {
   }
 
   // Listen for D-pad navigation keys
-  document.addEventListener("keydown", (e) => {
+  const keyListener = (e: KeyboardEvent) => {
     const keys = ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Enter", "Backspace", "Escape"];
     if (!keys.includes(e.key)) return;
 
@@ -88,6 +112,12 @@ export function enableTVNavigation() {
     ).filter(el => {
       const rect = el.getBoundingClientRect();
       const style = getComputedStyle(el);
+
+      // Prevent focus from leaking into closed/translated sidebar or invisible elements
+      if (el.closest('.translate-x-full, .-translate-x-full, .pointer-events-none, .invisible, .opacity-0')) {
+        return false;
+      }
+
       return (
         rect.width > 0 &&
         rect.height > 0 &&
@@ -176,11 +206,14 @@ export function enableTVNavigation() {
       (bestElement as HTMLElement).focus();
       smartScrollIntoView(bestElement);
     }
-  });
+  };
+
+  document.addEventListener("keydown", keyListener);
 
   // Clean up observer and listeners
   return () => {
     observer.disconnect();
+    document.removeEventListener("keydown", keyListener);
     if (backButtonListener) {
       backButtonListener.remove();
     }
@@ -273,7 +306,8 @@ function initAutoTabIndex(): MutationObserver {
 }
 
 /**
- * Smoothly centers the focused element within its scrollable rows / viewports.
+ * Center the focused element instantly. Using instant scrolling (auto) on TV
+ * eliminates rendering lag and frame stutters on low-power TV chipsets.
  */
 function smartScrollIntoView(element: HTMLElement) {
   let parent = element.parentElement;
@@ -294,12 +328,12 @@ function smartScrollIntoView(element: HTMLElement) {
 
       if (isScrollableX) {
         const targetScrollLeft = parent.scrollLeft + (elRect.left - parentRect.left) - (parentRect.width / 2) + (elRect.width / 2);
-        parent.scrollTo({ left: targetScrollLeft, behavior: 'smooth' });
+        parent.scrollTo({ left: targetScrollLeft, behavior: 'auto' });
       }
 
       if (isScrollableY) {
         const targetScrollTop = parent.scrollTop + (elRect.top - parentRect.top) - (parentRect.height / 2) + (elRect.height / 2);
-        parent.scrollTo({ top: targetScrollTop, behavior: 'smooth' });
+        parent.scrollTo({ top: targetScrollTop, behavior: 'auto' });
       }
     }
 
@@ -316,13 +350,13 @@ function smartScrollIntoView(element: HTMLElement) {
     if (!isInViewport) {
       const currentScrollTop = window.scrollY || window.pageYOffset || 0;
       const targetScrollTop = currentScrollTop + rect.top - (window.innerHeight / 2) + (rect.height / 2);
-      window.scrollTo({ top: targetScrollTop, behavior: 'smooth' });
+      window.scrollTo({ top: targetScrollTop, behavior: 'auto' });
     }
   }
 }
 
 /**
- * Injects premium focus ring and scale styles into the page head.
+ * Injects premium focus outlines and global transition-disabling styles.
  */
 function injectTvStyles() {
   const styleId = "tv-navigation-custom-styles";
@@ -331,22 +365,28 @@ function injectTvStyles() {
   const styleEl = document.createElement("style");
   styleEl.id = styleId;
   styleEl.innerHTML = `
-    /* Visual feedback for TV remote navigation - premium hover-like scaling, soft white border, and white glow shadow */
+    /* Disable performance-heavy transition animations globally on TV to eliminate remote input lag */
+    .tv-navigation-enabled * {
+      transition: none !important;
+      animation-duration: 0s !important;
+      animation-delay: 0s !important;
+    }
+
+    /* Snappy TV remote focus style - solid high-contrast white outline and immediate scale-up */
     .tv-navigation-enabled :focus {
-      outline: none !important;
-      border-color: rgba(255, 255, 255, 0.7) !important;
-      box-shadow: 0 10px 30px rgba(255, 255, 255, 0.15), 0 0 15px rgba(255, 255, 255, 0.1) !important;
-      transform: scale(1.05) !important;
-      transition: transform 0.15s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.15s, box-shadow 0.15s, background-color 0.15s !important;
+      outline: 2.5px solid #ffffff !important;
+      outline-offset: 2px !important;
+      transform: scale(1.04) !important;
+      box-shadow: none !important;
       z-index: 9999 !important;
       position: relative !important;
     }
     
-    /* Interactive elements get a soft white background highlight on focus if they are transparent */
+    /* Focused interactive items get a soft translucent background if they don't have a solid white bg */
     .tv-navigation-enabled button:focus:not(.bg-white),
     .tv-navigation-enabled a:focus:not(.bg-white),
     .tv-navigation-enabled .cursor-pointer:focus:not(.bg-white) {
-      background-color: rgba(255, 255, 255, 0.15) !important;
+      background-color: rgba(255, 255, 255, 0.18) !important;
       color: #ffffff !important;
     }
     
@@ -382,13 +422,6 @@ function injectTvStyles() {
     }
     .tv-navigation-enabled .custom-scrollbar::-webkit-scrollbar {
       display: none !important;
-    }
-    
-    /* Ensure scrolling containers do not clip scaling elements */
-    .tv-navigation-enabled .flex,
-    .tv-navigation-enabled .grid {
-      /* Remove boundary clipping so transform scale looks clean */
-      /* overflow: visible; */
     }
   `;
   document.head.appendChild(styleEl);
