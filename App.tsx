@@ -3487,7 +3487,7 @@ export default function App() {
                                 </div>
                             </div>
 
-                            <div className="hidden lg:flex items-center gap-2">
+                            <div className={`${isTV ? 'flex' : 'hidden lg:flex'} items-center gap-2`}>
                                 <button onClick={resetToHome} className={`group flex items-center gap-2 px-5 py-2 rounded-full text-xs font-semibold tracking-wide transition-all duration-300 ${selectedCategory === "All" && !searchQuery ? "bg-white/10 text-white" : "text-zinc-400 hover:text-white hover:bg-white/5"}`}>
                                     <Home size={15} className="transition-all duration-300 group-hover:scale-110 group-hover:-translate-y-0.5" />
                                     <span>Home</span>
@@ -3632,7 +3632,7 @@ export default function App() {
             <div className={`flex ${(hasHeroBanner || (activeWatchPartyRoom && watchPartyMovie)) ? 'pt-0' : 'pt-16'}`}>
                 <main className={`flex-1 w-full ${(activeWatchPartyRoom && watchPartyMovie)
                         ? 'h-screen overflow-hidden'
-                        : 'min-h-[calc(100vh-4rem)] pb-20 md:pb-0'
+                        : `min-h-[calc(100vh-4rem)] ${isTV ? 'pb-0' : 'pb-20 md:pb-0'}`
                     }`}>
                     {activeWatchPartyRoom && watchPartyMovie ? (
                         <div className={`relative w-full h-full bg-black overflow-hidden animate-in fade-in duration-500 ${isWatchPartyImmersive ? '' : 'flex flex-col lg:flex-row'}`}>
@@ -4401,12 +4401,12 @@ export default function App() {
 
             {/* Mobile Browse Dropdown Backdrop */}
             <div
-                className={`fixed inset-0 z-[75] md:hidden transition-all duration-300 ${isBrowseOpen ? 'visible opacity-100 pointer-events-auto bg-black/60 backdrop-blur-sm' : 'invisible opacity-0 pointer-events-none bg-black/0 backdrop-blur-none'}`}
+                className={`fixed inset-0 z-[75] ${isTV ? 'hidden' : 'md:hidden'} transition-all duration-300 ${isBrowseOpen ? 'visible opacity-100 pointer-events-auto bg-black/60 backdrop-blur-sm' : 'invisible opacity-0 pointer-events-none bg-black/0 backdrop-blur-none'}`}
                 onClick={() => setIsBrowseOpen(false)}
             />
 
             {/* Mobile Browse Dropdown Menu */}
-            <div className={`fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom,0px))] left-1/2 -translate-x-1/2 w-[280px] z-[85] md:hidden bg-[#0c0c0e]/95 backdrop-blur-3xl border border-white/10 rounded-2xl shadow-[0_24px_50px_rgba(0,0,0,0.8)] p-2.5 grid grid-cols-3 gap-2 transition-all duration-300 transform origin-bottom select-none ${isBrowseOpen ? 'visible opacity-100 scale-100 translate-y-0 pointer-events-auto' : 'invisible opacity-0 scale-95 translate-y-4 pointer-events-none'}`}>
+            <div className={`fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom,0px))] left-1/2 -translate-x-1/2 w-[280px] z-[85] ${isTV ? 'hidden' : 'md:hidden'} bg-[#0c0c0e]/95 backdrop-blur-3xl border border-white/10 rounded-2xl shadow-[0_24px_50px_rgba(0,0,0,0.8)] p-2.5 grid grid-cols-3 gap-2 transition-all duration-300 transform origin-bottom select-none ${isBrowseOpen ? 'visible opacity-100 scale-100 translate-y-0 pointer-events-auto' : 'invisible opacity-0 scale-95 translate-y-4 pointer-events-none'}`}>
                 {browseOptions.map(opt => {
                     const isActive = selectedCategory === opt.id ||
                         (opt.id === "Trending" && selectedCategory === "All") ||
@@ -4431,7 +4431,7 @@ export default function App() {
             </div>
 
             {/* Mobile Bottom Navigation Bar */}
-            <div className="fixed bottom-0 left-0 right-0 z-[80] md:hidden bg-[#070708]/90 backdrop-blur-2xl border-t border-white/10 pb-safe shadow-[0_-8px_30px_rgb(0,0,0,0.5)]">
+            <div className={`fixed bottom-0 left-0 right-0 z-[80] ${isTV ? 'hidden' : 'md:hidden'} bg-[#070708]/90 backdrop-blur-2xl border-t border-white/10 pb-safe shadow-[0_-8px_30px_rgb(0,0,0,0.5)]`}>
                 <div className="h-16 flex items-center justify-around px-2">
                     {[
                         { id: 'Home', label: 'Home', icon: Home, action: () => { setIsBrowseOpen(false); resetToHome(); }, activeCondition: selectedCategory === "All" && !searchQuery },

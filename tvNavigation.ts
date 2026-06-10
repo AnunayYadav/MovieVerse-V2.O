@@ -114,7 +114,11 @@ function enableTVNavigationActual() {
       const style = getComputedStyle(el);
 
       // Prevent focus from leaking into closed/translated sidebar or invisible elements
-      if (el.closest('.translate-x-full, .-translate-x-full, .pointer-events-none, .invisible, .opacity-0')) {
+      if (el.closest('.translate-x-full, .-translate-x-full, .invisible, .opacity-0')) {
+        return false;
+      }
+
+      if (style.pointerEvents === 'none') {
         return false;
       }
 
@@ -379,7 +383,6 @@ function injectTvStyles() {
       transform: scale(1.04) !important;
       box-shadow: none !important;
       z-index: 9999 !important;
-      position: relative !important;
     }
     
     /* Focused interactive items get a soft translucent background if they don't have a solid white bg */
