@@ -43,7 +43,7 @@ export function enableTVNavigation() {
     // Query focusable elements within the active container
     const focusable = Array.from(
       activeContainer.querySelectorAll<HTMLElement>(
-        'a, button, input, textarea, select, [tabindex="0"], .cursor-pointer'
+        'a, button, input, textarea, select, iframe, [tabindex="0"], .cursor-pointer'
       )
     ).filter(el => {
       const rect = el.getBoundingClientRect();
@@ -68,12 +68,19 @@ export function enableTVNavigation() {
       return;
     }
 
-    // Enter Key -> Click focused element
+    // Enter Key -> Click focused element (or focus iframe content)
     if (e.key === "Enter") {
       const isTyping = active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA');
       if (!isTyping) {
         e.preventDefault();
-        active.click();
+        if (active.tagName === 'IFRAME') {
+          try {
+            (active as HTMLIFrameElement).focus();
+            (active as HTMLIFrameElement).contentWindow?.focus();
+          } catch(err) {}
+        } else {
+          active.click();
+        }
       }
       return;
     }
@@ -193,6 +200,7 @@ function initAutoTabIndex(): MutationObserver {
       element.tagName === 'INPUT' ||
       element.tagName === 'TEXTAREA' ||
       element.tagName === 'SELECT' ||
+      element.tagName === 'IFRAME' ||
       element.classList.contains('cursor-pointer') ||
       element.hasAttribute('onClick') ||
       element.getAttribute('role') === 'button';
@@ -310,6 +318,12 @@ function injectTvStyles() {
       backdrop-filter: none !important;
       -webkit-backdrop-filter: none !important;
       background-color: rgba(10, 10, 10, 0.98) !important;
+    }
+    
+    /* Keep player close button visible on TV */
+    .tv-navigation-enabled .group\\/player > div {
+      opacity: 1 !important;
+      pointer-events: auto !important;
     }
     
     /* Flatten nested scrollable containers inside fixed pages for TV D-pad navigation */
