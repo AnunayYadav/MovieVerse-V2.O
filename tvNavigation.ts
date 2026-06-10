@@ -1,10 +1,11 @@
 
 export function enableTVNavigation() {
-  // Detect if running on TV or Capacitor Android TV app
+  // Detect if running on TV or Capacitor Android TV app (or debugging with ?tv=true)
   const isTV = 
     /Android TV|GoogleTV|AFT|Tizen|Web0S|SmartTV/i.test(navigator.userAgent) || 
     navigator.userAgent.includes("MovieVerseTV") ||
-    (window as any).Capacitor?.platform === 'android';
+    (window as any).Capacitor?.platform === 'android' ||
+    window.location.search.includes("tv=true");
 
   if (!isTV) return;
 
@@ -140,9 +141,10 @@ export function enableTVNavigation() {
  * Finds the top-most visible modal container or sidebar to trap focus.
  */
 function getActiveContainer(): HTMLElement {
-  const overlays = Array.from(document.querySelectorAll<HTMLElement>(
+  const allOverlays = Array.from(document.querySelectorAll<HTMLElement>(
     '.fixed, .absolute, [role="dialog"]'
-  )).filter(el => {
+  ));
+  const overlays = allOverlays.filter(el => {
     const rect = el.getBoundingClientRect();
     if (rect.width === 0 || rect.height === 0) return false;
     
@@ -159,11 +161,16 @@ function getActiveContainer(): HTMLElement {
   });
 
   if (overlays.length > 0) {
-    // Return overlay with highest z-index
+    // Return overlay with highest z-index. If z-indexes are equal, return the one later in the DOM
     overlays.sort((a, b) => {
       const zA = parseInt(getComputedStyle(a).zIndex, 10) || 0;
       const zB = parseInt(getComputedStyle(b).zIndex, 10) || 0;
-      return zB - zA;
+      if (zA !== zB) {
+        return zB - zA;
+      }
+      const idxA = allOverlays.indexOf(a);
+      const idxB = allOverlays.indexOf(b);
+      return idxB - idxA;
     });
     return overlays[0];
   }
@@ -215,8 +222,14 @@ function initAutoTabIndex(): MutationObserver {
  */
 function smartScrollIntoView(element: HTMLElement) {
   let parent = element.parentElement;
-  while (parent && parent !== document.body) {
+  let isFixed = false;
+
+  while (parent) {
     const style = getComputedStyle(parent);
+    if (style.position === 'fixed') {
+      isFixed = true;
+    }
+
     const isScrollableX = parent.scrollWidth > parent.clientWidth && (style.overflowX === 'auto' || style.overflowX === 'scroll');
     const isScrollableY = parent.scrollHeight > parent.clientHeight && (style.overflowY === 'auto' || style.overflowY === 'scroll');
 
@@ -234,14 +247,22 @@ function smartScrollIntoView(element: HTMLElement) {
         parent.scrollTo({ top: targetScrollTop, behavior: 'smooth' });
       }
     }
+
+    if (parent === document.body || parent === document.documentElement) {
+      break;
+    }
     parent = parent.parentElement;
   }
 
-  // Double check viewport bounds and adjust main screen if necessary
-  const rect = element.getBoundingClientRect();
-  const isInViewport = rect.top >= 50 && rect.bottom <= window.innerHeight - 50;
-  if (!isInViewport) {
-    element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  // Only scroll the window/body if the element is not inside a fixed overlay container
+  if (!isFixed) {
+    const rect = element.getBoundingClientRect();
+    const isInViewport = rect.top >= 50 && rect.bottom <= window.innerHeight - 50;
+    if (!isInViewport) {
+      const currentScrollTop = window.scrollY || window.pageYOffset || 0;
+      const targetScrollTop = currentScrollTop + rect.top - (window.innerHeight / 2) + (rect.height / 2);
+      window.scrollTo({ top: targetScrollTop, behavior: 'smooth' });
+    }
   }
 }
 
@@ -264,6 +285,22 @@ function injectTvStyles() {
       transition: transform 0.15s cubic-bezier(0.16, 1, 0.3, 1), outline 0.15s, box-shadow 0.15s !important;
       z-index: 9999 !important;
       position: relative !important;
+    }
+    
+    /* Flatten nested scrollable containers inside fixed pages for TV D-pad navigation */
+    .tv-navigation-enabled .max-h-\\[820px\\] {
+      max-height: none !important;
+      overflow: visible !important;
+    }
+    .tv-navigation-enabled .max-h-40 {
+      max-height: none !important;
+      overflow: visible !important;
+    }
+    .tv-navigation-enabled .custom-scrollbar {
+      scrollbar-width: none !important;
+    }
+    .tv-navigation-enabled .custom-scrollbar::-webkit-scrollbar {
+      display: none !important;
     }
     
     /* Ensure scrolling containers do not clip scaling elements */

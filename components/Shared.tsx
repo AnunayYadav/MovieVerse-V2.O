@@ -10,7 +10,8 @@ const isTVApp =
     (window as any).Capacitor?.platform === 'android'
   );
 
-export const TMDB_BASE_URL = isTVApp ? "https://api.themoviedb.org/3" : "/api/tmdb";
+// Point to the hosted Vercel deployment of the proxy to prevent buffering/throttling inside India
+export const TMDB_BASE_URL = isTVApp ? "https://movieverseofficial.vercel.app/api/tmdb" : "/api/tmdb";
 export const TMDB_IMAGE_BASE = "https://image.tmdb.org/t/p/w500";
 // Optimized from 'original' to 'w1280' for better performance and lower bandwidth
 export const TMDB_BACKDROP_BASE = "https://image.tmdb.org/t/p/w1280";
