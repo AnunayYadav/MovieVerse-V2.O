@@ -142,7 +142,7 @@ export function enableTVNavigation() {
  */
 function getActiveContainer(): HTMLElement {
   const allOverlays = Array.from(document.querySelectorAll<HTMLElement>(
-    '.fixed, .absolute, [role="dialog"]'
+    'div.fixed, div.absolute, section.fixed, section.absolute, dialog, [role="dialog"]'
   ));
   const overlays = allOverlays.filter(el => {
     const rect = el.getBoundingClientRect();
@@ -157,7 +157,11 @@ function getActiveContainer(): HTMLElement {
     
     // Check if it's a modal container (generally z-index >= 90)
     const zIndex = parseInt(style.zIndex, 10);
-    return !isNaN(zIndex) && zIndex >= 90;
+    if (isNaN(zIndex) || zIndex < 90) return false;
+
+    // Check if it actually contains focusable elements. If not, it is a decoration or loading overlay.
+    const hasFocusables = el.querySelector('a, button, input, textarea, select, [tabindex="0"], .cursor-pointer') !== null;
+    return hasFocusables;
   });
 
   if (overlays.length > 0) {
@@ -276,15 +280,36 @@ function injectTvStyles() {
   const styleEl = document.createElement("style");
   styleEl.id = styleId;
   styleEl.innerHTML = `
-    /* Visual feedback for TV remote navigation */
+    /* Visual feedback for TV remote navigation - premium hover-like scaling, soft white border, and white glow shadow */
     .tv-navigation-enabled :focus {
-      outline: 4px solid #ef4444 !important;
-      outline-offset: 4px !important;
-      box-shadow: 0 0 25px rgba(239, 68, 68, 0.8) !important;
+      outline: none !important;
+      border-color: rgba(255, 255, 255, 0.7) !important;
+      box-shadow: 0 10px 30px rgba(255, 255, 255, 0.15), 0 0 15px rgba(255, 255, 255, 0.1) !important;
       transform: scale(1.05) !important;
-      transition: transform 0.15s cubic-bezier(0.16, 1, 0.3, 1), outline 0.15s, box-shadow 0.15s !important;
+      transition: transform 0.15s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.15s, box-shadow 0.15s, background-color 0.15s !important;
       z-index: 9999 !important;
       position: relative !important;
+    }
+    
+    /* Interactive elements get a soft white background highlight on focus if they are transparent */
+    .tv-navigation-enabled button:focus:not(.bg-white),
+    .tv-navigation-enabled a:focus:not(.bg-white),
+    .tv-navigation-enabled .cursor-pointer:focus:not(.bg-white) {
+      background-color: rgba(255, 255, 255, 0.15) !important;
+      color: #ffffff !important;
+    }
+    
+    /* Disable performance-heavy backdrop blur filters on TV to resolve lagging issues */
+    .tv-navigation-enabled .backdrop-blur-md,
+    .tv-navigation-enabled .backdrop-blur-lg,
+    .tv-navigation-enabled .backdrop-blur-xl,
+    .tv-navigation-enabled .backdrop-blur-2xl,
+    .tv-navigation-enabled .backdrop-blur-3xl,
+    .tv-navigation-enabled .glass,
+    .tv-navigation-enabled .glass-panel {
+      backdrop-filter: none !important;
+      -webkit-backdrop-filter: none !important;
+      background-color: rgba(10, 10, 10, 0.98) !important;
     }
     
     /* Flatten nested scrollable containers inside fixed pages for TV D-pad navigation */

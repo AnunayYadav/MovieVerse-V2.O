@@ -7,6 +7,13 @@ import { generateTrivia } from '../services/gemini';
 import { FullCreditsModal } from './Modals';
 import { triggerSystemNotification } from '../services/supabase';
 
+const isTV = typeof window !== 'undefined' && (
+    /Android TV|GoogleTV|AFT|Tizen|Web0S|SmartTV/i.test(navigator.userAgent) || 
+    navigator.userAgent.includes("MovieVerseTV") ||
+    (window as any).Capacitor?.platform === 'android' ||
+    window.location.search.includes("tv=true")
+);
+
 const MoviePlayer = React.lazy(() => import('./MoviePlayer').then(module => ({ default: module.MoviePlayer })));
 
 const LANGUAGES_FULL_MAP: Record<string, string> = {
@@ -179,7 +186,7 @@ const PopularityMeter = ({ score, count }: { score: number; count: number }) => 
                         </filter>
                     </defs>
                     <path d="M 20 110 A 80 80 0 0 1 180 110" fill="none" stroke="rgba(255,255,255,0.04)" strokeWidth="16" strokeLinecap="round" />
-                    <path d="M 20 110 A 80 80 0 0 1 180 110" fill="none" stroke="url(#meterGradientRefined)" strokeWidth="16" strokeLinecap="round" strokeDasharray={circumference} strokeDashoffset={offset} filter="url(#meterGlow)" className="transition-all duration-[2200ms] ease-out" />
+                    <path d="M 20 110 A 80 80 0 0 1 180 110" fill="none" stroke="url(#meterGradientRefined)" strokeWidth="16" strokeLinecap="round" strokeDasharray={circumference} strokeDashoffset={offset} filter={isTV ? "none" : "url(#meterGlow)"} className="transition-all duration-[2200ms] ease-out" />
                 </svg>
                 <div className="absolute inset-0 flex flex-col items-center justify-end pb-2">
                     <span className="text-4xl md:text-6xl font-black text-white tracking-tighter drop-shadow-2xl">{percentage}%</span>
@@ -275,7 +282,7 @@ const VibeChart = ({ genres }: { genres: Genre[] }) => {
                                 strokeDasharray={`${animate ? dashArray : 0} ${circumference}`}
                                 strokeDashoffset={animate ? dashOffset : 0}
                                 strokeLinecap="butt"
-                                filter={isHovered ? "url(#vibeGlow)" : "none"}
+                                filter={!isTV && isHovered ? "url(#vibeGlow)" : "none"}
                                 pointerEvents="stroke"
                                 className="transition-all duration-700 ease-[cubic-bezier(0.23,1,0.32,1)] cursor-pointer"
                                 style={{ opacity: hoveredIndex === null || isHovered ? 1 : 0.4 }}
@@ -751,12 +758,12 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                         {/* Responsive Hero Media Container (16:9 aspect-video on mobile, 70vh height on desktop) */}
                         <div className="relative w-full aspect-video md:h-[70vh] md:aspect-auto shrink-0 bg-black overflow-hidden group/hero">
                              <div className="absolute inset-0 w-full h-full overflow-hidden">
-                                {trailer && (
-                                    <div className="absolute inset-0 w-full h-full pointer-events-none">
+                                {trailer && !isTV && (
+                                     <div className="absolute inset-0 w-full h-full pointer-events-none">
                                          <iframe ref={iframeRef} src={`https://www.youtube.com/embed/${trailer.key}?autoplay=1&mute=1&controls=0&loop=1&playlist=${trailer.key}&showinfo=0&rel=0&iv_load_policy=3&modestbranding=1&playsinline=1&enablejsapi=1&origin=${window.location.origin}`} className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none transition-opacity duration-1000 ease-in-out w-[130%] h-[130%] scale-110 md:w-[115%] md:h-[115%] md:scale-[1.15] object-cover ${videoLoaded ? 'opacity-60' : 'opacity-0'}`} allow="autoplay; encrypted-media; gyroscope; picture-in-picture" title="Background Trailer" loading="lazy" onLoad={() => setTimeout(() => setVideoLoaded(true), 1500)} />
                                     </div>
                                 )}
-                                <img src={displayData.backdrop_path ? `${TMDB_BACKDROP_BASE}${displayData.backdrop_path}` : displayData.poster_path ? `${TMDB_IMAGE_BASE}${displayData.poster_path}` : "https://placehold.co/1200x600"} alt={title} className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-1000 ${trailer && videoLoaded ? 'opacity-0' : 'opacity-100'}`} />
+                                <img src={displayData.backdrop_path ? `${TMDB_BACKDROP_BASE}${displayData.backdrop_path}` : displayData.poster_path ? `${TMDB_IMAGE_BASE}${displayData.poster_path}` : "https://placehold.co/1200x600"} alt={title} className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-1000 ${trailer && !isTV && videoLoaded ? 'opacity-0' : 'opacity-100'}`} />
                                 <div className="absolute inset-0 bg-black -z-20"></div>
                                 <div className={`absolute -inset-1 bg-gradient-to-t from-[#0a0a0a] via-[#0a0a0a]/50 to-transparent transition-opacity duration-700 ease-in-out pointer-events-none ${videoLoaded ? 'opacity-25 group-hover/hero:opacity-100' : 'opacity-100'}`}></div>
                                  {trailer && videoLoaded && (

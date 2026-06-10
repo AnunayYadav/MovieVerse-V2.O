@@ -7,7 +7,8 @@ const isTVApp =
   typeof window !== 'undefined' && (
     /Android TV|GoogleTV|AFT|Tizen|Web0S|SmartTV/i.test(navigator.userAgent) || 
     navigator.userAgent.includes("MovieVerseTV") ||
-    (window as any).Capacitor?.platform === 'android'
+    (window as any).Capacitor?.platform === 'android' ||
+    window.location.search.includes("tv=true")
   );
 
 // Point to the hosted Vercel deployment of the proxy to prevent buffering/throttling inside India
@@ -366,6 +367,10 @@ export const MovieCard = React.forwardRef<HTMLDivElement, MovieCardProps>(({ mov
     const [logoLoading, setLogoLoading] = useState(true);
 
     React.useEffect(() => {
+        if (isTVApp) {
+            setLogoLoading(false);
+            return;
+        }
         let isMounted = true;
         const key = getTmdbKey();
         if (!key) {
