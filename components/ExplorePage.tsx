@@ -63,45 +63,80 @@ const getSubcategoriesConfig = (providerId: number, providerName: string) => {
     switch (providerId) {
         case 8: // Netflix
             return [
-                { id: 'netflix_action', label: 'Action & Thrillers', genres: '28,53' },
-                { id: 'netflix_drama', label: 'Drama Masterpieces', genres: '18' },
+                { id: 'netflix_popular', label: 'Popular on Netflix', genres: '' },
+                { id: 'netflix_action', label: 'Action & Adventure', genres: '28,12' },
+                { id: 'netflix_drama', label: 'Award-Winning Dramas', genres: '18' },
                 { id: 'netflix_comedy', label: 'Comedy & Romance', genres: '35,10749' },
-                { id: 'netflix_scifi', label: 'Sci-Fi & Fantasy', genres: '878,14' }
+                { id: 'netflix_scifi', label: 'Sci-Fi & Fantasy Blockbusters', genres: '878,14' },
+                { id: 'netflix_thriller', label: 'Thrillers & Suspense', genres: '53' },
+                { id: 'netflix_horror', label: 'Chilling Horror', genres: '27' },
+                { id: 'netflix_mystery', label: 'Mystery & Crime', genres: '80,9648' },
+                { id: 'netflix_doc', label: 'Insightful Documentaries', genres: '99' },
+                { id: 'netflix_family', label: 'Family Movie Night', genres: '10751,16' }
             ];
         case 337: // Disney+
             return [
+                { id: 'disney_popular', label: 'Popular on Disney+', genres: '' },
                 { id: 'disney_animation', label: 'Disney & Pixar Animation', genres: '16' },
-                { id: 'disney_adventure', label: 'Action & Adventure', genres: '28,12' },
+                { id: 'disney_adventure', label: 'Marvel & Action Adventure', genres: '28,12' },
                 { id: 'disney_scifi', label: 'Star Wars & Sci-Fi', genres: '878' },
-                { id: 'disney_family', label: 'Family Classics', genres: '10751' }
+                { id: 'disney_family', label: 'Family Classics', genres: '10751' },
+                { id: 'disney_docs', label: 'Nature & Documentaries', genres: '99' },
+                { id: 'disney_drama', label: 'Drama & Inspiring Stories', genres: '18' },
+                { id: 'disney_fantasy', label: 'Fantasy & Magic', genres: '14' },
+                { id: 'disney_musical', label: 'Music & Musicals', genres: '10402' },
+                { id: 'disney_comedy', label: 'Comedy Hits', genres: '35' }
             ];
         case 119: // Prime Video
             return [
+                { id: 'prime_popular', label: 'Popular on Prime Video', genres: '' },
                 { id: 'prime_action', label: 'Action Blockbusters', genres: '28,12' },
                 { id: 'prime_drama', label: 'Award-Winning Dramas', genres: '18' },
                 { id: 'prime_scifi', label: 'Sci-Fi & Thrillers', genres: '878,53' },
-                { id: 'prime_family', label: 'Family Movie Night', genres: '10751' }
+                { id: 'prime_family', label: 'Family & Animation', genres: '10751,16' },
+                { id: 'prime_comedy', label: 'Laugh-Out-Loud Comedies', genres: '35' },
+                { id: 'prime_mystery', label: 'Mystery & Crime Suspense', genres: '80,9648' },
+                { id: 'prime_romance', label: 'Romance & Heartfelt Stories', genres: '10749' },
+                { id: 'prime_horror', label: 'Horror & Dark Thrillers', genres: '27,53' },
+                { id: 'prime_docs', label: 'Fascinating Documentaries', genres: '99' }
             ];
         case 384: // Max
             return [
-                { id: 'max_dc', label: 'DC & Action Hits', genres: '28' },
+                { id: 'max_popular', label: 'Popular on Max', genres: '' },
                 { id: 'max_drama', label: 'HBO & Max Drama Masterpieces', genres: '18' },
-                { id: 'max_mystery', label: 'Mystery & Crime', genres: '80,9648' },
-                { id: 'max_comedy', label: 'Comedies & Variety', genres: '35' }
+                { id: 'max_dc', label: 'DC & Action Blockbusters', genres: '28' },
+                { id: 'max_mystery', label: 'Mystery, Crime & Noir', genres: '80,9648' },
+                { id: 'max_comedy', label: 'Comedies & Variety', genres: '35' },
+                { id: 'max_scifi', label: 'Sci-Fi & Mind-Bending Fantasy', genres: '878,14' },
+                { id: 'max_thriller', label: 'Thrillers & High Suspense', genres: '53' },
+                { id: 'max_docs', label: 'Gripping Documentaries', genres: '99' },
+                { id: 'max_horror', label: 'Horror & Supernatural', genres: '27' },
+                { id: 'max_family', label: 'Family & Adventure', genres: '10751,12' }
             ];
         case 350: // Apple TV+
             return [
+                { id: 'apple_popular', label: 'Popular on Apple TV+', genres: '' },
                 { id: 'apple_drama', label: 'Acclaimed Dramas', genres: '18' },
                 { id: 'apple_scifi', label: 'Sci-Fi & Thrillers', genres: '878,53' },
-                { id: 'apple_comedy', label: 'Comedies', genres: '35' },
-                { id: 'apple_docs', label: 'Documentaries', genres: '99' }
+                { id: 'apple_comedy', label: 'Comedies & Feel-Good Hits', genres: '35' },
+                { id: 'apple_docs', label: 'Documentaries & True Stories', genres: '99' },
+                { id: 'apple_action', label: 'Action & High Stakes Adventure', genres: '28,12' },
+                { id: 'apple_mystery', label: 'Mystery & Crime Noir', genres: '80,9648' },
+                { id: 'apple_family', label: 'Family & Animation', genres: '10751,16' },
+                { id: 'apple_romance', label: 'Romance & Drama', genres: '10749,18' }
             ];
         default: // Generalized
             return [
                 { id: 'gen_popular', label: `Popular on ${providerName}`, genres: '' },
                 { id: 'gen_action', label: `Action & Adventure on ${providerName}`, genres: '28,12' },
                 { id: 'gen_comedy', label: `Comedies on ${providerName}`, genres: '35' },
-                { id: 'gen_drama', label: `Drama Masterpieces on ${providerName}`, genres: '18' }
+                { id: 'gen_drama', label: `Drama Masterpieces on ${providerName}`, genres: '18' },
+                { id: 'gen_scifi', label: `Sci-Fi & Fantasy on ${providerName}`, genres: '878,14' },
+                { id: 'gen_thriller', label: `Thrillers & Suspense on ${providerName}`, genres: '53' },
+                { id: 'gen_horror', label: `Horror & Mystery on ${providerName}`, genres: '27,9648' },
+                { id: 'gen_family', label: `Family Movie Night on ${providerName}`, genres: '10751,16' },
+                { id: 'gen_romance', label: `Romance & Heartfelt on ${providerName}`, genres: '10749' },
+                { id: 'gen_docs', label: `Documentaries on ${providerName}`, genres: '99' }
             ];
     }
 };
