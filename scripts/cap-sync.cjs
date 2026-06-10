@@ -2,14 +2,23 @@ const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
 
-const distApk = path.join(__dirname, '../dist/movieverse-tv.apk');
-const publicApk = path.join(__dirname, '../public/movieverse-tv.apk');
+const distDir = path.join(__dirname, '../dist');
+const publicDir = path.join(__dirname, '../public');
 
-console.log('MovieVerse Sync: Temporarily removing APK from dist/ to avoid self-bundling...');
-let apkExisted = false;
-if (fs.existsSync(distApk)) {
-  fs.unlinkSync(distApk);
-  apkExisted = true;
+console.log('MovieVerse Sync: Temporarily removing APK files from dist/ to avoid self-bundling...');
+const backupApks = [];
+
+if (fs.existsSync(distDir)) {
+  const files = fs.readdirSync(distDir);
+  files.forEach(file => {
+    if (file.endsWith('.apk')) {
+      const distApkPath = path.join(distDir, file);
+      const publicApkPath = path.join(publicDir, file);
+      
+      backupApks.push({ name: file, distPath: distApkPath, publicPath: publicApkPath });
+      fs.unlinkSync(distApkPath);
+    }
+  });
 }
 
 try {
@@ -20,8 +29,10 @@ try {
   console.error('MovieVerse Sync: Error running npx cap sync:', error);
   process.exit(1);
 } finally {
-  if (apkExisted && fs.existsSync(publicApk)) {
-    console.log('MovieVerse Sync: Restoring APK back to dist/ for web hosting...');
-    fs.copyFileSync(publicApk, distApk);
-  }
+  backupApks.forEach(apk => {
+    if (fs.existsSync(apk.publicPath)) {
+      console.log(`MovieVerse Sync: Restoring ${apk.name} back to dist/ for web hosting...`);
+      fs.copyFileSync(apk.publicPath, apk.distPath);
+    }
+  });
 }

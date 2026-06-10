@@ -1128,7 +1128,7 @@ export default function App() {
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [showUpdateModal, setShowUpdateModal] = useState(false);
     const [updateInfo, setUpdateInfo] = useState<{ version: string; apkUrl: string; releaseNotes: string } | null>(null);
-    const [currentVersion, setCurrentVersion] = useState("1.0");
+    const [currentVersion, setCurrentVersion] = useState("1.0.2");
 
     const [isTV, setIsTV] = useState(() => {
         if (typeof window === 'undefined') return false;
@@ -1165,10 +1165,14 @@ export default function App() {
             if (!isTV) return;
 
             try {
-                let localVersion = "1.0";
-                if ((window as any).Capacitor?.isPluginAvailable('App')) {
+                let localVersion = "1.0.2";
+                try {
                     const info = await CapApp.getInfo();
-                    localVersion = info.version;
+                    if (info && info.version) {
+                        localVersion = info.version;
+                    }
+                } catch (e) {
+                    console.warn("Capacitor App plugin not available, using default fallback version", e);
                 }
                 setCurrentVersion(localVersion);
 
@@ -1178,21 +1182,8 @@ export default function App() {
                     const data = await res.json();
                     console.log("MovieVerse TV: Latest remote version info:", data);
                     
-                    const isNewer = (curr: string, lat: string) => {
-                        const parse = (v: string) => v.split('.').map(x => parseInt(x, 10) || 0);
-                        const curParts = parse(curr);
-                        const latParts = parse(lat);
-                        for (let i = 0; i < Math.max(curParts.length, latParts.length); i++) {
-                            const c = curParts[i] || 0;
-                            const l = latParts[i] || 0;
-                            if (l > c) return true;
-                            if (c > l) return false;
-                        }
-                        return false;
-                    };
-
-                    if (isNewer(localVersion, data.version)) {
-                        console.log("MovieVerse TV: Newer version available!", data.version);
+                    if (localVersion !== data.version) {
+                        console.log("MovieVerse TV: Version difference detected!", data.version);
                         setUpdateInfo(data);
                         setShowUpdateModal(true);
                     }
@@ -3437,8 +3428,8 @@ export default function App() {
                             <div className="space-y-1 pt-4">
                                 <p className="px-3 text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Apps</p>
                                 <a
-                                    href="/movieverse-tv.apk"
-                                    download="movieverse-tv.apk"
+                                    href={updateInfo ? `/movieverse-tv-v${updateInfo.version}.apk` : "/movieverse-tv-v1.0.2.apk"}
+                                    download={updateInfo ? `movieverse-tv-v${updateInfo.version}.apk` : "movieverse-tv-v1.0.2.apk"}
                                     className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold text-amber-500 hover:bg-amber-500/10 transition-all border border-amber-500/10 hover:translate-x-1 duration-300"
                                 >
                                     <Download size={18} /> Download TV APK
