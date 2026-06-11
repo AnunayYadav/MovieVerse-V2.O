@@ -19,3 +19,25 @@ buildscript {
 }
 
 apply plugin: "com.facebook.react.rootproject"
+
+subprojects { project ->
+    def configureProject = {
+        if (project.plugins.hasPlugin("com.android.library") || project.plugins.hasPlugin("com.android.application")) {
+            def androidConfig = project.extensions.findByName("android")
+            if (androidConfig != null) {
+                def extNative = androidConfig.defaultConfig.externalNativeBuild
+                if (extNative != null && extNative.cmake != null) {
+                    extNative.cmake.arguments += "-DCMAKE_SUPPRESS_REGENERATION=ON"
+                }
+            }
+        }
+    }
+
+    if (project.state.executed) {
+        configureProject()
+    } else {
+        project.afterEvaluate {
+            configureProject()
+        }
+    }
+}
