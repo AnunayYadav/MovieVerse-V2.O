@@ -3474,11 +3474,20 @@ export default function App() {
                                     <Download size={16} /> Download TV APK (Classic)
                                 </a>
                                 <a
-                                    href="/movieverse-tv-native.apk"
-                                    download="movieverse-tv-native.apk"
+                                    href="/movieverse-tv-arm64.apk"
+                                    download="movieverse-tv-arm64.apk"
                                     className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-bold text-red-500 hover:bg-red-500/10 transition-all border border-red-500/10 hover:translate-x-1 duration-300"
+                                    title="Recommended for modern Android TVs and 64-bit devices"
                                 >
-                                    <Download size={16} /> Download TV APK (Native)
+                                    <Download size={16} /> Download TV APK (64-bit)
+                                </a>
+                                <a
+                                    href="/movieverse-tv-arm32.apk"
+                                    download="movieverse-tv-arm32.apk"
+                                    className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-bold text-amber-500 hover:bg-amber-500/10 transition-all border border-amber-500/10 hover:translate-x-1 duration-300"
+                                    title="Recommended for TV Sticks (Firestick, Chromecast) and 32-bit devices"
+                                >
+                                    <Download size={16} /> Download TV APK (32-bit)
                                 </a>
                             </div>
                         </div>
