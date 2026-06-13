@@ -1582,6 +1582,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                             initialSeason={playParams.season}
                             initialEpisode={playParams.episode}
                             color="EF4444"
+                            title={displayData.title || displayData.name}
                         />
                     </Suspense>
                 </div>

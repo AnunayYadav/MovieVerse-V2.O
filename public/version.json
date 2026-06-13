@@ -1,5 +1,0 @@
-{
-  "version": "1.0.2",
-  "apkUrl": "https://movieverseofficial.vercel.app/movieverse-tv-v1.0.2.apk",
-  "releaseNotes": "Forced full top desktop navbar on TV, resolved Details page buttons focus blockage, and fixed Back button outline stretching."
-}
