@@ -3,7 +3,6 @@ import React, { useState, useEffect, Suspense, useRef, useMemo } from 'react';
 import { X, Info, Calendar, Clock, Star, Play, Bookmark, Heart, Share2, Clapperboard, Sparkles, Loader2, Tag, MessageCircle, Globe, Facebook, Instagram, Twitter, Film, PlayCircle, Eye, Volume2, VolumeX, Users, ArrowLeft, Lightbulb, DollarSign, Trophy, Tv, Check, Mic2, Video, PenTool, ChevronRight, ChevronDown, Search, Monitor, Plus, Layers, Shield, Building2, Languages, Headphones, Activity, Target, TrendingUp, PieChart as PieChartIcon } from 'lucide-react';
 import { Movie, MovieDetails, Season, UserProfile, Keyword, Review, CastMember, CrewMember, CollectionDetails, Genre } from '../types';
 import { TMDB_BASE_URL, TMDB_IMAGE_BASE, TMDB_BACKDROP_BASE, formatCurrency, ImageLightbox, PersonCard, MovieCard, tvFetch } from '../components/Shared';
-import { generateTrivia } from '../services/gemini';
 import { FullCreditsModal } from './Modals';
 import { triggerSystemNotification } from '../services/supabase';
 import { useTvFocus, TvFocusButton } from '../tvNavigation';
@@ -18,6 +17,7 @@ const isTV = typeof window !== 'undefined' && (
 );
 
 const MoviePlayer = React.lazy(() => import('./MoviePlayer').then(module => ({ default: module.MoviePlayer })));
+import { PROVIDERS } from './MoviePlayer';
 
 const LANGUAGES_FULL_MAP: Record<string, string> = {
     en: "English",
@@ -431,8 +431,6 @@ export const MoviePage: React.FC<MoviePageProps> = ({
     const [details, setDetails] = useState<MovieDetails | null>(null);
     const [collection, setCollection] = useState<CollectionDetails | null>(null);
     const [loading, setLoading] = useState(true);
-    const [trivia, setTrivia] = useState("");
-    const [loadingTrivia, setLoadingTrivia] = useState(false);
     const [copied, setCopied] = useState(false);
     const [activeTab, setActiveTab] = useState(activeTabProp);
     const [selectedSeason, setSelectedSeason] = useState(1);
@@ -448,10 +446,34 @@ export const MoviePage: React.FC<MoviePageProps> = ({
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
 
+    const [selectedProviderId, setSelectedProviderId] = useState(() => {
+        if (typeof window !== 'undefined') {
+            return localStorage.getItem('movieverse_preferred_provider') || 'videasy';
+        }
+        return 'videasy';
+    });
+    const [isProviderDropdownOpen, setIsProviderDropdownOpen] = useState(false);
+    const [isMobileProviderDropdownOpen, setIsMobileProviderDropdownOpen] = useState(false);
+    const providerDropdownRef = useRef<HTMLDivElement>(null);
+    const mobileProviderDropdownRef = useRef<HTMLDivElement>(null);
+
+    const handleProviderChange = (providerId: string) => {
+        setSelectedProviderId(providerId);
+        if (typeof window !== 'undefined') {
+            localStorage.setItem('movieverse_preferred_provider', providerId);
+        }
+    };
+
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
             if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
                 setIsDropdownOpen(false);
+            }
+            if (providerDropdownRef.current && !providerDropdownRef.current.contains(event.target as Node)) {
+                setIsProviderDropdownOpen(false);
+            }
+            if (mobileProviderDropdownRef.current && !mobileProviderDropdownRef.current.contains(event.target as Node)) {
+                setIsMobileProviderDropdownOpen(false);
             }
         };
         document.addEventListener("mousedown", handleClickOutside);
@@ -617,7 +639,6 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                 }
             })
             .catch(() => setLoading(false));
-        setTrivia("");
 
         // On initial mount, RESPECT the props (initialShowPlayer, activeTabProp)
         // so that URL-driven state like /tv/123/watch/1/3 or /tv/123/seasons works.
@@ -636,16 +657,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
         setExpandedReviews({});
     }, [movie.id, apiKey, resolvedMediaType]);
 
-    useEffect(() => {
-        if (activeTab === 'overview' && !trivia && !loadingTrivia && details) {
-            setLoadingTrivia(true);
-            const year = (details.release_date || details.first_air_date || "").split('-')[0];
-            generateTrivia(details.title || details.name || "", year).then(t => {
-                setTrivia(t);
-                setLoadingTrivia(false);
-            });
-        }
-    }, [activeTab, trivia, loadingTrivia, details]);
+
 
     useEffect(() => {
         const isTvShow = movie.media_type === 'tv' || !!(details && details.first_air_date);
@@ -694,9 +706,19 @@ export const MoviePage: React.FC<MoviePageProps> = ({
     }, [collection, movie.id]);
 
     const handleWatchClick = () => {
+        const hasResume = movie.last_watched_data && movie.last_watched_data.current_time && movie.last_watched_data.current_time > 0;
+        const isCurrentResumable = hasResume && (!isTv || (movie.last_watched_data.season === playParams.season && movie.last_watched_data.episode === playParams.episode));
+        const currentResumeTime = isCurrentResumable ? (movie.last_watched_data?.current_time || 0) : 0;
+
         onPlayStateChangeRef.current?.(true, playParams.season, playParams.episode);
         if (onProgress) {
-            onProgress(movie, { currentTime: 0, duration: 3600, event: 'time', season: playParams.season, episode: playParams.episode });
+            onProgress(movie, { 
+                currentTime: currentResumeTime, 
+                duration: movie.last_watched_data?.duration || 3600, 
+                event: 'time', 
+                season: playParams.season, 
+                episode: playParams.episode 
+            });
         }
     };
     const handlePlayerProgress = (data: any) => {
@@ -840,7 +862,40 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                      </div>
                                     <div className="flex flex-row items-center gap-3 w-full sm:w-auto mt-6">
                                         {isExclusive && (
-                                            <TvFocusButton onClick={handleWatchClick} className="flex items-center justify-center gap-2.5 px-6 py-2.5 rounded-md font-bold text-sm sm:text-base transition-all hover:scale-[1.02] active:scale-95 shadow-md flex-1 sm:flex-none bg-white hover:bg-white/90 text-black"><Play size={18} fill="currentColor" /> {movie.play_progress && movie.play_progress > 0 ? `Resume` : 'Watch'}</TvFocusButton>
+                                            <div className="relative flex items-center bg-white rounded-md text-black shadow-md hover:scale-[1.02] transition-all duration-200" ref={providerDropdownRef}>
+                                                <TvFocusButton 
+                                                    onClick={handleWatchClick} 
+                                                    className="flex items-center justify-center gap-2.5 px-6 py-2.5 font-bold text-sm sm:text-base transition-all active:scale-95 bg-transparent hover:bg-black/5 text-black border-r border-black/10 rounded-l-md"
+                                                >
+                                                    <Play size={18} fill="currentColor" /> 
+                                                     {movie.play_progress && movie.play_progress > 0 ? `Resume` : 'Watch'}
+                                                </TvFocusButton>
+                                                <TvFocusButton 
+                                                    onClick={() => setIsProviderDropdownOpen(!isProviderDropdownOpen)} 
+                                                    className="px-3 py-2.5 flex items-center justify-center transition-all active:scale-95 bg-transparent hover:bg-black/5 text-black rounded-r-md" 
+                                                    title="Select Provider"
+                                                >
+                                                    <ChevronDown size={18} className={`transition-transform duration-300 ${isProviderDropdownOpen ? 'rotate-180' : ''}`} />
+                                                </TvFocusButton>
+
+                                                {isProviderDropdownOpen && (
+                                                    <div className="absolute left-0 top-full mt-2 w-52 bg-[#121212] border border-white/10 rounded-lg shadow-xl py-1 z-50 animate-in fade-in slide-in-from-top-1 duration-200">
+                                                        {PROVIDERS.map((prov) => (
+                                                            <TvFocusButton
+                                                                key={prov.id}
+                                                                onClick={() => {
+                                                                    handleProviderChange(prov.id);
+                                                                    setIsProviderDropdownOpen(false);
+                                                                }}
+                                                                className="w-full text-left px-4 py-2.5 text-sm text-white hover:bg-white/10 transition-colors flex items-center justify-between"
+                                                            >
+                                                                <span>{prov.name}</span>
+                                                                {selectedProviderId === prov.id && <Check size={14} className="text-red-500" />}
+                                                            </TvFocusButton>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </div>
                                         )}
                                         {isExclusive && (
                                             <TvFocusButton onClick={() => onStartWatchParty && onStartWatchParty(displayData, playParams.season, playParams.episode)} className="flex items-center justify-center gap-2 px-6 py-2.5 rounded-md font-bold text-sm sm:text-base transition-all hover:scale-[1.02] active:scale-95 bg-transparent text-white border border-white/20 hover:bg-white/5 shadow-md" title="Start a Watch Party"><Users size={18} /> Watch Party</TvFocusButton>
@@ -879,9 +934,40 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                             {/* Primary Buttons Grid: Play filled, Watch Party outlined */}
                             <div className="grid grid-cols-2 gap-3 w-full mt-1.5">
                                 {isExclusive && (
-                                    <TvFocusButton onClick={handleWatchClick} className="py-2 px-4 rounded-md font-extrabold text-xs flex items-center justify-center gap-2 transition-all active:scale-95 shadow-md bg-white text-black">
-                                        <Play size={14} fill="currentColor"/> {movie.play_progress && movie.play_progress > 0 ? `Resume` : 'Watch'}
-                                    </TvFocusButton>
+                                    <div className="relative flex items-center bg-white rounded-md text-black shadow-md" ref={mobileProviderDropdownRef}>
+                                        <TvFocusButton 
+                                            onClick={handleWatchClick} 
+                                            className="py-2 px-3 flex-1 font-extrabold text-xs flex items-center justify-center gap-1.5 transition-all active:scale-95 bg-transparent hover:bg-black/5 text-black border-r border-black/10 rounded-l-md"
+                                        >
+                                            <Play size={14} fill="currentColor"/> 
+                                            {movie.play_progress && movie.play_progress > 0 ? `Resume` : 'Watch'}
+                                        </TvFocusButton>
+                                        <TvFocusButton 
+                                            onClick={() => setIsMobileProviderDropdownOpen(!isMobileProviderDropdownOpen)} 
+                                            className="p-2 flex items-center justify-center transition-all active:scale-95 bg-transparent hover:bg-black/5 text-black rounded-r-md" 
+                                            title="Select Provider"
+                                        >
+                                            <ChevronDown size={14} className={`transition-transform duration-300 ${isMobileProviderDropdownOpen ? 'rotate-180' : ''}`} />
+                                        </TvFocusButton>
+
+                                        {isMobileProviderDropdownOpen && (
+                                            <div className="absolute left-0 top-full mt-2 w-48 bg-[#121212] border border-white/10 rounded-lg shadow-xl py-1 z-50 animate-in fade-in slide-in-from-top-1 duration-200">
+                                                {PROVIDERS.map((prov) => (
+                                                    <TvFocusButton
+                                                        key={prov.id}
+                                                        onClick={() => {
+                                                            handleProviderChange(prov.id);
+                                                            setIsMobileProviderDropdownOpen(false);
+                                                        }}
+                                                        className="w-full text-left px-3 py-2 text-xs text-white hover:bg-white/10 transition-colors flex items-center justify-between"
+                                                    >
+                                                        <span>{prov.name}</span>
+                                                        {selectedProviderId === prov.id && <Check size={12} className="text-red-500" />}
+                                                    </TvFocusButton>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
                                 )}
                                 {isExclusive && (
                                     <TvFocusButton onClick={() => onStartWatchParty && onStartWatchParty(displayData, playParams.season, playParams.episode)} className="py-2 px-4 rounded-md font-extrabold text-xs flex items-center justify-center gap-2 transition-all active:scale-95 bg-transparent text-white border border-white/20 hover:bg-white/5 shadow-md">
@@ -948,18 +1034,6 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                             <div className="mb-10">
                                                 <h3 className="text-xl font-bold text-white mb-4">Plot Summary</h3>
                                                 <p className="text-gray-300 leading-relaxed text-base font-light">{displayData.overview || "No overview available."}</p>
-                                                {trivia && (
-                                                    <div className="mt-6 p-5 bg-[#0d0d0f]/60 border border-white/5 rounded-2xl flex items-start gap-4 shadow-xl relative overflow-hidden group/trivia">
-                                                        <div className="absolute inset-0 bg-gradient-to-r from-yellow-500/0 via-yellow-500/5 to-yellow-500/0 opacity-0 group-hover/trivia:opacity-100 transition-opacity duration-700 pointer-events-none" />
-                                                        <div className="p-2.5 bg-yellow-500/10 text-yellow-500 rounded-xl border border-yellow-500/20 shadow-lg shrink-0 mt-0.5">
-                                                            <Lightbulb size={20}/>
-                                                        </div>
-                                                        <div>
-                                                            <p className="text-[10px] font-black text-yellow-500 uppercase tracking-[0.2em] mb-1">Trivia / Behind the Scenes</p>
-                                                            <p className="text-sm text-gray-300 italic font-light leading-relaxed">"{trivia}"</p>
-                                                        </div>
-                                                    </div>
-                                                )}
                                             </div>
                                              {displayData.external_ids && (
                                                 <div className="flex gap-3 mb-10">
@@ -993,10 +1067,12 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                 </div>
                                             </div>
 
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-12">
-                                                {displayData.vote_count > 0 && <PopularityMeter score={displayData.vote_average} count={displayData.vote_count} />}
-                                                {displayData.genres && displayData.genres.length > 0 && <VibeChart genres={displayData.genres} />}
-                                            </div>
+                                            {!isTV && (
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-12">
+                                                    {displayData.vote_count > 0 && <PopularityMeter score={displayData.vote_average} count={displayData.vote_count} />}
+                                                    {displayData.genres && displayData.genres.length > 0 && <VibeChart genres={displayData.genres} />}
+                                                </div>
+                                            )}
                                         </div>
                                     )}
                                     {activeTab === 'reviews' && (
@@ -1569,24 +1645,31 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                 )}
             </div>
             {viewingImage && <ImageLightbox src={viewingImage} onClose={() => setViewingImage(null)} />}
-            {showPlayer && (
-                <div className="fixed inset-0 z-[200] bg-black animate-in fade-in duration-500">
-                    <Suspense fallback={<div className="w-full h-full flex items-center justify-center bg-black"><Loader2 className="animate-spin text-red-600" size={40}/></div>}>
-                        <MoviePlayer 
-                            tmdbId={displayData.id} 
-                            onClose={() => onPlayStateChangeRef.current?.(false)} 
-                            mediaType={isTv ? 'tv' : 'movie'} 
-                            isAnime={isAnime || false} 
-                            apiKey={apiKey} 
-                            onProgress={handlePlayerProgress} 
-                            initialSeason={playParams.season}
-                            initialEpisode={playParams.episode}
-                            color="EF4444"
-                            title={displayData.title || displayData.name}
-                        />
-                    </Suspense>
-                </div>
-            )}
+            {showPlayer && (() => {
+                const hasResume = movie.last_watched_data && movie.last_watched_data.current_time && movie.last_watched_data.current_time > 0;
+                const isCurrentResumable = hasResume && (!isTv || (movie.last_watched_data.season === playParams.season && movie.last_watched_data.episode === playParams.episode));
+                const resumeTime = isCurrentResumable ? (movie.last_watched_data?.current_time || 0) : 0;
+                return (
+                    <div className="fixed inset-0 z-[200] bg-black animate-in fade-in duration-500">
+                        <Suspense fallback={<div className="w-full h-full flex items-center justify-center bg-black"><Loader2 className="animate-spin text-red-600" size={40}/></div>}>
+                            <MoviePlayer 
+                                tmdbId={displayData.id} 
+                                onClose={() => onPlayStateChangeRef.current?.(false)} 
+                                mediaType={isTv ? 'tv' : 'movie'} 
+                                isAnime={isAnime || false} 
+                                apiKey={apiKey} 
+                                onProgress={handlePlayerProgress} 
+                                initialSeason={playParams.season}
+                                initialEpisode={playParams.episode}
+                                color="EF4444"
+                                title={displayData.title || displayData.name}
+                                forceProgress={resumeTime}
+                                providerId={selectedProviderId}
+                            />
+                        </Suspense>
+                    </div>
+                );
+            })()}
             <FullCreditsModal isOpen={showFullCast} onClose={() => setShowFullCast(false)} title="Full Cast" credits={displayData.credits?.cast || []} onPersonClick={onPersonClick} />
             <FullCreditsModal isOpen={showFullCrew} onClose={() => setShowFullCrew(false)} title="Full Crew" credits={displayData.credits?.crew || []} onPersonClick={onPersonClick} />
         </div>

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { App as CapApp } from '@capacitor/app';
 import { Search, Film, Menu, TrendingUp, Tv, Ghost, Calendar, Star, X, Sparkles, Settings, Globe, Bookmark, Heart, Folder, Languages, Filter, ChevronDown, Info, Plus, Cloud, CloudOff, Clock, Bell, History, Users, Tag, Dice5, Crown, Radio, LayoutGrid, Award, Baby, Clapperboard, ChevronRight, PlayCircle, Play, Megaphone, CalendarDays, Compass, Home, Map, Loader2, Trophy, RefreshCcw, Check, MonitorPlay, Layers, LogOut, Download, User } from 'lucide-react';
 import { Movie, UserProfile, GENRES_MAP, GENRES_LIST, INDIAN_LANGUAGES, MaturityRating, Keyword } from './types';
 import { LogoLoader, MovieSkeleton, MovieCard, PersonCard, TMDB_BASE_URL, TMDB_BACKDROP_BASE, TMDB_IMAGE_BASE, getTmdbKey, BrandLogo, getMovieVerseRating, tvFetch } from './components/Shared';
@@ -4016,45 +4017,47 @@ export default function App() {
                                                 <span className="px-2 py-0.5 rounded-lg bg-white/5 text-[10px] font-bold text-gray-400 border border-white/5">{movies.length > 0 ? movies.length : 0}</span>
                                             </div>
 
-                                            <div className="flex items-center gap-2 flex-wrap">
-                                                <div className="relative group shrink-0">
-                                                    <TvFocusButton onClick={() => setIsSortDropdownOpen(!isSortDropdownOpen)} className="flex items-center gap-2 px-3 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-xs font-medium text-gray-200 transition-all hover:border-white/20 active:scale-95 min-w-[100px] justify-between">
-                                                        <div className="flex items-center gap-2"><Filter size={14} /> <span>Sort</span></div>
-                                                        <ChevronDown size={12} className="text-gray-500 group-hover:text-white transition-colors" />
-                                                    </TvFocusButton>
-                                                    <div className="absolute top-full left-0 w-full h-2 bg-transparent pointer-events-auto opacity-0 group-hover:block hidden"></div>
-                                                    <div className={`absolute top-full right-0 mt-2 w-48 bg-[#1a1a1a]/95 backdrop-blur-xl border border-white/10 rounded-xl overflow-hidden shadow-2xl transition-all origin-top-right z-50 p-1 ${isSortDropdownOpen ? 'opacity-100 scale-100 pointer-events-auto' : 'opacity-0 scale-95 pointer-events-none group-hover:opacity-100 group-hover:scale-100 group-hover:pointer-events-auto'}`}>
-                                                        {[
-                                                            { label: 'Popularity', value: 'popularity.desc' },
-                                                            { label: 'Newest First', value: 'primary_release_date.desc' },
-                                                            { label: 'Top Rated', value: 'vote_average.desc' },
-                                                            { label: 'Revenue', value: 'revenue.desc' }
-                                                        ].map(opt => (
-                                                            <TvFocusButton key={opt.value} onClick={() => { setSortOption(opt.value); setIsSortDropdownOpen(false); }} className={`w-full text-left px-3 py-2 text-xs font-medium rounded-lg transition-colors flex items-center justify-between ${sortOption === opt.value ? 'bg-white/10 text-white' : 'text-zinc-400 hover:bg-white/5 hover:text-white'}`}>
-                                                                {opt.label}
-                                                                {sortOption === opt.value && <Check size={12} className={accentText} />}
-                                                            </TvFocusButton>
-                                                        ))}
+                                            {!isTV && (
+                                                <div className="flex items-center gap-2 flex-wrap">
+                                                    <div className="relative group shrink-0">
+                                                        <TvFocusButton onClick={() => setIsSortDropdownOpen(!isSortDropdownOpen)} className="flex items-center gap-2 px-3 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-xs font-medium text-gray-200 transition-all hover:border-white/20 active:scale-95 min-w-[100px] justify-between">
+                                                            <div className="flex items-center gap-2"><Filter size={14} /> <span>Sort</span></div>
+                                                            <ChevronDown size={12} className="text-gray-500 group-hover:text-white transition-colors" />
+                                                        </TvFocusButton>
+                                                        <div className="absolute top-full left-0 w-full h-2 bg-transparent pointer-events-auto opacity-0 group-hover:block hidden"></div>
+                                                        <div className={`absolute top-full right-0 mt-2 w-48 bg-[#1a1a1a]/95 backdrop-blur-xl border border-white/10 rounded-xl overflow-hidden shadow-2xl transition-all origin-top-right z-50 p-1 ${isSortDropdownOpen ? 'opacity-100 scale-100 pointer-events-auto' : 'opacity-0 scale-95 pointer-events-none group-hover:opacity-100 group-hover:scale-100 group-hover:pointer-events-auto'}`}>
+                                                            {[
+                                                                { label: 'Popularity', value: 'popularity.desc' },
+                                                                { label: 'Newest First', value: 'primary_release_date.desc' },
+                                                                { label: 'Top Rated', value: 'vote_average.desc' },
+                                                                { label: 'Revenue', value: 'revenue.desc' }
+                                                            ].map(opt => (
+                                                                <TvFocusButton key={opt.value} onClick={() => { setSortOption(opt.value); setIsSortDropdownOpen(false); }} className={`w-full text-left px-3 py-2 text-xs font-medium rounded-lg transition-colors flex items-center justify-between ${sortOption === opt.value ? 'bg-white/10 text-white' : 'text-zinc-400 hover:bg-white/5 hover:text-white'}`}>
+                                                                    {opt.label}
+                                                                    {sortOption === opt.value && <Check size={12} className={accentText} />}
+                                                                </TvFocusButton>
+                                                            ))}
+                                                        </div>
                                                     </div>
-                                                </div>
 
 
-                                                <div className="relative group shrink-0">
-                                                    <TvFocusButton onClick={() => setIsLanguageDropdownOpen(!isLanguageDropdownOpen)} className="flex items-center gap-2 px-3 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-xs font-medium text-gray-200 transition-all hover:border-white/20 active:scale-95 min-w-[100px] justify-between">
-                                                        <div className="flex items-center gap-2"><Languages size={14} /> <span>{selectedLanguage === 'All' ? 'All' : selectedLanguage.toUpperCase()}</span></div>
-                                                        <ChevronDown size={12} className="text-gray-500 group-hover:text-white transition-colors" />
-                                                    </TvFocusButton>
-                                                    <div className="absolute top-full left-0 w-full h-2 bg-transparent pointer-events-auto opacity-0 group-hover:block hidden"></div>
-                                                    <div className={`absolute top-full right-0 mt-2 w-48 bg-[#1a1a1a]/95 backdrop-blur-xl border border-white/10 rounded-xl overflow-hidden shadow-2xl transition-all origin-top-right z-50 max-h-60 overflow-y-auto custom-scrollbar p-1 ${isLanguageDropdownOpen ? 'opacity-100 scale-100 pointer-events-auto' : 'opacity-0 scale-95 pointer-events-none group-hover:opacity-100 group-hover:scale-100 group-hover:pointer-events-auto'}`}>
-                                                        {['All', 'en', 'hi', 'ja', 'ko', 'es', 'fr'].map(lang => (
-                                                            <TvFocusButton key={lang} onClick={() => { setSelectedLanguage(lang); setIsLanguageDropdownOpen(false); }} className={`w-full text-left px-3 py-2 text-xs font-medium rounded-lg transition-colors flex items-center justify-between ${selectedLanguage === lang ? 'bg-white/10 text-white' : 'text-zinc-400 hover:bg-white/5 hover:text-white'}`}>
-                                                                {lang === 'All' ? 'All Languages' : lang === 'en' ? 'English' : lang === 'hi' ? 'Hindi' : lang.toUpperCase()}
-                                                                {selectedLanguage === lang && <Check size={12} className={accentText} />}
-                                                            </TvFocusButton>
-                                                        ))}
+                                                    <div className="relative group shrink-0">
+                                                        <TvFocusButton onClick={() => setIsLanguageDropdownOpen(!isLanguageDropdownOpen)} className="flex items-center gap-2 px-3 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-xs font-medium text-gray-200 transition-all hover:border-white/20 active:scale-95 min-w-[100px] justify-between">
+                                                            <div className="flex items-center gap-2"><Languages size={14} /> <span>{selectedLanguage === 'All' ? 'All' : selectedLanguage.toUpperCase()}</span></div>
+                                                            <ChevronDown size={12} className="text-gray-500 group-hover:text-white transition-colors" />
+                                                        </TvFocusButton>
+                                                        <div className="absolute top-full left-0 w-full h-2 bg-transparent pointer-events-auto opacity-0 group-hover:block hidden"></div>
+                                                        <div className={`absolute top-full right-0 mt-2 w-48 bg-[#1a1a1a]/95 backdrop-blur-xl border border-white/10 rounded-xl overflow-hidden shadow-2xl transition-all origin-top-right z-50 max-h-60 overflow-y-auto custom-scrollbar p-1 ${isLanguageDropdownOpen ? 'opacity-100 scale-100 pointer-events-auto' : 'opacity-0 scale-95 pointer-events-none group-hover:opacity-100 group-hover:scale-100 group-hover:pointer-events-auto'}`}>
+                                                            {['All', 'en', 'hi', 'ja', 'ko', 'es', 'fr'].map(lang => (
+                                                                <TvFocusButton key={lang} onClick={() => { setSelectedLanguage(lang); setIsLanguageDropdownOpen(false); }} className={`w-full text-left px-3 py-2 text-xs font-medium rounded-lg transition-colors flex items-center justify-between ${selectedLanguage === lang ? 'bg-white/10 text-white' : 'text-zinc-400 hover:bg-white/5 hover:text-white'}`}>
+                                                                    {lang === 'All' ? 'All Languages' : lang === 'en' ? 'English' : lang === 'hi' ? 'Hindi' : lang.toUpperCase()}
+                                                                    {selectedLanguage === lang && <Check size={12} className={accentText} />}
+                                                                </TvFocusButton>
+                                                            ))}
+                                                        </div>
                                                     </div>
                                                 </div>
-                                            </div>
+                                            )}
                                         </div>
                                     )}
 
@@ -4228,7 +4231,7 @@ export default function App() {
             {selectedMovie && (
                 <MoviePage
                     key={selectedMovie.id}
-                    movie={selectedMovie}
+                    movie={watched.find(m => m.id === selectedMovie.id) || selectedMovie}
                     onClose={() => {
                         setSelectedMovie(null);
                         setActiveDetailsTab("overview");

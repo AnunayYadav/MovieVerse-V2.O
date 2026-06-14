@@ -66,24 +66,6 @@ export const generateMovieAnalysis = async (
   }
 };
 
-export const generateTrivia = async (movieTitle: string, year: string): Promise<string> => {
-  try {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-      const prompt = `Tell me one short, fascinating, and lesser-known behind-the-scenes trivia fact about the movie "${movieTitle}" (${year}). Keep it under 30 words.`;
-      
-      // Use 'gemini-3-flash-preview' for quick basic text tasks
-      const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
-        contents: prompt,
-      });
-
-      return response.text || "Trivia unavailable.";
-  } catch (e) {
-      console.error("Trivia Gen Failed", e);
-      return "Trivia unavailable (Network Error)";
-  }
-};
-
 export const generateSmartRecommendations = async (query: string): Promise<{ movies: string[], reason: string }> => {
   try {
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
