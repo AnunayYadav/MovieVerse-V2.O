@@ -45,192 +45,82 @@ interface CategoryItem {
 const ALL_CATEGORIES: CategoryItem[] = [
     // A
     { name: "Action", type: "genre", id: 28 },
-    { name: "Adaptation", type: "keyword", id: 180547 },
-    { name: "Adult Comedy", type: "keyword", id: 171801 },
     { name: "Adventure", type: "genre", id: 12 },
-    { name: "Animated", type: "genre", id: 16 },
-    { name: "Anthology", type: "keyword", id: 9716 },
-    { name: "Art House", type: "keyword", id: 9924 },
+    { name: "Animation", type: "genre", id: 16 },
 
     // B
     { name: "Based on Book", type: "keyword", id: 818 },
     { name: "Based on Game", type: "keyword", id: 230985 },
     { name: "Based on True Story", type: "keyword", id: 9672 },
-    { name: "Biopic", type: "keyword", id: 156100 },
-    { name: "Blood & Gore", type: "keyword", id: 207319 },
-    { name: "Body Horror", type: "keyword", id: 12353 },
-    { name: "Bottle Movies", type: "keyword", id: 258079 },
-    { name: "Bromance", type: "keyword", id: 161184 },
-    { name: "Buddy Movie", type: "keyword", id: 9713 },
-    { name: "Business", type: "keyword", id: 9826 },
+    { name: "Biography", type: "keyword", id: 156100 },
 
     // C
-    { name: "Campy", type: "keyword", id: 3550 },
-    { name: "Chick Flick", type: "keyword", id: 9714 },
+    { name: "Comedy", type: "genre", id: 35 },
+    { name: "Crime", type: "genre", id: 80 },
     { name: "Christmas", type: "keyword", id: 9308 },
     { name: "Coming of Age", type: "keyword", id: 10683 },
-    { name: "Cult Film", type: "keyword", id: 9658 },
-    { name: "Concert Film", type: "keyword", id: 155998 },
-    { name: "Crime", type: "genre", id: 80 },
     { name: "Cult Classic", type: "keyword", id: 9658 },
     { name: "Cyberpunk", type: "keyword", id: 285 },
-    { name: "Cyber Thriller", type: "keyword", id: 279589 },
 
     // D
-    { name: "Dance", type: "keyword", id: 9741 },
-    { name: "Dark Comedy", type: "keyword", id: 10186 },
-    { name: "Dark / Gritty", type: "keyword", id: 186061 },
-    { name: "Date Night", type: "keyword", id: 207318 },
-    { name: "Disaster", type: "keyword", id: 233 },
-    { name: "Disturbing", type: "keyword", id: 259501 },
     { name: "Documentary", type: "genre", id: 99 },
     { name: "Drama", type: "genre", id: 18 },
+    { name: "Disaster", type: "keyword", id: 233 },
     { name: "Dystopia", type: "keyword", id: 4565 },
 
     // E
-    { name: "Empowering", type: "keyword", id: 254124 },
-    { name: "Epic", type: "keyword", id: 10358 },
     { name: "Espionage", type: "keyword", id: 470 },
-    { name: "Experimental", type: "keyword", id: 207797 },
 
     // F
     { name: "Family", type: "genre", id: 10751 },
-    { name: "Family Drama", type: "keyword", id: 9710 },
     { name: "Fantasy", type: "genre", id: 14 },
-    { name: "Feel Good", type: "keyword", id: 207321 },
-    { name: "Festive", type: "keyword", id: 207317 },
     { name: "Found Footage", type: "keyword", id: 12903 },
-    { name: "Friendship", type: "keyword", id: 10129 },
-    { name: "Futuristic", type: "keyword", id: 4290 },
 
     // G
-    { name: "Game Show", type: "keyword", id: 255288 },
     { name: "Gangster", type: "keyword", id: 10391 },
-    { name: "Gothic", type: "keyword", id: 12554 },
 
     // H
-    { name: "Harem", type: "keyword", id: 186367 },
-    { name: "Heartbreaking", type: "keyword", id: 207323 },
-    { name: "Heist", type: "keyword", id: 10526 },
-    { name: "Highschool", type: "keyword", id: 6054 },
-    { name: "Historical", type: "keyword", id: 178712 },
-    { name: "Historical Fiction", type: "keyword", id: 228965 },
+    { name: "History", type: "genre", id: 36 },
     { name: "Horror", type: "genre", id: 27 },
-    { name: "Humour", type: "keyword", id: 161168 },
-    { name: "Hyperlink", type: "keyword", id: 260384 },
-
-    // I
-    { name: "Independent Film", type: "keyword", id: 10183 },
-    { name: "Indie", type: "keyword", id: 10183 },
-    { name: "Inspirational", type: "keyword", id: 254124 },
-    { name: "Investigation", type: "keyword", id: 156094 },
-    { name: "Isekai", type: "keyword", id: 278631 },
-
-    // J
-    { name: "Journalism", type: "keyword", id: 161834 },
-    { name: "Juvenile Delinquency", type: "keyword", id: 181954 },
-
-    // K
-    { name: "Kidnapping", type: "keyword", id: 9748 },
+    { name: "Heist", type: "keyword", id: 10526 },
 
     // L
-    { name: "Legal Drama", type: "keyword", id: 10738 },
     { name: "LGBTQ+", type: "keyword", id: 237442 },
-    { name: "Lighthearted & Fun", type: "keyword", id: 207320 },
-    { name: "Love Story", type: "keyword", id: 172944 },
 
     // M
-    { name: "Magic", type: "keyword", id: 2343 },
-    { name: "Martial Arts", type: "keyword", id: 849 },
-    { name: "Mass Movie", type: "keyword", id: 261688 },
-    { name: "Mecha", type: "keyword", id: 244671 },
-    { name: "Mind-Bending", type: "keyword", id: 10125 },
-    { name: "Mockumentary", type: "keyword", id: 11574 },
-    { name: "Monster", type: "keyword", id: 1299 },
-    { name: "Murder Mystery", type: "keyword", id: 9825 },
-    { name: "Musical", type: "genre", id: 10402 },
+    { name: "Music", type: "genre", id: 10402 },
     { name: "Mystery", type: "genre", id: 9648 },
-
-    // N
-    { name: "Neo Noir", type: "keyword", id: 9663 },
-    { name: "Noir", type: "keyword", id: 10522 },
-
-    // O
-    { name: "One-man Show", type: "keyword", id: 168128 },
-    { name: "Original Anime", type: "keyword", id: 244654 },
-    { name: "Outer Space", type: "keyword", id: 9882 },
+    { name: "Martial Arts", type: "keyword", id: 849 },
+    { name: "Mind-Bending", type: "keyword", id: 10125 },
 
     // P
-    { name: "Parody", type: "keyword", id: 9715 },
-    { name: "Patriotic", type: "keyword", id: 10714 },
-    { name: "Period Drama", type: "keyword", id: 10358 },
-    { name: "Political", type: "keyword", id: 10714 },
     { name: "Post-Apocalyptic", type: "keyword", id: 4485 },
-    { name: "Psychological", type: "keyword", id: 10125 },
     { name: "Psychological Thriller", type: "keyword", id: 10125 },
 
-    // Q
-    { name: "Quirky", type: "keyword", id: 172314 },
-
     // R
-    { name: "Reality TV", type: "keyword", id: 261689 },
-    { name: "Relaxing", type: "keyword", id: 207320 },
-    { name: "Remake", type: "keyword", id: 9726 },
-    { name: "Revenge", type: "keyword", id: 9717 },
-    { name: "Road Movie", type: "keyword", id: 9726 },
     { name: "Romance", type: "genre", id: 10749 },
     { name: "Romantic Comedy", type: "keyword", id: 9799 },
-    { name: "Rom-Com", type: "keyword", id: 9799 },
 
     // S
-    { name: "Satire", type: "keyword", id: 9755 },
-    { name: "Seinen", type: "keyword", id: 186364 },
-    { name: "Shonen", type: "keyword", id: 186365 },
-    { name: "Short Films", type: "keyword", id: 186357 },
-    { name: "Shoujo", type: "keyword", id: 186366 },
-    { name: "Sitcom", type: "keyword", id: 156475 },
-    { name: "Slasher", type: "keyword", id: 12339 },
-    { name: "Slice of Life", type: "keyword", id: 186359 },
-    { name: "Slow Burn", type: "keyword", id: 260385 },
-    { name: "Social Drama", type: "keyword", id: 156094 },
-    { name: "Spin-Off", type: "keyword", id: 180548 },
-    { name: "Spiritual", type: "keyword", id: 207322 },
-    { name: "Spoof", type: "keyword", id: 9715 },
-    { name: "Sports", type: "keyword", id: 6075 },
-    { name: "Spy", type: "keyword", id: 470 },
-    { name: "Stand-up", type: "keyword", id: 155452 },
-    { name: "Steamy", type: "keyword", id: 186061 },
+    { name: "Sci-Fi", type: "genre", id: 878 },
+    { name: "Space Exploration", type: "keyword", id: 9882 },
     { name: "Superhero", type: "keyword", id: 9715 },
     { name: "Supernatural", type: "keyword", id: 6158 },
     { name: "Survival", type: "keyword", id: 10391 },
 
     // T
-    { name: "Talk Show", type: "keyword", id: 261690 },
-    { name: "Teen", type: "keyword", id: 171638 },
+    { name: "Thriller", type: "genre", id: 53 },
     { name: "Time Travel", type: "keyword", id: 4379 },
-    { name: "Tragedy", type: "keyword", id: 185121 },
-    { name: "Travel", type: "keyword", id: 9726 },
-
-    // U
-    { name: "Urban Fantasy", type: "keyword", id: 254247 },
 
     // V
     { name: "Vampire", type: "keyword", id: 3133 },
-    { name: "Vigilante", type: "keyword", id: 9673 },
 
     // W
     { name: "War", type: "genre", id: 10752 },
     { name: "Western", type: "genre", id: 37 },
-    { name: "Witchcraft", type: "keyword", id: 3224 },
-    { name: "Witty", type: "keyword", id: 172314 },
-
-    // Y
-    { name: "Yaoi", type: "keyword", id: 186368 },
-    { name: "Yuri", type: "keyword", id: 186369 },
 
     // Z
-    { name: "Zombie", type: "keyword", id: 12377 },
-    { name: "Zombie Apocalypse", type: "keyword", id: 12377 }
+    { name: "Zombie", type: "keyword", id: 12377 }
 ];
 
 // Sub-component for horizontal scrolling rows of movies
