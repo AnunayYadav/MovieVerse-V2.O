@@ -835,7 +835,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                 ) : (
                     <div className="flex flex-col pb-20">
                         {/* Responsive Hero Media Container (16:9 aspect-video on mobile, 70vh height on desktop) */}
-                        <div className="relative w-full aspect-video md:h-[70vh] md:aspect-auto shrink-0 bg-black overflow-hidden group/hero">
+                        <div className="relative w-full aspect-video md:h-[70vh] md:aspect-auto shrink-0 bg-black group/hero">
                              <div className="absolute inset-0 w-full h-full overflow-hidden">
                                 {trailer && !isTV && (
                                      <div className="absolute inset-0 w-full h-full pointer-events-none">
@@ -851,7 +851,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                              </div>
 
                              {/* Desktop Overlay Content (hidden on mobile below md) */}
-                             <div className="hidden md:flex absolute bottom-0 left-0 w-full px-10 pb-12 flex-col gap-6 z-10 pointer-events-none">
+                             <div className="hidden md:flex absolute bottom-0 left-0 w-full px-10 pb-12 flex-col gap-6 z-30 pointer-events-none">
                                 <div className="pointer-events-auto w-full">
                                     {logo ? <img src={`${TMDB_IMAGE_BASE}${logo.file_path}`} alt={title} className={`max-h-24 max-w-[55%] w-auto object-contain object-left drop-shadow-2xl mb-4 origin-bottom-left -ml-1 transition-all duration-700 ease-in-out transform ${videoLoaded ? 'scale-90 opacity-70 group-hover/hero:scale-100 group-hover/hero:opacity-100' : 'scale-100 opacity-100'}`}/> : <h2 className={`text-3xl md:text-5xl font-extrabold text-white leading-tight drop-shadow-lg mb-4 transition-all duration-700 ease-in-out ${videoLoaded ? 'opacity-80 group-hover:opacity-100' : 'opacity-100'}`}>{title}</h2>}
                                      <div className={`flex flex-wrap items-center gap-4 text-white/90 text-sm font-medium transition-all duration-700 ease-in-out origin-bottom ${videoLoaded ? 'opacity-85 group-hover:opacity-100' : 'opacity-100'}`}>
@@ -913,7 +913,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                         </div>
 
                         {/* Netflix-Style Mobile Details Flow Layout (visible on mobile only, below md) */}
-                        <div className="md:hidden w-full px-4 pt-5 pb-1 flex flex-col gap-3.5 select-none text-left animate-in fade-in slide-in-from-bottom-2 duration-500">
+                        <div className="md:hidden w-full px-4 pt-5 pb-1 flex flex-col gap-3.5 select-none text-left animate-in fade-in slide-in-from-bottom-2 duration-500 relative z-30">
                             {/* Logo or Text Title */}
                             <div className="w-full">
                                 {logo ? (
