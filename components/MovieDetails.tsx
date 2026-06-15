@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, Suspense, useRef, useMemo } from 'react';
-import { X, Info, Calendar, Clock, Star, Play, Bookmark, Heart, Share2, Clapperboard, Sparkles, Loader2, Tag, MessageCircle, Globe, Facebook, Instagram, Twitter, Film, PlayCircle, Eye, Volume2, VolumeX, Users, ArrowLeft, Lightbulb, DollarSign, Trophy, Tv, Check, Mic2, Video, PenTool, ChevronRight, ChevronDown, Search, Monitor, Plus, Layers, Shield, Building2, Languages, Headphones, Activity, Target, TrendingUp, PieChart as PieChartIcon } from 'lucide-react';
+import { X, Info, Calendar, Clock, Star, Play, Bookmark, Heart, Share2, Clapperboard, Sparkles, Loader2, Tag, MessageCircle, Globe, Facebook, Instagram, Twitter, Film, PlayCircle, Eye, Volume2, VolumeX, Users, ArrowLeft, Lightbulb, DollarSign, Trophy, Tv, Check, Mic2, Video, PenTool, ChevronRight, ChevronDown, Search, Monitor, Plus, Layers, Shield, Building2, Languages, Headphones, Activity, Target, TrendingUp, Cast, AlertCircle, Pause, PieChart as PieChartIcon } from 'lucide-react';
 import { Movie, MovieDetails, Season, UserProfile, Keyword, Review, CastMember, CrewMember, CollectionDetails, Genre } from '../types';
 import { TMDB_BASE_URL, TMDB_IMAGE_BASE, TMDB_BACKDROP_BASE, formatCurrency, ImageLightbox, PersonCard, MovieCard, tvFetch } from '../components/Shared';
 import { FullCreditsModal } from './Modals';
@@ -444,6 +444,12 @@ export const MoviePage: React.FC<MoviePageProps> = ({
     
     // Custom Seasons Dropdown State
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+    const [isCastApiAvailable, setIsCastApiAvailable] = useState(false);
+    const [castDeviceName, setCastDeviceName] = useState("");
+    const [isCasting, setIsCasting] = useState(false);
+    const [showCastModal, setShowCastModal] = useState(false);
+    const [isCastPlaying, setIsCastPlaying] = useState(true);
+    const [castVolume, setCastVolume] = useState(1);
     const dropdownRef = useRef<HTMLDivElement>(null);
 
     const [selectedProviderId, setSelectedProviderId] = useState(() => {
@@ -555,6 +561,145 @@ export const MoviePage: React.FC<MoviePageProps> = ({
             .catch((err) => {
                 console.error("Failed to copy link: ", err);
             });
+    };
+
+    // Initialize Chromecast SDK
+    useEffect(() => {
+        const initializeCast = () => {
+            try {
+                const castContext = (window as any).cast?.framework?.CastContext.getInstance();
+                if (castContext) {
+                    castContext.setOptions({
+                        receiverApplicationId: (window as any).chrome?.cast?.media?.DEFAULT_MEDIA_RECEIVER_APP_ID,
+                        autoJoinPolicy: (window as any).chrome?.cast?.AutoJoinPolicy?.ORIGIN_SCOPED
+                    });
+                    
+                    // Listen for session events
+                    const contextEvent = (window as any).cast.framework.CastContextEventType;
+                    castContext.addEventListener(contextEvent.SESSION_STATE_CHANGED, (event: any) => {
+                        const state = event.sessionState;
+                        const sessionState = (window as any).cast.framework.SessionState;
+                        
+                        if (state === sessionState.SESSION_STARTED || state === sessionState.SESSION_RESUMED) {
+                            const session = castContext.getCurrentSession();
+                            if (session) {
+                                const device = session.getCastDevice();
+                                setCastDeviceName(device?.friendlyName || "Chromecast Device");
+                                setIsCasting(true);
+                                triggerSystemNotification("Chromecast Connected", `Casting to ${device?.friendlyName || "TV"}`);
+                            }
+                        } else if (state === sessionState.SESSION_ENDED || state === sessionState.NO_SESSION) {
+                            setIsCasting(false);
+                            setCastDeviceName("");
+                        }
+                    });
+                    
+                    setIsCastApiAvailable(true);
+                    
+                    // Check if already connected
+                    const activeSession = castContext.getCurrentSession();
+                    if (activeSession) {
+                        const device = activeSession.getCastDevice();
+                        setCastDeviceName(device?.friendlyName || "Chromecast Device");
+                        setIsCasting(true);
+                    }
+                }
+            } catch (err) {
+                console.warn("Failed to initialize Chromecast SDK:", err);
+            }
+        };
+
+        // If Cast API is already loaded
+        if ((window as any).chrome?.cast && (window as any).cast?.framework) {
+            initializeCast();
+        } else {
+            // Set global callback for Cast framework loading
+            const existingCallback = (window as any).__onGCastApiAvailable;
+            (window as any).__onGCastApiAvailable = (isAvailable: boolean) => {
+                if (existingCallback) existingCallback(isAvailable);
+                if (isAvailable) {
+                    initializeCast();
+                }
+            };
+        }
+    }, []);
+
+    const handleStartCast = async () => {
+        try {
+            const castContext = (window as any).cast?.framework?.CastContext.getInstance();
+            if (castContext) {
+                await castContext.requestSession();
+                
+                // If session was successfully started
+                const session = castContext.getCurrentSession();
+                if (session) {
+                    // Try to load media (like trailer or metadata)
+                    const mediaInfo = new (window as any).chrome.cast.media.MediaInfo(
+                        displayData.backdrop_path ? `${TMDB_BACKDROP_BASE}${displayData.backdrop_path}` : "https://placehold.co/1200x600",
+                        'image/jpeg'
+                    );
+                    
+                    // Add metadata
+                    const metadata = new (window as any).chrome.cast.media.GenericMediaMetadata();
+                    metadata.title = displayData.title || displayData.name;
+                    metadata.subtitle = `MovieVerse Streaming - Released in ${displayData.release_date ? new Date(displayData.release_date).getFullYear() : 'TBA'}`;
+                    metadata.images = [{ url: displayData.poster_path ? `${TMDB_IMAGE_BASE}${displayData.poster_path}` : "https://placehold.co/300x450" }];
+                    mediaInfo.metadata = metadata;
+                    
+                    const request = new (window as any).chrome.cast.media.LoadRequest(mediaInfo);
+                    
+                    session.loadMedia(request).then(
+                        () => console.log('Metadata loaded successfully on Cast device'),
+                        (e: any) => console.warn('Failed to load Cast metadata:', e)
+                    );
+                }
+            }
+        } catch (err) {
+            console.error("Failed to request Cast session:", err);
+        }
+    };
+
+    const handleCastPlayPause = () => {
+        try {
+            const session = (window as any).cast?.framework?.CastContext.getInstance()?.getCurrentSession();
+            const mediaSession = session?.getSessionObj()?.media?.[0];
+            if (mediaSession) {
+                if (isCastPlaying) {
+                    mediaSession.pause(null, () => setIsCastPlaying(false), (err: any) => console.error(err));
+                } else {
+                    mediaSession.play(null, () => setIsCastPlaying(true), (err: any) => console.error(err));
+                }
+            } else {
+                setIsCastPlaying(!isCastPlaying);
+            }
+        } catch (e) {
+            console.warn("Error toggling cast playback:", e);
+        }
+    };
+
+    const handleCastVolumeChange = (newVolume: number) => {
+        try {
+            setCastVolume(newVolume);
+            const session = (window as any).cast?.framework?.CastContext.getInstance()?.getCurrentSession();
+            if (session) {
+                session.setReceiverVolumeLevel(newVolume);
+            }
+        } catch (e) {
+            console.warn("Error setting receiver volume:", e);
+        }
+    };
+
+    const handleStopCasting = () => {
+        try {
+            const castContext = (window as any).cast?.framework?.CastContext.getInstance();
+            if (castContext) {
+                castContext.endCurrentSession(true);
+                setIsCasting(false);
+                setCastDeviceName("");
+            }
+        } catch (e) {
+            console.warn("Error stopping cast session:", e);
+        }
     };
 
     useEffect(() => {
@@ -904,6 +1049,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                             <TvFocusButton onClick={() => onToggleWatchlist(displayData)} className={`w-10 h-10 rounded-full border flex items-center justify-center transition-all active:scale-95 group relative ${isWatchlisted ? 'text-green-400 border-green-500 bg-transparent hover:bg-green-500/10' : 'text-white border-white/20 hover:border-white/40 bg-transparent hover:bg-white/5'}`} title="Add to Watchlist">{isWatchlisted ? <Check size={18} strokeWidth={2.5}/> : <Plus size={18}/>}</TvFocusButton>
                                             <TvFocusButton onClick={() => onToggleFavorite(displayData)} className={`w-10 h-10 rounded-full border flex items-center justify-center transition-all active:scale-95 group ${isFavorite ? 'text-red-500 border-red-500 bg-transparent hover:bg-red-500/10' : 'text-white border-white/20 hover:border-white/40 bg-transparent hover:bg-white/5'}`} title="Add to Favorites"><Heart size={18} fill={isFavorite ? "currentColor" : "none"}/></TvFocusButton>
                                             <TvFocusButton onClick={handleShare} className={`w-10 h-10 rounded-full border flex items-center justify-center transition-all active:scale-95 group relative ${copied ? 'text-green-400 border-green-500 bg-transparent hover:bg-green-500/10' : 'text-white border-white/20 hover:border-white/40 bg-transparent hover:bg-white/5'}`} title="Share Movie">{copied ? <Check size={18} strokeWidth={2.5}/> : <Share2 size={18}/>}</TvFocusButton>
+                                            <TvFocusButton onClick={() => setShowCastModal(true)} className={`w-10 h-10 rounded-full border flex items-center justify-center transition-all active:scale-95 group relative ${isCasting ? 'text-red-500 border-red-500 bg-transparent hover:bg-red-500/10 shadow-[0_0_12px_rgba(239,68,68,0.25)]' : 'text-white border-white/20 hover:border-white/40 bg-transparent hover:bg-white/5'}`} title="Chromecast">{isCasting ? <Cast size={18} className="animate-pulse" /> : <Cast size={18} />}</TvFocusButton>
                                             <TvFocusButton onClick={() => details?.external_ids?.imdb_id && window.open(`https://www.imdb.com/title/${details.external_ids.imdb_id}/parentalguide`, '_blank')} disabled={!details?.external_ids?.imdb_id} className={`w-10 h-10 rounded-full border border-white/20 hover:border-white/40 bg-transparent hover:bg-white/5 flex items-center justify-center transition-all active:scale-95 text-white ${!details?.external_ids?.imdb_id ? 'opacity-30 cursor-not-allowed' : ''}`} title="Parents Guide (IMDb)"><Shield size={18}/></TvFocusButton>
                                             {details?.videos?.results?.[0] && <TvFocusButton onClick={() => window.open(`https://www.youtube.com/watch?v=${details.videos.results[0].key}`)} className="w-10 h-10 rounded-full border border-white/20 hover:border-white/40 bg-transparent hover:bg-white/5 flex items-center justify-center transition-all active:scale-95 text-white" title="Watch Trailer"><Play size={16} fill="currentColor" className="ml-0.5"/></TvFocusButton>}
                                         </div>
@@ -977,7 +1123,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                             </div>
 
                             {/* Secondary Action Buttons Compact Row */}
-                            <div className="grid grid-cols-5 gap-1 py-3 border-y border-white/5 mt-1.5 text-gray-400">
+                            <div className="grid grid-cols-6 gap-1 py-3 border-y border-white/5 mt-1.5 text-gray-400">
                                 <TvFocusButton onClick={() => onToggleWatchlist(displayData)} className="flex flex-col items-center gap-1.5 py-0.5 active:scale-95 text-center">
                                     {isWatchlisted ? <Check size={18} className="text-green-400" strokeWidth={2.5}/> : <Plus size={18} className="text-white"/>}
                                     <span className="text-[9px] font-bold tracking-wide mt-0.5">My List</span>
@@ -989,6 +1135,10 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                 <TvFocusButton onClick={handleShare} className="flex flex-col items-center gap-1.5 py-0.5 active:scale-95 text-center">
                                     {copied ? <Check size={18} className="text-green-400" strokeWidth={2.5}/> : <Share2 size={18} className="text-white"/>}
                                     <span className="text-[9px] font-bold tracking-wide mt-0.5">Share</span>
+                                </TvFocusButton>
+                                <TvFocusButton onClick={() => setShowCastModal(true)} className="flex flex-col items-center gap-1.5 py-0.5 active:scale-95 text-center">
+                                    <Cast size={18} className={isCasting ? "text-red-500 animate-pulse" : "text-white"}/>
+                                    <span className="text-[9px] font-bold tracking-wide mt-0.5">Cast</span>
                                 </TvFocusButton>
                                 <TvFocusButton onClick={() => details?.external_ids?.imdb_id && window.open(`https://www.imdb.com/title/${details.external_ids.imdb_id}/parentalguide`, '_blank')} disabled={!details?.external_ids?.imdb_id} className="flex flex-col items-center gap-1.5 py-0.5 active:scale-95 text-center disabled:opacity-30">
                                     <Shield size={18} className="text-white"/>
@@ -1672,6 +1822,137 @@ export const MoviePage: React.FC<MoviePageProps> = ({
             })()}
             <FullCreditsModal isOpen={showFullCast} onClose={() => setShowFullCast(false)} title="Full Cast" credits={displayData.credits?.cast || []} onPersonClick={onPersonClick} />
             <FullCreditsModal isOpen={showFullCrew} onClose={() => setShowFullCrew(false)} title="Full Crew" credits={displayData.credits?.crew || []} onPersonClick={onPersonClick} />
+            
+            {showCastModal && (
+                <div className="fixed inset-0 z-[250] bg-black/80 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-300">
+                    <div className="bg-[#0c0c0e]/95 border border-white/10 rounded-3xl p-6 max-w-md w-full shadow-2xl relative overflow-hidden text-center select-none animate-in zoom-in-95 duration-300 animate-slide-in-bottom">
+                        {/* Header border design */}
+                        <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-red-600 via-purple-600 to-red-600"></div>
+                        
+                        <button 
+                            onClick={() => setShowCastModal(false)}
+                            className="absolute top-4 right-4 p-2 hover:bg-white/10 rounded-full transition-colors text-gray-400 hover:text-white"
+                            title="Close"
+                        >
+                            <X size={18} />
+                        </button>
+
+                        <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mx-auto mb-5 border border-white/10 shadow-inner">
+                            <Cast size={32} className={`${isCasting ? 'text-red-500 animate-[pulse_2s_infinite]' : 'text-gray-300'}`} />
+                        </div>
+
+                        <h3 className="text-xl font-bold text-white mb-2">Chromecast</h3>
+
+                        {!isCastApiAvailable ? (
+                            <div className="text-left space-y-4 animate-in fade-in duration-300">
+                                <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-2xl p-4 text-xs text-yellow-500 flex items-start gap-2.5 leading-relaxed">
+                                    <AlertCircle size={16} className="shrink-0 mt-0.5" />
+                                    <span>Google Cast API is loading or not supported by this browser. Make sure you are using a Cast-compatible browser like Google Chrome or Microsoft Edge.</span>
+                                </div>
+                                
+                                <div className="bg-white/5 border border-white/5 rounded-2xl p-4 text-left">
+                                    <h4 className="text-xs font-bold text-white mb-2 flex items-center gap-1.5"><Info size={12} /> How to Cast:</h4>
+                                    <ol className="list-decimal pl-4 text-[11px] text-gray-400 space-y-2 leading-relaxed">
+                                        <li>Open the browser menu (<span className="text-white">︙</span> in Chrome, <span className="text-white">⋯</span> in Edge).</li>
+                                        <li>Click on <span className="font-semibold text-white">"Cast..."</span> or <span className="font-semibold text-white">"Cast media to device"</span>.</li>
+                                        <li>Select your TV or smart display from the list to cast the entire browser tab.</li>
+                                        <li>Enter fullscreen on the player to enjoy the movie on your big screen.</li>
+                                    </ol>
+                                </div>
+                            </div>
+                        ) : !isCasting ? (
+                            <div className="space-y-5 animate-in fade-in duration-300">
+                                <p className="text-xs text-gray-400 leading-relaxed px-4">
+                                    Cast this title to nearby Chromecast devices, TVs, or smart displays.
+                                </p>
+                                
+                                <div className="bg-white/5 border border-white/5 rounded-2xl p-4 flex items-center gap-3.5 text-left">
+                                    <img 
+                                        src={displayData.poster_path ? `${TMDB_IMAGE_BASE}${displayData.poster_path}` : "https://placehold.co/300x450"} 
+                                        className="w-12 h-18 object-cover rounded-md border border-white/10 shadow-md animate-in fade-in"
+                                        alt={title}
+                                    />
+                                    <div>
+                                        <h4 className="text-sm font-bold text-white line-clamp-1">{title}</h4>
+                                        <p className="text-[11px] text-gray-500 mt-0.5">{releaseDate.split(',')[1]?.trim() || releaseDate} • {runtime}</p>
+                                    </div>
+                                </div>
+
+                                <div className="bg-white/5 border border-white/5 rounded-2xl p-4 text-left">
+                                    <h4 className="text-xs font-bold text-white mb-2 flex items-center gap-1.5"><Info size={12} /> Note on Providers:</h4>
+                                    <p className="text-[11px] text-gray-400 leading-relaxed">
+                                        Provider video streams are served inside secure iframes. If direct casting fails to load on your TV, use the browser's built-in <span className="text-white">Cast Tab</span> function by clicking the browser's top-right menu icon and selecting <span className="text-white">"Cast..."</span>.
+                                    </p>
+                                </div>
+
+                                <TvFocusButton 
+                                    onClick={handleStartCast}
+                                    className="w-full py-2.5 px-4 bg-red-600 hover:bg-red-700 text-white font-bold text-xs uppercase tracking-wider rounded-xl transition-all hover:scale-[1.02] active:scale-95 shadow-lg shadow-red-600/20 flex items-center justify-center gap-2"
+                                >
+                                    <Cast size={14} /> Connect & Cast
+                                </TvFocusButton>
+                            </div>
+                        ) : (
+                            <div className="space-y-6 animate-in fade-in duration-300">
+                                <div className="bg-green-500/10 border border-green-500/20 rounded-2xl p-3 text-[11px] font-bold text-green-400 flex items-center justify-center gap-1.5">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
+                                    Connected to {castDeviceName}
+                                </div>
+
+                                <div className="bg-white/5 border border-white/5 rounded-2xl p-4 flex flex-col items-center gap-3">
+                                    <img 
+                                        src={displayData.poster_path ? `${TMDB_IMAGE_BASE}${displayData.poster_path}` : "https://placehold.co/300x450"} 
+                                        className="w-20 h-30 object-cover rounded-lg border border-white/10 shadow-lg"
+                                        alt={title}
+                                    />
+                                    <div className="text-center">
+                                        <h4 className="text-sm font-bold text-white">{title}</h4>
+                                        <p className="text-[11px] text-gray-500 mt-1 font-semibold">Now Casting on {castDeviceName}</p>
+                                    </div>
+                                </div>
+
+                                {/* Controls */}
+                                <div className="flex flex-col gap-4 bg-white/5 border border-white/5 rounded-2xl p-4">
+                                    <div className="flex items-center justify-center gap-6">
+                                        <TvFocusButton 
+                                            onClick={handleCastPlayPause} 
+                                            className="p-2.5 bg-white/5 hover:bg-white/10 rounded-full border border-white/5 hover:border-white/15 text-white active:scale-90 transition-all flex items-center justify-center"
+                                            title={isCastPlaying ? "Pause" : "Play"}
+                                        >
+                                            {isCastPlaying ? <Pause size={18} fill="currentColor" /> : <Play size={18} fill="currentColor" />}
+                                        </TvFocusButton>
+                                    </div>
+
+                                    <div className="flex items-center gap-3">
+                                        <button 
+                                            onClick={() => handleCastVolumeChange(castVolume === 0 ? 0.5 : 0)} 
+                                            className="text-gray-400 hover:text-white transition-colors"
+                                        >
+                                            {castVolume === 0 ? <VolumeX size={16} /> : <Volume2 size={16} />}
+                                        </button>
+                                        <input 
+                                            type="range"
+                                            min="0"
+                                            max="1"
+                                            step="0.05"
+                                            value={castVolume}
+                                            onChange={(e) => handleCastVolumeChange(parseFloat(e.target.value))}
+                                            className="flex-1 h-1 bg-white/10 rounded-lg cursor-pointer accent-red-500"
+                                        />
+                                    </div>
+                                </div>
+
+                                <TvFocusButton 
+                                    onClick={handleStopCasting}
+                                    className="w-full py-2.5 px-4 bg-white/5 hover:bg-red-600/10 hover:text-red-500 text-gray-300 font-bold text-xs uppercase tracking-wider rounded-xl transition-all border border-white/5 hover:border-red-500/20 active:scale-95 flex items-center justify-center gap-2"
+                                >
+                                    <X size={14} /> Stop Casting
+                                </TvFocusButton>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
