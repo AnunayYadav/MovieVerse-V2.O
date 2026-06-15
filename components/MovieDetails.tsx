@@ -450,6 +450,12 @@ export const MoviePage: React.FC<MoviePageProps> = ({
     const [showCastModal, setShowCastModal] = useState(false);
     const [isCastPlaying, setIsCastPlaying] = useState(true);
     const [castVolume, setCastVolume] = useState(1);
+    const [selectedCastProviderId, setSelectedCastProviderId] = useState(() => {
+        if (typeof window !== 'undefined') {
+            return localStorage.getItem('movieverse_preferred_provider') || 'videasy';
+        }
+        return 'videasy';
+    });
     const dropdownRef = useRef<HTMLDivElement>(null);
 
     const [selectedProviderId, setSelectedProviderId] = useState(() => {
@@ -465,6 +471,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
 
     const handleProviderChange = (providerId: string) => {
         setSelectedProviderId(providerId);
+        setSelectedCastProviderId(providerId);
         if (typeof window !== 'undefined') {
             localStorage.setItem('movieverse_preferred_provider', providerId);
         }
@@ -633,24 +640,38 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                 // If session was successfully started
                 const session = castContext.getCurrentSession();
                 if (session) {
-                    // Try to load media (like trailer or metadata)
+                    const isTvShow = resolvedMediaType === 'tv';
+                    const provider = PROVIDERS.find(p => p.id === selectedCastProviderId) || PROVIDERS[0];
+                    const mediaUrl = isTvShow
+                        ? provider.getTvUrl(displayData.id, playParams.season, playParams.episode, "EF4444", 0)
+                        : provider.getMovieUrl(displayData.id, "EF4444", 0);
+
+                    // Try to load media
                     const mediaInfo = new (window as any).chrome.cast.media.MediaInfo(
-                        displayData.backdrop_path ? `${TMDB_BACKDROP_BASE}${displayData.backdrop_path}` : "https://placehold.co/1200x600",
-                        'image/jpeg'
+                        mediaUrl,
+                        'video/mp4' // Generic video type
                     );
                     
                     // Add metadata
                     const metadata = new (window as any).chrome.cast.media.GenericMediaMetadata();
-                    metadata.title = displayData.title || displayData.name;
-                    metadata.subtitle = `MovieVerse Streaming - Released in ${displayData.release_date ? new Date(displayData.release_date).getFullYear() : 'TBA'}`;
+                    metadata.title = `${displayData.title || displayData.name} (${provider.name})`;
+                    metadata.subtitle = `Streaming via ${provider.name} - MovieVerse`;
                     metadata.images = [{ url: displayData.poster_path ? `${TMDB_IMAGE_BASE}${displayData.poster_path}` : "https://placehold.co/300x450" }];
                     mediaInfo.metadata = metadata;
                     
                     const request = new (window as any).chrome.cast.media.LoadRequest(mediaInfo);
                     
                     session.loadMedia(request).then(
-                        () => console.log('Metadata loaded successfully on Cast device'),
-                        (e: any) => console.warn('Failed to load Cast metadata:', e)
+                        () => {
+                            console.log('Provider URL loaded successfully on Cast device');
+                            setShowCastModal(false);
+                            handleWatchClick(); // Start local player for tab cast
+                        },
+                        (e: any) => {
+                            console.warn('Failed to load Cast media:', e);
+                            setShowCastModal(false);
+                            handleWatchClick(); // Fallback to local player
+                        }
                     );
                 }
             }
@@ -1837,11 +1858,14 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                             <X size={18} />
                         </button>
 
-                        <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mx-auto mb-5 border border-white/10 shadow-inner">
+                        <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mx-auto mb-4 border border-white/10 shadow-inner">
                             <Cast size={32} className={`${isCasting ? 'text-red-500 animate-[pulse_2s_infinite]' : 'text-gray-300'}`} />
                         </div>
 
-                        <h3 className="text-xl font-bold text-white mb-2">Chromecast</h3>
+                        <h3 className="text-xl font-bold text-white mb-1">Chromecast</h3>
+                        <p className="text-[10px] text-gray-500 mb-5 leading-normal max-w-[280px] mx-auto">
+                            Casting lets you project media and video player links directly from this app to a Chromecast, Google TV, or smart display.
+                        </p>
 
                         {!isCastApiAvailable ? (
                             <div className="text-left space-y-4 animate-in fade-in duration-300">
@@ -1862,10 +1886,6 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                             </div>
                         ) : !isCasting ? (
                             <div className="space-y-5 animate-in fade-in duration-300">
-                                <p className="text-xs text-gray-400 leading-relaxed px-4">
-                                    Cast this title to nearby Chromecast devices, TVs, or smart displays.
-                                </p>
-                                
                                 <div className="bg-white/5 border border-white/5 rounded-2xl p-4 flex items-center gap-3.5 text-left">
                                     <img 
                                         src={displayData.poster_path ? `${TMDB_IMAGE_BASE}${displayData.poster_path}` : "https://placehold.co/300x450"} 
@@ -1878,10 +1898,32 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                     </div>
                                 </div>
 
+                                <div className="space-y-3 text-left">
+                                    <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider px-1">Select Streaming Provider:</h4>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        {PROVIDERS.map((prov) => (
+                                            <TvFocusButton
+                                                key={prov.id}
+                                                onClick={() => {
+                                                    setSelectedCastProviderId(prov.id);
+                                                }}
+                                                className={`py-2.5 px-3.5 rounded-xl text-xs font-bold transition-all border flex items-center justify-between active:scale-95 ${
+                                                    selectedCastProviderId === prov.id 
+                                                        ? 'bg-red-600/20 text-red-500 border-red-500/30' 
+                                                        : 'bg-white/5 text-gray-300 border-white/5 hover:border-white/10 hover:bg-white/10'
+                                                }`}
+                                            >
+                                                <span>{prov.name}</span>
+                                                {selectedCastProviderId === prov.id && <Check size={12} />}
+                                            </TvFocusButton>
+                                        ))}
+                                    </div>
+                                </div>
+
                                 <div className="bg-white/5 border border-white/5 rounded-2xl p-4 text-left">
-                                    <h4 className="text-xs font-bold text-white mb-2 flex items-center gap-1.5"><Info size={12} /> Note on Providers:</h4>
+                                    <h4 className="text-xs font-bold text-white mb-2 flex items-center gap-1.5"><Info size={12} /> Note on Casting Iframe:</h4>
                                     <p className="text-[11px] text-gray-400 leading-relaxed">
-                                        Provider video streams are served inside secure iframes. If direct casting fails to load on your TV, use the browser's built-in <span className="text-white">Cast Tab</span> function by clicking the browser's top-right menu icon and selecting <span className="text-white">"Cast..."</span>.
+                                        Selecting a provider starts the Cast session. If the TV displays a loading/CORS error, please use the browser's built-in <span className="text-white">Cast Tab</span> function (Browser Menu &rarr; <span className="text-white">"Cast..."</span>) to mirror the player page.
                                     </p>
                                 </div>
 
@@ -1889,7 +1931,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                     onClick={handleStartCast}
                                     className="w-full py-2.5 px-4 bg-red-600 hover:bg-red-700 text-white font-bold text-xs uppercase tracking-wider rounded-xl transition-all hover:scale-[1.02] active:scale-95 shadow-lg shadow-red-600/20 flex items-center justify-center gap-2"
                                 >
-                                    <Cast size={14} /> Connect & Cast
+                                    <Cast size={14} /> Connect & Cast Player
                                 </TvFocusButton>
                             </div>
                         ) : (
