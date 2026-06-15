@@ -195,23 +195,24 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     };
   }, [onProgress, initialSeason, initialEpisode]);
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown, true);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown, true);
+    };
+  }, [onClose]);
+
   return (
     <div 
       ref={containerRef}
       className="w-full h-full flex flex-col bg-black relative group/player select-none overflow-hidden"
     >
-       {/* Close Button Overlay */}
-       <div className="absolute top-0 right-0 z-[100] p-6 opacity-0 group-hover/player:opacity-100 transition-opacity duration-300 pointer-events-none">
-          <button 
-            id="tv-player-close-btn"
-            onClick={onClose}
-            className="pointer-events-auto bg-black/40 hover:bg-red-600 text-white p-2 rounded-lg transition-all shadow-lg active:scale-95 h-10 w-10 flex items-center justify-center border border-white/10 hover:border-red-600"
-            title="Close Player"
-          >
-            <X size={20}/>
-          </button>
-       </div>
-
       <div className="flex-1 relative w-full h-full z-0 overflow-hidden bg-black">
         {embedUrl && (
           <iframe 
