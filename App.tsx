@@ -1159,8 +1159,8 @@ export default function App() {
     useEffect(() => {
         const handleVisibilityChange = () => {
             if (document.hidden) {
-                console.log("MovieVerse TV: Tab hidden. Pausing background playback.");
-                setIsWatching(false);
+                console.log("MovieVerse TV: Tab hidden.");
+                // We no longer call setIsWatching(false) here so the player doesn't close on tab switch
             }
         };
 
@@ -1171,7 +1171,7 @@ export default function App() {
                     stateListener = await CapApp.addListener('appStateChange', ({ isActive }) => {
                         console.log("MovieVerse TV: App state changed. isActive:", isActive);
                         if (!isActive) {
-                            setIsWatching(false);
+                            // We no longer call setIsWatching(false) here to avoid closing player in background
                         }
                     });
                 } catch (e) {

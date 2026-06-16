@@ -111,31 +111,44 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   }, [embedUrl]);
 
   const currentProgressRef = useRef<number>(forceProgress || 0);
-  const lastMediaRef = useRef<{ id: number; type: string; s?: number; e?: number } | null>(null);
-  const lastAppliedProgressRef = useRef<number | undefined>(undefined);
-
-  useEffect(() => {
-    if (forceProgress !== undefined) {
-      currentProgressRef.current = forceProgress;
-    }
-  }, [forceProgress]);
+  const lastEpisodeKeyRef = useRef<string | null>(null);
+  const lastProviderRef = useRef<string | null>(null);
 
   useEffect(() => {
     const isTvShow = mediaType === 'tv' || (isAnime && mediaType !== 'movie');
     const provider = PROVIDERS.find(p => p.id === selectedProviderId) || PROVIDERS[0];
+    const episodeKey = `${tmdbId}-${mediaType}-${initialSeason}-${initialEpisode}`;
     
-    if (forceProgress !== undefined && forceProgress !== lastAppliedProgressRef.current) {
-      currentProgressRef.current = forceProgress;
-      lastAppliedProgressRef.current = forceProgress;
+    let shouldUpdateUrl = false;
+    
+    if (lastEpisodeKeyRef.current !== episodeKey) {
+      // Episode or movie changed -> reload and reset progress to forceProgress
+      shouldUpdateUrl = true;
+      lastEpisodeKeyRef.current = episodeKey;
+      lastProviderRef.current = selectedProviderId;
+      currentProgressRef.current = forceProgress || 0;
+    } else if (lastProviderRef.current !== selectedProviderId) {
+      // Only provider changed -> reload at the current playback position
+      shouldUpdateUrl = true;
+      lastProviderRef.current = selectedProviderId;
+      // Keep currentProgressRef.current as is!
+    } else if (forceProgress !== undefined) {
+      // External seek/sync (like Watch Party seek)
+      const diff = Math.abs(forceProgress - currentProgressRef.current);
+      if (diff > 5) {
+        shouldUpdateUrl = true;
+        currentProgressRef.current = forceProgress;
+      }
     }
 
-    const startProgress = currentProgressRef.current;
+    if (shouldUpdateUrl) {
+      const startProgress = currentProgressRef.current;
+      const newUrl = isTvShow
+        ? provider.getTvUrl(tmdbId, initialSeason, initialEpisode, color, startProgress)
+        : provider.getMovieUrl(tmdbId, color, startProgress);
 
-    const newUrl = isTvShow
-      ? provider.getTvUrl(tmdbId, initialSeason, initialEpisode, color, startProgress)
-      : provider.getMovieUrl(tmdbId, color, startProgress);
-
-    setEmbedUrl(newUrl);
+      setEmbedUrl(newUrl);
+    }
   }, [tmdbId, mediaType, isAnime, initialSeason, initialEpisode, color, selectedProviderId, forceProgress]);
 
   useEffect(() => {
