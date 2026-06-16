@@ -1003,7 +1003,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                         {/* Responsive Hero Media Container (16:9 aspect-video on mobile, 70vh height on desktop) */}
                         <div className="relative w-full aspect-video md:h-[70vh] md:aspect-auto shrink-0 bg-black group/hero">
                              <div className="absolute inset-0 w-full h-full overflow-hidden">
-                                {trailer && !isTV && (
+                                {trailer && !isTV && !showPlayer && !isCasting && (
                                      <div className="absolute inset-0 w-full h-full pointer-events-none">
                                          <iframe ref={iframeRef} src={`https://www.youtube.com/embed/${trailer.key}?autoplay=1&mute=1&controls=0&loop=1&playlist=${trailer.key}&showinfo=0&rel=0&iv_load_policy=3&modestbranding=1&playsinline=1&enablejsapi=1&origin=${window.location.origin}`} className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none transition-opacity duration-1000 ease-in-out w-[130%] h-[130%] scale-110 md:w-[115%] md:h-[115%] md:scale-[1.15] object-cover ${videoLoaded ? 'opacity-60' : 'opacity-0'}`} allow="autoplay; encrypted-media; gyroscope; picture-in-picture" title="Background Trailer" loading="lazy" onLoad={() => setTimeout(() => setVideoLoaded(true), 1500)} />
                                     </div>
