@@ -254,7 +254,6 @@ export interface UserProfile {
   genres: string[];
   avatar?: string;
   avatarBackground?: string;
-  canWatch?: boolean; // New Flag for Restricted Access
   theme?: 'default'; // Theme preference for exclusive users
   enableHistory?: boolean; // Toggle for history recording
   // Synced Preferences

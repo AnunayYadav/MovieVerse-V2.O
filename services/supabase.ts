@@ -152,9 +152,6 @@ export const fetchUserData = async (): Promise<UserData | null> => {
     if (!data) return null;
 
     const fetchedProfile = data.profile || { name: "", age: "", genres: [] };
-    if (data.can_watch === true) {
-        fetchedProfile.canWatch = true;
-    }
 
     return {
         watchlist: data.watchlist || [],

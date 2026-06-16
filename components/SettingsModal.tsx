@@ -59,7 +59,6 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
     const [expandedFaq, setExpandedFaq] = useState<number | null>(null);
 
     const fileInputRef = useRef<HTMLInputElement>(null);
-    const isExclusive = profile.canWatch === true;
 
     useEffect(() => {
         if (isOpen) {

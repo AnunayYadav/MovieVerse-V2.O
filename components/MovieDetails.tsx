@@ -545,7 +545,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
     const activeTimelineItemRef = useRef<HTMLDivElement>(null);
     const hasCenteredTimeline = useRef<number | null>(null);
 
-    const isExclusive = userProfile.canWatch === true;
+    const isExclusive = true;
     const accentText = "text-red-500";
     const accentBg = "bg-red-500";
     const accentShadow = "shadow-red-600/50";

@@ -1657,7 +1657,7 @@ export default function App() {
     // Infinite scroll listener for categories is now combined and defined below loadMoreCategoryRows
 
     const abortControllerRef = useRef<AbortController | null>(null);
-    const isExclusive = userProfile.canWatch === true;
+    const isExclusive = true;
     const accentText = "text-red-600";
     const accentBg = "bg-red-600";
     const accentBgLow = "bg-red-600/20";

@@ -357,7 +357,7 @@ export const LiveTV: React.FC<LiveTVProps> = ({ userProfile }) => {
     const [isCountryDropdownOpen, setIsCountryDropdownOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
 
-    const isExclusive = userProfile.canWatch === true;
+    const isExclusive = true;
     const activeCountryObj = COUNTRIES.find(c => c.id === selectedCountry) || COUNTRIES[0];
 
     // Close dropdown on click outside

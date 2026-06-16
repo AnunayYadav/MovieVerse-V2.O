@@ -748,7 +748,7 @@ interface NotificationModalProps {
 export const NotificationModal: React.FC<NotificationModalProps> = ({ isOpen, onClose, onUpdate, userProfile }) => {
     const [notifications, setNotifications] = useState<AppNotification[]>([]);
     const [loading, setLoading] = useState(false);
-    const isExclusive = userProfile?.canWatch === true;
+    const isExclusive = true;
 
     useEffect(() => {
         if (isOpen) {

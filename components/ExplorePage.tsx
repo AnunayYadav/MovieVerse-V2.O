@@ -215,6 +215,29 @@ const SubcategoryRow: React.FC<SubcategoryRowProps> = ({ title, items, onMovieCl
     );
 };
 
+const TrendingMovieItem = ({ movie, idx, onMovieClick }: { movie: Movie, idx: number, onMovieClick: (m: Movie) => void, key?: any }) => {
+    const { ref } = useTvFocus({
+        onEnterPress: () => onMovieClick(movie)
+    });
+    return (
+        <div 
+            ref={ref}
+            key={movie.id} 
+            className="relative shrink-0 w-[140px] md:w-[200px] flex items-end group cursor-pointer focus:outline-none" 
+            onClick={() => onMovieClick(movie)}
+        >
+            <div className="absolute -bottom-6 left-0 z-0 text-[120px] md:text-[180px] font-black leading-none select-none pointer-events-none transition-all duration-700 transform group-hover:scale-105 opacity-70 group-hover:opacity-95"
+                style={{ color: '#000', WebkitTextStroke: '1.5px rgba(255,255,255,0.3)', transform: 'translateX(-25%)', fontFamily: 'Inter, sans-serif' }}>
+                {idx + 1}
+            </div>
+            <div className="relative z-10 w-[80%] ml-auto aspect-[2/3] rounded-lg overflow-hidden bg-zinc-900 shadow-xl transition-all duration-500 group-hover:-translate-y-2 border border-white/5 group-hover:border-white/10">
+                <img src={movie.poster_path ? `${TMDB_IMAGE_BASE}${movie.poster_path}` : "https://placehold.co/300x450"} className="w-full h-full object-cover" alt={movie.title} loading="lazy" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+            </div>
+        </div>
+    );
+};
+
 export const ExplorePage: React.FC<ExplorePageProps> = ({ apiKey, onMovieClick, userProfile, appRegion = "US", searchQuery, setSearchQuery }) => {
     const [exploreRegion, setExploreRegion] = useState("Global");
     const [isRegionDropdownOpen, setIsRegionDropdownOpen] = useState(false);
@@ -240,7 +263,7 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ apiKey, onMovieClick, 
 
     const sentinelRef = useRef<HTMLDivElement | null>(null);
 
-    const isExclusive = userProfile.canWatch === true;
+    const isExclusive = true;
     const activeProvider = platforms.find(p => p.provider_id === activeOtt);
     const theme = activeOtt ? (BRAND_THEMES[activeOtt] || DEFAULT_THEME) : DEFAULT_THEME;
     const regionName = REGION_NAMES[exploreRegion] || 'Worldwide';
@@ -697,28 +720,6 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ apiKey, onMovieClick, 
         };
     }, [activeOtt, hasMoreOtt, loading, loadingMore, loadMoreMovies]);
 
-    const TrendingMovieItem = ({ movie, idx, onMovieClick }: { movie: Movie, idx: number, onMovieClick: (m: Movie) => void }) => {
-        const { ref } = useTvFocus({
-            onEnterPress: () => onMovieClick(movie)
-        });
-        return (
-            <div 
-                ref={ref}
-                key={movie.id} 
-                className="relative shrink-0 w-[140px] md:w-[200px] flex items-end group cursor-pointer focus:outline-none" 
-                onClick={() => onMovieClick(movie)}
-            >
-                <div className="absolute -bottom-6 left-0 z-0 text-[120px] md:text-[180px] font-black leading-none select-none pointer-events-none transition-all duration-700 transform group-hover:scale-105 opacity-70 group-hover:opacity-95"
-                    style={{ color: '#000', WebkitTextStroke: '1.5px rgba(255,255,255,0.3)', transform: 'translateX(-25%)', fontFamily: 'Inter, sans-serif' }}>
-                    {idx + 1}
-                </div>
-                <div className="relative z-10 w-[80%] ml-auto aspect-[2/3] rounded-lg overflow-hidden bg-zinc-900 shadow-xl transition-all duration-500 group-hover:-translate-y-2 border border-white/5 group-hover:border-white/10">
-                    <img src={movie.poster_path ? `${TMDB_IMAGE_BASE}${movie.poster_path}` : "https://placehold.co/300x450"} className="w-full h-full object-cover" alt={movie.title} loading="lazy" />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                </div>
-            </div>
-        );
-    };
 
     const RankingRow = ({ title, items, icon: Icon }: { title: string, items: Movie[], icon: any }) => (
         <div className="mb-12">
