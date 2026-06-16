@@ -741,7 +741,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                     e.stopPropagation();
                     return;
                 }
-                if (showPlayer) {
+                if (showPlayer && isTV) {
                     onPlayStateChangeRef.current?.(false);
                     e.stopPropagation();
                     return;

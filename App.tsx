@@ -1680,6 +1680,10 @@ export default function App() {
             const isTyping = e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement;
 
             if (e.key === 'Escape') {
+                if (isWatching && !isTV) {
+                    // Ignore Escape key to prevent closing the movie player on laptops/desktops
+                    return;
+                }
                 if (isComparisonOpen) return setIsComparisonOpen(false);
                 if (selectedPersonId) return setSelectedPersonId(null);
                 if (isSettingsOpen) return setIsSettingsOpen(false);
@@ -1708,7 +1712,7 @@ export default function App() {
 
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [isComparisonOpen, selectedPersonId, isSettingsOpen, isNotificationOpen, isSidebarOpen, selectedMovie]);
+    }, [isComparisonOpen, selectedPersonId, isSettingsOpen, isNotificationOpen, isSidebarOpen, selectedMovie, isWatching, isTV]);
 
     const resetAuthState = useCallback(() => {
         loadedUserIdRef.current = null;

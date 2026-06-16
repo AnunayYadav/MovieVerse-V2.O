@@ -1,6 +1,7 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { X, Tv } from 'lucide-react';
 import { TvFocusButton } from '../tvNavigation';
+import { pause, resume } from '@noriginmedia/norigin-spatial-navigation';
 
 interface MoviePlayerProps {
   tmdbId: number;
@@ -110,6 +111,24 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     }
   }, [embedUrl]);
 
+  useEffect(() => {
+    if (isTV) {
+      console.log("MovieVerse TV: Pausing spatial navigation for video playback");
+      pause();
+      
+      const handleWindowFocus = () => {
+        focusIframe();
+      };
+      window.addEventListener('focus', handleWindowFocus);
+      
+      return () => {
+        console.log("MovieVerse TV: Resuming spatial navigation after video playback");
+        resume();
+        window.removeEventListener('focus', handleWindowFocus);
+      };
+    }
+  }, [isTV]);
+
   const currentProgressRef = useRef<number>(forceProgress || 0);
   const lastEpisodeKeyRef = useRef<string | null>(null);
   const lastProviderRef = useRef<string | null>(null);
@@ -208,18 +227,6 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     };
   }, [onProgress, initialSeason, initialEpisode]);
 
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        onClose();
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown, true);
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown, true);
-    };
-  }, [onClose]);
 
   return (
     <div 
@@ -227,6 +234,15 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
       className="w-full h-full flex flex-col bg-black relative group/player select-none overflow-hidden"
     >
       <div className="flex-1 relative w-full h-full z-0 overflow-hidden bg-black">
+        {/* TV close button (hidden on TV via CSS but clickable, visible on Desktop) */}
+        <button 
+          id="tv-player-close-btn" 
+          onClick={onClose} 
+          className="absolute top-4 right-4 z-50 p-2.5 bg-black/60 hover:bg-black/80 text-white/85 hover:text-white rounded-full transition-all border border-white/10 active:scale-95 flex items-center justify-center"
+          title="Close Player"
+        >
+          <X size={20} />
+        </button>
         {embedUrl && (
           <iframe 
               ref={iframeRef}
