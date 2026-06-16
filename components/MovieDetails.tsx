@@ -576,9 +576,11 @@ export const MoviePage: React.FC<MoviePageProps> = ({
             try {
                 const castContext = (window as any).cast?.framework?.CastContext.getInstance();
                 if (castContext) {
+                    const appId = (window as any).chrome?.cast?.media?.DEFAULT_MEDIA_RECEIVER_APP_ID || 'CC1AD845';
+                    const joinPolicy = (window as any).chrome?.cast?.AutoJoinPolicy?.ORIGIN_SCOPED || 'origin_scoped';
                     castContext.setOptions({
-                        receiverApplicationId: (window as any).chrome?.cast?.media?.DEFAULT_MEDIA_RECEIVER_APP_ID,
-                        autoJoinPolicy: (window as any).chrome?.cast?.AutoJoinPolicy?.ORIGIN_SCOPED
+                        receiverApplicationId: appId,
+                        autoJoinPolicy: joinPolicy
                     });
                     
                     // Listen for session events
@@ -631,14 +633,32 @@ export const MoviePage: React.FC<MoviePageProps> = ({
         }
     }, []);
 
+    useEffect(() => {
+        return () => {
+            // Stop casting when the MovieDetails modal is closed/unmounted
+            try {
+                const castContext = (window as any).cast?.framework?.CastContext.getInstance();
+                if (castContext) {
+                    const activeSession = castContext.getCurrentSession();
+                    if (activeSession) {
+                        castContext.endCurrentSession(true);
+                    }
+                }
+            } catch (e) {
+                console.warn("Error stopping cast session on unmount:", e);
+            }
+        };
+    }, []);
+
     const handleStartCast = async () => {
         try {
             const castContext = (window as any).cast?.framework?.CastContext.getInstance();
             if (castContext) {
-                await castContext.requestSession();
-                
-                // If session was successfully started
-                const session = castContext.getCurrentSession();
+                let session = castContext.getCurrentSession();
+                if (!session) {
+                    await castContext.requestSession();
+                    session = castContext.getCurrentSession();
+                }
                 if (session) {
                     const isTvShow = resolvedMediaType === 'tv';
                     const provider = PROVIDERS.find(p => p.id === selectedCastProviderId) || PROVIDERS[0];
@@ -677,6 +697,8 @@ export const MoviePage: React.FC<MoviePageProps> = ({
             }
         } catch (err) {
             console.error("Failed to request Cast session:", err);
+            setShowCastModal(false);
+            handleWatchClick(); // Fallback to local player
         }
     };
 
@@ -1825,7 +1847,12 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                         <Suspense fallback={<div className="w-full h-full flex items-center justify-center bg-black"><Loader2 className="animate-spin text-red-600" size={40}/></div>}>
                             <MoviePlayer 
                                 tmdbId={displayData.id} 
-                                onClose={() => onPlayStateChangeRef.current?.(false)} 
+                                onClose={() => {
+                                    if (isCasting) {
+                                        handleStopCasting();
+                                    }
+                                    onPlayStateChangeRef.current?.(false);
+                                }} 
                                 mediaType={isTv ? 'tv' : 'movie'} 
                                 isAnime={isAnime || false} 
                                 apiKey={apiKey} 
