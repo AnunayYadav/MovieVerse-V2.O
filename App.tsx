@@ -1245,6 +1245,7 @@ export default function App() {
     const [watchPartyCurrentTime, setWatchPartyCurrentTime] = useState(0);
     const [watchPartyForceProgress, setWatchPartyForceProgress] = useState<number | undefined>(undefined);
     const [watchPartyGuestTime, setWatchPartyGuestTime] = useState(0);
+    const [watchPartyPlayerState, setWatchPartyPlayerState] = useState<'play' | 'pause'>('play');
     const [isWatchPartyJoinOpen, setIsWatchPartyJoinOpen] = useState(false);
     const [joinRoomCode, setJoinRoomCode] = useState('');
     const [joinRoomError, setJoinRoomError] = useState('');
@@ -2028,7 +2029,7 @@ export default function App() {
     const handleProgressUpdate = (movie: Movie, progressData: any) => {
         if (!movie || !progressData || userProfile.enableHistory === false) return;
         const { currentTime, duration, event, season, episode } = progressData;
-        if (event !== 'time' && event !== 'pause' && event !== 'complete') return;
+        if (event !== 'time' && event !== 'pause' && event !== 'play' && event !== 'complete') return;
         if (!duration || duration <= 0) return;
         const progressPercent = Math.min(100, Math.max(0, (currentTime / duration) * 100));
         setWatched(prevWatched => {
@@ -2094,6 +2095,7 @@ export default function App() {
             setWatchPartyCurrentTime(0);
             setWatchPartyForceProgress(undefined);
             setWatchPartyGuestTime(0);
+            setWatchPartyPlayerState('play');
             setSelectedMovie(null); // Close Details modal
         }
     };
@@ -2138,6 +2140,7 @@ export default function App() {
             } else {
                 setWatchPartyForceProgress(undefined);
             }
+            setWatchPartyPlayerState(room.is_playing === false ? 'pause' : 'play');
 
             setIsWatchPartyJoinOpen(false);
             setJoinRoomCode('');
@@ -3523,6 +3526,7 @@ export default function App() {
                                     initialEpisode={watchPartyParams.episode}
                                     apiKey={apiKey}
                                     isWatchParty={true}
+                                    playState={watchPartyPlayerState}
                                     onProgress={(data) => {
                                         // Always track local playback time for drift calculation
                                         setWatchPartyGuestTime(data.currentTime);
@@ -3530,11 +3534,17 @@ export default function App() {
                                         if (watchPartyHostId === currentUserId) {
                                             setWatchPartyCurrentTime(data.currentTime);
 
+                                            const newState = data.event === 'pause' ? 'pause' : 'play';
+                                            if (watchPartyPlayerState !== newState) {
+                                                setWatchPartyPlayerState(newState);
+                                            }
+
                                             const now = Date.now();
                                             if (!(window as any).lastWatchPartyDbUpdate || now - (window as any).lastWatchPartyDbUpdate > 5000) {
                                                 (window as any).lastWatchPartyDbUpdate = now;
                                                 updateWatchPartyRoom(activeWatchPartyRoom, {
-                                                    current_time: data.currentTime
+                                                    current_time: data.currentTime,
+                                                    is_playing: newState === 'play'
                                                 });
                                             }
                                         }
@@ -3562,6 +3572,8 @@ export default function App() {
                                     currentTime={watchPartyCurrentTime}
                                     guestCurrentTime={watchPartyGuestTime}
                                     onSyncProgress={handleWatchPartySync}
+                                    hostPlayerState={watchPartyPlayerState}
+                                    onSyncState={(state) => setWatchPartyPlayerState(state)}
                                     isImmersive={isWatchPartyImmersive}
                                     onToggleImmersive={() => setIsWatchPartyImmersive(!isWatchPartyImmersive)}
                                 />

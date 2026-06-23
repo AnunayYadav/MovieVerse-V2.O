@@ -18,6 +18,8 @@ interface WatchPartySectionProps {
   currentTime: number;       // Host's broadcasted time (for host: their own time)
   guestCurrentTime: number;  // Guest's own local playback time from iframe
   onSyncProgress: (time: number) => void;
+  hostPlayerState?: 'play' | 'pause';
+  onSyncState?: (state: 'play' | 'pause') => void;
   isImmersive?: boolean;
   onToggleImmersive?: () => void;
 }
@@ -37,6 +39,8 @@ export const WatchPartySection: React.FC<WatchPartySectionProps> = ({
   currentTime,
   guestCurrentTime,
   onSyncProgress,
+  hostPlayerState = 'play',
+  onSyncState,
   isImmersive = false,
   onToggleImmersive
 }) => {
@@ -128,6 +132,14 @@ export const WatchPartySection: React.FC<WatchPartySectionProps> = ({
                 timestamp: Date.now(),
               },
             ]);
+          } else if (payload.syncType === 'pause' || payload.syncType === 'play') {
+            if (onSyncState) {
+              onSyncState(payload.syncType);
+            }
+            // Auto sync if time drift is too large
+            if (guestCurrentTime > 0 && Math.abs(payload.time - guestCurrentTime) > SEEK_THRESHOLD_SECS) {
+              onSyncProgress(payload.time);
+            }
           }
           // For heartbeat type, we just update hostLatestTime
           // Drift is calculated in a separate effect
@@ -251,6 +263,24 @@ export const WatchPartySection: React.FC<WatchPartySectionProps> = ({
 
     lastBroadcastTimeRef.current = currentTime;
   }, [currentTime, isHost, supabaseClient, roomCode]);
+
+  // ─── Host: Detect Play/Pause and broadcast immediately ────────────
+  const lastBroadcastStateRef = useRef<'play' | 'pause'>('play');
+  useEffect(() => {
+    if (!isHost || !supabaseClient || !roomCode || !hostPlayerState) return;
+
+    if (lastBroadcastStateRef.current !== hostPlayerState) {
+      const channel = channelRef.current;
+      if (channel) {
+        channel.send({
+          type: 'broadcast',
+          event: 'sync',
+          payload: { time: currentTime, syncType: hostPlayerState },
+        }).catch((e: any) => console.error("Play/pause broadcast error:", e));
+      }
+      lastBroadcastStateRef.current = hostPlayerState;
+    }
+  }, [hostPlayerState, currentTime, isHost, supabaseClient, roomCode]);
 
   // ─── Guest: Calculate Drift ───────────────────────────────────────
   useEffect(() => {

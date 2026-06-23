@@ -18,6 +18,7 @@ interface MoviePlayerProps {
   title?: string;
   providerId?: string;
   isWatchParty?: boolean;
+  playState?: 'play' | 'pause';
 }
 
 export interface Provider {
@@ -129,7 +130,7 @@ export const PROVIDERS: Provider[] = [
 ];
 
 export const MoviePlayer: React.FC<MoviePlayerProps> = ({ 
-  tmdbId, onClose, mediaType, isAnime, initialSeason = 1, initialEpisode = 1, onProgress, color = 'EF4444', forceProgress, title, providerId, isWatchParty = false
+  tmdbId, onClose, mediaType, isAnime, initialSeason = 1, initialEpisode = 1, onProgress, color = 'EF4444', forceProgress, title, providerId, isWatchParty = false, playState = 'play'
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -236,8 +237,31 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
       // External seek/sync (like Watch Party seek)
       const diff = Math.abs(forceProgress - currentProgressRef.current);
       if (diff > 5) {
-        shouldUpdateUrl = true;
-        currentProgressRef.current = forceProgress;
+        let sentMessage = false;
+        const provider = PROVIDERS.find(p => p.id === selectedProviderId);
+        if (provider && provider.supportsPostMessage && iframeRef.current && iframeRef.current.contentWindow) {
+          try {
+            const win = iframeRef.current.contentWindow;
+            const time = forceProgress;
+            // Send multiple postMessage seek formats for robustness
+            win.postMessage(JSON.stringify({ type: 'seek', value: time }), '*');
+            win.postMessage({ type: 'seek', value: time }, '*');
+            win.postMessage(JSON.stringify({ event: 'command', func: 'seekTo', args: [time, true] }), '*');
+            win.postMessage(JSON.stringify({ event: 'seek', data: time }), '*');
+            win.postMessage({ event: 'seek', data: time }, '*');
+            win.postMessage(JSON.stringify({ command: 'seek', parameter: time }), '*');
+            
+            currentProgressRef.current = forceProgress;
+            sentMessage = true;
+          } catch (e) {
+            console.warn("Failed to post seek command to player iframe", e);
+          }
+        }
+        
+        if (!sentMessage) {
+          shouldUpdateUrl = true;
+          currentProgressRef.current = forceProgress;
+        }
       }
     }
 
@@ -285,7 +309,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                                     onProgress({
                                         currentTime: timeNum,
                                         duration: !isNaN(durationNum) ? durationNum : 0,
-                                        event: playerEvent === 'ended' ? 'complete' : (playerEvent === 'pause' ? 'pause' : 'time'),
+                                        event: playerEvent === 'ended' ? 'complete' : (playerEvent === 'pause' ? 'pause' : (playerEvent === 'play' ? 'play' : 'time')),
                                         season: season || initialSeason,
                                         episode: episode || initialEpisode
                                     });
@@ -319,7 +343,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                                     onProgress({
                                         currentTime: timeNum,
                                         duration: !isNaN(durationNum) ? durationNum : 0,
-                                        event: eventType === 'ended' ? 'complete' : (eventType === 'pause' ? 'pause' : 'time'),
+                                        event: eventType === 'ended' ? 'complete' : (eventType === 'pause' ? 'pause' : (eventType === 'play' ? 'play' : 'time')),
                                         season: season || initialSeason,
                                         episode: episode || initialEpisode
                                     });
@@ -333,20 +357,35 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                 // General fallback parsing for other providers
                 let rawTime = parsed.timestamp ?? parsed.currentTime ?? parsed.current_time ?? parsed.time;
                 let rawDuration = parsed.duration ?? parsed.totalTime ?? parsed.total_time;
+                let rawEvent = parsed.event ?? parsed.eventType ?? parsed.event_type;
 
                 if (rawTime === undefined && parsed.data && typeof parsed.data === 'object') {
                     rawTime = parsed.data.timestamp ?? parsed.data.currentTime ?? parsed.data.current_time ?? parsed.data.time;
                     rawDuration = rawDuration ?? parsed.data.duration ?? parsed.data.totalTime ?? parsed.data.total_time;
+                    rawEvent = rawEvent ?? parsed.data.event ?? parsed.data.eventType ?? parsed.data.event_type;
                 }
 
                 if (rawTime === undefined && parsed.payload && typeof parsed.payload === 'object') {
                     rawTime = parsed.payload.timestamp ?? parsed.payload.currentTime ?? parsed.payload.current_time ?? parsed.payload.time;
                     rawDuration = rawDuration ?? parsed.payload.duration ?? parsed.payload.totalTime ?? parsed.payload.total_time;
+                    rawEvent = rawEvent ?? parsed.payload.event ?? parsed.payload.eventType ?? parsed.payload.event_type;
                 }
 
                 if (rawTime !== undefined && rawTime !== null) {
                     const timeNum = Number(rawTime);
                     const durationNum = rawDuration !== undefined && rawDuration !== null ? Number(rawDuration) : 0;
+
+                    let eventTypeString = 'time';
+                    if (rawEvent !== undefined && rawEvent !== null) {
+                        const eventStr = String(rawEvent).toLowerCase();
+                        if (eventStr === 'pause' || eventStr === 'paused') {
+                            eventTypeString = 'pause';
+                        } else if (eventStr === 'play' || eventStr === 'playing' || eventStr === 'started') {
+                            eventTypeString = 'play';
+                        } else if (eventStr === 'ended' || eventStr === 'complete' || eventStr === 'finished') {
+                            eventTypeString = 'complete';
+                        }
+                    }
 
                     if (!isNaN(timeNum)) {
                         currentProgressRef.current = timeNum;
@@ -354,7 +393,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                             onProgress({
                                 currentTime: timeNum,
                                 duration: !isNaN(durationNum) ? durationNum : 0,
-                                event: 'time',
+                                event: eventTypeString,
                                 season: parsed.season || parsed.data?.season || initialSeason,
                                 episode: parsed.episode || parsed.data?.episode || initialEpisode
                             });
@@ -372,6 +411,33 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
         window.removeEventListener('message', handleMessage);
     };
   }, [onProgress, initialSeason, initialEpisode]);
+
+  // Send play/pause commands to iframe player
+  useEffect(() => {
+    if (!iframeRef.current || !iframeRef.current.contentWindow) return;
+    
+    const provider = PROVIDERS.find(p => p.id === selectedProviderId);
+    if (!provider || !provider.supportsPostMessage) return;
+
+    try {
+      const win = iframeRef.current.contentWindow;
+      const cmd = playState === 'pause' ? 'pause' : 'play';
+      
+      // Send multiple formats of play/pause commands to ensure wide compatibility
+      win.postMessage(JSON.stringify({ type: cmd }), '*');
+      win.postMessage({ type: cmd }, '*');
+      
+      const ytFunc = cmd === 'play' ? 'playVideo' : 'pauseVideo';
+      win.postMessage(JSON.stringify({ event: 'command', func: ytFunc, args: [] }), '*');
+      
+      win.postMessage(JSON.stringify({ event: cmd }), '*');
+      win.postMessage({ event: cmd }, '*');
+      
+      win.postMessage(JSON.stringify({ command: cmd }), '*');
+    } catch (e) {
+      console.warn("Failed to post playState command to player iframe", e);
+    }
+  }, [playState, selectedProviderId]);
 
 
   return (
