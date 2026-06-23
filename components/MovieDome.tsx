@@ -24,6 +24,12 @@ export const MovieDome: React.FC<MovieDomeProps> = ({ apiKey, onMovieClick, onCl
   const [dimensions, setDimensions] = useState({ width: 1200, height: 800 });
   const [gridConfig, setGridConfig] = useState({ cols: 24, rows: 12 });
 
+  // Panning and Dragging Refs (performance optimization: no React renders on drag)
+  const panRef = useRef({ x: 0, y: 0 });
+  const isDraggingRef = useRef(false);
+  const dragDistanceRef = useRef(0);
+  const dragStartRef = useRef({ x: 0, y: 0, panX: 0, panY: 0 });
+  
   const lastClosestIdRef = useRef<number | null>(null);
 
   // 1. Calculate Grid Size dynamically based on screen width/height to fill it completely
@@ -37,9 +43,9 @@ export const MovieDome: React.FC<MovieDomeProps> = ({ apiKey, onMovieClick, onCl
       const posterW = w < 768 ? 55 : 70;
       const posterH = w < 768 ? 82 : 105;
 
-      // Add a 2-column/row padding to avoid black borders on edge distortion
-      const cols = Math.ceil(w / posterW) + 2;
-      const rows = Math.ceil(h / posterH) + 2;
+      // Add a 4-column/row padding to allow wrapping margins without popping
+      const cols = Math.ceil(w / posterW) + 4;
+      const rows = Math.ceil(h / posterH) + 4;
       setGridConfig({ cols, rows });
     };
 
@@ -48,9 +54,55 @@ export const MovieDome: React.FC<MovieDomeProps> = ({ apiKey, onMovieClick, onCl
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  // 1.5 Automatic Fullscreen Mode
+  useEffect(() => {
+    const enterFullscreen = async () => {
+      try {
+        const docEl = document.documentElement;
+        if (docEl.requestFullscreen) {
+          await docEl.requestFullscreen();
+        } else if ((docEl as any).mozRequestFullScreen) { // Firefox
+          await (docEl as any).mozRequestFullScreen();
+        } else if ((docEl as any).webkitRequestFullscreen) { // Chrome, Safari, Opera
+          await (docEl as any).webkitRequestFullscreen();
+        } else if ((docEl as any).msRequestFullscreen) { // IE/Edge
+          await (docEl as any).msRequestFullscreen();
+        }
+      } catch (err) {
+        console.warn("Fullscreen request failed:", err);
+      }
+    };
+
+    enterFullscreen();
+
+    return () => {
+      const exitFullscreen = async () => {
+        try {
+          if (document.fullscreenElement) {
+            if (document.exitFullscreen) {
+              await document.exitFullscreen();
+            } else if ((document as any).mozCancelFullScreen) {
+              await (document as any).mozCancelFullScreen();
+            } else if ((document as any).webkitExitFullscreen) {
+              await (document as any).webkitExitFullscreen();
+            } else if ((document as any).msExitFullscreen) {
+              await (document as any).msExitFullscreen();
+            }
+          }
+        } catch (err) {
+          console.warn("Fullscreen exit failed:", err);
+        }
+      };
+      exitFullscreen();
+    };
+  }, []);
+
   // 2. Calculate cell dimensions
-  const cellWidth = useMemo(() => dimensions.width / (gridConfig.cols - 2), [dimensions.width, gridConfig.cols]);
-  const cellHeight = useMemo(() => dimensions.height / (gridConfig.rows - 2), [dimensions.height, gridConfig.rows]);
+  const cellWidth = useMemo(() => dimensions.width / (gridConfig.cols - 4), [dimensions.width, gridConfig.cols]);
+  const cellHeight = useMemo(() => dimensions.height / (gridConfig.rows - 4), [dimensions.height, gridConfig.rows]);
+
+  const wrapWidth = useMemo(() => gridConfig.cols * cellWidth, [gridConfig.cols, cellWidth]);
+  const wrapHeight = useMemo(() => gridConfig.rows * cellHeight, [gridConfig.rows, cellHeight]);
 
   // 3. Fetch movies based on Category
   useEffect(() => {
@@ -117,16 +169,15 @@ export const MovieDome: React.FC<MovieDomeProps> = ({ apiKey, onMovieClick, onCl
     const totalCells = gridConfig.cols * gridConfig.rows;
     const result = [];
     for (let i = 0; i < totalCells; i++) {
-      // offset coordinates so the padding cols (-1) are correctly rendered outside view
-      const col = (i % gridConfig.cols) - 1;
-      const row = Math.floor(i / gridConfig.cols) - 1;
+      const col = i % gridConfig.cols;
+      const row = Math.floor(i / gridConfig.cols);
       const movie = movies[i % movies.length];
       result.push({ id: i, col, row, movie });
     }
     return result;
   }, [movies, gridConfig]);
 
-  // 5. Warp grid elements on cursor movement
+  // 5. Warp and position grid elements on cursor movement / drag
   const handleInteraction = (clientX: number, clientY: number) => {
     const grid = gridRef.current;
     if (!grid || !cells.length || loading) return;
@@ -134,6 +185,9 @@ export const MovieDome: React.FC<MovieDomeProps> = ({ apiKey, onMovieClick, onCl
     const rect = grid.getBoundingClientRect();
     const mx = clientX - rect.left;
     const my = clientY - rect.top;
+
+    const px = panRef.current.x;
+    const py = panRef.current.y;
 
     requestAnimationFrame(() => {
       const children = grid.querySelectorAll('[data-id]');
@@ -145,16 +199,23 @@ export const MovieDome: React.FC<MovieDomeProps> = ({ apiKey, onMovieClick, onCl
         const cell = cells[id];
         if (!cell) return;
 
+        const xBase = cell.col * cellWidth;
+        const yBase = cell.row * cellHeight;
+
+        // Calculate wrapped position relative to the screen (toroidal wrap offset by 2 cells padding)
+        const xWrapped = ((xBase + px) % wrapWidth + wrapWidth) % wrapWidth - 2 * cellWidth;
+        const yWrapped = ((yBase + py) % wrapHeight + wrapHeight) % wrapHeight - 2 * cellHeight;
+
         // Position rest center relative to grid container
-        const cx = (cell.col + 0.5) * cellWidth;
-        const cy = (cell.row + 0.5) * cellHeight;
+        const cx = xWrapped + cellWidth / 2;
+        const cy = yWrapped + cellHeight / 2;
 
         const dx = cx - mx;
         const dy = cy - my;
         const dist = Math.sqrt(dx * dx + dy * dy);
 
-        let tx = 0;
-        let ty = 0;
+        let txWarp = 0;
+        let tyWarp = 0;
         let scale = 1;
         let opacity = 0.5; // Muted by default for visual pop
         let zIndex = 1;
@@ -173,8 +234,8 @@ export const MovieDome: React.FC<MovieDomeProps> = ({ apiKey, onMovieClick, onCl
 
           // Spherical displacement: push cells outwards from center
           const push = pushStrength * Math.sin(t * Math.PI) * (1 - t);
-          tx = (dx / (dist || 1)) * push * lensRadius;
-          ty = (dy / (dist || 1)) * push * lensRadius;
+          txWarp = (dx / (dist || 1)) * push * lensRadius;
+          tyWarp = (dy / (dist || 1)) * push * lensRadius;
 
           // Focus effects
           opacity = 0.5 + 0.5 * (1 - t);
@@ -188,7 +249,11 @@ export const MovieDome: React.FC<MovieDomeProps> = ({ apiKey, onMovieClick, onCl
           }
         }
 
-        child.style.transform = `translate3d(${tx}px, ${ty}px, 0) scale(${scale})`;
+        // Combined transform: wrap offset position + warp offset
+        const txTotal = (xWrapped - xBase) + txWarp;
+        const tyTotal = (yWrapped - yBase) + tyWarp;
+
+        child.style.transform = `translate3d(${txTotal}px, ${tyTotal}px, 0) scale(${scale})`;
         child.style.opacity = `${opacity}`;
         child.style.filter = filter;
         child.style.zIndex = `${zIndex}`;
@@ -205,29 +270,121 @@ export const MovieDome: React.FC<MovieDomeProps> = ({ apiKey, onMovieClick, onCl
     });
   };
 
+  // 6. Set initial grid positions on load, resize, or category change
+  useEffect(() => {
+    if (movies.length > 0) {
+      handleInteraction(dimensions.width / 2, dimensions.height / 2);
+    }
+  }, [movies, dimensions, cellWidth, cellHeight, wrapWidth, wrapHeight]);
+
+  // Drag Handlers for Panning
+  const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    isDraggingRef.current = true;
+    dragDistanceRef.current = 0;
+    dragStartRef.current = {
+      x: e.clientX,
+      y: e.clientY,
+      panX: panRef.current.x,
+      panY: panRef.current.y
+    };
+  };
+
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (isDraggingRef.current) {
+      const dx = e.clientX - dragStartRef.current.x;
+      const dy = e.clientY - dragStartRef.current.y;
+      dragDistanceRef.current = Math.sqrt(dx * dx + dy * dy);
+      
+      panRef.current = {
+        x: dragStartRef.current.panX + dx,
+        y: dragStartRef.current.panY + dy
+      };
+    }
     handleInteraction(e.clientX, e.clientY);
+  };
+
+  const handleMouseUp = () => {
+    isDraggingRef.current = false;
+  };
+
+  // Touch Handlers for Mobile Panning
+  const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (e.touches.length > 0) {
+      isDraggingRef.current = true;
+      dragDistanceRef.current = 0;
+      dragStartRef.current = {
+        x: e.touches[0].clientX,
+        y: e.touches[0].clientY,
+        panX: panRef.current.x,
+        panY: panRef.current.y
+      };
+    }
   };
 
   const handleTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
     if (e.touches.length > 0) {
-      handleInteraction(e.touches[0].clientX, e.touches[0].clientY);
+      const clientX = e.touches[0].clientX;
+      const clientY = e.touches[0].clientY;
+      
+      if (isDraggingRef.current) {
+        const dx = clientX - dragStartRef.current.x;
+        const dy = clientY - dragStartRef.current.y;
+        dragDistanceRef.current = Math.sqrt(dx * dx + dy * dy);
+        
+        panRef.current = {
+          x: dragStartRef.current.panX + dx,
+          y: dragStartRef.current.panY + dy
+        };
+      }
+      handleInteraction(clientX, clientY);
     }
   };
 
+  const handleTouchEnd = () => {
+    isDraggingRef.current = false;
+    handleMouseLeave();
+  };
+
   const handleMouseLeave = () => {
+    isDraggingRef.current = false;
     setHoveredMovie(null);
     lastClosestIdRef.current = null;
     const grid = gridRef.current;
     if (!grid) return;
 
     const children = grid.querySelectorAll('[data-id]');
-    children.forEach((child: any) => {
-      child.style.transform = 'translate3d(0, 0, 0) scale(1)';
-      child.style.opacity = '0.5';
-      child.style.filter = 'grayscale(15%) brightness(0.7)';
-      child.style.zIndex = '1';
+    
+    requestAnimationFrame(() => {
+      children.forEach((child: any) => {
+        const id = parseInt(child.getAttribute('data-id'));
+        const cell = cells[id];
+        if (!cell) return;
+
+        const xBase = cell.col * cellWidth;
+        const yBase = cell.row * cellHeight;
+
+        const px = panRef.current.x;
+        const py = panRef.current.y;
+
+        const xWrapped = ((xBase + px) % wrapWidth + wrapWidth) % wrapWidth - 2 * cellWidth;
+        const yWrapped = ((yBase + py) % wrapHeight + wrapHeight) % wrapHeight - 2 * cellHeight;
+
+        const txTotal = (xWrapped - xBase);
+        const tyTotal = (yWrapped - yBase);
+
+        child.style.transform = `translate3d(${txTotal}px, ${tyTotal}px, 0) scale(1)`;
+        child.style.opacity = '0.5';
+        child.style.filter = 'grayscale(15%) brightness(0.7)';
+        child.style.zIndex = '1';
+      });
     });
+  };
+
+  const handleCellClick = (movie: Movie) => {
+    // Only trigger details popup if the interaction was a click, not a drag/scroll
+    if (dragDistanceRef.current < 6) {
+      onMovieClick(movie);
+    }
   };
 
   return (
@@ -250,7 +407,7 @@ export const MovieDome: React.FC<MovieDomeProps> = ({ apiKey, onMovieClick, onCl
               Movie Multiverse
             </h1>
             <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider">
-              Interactive Grid Lens
+              Infinite Drag & 3D Lens
             </p>
           </div>
         </div>
@@ -267,16 +424,19 @@ export const MovieDome: React.FC<MovieDomeProps> = ({ apiKey, onMovieClick, onCl
       {/* Grid Canvas Wrapper */}
       <div 
         ref={gridRef}
+        onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseLeave}
+        onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
-        onTouchEnd={handleMouseLeave}
-        className={`w-full h-full relative z-10 transition-all duration-700 ease-[cubic-bezier(0.25,1,0.5,1)] ${
+        onTouchEnd={handleTouchEnd}
+        className={`w-full h-full relative z-10 cursor-grab active:cursor-grabbing transition-all duration-700 ease-[cubic-bezier(0.25,1,0.5,1)] ${
           gridTransitioning ? 'scale-[0.93] opacity-0 pointer-events-none' : 'scale-100 opacity-100'
         }`}
       >
         {loading ? (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 z-30">
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 z-30 pointer-events-none">
             <Loader2 size={36} className="text-red-500 animate-spin" />
             <span className="text-xs text-zinc-500 font-black tracking-widest uppercase">Aligning Multiverse...</span>
           </div>
@@ -285,17 +445,17 @@ export const MovieDome: React.FC<MovieDomeProps> = ({ apiKey, onMovieClick, onCl
             <div
               key={cell.id}
               data-id={cell.id}
-              onClick={() => onMovieClick(cell.movie)}
-              className="absolute rounded-lg overflow-hidden border border-white/5 bg-zinc-950/60 shadow-[0_4px_12px_rgba(0,0,0,0.4)] cursor-pointer will-change-transform select-none"
+              onClick={() => handleCellClick(cell.movie)}
+              className="absolute rounded-lg overflow-hidden border border-white/5 bg-zinc-950/60 shadow-[0_4px_12px_rgba(0,0,0,0.4)] cursor-pointer select-none"
               style={{
                 width: cellWidth - 5,
                 height: cellHeight - 5,
-                left: (cell.col + 1) * cellWidth + 2.5,
-                top: (cell.row + 1) * cellHeight + 2.5,
+                left: cell.col * cellWidth,
+                top: cell.row * cellHeight,
                 transform: 'translate3d(0, 0, 0) scale(1)',
                 opacity: 0.5,
                 filter: 'grayscale(15%) brightness(0.7)',
-                transition: 'transform 0.15s cubic-bezier(0.25, 0.8, 0.25, 1), opacity 0.15s, filter 0.15s',
+                transition: 'transform 0.1s cubic-bezier(0.25, 0.8, 0.25, 1), opacity 0.15s, filter 0.15s',
               }}
             >
               <img
@@ -312,7 +472,7 @@ export const MovieDome: React.FC<MovieDomeProps> = ({ apiKey, onMovieClick, onCl
       {/* Floating Glassmorphic HUD overlay (Bottom Left) */}
       <div className="absolute bottom-6 left-6 z-50 pointer-events-none max-w-[90vw] md:max-w-sm">
         {hoveredMovie ? (
-          <div className="p-5 rounded-2xl bg-black/60 backdrop-blur-xl border border-white/10 shadow-[0_12px_40px_rgba(0,0,0,0.8)] animate-in fade-in slide-in-from-bottom-3 duration-300 pointer-events-auto">
+          <div className="p-5 rounded-2xl bg-black/35 backdrop-blur-md border border-white/5 shadow-[0_8px_32px_rgba(0,0,0,0.5)] animate-in fade-in slide-in-from-bottom-3 duration-300 pointer-events-auto">
             <h2 className="text-base md:text-lg font-black text-white leading-tight mb-1 truncate drop-shadow">
               {hoveredMovie.title || hoveredMovie.name}
             </h2>
@@ -335,14 +495,14 @@ export const MovieDome: React.FC<MovieDomeProps> = ({ apiKey, onMovieClick, onCl
             </div>
           </div>
         ) : (
-          <div className="py-2.5 px-4 rounded-xl bg-black/50 backdrop-blur-md border border-white/5 shadow-lg text-[10px] text-zinc-400 font-bold uppercase tracking-widest">
-            Move mouse to explore...
+          <div className="py-2.5 px-4 rounded-xl bg-black/20 backdrop-blur-sm border border-white/5 shadow-md text-[10px] text-zinc-400 font-bold uppercase tracking-widest">
+            Drag to pan • Hover to focus...
           </div>
         )}
       </div>
 
       {/* Minimal Category Text-Filters (Bottom Right) */}
-      <div className="absolute bottom-6 right-6 z-50 flex items-center gap-3 py-2.5 px-4 rounded-xl bg-black/50 backdrop-blur-md border border-white/5 shadow-lg max-w-[90vw] overflow-x-auto hide-scrollbar">
+      <div className="absolute bottom-6 right-6 z-50 flex items-center gap-3 py-2.5 px-4 rounded-xl bg-black/20 backdrop-blur-sm border border-white/5 shadow-md max-w-[90vw] overflow-x-auto hide-scrollbar">
         {CATEGORIES.map((cat, idx) => (
           <React.Fragment key={cat}>
             {idx > 0 && <span className="text-[10px] text-zinc-600 select-none">•</span>}

@@ -3338,7 +3338,7 @@ export default function App() {
               </>
             )}
 
-            {!(activeWatchPartyRoom && watchPartyMovie) && (
+            {!(activeWatchPartyRoom && watchPartyMovie) && selectedCategory !== "Multiverse" && (
                 <nav className={`fixed top-0 left-0 right-0 z-[60] h-16 flex items-center justify-center px-4 md:px-6 transition-all duration-500 ${(hasHeroBanner && !isScrolled)
                         ? 'bg-gradient-to-b from-black/85 via-black/25 to-transparent border-transparent backdrop-blur-none'
                         : 'bg-black/90 backdrop-blur-xl border-b border-white/5'
@@ -3368,10 +3368,6 @@ export default function App() {
                                 <TvFocusButton onClick={() => { resetFilters(); setSelectedCategory("Explore"); }} className={`group flex items-center gap-2 px-5 py-2 rounded-full text-xs font-semibold tracking-wide transition-all duration-300 ${selectedCategory === "Explore" ? "bg-white/10 text-white" : "text-zinc-400 hover:text-white hover:bg-white/5"}`}>
                                     <Compass size={15} className="transition-all duration-500 group-hover:rotate-90 group-hover:scale-110" />
                                     <span>Explore</span>
-                                </TvFocusButton>
-                                <TvFocusButton onClick={() => { resetFilters(); setSelectedCategory("Multiverse"); }} className={`group flex items-center gap-2 px-5 py-2 rounded-full text-xs font-semibold tracking-wide transition-all duration-300 ${selectedCategory === "Multiverse" ? "bg-white/10 text-white" : "text-zinc-400 hover:text-white hover:bg-white/5"}`}>
-                                    <Sparkles size={15} className="transition-all duration-300 group-hover:scale-110 group-hover:animate-pulse" />
-                                    <span>Multiverse</span>
                                 </TvFocusButton>
                                 <TvFocusButton onClick={() => { resetFilters(); setSelectedCategory("LiveTV"); }} className={`group flex items-center gap-2 px-5 py-2 rounded-full text-xs font-semibold tracking-wide transition-all duration-300 ${selectedCategory === "LiveTV" ? "bg-white/10 text-white" : "text-zinc-400 hover:text-white hover:bg-white/5"}`}>
                                     <Radio size={15} className="transition-all duration-300 group-hover:scale-110 group-hover:animate-pulse" />
@@ -4265,33 +4261,35 @@ export default function App() {
             </div>
 
             {/* Mobile Bottom Navigation Bar */}
-            <div className={`fixed bottom-0 left-0 right-0 z-[80] ${isTV ? 'hidden' : 'md:hidden'} bg-[#070708]/90 backdrop-blur-2xl border-t border-white/10 pb-safe shadow-[0_-8px_30px_rgb(0,0,0,0.5)]`}>
-                <div className="h-16 flex items-center justify-around px-2">
-                    {[
-                        { id: 'Home', label: 'Home', icon: Home, action: () => { setIsBrowseOpen(false); resetToHome(); }, activeCondition: selectedCategory === "All" && !searchQuery },
-                        { id: 'Explore', label: 'Explore', icon: Compass, action: () => { setIsBrowseOpen(false); resetFilters(); setSelectedCategory("Explore"); }, activeCondition: selectedCategory === "Explore" },
-                        { id: 'LiveTV', label: 'Live TV', icon: Radio, action: () => { setIsBrowseOpen(false); resetFilters(); setSelectedCategory("LiveTV"); }, activeCondition: selectedCategory === "LiveTV" },
-                        { id: 'Browse', label: 'Browse', icon: LayoutGrid, action: () => setIsBrowseOpen(!isBrowseOpen), activeCondition: isBrowseOpen }
-                    ].map((tab) => {
-                        const Icon = tab.icon;
-                        const isActive = tab.activeCondition;
-                        return (
-                            <button
-                                key={tab.id}
-                                onClick={tab.action}
-                                className={`flex flex-col items-center justify-center w-16 py-1 select-none cursor-pointer transition-all duration-300 active:scale-90 relative ${isActive ? 'text-red-500 font-extrabold' : 'text-zinc-400 hover:text-white'
-                                    }`}
-                            >
-                                <Icon size={18} className={`transition-transform duration-300 ${isActive ? 'scale-110' : ''}`} />
-                                <span className="text-[9px] font-bold mt-1 tracking-wide">{tab.label}</span>
-                                {isActive && (
-                                    <span className="absolute -top-1 w-1 h-1 bg-red-500 rounded-full animate-pulse shadow-[0_0_8px_#ef4444]" />
-                                )}
-                            </button>
-                        );
-                    })}
+            {selectedCategory !== "Multiverse" && (
+                <div className={`fixed bottom-0 left-0 right-0 z-[80] ${isTV ? 'hidden' : 'md:hidden'} bg-[#070708]/90 backdrop-blur-2xl border-t border-white/10 pb-safe shadow-[0_-8px_30px_rgb(0,0,0,0.5)]`}>
+                    <div className="h-16 flex items-center justify-around px-2">
+                        {[
+                            { id: 'Home', label: 'Home', icon: Home, action: () => { setIsBrowseOpen(false); resetToHome(); }, activeCondition: selectedCategory === "All" && !searchQuery },
+                            { id: 'Explore', label: 'Explore', icon: Compass, action: () => { setIsBrowseOpen(false); resetFilters(); setSelectedCategory("Explore"); }, activeCondition: selectedCategory === "Explore" },
+                            { id: 'LiveTV', label: 'Live TV', icon: Radio, action: () => { setIsBrowseOpen(false); resetFilters(); setSelectedCategory("LiveTV"); }, activeCondition: selectedCategory === "LiveTV" },
+                            { id: 'Browse', label: 'Browse', icon: LayoutGrid, action: () => setIsBrowseOpen(!isBrowseOpen), activeCondition: isBrowseOpen }
+                        ].map((tab) => {
+                            const Icon = tab.icon;
+                            const isActive = tab.activeCondition;
+                            return (
+                                <button
+                                    key={tab.id}
+                                    onClick={tab.action}
+                                    className={`flex flex-col items-center justify-center w-16 py-1 select-none cursor-pointer transition-all duration-300 active:scale-90 relative ${isActive ? 'text-red-500 font-extrabold' : 'text-zinc-400 hover:text-white'
+                                        }`}
+                                >
+                                    <Icon size={18} className={`transition-transform duration-300 ${isActive ? 'scale-110' : ''}`} />
+                                    <span className="text-[9px] font-bold mt-1 tracking-wide">{tab.label}</span>
+                                    {isActive && (
+                                        <span className="absolute -top-1 w-1 h-1 bg-red-500 rounded-full animate-pulse shadow-[0_0_8px_#ef4444]" />
+                                    )}
+                                </button>
+                            );
+                        })}
+                    </div>
                 </div>
-            </div>
+            )}
 
             {!apiKey && loading && <div className="fixed inset-0 z-[100] bg-black"><LogoLoader /></div>}
         </div>
