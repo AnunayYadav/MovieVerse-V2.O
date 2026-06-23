@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Send, Users, LogOut, Copy, Check, MessageSquare, RefreshCw, Maximize2, Minimize2, ChevronDown, Tv } from 'lucide-react';
 import { PROVIDERS } from './MoviePlayer';
+import { triggerSystemNotification } from '../services/supabase';
 
 interface Message {
   id: string;
@@ -51,7 +52,13 @@ export const WatchPartySection: React.FC<WatchPartySectionProps> = ({
 }) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState('');
-  const [participants, setParticipants] = useState<{ id: string; name: string }[]>([]);
+  const [participants, setParticipants] = useState<{ id: string; name: string }[]>(() => {
+    const name = currentUserName || 'Guest';
+    return [{
+      id: currentUserId || 'self-guest',
+      name: `${name} (You)`
+    }];
+  });
   const [copied, setCopied] = useState(false);
   const [activeTab, setActiveTab] = useState<'chat' | 'people'>('chat');
   const chatEndRef = useRef<HTMLDivElement>(null);
@@ -75,6 +82,7 @@ export const WatchPartySection: React.FC<WatchPartySectionProps> = ({
   const [showSyncButton, setShowSyncButton] = useState(false);
   const lastBroadcastTimeRef = useRef<number>(0);
   const heartbeatIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const hostAbsenceTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const channelRef = useRef<any>(null);
   
   // Stable Presence Key Ref
@@ -89,6 +97,19 @@ export const WatchPartySection: React.FC<WatchPartySectionProps> = ({
       presenceKeyRef.current = currentUserId;
     }
   }, [currentUserId]);
+
+  // Stable Refs for Props to avoid Effect dependency churn and channel reconnections
+  const selectedProviderIdRef = useRef(selectedProviderId);
+  const onProviderChangeRef = useRef(onProviderChange);
+  const guestCurrentTimeRef = useRef(guestCurrentTime);
+  const onSyncProgressRef = useRef(onSyncProgress);
+  const onSyncStateRef = useRef(onSyncState);
+
+  useEffect(() => { selectedProviderIdRef.current = selectedProviderId; }, [selectedProviderId]);
+  useEffect(() => { onProviderChangeRef.current = onProviderChange; }, [onProviderChange]);
+  useEffect(() => { guestCurrentTimeRef.current = guestCurrentTime; }, [guestCurrentTime]);
+  useEffect(() => { onSyncProgressRef.current = onSyncProgress; }, [onSyncProgress]);
+  useEffect(() => { onSyncStateRef.current = onSyncState; }, [onSyncState]);
 
   const isHost = currentUserId === hostId;
 
@@ -131,14 +152,36 @@ export const WatchPartySection: React.FC<WatchPartySectionProps> = ({
           },
         ]);
       })
+      .on('broadcast', { event: 'request_sync' }, () => {
+        // Host responds to request_sync by broadcasting their current state immediately
+        if (isHost && channelRef.current) {
+          const time = lastBroadcastTimeRef.current;
+          channelRef.current.send({
+            type: 'broadcast',
+            event: 'sync',
+            payload: { 
+              time: time >= 0 ? time : 0, 
+              providerId: selectedProviderIdRef.current, 
+              syncType: 'seek' 
+            },
+          }).catch((e: any) => console.error("Host response to request_sync error:", e));
+        }
+      })
       .on('broadcast', { event: 'sync' }, ({ payload }: { payload: any }) => {
-        // Guests receive host's time updates (both heartbeat and seek)
+        // Guests receive host's updates (both heartbeat and seek)
         if (!isHost && typeof payload.time === 'number') {
           setHostLatestTime(payload.time);
 
+          // Sync provider if sent by the host
+          if (payload.syncType === 'seek' || payload.syncType === 'heartbeat' || payload.syncType === 'play' || payload.syncType === 'pause') {
+            if (payload.providerId && payload.providerId !== selectedProviderIdRef.current) {
+              onProviderChangeRef.current(payload.providerId);
+            }
+          }
+
           if (payload.syncType === 'seek') {
             // Host explicitly seeked — force sync the guest
-            onSyncProgress(payload.time);
+            onSyncProgressRef.current(payload.time);
             setShowSyncButton(false);
             setDrift(0);
             setMessages(prev => [
@@ -146,21 +189,23 @@ export const WatchPartySection: React.FC<WatchPartySectionProps> = ({
               {
                 id: `sys-${Date.now()}-${getRandId()}`,
                 sender: 'System',
-                text: `🔄 Host seeked to ${formatTime(payload.time)} — syncing...`,
+                text: `🔄 Host synced playback position: ${formatTime(payload.time)}`,
                 timestamp: Date.now(),
               },
             ]);
-          } else if (payload.syncType === 'pause' || payload.syncType === 'play') {
-            if (onSyncState) {
-              onSyncState(payload.syncType);
+          } else {
+            // For 'play', 'pause', 'heartbeat':
+            if (payload.syncType === 'play' || payload.syncType === 'pause') {
+              if (onSyncStateRef.current) {
+                onSyncStateRef.current(payload.syncType);
+              }
             }
             // Auto sync if time drift is too large
-            if (guestCurrentTime > 0 && Math.abs(payload.time - guestCurrentTime) > SEEK_THRESHOLD_SECS) {
-              onSyncProgress(payload.time);
+            const guestTime = guestCurrentTimeRef.current;
+            if (guestTime > 0 && Math.abs(payload.time - guestTime) > SEEK_THRESHOLD_SECS) {
+              onSyncProgressRef.current(payload.time);
             }
           }
-          // For heartbeat type, we just update hostLatestTime
-          // Drift is calculated in a separate effect
         }
       });
 
@@ -168,60 +213,110 @@ export const WatchPartySection: React.FC<WatchPartySectionProps> = ({
     channel
       .on('presence', { event: 'sync' }, () => {
         const presenceState = channel.presenceState();
+        console.log("Supabase presence state synced:", presenceState);
         const usersList: { id: string; name: string }[] = [];
+        
+        let hostFound = false;
 
         Object.keys(presenceState).forEach(key => {
           const userPresences = presenceState[key] as any[];
           if (userPresences && userPresences[0]) {
+            const isSelf = key === presenceKeyRef.current || (currentUserId && key === currentUserId) || key.startsWith('self');
+            const displayName = userPresences[0].name || 'Anonymous User';
             usersList.push({
               id: key,
-              name: userPresences[0].name || 'Anonymous User',
+              name: isSelf ? `${displayName} (You)` : displayName,
             });
+            
+            if (key === hostId) {
+              hostFound = true;
+            }
           }
         });
 
         // Fallback: If current user is not found, guarantee they are displayed
-        const hasSelf = usersList.some(u => u.name === currentUserName || u.name.startsWith(currentUserName));
+        const hasSelf = usersList.some(u => u.id === presenceKeyRef.current || (currentUserId && u.id === currentUserId));
         if (!hasSelf && currentUserName) {
           usersList.push({
-            id: currentUserId || 'self-guest',
+            id: currentUserId || presenceKeyRef.current || 'self-guest',
             name: `${currentUserName} (You)`
           });
+          if (currentUserId === hostId || presenceKeyRef.current === hostId) {
+            hostFound = true;
+          }
         }
 
         setParticipants(usersList);
+
+        // Host Absence Closure Logic (guests only)
+        if (!isHost) {
+          if (!hostFound) {
+            if (!hostAbsenceTimeoutRef.current) {
+              console.log("Host left. Starting 15s watch party close timeout...");
+              hostAbsenceTimeoutRef.current = setTimeout(() => {
+                triggerSystemNotification("Watch Party Closed", "The host has left the room and the watch party is closed.");
+                alert("The host has left or disconnected. Leaving watch party...");
+                onLeaveParty();
+              }, 15000);
+            }
+          } else {
+            if (hostAbsenceTimeoutRef.current) {
+              console.log("Host returned. Clearing watch party close timeout.");
+              clearTimeout(hostAbsenceTimeoutRef.current);
+              hostAbsenceTimeoutRef.current = null;
+            }
+          }
+        }
       })
       .on('presence', { event: 'join' }, ({ newPresences }: { newPresences: any[] }) => {
         newPresences.forEach(pres => {
-          setMessages(prev => [
-            ...prev,
-            {
-              id: `sys-join-${Date.now()}-${getRandId()}`,
-              sender: 'System',
-              text: `👋 ${pres.name || 'A user'} joined the party!`,
-              timestamp: Date.now(),
-            },
-          ]);
+          if (pres.id && pres.id !== presenceKeyRef.current) {
+            setMessages(prev => [
+              ...prev,
+              {
+                id: `sys-join-${Date.now()}-${getRandId()}`,
+                sender: 'System',
+                text: `👋 ${pres.name || 'A user'} joined the party!`,
+                timestamp: Date.now(),
+              },
+            ]);
+          }
         });
       })
       .on('presence', { event: 'leave' }, ({ leftPresences }: { leftPresences: any[] }) => {
         leftPresences.forEach(pres => {
-          setMessages(prev => [
-            ...prev,
-            {
-              id: `sys-leave-${Date.now()}-${getRandId()}`,
-              sender: 'System',
-              text: `🚶 ${pres.name || 'A user'} left the party.`,
-              timestamp: Date.now(),
-            },
-          ]);
+          if (pres.id && pres.id !== presenceKeyRef.current) {
+            setMessages(prev => [
+              ...prev,
+              {
+                id: `sys-leave-${Date.now()}-${getRandId()}`,
+                sender: 'System',
+                text: `🚶 ${pres.name || 'A user'} left the party.`,
+                timestamp: Date.now(),
+              },
+            ]);
+          }
         });
       });
 
     // Subscribe
     channel.subscribe(async (status: string) => {
+      console.log(`Supabase Watch Party channel status: ${status}`);
       if (status === 'SUBSCRIBED') {
-        await channel.track({ name: currentUserName });
+        const trackResult = await channel.track({ 
+          id: presenceKeyRef.current,
+          name: currentUserName
+        });
+        console.log(`Supabase Watch Party track result:`, trackResult);
+
+        // If guest, request state immediately upon subscribing
+        if (!isHost) {
+          channel.send({
+            type: 'broadcast',
+            event: 'request_sync',
+            payload: { requesterId: presenceKeyRef.current }
+          }).catch((e: any) => console.error("Request sync broadcast error:", e));
+        }
       }
     });
 
@@ -230,8 +325,11 @@ export const WatchPartySection: React.FC<WatchPartySectionProps> = ({
       channel.unsubscribe();
       supabaseClient.removeChannel(channel);
       channelRef.current = null;
+      if (hostAbsenceTimeoutRef.current) {
+        clearTimeout(hostAbsenceTimeoutRef.current);
+      }
     };
-  }, [supabaseClient, roomCode, currentUserId, currentUserName, isHost, onSyncProgress]);
+  }, [supabaseClient, roomCode, currentUserId, currentUserName, isHost, hostId]);
 
   // ─── Host: Periodic Heartbeat Broadcast ───────────────────────────
   useEffect(() => {
@@ -247,7 +345,11 @@ export const WatchPartySection: React.FC<WatchPartySectionProps> = ({
         channel.send({
           type: 'broadcast',
           event: 'sync',
-          payload: { time, syncType: 'heartbeat' },
+          payload: { 
+            time, 
+            providerId: selectedProviderIdRef.current,
+            syncType: 'heartbeat' 
+          },
         }).catch((e: any) => console.error("Heartbeat broadcast error:", e));
       }
     }, HEARTBEAT_INTERVAL_MS);
@@ -274,13 +376,40 @@ export const WatchPartySection: React.FC<WatchPartySectionProps> = ({
         channel.send({
           type: 'broadcast',
           event: 'sync',
-          payload: { time: currentTime, syncType: 'seek' },
+          payload: { 
+            time: currentTime, 
+            providerId: selectedProviderIdRef.current,
+            syncType: 'seek' 
+          },
         }).catch((e: any) => console.error("Seek broadcast error:", e));
       }
     }
 
     lastBroadcastTimeRef.current = currentTime;
   }, [currentTime, isHost, supabaseClient, roomCode]);
+
+  // ─── Host: Detect Provider Change and broadcast immediately ──────
+  const lastBroadcastProviderRef = useRef<string>(selectedProviderId);
+  useEffect(() => {
+    if (!isHost || !supabaseClient || !roomCode || !selectedProviderId) return;
+
+    if (lastBroadcastProviderRef.current !== selectedProviderId) {
+      const channel = channelRef.current;
+      if (channel) {
+        const time = lastBroadcastTimeRef.current;
+        channel.send({
+          type: 'broadcast',
+          event: 'sync',
+          payload: { 
+            time: time >= 0 ? time : 0, 
+            providerId: selectedProviderId, 
+            syncType: 'seek' 
+          },
+        }).catch((e: any) => console.error("Provider change broadcast error:", e));
+      }
+      lastBroadcastProviderRef.current = selectedProviderId;
+    }
+  }, [selectedProviderId, isHost, supabaseClient, roomCode]);
 
   // ─── Host: Detect Play/Pause and broadcast immediately ────────────
   const lastBroadcastStateRef = useRef<'play' | 'pause'>('play');
@@ -293,7 +422,11 @@ export const WatchPartySection: React.FC<WatchPartySectionProps> = ({
         channel.send({
           type: 'broadcast',
           event: 'sync',
-          payload: { time: currentTime, syncType: hostPlayerState },
+          payload: { 
+            time: currentTime, 
+            providerId: selectedProviderIdRef.current,
+            syncType: hostPlayerState 
+          },
         }).catch((e: any) => console.error("Play/pause broadcast error:", e));
       }
       lastBroadcastStateRef.current = hostPlayerState;

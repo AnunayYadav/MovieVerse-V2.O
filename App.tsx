@@ -10,6 +10,7 @@ import { getSearchSuggestions } from './services/gemini';
 import { LoginPage } from './components/LoginPage';
 import { getSupabase, syncUserData, fetchUserData, signOut, getNotifications, triggerSystemNotification, upsertWatchProgress, createWatchPartyRoom, getWatchPartyRoom, updateWatchPartyRoom, deleteWatchPartyRoom } from './services/supabase';
 import { WatchPartySection } from './components/WatchParty';
+import { WatchPartyRoomsPage } from './components/WatchPartyRoomsPage';
 import { MoviePlayer, PROVIDERS } from './components/MoviePlayer';
 import { LiveTV } from './components/LiveTV';
 import { ExplorePage } from './components/ExplorePage';
@@ -3239,7 +3240,7 @@ export default function App() {
         { id: "TV Shows", icon: Tv, label: "TV Shows", action: () => { resetFilters(); setSelectedCategory("TV Shows"); } },
         { id: "Coming", icon: CalendarDays, label: "Coming Soon", action: () => { resetFilters(); setSelectedCategory("Coming"); } },
         { id: "Categories", icon: Clapperboard, label: "Categories", action: () => { resetFilters(); setSelectedCategory("Categories"); } },
-        { id: "WatchParty", icon: Users, label: "Watch Party", action: () => { setIsWatchPartyJoinOpen(true); } }
+        { id: "WatchParty", icon: Users, label: "Watch Party", action: () => { resetFilters(); setSelectedCategory("WatchParty"); } }
     ];
 
     if (authChecking) return <div className="fixed inset-0 bg-black flex items-center justify-center"><LogoLoader /></div>;
@@ -3315,8 +3316,8 @@ export default function App() {
                                 <button onClick={() => { resetFilters(); setSelectedCategory("Franchise"); }} className={getSidebarItemClass(selectedCategory === "Franchise")}>
                                     <Layers size={18} /> Franchises
                                 </button>
-                                <button onClick={() => { setIsSidebarOpen(false); setIsWatchPartyJoinOpen(true); }} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold text-purple-400 hover:bg-purple-500/10 transition-all border border-purple-500/10 hover:translate-x-1 duration-300 mt-2">
-                                    <Users size={18} /> Join Watch Party
+                                <button onClick={() => { setIsSidebarOpen(false); resetFilters(); setSelectedCategory("WatchParty"); }} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold text-purple-400 hover:bg-purple-500/10 transition-all border border-purple-500/10 hover:translate-x-1 duration-300 mt-2">
+                                    <Users size={18} /> Watch Party
                                 </button>
                             </div>
 
@@ -3598,6 +3599,11 @@ export default function App() {
                                 />
                             </div>
                         </div>
+                    ) : selectedCategory === "WatchParty" ? (
+                        <WatchPartyRoomsPage
+                            apiKey={apiKey}
+                            onJoinRoom={handleJoinWatchParty}
+                        />
                     ) : selectedCategory === "LiveTV" ? (<LiveTV userProfile={userProfile} />) : selectedCategory === "Multiverse" ? (
                         <MovieDome
                             apiKey={apiKey}
@@ -4272,7 +4278,7 @@ export default function App() {
                 {browseOptions.map(opt => {
                     const isActive = selectedCategory === opt.id ||
                         (opt.id === "Trending" && selectedCategory === "All") ||
-                        (opt.id === "WatchParty" && (activeWatchPartyRoom !== null || isWatchPartyJoinOpen));
+                        (opt.id === "WatchParty" && (activeWatchPartyRoom !== null || selectedCategory === "WatchParty"));
 
                     return (
                         <button

@@ -237,31 +237,8 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
       // External seek/sync (like Watch Party seek)
       const diff = Math.abs(forceProgress - currentProgressRef.current);
       if (diff > 5) {
-        let sentMessage = false;
-        const provider = PROVIDERS.find(p => p.id === selectedProviderId);
-        if (provider && provider.supportsPostMessage && iframeRef.current && iframeRef.current.contentWindow) {
-          try {
-            const win = iframeRef.current.contentWindow;
-            const time = forceProgress;
-            // Send multiple postMessage seek formats for robustness
-            win.postMessage(JSON.stringify({ type: 'seek', value: time }), '*');
-            win.postMessage({ type: 'seek', value: time }, '*');
-            win.postMessage(JSON.stringify({ event: 'command', func: 'seekTo', args: [time, true] }), '*');
-            win.postMessage(JSON.stringify({ event: 'seek', data: time }), '*');
-            win.postMessage({ event: 'seek', data: time }, '*');
-            win.postMessage(JSON.stringify({ command: 'seek', parameter: time }), '*');
-            
-            currentProgressRef.current = forceProgress;
-            sentMessage = true;
-          } catch (e) {
-            console.warn("Failed to post seek command to player iframe", e);
-          }
-        }
-        
-        if (!sentMessage) {
-          shouldUpdateUrl = true;
-          currentProgressRef.current = forceProgress;
-        }
+        shouldUpdateUrl = true;
+        currentProgressRef.current = forceProgress;
       }
     }
 
