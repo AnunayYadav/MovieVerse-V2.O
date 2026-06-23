@@ -6,9 +6,6 @@ const config: CapacitorConfig = {
   webDir: 'dist',
   server: {
     androidScheme: 'https'
-  },
-  android: {
-    overrideUserAgent: 'MovieVerseTV'
   }
 };
 

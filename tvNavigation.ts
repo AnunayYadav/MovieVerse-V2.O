@@ -10,7 +10,6 @@ export function enableTVNavigation() {
     return (
       /Android TV|GoogleTV|AFT|Tizen|Web0S|SmartTV/i.test(navigator.userAgent) || 
       navigator.userAgent.includes("MovieVerseTV") ||
-      (window as any).Capacitor?.platform === 'android' ||
       window.location.search.includes("tv=true")
     );
   };

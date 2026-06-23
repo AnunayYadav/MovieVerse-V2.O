@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, Suspense } from 'react';
 import { App as CapApp } from '@capacitor/app';
 import { Search, Film, Menu, TrendingUp, Tv, Ghost, Calendar, Star, X, Sparkles, Settings, Globe, Bookmark, Heart, Folder, Languages, Filter, ChevronDown, Info, Plus, Cloud, CloudOff, Clock, Bell, History, Users, Tag, Dice5, Crown, Radio, LayoutGrid, Award, Baby, Clapperboard, ChevronRight, PlayCircle, Play, Megaphone, CalendarDays, Compass, Home, Map, Loader2, Trophy, RefreshCcw, Check, MonitorPlay, Layers, LogOut, Download, User } from 'lucide-react';
 import { Movie, UserProfile, GENRES_MAP, GENRES_LIST, INDIAN_LANGUAGES, MaturityRating, Keyword } from './types';
@@ -16,13 +16,13 @@ import { LiveTV } from './components/LiveTV';
 import { ExplorePage } from './components/ExplorePage';
 import { MovieDome } from './components/MovieDome';
 import { useTvFocus, TvFocusButton, TvFocusInput } from './tvNavigation';
+import AppTV from './components/AppTV';
 
 const fetch = tvFetch;
 
 const isTVApp = typeof window !== 'undefined' && (
     /Android TV|GoogleTV|AFT|Tizen|Web0S|SmartTV/i.test(navigator.userAgent) || 
     navigator.userAgent.includes("MovieVerseTV") ||
-    (window as any).Capacitor?.platform === 'android' ||
     window.location.search.includes("tv=true")
 );
 
@@ -1061,7 +1061,6 @@ export default function App() {
         return (
             /Android TV|GoogleTV|AFT|Tizen|Web0S|SmartTV/i.test(navigator.userAgent) || 
             navigator.userAgent.includes("MovieVerseTV") ||
-            (window as any).Capacitor?.platform === 'android' ||
             window.location.search.includes("tv=true")
         );
     });
@@ -1071,7 +1070,6 @@ export default function App() {
             const result = 
                 /Android TV|GoogleTV|AFT|Tizen|Web0S|SmartTV/i.test(navigator.userAgent) || 
                 navigator.userAgent.includes("MovieVerseTV") ||
-                (window as any).Capacitor?.platform === 'android' ||
                 window.location.search.includes("tv=true");
             if (result) {
                 setIsTV(true);
@@ -3256,6 +3254,25 @@ export default function App() {
 
     if (authChecking) return <div className="fixed inset-0 bg-black flex items-center justify-center"><LogoLoader /></div>;
     if (!isAuthenticated) return (<> <LoginPage onLogin={handleLogin} onOpenSettings={() => setIsSettingsOpen(true)} /> <SettingsPage isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} apiKey={apiKey} setApiKey={(k) => saveSettings(k)} maturityRating={maturityRating} setMaturityRating={setMaturityRating} profile={userProfile} onUpdateProfile={setUserProfile} onLogout={handleLogout} searchHistory={searchHistory} setSearchHistory={(h) => { setSearchHistory(h); localStorage.setItem('movieverse_search_history', JSON.stringify(h)); }} watchedMovies={watched} setWatchedMovies={(m) => { setWatched(m); localStorage.setItem('movieverse_watched', JSON.stringify(m)); }} /> </>);
+
+    if (isTV) {
+        return (
+            <Suspense fallback={<div className="fixed inset-0 bg-black flex items-center justify-center"><LogoLoader /></div>}>
+                <AppTV
+                    apiKey={apiKey}
+                    userProfile={userProfile}
+                    onLogout={handleLogout}
+                    watchlist={watchlist}
+                    favorites={favorites}
+                    watched={watched}
+                    onToggleWatchlist={(m) => toggleList(watchlist, setWatchlist, 'movieverse_watchlist', m)}
+                    onToggleFavorite={(m) => toggleList(favorites, setFavorites, 'movieverse_favorites', m)}
+                    onToggleWatched={handleToggleWatched}
+                    onProgress={handleProgressUpdate}
+                />
+            </Suspense>
+        );
+    }
 
     const getSidebarItemClass = (isActive: boolean) => {
         return `w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-bold transition-all duration-300 relative group/item overflow-hidden ${isActive
