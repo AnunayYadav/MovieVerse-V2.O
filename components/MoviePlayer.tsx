@@ -550,9 +550,8 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
           {isDrawerOpen ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
         </button>
 
-        {/* Control Drawer */}
         <div
-          className={`absolute right-0 top-0 h-full z-45 bg-[#09090b]/92 backdrop-blur-xl border-l border-white/10 shadow-[0_0_50px_rgba(0,0,0,0.8)] transition-transform duration-300 ease-out flex flex-col w-72 sm:w-80 ${
+          className={`absolute right-0 top-0 h-full z-45 bg-zinc-950/98 backdrop-blur-xl border-l border-white/10 shadow-[0_0_50px_rgba(0,0,0,0.8)] transition-transform duration-300 ease-out flex flex-col w-72 sm:w-80 ${
             isDrawerOpen ? 'translate-x-0' : 'translate-x-full'
           }`}
         >
@@ -656,7 +655,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                   </button>
 
                   {isSeasonDropdownOpen && (
-                    <div className="absolute left-0 right-0 mt-2 bg-[#09090b]/98 border border-white/10 rounded-xl shadow-2xl p-1.5 z-50 max-h-48 overflow-y-auto custom-scrollbar animate-in fade-in duration-200">
+                    <div className="absolute left-0 right-0 mt-2 bg-zinc-900 border border-white/10 rounded-xl shadow-2xl p-1.5 z-50 max-h-48 overflow-y-auto custom-scrollbar animate-in fade-in duration-200">
                       {seasons.map((s) => {
                         const isSel = s.season_number === currentSeason;
                         return (
