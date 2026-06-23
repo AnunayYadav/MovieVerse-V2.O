@@ -22,7 +22,10 @@ export const MovieDome: React.FC<MovieDomeProps> = ({ apiKey, onMovieClick, onCl
   
   // Dimensions & Grid Configuration
   const [dimensions, setDimensions] = useState({ width: 1200, height: 800 });
-  const [gridConfig, setGridConfig] = useState({ cols: 24, rows: 12 });
+  const [gridConfig, setGridConfig] = useState({ cols: 70, rows: 40 });
+
+  // Pre-cached element references for direct DOM manipulation (high performance)
+  const elementRefs = useRef<(HTMLDivElement | null)[]>([]);
 
   // Panning and Dragging Refs (performance optimization: no React renders on drag)
   const panRef = useRef({ x: 0, y: 0 });
@@ -39,13 +42,13 @@ export const MovieDome: React.FC<MovieDomeProps> = ({ apiKey, onMovieClick, onCl
       const h = window.innerHeight;
       setDimensions({ width: w, height: h });
 
-      // Determine size of posters
-      const posterW = w < 768 ? 55 : 70;
-      const posterH = w < 768 ? 82 : 105;
+      // Determine spacing (density) of posters (smaller spacing = higher density)
+      const posterW = w < 768 ? 22 : 30;
+      const posterH = w < 768 ? 33 : 45;
 
-      // Add a 4-column/row padding to allow wrapping margins without popping
-      const cols = Math.ceil(w / posterW) + 4;
-      const rows = Math.ceil(h / posterH) + 4;
+      // Add a 8-column/row padding to allow toroidal wrapping without visible popping
+      const cols = Math.ceil(w / posterW) + 8;
+      const rows = Math.ceil(h / posterH) + 8;
       setGridConfig({ cols, rows });
     };
 
@@ -97,9 +100,9 @@ export const MovieDome: React.FC<MovieDomeProps> = ({ apiKey, onMovieClick, onCl
     };
   }, []);
 
-  // 2. Calculate cell dimensions
-  const cellWidth = useMemo(() => dimensions.width / (gridConfig.cols - 4), [dimensions.width, gridConfig.cols]);
-  const cellHeight = useMemo(() => dimensions.height / (gridConfig.rows - 4), [dimensions.height, gridConfig.rows]);
+  // 2. Calculate cell dimensions (accounting for the 8 padding cells)
+  const cellWidth = useMemo(() => dimensions.width / (gridConfig.cols - 8), [dimensions.width, gridConfig.cols]);
+  const cellHeight = useMemo(() => dimensions.height / (gridConfig.rows - 8), [dimensions.height, gridConfig.rows]);
 
   const wrapWidth = useMemo(() => gridConfig.cols * cellWidth, [gridConfig.cols, cellWidth]);
   const wrapHeight = useMemo(() => gridConfig.rows * cellHeight, [gridConfig.rows, cellHeight]);
@@ -118,8 +121,8 @@ export const MovieDome: React.FC<MovieDomeProps> = ({ apiKey, onMovieClick, onCl
         endpoint = `${TMDB_BASE_URL}/discover/movie`;
       }
 
-      // Fetch 3 pages to get high density
-      const pages = [1, 2, 3];
+      // Fetch 10 pages concurrently to get high density (up to 200 unique movies)
+      const pages = Array.from({ length: 10 }, (_, i) => i + 1);
       const promises = pages.map(page => {
         let url = `${endpoint}?api_key=${apiKey}&page=${page}`;
         if (activeCategory !== 'Trending') {
@@ -128,7 +131,9 @@ export const MovieDome: React.FC<MovieDomeProps> = ({ apiKey, onMovieClick, onCl
           };
           url += `&with_genres=${genres[activeCategory] || 28}&sort_by=popularity.desc`;
         }
-        return tvFetch(url).then(res => res.json());
+        return tvFetch(url)
+          .then(res => res.ok ? res.json() : { results: [] })
+          .catch(() => ({ results: [] }));
       });
 
       try {
@@ -163,21 +168,24 @@ export const MovieDome: React.FC<MovieDomeProps> = ({ apiKey, onMovieClick, onCl
     return () => { isMounted = false; };
   }, [activeCategory, apiKey]);
 
-  // 4. Tile movies to fill the grid config
+  // 4. Tile movies to fill the grid config (pseudo-randomly distributed to avoid row/col repetition)
   const cells = useMemo(() => {
+    elementRefs.current = []; // Clear cached DOM elements when grid changes
     if (movies.length === 0) return [];
     const totalCells = gridConfig.cols * gridConfig.rows;
     const result = [];
     for (let i = 0; i < totalCells; i++) {
       const col = i % gridConfig.cols;
       const row = Math.floor(i / gridConfig.cols);
-      const movie = movies[i % movies.length];
+      // Linear congruential distribution for high entropy layout
+      const movieIndex = (i * 17 + 23) % movies.length;
+      const movie = movies[movieIndex];
       result.push({ id: i, col, row, movie });
     }
     return result;
   }, [movies, gridConfig]);
 
-  // 5. Warp and position grid elements on cursor movement / drag
+  // 5. Warp and position grid elements on cursor movement / drag (3D Fish-Eye Projection)
   const handleInteraction = (clientX: number, clientY: number) => {
     const grid = gridRef.current;
     if (!grid || !cells.length || loading) return;
@@ -190,21 +198,29 @@ export const MovieDome: React.FC<MovieDomeProps> = ({ apiKey, onMovieClick, onCl
     const py = panRef.current.y;
 
     requestAnimationFrame(() => {
-      const children = grid.querySelectorAll('[data-id]');
       let closestMovie: Movie | null = null;
       let minDistance = Infinity;
 
-      children.forEach((child: any) => {
-        const id = parseInt(child.getAttribute('data-id'));
-        const cell = cells[id];
-        if (!cell) return;
+      const isMobile = window.innerWidth < 768;
+      const baseScale = isMobile ? 0.45 : 0.35;
+      const maxScale = isMobile ? 6.5 : 5.0;
+      const baseOpacity = 0.25;
+      const maxOpacity = 1.0;
+      const lensRadius = isMobile ? 160 : 280;
+      const maxTilt = 30; // degrees
+
+      const len = cells.length;
+      for (let i = 0; i < len; i++) {
+        const cell = cells[i];
+        const child = elementRefs.current[i];
+        if (!cell || !child) continue;
 
         const xBase = cell.col * cellWidth;
         const yBase = cell.row * cellHeight;
 
-        // Calculate wrapped position relative to the screen (toroidal wrap offset by 2 cells padding)
-        const xWrapped = ((xBase + px) % wrapWidth + wrapWidth) % wrapWidth - 2 * cellWidth;
-        const yWrapped = ((yBase + py) % wrapHeight + wrapHeight) % wrapHeight - 2 * cellHeight;
+        // Calculate wrapped position relative to the screen (toroidal wrap offset by 4 cells padding)
+        const xWrapped = ((xBase + px) % wrapWidth + wrapWidth) % wrapWidth - 4 * cellWidth;
+        const yWrapped = ((yBase + py) % wrapHeight + wrapHeight) % wrapHeight - 4 * cellHeight;
 
         // Position rest center relative to grid container
         const cx = xWrapped + cellWidth / 2;
@@ -216,48 +232,66 @@ export const MovieDome: React.FC<MovieDomeProps> = ({ apiKey, onMovieClick, onCl
 
         let txWarp = 0;
         let tyWarp = 0;
-        let scale = 1;
-        let opacity = 0.5; // Muted by default for visual pop
-        let zIndex = 1;
-        let filter = 'grayscale(15%) brightness(0.7)';
+        let scale = baseScale;
+        let opacity = baseOpacity;
+        let zIndex = 2;
+        let filter = 'grayscale(35%) brightness(0.4)';
+        let borderRadius = '50%';
+        let angleX = 0;
+        let angleY = 0;
+        let translateZ = 0;
 
-        const isMobile = window.innerWidth < 768;
-        const lensRadius = isMobile ? 120 : 200;
-        const maxScale = isMobile ? 2.6 : 3.6;
-        const pushStrength = isMobile ? 0.35 : 0.45;
+        // Disable transitions during active tracking for instant, lag-free responsiveness
+        child.style.transition = 'none';
 
         if (dist < lensRadius) {
-          const t = dist / lensRadius; // 0 to 1
-          
-          // Magnification (bell curve)
-          scale = 1 + (maxScale - 1) * Math.pow(1 - t, 2.5);
+          const t = dist / lensRadius; // 0 (center) to 1 (edge)
 
-          // Spherical displacement: push cells outwards from center
-          const push = pushStrength * Math.sin(t * Math.PI) * (1 - t);
-          txWarp = (dx / (dist || 1)) * push * lensRadius;
-          tyWarp = (dy / (dist || 1)) * push * lensRadius;
+          // 1. Spacing expansion (spherical power warp) to push cells outward
+          const d = dist || 0.001;
+          const warpedDist = lensRadius * Math.pow(d / lensRadius, 0.45);
+          txWarp = (dx / d) * (warpedDist - d);
+          tyWarp = (dy / d) * (warpedDist - d);
 
-          // Focus effects
-          opacity = 0.5 + 0.5 * (1 - t);
-          filter = 'grayscale(0%) brightness(1.15) contrast(1.05)';
-          zIndex = Math.round((1 - t) * 200) + 10;
+          // 2. Magnification (bell curve)
+          scale = baseScale + (maxScale - baseScale) * Math.pow(1 - t, 2.0);
 
-          // Keep track of the cell closest to mouse center
+          // 3. 3D Spherical rotation (tilt outward from cursor)
+          angleY = (dx / lensRadius) * maxTilt * Math.pow(1 - t, 1.5);
+          angleX = -(dy / lensRadius) * maxTilt * Math.pow(1 - t, 1.5);
+
+          // 4. Z-axis elevation (pulling active cells closer to screen)
+          translateZ = (1 - t) * 150;
+
+          // 5. Dynamic Shape Morphing: Circle (50%) -> Capsule/Rounded Rect (12px)
+          borderRadius = `calc(${50 * t}% + ${12 * (1 - t)}px)`;
+
+          // 6. Highlight and focus filters
+          opacity = baseOpacity + (maxOpacity - baseOpacity) * Math.pow(1 - t, 1.5);
+          const grayscale = 35 * t;
+          const brightness = 0.35 + 0.75 * (1 - t);
+          filter = `grayscale(${grayscale}%) brightness(${brightness}) contrast(${1 + 0.1 * (1 - t)})`;
+          zIndex = Math.round((1 - t) * 100) + 10;
+
+          // Track the closest cell to mouse center
           if (dist < minDistance) {
             minDistance = dist;
             closestMovie = cell.movie;
           }
+        } else {
+          borderRadius = '50%';
         }
 
-        // Combined transform: wrap offset position + warp offset
+        // Combined GPU-accelerated 3D transforms
         const txTotal = (xWrapped - xBase) + txWarp;
         const tyTotal = (yWrapped - yBase) + tyWarp;
 
-        child.style.transform = `translate3d(${txTotal}px, ${tyTotal}px, 0) scale(${scale})`;
+        child.style.transform = `translate3d(${txTotal}px, ${tyTotal}px, ${translateZ}px) scale(${scale}) rotateX(${angleX}deg) rotateY(${angleY}deg)`;
         child.style.opacity = `${opacity}`;
         child.style.filter = filter;
         child.style.zIndex = `${zIndex}`;
-      });
+        child.style.borderRadius = borderRadius;
+      }
 
       // Throttle React state change for the details panel
       if (closestMovie) {
@@ -273,7 +307,9 @@ export const MovieDome: React.FC<MovieDomeProps> = ({ apiKey, onMovieClick, onCl
   // 6. Set initial grid positions on load, resize, or category change
   useEffect(() => {
     if (movies.length > 0) {
-      handleInteraction(dimensions.width / 2, dimensions.height / 2);
+      setTimeout(() => {
+        handleInteraction(dimensions.width / 2, dimensions.height / 2);
+      }, 100);
     }
   }, [movies, dimensions, cellWidth, cellHeight, wrapWidth, wrapHeight]);
 
@@ -349,34 +385,38 @@ export const MovieDome: React.FC<MovieDomeProps> = ({ apiKey, onMovieClick, onCl
     isDraggingRef.current = false;
     setHoveredMovie(null);
     lastClosestIdRef.current = null;
-    const grid = gridRef.current;
-    if (!grid) return;
-
-    const children = grid.querySelectorAll('[data-id]');
     
     requestAnimationFrame(() => {
-      children.forEach((child: any) => {
-        const id = parseInt(child.getAttribute('data-id'));
-        const cell = cells[id];
-        if (!cell) return;
+      const isMobile = window.innerWidth < 768;
+      const baseScale = isMobile ? 0.45 : 0.35;
+      const baseOpacity = 0.25;
+
+      const px = panRef.current.x;
+      const py = panRef.current.y;
+
+      const len = cells.length;
+      for (let i = 0; i < len; i++) {
+        const cell = cells[i];
+        const child = elementRefs.current[i];
+        if (!cell || !child) continue;
 
         const xBase = cell.col * cellWidth;
         const yBase = cell.row * cellHeight;
 
-        const px = panRef.current.x;
-        const py = panRef.current.y;
-
-        const xWrapped = ((xBase + px) % wrapWidth + wrapWidth) % wrapWidth - 2 * cellWidth;
-        const yWrapped = ((yBase + py) % wrapHeight + wrapHeight) % wrapHeight - 2 * cellHeight;
+        const xWrapped = ((xBase + px) % wrapWidth + wrapWidth) % wrapWidth - 4 * cellWidth;
+        const yWrapped = ((yBase + py) % wrapHeight + wrapHeight) % wrapHeight - 4 * cellHeight;
 
         const txTotal = (xWrapped - xBase);
         const tyTotal = (yWrapped - yBase);
 
-        child.style.transform = `translate3d(${txTotal}px, ${tyTotal}px, 0) scale(1)`;
-        child.style.opacity = '0.5';
-        child.style.filter = 'grayscale(15%) brightness(0.7)';
+        // Apply smooth transition when resetting back to original state
+        child.style.transition = 'transform 0.6s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.6s, filter 0.6s, border-radius 0.6s';
+        child.style.transform = `translate3d(${txTotal}px, ${tyTotal}px, 0px) scale(${baseScale}) rotateX(0deg) rotateY(0deg)`;
+        child.style.opacity = `${baseOpacity}`;
+        child.style.filter = 'grayscale(35%) brightness(0.4)';
+        child.style.borderRadius = '50%';
         child.style.zIndex = '1';
-      });
+      }
     });
   };
 
@@ -392,13 +432,55 @@ export const MovieDome: React.FC<MovieDomeProps> = ({ apiKey, onMovieClick, onCl
       ref={containerRef}
       className="fixed inset-0 w-full h-full bg-[#030303] overflow-hidden select-none z-40 flex flex-col font-sans"
     >
-      {/* Background Neon Glow Rings for Multiverse Ambiance */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[70vw] h-[70vw] max-w-[800px] max-h-[800px] rounded-full bg-red-600/10 blur-[150px] pointer-events-none z-0"></div>
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[40vw] h-[40vw] max-w-[500px] max-h-[500px] rounded-full bg-purple-600/10 blur-[120px] pointer-events-none z-0"></div>
+      <style>{`
+        .multiverse-starfield {
+          position: absolute;
+          inset: 0;
+          background-image: 
+            radial-gradient(1.5px 1.5px at 20px 30px, #ffffff, rgba(0,0,0,0)),
+            radial-gradient(2px 2px at 40px 70px, #ffffff, rgba(0,0,0,0)),
+            radial-gradient(1.5px 1.5px at 50px 160px, #ffffff, rgba(0,0,0,0)),
+            radial-gradient(2px 2px at 80px 120px, #ffffff, rgba(0,0,0,0)),
+            radial-gradient(2.5px 2.5px at 110px 220px, #ffffff, rgba(0,0,0,0)),
+            radial-gradient(2px 2px at 150px 180px, #ffffff, rgba(0,0,0,0));
+          background-repeat: repeat;
+          background-size: 320px 320px;
+          animation: starfieldShift 100s linear infinite;
+          opacity: 0.22;
+          z-index: 0;
+          pointer-events: none;
+        }
+        @keyframes starfieldShift {
+          0% { background-position: 0% 0%; }
+          100% { background-position: 100% 100%; }
+        }
+        .hide-scrollbar::-webkit-scrollbar {
+          display: none;
+        }
+        .hide-scrollbar {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+        }
+      `}</style>
+
+      {/* Semantic outline support */}
+      <h1 className="sr-only">Movie Multiverse 3D Dome</h1>
+
+      {/* Interactive Cosmos Background & Starfield */}
+      <div className="multiverse-starfield"></div>
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[80vw] h-[80vw] max-w-[900px] max-h-[900px] rounded-full bg-red-600/10 blur-[150px] pointer-events-none z-0"></div>
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[50vw] h-[50vw] max-w-[600px] max-h-[600px] rounded-full bg-purple-600/10 blur-[120px] pointer-events-none z-0"></div>
 
       {/* Header Overlay */}
-      <div className="absolute top-0 left-0 right-0 p-6 flex items-center justify-end z-50 pointer-events-none bg-gradient-to-b from-black/60 to-transparent">
+      <div className="absolute top-0 left-0 right-0 p-6 flex items-center justify-between z-50 pointer-events-none bg-gradient-to-b from-black/80 to-transparent">
+        <div className="flex flex-col text-left pointer-events-auto">
+          <span className="text-[10px] font-bold text-red-500 uppercase tracking-widest flex items-center gap-1.5">
+            <Sparkles size={10} className="animate-pulse" /> Multiverse Exploration
+          </span>
+          <span className="text-sm font-black text-white tracking-wide uppercase drop-shadow">Movie Verse Dome</span>
+        </div>
         <button 
+          id="multiverse-close-btn"
           onClick={onClose}
           className="p-2.5 rounded-full bg-white/5 hover:bg-red-600 border border-white/10 hover:border-red-600 text-zinc-400 hover:text-white transition-all pointer-events-auto active:scale-95 shadow-md flex items-center justify-center"
           title="Exit Multiverse"
@@ -420,6 +502,10 @@ export const MovieDome: React.FC<MovieDomeProps> = ({ apiKey, onMovieClick, onCl
         className={`w-full h-full relative z-10 cursor-grab active:cursor-grabbing transition-all duration-700 ease-[cubic-bezier(0.25,1,0.5,1)] ${
           gridTransitioning ? 'scale-[0.93] opacity-0 pointer-events-none' : 'scale-100 opacity-100'
         }`}
+        style={{
+          perspective: '1200px',
+          transformStyle: 'preserve-3d',
+        }}
       >
         {loading ? (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 z-30 pointer-events-none">
@@ -427,31 +513,37 @@ export const MovieDome: React.FC<MovieDomeProps> = ({ apiKey, onMovieClick, onCl
             <span className="text-xs text-zinc-500 font-medium tracking-wide">Aligning Multiverse...</span>
           </div>
         ) : (
-          cells.map((cell) => (
-            <div
-              key={cell.id}
-              data-id={cell.id}
-              onClick={() => handleCellClick(cell.movie)}
-              className="absolute rounded-lg overflow-hidden border border-white/5 bg-zinc-950/60 shadow-[0_4px_12px_rgba(0,0,0,0.4)] cursor-pointer select-none"
-              style={{
-                width: cellWidth - 5,
-                height: cellHeight - 5,
-                left: cell.col * cellWidth,
-                top: cell.row * cellHeight,
-                transform: 'translate3d(0, 0, 0) scale(1)',
-                opacity: 0.5,
-                filter: 'grayscale(15%) brightness(0.7)',
-                transition: 'transform 0.1s cubic-bezier(0.25, 0.8, 0.25, 1), opacity 0.15s, filter 0.15s',
-              }}
-            >
-              <img
-                src={`https://image.tmdb.org/t/p/w185${cell.movie.poster_path}`}
-                alt={cell.movie.title || cell.movie.name}
-                className="w-full h-full object-cover pointer-events-none select-none"
-                loading="lazy"
-              />
-            </div>
-          ))
+          cells.map((cell) => {
+            const isMobile = window.innerWidth < 768;
+            const baseScale = isMobile ? 0.45 : 0.35;
+            return (
+              <div
+                key={cell.id}
+                ref={el => { elementRefs.current[cell.id] = el; }}
+                id={`multiverse-poster-${cell.movie.id}-${cell.id}`}
+                onClick={() => handleCellClick(cell.movie)}
+                className="absolute overflow-hidden border border-white/5 bg-zinc-950/60 shadow-[0_4px_12px_rgba(0,0,0,0.4)] cursor-pointer select-none"
+                style={{
+                  width: cellWidth,
+                  height: cellHeight,
+                  left: cell.col * cellWidth,
+                  top: cell.row * cellHeight,
+                  transform: `translate3d(0px, 0px, 0px) scale(${baseScale})`,
+                  opacity: 0.25,
+                  borderRadius: '50%',
+                  filter: 'grayscale(35%) brightness(0.4)',
+                  transition: 'transform 0.6s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.6s, filter 0.6s, border-radius 0.6s',
+                }}
+              >
+                <img
+                  src={`https://image.tmdb.org/t/p/w185${cell.movie.poster_path}`}
+                  alt={cell.movie.title || cell.movie.name}
+                  className="w-full h-full object-cover pointer-events-none select-none"
+                  loading="lazy"
+                />
+              </div>
+            );
+          })
         )}
       </div>
 
@@ -493,6 +585,7 @@ export const MovieDome: React.FC<MovieDomeProps> = ({ apiKey, onMovieClick, onCl
           <React.Fragment key={cat}>
             {idx > 0 && <span className="text-[10px] text-zinc-600 select-none">•</span>}
             <button
+              id={`multiverse-category-${cat.toLowerCase().replace(/\s+/g, '-')}`}
               onClick={() => setActiveCategory(cat)}
               className={`text-xs font-semibold tracking-wide transition-all duration-300 active:scale-90 ${
                 activeCategory === cat 
