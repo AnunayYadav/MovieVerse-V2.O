@@ -22,10 +22,12 @@ export const MovieDome: React.FC<MovieDomeProps> = ({ apiKey, onMovieClick, onCl
   
   // Dimensions & Grid Configuration
   const [dimensions, setDimensions] = useState({ width: 1200, height: 800 });
-  const [gridConfig, setGridConfig] = useState({ cols: 70, rows: 40 });
+  const [gridConfig, setGridConfig] = useState({ cols: 76, rows: 33 });
 
   // Pre-cached element references for direct DOM manipulation (high performance)
   const elementRefs = useRef<(HTMLDivElement | null)[]>([]);
+  // Keep track of modified elements to optimize performance
+  const modifiedRefs = useRef<boolean[]>([]);
 
   // Panning and Dragging Refs (performance optimization: no React renders on drag)
   const panRef = useRef({ x: 0, y: 0 });
@@ -43,8 +45,9 @@ export const MovieDome: React.FC<MovieDomeProps> = ({ apiKey, onMovieClick, onCl
       setDimensions({ width: w, height: h });
 
       // Determine spacing (density) of posters (smaller spacing = higher density)
-      const posterW = w < 768 ? 22 : 30;
-      const posterH = w < 768 ? 33 : 45;
+      // To prevent gaps in the background, cells touch edge-to-edge
+      const posterW = w < 768 ? 20 : 28;
+      const posterH = w < 768 ? 30 : 42;
 
       // Add a 8-column/row padding to allow toroidal wrapping without visible popping
       const cols = Math.ceil(w / posterW) + 8;
@@ -171,6 +174,7 @@ export const MovieDome: React.FC<MovieDomeProps> = ({ apiKey, onMovieClick, onCl
   // 4. Tile movies to fill the grid config (pseudo-randomly distributed to avoid row/col repetition)
   const cells = useMemo(() => {
     elementRefs.current = []; // Clear cached DOM elements when grid changes
+    modifiedRefs.current = []; // Clear modified tracking flags when grid changes
     if (movies.length === 0) return [];
     const totalCells = gridConfig.cols * gridConfig.rows;
     const result = [];
@@ -202,12 +206,14 @@ export const MovieDome: React.FC<MovieDomeProps> = ({ apiKey, onMovieClick, onCl
       let minDistance = Infinity;
 
       const isMobile = window.innerWidth < 768;
-      const baseScale = isMobile ? 0.45 : 0.35;
-      const maxScale = isMobile ? 6.5 : 5.0;
-      const baseOpacity = 0.25;
-      const maxOpacity = 1.0;
-      const lensRadius = isMobile ? 160 : 280;
-      const maxTilt = 30; // degrees
+      const baseScale = 1.0; // Touch edge-to-edge in background (no gaps)
+      const baseOpacity = 0.5; // Visible background posters
+      const lensRadius = isMobile ? 150 : 265;
+      const maxTilt = 28; // degrees
+
+      const k = 4.0; // Distortion factor
+      const maxSpeed = k + 1; // 5.0
+      const minSpeed = 1 / (k + 1); // 0.2
 
       const len = cells.length;
       for (let i = 0; i < len; i++) {
@@ -222,7 +228,6 @@ export const MovieDome: React.FC<MovieDomeProps> = ({ apiKey, onMovieClick, onCl
         const xWrapped = ((xBase + px) % wrapWidth + wrapWidth) % wrapWidth - 4 * cellWidth;
         const yWrapped = ((yBase + py) % wrapHeight + wrapHeight) % wrapHeight - 4 * cellHeight;
 
-        // Position rest center relative to grid container
         const cx = xWrapped + cellWidth / 2;
         const cy = yWrapped + cellHeight / 2;
 
@@ -235,41 +240,45 @@ export const MovieDome: React.FC<MovieDomeProps> = ({ apiKey, onMovieClick, onCl
         let scale = baseScale;
         let opacity = baseOpacity;
         let zIndex = 2;
-        let filter = 'grayscale(35%) brightness(0.4)';
+        let filter = 'grayscale(20%) brightness(0.65)';
         let borderRadius = '50%';
         let angleX = 0;
         let angleY = 0;
         let translateZ = 0;
 
-        // Disable transitions during active tracking for instant, lag-free responsiveness
-        child.style.transition = 'none';
+        const insideLens = dist < lensRadius;
 
-        if (dist < lensRadius) {
+        if (insideLens) {
+          modifiedRefs.current[i] = true;
           const t = dist / lensRadius; // 0 (center) to 1 (edge)
 
-          // 1. Spacing expansion (spherical power warp) to push cells outward
+          // 1. Spacing expansion speed and warped distance
+          const speed = (k + 1) / Math.pow(k * t + 1, 2);
+          const tWarped = ((k + 1) * t) / (k * t + 1);
+          const warpedDist = lensRadius * tWarped;
+
           const d = dist || 0.001;
-          const warpedDist = lensRadius * Math.pow(d / lensRadius, 0.45);
           txWarp = (dx / d) * (warpedDist - d);
           tyWarp = (dy / d) * (warpedDist - d);
 
-          // 2. Magnification (bell curve)
-          scale = baseScale + (maxScale - baseScale) * Math.pow(1 - t, 2.0);
+          // 2. Magnification locked to spacing speed (scale ranges from 1.0 to 5.0)
+          const normSpeed = (speed - minSpeed) / (maxSpeed - minSpeed);
+          scale = 1.0 + 4.0 * normSpeed; // scale goes from 1.0 to 5.0
 
           // 3. 3D Spherical rotation (tilt outward from cursor)
-          angleY = (dx / lensRadius) * maxTilt * Math.pow(1 - t, 1.5);
-          angleX = -(dy / lensRadius) * maxTilt * Math.pow(1 - t, 1.5);
+          angleY = (dx / lensRadius) * maxTilt * Math.pow(1 - t, 1.2);
+          angleX = -(dy / lensRadius) * maxTilt * Math.pow(1 - t, 1.2);
 
           // 4. Z-axis elevation (pulling active cells closer to screen)
-          translateZ = (1 - t) * 150;
+          translateZ = Math.pow(1 - t, 1.2) * 120;
 
           // 5. Dynamic Shape Morphing: Circle (50%) -> Capsule/Rounded Rect (12px)
           borderRadius = `calc(${50 * t}% + ${12 * (1 - t)}px)`;
 
-          // 6. Highlight and focus filters
-          opacity = baseOpacity + (maxOpacity - baseOpacity) * Math.pow(1 - t, 1.5);
-          const grayscale = 35 * t;
-          const brightness = 0.35 + 0.75 * (1 - t);
+          // 6. Focus filters & opacity
+          opacity = baseOpacity + 0.5 * Math.pow(1 - t, 1.5);
+          const grayscale = 20 * t;
+          const brightness = 0.65 + 0.5 * (1 - t);
           filter = `grayscale(${grayscale}%) brightness(${brightness}) contrast(${1 + 0.1 * (1 - t)})`;
           zIndex = Math.round((1 - t) * 100) + 10;
 
@@ -282,15 +291,27 @@ export const MovieDome: React.FC<MovieDomeProps> = ({ apiKey, onMovieClick, onCl
           borderRadius = '50%';
         }
 
-        // Combined GPU-accelerated 3D transforms
-        const txTotal = (xWrapped - xBase) + txWarp;
-        const tyTotal = (yWrapped - yBase) + tyWarp;
+        // Apply style update if it's inside the lens, or if it was modified in the previous frame
+        // If it's outside the lens and was not modified, we skip it entirely! (High performance)
+        if (insideLens || modifiedRefs.current[i] || isDraggingRef.current) {
+          const txTotal = (xWrapped - xBase) + txWarp;
+          const tyTotal = (yWrapped - yBase) + tyWarp;
 
-        child.style.transform = `translate3d(${txTotal}px, ${tyTotal}px, ${translateZ}px) scale(${scale}) rotateX(${angleX}deg) rotateY(${angleY}deg)`;
-        child.style.opacity = `${opacity}`;
-        child.style.filter = filter;
-        child.style.zIndex = `${zIndex}`;
-        child.style.borderRadius = borderRadius;
+          // Disable transitions during active tracking for instant, lag-free responsiveness
+          child.style.transition = 'none';
+          
+          // Combined GPU-accelerated local perspective 3D transforms
+          child.style.transform = `perspective(400px) translate3d(${txTotal}px, ${tyTotal}px, ${translateZ}px) scale(${scale}) rotateX(${angleX}deg) rotateY(${angleY}deg)`;
+          child.style.opacity = `${opacity}`;
+          child.style.filter = filter;
+          child.style.zIndex = `${zIndex}`;
+          child.style.borderRadius = borderRadius;
+
+          // If we just reset a modified cell back to the background state, mark it as no longer modified
+          if (!insideLens) {
+            modifiedRefs.current[i] = false;
+          }
+        }
       }
 
       // Throttle React state change for the details panel
@@ -387,9 +408,8 @@ export const MovieDome: React.FC<MovieDomeProps> = ({ apiKey, onMovieClick, onCl
     lastClosestIdRef.current = null;
     
     requestAnimationFrame(() => {
-      const isMobile = window.innerWidth < 768;
-      const baseScale = isMobile ? 0.45 : 0.35;
-      const baseOpacity = 0.25;
+      const baseScale = 1.0;
+      const baseOpacity = 0.5;
 
       const px = panRef.current.x;
       const py = panRef.current.y;
@@ -411,11 +431,13 @@ export const MovieDome: React.FC<MovieDomeProps> = ({ apiKey, onMovieClick, onCl
 
         // Apply smooth transition when resetting back to original state
         child.style.transition = 'transform 0.6s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.6s, filter 0.6s, border-radius 0.6s';
-        child.style.transform = `translate3d(${txTotal}px, ${tyTotal}px, 0px) scale(${baseScale}) rotateX(0deg) rotateY(0deg)`;
+        child.style.transform = `perspective(400px) translate3d(${txTotal}px, ${tyTotal}px, 0px) scale(${baseScale}) rotateX(0deg) rotateY(0deg)`;
         child.style.opacity = `${baseOpacity}`;
-        child.style.filter = 'grayscale(35%) brightness(0.4)';
+        child.style.filter = 'grayscale(20%) brightness(0.65)';
         child.style.borderRadius = '50%';
         child.style.zIndex = '1';
+
+        modifiedRefs.current[i] = false; // Reset modified tracking
       }
     });
   };
@@ -514,8 +536,7 @@ export const MovieDome: React.FC<MovieDomeProps> = ({ apiKey, onMovieClick, onCl
           </div>
         ) : (
           cells.map((cell) => {
-            const isMobile = window.innerWidth < 768;
-            const baseScale = isMobile ? 0.45 : 0.35;
+            const baseScale = 1.0;
             return (
               <div
                 key={cell.id}
@@ -528,10 +549,10 @@ export const MovieDome: React.FC<MovieDomeProps> = ({ apiKey, onMovieClick, onCl
                   height: cellHeight,
                   left: cell.col * cellWidth,
                   top: cell.row * cellHeight,
-                  transform: `translate3d(0px, 0px, 0px) scale(${baseScale})`,
-                  opacity: 0.25,
+                  transform: `perspective(400px) translate3d(0px, 0px, 0px) scale(${baseScale}) rotateX(0deg) rotateY(0deg)`,
+                  opacity: 0.5,
                   borderRadius: '50%',
-                  filter: 'grayscale(35%) brightness(0.4)',
+                  filter: 'grayscale(20%) brightness(0.65)',
                   transition: 'transform 0.6s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.6s, filter 0.6s, border-radius 0.6s',
                 }}
               >
