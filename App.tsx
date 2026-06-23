@@ -1253,7 +1253,7 @@ export default function App() {
                 return preferred;
             }
         }
-        return 'peachify';
+        return 'vidfast';
     });
     const [isWatchPartyJoinOpen, setIsWatchPartyJoinOpen] = useState(false);
     const [joinRoomCode, setJoinRoomCode] = useState('');
@@ -1405,7 +1405,7 @@ export default function App() {
                 try {
                     const room = await getWatchPartyRoom(roomId);
                     if (room) {
-                        watchPartyRoomId = roomId;
+                        watchPartyRoomId = room.id;
                         setWatchPartyHostId(room.host_id);
                         setWatchPartyParams({ season: room.season || 1, episode: room.episode || 1 });
                         if (room.movie_id) {
@@ -2107,7 +2107,7 @@ export default function App() {
             setWatchPartyPlayerState('play');
             const preferred = localStorage.getItem('movieverse_preferred_provider') || 'peachify';
             const prov = PROVIDERS.find(p => p.id === preferred);
-            setWatchPartyProviderId(prov && prov.supportsPostMessage ? preferred : 'peachify');
+            setWatchPartyProviderId(prov && prov.supportsPostMessage ? preferred : 'vidfast');
             setSelectedMovie(null); // Close Details modal
         }
     };
@@ -2155,7 +2155,7 @@ export default function App() {
             setWatchPartyPlayerState(room.is_playing === false ? 'pause' : 'play');
             const preferred = localStorage.getItem('movieverse_preferred_provider') || 'peachify';
             const prov = PROVIDERS.find(p => p.id === preferred);
-            setWatchPartyProviderId(prov && prov.supportsPostMessage ? preferred : 'peachify');
+            setWatchPartyProviderId(prov && prov.supportsPostMessage ? preferred : 'vidfast');
 
             setIsWatchPartyJoinOpen(false);
             setJoinRoomCode('');
@@ -3610,7 +3610,7 @@ export default function App() {
                                 />
                             </div>
                             <div className={`transition-all duration-500 ${isWatchPartyImmersive
-                                    ? 'absolute right-4 top-4 bottom-4 w-72 sm:w-80 z-50 rounded-2xl overflow-hidden border border-white/10 shadow-2xl opacity-40 hover:opacity-100'
+                                    ? 'absolute right-4 top-4 bottom-4 w-72 sm:w-80 z-50 rounded-2xl overflow-hidden border-none shadow-none opacity-40 hover:opacity-100'
                                     : 'w-full lg:w-80 shrink-0 h-[calc(100vh-4rem-56.25vw)] lg:h-full border-t lg:border-t-0 border-white/10'
                                 }`}>
                                 <WatchPartySection

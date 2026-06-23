@@ -271,12 +271,12 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
       if (isWatchParty) {
         const prov = PROVIDERS.find(p => p.id === preferred);
         if (!prov || !prov.supportsPostMessage) {
-          return 'peachify'; // Fallback default for Watch Party
+          return 'vidfast'; // Fallback default for Watch Party
         }
       }
       return preferred;
     }
-    return isWatchParty ? 'peachify' : 'videasy';
+    return isWatchParty ? 'vidfast' : 'videasy';
   });
 
   useEffect(() => {

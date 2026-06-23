@@ -142,8 +142,8 @@ export const WatchPartySection: React.FC<WatchPartySectionProps> = ({
   useEffect(() => {
     if (!supabaseClient || !roomCode) return;
 
-    // Create the channel using stable key
-    const channel = supabaseClient.channel(`watch_party:${roomCode}`, {
+    // Create the channel using stable key (normalize code to uppercase)
+    const channel = supabaseClient.channel(`watch_party:${roomCode.toUpperCase()}`, {
       config: {
         presence: {
           key: presenceKeyRef.current,
@@ -577,121 +577,136 @@ export const WatchPartySection: React.FC<WatchPartySectionProps> = ({
   return (
     <div className={`w-full h-full flex flex-col select-none transition-all duration-300 ${
         isImmersive 
-            ? 'bg-[#09090b]/50 backdrop-blur-xl rounded-2xl border border-white/10 shadow-[0_0_50px_rgba(0,0,0,0.8)]' 
+            ? 'bg-transparent border-none shadow-none' 
             : 'bg-[#09090b]/90 backdrop-blur-md border-l border-white/10 shadow-2xl'
     }`}>
       
-      {/* Header Info */}
-      <div className="p-5 border-b border-white/5 bg-gradient-to-b from-white/[0.02] to-transparent flex flex-col gap-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
-            </span>
-            <h3 className="font-black text-white text-xs tracking-widest uppercase bg-gradient-to-r from-white to-zinc-400 bg-clip-text text-transparent">Watch Party</h3>
-          </div>
-          <div className="flex items-center gap-2">
-            {onToggleImmersive && (
+      {/* Header Info or Immersive Minimize Button */}
+      {isImmersive ? (
+        <div className="flex justify-end p-2 mb-1">
+          <button 
+            type="button"
+            onClick={onToggleImmersive}
+            className="p-2 bg-black/60 hover:bg-black/80 border border-white/10 rounded-xl text-zinc-400 hover:text-white transition-all active:scale-90 shadow-md backdrop-blur-md cursor-pointer"
+            title="Exit Immersive View"
+          >
+            <Minimize2 size={16} />
+          </button>
+        </div>
+      ) : (
+        <div className="p-5 border-b border-white/5 bg-gradient-to-b from-white/[0.02] to-transparent flex flex-col gap-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+              </span>
+              <h3 className="font-black text-white text-xs tracking-widest uppercase bg-gradient-to-r from-white to-zinc-400 bg-clip-text text-transparent">Watch Party</h3>
+            </div>
+            <div className="flex items-center gap-2">
+              {onToggleImmersive && (
+                <button 
+                  type="button"
+                  onClick={onToggleImmersive}
+                  className="p-2 hover:bg-white/10 rounded-xl text-zinc-400 hover:text-white transition-all active:scale-90"
+                  title={isImmersive ? "Exit Immersive View" : "Immersive View"}
+                >
+                  {isImmersive ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
+                </button>
+              )}
               <button 
-                type="button"
-                onClick={onToggleImmersive}
-                className="p-2 hover:bg-white/10 rounded-xl text-zinc-400 hover:text-white transition-all active:scale-90"
-                title={isImmersive ? "Exit Immersive View" : "Immersive View"}
+                onClick={onLeaveParty}
+                className="flex items-center gap-1.5 bg-red-500/10 hover:bg-red-500 border border-red-500/20 hover:border-red-500 hover:shadow-[0_0_15px_rgba(239,68,68,0.4)] text-red-400 hover:text-white px-3.5 py-1.5 rounded-xl text-xs font-black tracking-wide transition-all duration-300 active:scale-95"
               >
-                {isImmersive ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
+                <LogOut size={11}/> Leave
               </button>
-            )}
+            </div>
+          </div>
+
+          {/* Room Code */}
+          <div className="flex items-center justify-between bg-purple-950/10 border border-purple-500/20 p-3.5 rounded-2xl shadow-[0_0_20px_rgba(168,85,247,0.03)] hover:border-purple-500/30 transition-all duration-300">
+            <div className="flex flex-col">
+              <span className="text-[9px] font-black text-zinc-500 uppercase tracking-widest leading-none mb-1">Room Code</span>
+              <span className="text-lg font-black tracking-wider leading-none bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">{roomCode}</span>
+            </div>
             <button 
-              onClick={onLeaveParty}
-              className="flex items-center gap-1.5 bg-red-500/10 hover:bg-red-500 border border-red-500/20 hover:border-red-500 hover:shadow-[0_0_15px_rgba(239,68,68,0.4)] text-red-400 hover:text-white px-3.5 py-1.5 rounded-xl text-xs font-black tracking-wide transition-all duration-300 active:scale-95"
+              onClick={handleCopyCode} 
+              className="p-2 hover:bg-white/10 rounded-xl text-zinc-400 hover:text-white transition-all active:scale-95"
+              title="Copy Code"
             >
-              <LogOut size={11}/> Leave
+              {copied ? <Check size={15} className="text-green-400" /> : <Copy size={15} />}
             </button>
           </div>
-        </div>
 
-        {/* Room Code */}
-        <div className="flex items-center justify-between bg-purple-950/10 border border-purple-500/20 p-3.5 rounded-2xl shadow-[0_0_20px_rgba(168,85,247,0.03)] hover:border-purple-500/30 transition-all duration-300">
-          <div className="flex flex-col">
-            <span className="text-[9px] font-black text-zinc-500 uppercase tracking-widest leading-none mb-1">Room Code</span>
-            <span className="text-lg font-black tracking-wider leading-none bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">{roomCode}</span>
+          {/* Provider Selector */}
+          <div className="relative flex flex-col gap-1.5" ref={providerDropdownRef}>
+            <span className="text-[9px] font-black text-zinc-500 uppercase tracking-widest leading-none mb-0.5 flex items-center gap-1">
+              <Tv size={10} className="text-purple-400" /> Active Provider
+            </span>
+            <button
+              type="button"
+              onClick={() => setIsProviderDropdownOpen(!isProviderDropdownOpen)}
+              className="flex items-center justify-between w-full h-10 px-4 bg-white/[0.03] hover:bg-white/[0.07] border border-white/10 rounded-xl text-xs font-black text-zinc-300 hover:text-white transition-all duration-300 active:scale-[0.98] cursor-pointer shadow-md"
+            >
+              <span className="capitalize">{PROVIDERS.find(p => p.id === selectedProviderId)?.name || selectedProviderId}</span>
+              <ChevronDown size={14} className={`text-zinc-400 transition-transform duration-300 ${isProviderDropdownOpen ? 'rotate-180' : ''}`} />
+            </button>
+            {isProviderDropdownOpen && (
+              <div className="absolute left-0 right-0 top-full mt-2 bg-[#09090b]/98 backdrop-blur-2xl border border-white/10 rounded-xl shadow-[0_10px_30px_rgba(0,0,0,0.5)] py-1.5 z-50 animate-in fade-in slide-in-from-top-2 duration-200">
+                {PROVIDERS.filter(p => p.supportsPostMessage).map((prov) => (
+                  <button
+                    key={prov.id}
+                    type="button"
+                    onClick={() => {
+                      onProviderChange(prov.id);
+                      setIsProviderDropdownOpen(false);
+                    }}
+                    className="w-full text-left px-4 py-2.5 text-xs font-bold text-zinc-300 hover:text-white hover:bg-white/10 transition-colors flex items-center justify-between cursor-pointer"
+                  >
+                    <span>{prov.name}</span>
+                    {selectedProviderId === prov.id && <Check size={12} className="text-purple-500" />}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
-          <button 
-            onClick={handleCopyCode} 
-            className="p-2 hover:bg-white/10 rounded-xl text-zinc-400 hover:text-white transition-all active:scale-95"
-            title="Copy Code"
-          >
-            {copied ? <Check size={15} className="text-green-400" /> : <Copy size={15} />}
-          </button>
-        </div>
 
-        {/* Provider Selector */}
-        <div className="relative flex flex-col gap-1.5" ref={providerDropdownRef}>
-          <span className="text-[9px] font-black text-zinc-500 uppercase tracking-widest leading-none mb-0.5 flex items-center gap-1">
-            <Tv size={10} className="text-purple-400" /> Active Provider
-          </span>
-          <button
-            type="button"
-            onClick={() => setIsProviderDropdownOpen(!isProviderDropdownOpen)}
-            className="flex items-center justify-between w-full h-10 px-4 bg-white/[0.03] hover:bg-white/[0.07] border border-white/10 rounded-xl text-xs font-black text-zinc-300 hover:text-white transition-all duration-300 active:scale-[0.98] cursor-pointer shadow-md"
-          >
-            <span className="capitalize">{PROVIDERS.find(p => p.id === selectedProviderId)?.name || selectedProviderId}</span>
-            <ChevronDown size={14} className={`text-zinc-400 transition-transform duration-300 ${isProviderDropdownOpen ? 'rotate-180' : ''}`} />
-          </button>
-          {isProviderDropdownOpen && (
-            <div className="absolute left-0 right-0 top-full mt-2 bg-[#09090b]/98 backdrop-blur-2xl border border-white/10 rounded-xl shadow-[0_10px_30px_rgba(0,0,0,0.5)] py-1.5 z-50 animate-in fade-in slide-in-from-top-2 duration-200">
-              {PROVIDERS.filter(p => p.supportsPostMessage).map((prov) => (
-                <button
-                  key={prov.id}
-                  type="button"
-                  onClick={() => {
-                    onProviderChange(prov.id);
-                    setIsProviderDropdownOpen(false);
-                  }}
-                  className="w-full text-left px-4 py-2.5 text-xs font-bold text-zinc-300 hover:text-white hover:bg-white/10 transition-colors flex items-center justify-between cursor-pointer"
-                >
-                  <span>{prov.name}</span>
-                  {selectedProviderId === prov.id && <Check size={12} className="text-purple-500" />}
-                </button>
-              ))}
-            </div>
+          {/* Drift / Sync Button (guests only) */}
+          {!isHost && showSyncButton && (
+            <button
+              onClick={handleManualSync}
+              className="flex items-center justify-center gap-2 w-full py-3 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 hover:shadow-[0_0_20px_rgba(168,85,247,0.3)] text-white border border-purple-500/30 rounded-xl text-xs font-black transition-all active:scale-[0.98] animate-in fade-in slide-in-from-top-2 duration-300 shadow-lg shadow-purple-500/10"
+            >
+              <RefreshCw size={13} className="animate-spin-slow" />
+              <span>Sync to Host — {getDriftLabel()}</span>
+            </button>
           )}
         </div>
-
-        {/* Drift / Sync Button (guests only) */}
-        {!isHost && showSyncButton && (
-          <button
-            onClick={handleManualSync}
-            className="flex items-center justify-center gap-2 w-full py-3 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 hover:shadow-[0_0_20px_rgba(168,85,247,0.3)] text-white border border-purple-500/30 rounded-xl text-xs font-black transition-all active:scale-[0.98] animate-in fade-in slide-in-from-top-2 duration-300 shadow-lg shadow-purple-500/10"
-          >
-            <RefreshCw size={13} className="animate-spin-slow" />
-            <span>Sync to Host — {getDriftLabel()}</span>
-          </button>
-        )}
-
-
-      </div>
+      )}
 
       {/* Tabs Menu */}
-      <div className="flex border-b border-white/5 bg-white/[0.01]">
-        <button 
-          onClick={() => setActiveTab('chat')}
-          className={`flex-1 py-3.5 text-xs font-black tracking-widest uppercase border-b-2 transition-all flex items-center justify-center gap-2 relative ${activeTab === 'chat' ? 'text-white border-purple-500 bg-white/[0.02]' : 'text-zinc-500 border-transparent hover:text-zinc-300'}`}
-        >
-          <MessageSquare size={14}/> Chat
-        </button>
-        <button 
-          onClick={() => setActiveTab('people')}
-          className={`flex-1 py-3.5 text-xs font-black tracking-widest uppercase border-b-2 transition-all flex items-center justify-center gap-2 relative ${activeTab === 'people' ? 'text-white border-purple-500 bg-white/[0.02]' : 'text-zinc-500 border-transparent hover:text-zinc-300'}`}
-        >
-          <Users size={14}/> People ({participants.length})
-        </button>
-      </div>
+      {!isImmersive && (
+        <div className="flex border-b border-white/5 bg-white/[0.01]">
+          <button 
+            onClick={() => setActiveTab('chat')}
+            className={`flex-1 py-3.5 text-xs font-black tracking-widest uppercase border-b-2 transition-all flex items-center justify-center gap-2 relative ${activeTab === 'chat' ? 'text-white border-purple-500 bg-white/[0.02]' : 'text-zinc-500 border-transparent hover:text-zinc-300'}`}
+          >
+            <MessageSquare size={14}/> Chat
+          </button>
+          <button 
+            onClick={() => setActiveTab('people')}
+            className={`flex-1 py-3.5 text-xs font-black tracking-widest uppercase border-b-2 transition-all flex items-center justify-center gap-2 relative ${activeTab === 'people' ? 'text-white border-purple-500 bg-white/[0.02]' : 'text-zinc-500 border-transparent hover:text-zinc-300'}`}
+          >
+            <Users size={14}/> People ({participants.length})
+          </button>
+        </div>
+      )}
 
       {/* Tab Contents */}
-      <div className="flex-1 overflow-y-auto custom-scrollbar p-4 min-h-0 bg-[#070709]/20">
-        {activeTab === 'chat' ? (
+      <div className={`flex-1 overflow-y-auto custom-scrollbar p-4 min-h-0 ${
+        isImmersive ? 'bg-transparent' : 'bg-[#070709]/20'
+      }`}>
+        {activeTab === 'chat' || isImmersive ? (
           <div className="space-y-3 flex flex-col h-full justify-between">
             <div className="space-y-3.5 overflow-y-auto pr-1 flex-1">
               {messages.length === 0 ? (
@@ -707,11 +722,19 @@ export const WatchPartySection: React.FC<WatchPartySectionProps> = ({
                       className={`flex flex-col max-w-[85%] ${isSys ? 'mx-auto w-full text-center items-center' : ''}`}
                     >
                       {isSys ? (
-                        <span className="text-[10px] text-purple-400 font-bold bg-purple-500/10 border border-purple-500/20 px-3.5 py-1.5 rounded-full my-1.5 leading-relaxed shadow-[0_0_10px_rgba(168,85,247,0.05)]">
+                        <span className={`text-[10px] font-bold px-3.5 py-1.5 rounded-full my-1.5 leading-relaxed shadow-[0_0_10px_rgba(168,85,247,0.05)] transition-all ${
+                          isImmersive
+                            ? 'bg-black/60 border border-purple-500/30 text-purple-400 backdrop-blur-md shadow-lg'
+                            : 'bg-purple-500/10 border border-purple-500/20 text-purple-400'
+                        }`}>
                           {msg.text}
                         </span>
                       ) : (
-                        <div className="bg-white/[0.03] border border-white/5 rounded-2xl px-4 py-2.5 shadow-sm hover:border-purple-500/10 hover:bg-white/[0.05] transition-all duration-300">
+                        <div className={`rounded-2xl px-4 py-2.5 shadow-sm transition-all duration-300 ${
+                          isImmersive 
+                            ? 'bg-black/60 border border-white/10 backdrop-blur-md hover:border-purple-500/30 hover:bg-black/80 shadow-lg shadow-black/40' 
+                            : 'bg-white/[0.03] border border-white/5 hover:border-purple-500/10 hover:bg-white/[0.05]'
+                        }`}>
                           <span className="text-[10px] font-black text-purple-400 mb-1 block tracking-wide">{msg.sender}</span>
                           <p className="text-xs text-zinc-200 leading-relaxed font-light">{msg.text}</p>
                         </div>
@@ -727,7 +750,7 @@ export const WatchPartySection: React.FC<WatchPartySectionProps> = ({
           /* Participant list */
           <div className="space-y-3">
             {participants.map(part => {
-              const partIsHost = part.id === hostId;
+              const partIsHost = part.id === hostId || (hostId && part.id.startsWith(hostId + '-'));
               return (
                 <div 
                   key={part.id} 
@@ -750,19 +773,27 @@ export const WatchPartySection: React.FC<WatchPartySectionProps> = ({
       </div>
 
       {/* Chat Form */}
-      {activeTab === 'chat' && (
-        <form onSubmit={handleSendMessage} className="p-4 border-t border-white/5 bg-[#09090b]/90 backdrop-blur-md flex gap-2">
+      {(activeTab === 'chat' || isImmersive) && (
+        <form onSubmit={handleSendMessage} className={`p-4 flex gap-2 transition-all ${
+          isImmersive 
+            ? 'border-t border-transparent bg-transparent' 
+            : 'border-t border-white/5 bg-[#09090b]/90 backdrop-blur-md'
+        }`}>
           <input
             type="text"
             required
             value={inputText}
             onChange={e => setInputText(e.target.value)}
             placeholder="Type a message..."
-            className="flex-1 h-11 bg-white/[0.02] focus:bg-white/[0.05] border border-white/10 focus:border-purple-500/50 rounded-xl px-4 text-xs text-white focus:outline-none focus:ring-2 focus:ring-purple-500/20 transition-all shadow-inner"
+            className={`flex-1 h-11 border rounded-xl px-4 text-xs text-white focus:outline-none focus:ring-2 focus:ring-purple-500/20 transition-all shadow-inner ${
+              isImmersive 
+                ? 'bg-black/60 focus:bg-black/80 border-white/10 focus:border-purple-500/50 backdrop-blur-md' 
+                : 'bg-white/[0.02] focus:bg-white/[0.05] border-white/10 focus:border-purple-500/50'
+            }`}
           />
           <button
             type="submit"
-            className="w-11 h-11 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white rounded-xl flex items-center justify-center active:scale-95 transition-all duration-300 shadow-lg shadow-purple-500/20 hover:shadow-purple-500/30 shrink-0"
+            className="w-11 h-11 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white rounded-xl flex items-center justify-center active:scale-95 transition-all duration-300 shadow-lg shadow-purple-500/20 hover:shadow-purple-500/30 shrink-0 cursor-pointer"
           >
             <Send size={14} />
           </button>
