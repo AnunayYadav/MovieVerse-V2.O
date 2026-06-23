@@ -91,12 +91,13 @@ export default function AppTV({
 
   if (isPlayerOpen && selectedMovie) {
     const isTvShow = selectedMovie.media_type === 'tv' || (!selectedMovie.release_date && selectedMovie.first_air_date);
+    const isAnime = !!((selectedMovie.genre_ids?.includes(16) || selectedMovie.genres?.some((g: any) => g.id === 16)) && selectedMovie.original_language === 'ja');
     return (
       <div className="fixed inset-0 z-[9999] bg-black w-screen h-screen">
         <MoviePlayer
           tmdbId={selectedMovie.id}
           mediaType={isTvShow ? 'tv' : 'movie'}
-          isAnime={false}
+          isAnime={isAnime}
           initialSeason={playerSeason}
           initialEpisode={playerEpisode}
           apiKey={apiKey}

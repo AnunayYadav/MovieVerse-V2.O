@@ -27,8 +27,8 @@ interface MoviePlayerProps {
 export interface Provider {
   id: string;
   name: string;
-  getMovieUrl: (tmdbId: number, color: string, progress?: number) => string;
-  getTvUrl: (tmdbId: number, season: number, episode: number, color: string, progress?: number) => string;
+  getMovieUrl: (tmdbId: number, color: string, progress?: number, isAnime?: boolean, anilistId?: number | null, animeLanguage?: string) => string;
+  getTvUrl: (tmdbId: number, season: number, episode: number, color: string, progress?: number, isAnime?: boolean, anilistId?: number | null, animeLanguage?: string) => string;
   supportsPostMessage: boolean;
 }
 
@@ -89,10 +89,27 @@ export const PROVIDERS: Provider[] = [
   {
     id: 'vidnest',
     name: 'VidNest',
-    getMovieUrl: (tmdbId, color, progress) => 
-      `https://vidnest.fun/movie/${tmdbId}${progress && progress > 0 ? `?startAt=${Math.floor(progress)}` : ''}`,
-    getTvUrl: (tmdbId, season, episode, color, progress) => 
-      `https://vidnest.fun/tv/${tmdbId}/${season}/${episode}${progress && progress > 0 ? `?progress=${Math.floor(progress)}` : ''}`,
+    getMovieUrl: (tmdbId, color, progress, isAnime, anilistId, animeLanguage = 'sub') => 
+      isAnime && anilistId
+        ? `https://vidnest.fun/anime/${anilistId}/1/${animeLanguage}`
+        : `https://vidnest.fun/movie/${tmdbId}${progress && progress > 0 ? `?startAt=${Math.floor(progress)}` : ''}`,
+    getTvUrl: (tmdbId, season, episode, color, progress, isAnime, anilistId, animeLanguage = 'sub') => 
+      isAnime && anilistId
+        ? `https://vidnest.fun/anime/${anilistId}/${episode}/${animeLanguage}`
+        : `https://vidnest.fun/tv/${tmdbId}/${season}/${episode}${progress && progress > 0 ? `?progress=${Math.floor(progress)}` : ''}`,
+    supportsPostMessage: true
+  },
+  {
+    id: 'vidnest_animepahe',
+    name: 'VidNest AnimePahe',
+    getMovieUrl: (tmdbId, color, progress, isAnime, anilistId, animeLanguage = 'sub') => 
+      isAnime && anilistId
+        ? `https://vidnest.fun/animepahe/${anilistId}/1/${animeLanguage}`
+        : `https://vidnest.fun/movie/${tmdbId}${progress && progress > 0 ? `?startAt=${Math.floor(progress)}` : ''}`,
+    getTvUrl: (tmdbId, season, episode, color, progress, isAnime, anilistId, animeLanguage = 'sub') => 
+      isAnime && anilistId
+        ? `https://vidnest.fun/animepahe/${anilistId}/${episode}/${animeLanguage}`
+        : `https://vidnest.fun/tv/${tmdbId}/${season}/${episode}${progress && progress > 0 ? `?progress=${Math.floor(progress)}` : ''}`,
     supportsPostMessage: true
   },
   {
@@ -149,6 +166,61 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   const [episodes, setEpisodes] = useState<any[]>([]);
   const [episodesLoading, setEpisodesLoading] = useState(false);
   const [isSeasonDropdownOpen, setIsSeasonDropdownOpen] = useState(false);
+
+  const [anilistId, setAnilistId] = useState<number | null>(null);
+  const [anilistLoading, setAnilistLoading] = useState(false);
+  const [animeLanguage, setAnimeLanguage] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('movieverse_anime_language') || 'sub';
+    }
+    return 'sub';
+  });
+
+  useEffect(() => {
+    if (!isAnime || !title) {
+      setAnilistId(null);
+      return;
+    }
+
+    const cacheKey = `movieverse_anilist_map_${tmdbId}`;
+    const cachedId = localStorage.getItem(cacheKey);
+    if (cachedId) {
+      setAnilistId(parseInt(cachedId, 10));
+      return;
+    }
+
+    setAnilistLoading(true);
+    const cleanTitle = title.replace(/\s*\(?(Dub|Sub|TV|Movie|uncensored|censored)\)?\s*$/i, '').trim();
+    fetch('https://graphql.anilist.co', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        query: `
+          query ($search: String) {
+            Media(search: $search, type: ANIME) {
+              id
+            }
+          }
+        `,
+        variables: { search: cleanTitle }
+      })
+    })
+      .then(res => res.json())
+      .then(json => {
+        const id = json?.data?.Media?.id;
+        if (id) {
+          localStorage.setItem(cacheKey, id.toString());
+          setAnilistId(id);
+        } else {
+          console.warn(`Could not find AniList ID for title: "${cleanTitle}"`);
+        }
+        setAnilistLoading(false);
+      })
+      .catch(err => {
+        console.error("Error fetching AniList mapping:", err);
+        setAnilistLoading(false);
+      });
+  }, [tmdbId, isAnime, title]);
 
   useEffect(() => {
     setCurrentSeason(initialSeason);
@@ -297,6 +369,8 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   const currentProgressRef = useRef<number>(forceProgress || 0);
   const lastEpisodeKeyRef = useRef<string | null>(null);
   const lastProviderRef = useRef<string | null>(null);
+  const lastAnimeLanguageRef = useRef<string>(animeLanguage);
+  const lastAnilistIdRef = useRef<number | null>(anilistId);
 
   useEffect(() => {
     const isTvShow = mediaType === 'tv' || (isAnime && mediaType !== 'movie');
@@ -313,12 +387,19 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
       shouldUpdateUrl = true;
       lastEpisodeKeyRef.current = episodeKey;
       lastProviderRef.current = selectedProviderId;
+      lastAnimeLanguageRef.current = animeLanguage;
+      lastAnilistIdRef.current = anilistId;
       currentProgressRef.current = forceProgress || 0;
     } else if (lastProviderRef.current !== selectedProviderId) {
       // Only provider changed -> reload at the current playback position
       shouldUpdateUrl = true;
       lastProviderRef.current = selectedProviderId;
-      // Keep currentProgressRef.current as is!
+    } else if (lastAnimeLanguageRef.current !== animeLanguage) {
+      shouldUpdateUrl = true;
+      lastAnimeLanguageRef.current = animeLanguage;
+    } else if (lastAnilistIdRef.current !== anilistId) {
+      shouldUpdateUrl = true;
+      lastAnilistIdRef.current = anilistId;
     } else if (forceProgress !== undefined) {
       // External seek/sync (like Watch Party seek)
       const diff = Math.abs(forceProgress - currentProgressRef.current);
@@ -360,12 +441,12 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     if (shouldUpdateUrl) {
       const startProgress = currentProgressRef.current;
       const newUrl = isTvShow
-        ? provider.getTvUrl(tmdbId, currentSeason, currentEpisode, activeColor, startProgress)
-        : provider.getMovieUrl(tmdbId, activeColor, startProgress);
+        ? provider.getTvUrl(tmdbId, currentSeason, currentEpisode, activeColor, startProgress, isAnime, anilistId, animeLanguage)
+        : provider.getMovieUrl(tmdbId, activeColor, startProgress, isAnime, anilistId, animeLanguage);
 
       setEmbedUrl(newUrl);
     }
-  }, [tmdbId, mediaType, isAnime, currentSeason, currentEpisode, activeColor, selectedProviderId, forceProgress, isWatchParty]);
+  }, [tmdbId, mediaType, isAnime, currentSeason, currentEpisode, activeColor, selectedProviderId, forceProgress, isWatchParty, anilistId, animeLanguage]);
 
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
@@ -611,7 +692,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
             {activeTab === 'sources' && (
               <div className="space-y-2">
                 <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block mb-2 px-1">Select Source Provider</span>
-                {PROVIDERS.filter(p => !isWatchParty || p.supportsPostMessage).map((prov) => {
+                {PROVIDERS.filter(p => (!isWatchParty || p.supportsPostMessage) && (isAnime || p.id !== 'vidnest_animepahe')).map((prov) => {
                   const isActive = selectedProviderId === prov.id;
                   return (
                     <button
@@ -774,6 +855,41 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                     })}
                   </div>
                 </div>
+
+                {/* Anime Language Preference */}
+                {isAnime && (
+                  <div className="border-t border-white/5 pt-4">
+                    <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block mb-2.5 px-1">
+                      Anime Language Type
+                    </span>
+                    <div className="flex gap-1.5">
+                      {[
+                        { id: 'sub', label: 'SUB' },
+                        { id: 'dub', label: 'DUB' },
+                        { id: 'hindi', label: 'HINDI' }
+                      ].map(lang => {
+                        const isSel = animeLanguage === lang.id;
+                        return (
+                          <button
+                            key={lang.id}
+                            onClick={() => {
+                              setAnimeLanguage(lang.id);
+                              localStorage.setItem('movieverse_anime_language', lang.id);
+                              setIsDrawerOpen(false);
+                            }}
+                            className={`flex-1 py-2 rounded-xl text-[10px] font-black tracking-wider transition-all border ${
+                              isSel
+                                ? 'bg-red-600/20 text-red-500 border-red-500/30 font-extrabold shadow-[0_0_15px_rgba(239,68,68,0.15)]'
+                                : 'bg-white/5 text-zinc-400 border-white/5 hover:border-white/10 hover:text-white'
+                            }`}
+                          >
+                            {lang.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
 
                 {/* Utilities */}
                 <div className="border-t border-white/5 pt-4">

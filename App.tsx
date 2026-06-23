@@ -3569,7 +3569,7 @@ export default function App() {
                                     tmdbId={watchPartyMovie.id}
                                     onClose={handleLeaveWatchParty}
                                     mediaType={watchPartyMovie.media_type || (watchPartyMovie.first_air_date ? 'tv' : 'movie')}
-                                    isAnime={false}
+                                    isAnime={!!((watchPartyMovie.genre_ids?.includes(16) || watchPartyMovie.genres?.some((g: any) => g.id === 16)) && watchPartyMovie.original_language === 'ja')}
                                     initialSeason={watchPartyParams.season}
                                     initialEpisode={watchPartyParams.episode}
                                     apiKey={apiKey}
