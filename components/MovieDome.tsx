@@ -397,21 +397,7 @@ export const MovieDome: React.FC<MovieDomeProps> = ({ apiKey, onMovieClick, onCl
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[40vw] h-[40vw] max-w-[500px] max-h-[500px] rounded-full bg-purple-600/10 blur-[120px] pointer-events-none z-0"></div>
 
       {/* Header Overlay */}
-      <div className="absolute top-0 left-0 right-0 p-6 flex items-center justify-between z-50 pointer-events-none bg-gradient-to-b from-black/80 to-transparent">
-        <div className="flex items-center gap-3">
-          <div className="p-2 bg-red-600/10 text-red-500 rounded-xl border border-red-500/20 shadow-md">
-            <Sparkles size={20} className="animate-pulse" />
-          </div>
-          <div>
-            <h1 className="text-lg md:text-xl font-black tracking-tight text-white flex items-center gap-2">
-              Movie Multiverse
-            </h1>
-            <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider">
-              Infinite Drag & 3D Lens
-            </p>
-          </div>
-        </div>
-
+      <div className="absolute top-0 left-0 right-0 p-6 flex items-center justify-end z-50 pointer-events-none bg-gradient-to-b from-black/60 to-transparent">
         <button 
           onClick={onClose}
           className="p-2.5 rounded-full bg-white/5 hover:bg-red-600 border border-white/10 hover:border-red-600 text-zinc-400 hover:text-white transition-all pointer-events-auto active:scale-95 shadow-md flex items-center justify-center"
@@ -438,7 +424,7 @@ export const MovieDome: React.FC<MovieDomeProps> = ({ apiKey, onMovieClick, onCl
         {loading ? (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 z-30 pointer-events-none">
             <Loader2 size={36} className="text-red-500 animate-spin" />
-            <span className="text-xs text-zinc-500 font-black tracking-widest uppercase">Aligning Multiverse...</span>
+            <span className="text-xs text-zinc-500 font-medium tracking-wide">Aligning Multiverse...</span>
           </div>
         ) : (
           cells.map((cell) => (
@@ -490,12 +476,12 @@ export const MovieDome: React.FC<MovieDomeProps> = ({ apiKey, onMovieClick, onCl
             <p className="text-xs text-zinc-300 leading-relaxed line-clamp-3 font-medium">
               {hoveredMovie.overview || "No overview available for this title."}
             </p>
-            <div className="mt-3.5 text-[9px] text-red-500/80 font-black tracking-[0.2em] uppercase animate-pulse">
-              Click Poster to View details
+            <div className="mt-3 text-[10px] text-red-500/95 font-semibold animate-pulse">
+              Click poster to view details
             </div>
           </div>
         ) : (
-          <div className="py-2.5 px-4 rounded-xl bg-black/20 backdrop-blur-sm border border-white/5 shadow-md text-[10px] text-zinc-400 font-bold uppercase tracking-widest">
+          <div className="py-2 px-4 rounded-xl bg-black/20 backdrop-blur-sm border border-white/5 shadow-md text-xs text-zinc-400 font-medium tracking-wide">
             Drag to pan • Hover to focus...
           </div>
         )}
@@ -508,9 +494,9 @@ export const MovieDome: React.FC<MovieDomeProps> = ({ apiKey, onMovieClick, onCl
             {idx > 0 && <span className="text-[10px] text-zinc-600 select-none">•</span>}
             <button
               onClick={() => setActiveCategory(cat)}
-              className={`text-xs font-black tracking-wide uppercase transition-all duration-300 active:scale-90 ${
+              className={`text-xs font-semibold tracking-wide transition-all duration-300 active:scale-90 ${
                 activeCategory === cat 
-                  ? 'text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.6)] font-extrabold scale-105' 
+                  ? 'text-white drop-shadow-[0_0_6px_rgba(255,255,255,0.5)] font-bold scale-105' 
                   : 'text-zinc-500 hover:text-zinc-300'
               }`}
             >
