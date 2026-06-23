@@ -88,13 +88,15 @@ export const WatchPartySection: React.FC<WatchPartySectionProps> = ({
   // Stable Presence Key Ref
   const presenceKeyRef = useRef<string>('');
   if (!presenceKeyRef.current) {
-    presenceKeyRef.current = currentUserId || `guest-${Math.random().toString(36).substring(2, 9)}`;
+    const rand = Math.random().toString(36).substring(2, 9);
+    presenceKeyRef.current = currentUserId ? `${currentUserId}-${rand}` : `guest-${rand}`;
   }
 
   // Update presence key if user gets authenticated
   useEffect(() => {
-    if (currentUserId) {
-      presenceKeyRef.current = currentUserId;
+    if (currentUserId && !presenceKeyRef.current.startsWith(currentUserId)) {
+      const rand = Math.random().toString(36).substring(2, 9);
+      presenceKeyRef.current = `${currentUserId}-${rand}`;
     }
   }, [currentUserId]);
 
@@ -221,27 +223,27 @@ export const WatchPartySection: React.FC<WatchPartySectionProps> = ({
         Object.keys(presenceState).forEach(key => {
           const userPresences = presenceState[key] as any[];
           if (userPresences && userPresences[0]) {
-            const isSelf = key === presenceKeyRef.current || (currentUserId && key === currentUserId) || key.startsWith('self');
+            const isSelf = key === presenceKeyRef.current || key.startsWith('self');
             const displayName = userPresences[0].name || 'Anonymous User';
             usersList.push({
               id: key,
               name: isSelf ? `${displayName} (You)` : displayName,
             });
             
-            if (key === hostId) {
+            if (key === hostId || (hostId && key.startsWith(hostId + '-'))) {
               hostFound = true;
             }
           }
         });
 
         // Fallback: If current user is not found, guarantee they are displayed
-        const hasSelf = usersList.some(u => u.id === presenceKeyRef.current || (currentUserId && u.id === currentUserId));
+        const hasSelf = usersList.some(u => u.id === presenceKeyRef.current);
         if (!hasSelf && currentUserName) {
           usersList.push({
-            id: currentUserId || presenceKeyRef.current || 'self-guest',
+            id: presenceKeyRef.current || 'self-guest',
             name: `${currentUserName} (You)`
           });
-          if (currentUserId === hostId || presenceKeyRef.current === hostId) {
+          if (presenceKeyRef.current === hostId || (hostId && presenceKeyRef.current.startsWith(hostId + '-'))) {
             hostFound = true;
           }
         }
@@ -613,13 +615,7 @@ export const WatchPartySection: React.FC<WatchPartySectionProps> = ({
           </button>
         )}
 
-        {/* Host indicator */}
-        {isHost && (
-          <div className="flex items-center gap-2 text-[10px] text-zinc-500 font-semibold px-1">
-            <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse shadow-[0_0_8px_#22c55e]" />
-            <span>Broadcasting to {Math.max(0, participants.length - 1)} viewer{participants.length - 1 !== 1 ? 's' : ''}</span>
-          </div>
-        )}
+
       </div>
 
       {/* Tabs Menu */}

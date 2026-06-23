@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { X, Tv } from 'lucide-react';
 import { TvFocusButton } from '../tvNavigation';
 import { pause, resume } from '@noriginmedia/norigin-spatial-navigation';
@@ -179,8 +179,37 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     }
   };
 
+  const sendPlayState = useCallback((state: 'play' | 'pause') => {
+    if (!iframeRef.current || !iframeRef.current.contentWindow) return;
+    
+    const provider = PROVIDERS.find(p => p.id === selectedProviderId);
+    if (!provider || !provider.supportsPostMessage) return;
+
+    try {
+      const win = iframeRef.current.contentWindow;
+      const cmd = state === 'pause' ? 'pause' : 'play';
+      
+      // Send multiple formats of play/pause commands to ensure wide compatibility
+      win.postMessage(JSON.stringify({ type: cmd }), '*');
+      win.postMessage({ type: cmd }, '*');
+      
+      const ytFunc = cmd === 'play' ? 'playVideo' : 'pauseVideo';
+      win.postMessage(JSON.stringify({ event: 'command', func: ytFunc, args: [] }), '*');
+      
+      win.postMessage(JSON.stringify({ event: cmd }), '*');
+      win.postMessage({ event: cmd }, '*');
+      
+      win.postMessage(JSON.stringify({ command: cmd }), '*');
+    } catch (e) {
+      console.warn("Failed to post playState command to player iframe", e);
+    }
+  }, [selectedProviderId]);
+
   const handleIframeLoad = () => {
     focusIframe();
+    sendPlayState(playState);
+    setTimeout(() => sendPlayState(playState), 1000);
+    setTimeout(() => sendPlayState(playState), 2000);
   };
 
   useEffect(() => {
@@ -237,8 +266,37 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
       // External seek/sync (like Watch Party seek)
       const diff = Math.abs(forceProgress - currentProgressRef.current);
       if (diff > 5) {
-        shouldUpdateUrl = true;
-        currentProgressRef.current = forceProgress;
+        if (iframeRef.current && iframeRef.current.contentWindow && provider.supportsPostMessage) {
+          try {
+            const win = iframeRef.current.contentWindow;
+            const time = Math.floor(forceProgress);
+            
+            // Send standard seek commands
+            win.postMessage(JSON.stringify({ type: 'seek', time }), '*');
+            win.postMessage({ type: 'seek', time }, '*');
+            win.postMessage(JSON.stringify({ event: 'seek', time }), '*');
+            win.postMessage({ event: 'seek', time }, '*');
+            
+            // YT-like seekTo command
+            win.postMessage(JSON.stringify({ event: 'command', func: 'seekTo', args: [time, true] }), '*');
+            win.postMessage(JSON.stringify({ event: 'command', func: 'seek', args: [time] }), '*');
+            
+            // Alternate key-value format
+            win.postMessage(JSON.stringify({ command: 'seek', value: time }), '*');
+            win.postMessage({ command: 'seek', value: time }, '*');
+            
+            console.log(`Sent postMessage seek to ${time}s`);
+            currentProgressRef.current = forceProgress;
+          } catch (e) {
+            console.warn("Failed to send seek postMessage, falling back to reload", e);
+            shouldUpdateUrl = true;
+            currentProgressRef.current = forceProgress;
+          }
+        } else {
+          // Fallback to reload if postMessage is not supported
+          shouldUpdateUrl = true;
+          currentProgressRef.current = forceProgress;
+        }
       }
     }
 
@@ -391,30 +449,8 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
 
   // Send play/pause commands to iframe player
   useEffect(() => {
-    if (!iframeRef.current || !iframeRef.current.contentWindow) return;
-    
-    const provider = PROVIDERS.find(p => p.id === selectedProviderId);
-    if (!provider || !provider.supportsPostMessage) return;
-
-    try {
-      const win = iframeRef.current.contentWindow;
-      const cmd = playState === 'pause' ? 'pause' : 'play';
-      
-      // Send multiple formats of play/pause commands to ensure wide compatibility
-      win.postMessage(JSON.stringify({ type: cmd }), '*');
-      win.postMessage({ type: cmd }, '*');
-      
-      const ytFunc = cmd === 'play' ? 'playVideo' : 'pauseVideo';
-      win.postMessage(JSON.stringify({ event: 'command', func: ytFunc, args: [] }), '*');
-      
-      win.postMessage(JSON.stringify({ event: cmd }), '*');
-      win.postMessage({ event: cmd }, '*');
-      
-      win.postMessage(JSON.stringify({ command: cmd }), '*');
-    } catch (e) {
-      console.warn("Failed to post playState command to player iframe", e);
-    }
-  }, [playState, selectedProviderId]);
+    sendPlayState(playState);
+  }, [playState, sendPlayState]);
 
 
   return (
