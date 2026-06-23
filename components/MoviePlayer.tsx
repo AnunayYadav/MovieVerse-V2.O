@@ -97,7 +97,7 @@ export const PROVIDERS: Provider[] = [
       isAnime && anilistId
         ? `https://vidnest.fun/anime/${anilistId}/${episode}/${animeLanguage}`
         : `https://vidnest.fun/tv/${tmdbId}/${season}/${episode}${progress && progress > 0 ? `?progress=${Math.floor(progress)}` : ''}`,
-    supportsPostMessage: true
+    supportsPostMessage: false
   },
   {
     id: 'vidnest_animepahe',
@@ -110,7 +110,7 @@ export const PROVIDERS: Provider[] = [
       isAnime && anilistId
         ? `https://vidnest.fun/animepahe/${anilistId}/${episode}/${animeLanguage}`
         : `https://vidnest.fun/tv/${tmdbId}/${season}/${episode}${progress && progress > 0 ? `?progress=${Math.floor(progress)}` : ''}`,
-    supportsPostMessage: true
+    supportsPostMessage: false
   },
   {
     id: 'peachify',
@@ -123,7 +123,7 @@ export const PROVIDERS: Provider[] = [
       const lang = getBrowserLanguage();
       return `https://peachify.pro/embed/tv/${tmdbId}/${season}/${episode}?accent=${color.replace('#', '')}&dub=${lang}&sub=${lang}&quality=1080&autoNext=30&showNextBtn=true&autoPlay=true${progress && progress > 0 ? `&startAt=${Math.floor(progress)}` : ''}`;
     },
-    supportsPostMessage: true
+    supportsPostMessage: false
   },
   {
     id: 'vidify',
@@ -136,7 +136,7 @@ export const PROVIDERS: Provider[] = [
       const c = color.replace('#', '');
       return `https://player.vidify.top/embed/tv/${tmdbId}/${season}/${episode}?primarycolor=${c}&secondarycolor=${c}&iconcolor=${c}&fontcolor=${c}&font=Roboto&fontsize=18&opacity=0.85&autoplay=true&poster=true&chromecast=true&servericon=true&setting=true&pip=true${progress && progress > 0 ? `&startAt=${Math.floor(progress)}` : ''}`;
     },
-    supportsPostMessage: true
+    supportsPostMessage: false
   },
   {
     id: 'vidgod',
