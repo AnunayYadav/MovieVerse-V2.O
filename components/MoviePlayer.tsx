@@ -329,6 +329,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
       win.postMessage({ event: cmd }, '*');
       
       win.postMessage(JSON.stringify({ command: cmd }), '*');
+      win.postMessage({ command: cmd }, '*');
     } catch (e) {
       console.warn("Failed to post playState command to player iframe", e);
     }
@@ -422,6 +423,8 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
             // Alternate key-value format
             win.postMessage(JSON.stringify({ command: 'seek', value: time }), '*');
             win.postMessage({ command: 'seek', value: time }, '*');
+            win.postMessage({ command: 'seek', time }, '*');
+            win.postMessage(JSON.stringify({ command: 'seek', time }), '*');
             
             console.log(`Sent postMessage seek to ${time}s`);
             currentProgressRef.current = forceProgress;
@@ -463,8 +466,8 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
             }
 
             if (parsed) {
-                // Handle Peachify events explicitly
-                if (event.origin === 'https://peachify.pro' || parsed.type === 'PLAYER_EVENT' || parsed.type === 'MEDIA_DATA') {
+                // Handle Peachify & VidCore PLAYER_EVENTs
+                if (event.origin === 'https://peachify.pro' || event.origin === 'https://vidcore.net' || parsed.type === 'PLAYER_EVENT' || parsed.type === 'MEDIA_DATA') {
                     const type = parsed.type;
                     const data = parsed.data;
                     if (type === 'MEDIA_DATA') {
@@ -472,17 +475,25 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                         return;
                     }
                     if (type === 'PLAYER_EVENT' && data) {
-                        const { event: playerEvent, currentTime, duration, season, episode } = data;
+                        const { event: playerEvent, currentTime, duration, season, episode, playing } = data;
                         if (currentTime !== undefined && currentTime !== null) {
                             const timeNum = Number(currentTime);
                             const durationNum = duration !== undefined && duration !== null ? Number(duration) : 0;
                             if (!isNaN(timeNum)) {
                                 currentProgressRef.current = timeNum;
                                 if (onProgress) {
+                                    let mappedEvent = 'time';
+                                    if (playerEvent === 'ended' || playerEvent === 'complete') {
+                                        mappedEvent = 'complete';
+                                    } else if (playerEvent === 'pause' || (playerEvent === 'playerstatus' && playing === false)) {
+                                        mappedEvent = 'pause';
+                                    } else if (playerEvent === 'play' || playerEvent === 'seeked' || (playerEvent === 'playerstatus' && playing === true)) {
+                                        mappedEvent = 'play';
+                                    }
                                     onProgress({
                                         currentTime: timeNum,
                                         duration: !isNaN(durationNum) ? durationNum : 0,
-                                        event: playerEvent === 'ended' ? 'complete' : (playerEvent === 'pause' ? 'pause' : (playerEvent === 'play' ? 'play' : 'time')),
+                                        event: mappedEvent,
                                         season: season || currentSeason,
                                         episode: episode || currentEpisode
                                     });
