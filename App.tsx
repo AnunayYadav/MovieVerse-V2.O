@@ -13,6 +13,7 @@ import { WatchPartySection } from './components/WatchParty';
 import { MoviePlayer } from './components/MoviePlayer';
 import { LiveTV } from './components/LiveTV';
 import { ExplorePage } from './components/ExplorePage';
+import { MovieDome } from './components/MovieDome';
 import { useTvFocus, TvFocusButton, TvFocusInput } from './tvNavigation';
 
 const fetch = tvFetch;
@@ -1662,9 +1663,9 @@ export default function App() {
     const accentBg = "bg-red-600";
     const accentBgLow = "bg-red-600/20";
 
-    const showStickyHeader = !["Categories", "Franchise", "Explore", "LiveTV"].includes(selectedCategory);
+    const showStickyHeader = !["Categories", "Franchise", "Explore", "LiveTV", "Multiverse"].includes(selectedCategory);
     const hasHeroBanner = !!(
-        (!searchQuery && featuredMovie && !["People", "Coming", "Collections", "Categories", "Franchise", "Explore", "LiveTV"].includes(selectedCategory)) ||
+        (!searchQuery && featuredMovie && !["People", "Coming", "Collections", "Categories", "Franchise", "Explore", "LiveTV", "Multiverse"].includes(selectedCategory)) ||
         (selectedCategory === "Franchise" && franchiseList.length > 0)
     );
 
@@ -1706,6 +1707,7 @@ export default function App() {
                     case 'w': resetFilters(); setSelectedCategory("Watchlist"); break;
                     case 'e': resetFilters(); setSelectedCategory("Explore"); break;
                     case 't': resetFilters(); setSelectedCategory("LiveTV"); break;
+                    case 'm': resetFilters(); setSelectedCategory("Multiverse"); break;
                 }
             }
         };
@@ -2219,7 +2221,7 @@ export default function App() {
             setFeaturedMovie(selectedCategory === "Watchlist" ? list[0] : null);
             setHasMore(false); return;
         }
-        if (["LiveTV", "Categories", "Collections", "Countries", "Explore"].includes(selectedCategory) && !activeCountry) return;
+        if (["LiveTV", "Categories", "Collections", "Countries", "Explore", "Multiverse"].includes(selectedCategory) && !activeCountry) return;
         if (abortControllerRef.current) abortControllerRef.current.abort();
         const controller = new AbortController();
         abortControllerRef.current = controller;
@@ -3210,6 +3212,7 @@ export default function App() {
 
     const browseOptions = [
         { id: "Trending", icon: TrendingUp, label: "Trending", action: resetToHome },
+        { id: "Multiverse", icon: Sparkles, label: "Multiverse", action: () => { resetFilters(); setSelectedCategory("Multiverse"); } },
         { id: "Awards", icon: Award, label: "Awards", action: () => { resetFilters(); setSelectedCategory("Awards"); } },
         { id: "Anime", icon: Ghost, label: "Anime", action: () => { resetFilters(); setSelectedCategory("Anime"); } },
         { id: "Franchise", icon: Layers, label: "Franchises", action: () => { resetFilters(); setSelectedCategory("Franchise"); } },
@@ -3276,6 +3279,9 @@ export default function App() {
                                 </button>
                                 <button onClick={() => { resetFilters(); setSelectedCategory("Explore"); }} className={getSidebarItemClass(selectedCategory === "Explore")}>
                                     <Compass size={18} /> Explore <span className="ml-auto text-[8px] opacity-40 hidden lg:inline">Alt+E</span>
+                                </button>
+                                <button onClick={() => { resetFilters(); setSelectedCategory("Multiverse"); }} className={getSidebarItemClass(selectedCategory === "Multiverse")}>
+                                    <Sparkles size={18} /> Multiverse <span className="ml-auto text-[8px] opacity-40 hidden lg:inline">Alt+M</span>
                                 </button>
                             </div>
 
@@ -3362,6 +3368,10 @@ export default function App() {
                                 <TvFocusButton onClick={() => { resetFilters(); setSelectedCategory("Explore"); }} className={`group flex items-center gap-2 px-5 py-2 rounded-full text-xs font-semibold tracking-wide transition-all duration-300 ${selectedCategory === "Explore" ? "bg-white/10 text-white" : "text-zinc-400 hover:text-white hover:bg-white/5"}`}>
                                     <Compass size={15} className="transition-all duration-500 group-hover:rotate-90 group-hover:scale-110" />
                                     <span>Explore</span>
+                                </TvFocusButton>
+                                <TvFocusButton onClick={() => { resetFilters(); setSelectedCategory("Multiverse"); }} className={`group flex items-center gap-2 px-5 py-2 rounded-full text-xs font-semibold tracking-wide transition-all duration-300 ${selectedCategory === "Multiverse" ? "bg-white/10 text-white" : "text-zinc-400 hover:text-white hover:bg-white/5"}`}>
+                                    <Sparkles size={15} className="transition-all duration-300 group-hover:scale-110 group-hover:animate-pulse" />
+                                    <span>Multiverse</span>
                                 </TvFocusButton>
                                 <TvFocusButton onClick={() => { resetFilters(); setSelectedCategory("LiveTV"); }} className={`group flex items-center gap-2 px-5 py-2 rounded-full text-xs font-semibold tracking-wide transition-all duration-300 ${selectedCategory === "LiveTV" ? "bg-white/10 text-white" : "text-zinc-400 hover:text-white hover:bg-white/5"}`}>
                                     <Radio size={15} className="transition-all duration-300 group-hover:scale-110 group-hover:animate-pulse" />
@@ -3560,7 +3570,13 @@ export default function App() {
                                 />
                             </div>
                         </div>
-                    ) : selectedCategory === "LiveTV" ? (<LiveTV userProfile={userProfile} />) : selectedCategory === "Explore" && !searchQuery ? (
+                    ) : selectedCategory === "LiveTV" ? (<LiveTV userProfile={userProfile} />) : selectedCategory === "Multiverse" ? (
+                        <MovieDome
+                            apiKey={apiKey}
+                            onMovieClick={setSelectedMovie}
+                            onClose={() => setSelectedCategory("All")}
+                        />
+                    ) : selectedCategory === "Explore" && !searchQuery ? (
                         <ExplorePage
                             apiKey={apiKey}
                             onMovieClick={setSelectedMovie}
