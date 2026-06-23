@@ -3522,6 +3522,7 @@ export default function App() {
                                     initialSeason={watchPartyParams.season}
                                     initialEpisode={watchPartyParams.episode}
                                     apiKey={apiKey}
+                                    isWatchParty={true}
                                     onProgress={(data) => {
                                         // Always track local playback time for drift calculation
                                         setWatchPartyGuestTime(data.currentTime);

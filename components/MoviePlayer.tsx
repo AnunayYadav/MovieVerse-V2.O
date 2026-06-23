@@ -17,6 +17,7 @@ interface MoviePlayerProps {
   forceProgress?: number;
   title?: string;
   providerId?: string;
+  isWatchParty?: boolean;
 }
 
 export interface Provider {
@@ -24,7 +25,34 @@ export interface Provider {
   name: string;
   getMovieUrl: (tmdbId: number, color: string, progress?: number) => string;
   getTvUrl: (tmdbId: number, season: number, episode: number, color: string, progress?: number) => string;
+  supportsPostMessage: boolean;
 }
+
+const getBrowserLanguage = (): string => {
+  if (typeof navigator === 'undefined') return 'English';
+  const code = navigator.language.split('-')[0].toLowerCase();
+  const langMap: Record<string, string> = {
+    en: 'English',
+    es: 'Spanish',
+    fr: 'French',
+    de: 'German',
+    it: 'Italian',
+    pt: 'Portuguese',
+    ru: 'Russian',
+    zh: 'Chinese',
+    ja: 'Japanese',
+    ko: 'Korean',
+    hi: 'Hindi',
+    ar: 'Arabic',
+    tr: 'Turkish',
+    vi: 'Vietnamese',
+    th: 'Thai',
+    id: 'Indonesian',
+    pl: 'Polish',
+    nl: 'Dutch'
+  };
+  return langMap[code] || 'English';
+};
 
 export const PROVIDERS: Provider[] = [
   {
@@ -33,7 +61,8 @@ export const PROVIDERS: Provider[] = [
     getMovieUrl: (tmdbId, color, progress) => 
       `https://player.videasy.net/movie/${tmdbId}?overlay=false&color=${color.replace('#', '')}&autoplay=true${progress && progress > 0 ? `&progress=${Math.floor(progress)}` : ''}`,
     getTvUrl: (tmdbId, season, episode, color, progress) => 
-      `https://player.videasy.net/tv/${tmdbId}/${season}/${episode}?nextEpisode=true&autoplayNextEpisode=true&episodeSelector=true&overlay=false&color=${color.replace('#', '')}&autoplay=true${progress && progress > 0 ? `&progress=${Math.floor(progress)}` : ''}`
+      `https://player.videasy.net/tv/${tmdbId}/${season}/${episode}?nextEpisode=true&autoplayNextEpisode=true&episodeSelector=true&overlay=false&color=${color.replace('#', '')}&autoplay=true${progress && progress > 0 ? `&progress=${Math.floor(progress)}` : ''}`,
+    supportsPostMessage: false
   },
   {
     id: 'vidfast',
@@ -41,7 +70,8 @@ export const PROVIDERS: Provider[] = [
     getMovieUrl: (tmdbId, color, progress) => 
       `https://vidfast.pro/movie/${tmdbId}?autoPlay=true&theme=${color.replace('#', '')}${progress && progress > 0 ? `&startAt=${Math.floor(progress)}` : ''}`,
     getTvUrl: (tmdbId, season, episode, color, progress) => 
-      `https://vidfast.pro/tv/${tmdbId}/${season}/${episode}?autoPlay=true&theme=${color.replace('#', '')}&nextButton=true&autoNext=true${progress && progress > 0 ? `&startAt=${Math.floor(progress)}` : ''}`
+      `https://vidfast.pro/tv/${tmdbId}/${season}/${episode}?autoPlay=true&theme=${color.replace('#', '')}&nextButton=true&autoNext=true${progress && progress > 0 ? `&startAt=${Math.floor(progress)}` : ''}`,
+    supportsPostMessage: true
   },
   {
     id: 'vidcore',
@@ -49,7 +79,8 @@ export const PROVIDERS: Provider[] = [
     getMovieUrl: (tmdbId, color, progress) => 
       `https://vidcore.net/movie/${tmdbId}?autoPlay=true&theme=${color.replace('#', '')}${progress && progress > 0 ? `&startAt=${Math.floor(progress)}` : ''}`,
     getTvUrl: (tmdbId, season, episode, color, progress) => 
-      `https://vidcore.net/tv/${tmdbId}/${season}/${episode}?autoPlay=true&theme=${color.replace('#', '')}&nextButton=true&autoNext=true${progress && progress > 0 ? `&startAt=${Math.floor(progress)}` : ''}`
+      `https://vidcore.net/tv/${tmdbId}/${season}/${episode}?autoPlay=true&theme=${color.replace('#', '')}&nextButton=true&autoNext=true${progress && progress > 0 ? `&startAt=${Math.floor(progress)}` : ''}`,
+    supportsPostMessage: true
   },
   {
     id: 'vidnest',
@@ -57,36 +88,48 @@ export const PROVIDERS: Provider[] = [
     getMovieUrl: (tmdbId, color, progress) => 
       `https://vidnest.fun/movie/${tmdbId}${progress && progress > 0 ? `?startAt=${Math.floor(progress)}` : ''}`,
     getTvUrl: (tmdbId, season, episode, color, progress) => 
-      `https://vidnest.fun/tv/${tmdbId}/${season}/${episode}${progress && progress > 0 ? `?progress=${Math.floor(progress)}` : ''}`
+      `https://vidnest.fun/tv/${tmdbId}/${season}/${episode}${progress && progress > 0 ? `?progress=${Math.floor(progress)}` : ''}`,
+    supportsPostMessage: true
   },
   {
     id: 'peachify',
     name: 'Peachify',
-    getMovieUrl: (tmdbId, color, progress) => 
-      `https://peachify.live/embed/movie/${tmdbId}?accent=${color.replace('#', '')}${progress && progress > 0 ? `&startAt=${Math.floor(progress)}` : ''}`,
-    getTvUrl: (tmdbId, season, episode, color, progress) => 
-      `https://peachify.live/embed/tv/${tmdbId}/${season}/${episode}?accent=${color.replace('#', '')}&autoNext=30${progress && progress > 0 ? `&startAt=${Math.floor(progress)}` : ''}`
+    getMovieUrl: (tmdbId, color, progress) => {
+      const lang = getBrowserLanguage();
+      return `https://peachify.live/embed/movie/${tmdbId}?accent=${color.replace('#', '')}&dub=${lang}&sub=${lang}&quality=1080&showNextBtn=true&autoPlay=true${progress && progress > 0 ? `&startAt=${Math.floor(progress)}` : ''}`;
+    },
+    getTvUrl: (tmdbId, season, episode, color, progress) => {
+      const lang = getBrowserLanguage();
+      return `https://peachify.live/embed/tv/${tmdbId}/${season}/${episode}?accent=${color.replace('#', '')}&dub=${lang}&sub=${lang}&quality=1080&autoNext=30&showNextBtn=true&autoPlay=true${progress && progress > 0 ? `&startAt=${Math.floor(progress)}` : ''}`;
+    },
+    supportsPostMessage: true
   },
   {
     id: 'vidify',
     name: 'Vidify',
-    getMovieUrl: (tmdbId, color, progress) => 
-      `https://player.vidify.top/embed/movie/${tmdbId}?primarycolor=${color.replace('#', '')}&autoplay=true&chromecast=true&setting=true&pip=true${progress && progress > 0 ? `&startAt=${Math.floor(progress)}` : ''}`,
-    getTvUrl: (tmdbId, season, episode, color, progress) => 
-      `https://player.vidify.top/embed/tv/${tmdbId}/${season}/${episode}?primarycolor=${color.replace('#', '')}&autoplay=true&chromecast=true&setting=true&pip=true${progress && progress > 0 ? `&startAt=${Math.floor(progress)}` : ''}`
+    getMovieUrl: (tmdbId, color, progress) => {
+      const c = color.replace('#', '');
+      return `https://player.vidify.top/embed/movie/${tmdbId}?primarycolor=${c}&secondarycolor=${c}&iconcolor=${c}&fontcolor=${c}&font=Roboto&fontsize=18&opacity=0.85&autoplay=true&poster=true&chromecast=true&servericon=true&setting=true&pip=true${progress && progress > 0 ? `&startAt=${Math.floor(progress)}` : ''}`;
+    },
+    getTvUrl: (tmdbId, season, episode, color, progress) => {
+      const c = color.replace('#', '');
+      return `https://player.vidify.top/embed/tv/${tmdbId}/${season}/${episode}?primarycolor=${c}&secondarycolor=${c}&iconcolor=${c}&fontcolor=${c}&font=Roboto&fontsize=18&opacity=0.85&autoplay=true&poster=true&chromecast=true&servericon=true&setting=true&pip=true${progress && progress > 0 ? `&startAt=${Math.floor(progress)}` : ''}`;
+    },
+    supportsPostMessage: true
   },
   {
     id: 'vidgod',
     name: 'VidGod',
     getMovieUrl: (tmdbId, color, progress) => 
-      `https://vidgod.net/movie/${tmdbId}${progress && progress > 0 ? `?startAt=${Math.floor(progress)}` : ''}`,
+      `https://vidgod.net/movie/${tmdbId}${progress && progress > 0 ? `?startAt=${Math.floor(progress)}&t=${Math.floor(progress)}` : ''}`,
     getTvUrl: (tmdbId, season, episode, color, progress) => 
-      `https://vidgod.net/tv/${tmdbId}/${season}/${episode}${progress && progress > 0 ? `?startAt=${Math.floor(progress)}` : ''}`
+      `https://vidgod.net/tv/${tmdbId}/${season}/${episode}${progress && progress > 0 ? `?startAt=${Math.floor(progress)}&t=${Math.floor(progress)}` : ''}`,
+    supportsPostMessage: false
   },
 ];
 
 export const MoviePlayer: React.FC<MoviePlayerProps> = ({ 
-  tmdbId, onClose, mediaType, isAnime, initialSeason = 1, initialEpisode = 1, onProgress, color = 'EF4444', forceProgress, title, providerId
+  tmdbId, onClose, mediaType, isAnime, initialSeason = 1, initialEpisode = 1, onProgress, color = 'EF4444', forceProgress, title, providerId, isWatchParty = false
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -94,16 +137,27 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   
   const [selectedProviderId, setSelectedProviderId] = useState(() => {
     if (typeof window !== 'undefined') {
-      return localStorage.getItem('movieverse_preferred_provider') || 'videasy';
+      const preferred = localStorage.getItem('movieverse_preferred_provider') || 'videasy';
+      if (isWatchParty) {
+        const prov = PROVIDERS.find(p => p.id === preferred);
+        if (!prov || !prov.supportsPostMessage) {
+          return 'peachify'; // Fallback default for Watch Party
+        }
+      }
+      return preferred;
     }
-    return 'videasy';
+    return isWatchParty ? 'peachify' : 'videasy';
   });
 
   useEffect(() => {
     if (providerId) {
+      const prov = PROVIDERS.find(p => p.id === providerId);
+      if (isWatchParty && prov && !prov.supportsPostMessage) {
+        return;
+      }
       setSelectedProviderId(providerId);
     }
-  }, [providerId]);
+  }, [providerId, isWatchParty]);
 
   const isTV = typeof window !== 'undefined' && (
     /Android TV|GoogleTV|AFT|Tizen|Web0S|SmartTV/i.test(navigator.userAgent) || 
@@ -159,7 +213,10 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
 
   useEffect(() => {
     const isTvShow = mediaType === 'tv' || (isAnime && mediaType !== 'movie');
-    const provider = PROVIDERS.find(p => p.id === selectedProviderId) || PROVIDERS[0];
+    let provider = PROVIDERS.find(p => p.id === selectedProviderId) || PROVIDERS[0];
+    if (isWatchParty && !provider.supportsPostMessage) {
+      provider = PROVIDERS.find(p => p.supportsPostMessage) || provider;
+    }
     const episodeKey = `${tmdbId}-${mediaType}-${initialSeason}-${initialEpisode}`;
     
     let shouldUpdateUrl = false;
@@ -192,7 +249,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
 
       setEmbedUrl(newUrl);
     }
-  }, [tmdbId, mediaType, isAnime, initialSeason, initialEpisode, color, selectedProviderId, forceProgress]);
+  }, [tmdbId, mediaType, isAnime, initialSeason, initialEpisode, color, selectedProviderId, forceProgress, isWatchParty]);
 
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
