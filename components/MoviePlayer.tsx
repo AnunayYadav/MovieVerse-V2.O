@@ -59,6 +59,30 @@ export const PROVIDERS: Provider[] = [
     getTvUrl: (tmdbId, season, episode, color, progress) => 
       `https://vidnest.fun/tv/${tmdbId}/${season}/${episode}${progress && progress > 0 ? `?progress=${Math.floor(progress)}` : ''}`
   },
+  {
+    id: 'peachify',
+    name: 'Peachify',
+    getMovieUrl: (tmdbId, color, progress) => 
+      `https://peachify.live/embed/movie/${tmdbId}?accent=${color.replace('#', '')}${progress && progress > 0 ? `&startAt=${Math.floor(progress)}` : ''}`,
+    getTvUrl: (tmdbId, season, episode, color, progress) => 
+      `https://peachify.live/embed/tv/${tmdbId}/${season}/${episode}?accent=${color.replace('#', '')}&autoNext=30${progress && progress > 0 ? `&startAt=${Math.floor(progress)}` : ''}`
+  },
+  {
+    id: 'vidify',
+    name: 'Vidify',
+    getMovieUrl: (tmdbId, color, progress) => 
+      `https://player.vidify.top/embed/movie/${tmdbId}?primarycolor=${color.replace('#', '')}&autoplay=true&chromecast=true&setting=true&pip=true${progress && progress > 0 ? `&startAt=${Math.floor(progress)}` : ''}`,
+    getTvUrl: (tmdbId, season, episode, color, progress) => 
+      `https://player.vidify.top/embed/tv/${tmdbId}/${season}/${episode}?primarycolor=${color.replace('#', '')}&autoplay=true&chromecast=true&setting=true&pip=true${progress && progress > 0 ? `&startAt=${Math.floor(progress)}` : ''}`
+  },
+  {
+    id: 'vidgod',
+    name: 'VidGod',
+    getMovieUrl: (tmdbId, color, progress) => 
+      `https://vidgod.net/movie/${tmdbId}${progress && progress > 0 ? `?startAt=${Math.floor(progress)}` : ''}`,
+    getTvUrl: (tmdbId, season, episode, color, progress) => 
+      `https://vidgod.net/tv/${tmdbId}/${season}/${episode}${progress && progress > 0 ? `?startAt=${Math.floor(progress)}` : ''}`
+  },
 ];
 
 export const MoviePlayer: React.FC<MoviePlayerProps> = ({ 
@@ -178,13 +202,78 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                 try {
                     parsed = JSON.parse(event.data);
                 } catch (_) {
-                    return;
+                    // ignore
                 }
             } else if (event.data && typeof event.data === 'object') {
                 parsed = event.data;
             }
 
             if (parsed) {
+                // Handle Peachify events explicitly
+                if (event.origin === 'https://peachify.live' || parsed.type === 'PLAYER_EVENT' || parsed.type === 'MEDIA_DATA') {
+                    const type = parsed.type;
+                    const data = parsed.data;
+                    if (type === 'MEDIA_DATA') {
+                        localStorage.setItem('peachifyProgress', JSON.stringify(data));
+                        return;
+                    }
+                    if (type === 'PLAYER_EVENT' && data) {
+                        const { event: playerEvent, currentTime, duration, season, episode } = data;
+                        if (currentTime !== undefined && currentTime !== null) {
+                            const timeNum = Number(currentTime);
+                            const durationNum = duration !== undefined && duration !== null ? Number(duration) : 0;
+                            if (!isNaN(timeNum)) {
+                                currentProgressRef.current = timeNum;
+                                if (onProgress) {
+                                    onProgress({
+                                        currentTime: timeNum,
+                                        duration: !isNaN(durationNum) ? durationNum : 0,
+                                        event: playerEvent === 'ended' ? 'complete' : (playerEvent === 'pause' ? 'pause' : 'time'),
+                                        season: season || initialSeason,
+                                        episode: episode || initialEpisode
+                                    });
+                                }
+                            }
+                        }
+                        return;
+                    }
+                }
+
+                // Handle Vidify events explicitly
+                if (event.origin === 'https://player.vidify.top' || parsed.type === 'WATCH_PROGRESS') {
+                    const type = parsed.type;
+                    const data = parsed.data;
+                    if (type === 'WATCH_PROGRESS' && data) {
+                        const { mediaId, eventType, currentTime, duration, season, episode } = data;
+                        
+                        localStorage.setItem(`progress_${mediaId}`, JSON.stringify({
+                            currentTime,
+                            duration,
+                            lastWatched: Date.now(),
+                            eventType
+                        }));
+
+                        if (currentTime !== undefined && currentTime !== null) {
+                            const timeNum = Number(currentTime);
+                            const durationNum = duration !== undefined && duration !== null ? Number(duration) : 0;
+                            if (!isNaN(timeNum)) {
+                                currentProgressRef.current = timeNum;
+                                if (onProgress) {
+                                    onProgress({
+                                        currentTime: timeNum,
+                                        duration: !isNaN(durationNum) ? durationNum : 0,
+                                        event: eventType === 'ended' ? 'complete' : (eventType === 'pause' ? 'pause' : 'time'),
+                                        season: season || initialSeason,
+                                        episode: episode || initialEpisode
+                                    });
+                                }
+                            }
+                        }
+                        return;
+                    }
+                }
+
+                // General fallback parsing for other providers
                 let rawTime = parsed.timestamp ?? parsed.currentTime ?? parsed.current_time ?? parsed.time;
                 let rawDuration = parsed.duration ?? parsed.totalTime ?? parsed.total_time;
 
