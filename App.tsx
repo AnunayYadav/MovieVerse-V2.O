@@ -3368,6 +3368,9 @@ export default function App() {
                         </div>
 
                         <div className="mt-auto pt-6 border-t border-white/5 space-y-2">
+                            <a href="/movieverse.apk" download className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-bold text-emerald-400 hover:bg-emerald-500/10 hover:translate-x-1 transition-all duration-300">
+                                <Download size={18} /> Download APK
+                            </a>
                             <button onClick={() => { setIsSidebarOpen(false); setIsSettingsOpen(true); }} className={getSidebarItemClass(isSettingsOpen)}>
                                 <Settings size={18} /> Settings <span className="ml-auto text-[8px] opacity-40 hidden lg:inline">Alt+S</span>
                             </button>
