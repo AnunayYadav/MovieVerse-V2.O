@@ -622,14 +622,16 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
         )}
 
         {/* TV close button (hidden on TV via CSS but clickable, visible on Desktop) */}
-        <button 
-          id="tv-player-close-btn" 
-          onClick={onClose} 
-          className="absolute top-4 right-4 z-50 p-2.5 bg-black/60 hover:bg-black/80 text-white/85 hover:text-white rounded-full transition-all border border-white/10 active:scale-95 flex items-center justify-center"
-          title="Close Player"
-        >
-          <X size={20} />
-        </button>
+        {!isWatchParty && (
+          <button 
+            id="tv-player-close-btn" 
+            onClick={onClose} 
+            className="absolute top-4 right-4 z-50 p-2.5 bg-black/60 hover:bg-black/80 text-white/85 hover:text-white rounded-full transition-all border border-white/10 active:scale-95 flex items-center justify-center"
+            title="Close Player"
+          >
+            <X size={20} />
+          </button>
+        )}
 
         {/* Floating pull-out arrow button for control drawer */}
         <button

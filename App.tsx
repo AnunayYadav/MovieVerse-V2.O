@@ -3610,7 +3610,7 @@ export default function App() {
                                 />
                             </div>
                             <div className={`transition-all duration-500 ${isWatchPartyImmersive
-                                    ? 'absolute right-4 top-4 bottom-4 w-72 sm:w-80 z-50 rounded-2xl overflow-hidden border-none shadow-none opacity-40 hover:opacity-100'
+                                    ? 'absolute right-4 top-16 bottom-24 w-72 sm:w-80 z-50 rounded-2xl overflow-hidden border-none shadow-none opacity-40 hover:opacity-100'
                                     : 'w-full lg:w-80 shrink-0 h-[calc(100vh-4rem-56.25vw)] lg:h-full border-t lg:border-t-0 border-white/10'
                                 }`}>
                                 <WatchPartySection
