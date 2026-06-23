@@ -69,17 +69,14 @@ export const MovieDome: React.FC<MovieDomeProps> = ({ apiKey, onMovieClick, onCl
       // Fetch 3 pages to get high density
       const pages = [1, 2, 3];
       const promises = pages.map(page => {
-        const url = new URL(endpoint);
-        url.searchParams.append('api_key', apiKey);
-        url.searchParams.append('page', page.toString());
+        let url = `${endpoint}?api_key=${apiKey}&page=${page}`;
         if (activeCategory !== 'Trending') {
           const genres: Record<string, number> = {
             'Action': 28, 'Sci-Fi': 878, 'Horror': 27, 'Comedy': 35, 'Animation': 16, 'Drama': 18
           };
-          url.searchParams.append('with_genres', (genres[activeCategory] || 28).toString());
-          url.searchParams.append('sort_by', 'popularity.desc');
+          url += `&with_genres=${genres[activeCategory] || 28}&sort_by=popularity.desc`;
         }
-        return tvFetch(url.toString()).then(res => res.json());
+        return tvFetch(url).then(res => res.json());
       });
 
       try {
