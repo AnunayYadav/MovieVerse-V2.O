@@ -1,7 +1,8 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
-import { X, Tv, ChevronLeft, ChevronRight, Check } from 'lucide-react';
+import { X, Tv, ChevronLeft, ChevronRight, Check, ListVideo, Sliders, ChevronDown, Info, RefreshCw, Palette, Copy, Play } from 'lucide-react';
 import { TvFocusButton } from '../tvNavigation';
 import { pause, resume } from '@noriginmedia/norigin-spatial-navigation';
+import { TMDB_BASE_URL, TMDB_IMAGE_BASE } from './Shared';
 
 interface MoviePlayerProps {
   tmdbId: number;
@@ -20,6 +21,7 @@ interface MoviePlayerProps {
   isWatchParty?: boolean;
   playState?: 'play' | 'pause';
   onProviderChange?: (id: string) => void;
+  onEpisodeChange?: (season: number, episode: number) => void;
 }
 
 export interface Provider {
@@ -131,12 +133,65 @@ export const PROVIDERS: Provider[] = [
 ];
 
 export const MoviePlayer: React.FC<MoviePlayerProps> = ({ 
-  tmdbId, onClose, mediaType, isAnime, initialSeason = 1, initialEpisode = 1, onProgress, color = 'EF4444', forceProgress, title, providerId, isWatchParty = false, playState = 'play', onProviderChange
+  tmdbId, onClose, mediaType, isAnime, initialSeason = 1, initialEpisode = 1, onProgress, color = 'EF4444', forceProgress, title, providerId, isWatchParty = false, playState = 'play', onProviderChange, onEpisodeChange, apiKey
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [embedUrl, setEmbedUrl] = useState('');
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<'sources' | 'episodes' | 'settings'>('sources');
+
+  const [currentSeason, setCurrentSeason] = useState(initialSeason);
+  const [currentEpisode, setCurrentEpisode] = useState(initialEpisode);
+  const [activeColor, setActiveColor] = useState(color);
+
+  const [seasons, setSeasons] = useState<any[]>([]);
+  const [episodes, setEpisodes] = useState<any[]>([]);
+  const [episodesLoading, setEpisodesLoading] = useState(false);
+  const [isSeasonDropdownOpen, setIsSeasonDropdownOpen] = useState(false);
+
+  useEffect(() => {
+    setCurrentSeason(initialSeason);
+  }, [initialSeason]);
+
+  useEffect(() => {
+    setCurrentEpisode(initialEpisode);
+  }, [initialEpisode]);
+
+  useEffect(() => {
+    setActiveColor(color);
+  }, [color]);
+
+  useEffect(() => {
+    if (mediaType === 'tv' && tmdbId) {
+      fetch(`${TMDB_BASE_URL}/tv/${tmdbId}?api_key=${apiKey}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data && data.seasons) {
+            setSeasons(data.seasons.filter((s: any) => s.season_number > 0));
+          }
+        })
+        .catch(err => console.error("Error fetching tv show details:", err));
+    }
+  }, [tmdbId, mediaType, apiKey]);
+
+  useEffect(() => {
+    if (mediaType === 'tv' && tmdbId && currentSeason) {
+      setEpisodesLoading(true);
+      fetch(`${TMDB_BASE_URL}/tv/${tmdbId}/season/${currentSeason}?api_key=${apiKey}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data && data.episodes) {
+            setEpisodes(data.episodes);
+          }
+          setEpisodesLoading(false);
+        })
+        .catch(err => {
+          console.error("Error fetching episodes:", err);
+          setEpisodesLoading(false);
+        });
+    }
+  }, [tmdbId, mediaType, currentSeason, apiKey]);
   
   const [selectedProviderId, setSelectedProviderId] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -249,7 +304,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     if (isWatchParty && !provider.supportsPostMessage) {
       provider = PROVIDERS.find(p => p.supportsPostMessage) || provider;
     }
-    const episodeKey = `${tmdbId}-${mediaType}-${initialSeason}-${initialEpisode}`;
+    const episodeKey = `${tmdbId}-${mediaType}-${currentSeason}-${currentEpisode}`;
     
     let shouldUpdateUrl = false;
     
@@ -305,12 +360,12 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     if (shouldUpdateUrl) {
       const startProgress = currentProgressRef.current;
       const newUrl = isTvShow
-        ? provider.getTvUrl(tmdbId, initialSeason, initialEpisode, color, startProgress)
-        : provider.getMovieUrl(tmdbId, color, startProgress);
+        ? provider.getTvUrl(tmdbId, currentSeason, currentEpisode, activeColor, startProgress)
+        : provider.getMovieUrl(tmdbId, activeColor, startProgress);
 
       setEmbedUrl(newUrl);
     }
-  }, [tmdbId, mediaType, isAnime, initialSeason, initialEpisode, color, selectedProviderId, forceProgress, isWatchParty]);
+  }, [tmdbId, mediaType, isAnime, currentSeason, currentEpisode, activeColor, selectedProviderId, forceProgress, isWatchParty]);
 
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
@@ -347,8 +402,8 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                                         currentTime: timeNum,
                                         duration: !isNaN(durationNum) ? durationNum : 0,
                                         event: playerEvent === 'ended' ? 'complete' : (playerEvent === 'pause' ? 'pause' : (playerEvent === 'play' ? 'play' : 'time')),
-                                        season: season || initialSeason,
-                                        episode: episode || initialEpisode
+                                        season: season || currentSeason,
+                                        episode: episode || currentEpisode
                                     });
                                 }
                             }
@@ -381,8 +436,8 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                                         currentTime: timeNum,
                                         duration: !isNaN(durationNum) ? durationNum : 0,
                                         event: eventType === 'ended' ? 'complete' : (eventType === 'pause' ? 'pause' : (eventType === 'play' ? 'play' : 'time')),
-                                        season: season || initialSeason,
-                                        episode: episode || initialEpisode
+                                        season: season || currentSeason,
+                                        episode: episode || currentEpisode
                                     });
                                 }
                             }
@@ -403,7 +458,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                 }
 
                 if (rawTime === undefined && parsed.payload && typeof parsed.payload === 'object') {
-                    rawTime = parsed.payload.timestamp ?? parsed.payload.currentTime ?? parsed.payload.current_time ?? parsed.payload.time;
+                    rawTime = parsed.payload.timestamp ?? parsed.payload.currentTime ?? parsed.payload.current_time ?? parsed.time;
                     rawDuration = rawDuration ?? parsed.payload.duration ?? parsed.payload.totalTime ?? parsed.payload.total_time;
                     rawEvent = rawEvent ?? parsed.payload.event ?? parsed.payload.eventType ?? parsed.payload.event_type;
                 }
@@ -431,8 +486,8 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                                 currentTime: timeNum,
                                 duration: !isNaN(durationNum) ? durationNum : 0,
                                 event: eventTypeString,
-                                season: parsed.season || parsed.data?.season || initialSeason,
-                                episode: parsed.episode || parsed.data?.episode || initialEpisode
+                                season: parsed.season || parsed.data?.season || currentSeason,
+                                episode: parsed.episode || parsed.data?.episode || currentEpisode
                             });
                         }
                     }
@@ -447,7 +502,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     return () => {
         window.removeEventListener('message', handleMessage);
     };
-  }, [onProgress, initialSeason, initialEpisode]);
+  }, [onProgress, currentSeason, currentEpisode]);
 
   // Send play/pause commands to iframe player
   useEffect(() => {
@@ -484,55 +539,288 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
           <X size={20} />
         </button>
 
-        {/* Floating pull-out arrow button for providers */}
+        {/* Floating pull-out arrow button for control drawer */}
         <button
           onClick={() => setIsDrawerOpen(!isDrawerOpen)}
           className={`absolute top-1/2 -translate-y-1/2 z-50 p-2 py-4 bg-black/60 hover:bg-black/80 text-white/80 hover:text-white border border-r-0 border-white/10 rounded-l-2xl backdrop-blur-md active:scale-95 shadow-lg shadow-black/50 transition-all duration-300 ${
-            isDrawerOpen ? 'right-64 sm:right-72' : 'right-0'
+            isDrawerOpen ? 'right-72 sm:right-80' : 'right-0'
           }`}
-          title={isDrawerOpen ? "Close Providers" : "Switch Streaming Provider"}
+          title={isDrawerOpen ? "Close Controls" : "Open Controls & Settings"}
         >
           {isDrawerOpen ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
         </button>
 
-        {/* Providers Slide-out Drawer */}
+        {/* Control Drawer */}
         <div
-          className={`absolute right-0 top-0 h-full z-45 bg-zinc-950/90 backdrop-blur-xl border-l border-white/10 shadow-[0_0_50px_rgba(0,0,0,0.8)] transition-transform duration-300 ease-out flex flex-col p-6 w-64 sm:w-72 ${
+          className={`absolute right-0 top-0 h-full z-45 bg-[#09090b]/92 backdrop-blur-xl border-l border-white/10 shadow-[0_0_50px_rgba(0,0,0,0.8)] transition-transform duration-300 ease-out flex flex-col w-72 sm:w-80 ${
             isDrawerOpen ? 'translate-x-0' : 'translate-x-full'
           }`}
         >
-          <div className="flex items-center gap-2 mb-6 border-b border-white/5 pb-4">
-            <Tv size={16} className="text-red-500" />
-            <h3 className="font-bold text-white text-xs sm:text-sm uppercase tracking-wider">Streaming Sources</h3>
+          {/* Header */}
+          <div className="p-5 pb-3 border-b border-white/5 flex items-center justify-between">
+            <h3 className="font-black text-white text-xs tracking-wider uppercase">Player Panel</h3>
+            <button 
+              onClick={() => setIsDrawerOpen(false)}
+              className="text-zinc-500 hover:text-white p-1 rounded-lg transition-colors"
+            >
+              <X size={16} />
+            </button>
           </div>
 
-          <div className="flex-1 overflow-y-auto space-y-2.5 pr-1 custom-scrollbar">
-            {PROVIDERS.filter(p => !isWatchParty || p.supportsPostMessage).map((prov) => {
-              const isActive = selectedProviderId === prov.id;
-              return (
-                <button
-                  key={prov.id}
-                  onClick={() => {
-                    setSelectedProviderId(prov.id);
-                    if (onProviderChange) {
-                      onProviderChange(prov.id);
-                    }
-                    if (typeof window !== 'undefined') {
-                      localStorage.setItem('movieverse_preferred_provider', prov.id);
-                    }
-                    setIsDrawerOpen(false);
-                  }}
-                  className={`w-full py-3 px-4 rounded-xl text-[11px] sm:text-xs font-bold transition-all border flex items-center justify-between active:scale-[0.98] ${
-                    isActive 
-                      ? 'bg-red-600/20 text-red-500 border-red-500/30 shadow-[0_0_15px_rgba(239,68,68,0.15)] font-extrabold' 
-                      : 'bg-white/5 text-zinc-300 border-white/5 hover:border-white/10 hover:bg-white/10'
-                  }`}
-                >
-                  <span>{prov.name}</span>
-                  {isActive && <Check size={12} className="shrink-0 ml-2" />}
-                </button>
-              );
-            })}
+          {/* Navigation Tabs */}
+          <div className="flex border-b border-white/5 bg-white/[0.01] px-2 py-1 gap-1">
+            <button
+              onClick={() => setActiveTab('sources')}
+              className={`flex-1 py-2 text-[10px] font-black tracking-wider uppercase rounded-lg transition-all flex items-center justify-center gap-1.5 ${
+                activeTab === 'sources'
+                  ? 'text-white bg-white/10'
+                  : 'text-zinc-500 hover:text-zinc-300 hover:bg-white/[0.02]'
+              }`}
+            >
+              <Tv size={12} />
+              Sources
+            </button>
+            {mediaType === 'tv' && (
+              <button
+                onClick={() => setActiveTab('episodes')}
+                className={`flex-1 py-2 text-[10px] font-black tracking-wider uppercase rounded-lg transition-all flex items-center justify-center gap-1.5 ${
+                  activeTab === 'episodes'
+                    ? 'text-white bg-white/10'
+                    : 'text-zinc-500 hover:text-zinc-300 hover:bg-white/[0.02]'
+                }`}
+              >
+                <ListVideo size={12} />
+                Episodes
+              </button>
+            )}
+            <button
+              onClick={() => setActiveTab('settings')}
+              className={`flex-1 py-2 text-[10px] font-black tracking-wider uppercase rounded-lg transition-all flex items-center justify-center gap-1.5 ${
+                activeTab === 'settings'
+                  ? 'text-white bg-white/10'
+                  : 'text-zinc-500 hover:text-zinc-300 hover:bg-white/[0.02]'
+              }`}
+            >
+              <Sliders size={12} />
+              Settings
+            </button>
+          </div>
+
+          {/* Tab Content */}
+          <div className="flex-1 overflow-y-auto p-5 min-h-0">
+            {activeTab === 'sources' && (
+              <div className="space-y-2">
+                <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block mb-2 px-1">Select Source Provider</span>
+                {PROVIDERS.filter(p => !isWatchParty || p.supportsPostMessage).map((prov) => {
+                  const isActive = selectedProviderId === prov.id;
+                  return (
+                    <button
+                      key={prov.id}
+                      onClick={() => {
+                        setSelectedProviderId(prov.id);
+                        if (onProviderChange) {
+                          onProviderChange(prov.id);
+                        }
+                        if (typeof window !== 'undefined') {
+                          localStorage.setItem('movieverse_preferred_provider', prov.id);
+                        }
+                        setIsDrawerOpen(false);
+                      }}
+                      className={`w-full py-3 px-4 rounded-xl text-xs font-bold transition-all border flex items-center justify-between active:scale-[0.98] ${
+                        isActive 
+                          ? 'bg-red-600/20 text-red-500 border-red-500/30 shadow-[0_0_15px_rgba(239,68,68,0.15)] font-extrabold' 
+                          : 'bg-white/5 text-zinc-300 border-white/5 hover:border-white/10 hover:bg-white/10'
+                      }`}
+                    >
+                      <span>{prov.name}</span>
+                      {isActive && <Check size={12} className="shrink-0 ml-2" />}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {activeTab === 'episodes' && mediaType === 'tv' && (
+              <div className="space-y-4 text-left">
+                {/* Season Dropdown Selector */}
+                <div className="relative">
+                  <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block mb-1.5 px-1">Active Season</span>
+                  <button
+                    onClick={() => setIsSeasonDropdownOpen(!isSeasonDropdownOpen)}
+                    className="flex items-center justify-between w-full bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 px-3.5 py-2.5 rounded-xl text-white text-xs font-bold transition-all active:scale-[0.98]"
+                  >
+                    <span>
+                      {seasons.find(s => s.season_number === currentSeason)?.name || `Season ${currentSeason}`}
+                    </span>
+                    <ChevronDown size={14} className={`text-zinc-400 transition-transform duration-300 ${isSeasonDropdownOpen ? 'rotate-180' : ''}`} />
+                  </button>
+
+                  {isSeasonDropdownOpen && (
+                    <div className="absolute left-0 right-0 mt-2 bg-[#09090b]/98 border border-white/10 rounded-xl shadow-2xl p-1.5 z-50 max-h-48 overflow-y-auto custom-scrollbar animate-in fade-in duration-200">
+                      {seasons.map((s) => {
+                        const isSel = s.season_number === currentSeason;
+                        return (
+                          <button
+                            key={s.id}
+                            onClick={() => {
+                              setCurrentSeason(s.season_number);
+                              setIsSeasonDropdownOpen(false);
+                            }}
+                            className={`w-full text-left px-3 py-2 text-xs font-bold rounded-lg transition-colors flex items-center justify-between ${
+                              isSel ? 'bg-red-600 text-white' : 'text-zinc-400 hover:bg-white/5 hover:text-white'
+                            }`}
+                          >
+                            <span>{s.name}</span>
+                            <span className="text-[10px] opacity-60">{s.episode_count} Ep</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {/* Episodes List */}
+                <div className="space-y-2 mt-4">
+                  <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block mb-2 px-1">Select Episode</span>
+                  {episodesLoading ? (
+                    <div className="flex flex-col items-center justify-center py-10 gap-2">
+                      <RefreshCw className="animate-spin text-red-500" size={16} />
+                      <span className="text-[10px] text-zinc-500 uppercase tracking-wider font-bold">Loading...</span>
+                    </div>
+                  ) : episodes.length === 0 ? (
+                    <div className="text-center py-6 text-zinc-600 text-xs italic">No episodes found.</div>
+                  ) : (
+                    <div className="space-y-2 max-h-[60vh] overflow-y-auto pr-1 custom-scrollbar">
+                      {episodes.map((ep) => {
+                        const isCurrent = ep.episode_number === currentEpisode;
+                        const epThumb = ep.still_path 
+                          ? `${TMDB_IMAGE_BASE}${ep.still_path}` 
+                          : "https://placehold.co/320x180";
+                        return (
+                          <button
+                            key={ep.id}
+                            onClick={() => {
+                              setCurrentEpisode(ep.episode_number);
+                              if (onEpisodeChange) {
+                                onEpisodeChange(currentSeason, ep.episode_number);
+                              }
+                              setIsDrawerOpen(false);
+                            }}
+                            className={`w-full text-left p-2.5 rounded-xl border flex gap-3 transition-all hover:bg-white/10 active:scale-[0.98] ${
+                              isCurrent 
+                                ? 'bg-red-600/10 text-white border-red-500/30' 
+                                : 'bg-white/5 text-zinc-300 border-white/5 hover:border-white/10'
+                            }`}
+                          >
+                            <div className="w-20 aspect-video rounded-lg overflow-hidden shrink-0 bg-black/40 relative">
+                              <img src={epThumb} className="w-full h-full object-cover" alt="" />
+                              <div className="absolute inset-0 bg-black/20 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
+                                <Play size={12} fill="white" />
+                              </div>
+                            </div>
+                            <div className="min-w-0 flex-1 flex flex-col justify-center">
+                              <h4 className={`text-[11px] font-bold truncate ${isCurrent ? 'text-red-500' : 'text-white'}`}>
+                                {ep.episode_number}. {ep.name}
+                              </h4>
+                              {ep.air_date && (
+                                <span className="text-[9px] text-zinc-500 font-medium mt-0.5">
+                                  {new Date(ep.air_date).toLocaleDateString('en-US', { day: 'numeric', month: 'short' })}
+                                </span>
+                              )}
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'settings' && (
+              <div className="space-y-5 text-left">
+                {/* Accent Color Customization */}
+                <div>
+                  <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block mb-2.5 px-1 flex items-center gap-1">
+                    <Palette size={10} className="text-red-500" /> Accent Color
+                  </span>
+                  <div className="grid grid-cols-6 gap-2">
+                    {[
+                      { hex: 'EF4444', label: 'Red' },
+                      { hex: '8B5CF6', label: 'Purple' },
+                      { hex: '3B82F6', label: 'Blue' },
+                      { hex: '10B981', label: 'Green' },
+                      { hex: 'F59E0B', label: 'Amber' },
+                      { hex: 'EC4899', label: 'Pink' }
+                    ].map(c => {
+                      const isSel = activeColor.replace('#', '').toLowerCase() === c.hex.toLowerCase();
+                      return (
+                        <button
+                          key={c.hex}
+                          onClick={() => {
+                            setActiveColor(c.hex);
+                            setIsDrawerOpen(false);
+                          }}
+                          style={{ backgroundColor: `#${c.hex}` }}
+                          className={`w-full aspect-square rounded-full transition-transform border ${
+                            isSel ? 'scale-110 border-white ring-2 ring-white/20' : 'border-transparent hover:scale-105'
+                          }`}
+                          title={c.label}
+                        />
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Utilities */}
+                <div className="border-t border-white/5 pt-4">
+                  <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block mb-2 px-1">Utilities</span>
+                  <button
+                    onClick={() => {
+                      if (iframeRef.current && iframeRef.current.contentWindow) {
+                        try {
+                          const win = iframeRef.current.contentWindow;
+                          win.postMessage(JSON.stringify({ type: 'seek', time: 0 }), '*');
+                          win.postMessage({ type: 'seek', time: 0 }, '*');
+                        } catch (e) {
+                          // ignore
+                        }
+                      }
+                      currentProgressRef.current = 0;
+                      const isTvShow = mediaType === 'tv' || (isAnime && mediaType !== 'movie');
+                      const provider = PROVIDERS.find(p => p.id === selectedProviderId) || PROVIDERS[0];
+                      const newUrl = isTvShow
+                        ? provider.getTvUrl(tmdbId, currentSeason, currentEpisode, activeColor, 0)
+                        : provider.getMovieUrl(tmdbId, activeColor, 0);
+                      setEmbedUrl(newUrl);
+                      setIsDrawerOpen(false);
+                    }}
+                    className="w-full py-2.5 px-3 bg-white/5 hover:bg-white/10 text-white rounded-xl text-xs font-bold transition-all border border-white/5 hover:border-white/10 flex items-center justify-center gap-2 active:scale-[0.98]"
+                  >
+                    <RefreshCw size={12} />
+                    Restart Playback
+                  </button>
+                </div>
+
+                {/* Debug Info */}
+                <div className="border-t border-white/5 pt-4">
+                  <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block mb-2 px-1 flex items-center gap-1">
+                    <Info size={10} /> Debug Status
+                  </span>
+                  <div className="bg-black/40 border border-white/5 rounded-xl p-3 space-y-1.5 text-[10px] text-zinc-400 font-mono">
+                    <div className="flex justify-between"><span className="opacity-60">Source:</span> <span className="text-zinc-200 uppercase">{selectedProviderId}</span></div>
+                    <div className="flex justify-between"><span className="opacity-60">Sync API:</span> <span className={PROVIDERS.find(p => p.id === selectedProviderId)?.supportsPostMessage ? 'text-green-500 font-bold' : 'text-zinc-500'}>{PROVIDERS.find(p => p.id === selectedProviderId)?.supportsPostMessage ? 'Supported' : 'Unsupported'}</span></div>
+                    {mediaType === 'tv' && (
+                      <>
+                        <div className="flex justify-between"><span className="opacity-60">Season:</span> <span className="text-zinc-200">{currentSeason}</span></div>
+                        <div className="flex justify-between"><span className="opacity-60">Episode:</span> <span className="text-zinc-200">{currentEpisode}</span></div>
+                      </>
+                    )}
+                    <div className="flex justify-between"><span className="opacity-60">Party Mode:</span> <span className="text-zinc-200">{isWatchParty ? 'Enabled' : 'Disabled'}</span></div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>

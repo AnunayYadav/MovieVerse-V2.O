@@ -26,6 +26,9 @@ interface WatchPartySectionProps {
   onProviderChange: (id: string) => void;
   isImmersive?: boolean;
   onToggleImmersive?: () => void;
+  season: number;
+  episode: number;
+  onSyncEpisode: (season: number, episode: number) => void;
 }
 
 // Drift thresholds
@@ -48,7 +51,10 @@ export const WatchPartySection: React.FC<WatchPartySectionProps> = ({
   selectedProviderId,
   onProviderChange,
   isImmersive = false,
-  onToggleImmersive
+  onToggleImmersive,
+  season,
+  episode,
+  onSyncEpisode
 }) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState('');
@@ -106,12 +112,18 @@ export const WatchPartySection: React.FC<WatchPartySectionProps> = ({
   const guestCurrentTimeRef = useRef(guestCurrentTime);
   const onSyncProgressRef = useRef(onSyncProgress);
   const onSyncStateRef = useRef(onSyncState);
+  const seasonRef = useRef(season);
+  const episodeRef = useRef(episode);
+  const onSyncEpisodeRef = useRef(onSyncEpisode);
 
   useEffect(() => { selectedProviderIdRef.current = selectedProviderId; }, [selectedProviderId]);
   useEffect(() => { onProviderChangeRef.current = onProviderChange; }, [onProviderChange]);
   useEffect(() => { guestCurrentTimeRef.current = guestCurrentTime; }, [guestCurrentTime]);
   useEffect(() => { onSyncProgressRef.current = onSyncProgress; }, [onSyncProgress]);
   useEffect(() => { onSyncStateRef.current = onSyncState; }, [onSyncState]);
+  useEffect(() => { seasonRef.current = season; }, [season]);
+  useEffect(() => { episodeRef.current = episode; }, [episode]);
+  useEffect(() => { onSyncEpisodeRef.current = onSyncEpisode; }, [onSyncEpisode]);
 
   const isHost = currentUserId === hostId;
 
@@ -164,7 +176,9 @@ export const WatchPartySection: React.FC<WatchPartySectionProps> = ({
             payload: { 
               time: time >= 0 ? time : 0, 
               providerId: selectedProviderIdRef.current, 
-              syncType: 'seek' 
+              syncType: 'seek',
+              season: seasonRef.current,
+              episode: episodeRef.current
             },
           }).catch((e: any) => console.error("Host response to request_sync error:", e));
         }
@@ -178,6 +192,13 @@ export const WatchPartySection: React.FC<WatchPartySectionProps> = ({
           if (payload.syncType === 'seek' || payload.syncType === 'heartbeat' || payload.syncType === 'play' || payload.syncType === 'pause') {
             if (payload.providerId && payload.providerId !== selectedProviderIdRef.current) {
               onProviderChangeRef.current(payload.providerId);
+            }
+          }
+
+          // Sync season/episode if sent by host
+          if (payload.season !== undefined && payload.episode !== undefined) {
+            if (payload.season !== seasonRef.current || payload.episode !== episodeRef.current) {
+              onSyncEpisodeRef.current(payload.season, payload.episode);
             }
           }
 
@@ -350,7 +371,9 @@ export const WatchPartySection: React.FC<WatchPartySectionProps> = ({
           payload: { 
             time, 
             providerId: selectedProviderIdRef.current,
-            syncType: 'heartbeat' 
+            syncType: 'heartbeat',
+            season: seasonRef.current,
+            episode: episodeRef.current
           },
         }).catch((e: any) => console.error("Heartbeat broadcast error:", e));
       }
@@ -381,7 +404,9 @@ export const WatchPartySection: React.FC<WatchPartySectionProps> = ({
           payload: { 
             time: currentTime, 
             providerId: selectedProviderIdRef.current,
-            syncType: 'seek' 
+            syncType: 'seek',
+            season: seasonRef.current,
+            episode: episodeRef.current
           },
         }).catch((e: any) => console.error("Seek broadcast error:", e));
       }
@@ -405,7 +430,9 @@ export const WatchPartySection: React.FC<WatchPartySectionProps> = ({
           payload: { 
             time: time >= 0 ? time : 0, 
             providerId: selectedProviderId, 
-            syncType: 'seek' 
+            syncType: 'seek',
+            season: seasonRef.current,
+            episode: episodeRef.current
           },
         }).catch((e: any) => console.error("Provider change broadcast error:", e));
       }
@@ -427,13 +454,41 @@ export const WatchPartySection: React.FC<WatchPartySectionProps> = ({
           payload: { 
             time: currentTime, 
             providerId: selectedProviderIdRef.current,
-            syncType: hostPlayerState 
+            syncType: hostPlayerState,
+            season: seasonRef.current,
+            episode: episodeRef.current
           },
         }).catch((e: any) => console.error("Play/pause broadcast error:", e));
       }
       lastBroadcastStateRef.current = hostPlayerState;
     }
   }, [hostPlayerState, currentTime, isHost, supabaseClient, roomCode]);
+
+  // ─── Host: Detect Season/Episode change and broadcast immediately ─
+  const lastBroadcastSeasonRef = useRef<number>(season);
+  const lastBroadcastEpisodeRef = useRef<number>(episode);
+  useEffect(() => {
+    if (!isHost || !supabaseClient || !roomCode) return;
+
+    if (lastBroadcastSeasonRef.current !== season || lastBroadcastEpisodeRef.current !== episode) {
+      const channel = channelRef.current;
+      if (channel) {
+        channel.send({
+          type: 'broadcast',
+          event: 'sync',
+          payload: { 
+            time: 0,
+            providerId: selectedProviderIdRef.current,
+            syncType: 'seek',
+            season,
+            episode
+          },
+        }).catch((e: any) => console.error("Episode change broadcast error:", e));
+      }
+      lastBroadcastSeasonRef.current = season;
+      lastBroadcastEpisodeRef.current = episode;
+    }
+  }, [season, episode, isHost, supabaseClient, roomCode]);
 
   // ─── Guest: Calculate Drift ───────────────────────────────────────
   useEffect(() => {

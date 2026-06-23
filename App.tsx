@@ -2197,6 +2197,17 @@ export default function App() {
         setTimeout(() => setWatchPartyForceProgress(undefined), 1000);
     }, []);
 
+    const handleWatchPartyEpisodeChange = useCallback((season: number, episode: number) => {
+        setWatchPartyParams({ season, episode });
+        setWatchPartyCurrentTime(0);
+        setWatchPartyForceProgress(undefined);
+        setWatchPartyGuestTime(0);
+        
+        if (watchPartyHostId === currentUserId && activeWatchPartyRoom) {
+            updateWatchPartyRoom(activeWatchPartyRoom, { season, episode, current_time: 0 });
+        }
+    }, [watchPartyHostId, currentUserId, activeWatchPartyRoom]);
+
     const sortMovies = useCallback((moviesList: Movie[], option: string) => {
         if (!moviesList || !option) return moviesList;
         if (option === 'relevance') return moviesList;
@@ -3546,6 +3557,7 @@ export default function App() {
                                     playState={watchPartyPlayerState}
                                     providerId={watchPartyProviderId}
                                     onProviderChange={setWatchPartyProviderId}
+                                    onEpisodeChange={handleWatchPartyEpisodeChange}
                                     onProgress={(data) => {
                                         // Always track local playback time for drift calculation
                                         setWatchPartyGuestTime(data.currentTime);
@@ -3597,6 +3609,9 @@ export default function App() {
                                     onProviderChange={setWatchPartyProviderId}
                                     isImmersive={isWatchPartyImmersive}
                                     onToggleImmersive={() => setIsWatchPartyImmersive(!isWatchPartyImmersive)}
+                                    season={watchPartyParams.season}
+                                    episode={watchPartyParams.episode}
+                                    onSyncEpisode={(s, ep) => setWatchPartyParams({ season: s, episode: ep })}
                                 />
                             </div>
                         </div>

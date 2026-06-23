@@ -1864,6 +1864,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                 forceProgress={resumeTime}
                                 providerId={selectedProviderId}
                                 onProviderChange={handleProviderChange}
+                                onEpisodeChange={(season, episode) => setPlayParams({ season, episode })}
                             />
                         </Suspense>
                     </div>
