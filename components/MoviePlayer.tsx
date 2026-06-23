@@ -97,11 +97,11 @@ export const PROVIDERS: Provider[] = [
     name: 'Peachify',
     getMovieUrl: (tmdbId, color, progress) => {
       const lang = getBrowserLanguage();
-      return `https://peachify.live/embed/movie/${tmdbId}?accent=${color.replace('#', '')}&dub=${lang}&sub=${lang}&quality=1080&showNextBtn=true&autoPlay=true${progress && progress > 0 ? `&startAt=${Math.floor(progress)}` : ''}`;
+      return `https://peachify.pro/embed/movie/${tmdbId}?accent=${color.replace('#', '')}&dub=${lang}&sub=${lang}&quality=1080&showNextBtn=true&autoPlay=true${progress && progress > 0 ? `&startAt=${Math.floor(progress)}` : ''}`;
     },
     getTvUrl: (tmdbId, season, episode, color, progress) => {
       const lang = getBrowserLanguage();
-      return `https://peachify.live/embed/tv/${tmdbId}/${season}/${episode}?accent=${color.replace('#', '')}&dub=${lang}&sub=${lang}&quality=1080&autoNext=30&showNextBtn=true&autoPlay=true${progress && progress > 0 ? `&startAt=${Math.floor(progress)}` : ''}`;
+      return `https://peachify.pro/embed/tv/${tmdbId}/${season}/${episode}?accent=${color.replace('#', '')}&dub=${lang}&sub=${lang}&quality=1080&autoNext=30&showNextBtn=true&autoPlay=true${progress && progress > 0 ? `&startAt=${Math.floor(progress)}` : ''}`;
     },
     supportsPostMessage: true
   },
@@ -326,7 +326,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
 
             if (parsed) {
                 // Handle Peachify events explicitly
-                if (event.origin === 'https://peachify.live' || parsed.type === 'PLAYER_EVENT' || parsed.type === 'MEDIA_DATA') {
+                if (event.origin === 'https://peachify.pro' || parsed.type === 'PLAYER_EVENT' || parsed.type === 'MEDIA_DATA') {
                     const type = parsed.type;
                     const data = parsed.data;
                     if (type === 'MEDIA_DATA') {
