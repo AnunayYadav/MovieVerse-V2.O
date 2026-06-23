@@ -83,6 +83,7 @@ export default function AppTV({
   };
 
   const handlePlayClick = (movie: Movie, season = 1, episode = 1) => {
+    setSelectedMovie(movie);
     setPlayerSeason(season);
     setPlayerEpisode(episode);
     setIsPlayerOpen(true);
@@ -478,19 +479,11 @@ function TVHomeView({
     }
   }, [rowsData, apiKey]);
 
-  // Clean play/details button focus handlers
+  // Play button focus handler
   const { ref: playBtnRef } = useTvFocus({
     onEnterPress: () => {
       if (focusedMovie) {
         handlePlayClick(focusedMovie);
-      }
-    }
-  });
-
-  const { ref: infoBtnRef } = useTvFocus({
-    onEnterPress: () => {
-      if (focusedMovie) {
-        onMovieClick(focusedMovie);
       }
     }
   });
@@ -534,15 +527,10 @@ function TVHomeView({
           <div className="flex gap-4">
             <button
               ref={playBtnRef}
-              className="h-11 px-8 bg-red-600 text-white rounded-xl font-bold text-xs uppercase tracking-wider flex items-center gap-2 shadow-lg shadow-red-600/30 active:scale-95 outline-none"
+              onClick={() => { if (focusedMovie) handlePlayClick(focusedMovie); }}
+              className="h-11 px-8 bg-red-600 text-white rounded-xl font-bold text-xs uppercase tracking-wider flex items-center gap-2 shadow-lg shadow-red-600/30 hover:bg-red-500 active:scale-95 outline-none transition-colors"
             >
               <Play size={16} fill="white" /> Play Now
-            </button>
-            <button
-              ref={infoBtnRef}
-              className="h-11 px-8 bg-white/10 text-white border border-white/5 hover:bg-white/20 rounded-xl font-bold text-xs uppercase tracking-wider flex items-center gap-2 active:scale-95 outline-none"
-            >
-              <Info size={16} /> More Info
             </button>
           </div>
         </div>
