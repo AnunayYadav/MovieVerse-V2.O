@@ -1863,6 +1863,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                 title={displayData.title || displayData.name}
                                 forceProgress={resumeTime}
                                 providerId={selectedProviderId}
+                                onProviderChange={handleProviderChange}
                             />
                         </Suspense>
                     </div>

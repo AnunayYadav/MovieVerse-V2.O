@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
-import { X, Tv } from 'lucide-react';
+import { X, Tv, ChevronLeft, ChevronRight, Check } from 'lucide-react';
 import { TvFocusButton } from '../tvNavigation';
 import { pause, resume } from '@noriginmedia/norigin-spatial-navigation';
 
@@ -19,6 +19,7 @@ interface MoviePlayerProps {
   providerId?: string;
   isWatchParty?: boolean;
   playState?: 'play' | 'pause';
+  onProviderChange?: (id: string) => void;
 }
 
 export interface Provider {
@@ -130,11 +131,12 @@ export const PROVIDERS: Provider[] = [
 ];
 
 export const MoviePlayer: React.FC<MoviePlayerProps> = ({ 
-  tmdbId, onClose, mediaType, isAnime, initialSeason = 1, initialEpisode = 1, onProgress, color = 'EF4444', forceProgress, title, providerId, isWatchParty = false, playState = 'play'
+  tmdbId, onClose, mediaType, isAnime, initialSeason = 1, initialEpisode = 1, onProgress, color = 'EF4444', forceProgress, title, providerId, isWatchParty = false, playState = 'play', onProviderChange
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [embedUrl, setEmbedUrl] = useState('');
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   
   const [selectedProviderId, setSelectedProviderId] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -459,6 +461,19 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
       className="w-full h-full flex flex-col bg-black relative group/player select-none overflow-hidden"
     >
       <div className="flex-1 relative w-full h-full z-0 overflow-hidden bg-black">
+        {embedUrl && (
+          <iframe 
+              ref={iframeRef}
+              src={embedUrl}
+              onLoad={handleIframeLoad}
+              className="w-full h-full absolute inset-0 bg-black z-0"
+              title="Media Player"
+              frameBorder="0"
+              allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
+              allowFullScreen
+          />
+        )}
+
         {/* TV close button (hidden on TV via CSS but clickable, visible on Desktop) */}
         <button 
           id="tv-player-close-btn" 
@@ -468,18 +483,58 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
         >
           <X size={20} />
         </button>
-        {embedUrl && (
-          <iframe 
-              ref={iframeRef}
-              src={embedUrl}
-              onLoad={handleIframeLoad}
-              className="w-full h-full absolute inset-0 bg-black"
-              title="Media Player"
-              frameBorder="0"
-              allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
-              allowFullScreen
-          />
-        )}
+
+        {/* Floating pull-out arrow button for providers */}
+        <button
+          onClick={() => setIsDrawerOpen(!isDrawerOpen)}
+          className={`absolute top-1/2 -translate-y-1/2 z-50 p-2 py-4 bg-black/60 hover:bg-black/80 text-white/80 hover:text-white border border-r-0 border-white/10 rounded-l-2xl backdrop-blur-md active:scale-95 shadow-lg shadow-black/50 transition-all duration-300 ${
+            isDrawerOpen ? 'right-64 sm:right-72' : 'right-0'
+          }`}
+          title={isDrawerOpen ? "Close Providers" : "Switch Streaming Provider"}
+        >
+          {isDrawerOpen ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
+        </button>
+
+        {/* Providers Slide-out Drawer */}
+        <div
+          className={`absolute right-0 top-0 h-full z-45 bg-zinc-950/90 backdrop-blur-xl border-l border-white/10 shadow-[0_0_50px_rgba(0,0,0,0.8)] transition-transform duration-300 ease-out flex flex-col p-6 w-64 sm:w-72 ${
+            isDrawerOpen ? 'translate-x-0' : 'translate-x-full'
+          }`}
+        >
+          <div className="flex items-center gap-2 mb-6 border-b border-white/5 pb-4">
+            <Tv size={16} className="text-red-500" />
+            <h3 className="font-bold text-white text-xs sm:text-sm uppercase tracking-wider">Streaming Sources</h3>
+          </div>
+
+          <div className="flex-1 overflow-y-auto space-y-2.5 pr-1 custom-scrollbar">
+            {PROVIDERS.filter(p => !isWatchParty || p.supportsPostMessage).map((prov) => {
+              const isActive = selectedProviderId === prov.id;
+              return (
+                <button
+                  key={prov.id}
+                  onClick={() => {
+                    setSelectedProviderId(prov.id);
+                    if (onProviderChange) {
+                      onProviderChange(prov.id);
+                    }
+                    if (typeof window !== 'undefined') {
+                      localStorage.setItem('movieverse_preferred_provider', prov.id);
+                    }
+                    setIsDrawerOpen(false);
+                  }}
+                  className={`w-full py-3 px-4 rounded-xl text-[11px] sm:text-xs font-bold transition-all border flex items-center justify-between active:scale-[0.98] ${
+                    isActive 
+                      ? 'bg-red-600/20 text-red-500 border-red-500/30 shadow-[0_0_15px_rgba(239,68,68,0.15)] font-extrabold' 
+                      : 'bg-white/5 text-zinc-300 border-white/5 hover:border-white/10 hover:bg-white/10'
+                  }`}
+                >
+                  <span>{prov.name}</span>
+                  {isActive && <Check size={12} className="shrink-0 ml-2" />}
+                </button>
+              );
+            })}
+          </div>
+        </div>
       </div>
     </div>
   );

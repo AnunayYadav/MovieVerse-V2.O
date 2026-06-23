@@ -3545,6 +3545,7 @@ export default function App() {
                                     isWatchParty={true}
                                     playState={watchPartyPlayerState}
                                     providerId={watchPartyProviderId}
+                                    onProviderChange={setWatchPartyProviderId}
                                     onProgress={(data) => {
                                         // Always track local playback time for drift calculation
                                         setWatchPartyGuestTime(data.currentTime);
