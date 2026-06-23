@@ -208,7 +208,7 @@ export const MovieDome: React.FC<MovieDomeProps> = ({ apiKey, onMovieClick, onCl
       const isMobile = window.innerWidth < 768;
       const baseScale = 1.0; // Touch edge-to-edge in background (no gaps)
       const baseOpacity = 0.5; // Visible background posters
-      const lensRadius = isMobile ? 150 : 265;
+      const lensRadius = isMobile ? 90 : 135;
       const maxTilt = 28; // degrees
 
       const k = 4.0; // Distortion factor
