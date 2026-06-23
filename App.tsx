@@ -10,7 +10,7 @@ import { getSearchSuggestions } from './services/gemini';
 import { LoginPage } from './components/LoginPage';
 import { getSupabase, syncUserData, fetchUserData, signOut, getNotifications, triggerSystemNotification, upsertWatchProgress, createWatchPartyRoom, getWatchPartyRoom, updateWatchPartyRoom, deleteWatchPartyRoom } from './services/supabase';
 import { WatchPartySection } from './components/WatchParty';
-import { MoviePlayer } from './components/MoviePlayer';
+import { MoviePlayer, PROVIDERS } from './components/MoviePlayer';
 import { LiveTV } from './components/LiveTV';
 import { ExplorePage } from './components/ExplorePage';
 import { MovieDome } from './components/MovieDome';
@@ -1246,6 +1246,16 @@ export default function App() {
     const [watchPartyForceProgress, setWatchPartyForceProgress] = useState<number | undefined>(undefined);
     const [watchPartyGuestTime, setWatchPartyGuestTime] = useState(0);
     const [watchPartyPlayerState, setWatchPartyPlayerState] = useState<'play' | 'pause'>('play');
+    const [watchPartyProviderId, setWatchPartyProviderId] = useState(() => {
+        if (typeof window !== 'undefined') {
+            const preferred = localStorage.getItem('movieverse_preferred_provider') || 'peachify';
+            const prov = PROVIDERS.find(p => p.id === preferred);
+            if (prov && prov.supportsPostMessage) {
+                return preferred;
+            }
+        }
+        return 'peachify';
+    });
     const [isWatchPartyJoinOpen, setIsWatchPartyJoinOpen] = useState(false);
     const [joinRoomCode, setJoinRoomCode] = useState('');
     const [joinRoomError, setJoinRoomError] = useState('');
@@ -2096,6 +2106,9 @@ export default function App() {
             setWatchPartyForceProgress(undefined);
             setWatchPartyGuestTime(0);
             setWatchPartyPlayerState('play');
+            const preferred = localStorage.getItem('movieverse_preferred_provider') || 'peachify';
+            const prov = PROVIDERS.find(p => p.id === preferred);
+            setWatchPartyProviderId(prov && prov.supportsPostMessage ? preferred : 'peachify');
             setSelectedMovie(null); // Close Details modal
         }
     };
@@ -2141,6 +2154,9 @@ export default function App() {
                 setWatchPartyForceProgress(undefined);
             }
             setWatchPartyPlayerState(room.is_playing === false ? 'pause' : 'play');
+            const preferred = localStorage.getItem('movieverse_preferred_provider') || 'peachify';
+            const prov = PROVIDERS.find(p => p.id === preferred);
+            setWatchPartyProviderId(prov && prov.supportsPostMessage ? preferred : 'peachify');
 
             setIsWatchPartyJoinOpen(false);
             setJoinRoomCode('');
@@ -3527,6 +3543,7 @@ export default function App() {
                                     apiKey={apiKey}
                                     isWatchParty={true}
                                     playState={watchPartyPlayerState}
+                                    providerId={watchPartyProviderId}
                                     onProgress={(data) => {
                                         // Always track local playback time for drift calculation
                                         setWatchPartyGuestTime(data.currentTime);
@@ -3574,6 +3591,8 @@ export default function App() {
                                     onSyncProgress={handleWatchPartySync}
                                     hostPlayerState={watchPartyPlayerState}
                                     onSyncState={(state) => setWatchPartyPlayerState(state)}
+                                    selectedProviderId={watchPartyProviderId}
+                                    onProviderChange={setWatchPartyProviderId}
                                     isImmersive={isWatchPartyImmersive}
                                     onToggleImmersive={() => setIsWatchPartyImmersive(!isWatchPartyImmersive)}
                                 />
