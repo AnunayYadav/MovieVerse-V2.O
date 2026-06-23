@@ -83,7 +83,7 @@ export const WatchPartyRoomsPage: React.FC<WatchPartyRoomsPageProps> = ({ apiKey
   };
 
   return (
-    <div className="w-full min-h-screen bg-[#070709] text-zinc-100 select-none pb-24 px-4 md:px-12 pt-6">
+    <div className="w-full min-h-screen bg-[#070709] text-zinc-100 select-none pb-24 px-4 md:px-12 pt-24 md:pt-28">
       <div className="max-w-7xl mx-auto space-y-10">
         
         {/* Header Section */}
