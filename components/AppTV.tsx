@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Search, Film, Tv, Settings, LogOut, Play, Info, Star, Plus, Check, Heart, HelpCircle, ChevronRight, ArrowLeft } from 'lucide-react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { Search, Film, Tv, Settings, LogOut, Play, Info, Star, Plus, Check, Heart, ChevronRight, ArrowLeft, Download } from 'lucide-react';
 import { Movie, Genre } from '../types';
 import { TMDB_BASE_URL, TMDB_BACKDROP_BASE, TMDB_IMAGE_BASE } from './Shared';
 import { MoviePlayer } from './MoviePlayer';
-import { LiveTV } from './LiveTV';
+
 import { useTvFocus, TvFocusButton, TvFocusInput } from '../tvNavigation';
 
 interface AppTVProps {
@@ -25,7 +25,13 @@ const PREDEFINED_TV_CATEGORIES = [
   { id: 'popular', title: 'Popular Hits', endpoint: `${TMDB_BASE_URL}/movie/popular` },
   { id: 'action', title: 'Action & Adventure', endpoint: `${TMDB_BASE_URL}/discover/movie?with_genres=28` },
   { id: 'comedy', title: 'Comedy Specials', endpoint: `${TMDB_BASE_URL}/discover/movie?with_genres=35` },
-  { id: 'scifi', title: 'Sci-Fi & Fantasy', endpoint: `${TMDB_BASE_URL}/discover/movie?with_genres=878` }
+  { id: 'scifi', title: 'Sci-Fi & Fantasy', endpoint: `${TMDB_BASE_URL}/discover/movie?with_genres=878` },
+  { id: 'horror', title: 'Horror', endpoint: `${TMDB_BASE_URL}/discover/movie?with_genres=27` },
+  { id: 'romance', title: 'Romance', endpoint: `${TMDB_BASE_URL}/discover/movie?with_genres=10749` },
+  { id: 'animation', title: 'Animation', endpoint: `${TMDB_BASE_URL}/discover/movie?with_genres=16` },
+  { id: 'drama', title: 'Drama', endpoint: `${TMDB_BASE_URL}/discover/movie?with_genres=18` },
+  { id: 'thriller', title: 'Thriller', endpoint: `${TMDB_BASE_URL}/discover/movie?with_genres=53` },
+  { id: 'top_rated', title: 'Top Rated', endpoint: `${TMDB_BASE_URL}/movie/top_rated` }
 ];
 
 export default function AppTV({
@@ -40,7 +46,7 @@ export default function AppTV({
   onToggleWatched,
   onProgress
 }: AppTVProps) {
-  const [activeTab, setActiveTab] = useState<'home' | 'search' | 'livetv' | 'explore' | 'settings'>('home');
+  const [activeTab, setActiveTab] = useState<'home' | 'search' | 'settings'>('home');
   const [sidebarExpanded, setSidebarExpanded] = useState(false);
   const [selectedMovie, setSelectedMovie] = useState<Movie | null>(null);
   const [focusedMovie, setFocusedMovie] = useState<Movie | null>(null);
@@ -123,8 +129,8 @@ export default function AppTV({
 
       {/* Left Collapsible Navigation Sidebar */}
       <div
-        className={`fixed left-0 top-0 bottom-0 z-50 bg-[#070709] border-r border-white/5 flex flex-col items-center justify-between py-8 transition-all duration-300 ${
-          sidebarExpanded ? 'w-56 px-4' : 'w-18 px-2'
+        className={`fixed left-0 top-0 bottom-0 z-50 bg-[#070709]/95 backdrop-blur-md border-r border-white/5 flex flex-col items-center justify-between py-8 transition-all duration-300 ${
+          sidebarExpanded ? 'w-60 px-5' : 'w-20 px-3'
         }`}
         onMouseEnter={() => setSidebarExpanded(true)}
         onMouseLeave={() => setSidebarExpanded(false)}
@@ -157,22 +163,7 @@ export default function AppTV({
               onFocus={() => { setSidebarExpanded(true); }}
               onClick={() => { setActiveTab('search'); setSidebarExpanded(false); }}
             />
-            <SidebarItem
-              icon={<Tv size={20} className="text-red-500" />}
-              label="Live TV"
-              active={activeTab === 'livetv'}
-              expanded={sidebarExpanded}
-              onFocus={() => { setSidebarExpanded(true); }}
-              onClick={() => { setActiveTab('livetv'); setSidebarExpanded(false); }}
-            />
-            <SidebarItem
-              icon={<HelpCircle size={20} />}
-              label="Explore"
-              active={activeTab === 'explore'}
-              expanded={sidebarExpanded}
-              onFocus={() => { setSidebarExpanded(true); }}
-              onClick={() => { setActiveTab('explore'); setSidebarExpanded(false); }}
-            />
+
           </nav>
         </div>
 
@@ -186,6 +177,13 @@ export default function AppTV({
             onFocus={() => { setSidebarExpanded(true); }}
             onClick={() => { setActiveTab('settings'); setSidebarExpanded(false); }}
           />
+          <SidebarLink
+            icon={<Download size={20} />}
+            label="Download APK"
+            href="/movieverse.apk"
+            expanded={sidebarExpanded}
+            onFocus={() => { setSidebarExpanded(true); }}
+          />
           <SidebarItem
             icon={<LogOut size={20} />}
             label="Sign Out"
@@ -198,7 +196,7 @@ export default function AppTV({
       </div>
 
       {/* Main Content Area */}
-      <main className="flex-1 pl-20 pr-4 py-8 z-10 overflow-y-auto max-h-screen">
+      <main className="flex-1 pl-24 pr-4 py-8 z-10 overflow-y-auto max-h-screen">
         
         {/* Render Active View */}
         {!selectedMovie ? (
@@ -220,17 +218,7 @@ export default function AppTV({
                 onMovieClick={handleMovieClick}
               />
             )}
-            {activeTab === 'livetv' && (
-              <div className="w-full">
-                <LiveTV userProfile={userProfile} />
-              </div>
-            )}
-            {activeTab === 'explore' && (
-              <TVExploreView
-                apiKey={apiKey}
-                onMovieClick={handleMovieClick}
-              />
-            )}
+
             {activeTab === 'settings' && (
               <TVSettingsView
                 userProfile={userProfile}
@@ -290,6 +278,36 @@ function SidebarItem({ icon, label, active, expanded, onFocus, onClick }: Sideba
       <span className="shrink-0">{icon}</span>
       {expanded && <span className="text-xs truncate font-medium">{label}</span>}
     </button>
+  );
+}
+
+interface SidebarLinkProps {
+  icon: React.ReactNode;
+  label: string;
+  href: string;
+  expanded: boolean;
+  onFocus: () => void;
+}
+
+function SidebarLink({ icon, label, href, expanded, onFocus }: SidebarLinkProps) {
+  const { ref } = useTvFocus({
+    onFocus,
+    onEnterPress: () => { window.location.href = href; }
+  });
+
+  return (
+    <a
+      ref={ref as any}
+      href={href}
+      download
+      onFocus={onFocus}
+      className={`w-full h-11 rounded-xl flex items-center gap-4 transition-all duration-200 outline-none text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10 no-underline ${
+        expanded ? 'px-4 justify-start' : 'justify-center px-0'
+      }`}
+    >
+      <span className="shrink-0">{icon}</span>
+      {expanded && <span className="text-xs truncate font-medium">{label}</span>}
+    </a>
   );
 }
 
@@ -368,7 +386,7 @@ function TVHomeView({
 }: TVHomeViewProps) {
   
   // Fetch default rows
-  const [rowsData, setRowsData] = useState<Array<{ title: string; movies: Movie[] }>>([]);
+  const [rowsData, setRowsData] = useState<Array<{ title: string; movies: Movie[]; endpoint: string; mediaType?: string; page: number; hasMore: boolean; loadingMore: boolean }>>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -377,10 +395,16 @@ function TVHomeView({
     const fetchHomeRows = async () => {
       try {
         const promises = PREDEFINED_TV_CATEGORIES.map(async (cat) => {
-          const res = await fetch(`${cat.endpoint}&api_key=${apiKey}`);
+          const separator = cat.endpoint.includes('?') ? '&' : '?';
+          const res = await fetch(`${cat.endpoint}${separator}api_key=${apiKey}&page=1`);
           const data = await res.json();
           return {
             title: cat.title,
+            endpoint: cat.endpoint,
+            mediaType: cat.mediaType,
+            page: 1,
+            hasMore: (data.total_pages || 1) > 1,
+            loadingMore: false,
             movies: (data.results || []).map((m: any) => ({
               ...m,
               media_type: cat.mediaType || m.media_type || 'movie'
@@ -407,6 +431,52 @@ function TVHomeView({
     fetchHomeRows();
     return () => { isMounted = false; };
   }, [apiKey]);
+
+  // Infinite scroll: load next page for a specific row
+  const loadMoreForRow = useCallback(async (rowIdx: number) => {
+    setRowsData(prev => {
+      const row = prev[rowIdx];
+      if (!row || row.loadingMore || !row.hasMore) return prev;
+      const updated = [...prev];
+      updated[rowIdx] = { ...row, loadingMore: true };
+      return updated;
+    });
+
+    const row = rowsData[rowIdx];
+    if (!row || !row.hasMore) return;
+
+    const nextPage = row.page + 1;
+    const separator = row.endpoint.includes('?') ? '&' : '?';
+    try {
+      const res = await fetch(`${row.endpoint}${separator}api_key=${apiKey}&page=${nextPage}`);
+      const data = await res.json();
+      const newMovies = (data.results || []).map((m: any) => ({
+        ...m,
+        media_type: row.mediaType || m.media_type || 'movie'
+      }));
+
+      setRowsData(prev => {
+        const updated = [...prev];
+        const existingIds = new Set(updated[rowIdx].movies.map(m => m.id));
+        const uniqueNew = newMovies.filter((m: Movie) => !existingIds.has(m.id));
+        updated[rowIdx] = {
+          ...updated[rowIdx],
+          movies: [...updated[rowIdx].movies, ...uniqueNew],
+          page: nextPage,
+          hasMore: newMovies.length > 0 && nextPage < (data.total_pages || 1),
+          loadingMore: false
+        };
+        return updated;
+      });
+    } catch (err) {
+      console.error('Failed loading more for row:', err);
+      setRowsData(prev => {
+        const updated = [...prev];
+        updated[rowIdx] = { ...updated[rowIdx], loadingMore: false };
+        return updated;
+      });
+    }
+  }, [rowsData, apiKey]);
 
   // Clean play/details button focus handlers
   const { ref: playBtnRef } = useTvFocus({
@@ -518,14 +588,22 @@ function TVHomeView({
         </div>
       )}
 
-      {/* Dynamic category rails */}
+      {/* Dynamic category rails with infinite scroll */}
       {rowsData.map((row, idx) => (
         <div key={idx} className="mb-10 text-left pl-6">
           <h3 className="text-base font-bold text-white mb-4 flex items-center gap-2 uppercase tracking-wide">
             <span className="w-1 h-4 bg-red-600 rounded-full inline-block" />
             {row.title}
           </h3>
-          <div className="flex gap-4 overflow-x-auto hide-scrollbar py-2">
+          <div
+            className="flex gap-4 overflow-x-auto hide-scrollbar py-2"
+            onScroll={(e) => {
+              const target = e.currentTarget;
+              if (target.scrollWidth - target.scrollLeft - target.clientWidth < 600) {
+                loadMoreForRow(idx);
+              }
+            }}
+          >
             {row.movies.map((movie) => (
               <TVMovieCard
                 key={`${row.title}-${movie.id}`}
@@ -534,6 +612,11 @@ function TVHomeView({
                 onFocus={setFocusedMovie}
               />
             ))}
+            {row.loadingMore && (
+              <div className="shrink-0 w-44 aspect-[2/3] rounded-xl bg-zinc-900/50 border border-white/5 flex items-center justify-center">
+                <div className="w-6 h-6 border-2 border-red-600 border-t-transparent rounded-full animate-spin" />
+              </div>
+            )}
           </div>
         </div>
       ))}
@@ -621,127 +704,6 @@ function TVSearchView({ apiKey, onMovieClick }: TVSearchViewProps) {
         </div>
       )}
     </div>
-  );
-}
-
-/* --- EXPLORE / GENRES VIEW COMPONENT --- */
-
-interface TVExploreViewProps {
-  apiKey: string;
-  onMovieClick: (m: Movie) => void;
-}
-
-const TV_GENRES = [
-  { id: 28, name: 'Action', icon: '💥' },
-  { id: 12, name: 'Adventure', icon: '🧭' },
-  { id: 16, name: 'Animation', icon: '🎨' },
-  { id: 35, name: 'Comedy', icon: '🎭' },
-  { id: 80, name: 'Crime', icon: '🕵️' },
-  { id: 99, name: 'Documentary', icon: '🎥' },
-  { id: 18, name: 'Drama', icon: '📖' },
-  { id: 14, name: 'Fantasy', icon: '🦄' },
-  { id: 27, name: 'Horror', icon: '💀' },
-  { id: 878, name: 'Sci-Fi', icon: '🤖' },
-  { id: 53, name: 'Thriller', icon: '🔪' },
-  { id: 10752, name: 'War', icon: '🛡️' }
-];
-
-function TVExploreView({ apiKey, onMovieClick }: TVExploreViewProps) {
-  const [selectedGenreId, setSelectedGenreId] = useState<number | null>(null);
-  const [movies, setMovies] = useState<Movie[]>([]);
-  const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    if (selectedGenreId === null) return;
-    
-    let isMounted = true;
-    setLoading(true);
-    
-    fetch(`${TMDB_BASE_URL}/discover/movie?api_key=${apiKey}&with_genres=${selectedGenreId}&sort_by=popularity.desc`)
-      .then(res => res.json())
-      .then(data => {
-        if (isMounted) {
-          setMovies((data.results || []).map((m: any) => ({ ...m, media_type: 'movie' })));
-          setLoading(false);
-        }
-      })
-      .catch(() => {
-        if (isMounted) setLoading(false);
-      });
-
-    return () => { isMounted = false; };
-  }, [selectedGenreId, apiKey]);
-
-  return (
-    <div className="w-full flex flex-col text-left pl-6">
-      <h2 className="text-xl font-black text-white mb-1">Explore Genres</h2>
-      <p className="text-zinc-500 text-xs font-semibold mb-6">Browse curated rails categorized by genres</p>
-
-      {/* Grid of categories */}
-      <div className="flex gap-4 overflow-x-auto hide-scrollbar py-2 mb-8">
-        {TV_GENRES.map((g) => (
-          <TVGenreBtn
-            key={g.id}
-            genre={g}
-            active={selectedGenreId === g.id}
-            onClick={() => setSelectedGenreId(g.id)}
-          />
-        ))}
-      </div>
-
-      {selectedGenreId === null ? (
-        <div className="py-20 text-center text-zinc-700 text-xs uppercase tracking-widest font-black">
-          Select a category above to load movies
-        </div>
-      ) : loading ? (
-        <div className="py-16 flex items-center justify-center">
-          <div className="w-8 h-8 border-3 border-red-600 border-t-transparent rounded-full animate-spin" />
-        </div>
-      ) : movies.length > 0 ? (
-        <div className="flex gap-4 overflow-x-auto hide-scrollbar py-2">
-          {movies.map((movie) => (
-            <TVMovieCard
-              key={`explore-movie-${movie.id}`}
-              movie={movie}
-              onClick={onMovieClick}
-              onFocus={() => {}}
-            />
-          ))}
-        </div>
-      ) : (
-        <div className="py-16 text-center text-zinc-600 text-sm">
-          No matches found for this genre.
-        </div>
-      )}
-    </div>
-  );
-}
-
-interface TVGenreBtnProps {
-  key?: any;
-  genre: { id: number; name: string; icon: string };
-  active: boolean;
-  onClick: () => void;
-}
-
-function TVGenreBtn({ genre, active, onClick }: TVGenreBtnProps) {
-  const { ref } = useTvFocus({
-    onEnterPress: onClick
-  });
-
-  return (
-    <button
-      ref={ref}
-      onClick={onClick}
-      className={`shrink-0 h-11 px-5 rounded-xl border flex items-center gap-2 text-xs font-bold transition-all active:scale-95 outline-none ${
-        active
-          ? 'bg-white text-black border-white'
-          : 'bg-white/5 text-zinc-300 border-white/5 hover:border-white/10 hover:bg-white/10'
-      }`}
-    >
-      <span>{genre.icon}</span>
-      <span>{genre.name}</span>
-    </button>
   );
 }
 
