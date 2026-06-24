@@ -137,6 +137,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         let novelId = href;
         if (href.includes('/novel-book/')) {
           novelId = href.split('/novel-book/')[1].split('/')[0];
+        } else if (href.includes('/b/')) {
+          novelId = href.split('/b/')[1].split('/')[0];
+        } else {
+          try {
+            const urlObj = new URL(href, 'https://novelbin.com');
+            const parts = urlObj.pathname.split('/').filter(Boolean);
+            if (parts.length > 0) {
+              novelId = parts[parts.length - 1];
+            }
+          } catch (_) {
+            const parts = href.split('/').filter(Boolean);
+            if (parts.length > 0) {
+              novelId = parts[parts.length - 1];
+            }
+          }
         }
         if (novelId.includes('?')) {
           novelId = novelId.split('?')[0];
@@ -189,6 +204,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         let chapterId = href;
         if (href.includes('/novel-book/')) {
           chapterId = href.split('/novel-book/')[1];
+        } else if (href.includes('/b/')) {
+          chapterId = href.split('/b/')[1];
+        } else {
+          try {
+            const urlObj = new URL(href, 'https://novelbin.com');
+            const pathname = urlObj.pathname;
+            if (pathname.includes('/novel-book/')) {
+              chapterId = pathname.split('/novel-book/')[1];
+            } else if (pathname.includes('/b/')) {
+              chapterId = pathname.split('/b/')[1];
+            } else {
+              const parts = pathname.split('/').filter(Boolean);
+              if (parts.length >= 2) {
+                chapterId = parts.slice(parts.length - 2).join('/');
+              }
+            }
+          } catch (_) {}
         }
         if (chapterId.includes('?')) {
           chapterId = chapterId.split('?')[0];
