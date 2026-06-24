@@ -331,6 +331,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({ apiKey }) => {
             <img
               src={featuredCover}
               alt={featuredTitle}
+              referrerPolicy="no-referrer"
               className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-102 opacity-70 blur-xs"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-[#030303] via-[#030303]/60 to-transparent" />
@@ -495,6 +496,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({ apiKey }) => {
               <img
                 src={getMangaCover(selectedManga)}
                 alt={getMangaTitle(selectedManga)}
+                referrerPolicy="no-referrer"
                 className="w-full h-full object-cover"
               />
               <div className="absolute inset-0 bg-gradient-to-t md:bg-gradient-to-r from-[#0c0c0e] via-[#0c0c0e]/30 to-transparent" />
@@ -636,6 +638,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({ apiKey }) => {
                     <img
                       src={url}
                       alt={`Page ${i + 1}`}
+                      referrerPolicy="no-referrer"
                       className="w-full object-contain pointer-events-none"
                       loading="lazy"
                     />
@@ -664,6 +667,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({ apiKey }) => {
                     <img
                       src={pages[activePageIdx]}
                       alt={`Page ${activePageIdx + 1}`}
+                      referrerPolicy="no-referrer"
                       className="max-h-full max-w-full object-contain pointer-events-none"
                     />
                     
@@ -717,6 +721,7 @@ const MangaCard: React.FC<MangaCardProps> = ({ manga, onMangaClick }) => {
         src={coverUrl}
         alt={title}
         loading="lazy"
+        referrerPolicy="no-referrer"
         className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
       />
       <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/35 to-transparent opacity-85 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
