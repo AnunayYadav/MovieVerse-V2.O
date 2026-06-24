@@ -146,8 +146,10 @@ const parseM3U = (data: string): LiveChannel[] => {
             }
 
             if (url) {
+                // Generate a stable unique ID based on the index and url suffix
+                const urlSuffix = url.replace(/[^a-zA-Z0-9]/g, '').slice(-32);
                 result.push({
-                    id: `tv-${result.length}-${Date.now()}-${Math.random()}`,
+                    id: `tv-${result.length}-${urlSuffix}`,
                     name: nameMatch,
                     logo: logoMatch ? logoMatch[1] : "",
                     group: groupMatch ? groupMatch[1] : "",
@@ -160,21 +162,62 @@ const parseM3U = (data: string): LiveChannel[] => {
     return result;
 };
 
+// Global playlist cache to share requests and parse once
+const playlistCache = new Map<string, Promise<LiveChannel[]>>();
+
+const fetchAndParseM3U = (url: string): Promise<LiveChannel[]> => {
+    let cached = playlistCache.get(url);
+    if (cached) {
+        return cached;
+    }
+    const promise = fetch(url)
+        .then(res => {
+            if (!res.ok) throw new Error("Failed to fetch Live TV playlist");
+            return res.text();
+        })
+        .then(text => parseM3U(text))
+        .catch(err => {
+            playlistCache.delete(url);
+            throw err;
+        });
+    playlistCache.set(url, promise);
+    return promise;
+};
+
 // Sleek 16:9 premium channel card component
-const LiveTVCard: React.FC<{ 
+interface LiveTVCardProps {
     channel: LiveChannel; 
-    onPlay: () => void;
-}> = ({ 
+    index: number;
+    onPlay: (channel: LiveChannel) => void;
+    onFocus?: (index: number) => void;
+}
+
+// Sleek 16:9 premium channel card component
+const LiveTVCard: React.FC<LiveTVCardProps> = React.memo(({ 
     channel, 
-    onPlay 
+    index,
+    onPlay,
+    onFocus
 }) => {
+    const handlePlay = useCallback(() => {
+        onPlay(channel);
+    }, [channel, onPlay]);
+
+    const handleFocus = useCallback(() => {
+        if (onFocus) {
+            onFocus(index);
+        }
+    }, [index, onFocus]);
+
     const { ref } = useTvFocus({
-        onEnterPress: onPlay
+        onEnterPress: handlePlay,
+        onFocus: handleFocus
     });
+
     return (
         <div 
             ref={ref}
-            onClick={onPlay}
+            onClick={handlePlay}
             className="relative w-[200px] md:w-[240px] shrink-0 aspect-[16/9] rounded-xl overflow-hidden bg-zinc-900/60 backdrop-blur-md border border-white/5 cursor-pointer shadow-lg hover:scale-105 hover:border-white/20 hover:shadow-2xl transition-all duration-500 group select-none flex flex-col justify-between"
         >
             <div className="absolute inset-0 bg-gradient-to-tr from-[#0b0c10] via-transparent to-white/[0.02]" />
@@ -228,7 +271,7 @@ const LiveTVCard: React.FC<{
             <div className="absolute top-0 -inset-full h-full w-1/2 z-5 block transform -skew-x-12 bg-gradient-to-r from-transparent to-white/[0.05] opacity-40 group-hover:animate-[shine_0.85s_ease-in-out]" />
         </div>
     );
-};
+});
 
 // Shimmering skeleton loader for channels
 const ChannelSkeleton = () => (
@@ -259,7 +302,13 @@ const LiveTVRow: React.FC<{
 }) => {
     const [channels, setChannels] = useState<LiveChannel[]>([]);
     const [loading, setLoading] = useState(false);
+    const [visibleCount, setVisibleCount] = useState(40);
     const rowRef = useRef<HTMLDivElement>(null);
+
+    // Reset visibility count when filters change
+    useEffect(() => {
+        setVisibleCount(40);
+    }, [categoryId, countryCode]);
 
     useEffect(() => {
         let isMounted = true;
@@ -277,11 +326,7 @@ const LiveTVRow: React.FC<{
                     isCountryFetch = true;
                 }
 
-                const response = await fetch(url);
-                if (!response.ok) throw new Error("Failed to fetch");
-
-                const text = await response.text();
-                let parsed = parseM3U(text);
+                let parsed = await fetchAndParseM3U(url);
 
                 if (isCountryFetch) {
                     parsed = parsed.filter(c => 
@@ -311,6 +356,24 @@ const LiveTVRow: React.FC<{
         c.name.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
+    // D-pad focused loading: if focus is near the end, load more
+    const handleCardFocus = useCallback((index: number) => {
+        setVisibleCount(prev => {
+            if (index >= prev - 5) {
+                return Math.min(prev + 40, filtered.length);
+            }
+            return prev;
+        });
+    }, [filtered.length]);
+
+    // Touch/Mouse scroll loading: if scrolled near the end, load more
+    const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
+        const target = e.currentTarget;
+        if (target.scrollWidth - target.scrollLeft - target.clientWidth < 400) {
+            setVisibleCount(prev => Math.min(prev + 40, filtered.length));
+        }
+    }, [filtered.length]);
+
     // Hide row if empty
     if (!loading && filtered.length === 0) return null;
 
@@ -323,6 +386,7 @@ const LiveTVRow: React.FC<{
             
             <div 
                 ref={rowRef}
+                onScroll={handleScroll}
                 className="flex gap-5 overflow-x-auto px-4 md:px-12 pb-4 hide-scrollbar scroll-smooth"
             >
                 {loading ? (
@@ -330,11 +394,13 @@ const LiveTVRow: React.FC<{
                         <ChannelSkeleton key={i} />
                     ))
                 ) : (
-                    filtered.map(channel => (
+                    filtered.slice(0, visibleCount).map((channel, index) => (
                         <LiveTVCard 
                             key={channel.id}
                             channel={channel}
-                            onPlay={() => onChannelClick(channel)}
+                            index={index}
+                            onPlay={onChannelClick}
+                            onFocus={handleCardFocus}
                         />
                     ))
                 )}
@@ -351,7 +417,7 @@ export const LiveTV: React.FC<LiveTVProps> = ({ userProfile }) => {
     // Search states
     const [searchChannels, setSearchChannels] = useState<LiveChannel[]>([]);
     const [searchLoading, setSearchLoading] = useState(false);
-
+    const [searchVisibleCount, setSearchVisibleCount] = useState(60);
 
     // Dropdown state
     const [isCountryDropdownOpen, setIsCountryDropdownOpen] = useState(false);
@@ -359,6 +425,11 @@ export const LiveTV: React.FC<LiveTVProps> = ({ userProfile }) => {
 
     const isExclusive = true;
     const activeCountryObj = COUNTRIES.find(c => c.id === selectedCountry) || COUNTRIES[0];
+
+    // Reset search pagination on search query change
+    useEffect(() => {
+        setSearchVisibleCount(60);
+    }, [searchQuery]);
 
     // Close dropdown on click outside
     useEffect(() => {
@@ -371,6 +442,34 @@ export const LiveTV: React.FC<LiveTVProps> = ({ userProfile }) => {
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
+    // Stable channel click callback
+    const handleChannelClick = useCallback((channel: LiveChannel) => {
+        setSelectedChannel(channel);
+    }, []);
+
+    // D-pad focused loading for search grid
+    const handleSearchCardFocus = useCallback((index: number) => {
+        setSearchVisibleCount(prev => {
+            if (index >= prev - 10) {
+                return Math.min(prev + 60, searchChannels.length);
+            }
+            return prev;
+        });
+    }, [searchChannels.length]);
+
+    // Scroll loading for search grid
+    useEffect(() => {
+        if (!searchQuery) return;
+        
+        const handleWindowScroll = () => {
+            if (window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 600) {
+                setSearchVisibleCount(prev => Math.min(prev + 60, searchChannels.length));
+            }
+        };
+        
+        window.addEventListener('scroll', handleWindowScroll);
+        return () => window.removeEventListener('scroll', handleWindowScroll);
+    }, [searchQuery, searchChannels.length]);
 
     // Debounced global search loader
     useEffect(() => {
@@ -385,17 +484,12 @@ export const LiveTV: React.FC<LiveTVProps> = ({ userProfile }) => {
             try {
                 let results: LiveChannel[] = [];
                 if (selectedCountry !== 'ALL') {
-                    const res = await fetch(`https://iptv-org.github.io/iptv/countries/${selectedCountry.toLowerCase()}.m3u`);
-                    if (res.ok) {
-                        const text = await res.text();
-                        results = parseM3U(text);
-                    }
+                    const url = `https://iptv-org.github.io/iptv/countries/${selectedCountry.toLowerCase()}.m3u`;
+                    results = await fetchAndParseM3U(url);
                 } else {
                     const categories = ['news', 'movies', 'sports', 'entertainment'];
                     const fetches = categories.map(cat => 
-                        fetch(`https://iptv-org.github.io/iptv/categories/${cat}.m3u`)
-                            .then(res => res.ok ? res.text() : '')
-                            .then(text => parseM3U(text))
+                        fetchAndParseM3U(`https://iptv-org.github.io/iptv/categories/${cat}.m3u`)
                             .catch(() => [] as LiveChannel[])
                     );
                     const resultsArray = await Promise.all(fetches);
@@ -572,7 +666,7 @@ export const LiveTV: React.FC<LiveTVProps> = ({ userProfile }) => {
                                 categoryId={cat.id}
                                 countryCode={selectedCountry}
                                 searchQuery={searchQuery}
-                                onChannelClick={setSelectedChannel}
+                                onChannelClick={handleChannelClick}
                             />
                         ))}
                     </div>
@@ -592,11 +686,13 @@ export const LiveTV: React.FC<LiveTVProps> = ({ userProfile }) => {
                             </div>
                         ) : searchChannels.length > 0 ? (
                             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6">
-                                {searchChannels.map(channel => (
+                                {searchChannels.slice(0, searchVisibleCount).map((channel, index) => (
                                     <LiveTVCard 
                                         key={channel.id}
                                         channel={channel}
-                                        onPlay={() => setSelectedChannel(channel)}
+                                        index={index}
+                                        onPlay={handleChannelClick}
+                                        onFocus={handleSearchCardFocus}
                                     />
                                 ))}
                             </div>
