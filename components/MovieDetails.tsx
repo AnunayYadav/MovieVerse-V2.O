@@ -512,7 +512,12 @@ export const MoviePage: React.FC<MoviePageProps> = ({
     const [showFullCrew, setShowFullCrew] = useState(showFullCrewProp);
 
     useEffect(() => { setActiveTab(activeTabProp); }, [activeTabProp]);
-    useEffect(() => { setPlayParams(initialPlayParams); }, [initialPlayParams.season, initialPlayParams.episode]);
+    useEffect(() => {
+        setPlayParams(initialPlayParams);
+        if (initialPlayParams.season) {
+            setSelectedSeason(initialPlayParams.season);
+        }
+    }, [initialPlayParams.season, initialPlayParams.episode]);
     useEffect(() => { setShowFullCast(showFullCastProp); }, [showFullCastProp]);
     useEffect(() => { setShowFullCrew(showFullCrewProp); }, [showFullCrewProp]);
 
@@ -783,6 +788,12 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                 episode: movie.last_watched_data.episode || 1 
             });
             setSelectedSeason(movie.last_watched_data.season);
+        } else if ((movie as any).initial_season) {
+            setPlayParams({
+                season: (movie as any).initial_season,
+                episode: 1
+            });
+            setSelectedSeason((movie as any).initial_season);
         }
     }, [movie]);
 
@@ -820,7 +831,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                 }
                 setLoading(false);
                 if (data.seasons && data.seasons.length > 0) {
-                    if (!movie.last_watched_data?.season) {
+                    if (!movie.last_watched_data?.season && !(movie as any).initial_season) {
                         const firstSeason = data.seasons.find((s: Season) => s.season_number === 1) || data.seasons[0];
                         setSelectedSeason(firstSeason.season_number);
                     }

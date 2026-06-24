@@ -504,6 +504,91 @@ export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick, sear
     return () => window.removeEventListener('scroll', handleScroll);
   }, [searchQuery, loading, loadingGenreRows, loadNextGenreRow]);
 
+  // Helper to match AniList anime metadata to correct TMDB season
+  const matchAniListToTmdbSeason = (anime: AniListMedia, tmdbSeasons: any[]): number => {
+    if (!tmdbSeasons || tmdbSeasons.length === 0) return 1;
+
+    // Filter out specials (season_number === 0) if there are other seasons
+    const activeSeasons = tmdbSeasons.filter(s => s.season_number > 0);
+    if (activeSeasons.length === 0) return 1;
+    if (activeSeasons.length === 1) return activeSeasons[0].season_number;
+
+    const titles = [
+      anime.title.english,
+      anime.title.romaji,
+      anime.title.userPreferred
+    ].filter((t): t is string => typeof t === 'string' && t.length > 0);
+
+    // 1. Text match search in titles/names
+    let parsedSeasonFromTitle: number | null = null;
+    for (const title of titles) {
+      const t = title.toLowerCase();
+      const match1 = t.match(/\b(?:season|part)\s*(\d+)\b/i);
+      if (match1 && match1[1]) {
+        parsedSeasonFromTitle = parseInt(match1[1], 10);
+        break;
+      }
+      const match2 = t.match(/\b(\d+)(?:st|nd|rd|th)\s*(?:season|part)\b/i);
+      if (match2 && match2[1]) {
+        parsedSeasonFromTitle = parseInt(match2[1], 10);
+        break;
+      }
+      if (/\bseason\s+ii\b/i.test(t) || /\bii\b/i.test(t)) {
+        parsedSeasonFromTitle = 2;
+        break;
+      }
+      if (/\bseason\s+iii\b/i.test(t) || /\biii\b/i.test(t)) {
+        parsedSeasonFromTitle = 3;
+        break;
+      }
+      if (/\bseason\s+iv\b/i.test(t) || /\biv\b/i.test(t)) {
+        parsedSeasonFromTitle = 4;
+        break;
+      }
+    }
+
+    if (parsedSeasonFromTitle !== null) {
+      const match = activeSeasons.find(s => s.season_number === parsedSeasonFromTitle);
+      if (match) return match.season_number;
+    }
+
+    // 2. Air date year matching
+    if (anime.seasonYear) {
+      const matchedByYear = activeSeasons.filter(s => {
+        if (!s.air_date) return false;
+        const tmdbYear = new Date(s.air_date).getFullYear();
+        return tmdbYear === anime.seasonYear;
+      });
+
+      if (matchedByYear.length === 1) {
+        return matchedByYear[0].season_number;
+      } else if (matchedByYear.length > 1) {
+        if (anime.episodes) {
+          const bestMatch = matchedByYear.reduce((prev, curr) => {
+            const prevDiff = Math.abs((prev.episode_count || 0) - (anime.episodes || 0));
+            const currDiff = Math.abs((curr.episode_count || 0) - (anime.episodes || 0));
+            return currDiff < prevDiff ? curr : prev;
+          });
+          return bestMatch.season_number;
+        }
+        return matchedByYear[0].season_number;
+      }
+    }
+
+    // 3. Fallback: Check if any season name has a textual match with the AniList title
+    for (const s of activeSeasons) {
+      const sName = s.name.toLowerCase();
+      for (const title of titles) {
+        const t = title.toLowerCase();
+        if (t.includes(sName) || sName.includes(t)) {
+          return s.season_number;
+        }
+      }
+    }
+
+    return 1;
+  };
+
   // TMDB ID Resolver and Click Handler
   const handleAnimeClick = async (anime: AniListMedia) => {
     const matchCacheKey = `movieverse_anilist_tmdb_match_${anime.id}`;
@@ -523,7 +608,8 @@ export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick, sear
             backdrop_path: parsed.backdropPath,
             vote_average: anime.averageScore ? anime.averageScore / 10 : 0,
             vote_count: 100,
-            popularity: anime.popularity
+            popularity: anime.popularity,
+            initial_season: parsed.initial_season || 1
           } as any);
           return;
         }
@@ -589,12 +675,36 @@ export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick, sear
     }
 
     if (matchedItem) {
+      let resolvedSeason = 1;
+      if (matchedItem.media_type === 'tv') {
+        try {
+          const detailRes = await fetch(`${TMDB_BASE_URL}/tv/${matchedItem.id}?api_key=${apiKey}`);
+          const detailData = await detailRes.json();
+          if (detailData && detailData.seasons) {
+            resolvedSeason = matchAniListToTmdbSeason(anime, detailData.seasons);
+          }
+        } catch (e) {
+          console.error("Failed to fetch TV details for season matching:", e);
+        }
+      }
+
       setMatchingStatus({ isActive: false, title: '', error: null });
       
       const cacheKey = `movieverse_anilist_map_${matchedItem.id}`;
       localStorage.setItem(cacheKey, anime.id.toString());
       
-      onMovieClick(matchedItem);
+      // Save to cache so subsequent clicks don't re-fetch
+      localStorage.setItem(matchCacheKey, JSON.stringify({
+        id: matchedItem.id,
+        mediaType: matchedItem.media_type,
+        backdropPath: matchedItem.backdrop_path,
+        initial_season: resolvedSeason
+      }));
+
+      onMovieClick({
+        ...matchedItem,
+        initial_season: resolvedSeason
+      });
     } else {
       setMatchingStatus(prev => ({
         ...prev,

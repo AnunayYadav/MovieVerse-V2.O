@@ -3691,7 +3691,13 @@ export default function App() {
                     ) : selectedCategory === "Anime" ? (
                         <AnimePage
                             apiKey={apiKey}
-                            onMovieClick={setSelectedMovie}
+                            onMovieClick={(m: any) => {
+                                if (m.initial_season) {
+                                    setWatchSeason(m.initial_season);
+                                    setWatchEpisode(1);
+                                }
+                                setSelectedMovie(m);
+                            }}
                             searchQuery={searchQuery}
                             onSearchClear={() => setSearchQuery('')}
                         />
