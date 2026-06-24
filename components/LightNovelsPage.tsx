@@ -356,7 +356,10 @@ export const LightNovelsPage: React.FC<LightNovelsPageProps> = ({
     try {
       const title = getNovelTitle(novel);
       const searchRes = await window.fetch(`/api/novel?action=search&query=${encodeURIComponent(title)}`);
-      if (!searchRes.ok) throw new Error("Search on NovelBin failed");
+      if (!searchRes.ok) {
+        const errData = await searchRes.json().catch(() => ({}));
+        throw new Error(errData.error || "Search on NovelBin failed");
+      }
       const searchList = await searchRes.json();
       
       if (!searchList || searchList.length === 0) {
@@ -366,7 +369,10 @@ export const LightNovelsPage: React.FC<LightNovelsPageProps> = ({
       // Find best title match
       const bestMatch = searchList[0];
       const infoRes = await window.fetch(`/api/novel?action=info&id=${encodeURIComponent(bestMatch.id)}`);
-      if (!infoRes.ok) throw new Error("Failed to fetch chapters from NovelBin");
+      if (!infoRes.ok) {
+        const errData = await infoRes.json().catch(() => ({}));
+        throw new Error(errData.error || "Failed to fetch chapters from NovelBin");
+      }
       const infoData = await infoRes.json();
       
       setNovelBinDetails(infoData);
@@ -452,7 +458,10 @@ export const LightNovelsPage: React.FC<LightNovelsPageProps> = ({
       setContentError(null);
       try {
         const res = await window.fetch(`/api/novel?action=chapter&id=${encodeURIComponent(activeChapterId)}`);
-        if (!res.ok) throw new Error("Failed to load chapter content");
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.error || "Failed to load chapter content");
+        }
         const data = await res.json();
         if (isMounted) {
           setChapterContent(data);

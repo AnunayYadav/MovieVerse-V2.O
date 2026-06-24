@@ -1,6 +1,47 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import * as cheerio from 'cheerio';
 
+async function fetchHtmlWithFallback(targetUrl: string, headers: any): Promise<{ html: string; isProxied: boolean }> {
+  let lastError: any = null;
+  
+  // Try 1: Direct fetch
+  try {
+    const res = await fetch(targetUrl, { headers });
+    if (res.ok) {
+      const html = await res.text();
+      // Check for Cloudflare challenge
+      if (!html.includes('Just a moment...') && !html.includes('cloudflare') && !html.includes('Attention Required!')) {
+        return { html, isProxied: false };
+      }
+      lastError = new Error(`Direct fetch hit Cloudflare security check [status=${res.status}]`);
+    } else {
+      lastError = new Error(`Direct fetch failed with status ${res.status}: ${res.statusText}`);
+    }
+  } catch (err: any) {
+    lastError = err;
+  }
+  
+  console.warn(`Direct fetch to ${targetUrl} failed, trying Google Translate proxy. Error:`, lastError?.message || lastError);
+  
+  // Try 2: Google Translate proxy
+  try {
+    const proxyUrl = `https://translate.google.com/translate?sl=auto&tl=en&u=${encodeURIComponent(targetUrl)}`;
+    const proxyRes = await fetch(proxyUrl, { headers });
+    if (proxyRes.ok) {
+      const html = await proxyRes.text();
+      if (!html.includes('Just a moment...') && !html.includes('cloudflare') && !html.includes('Attention Required!')) {
+        return { html, isProxied: true };
+      }
+      throw new Error(`Google Translate proxy hit Cloudflare security check [status=${proxyRes.status}]`);
+    } else {
+      throw new Error(`Google Translate proxy failed with status ${proxyRes.status}: ${proxyRes.statusText}`);
+    }
+  } catch (err: any) {
+    console.error(`Google Translate proxy also failed for ${targetUrl}:`, err.message || err);
+    throw new Error(`Failed to load content. Direct: ${lastError?.message || 'Network Error'}. Proxy: ${err.message || 'Network Error'}`);
+  }
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // CORS Headers
   res.setHeader('Access-Control-Allow-Credentials', 'true');
@@ -30,10 +71,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
       
       const searchUrl = `https://novelbin.me/search?keyword=${encodeURIComponent(query)}`;
-      const fetchRes = await fetch(searchUrl, { headers });
-      if (!fetchRes.ok) throw new Error(`Failed to fetch search results from NovelBin: ${fetchRes.statusText}`);
-      
-      const html = await fetchRes.text();
+      const { html } = await fetchHtmlWithFallback(searchUrl, headers);
       const $ = cheerio.load(html);
       const results: any[] = [];
       
@@ -47,6 +85,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         let novelId = href;
         if (href.includes('/novel-book/')) {
           novelId = href.split('/novel-book/')[1].split('/')[0];
+        }
+        if (novelId.includes('?')) {
+          novelId = novelId.split('?')[0];
         }
         
         const img = parent.find('img').attr('src') || parent.find('img').attr('data-src') || '';
@@ -71,10 +112,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       // Fetch the main novel page to get metadata and description
       const infoUrl = `https://novelbin.me/novel-book/${encodeURIComponent(id)}`;
-      const fetchRes = await fetch(infoUrl, { headers });
-      if (!fetchRes.ok) throw new Error(`Failed to fetch novel details from NovelBin: ${fetchRes.statusText}`);
-      
-      const html = await fetchRes.text();
+      const { html } = await fetchHtmlWithFallback(infoUrl, headers);
       const $ = cheerio.load(html);
       
       const title = $('h3.title').text().trim() || $('title').text().replace('Novel - Read Online For Free - Novel Bin', '').trim();
@@ -85,10 +123,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       
       // Retrieve chapters using the archive AJAX endpoint
       const archiveUrl = `https://novelbin.me/ajax/chapter-archive?novelId=${encodeURIComponent(id)}`;
-      const archiveRes = await fetch(archiveUrl, { headers });
-      if (!archiveRes.ok) throw new Error(`Failed to fetch chapters archive: ${archiveRes.statusText}`);
-      
-      const archiveHtml = await archiveRes.text();
+      const { html: archiveHtml } = await fetchHtmlWithFallback(archiveUrl, headers);
       const $archive = cheerio.load(archiveHtml);
       
       const chapters: any[] = [];
@@ -100,6 +135,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         let chapterId = href;
         if (href.includes('/novel-book/')) {
           chapterId = href.split('/novel-book/')[1];
+        }
+        if (chapterId.includes('?')) {
+          chapterId = chapterId.split('?')[0];
         }
         
         if (chapterTitle && chapterId) {
@@ -127,10 +165,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       // ID is e.g. "solo-leveling/chapter-1"
       const chapterUrl = `https://novelbin.me/novel-book/${id}`;
-      const fetchRes = await fetch(chapterUrl, { headers });
-      if (!fetchRes.ok) throw new Error(`Failed to fetch chapter content from NovelBin: ${fetchRes.statusText}`);
-      
-      const html = await fetchRes.text();
+      const { html } = await fetchHtmlWithFallback(chapterUrl, headers);
       const $ = cheerio.load(html);
       
       const title = $('.chr-title').text().trim() || $('title').text().trim();
