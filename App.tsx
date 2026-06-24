@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef, Suspense } from 'react
 import { App as CapApp } from '@capacitor/app';
 import { Search, Film, Menu, TrendingUp, Tv, Ghost, Calendar, Star, X, Sparkles, Settings, Globe, Bookmark, Heart, Folder, Languages, Filter, ChevronDown, Info, Plus, Cloud, CloudOff, Clock, Bell, History, Users, Tag, Dice5, Crown, Radio, LayoutGrid, Award, Baby, Clapperboard, ChevronRight, PlayCircle, Play, Megaphone, CalendarDays, Compass, Home, Map, Loader2, Trophy, RefreshCcw, Check, MonitorPlay, Layers, LogOut, Download, User } from 'lucide-react';
 import { Movie, UserProfile, GENRES_MAP, GENRES_LIST, INDIAN_LANGUAGES, MaturityRating, Keyword } from './types';
-import { LogoLoader, MovieSkeleton, MovieCard, PersonCard, TMDB_BASE_URL, TMDB_BACKDROP_BASE, TMDB_IMAGE_BASE, getTmdbKey, BrandLogo, getMovieVerseRating, tvFetch } from './components/Shared';
+import { LogoLoader, MovieSkeleton, MovieCard, PersonCard, TMDB_BASE_URL, TMDB_BACKDROP_BASE, TMDB_IMAGE_BASE, getTmdbKey, BrandLogo, getMovieVerseRating, tvFetch, isSafeTMDBItem } from './components/Shared';
 import { MoviePage } from './components/MovieDetails';
 import { PersonPage, NotificationModal, ComparisonModal } from './components/Modals';
 import { SettingsPage } from './components/SettingsModal';
@@ -542,7 +542,8 @@ const MovieRow = ({
     onMovieClick,
     apiKey,
     sortOption,
-    selectedLanguage
+    selectedLanguage,
+    isStrictFilter = false
 }: {
     title: string;
     movies?: Movie[];
@@ -553,6 +554,7 @@ const MovieRow = ({
     key?: string | number;
     sortOption?: string;
     selectedLanguage?: string;
+    isStrictFilter?: boolean;
 }) => {
     const [movies, setMovies] = useState<Movie[]>(staticMovies || []);
     const [loading, setLoading] = useState(endpoint ? true : false);
@@ -580,6 +582,9 @@ const MovieRow = ({
     useEffect(() => {
         if (staticMovies) {
             let results = [...staticMovies];
+            if (isStrictFilter) {
+                results = results.filter(isSafeTMDBItem);
+            }
             if (selectedLanguage && selectedLanguage !== 'All') {
                 results = results.filter((item: any) => item.original_language === selectedLanguage);
             }
@@ -588,7 +593,7 @@ const MovieRow = ({
             }
             setMovies(results);
         }
-    }, [staticMovies, selectedLanguage, sortOption, sortMovies]);
+    }, [staticMovies, selectedLanguage, sortOption, sortMovies, isStrictFilter]);
 
     // Intersection Observer to detect visibility
     useEffect(() => {
@@ -670,6 +675,10 @@ const MovieRow = ({
                     title: item.title || item.name
                 }));
 
+                if (isStrictFilter) {
+                    results = results.filter(isSafeTMDBItem);
+                }
+
                 // Secondary Client-side filtering as a fallback
                 if (selectedLanguage && selectedLanguage !== 'All' && !finalEndpoint.includes('/discover/')) {
                     results = results.filter((item: any) => item.original_language === selectedLanguage);
@@ -690,7 +699,7 @@ const MovieRow = ({
         return () => {
             isMounted = false;
         };
-    }, [endpoint, isVisible, apiKey, mediaType, sortOption, selectedLanguage, sortMovies, getFinalEndpoint]);
+    }, [endpoint, isVisible, apiKey, mediaType, sortOption, selectedLanguage, sortMovies, getFinalEndpoint, isStrictFilter]);
 
     const loadNextPage = async () => {
         if (!endpoint || !apiKey || loadingMore || !hasMore) return;
@@ -713,6 +722,10 @@ const MovieRow = ({
                     media_type: mediaType || item.media_type || (finalEndpoint.includes('/tv/') ? 'tv' : 'movie'),
                     title: item.title || item.name
                 }));
+
+                if (isStrictFilter) {
+                    results = results.filter(isSafeTMDBItem);
+                }
 
                 if (selectedLanguage && selectedLanguage !== 'All' && !finalEndpoint.includes('/discover/')) {
                     results = results.filter((item: any) => item.original_language === selectedLanguage);
@@ -1154,6 +1167,10 @@ export default function App() {
     const [comparisonBaseMovie, setComparisonBaseMovie] = useState<Movie | null>(null);
     const [currentUserId, setCurrentUserId] = useState<string>('');
     const [reminders, setReminders] = useState<number[]>([]);
+
+    const userAge = parseInt(userProfile.age || "0");
+    const isAdult = !isNaN(userAge) && userAge >= 18;
+    const isStrictFilter = !isAdult || maturityRating !== 'MV18+';
 
     // Halt video playback when app goes to background / minimized / locked
     useEffect(() => {
@@ -2261,7 +2278,7 @@ export default function App() {
         try {
             let endpoint = "/discover/movie";
             const params = new URLSearchParams({ api_key: apiKey, page: pageNum.toString(), language: "en-US", include_adult: "false" });
-            const isStrictFilter = !isAdult || maturityRating !== 'NC-17';
+            const isStrictFilter = !isAdult || maturityRating !== 'MV18+';
             const isGeneralDiscovery = !activeCountry && !activeKeyword && !tmdbCollectionId && !currentCollection && !["People", "Franchise"].includes(selectedCategory);
             if (isGeneralDiscovery) {
                 if (selectedRegion !== "Global") {
@@ -2281,7 +2298,11 @@ export default function App() {
             else if (tmdbCollectionId) {
                 const res = await fetchWithRetry(`${TMDB_BASE_URL}/collection/${tmdbCollectionId}?api_key=${apiKey}`, controller.signal);
                 const data = await res.json();
-                const sortedParts = (data.parts || []).sort((a: any, b: any) => new Date(a.release_date || "").getTime() - new Date(b.release_date || "").getTime());
+                let parts = data.parts || [];
+                if (isStrictFilter) {
+                    parts = parts.filter(isSafeTMDBItem);
+                }
+                const sortedParts = parts.sort((a: any, b: any) => new Date(a.release_date || "").getTime() - new Date(b.release_date || "").getTime());
                 setMovies(sortedParts);
                 setLoading(false); setHasMore(false); return;
             }
@@ -2455,6 +2476,7 @@ export default function App() {
                 results = results.filter((m: any) => {
                     if (!m.poster_path) return false;
                     if (m.adult === true) return false;
+                    if (isStrictFilter && !isSafeTMDBItem(m)) return false;
                     if (m.media_type === 'movie' && m.runtime > 0 && m.runtime < 40 && !m.genre_ids?.includes(16)) return false;
                     return true;
                 });
@@ -3645,6 +3667,7 @@ export default function App() {
                             apiKey={apiKey}
                             onMovieClick={setSelectedMovie}
                             onClose={() => setSelectedCategory("All")}
+                            isStrictFilter={isStrictFilter}
                         />
                     ) : selectedCategory === "Explore" && !searchQuery ? (
                         <ExplorePage
@@ -4065,6 +4088,7 @@ export default function App() {
                                                         onMovieClick={setSelectedMovie}
                                                         sortOption={sortOption}
                                                         selectedLanguage={selectedLanguage}
+                                                        isStrictFilter={isStrictFilter}
                                                     />
                                                 ))}
                                                 <ContinueWatchingRow watchedMovies={watched} onMovieClick={setSelectedMovie} />
@@ -4076,6 +4100,7 @@ export default function App() {
                                                         onMovieClick={setSelectedMovie}
                                                         sortOption={sortOption}
                                                         selectedLanguage={selectedLanguage}
+                                                        isStrictFilter={isStrictFilter}
                                                     />
                                                 )}
 
@@ -4086,6 +4111,7 @@ export default function App() {
                                                         onMovieClick={setSelectedMovie}
                                                         sortOption={sortOption}
                                                         selectedLanguage={selectedLanguage}
+                                                        isStrictFilter={isStrictFilter}
                                                     />
                                                 )}
 
@@ -4111,6 +4137,7 @@ export default function App() {
                                                             onMovieClick={setSelectedMovie}
                                                             sortOption={sortOption}
                                                             selectedLanguage={selectedLanguage}
+                                                            isStrictFilter={isStrictFilter}
                                                         />
                                                     );
                                                 })}
@@ -4141,6 +4168,7 @@ export default function App() {
                                                                 onMovieClick={setSelectedMovie}
                                                                 sortOption={sortOption}
                                                                 selectedLanguage={selectedLanguage}
+                                                                isStrictFilter={isStrictFilter}
                                                             />
                                                         ))}
                                                         <div className="space-y-4 animate-pulse mt-8 pb-10">
@@ -4169,6 +4197,7 @@ export default function App() {
                                                                         onMovieClick={setSelectedMovie}
                                                                         sortOption={sortOption}
                                                                         selectedLanguage={selectedLanguage}
+                                                                        isStrictFilter={isStrictFilter}
                                                                     />
                                                                 ))}
                                                             </div>

@@ -581,3 +581,55 @@ export const PersonCard = React.memo(React.forwardRef<HTMLDivElement, PersonCard
         </div>
     );
 }));
+
+const NSFW_WORDS = [
+  "hentai",
+  "ecchi",
+  "uncensored",
+  "porn",
+  "sex",
+  "erotic",
+  "bdsm",
+  "nudity",
+  "18+",
+  "xxx",
+  "fetish"
+];
+
+const ANIMATION_GENRE_ID = 16;
+
+function containsBlockedWord(text = "") {
+  const t = text.toLowerCase();
+  return NSFW_WORDS.some(word => t.includes(word));
+}
+
+export function isSafeTMDBItem(item: any): boolean {
+  if (!item) return false;
+  // 1) TMDB adult flag
+  if (item.adult === true) return false;
+
+  // 2) combine searchable text
+  const text = [
+    item.title,
+    item.name,
+    item.original_title,
+    item.original_name,
+    item.overview
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+
+  // 3) block obvious NSFW words
+  if (containsBlockedWord(text)) return false;
+
+  // 4) stricter rule for animation/anime
+  const isAnimation = item.genre_ids?.includes(ANIMATION_GENRE_ID) || 
+                      item.genres?.some((g: any) => g.id === ANIMATION_GENRE_ID);
+  if (isAnimation) {
+    const animeRiskWords = ["hentai", "ecchi", "ova uncensored", "fan service", "uncensored", "sexual", "seduction", "explicit"];
+    if (animeRiskWords.some(word => text.includes(word))) return false;
+  }
+
+  return true;
+}

@@ -342,7 +342,7 @@ export interface MatchDetail {
     sources: Stream[];
 }
 
-export type MaturityRating = "G" | "PG" | "PG-13" | "R" | "NC-17";
+export type MaturityRating = "G" | "PG" | "PG-13" | "R" | "NC-17" | "MV18+";
 
 export const INDIAN_LANGUAGES = [
   { code: "hi", name: "Hindi (Bollywood)" },
