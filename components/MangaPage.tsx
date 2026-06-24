@@ -30,6 +30,7 @@ interface MangaDexManga {
         group: string;
       };
     }[];
+    links?: Record<string, string | undefined>;
   };
   relationships: any[];
 }
@@ -163,7 +164,10 @@ export const MangaPage: React.FC<MangaPageProps> = ({
   const [selectedManga, setSelectedManga] = useState<MangaDexManga | null>(null);
   const [chapters, setChapters] = useState<MangaDexChapter[]>([]);
   const [chaptersLoading, setChaptersLoading] = useState(false);
-  const [detailsTab, setDetailsTab] = useState<'chapters' | 'relations' | 'recommendations'>('chapters');
+  const [detailsTab, setDetailsTab] = useState<'chapters' | 'relations' | 'recommendations' | 'characters'>('chapters');
+  const [characters, setCharacters] = useState<any[]>([]);
+  const [charactersLoading, setCharactersLoading] = useState(false);
+  const [charactersError, setCharactersError] = useState<string | null>(null);
   const [chapterFilter, setChapterFilter] = useState('');
   const [chapterSort, setChapterSort] = useState<'asc' | 'desc'>('desc');
   const [recommendations, setRecommendations] = useState<MangaDexManga[]>([]);
@@ -249,6 +253,123 @@ export const MangaPage: React.FC<MangaPageProps> = ({
     if (!res.ok) throw new Error(`MangaDex request failed: ${res.statusText}`);
     return res.json();
   }, []);
+
+  // GraphQL fetch helper for AniList
+  const fetchAniList = useCallback(async (query: string, variables: any = {}) => {
+    const url = 'https://graphql.anilist.co';
+    const response = await window.fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+      body: JSON.stringify({ query, variables })
+    });
+    
+    const json = await response.json();
+    if (json.errors) {
+      throw new Error(json.errors[0]?.message || 'GraphQL Error');
+    }
+    return json.data;
+  }, []);
+
+  const fetchMangaCharacters = useCallback(async (manga: MangaDexManga) => {
+    setCharactersLoading(true);
+    setCharactersError(null);
+    try {
+      const links = manga.attributes.links || {};
+      const alId = links.al ? parseInt(links.al, 10) : null;
+      const malId = links.mal ? parseInt(links.mal, 10) : null;
+      
+      let query = '';
+      let variables: any = {};
+      
+      if (alId && !isNaN(alId)) {
+        query = `
+          query ($id: Int) {
+            Media(id: $id, type: MANGA) {
+              characters(sort: [ROLE, RELEVANCE, ID], perPage: 24) {
+                edges {
+                  role
+                  node {
+                    id
+                    name {
+                      userPreferred
+                      full
+                    }
+                    image {
+                      large
+                    }
+                  }
+                }
+              }
+            }
+          }
+        `;
+        variables = { id: alId };
+      } else if (malId && !isNaN(malId)) {
+        query = `
+          query ($idMal: Int) {
+            Media(idMal: $idMal, type: MANGA) {
+              characters(sort: [ROLE, RELEVANCE, ID], perPage: 24) {
+                edges {
+                  role
+                  node {
+                    id
+                    name {
+                      userPreferred
+                      full
+                    }
+                    image {
+                      large
+                    }
+                  }
+                }
+              }
+            }
+          }
+        `;
+        variables = { idMal: malId };
+      } else {
+        const title = getMangaTitle(manga);
+        query = `
+          query ($search: String) {
+            Media(search: $search, type: MANGA) {
+              characters(sort: [ROLE, RELEVANCE, ID], perPage: 24) {
+                edges {
+                  role
+                  node {
+                    id
+                    name {
+                      userPreferred
+                      full
+                    }
+                    image {
+                      large
+                    }
+                  }
+                }
+              }
+            }
+          }
+        `;
+        variables = { search: title };
+      }
+
+      const res = await fetchAniList(query, variables);
+      if (res && res.Media && res.Media.characters && res.Media.characters.edges) {
+        setCharacters(res.Media.characters.edges);
+      } else {
+        setCharacters([]);
+      }
+    } catch (err: any) {
+      console.error("Failed to load manga characters:", err);
+      setCharactersError(err.message || "Failed to load characters");
+      setCharacters([]);
+    } finally {
+      setCharactersLoading(false);
+    }
+  }, [fetchAniList, getMangaTitle]);
 
   const getContentRatingParams = useCallback(() => {
     let params = '&contentRating[]=safe&contentRating[]=suggestive&contentRating[]=erotica';
@@ -368,6 +489,15 @@ export const MangaPage: React.FC<MangaPageProps> = ({
     fetchRecommendations();
     return () => { isMounted = false; };
   }, [selectedManga, fetchMangaDex]);
+
+  // Load characters when selectedManga changes
+  useEffect(() => {
+    if (!selectedManga) {
+      setCharacters([]);
+      return;
+    }
+    fetchMangaCharacters(selectedManga);
+  }, [selectedManga, fetchMangaCharacters]);
 
   // Load Initial Manga Lists
   const loadMangaCatalog = useCallback(async () => {
@@ -1390,6 +1520,13 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                 More Like This
                 {detailsTab === 'recommendations' && <span className="absolute bottom-0 left-0 w-full h-0.5 bg-red-600 rounded-full" />}
               </button>
+              <button
+                onClick={() => setDetailsTab('characters')}
+                className={`pb-2 text-xs md:text-sm font-medium tracking-wide relative transition-colors ${detailsTab === 'characters' ? 'text-red-500' : 'text-zinc-500 hover:text-white'}`}
+              >
+                Characters
+                {detailsTab === 'characters' && <span className="absolute bottom-0 left-0 w-full h-0.5 bg-red-600 rounded-full" />}
+              </button>
             </div>
 
             {/* Tab Contents */}
@@ -1571,6 +1708,70 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                       </div>
                     </div>
                   ))}
+                </div>
+              )
+            )}
+
+            {/* Characters Tab */}
+            {detailsTab === 'characters' && (
+              charactersLoading ? (
+                <div className="flex flex-col items-center justify-center py-16 gap-2">
+                  <Loader2 className="animate-spin text-red-500" size={24} />
+                  <span className="text-[10px] text-zinc-500 font-medium tracking-wide">Summoning characters...</span>
+                </div>
+              ) : charactersError && characters.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-16 text-zinc-500 gap-2">
+                  <AlertCircle size={28} className="text-red-500/80 mb-1" />
+                  <span className="text-xs font-medium">Failed to retrieve characters.</span>
+                  <button 
+                    onClick={() => selectedManga && fetchMangaCharacters(selectedManga)}
+                    className="mt-2 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 hover:border-white/20 text-[10px] font-bold text-white transition-all flex items-center gap-2"
+                  >
+                    <RefreshCcw size={11} /> Retry
+                  </button>
+                </div>
+              ) : characters.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-16 opacity-50">
+                  <Users size={28} className="text-zinc-600 mb-2" />
+                  <span className="text-xs text-zinc-500">No characters data found for this manga.</span>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4">
+                  {characters.map((edge: any) => {
+                    const charNode = edge.node;
+                    const charName = charNode.name.userPreferred || charNode.name.full;
+                    const charImage = charNode.image.large || `https://ui-avatars.com/api/?name=${encodeURIComponent(charName)}&background=333&color=fff`;
+                    const charRole = edge.role === 'MAIN' ? 'Main' : 'Supporting';
+                    
+                    return (
+                      <div
+                        key={charNode.id}
+                        onClick={() => window.open(`https://anilist.co/character/${charNode.id}`, '_blank')}
+                        className="group relative shrink-0 aspect-[2/3] rounded-xl overflow-hidden cursor-pointer bg-zinc-900 border border-white/5 hover:border-red-500/50 hover:shadow-[0_0_20px_rgba(239,68,68,0.25)] hover:scale-[1.03] transition-all duration-500 animate-in fade-in zoom-in-95 duration-300"
+                      >
+                        <img
+                          src={charImage}
+                          alt={charName}
+                          loading="lazy"
+                          className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/35 to-transparent opacity-85 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
+                        
+                        {/* Role Badge */}
+                        <div className="absolute top-2 left-2 z-10">
+                          <span className={`px-2 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider ${edge.role === 'MAIN' ? 'bg-red-600/90 text-white' : 'bg-zinc-800/90 text-zinc-300'} backdrop-blur-sm shadow`}>
+                            {charRole}
+                          </span>
+                        </div>
+
+                        <div className="absolute inset-0 p-2.5 flex flex-col justify-end text-left select-none pointer-events-none">
+                          <h4 className="text-[11px] font-bold text-white line-clamp-2 group-hover:text-red-500 transition-colors duration-300 drop-shadow-md leading-tight">
+                            {charName}
+                          </h4>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               )
             )}
