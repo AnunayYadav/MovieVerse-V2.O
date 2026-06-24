@@ -86,6 +86,22 @@ const LANGUAGE_NAMES: Record<string, string> = {
   vi: 'Vietnamese (VI)'
 };
 
+const RELATION_NAMES: Record<string, string> = {
+  prequel: 'Prequel',
+  sequel: 'Sequel',
+  spin_off: 'Spin-off',
+  side_story: 'Side Story',
+  adapted_from: 'Adapted From',
+  alternative_version: 'Alternative Version',
+  alternative_setting: 'Alternative Setting',
+  doujinshi: 'Doujinshi',
+  colored: 'Colored Version',
+  same_franchise: 'Same Franchise',
+  shared_universe: 'Shared Universe',
+  monologue: 'Monologue',
+  main_story: 'Main Story'
+};
+
 const getMangaTitleHelper = (manga: MangaDexManga, lang: 'english' | 'romaji' | 'native') => {
   if (!manga.attributes) return "Untitled Manga";
   const titleObj = manga.attributes.title || {};
@@ -146,11 +162,14 @@ export const MangaPage: React.FC<MangaPageProps> = ({
   const [selectedManga, setSelectedManga] = useState<MangaDexManga | null>(null);
   const [chapters, setChapters] = useState<MangaDexChapter[]>([]);
   const [chaptersLoading, setChaptersLoading] = useState(false);
-  const [detailsTab, setDetailsTab] = useState<'chapters' | 'recommendations'>('chapters');
+  const [detailsTab, setDetailsTab] = useState<'chapters' | 'relations' | 'recommendations'>('chapters');
   const [chapterFilter, setChapterFilter] = useState('');
   const [chapterSort, setChapterSort] = useState<'asc' | 'desc'>('desc');
   const [recommendations, setRecommendations] = useState<MangaDexManga[]>([]);
   const [recLoading, setRecLoading] = useState(false);
+  const [relations, setRelations] = useState<any[]>([]);
+  const [relationsLoading, setRelationsLoading] = useState(false);
+  const [statistics, setStatistics] = useState<any>(null);
   const [selectedLanguage, setSelectedLanguage] = useState('en');
 
   // Reader Overlay
@@ -230,16 +249,19 @@ export const MangaPage: React.FC<MangaPageProps> = ({
     return res.json();
   }, []);
 
-  // Sync selectedManga details with selectedMangaId prop
+  // Sync selectedManga details, statistics, and relations with selectedMangaId prop
   useEffect(() => {
     if (!selectedMangaId) {
       setSelectedManga(null);
+      setStatistics(null);
+      setRelations([]);
       setChapterFilter('');
       setDetailsTab('chapters');
       setSelectedLanguage('en');
       return;
     }
     let isMounted = true;
+    
     const fetchSelectedMangaDetails = async () => {
       try {
         const data = await fetchMangaDex(`/manga/${selectedMangaId}?includes[]=cover_art&includes[]=author&includes[]=artist&includes[]=serialization`);
@@ -250,7 +272,37 @@ export const MangaPage: React.FC<MangaPageProps> = ({
         console.error("Failed to load selected manga details:", err);
       }
     };
+
+    const fetchMangaStats = async () => {
+      try {
+        const statsData = await fetchMangaDex(`/statistics/manga/${selectedMangaId}`);
+        if (isMounted && statsData.statistics && statsData.statistics[selectedMangaId]) {
+          setStatistics(statsData.statistics[selectedMangaId]);
+        }
+      } catch (e) {
+        console.error("Failed to fetch manga statistics:", e);
+      }
+    };
+
+    const fetchMangaRelations = async () => {
+      setRelationsLoading(true);
+      try {
+        const relData = await fetchMangaDex(`/manga/${selectedMangaId}/relation?includes[]=manga&includes[]=cover_art`);
+        if (isMounted) {
+          setRelations(relData.data || []);
+        }
+      } catch (e) {
+        console.error("Failed to fetch manga relations:", e);
+        if (isMounted) setRelations([]);
+      } finally {
+        if (isMounted) setRelationsLoading(false);
+      }
+    };
+
     fetchSelectedMangaDetails();
+    fetchMangaStats();
+    fetchMangaRelations();
+
     return () => { isMounted = false; };
   }, [selectedMangaId, fetchMangaDex]);
 
@@ -290,16 +342,16 @@ export const MangaPage: React.FC<MangaPageProps> = ({
     const fetchRecommendations = async () => {
       setRecLoading(true);
       try {
-        const primaryGenreTag = selectedManga.attributes.tags?.find(t => t.attributes?.group === 'genre');
-        if (primaryGenreTag) {
-          const res = await fetchMangaDex(`/manga?limit=7&includedTags[]=${primaryGenreTag.id}&includes[]=cover_art&contentRating[]=safe&contentRating[]=suggestive&availableTranslatedLanguage[]=en`);
-          if (isMounted) {
-            const list = (res.data || []).filter((m: MangaDexManga) => m.id !== selectedManga.id).slice(0, 6);
-            setRecommendations(list);
-          }
+        const res = await fetchMangaDex(`/manga/${selectedManga.id}/recommendation?includes[]=cover_art`);
+        if (isMounted) {
+          const list = (res.data || []).slice(0, 20);
+          setRecommendations(list);
         }
       } catch (err) {
         console.error("Failed to load manga recommendations:", err);
+        if (isMounted) {
+          setRecommendations([]);
+        }
       } finally {
         if (isMounted) setRecLoading(false);
       }
@@ -565,8 +617,11 @@ export const MangaPage: React.FC<MangaPageProps> = ({
       ?.attributes?.name || 'Unknown';
   }, [selectedManga]);
 
-  // Format pseudo ratings & followers
+  // Format pseudo or real ratings & followers
   const ratingScore = useMemo(() => {
+    if (statistics?.rating?.average) {
+      return statistics.rating.average.toFixed(2);
+    }
     if (!selectedManga) return '7.50';
     let hashVal = 0;
     const idStr = selectedManga.id;
@@ -575,9 +630,12 @@ export const MangaPage: React.FC<MangaPageProps> = ({
     }
     const score = 7.1 + Math.abs(hashVal % 23) / 10;
     return score.toFixed(2);
-  }, [selectedManga]);
+  }, [selectedManga, statistics]);
 
   const reviewScore = useMemo(() => {
+    if (statistics?.rating?.bayesian) {
+      return statistics.rating.bayesian.toFixed(2);
+    }
     if (!selectedManga) return '8.50';
     let hashVal = 0;
     const idStr = selectedManga.id;
@@ -586,9 +644,12 @@ export const MangaPage: React.FC<MangaPageProps> = ({
     }
     const score = 7.5 + Math.abs(hashVal % 21) / 10;
     return score.toFixed(2);
-  }, [selectedManga]);
+  }, [selectedManga, statistics]);
 
   const reviewCount = useMemo(() => {
+    if (statistics?.follows) {
+      return Math.max(15, Math.round(statistics.follows * 0.05));
+    }
     if (!selectedManga) return 100;
     let hashVal = 0;
     const idStr = selectedManga.id;
@@ -596,9 +657,12 @@ export const MangaPage: React.FC<MangaPageProps> = ({
       hashVal = idStr.charCodeAt(i) + ((hashVal << 5) - hashVal);
     }
     return 45 + Math.abs(hashVal % 450);
-  }, [selectedManga]);
+  }, [selectedManga, statistics]);
 
   const formatFollowers = (val: number) => {
+    if (statistics?.follows) {
+      val = statistics.follows;
+    }
     if (!selectedManga) return '0';
     if (!val) {
       let hashVal = 0;
@@ -1301,6 +1365,13 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                 {detailsTab === 'chapters' && <span className="absolute bottom-0 left-0 w-full h-0.5 bg-red-600 rounded-full" />}
               </button>
               <button
+                onClick={() => setDetailsTab('relations')}
+                className={`pb-2 text-xs md:text-sm font-medium tracking-wide relative transition-colors ${detailsTab === 'relations' ? 'text-red-500' : 'text-zinc-500 hover:text-white'}`}
+              >
+                Related Works
+                {detailsTab === 'relations' && <span className="absolute bottom-0 left-0 w-full h-0.5 bg-red-600 rounded-full" />}
+              </button>
+              <button
                 onClick={() => setDetailsTab('recommendations')}
                 className={`pb-2 text-xs md:text-sm font-medium tracking-wide relative transition-colors ${detailsTab === 'recommendations' ? 'text-red-500' : 'text-zinc-500 hover:text-white'}`}
               >
@@ -1310,7 +1381,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
             </div>
 
             {/* Tab Contents */}
-            {detailsTab === 'chapters' ? (
+            {detailsTab === 'chapters' && (
               <div className="space-y-4">
                 {/* Search & Sort Panel */}
                 <div className="flex flex-col sm:flex-row gap-3 items-center justify-between bg-[#0c0c0e] border border-white/5 rounded-xl p-3">
@@ -1399,13 +1470,67 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                   </div>
                 )}
               </div>
-            ) : (
-              /* Recommendations Tab */
+            )}
+
+            {/* Relations Tab */}
+            {detailsTab === 'relations' && (
+              relationsLoading ? (
+                <div className="flex flex-col items-center justify-center py-16 gap-2">
+                  <Loader2 className="animate-spin text-red-500" size={24} />
+                  <span className="text-[10px] text-zinc-500 font-medium tracking-wide">Finding related works...</span>
+                </div>
+              ) : relations.filter(r => r.relationships?.some((x: any) => x.type === 'manga')).length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-16 opacity-50">
+                  <LayoutList size={28} className="text-zinc-600 mb-2" />
+                  <span className="text-xs text-zinc-500">No related works available for this manga.</span>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4">
+                  {relations.map((rel) => {
+                    const relatedManga = rel.relationships?.find((r: any) => r.type === 'manga');
+                    if (!relatedManga) return null;
+                    const relationType = RELATION_NAMES[rel.attributes?.relation] || rel.attributes?.relation || 'Related';
+                    return (
+                      <div
+                        key={rel.id}
+                        onClick={() => onMangaSelect(relatedManga.id)}
+                        className="group relative shrink-0 aspect-[2/3] rounded-xl overflow-hidden cursor-pointer bg-zinc-900 border border-white/5 hover:border-red-500/50 hover:shadow-[0_0_20px_rgba(239,68,68,0.25)] hover:scale-[1.03] transition-all duration-500 animate-in fade-in zoom-in-95 duration-300"
+                      >
+                        <img
+                          src={getMangaCover(relatedManga)}
+                          alt={getMangaTitle(relatedManga)}
+                          loading="lazy"
+                          referrerPolicy="no-referrer"
+                          className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/35 to-transparent opacity-85 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
+                        
+                        {/* Relation Type Badge */}
+                        <div className="absolute top-2 left-2 z-10">
+                          <span className="px-2 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider bg-red-600/90 text-white backdrop-blur-sm shadow">
+                            {relationType}
+                          </span>
+                        </div>
+
+                        <div className="absolute inset-0 p-2.5 flex flex-col justify-end text-left select-none pointer-events-none">
+                          <h4 className="text-[11px] font-bold text-white line-clamp-2 group-hover:text-red-500 transition-colors duration-300 drop-shadow-md leading-tight">
+                            {getMangaTitle(relatedManga)}
+                          </h4>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )
+            )}
+
+            {/* Recommendations Tab */}
+            {detailsTab === 'recommendations' && (
               recLoading ? (
                 <div className="flex flex-col items-center justify-center py-16 gap-2">
                   <Loader2 className="animate-spin text-red-500" size={24} />
                   <span className="text-[10px] text-zinc-500 font-medium tracking-wide">Finding recommendations...</span>
-                 </div>
+                </div>
               ) : recommendations.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-16 opacity-50">
                   <Sparkles size={28} className="text-zinc-600 mb-2" />
