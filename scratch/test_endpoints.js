@@ -46,6 +46,15 @@ async function runTests() {
     if (data4.length > 0) {
       console.log('First result:', JSON.stringify(data4[0], null, 2));
     }
+
+    // Test 5: Specific Chapter Referer check
+    console.log('\n--- Test 5: Specific Chapter Referer Check ---');
+    const specificChapterId = 'campus-rebirth-the-strongest-female-agent/chapter-2813-end-2813-c2759-ending-chapter-no-book-currency-grand-ending';
+    const res5 = await fetch(`${baseUrl}/api/novel?action=chapter&id=${encodeURIComponent(specificChapterId)}`);
+    console.log('Status:', res5.status);
+    const data5 = await res5.json();
+    console.log('Chapter Title:', data5.title);
+    console.log('Paragraphs Count:', data5.paragraphs ? data5.paragraphs.length : 0);
   } catch (err) {
     console.error('Test script error:', err);
   }

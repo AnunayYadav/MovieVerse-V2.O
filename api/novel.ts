@@ -144,7 +144,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       // Fetch the main novel page to get metadata and description
       const infoUrl = `https://novelbin.me/novel-book/${encodeURIComponent(id)}`;
-      const { html } = await fetchHtmlWithFallback(infoUrl, headers);
+      const infoHeaders = { ...headers, 'Referer': 'https://novelbin.me/search' };
+      const { html } = await fetchHtmlWithFallback(infoUrl, infoHeaders);
       const $ = cheerio.load(html);
       
       const title = $('h3.title').text().trim() || $('title').text().replace('Novel - Read Online For Free - Novel Bin', '').trim();
@@ -155,7 +156,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       
       // Retrieve chapters using the archive AJAX endpoint
       const archiveUrl = `https://novelbin.me/ajax/chapter-archive?novelId=${encodeURIComponent(id)}`;
-      const { html: archiveHtml } = await fetchHtmlWithFallback(archiveUrl, headers);
+      const archiveHeaders = { ...headers, 'Referer': infoUrl };
+      const { html: archiveHtml } = await fetchHtmlWithFallback(archiveUrl, archiveHeaders);
       const $archive = cheerio.load(archiveHtml);
       
       const chapters: any[] = [];
@@ -195,9 +197,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(400).json({ error: 'ID parameter is required' });
       }
 
-      // ID is e.g. "solo-leveling/chapter-1"
+      // ID is e.g. "campus-rebirth-the-strongest-female-agent/chapter-2813-..."
+      const novelId = id.split('/')[0];
+      const parentUrl = `https://novelbin.me/novel-book/${novelId}`;
       const chapterUrl = `https://novelbin.me/novel-book/${id}`;
-      const { html } = await fetchHtmlWithFallback(chapterUrl, headers);
+      const chapterHeaders = { ...headers, 'Referer': parentUrl };
+      const { html } = await fetchHtmlWithFallback(chapterUrl, chapterHeaders);
       const $ = cheerio.load(html);
       
       const title = $('.chr-title').text().trim() || $('title').text().trim();
