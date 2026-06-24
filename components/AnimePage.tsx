@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Play, Info, Search, Star, Film, X, Layers, TrendingUp, Sparkles, Trophy, Calendar, RefreshCcw, Loader2, ArrowLeft, Tv, AlertCircle } from 'lucide-react';
+import { Play, Info, Search, Star, Film, X, Layers, TrendingUp, Sparkles, Trophy, Calendar, RefreshCcw, Loader2, ArrowLeft, Tv, AlertCircle, Languages, ChevronDown, Check } from 'lucide-react';
 import { Movie } from '../types';
 import { TMDB_BASE_URL, TMDB_IMAGE_BASE, TMDB_BACKDROP_BASE, tvFetch } from './Shared';
 import { useTvFocus, TvFocusButton, TvFocusInput } from '../tvNavigation';
@@ -9,6 +9,8 @@ const fetch = tvFetch;
 interface AnimePageProps {
   apiKey: string;
   onMovieClick: (m: Movie) => void;
+  searchQuery?: string;
+  onSearchClear?: () => void;
 }
 
 interface AniListMedia {
@@ -59,7 +61,7 @@ const ANIME_GENRES = [
   "Psychological"
 ];
 
-export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick }) => {
+export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick, searchQuery: parentSearchQuery, onSearchClear }) => {
   const [trending, setTrending] = useState<AniListMedia[]>([]);
   const [popular, setPopular] = useState<AniListMedia[]>([]);
   const [topRated, setTopRated] = useState<AniListMedia[]>([]);
@@ -83,6 +85,20 @@ export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick }) =>
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<AniListMedia[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
+
+  // Title Language settings
+  const [titleLanguage, setTitleLanguage] = useState<'english' | 'romaji' | 'native'>('english');
+  const [isLangDropdownOpen, setIsLangDropdownOpen] = useState(false);
+
+  const getAnimeTitle = (anime: AniListMedia) => {
+    if (titleLanguage === 'english') {
+      return anime.title.english || anime.title.romaji || anime.title.native || anime.title.userPreferred;
+    } else if (titleLanguage === 'romaji') {
+      return anime.title.romaji || anime.title.english || anime.title.native || anime.title.userPreferred;
+    } else {
+      return anime.title.native || anime.title.romaji || anime.title.english || anime.title.userPreferred;
+    }
+  };
 
   // TMDB Matching Sync Overlay
   const [matchingStatus, setMatchingStatus] = useState<{
@@ -395,6 +411,17 @@ export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick }) =>
     return () => clearTimeout(delayDebounce);
   }, [searchInput]);
 
+  // Sync parent search query updates
+  useEffect(() => {
+    if (parentSearchQuery !== undefined) {
+      setSearchInput(parentSearchQuery);
+      const delay = setTimeout(() => {
+        setSearchQuery(parentSearchQuery);
+      }, 400);
+      return () => clearTimeout(delay);
+    }
+  }, [parentSearchQuery]);
+
   // Fetch search results when query changes
   useEffect(() => {
     if (!searchQuery.trim()) {
@@ -489,8 +516,8 @@ export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick }) =>
           onMovieClick({
             id: parsed.id,
             media_type: parsed.mediaType,
-            title: anime.title.english || anime.title.romaji || anime.title.userPreferred,
-            name: anime.title.english || anime.title.romaji || anime.title.userPreferred,
+            title: getAnimeTitle(anime),
+            name: getAnimeTitle(anime),
             overview: anime.description || '',
             poster_path: null,
             backdrop_path: parsed.backdropPath,
@@ -510,7 +537,7 @@ export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick }) =>
       anime.title.native
     ].filter((t): t is string => typeof t === 'string' && t.length > 0);
 
-    const displayName = anime.title.english || anime.title.romaji || anime.title.userPreferred;
+    const displayName = getAnimeTitle(anime);
     setMatchingStatus({ isActive: true, title: displayName, error: null });
 
     let matchedItem: any = null;
@@ -590,7 +617,7 @@ export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick }) =>
           <div className="absolute inset-0">
             <img
               src={featured.bannerImage || featured.coverImage.extraLarge || featured.coverImage.large}
-              alt={featured.title.english || featured.title.romaji}
+              alt={getAnimeTitle(featured)}
               className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-102 opacity-75"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-[#030303] via-[#030303]/60 to-transparent" />
@@ -605,12 +632,12 @@ export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick }) =>
             {!featuredLogoLoading && featuredLogoUrl ? (
               <img
                 src={featuredLogoUrl}
-                alt={featured.title.english || featured.title.romaji}
+                alt={getAnimeTitle(featured)}
                 className="max-h-20 md:max-h-32 max-w-[85%] object-contain object-left mb-2 drop-shadow-[0_4px_12px_rgba(0,0,0,0.9)] animate-in fade-in duration-300"
               />
             ) : (
               <h1 className="text-3xl md:text-5xl font-bold text-white leading-tight tracking-tight drop-shadow-2xl text-left">
-                {featured.title.english || featured.title.romaji}
+                {getAnimeTitle(featured)}
               </h1>
             )}
 
@@ -678,7 +705,7 @@ export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick }) =>
               <span>Search Results for "{searchQuery}"</span>
             </h2>
             <button
-              onClick={() => { setSearchInput(''); setSearchQuery(''); }}
+              onClick={() => { setSearchInput(''); setSearchQuery(''); if (onSearchClear) onSearchClear(); }}
               className="text-xs font-bold text-red-500 hover:text-red-400 bg-red-600/10 px-3 py-1.5 rounded-full flex items-center gap-1.5 active:scale-95 transition-all"
             >
               <ArrowLeft size={13} /> Back to Catalog
@@ -699,7 +726,7 @@ export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick }) =>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
               {searchResults.map((anime) => (
-                <AnimeCard key={anime.id} anime={anime} apiKey={apiKey} onAnimeClick={handleAnimeClick} />
+                <AnimeCard key={anime.id} anime={anime} apiKey={apiKey} onAnimeClick={handleAnimeClick} titleLanguage={titleLanguage} />
               ))}
             </div>
           )}
@@ -737,11 +764,63 @@ export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick }) =>
       ) : (
         // Standard Grid Sections and Dynamic Scroll Genre Rows
         <div className="space-y-4">
-          <AnimeRow title="Trending Right Now" items={trending} apiKey={apiKey} onAnimeClick={handleAnimeClick} />
-          <AnimeRow title="Summer 2026 Season" items={seasonal} apiKey={apiKey} onAnimeClick={handleAnimeClick} />
-          <AnimeRow title="All-Time Popular Favorites" items={popular} apiKey={apiKey} onAnimeClick={handleAnimeClick} />
-          <AnimeRow title="Top Ranked Masterpieces" items={topRated} apiKey={apiKey} onAnimeClick={handleAnimeClick} />
-          <AnimeRow title="Upcoming Anticipated Releases" items={upcoming} apiKey={apiKey} onAnimeClick={handleAnimeClick} />
+          
+          {/* Section Header with Language Selector Dropdown */}
+          <div className="flex items-center justify-between px-4 md:px-12 py-4 border-b border-white/5 mb-6">
+            <div className="flex items-center gap-3">
+              <h2 className="text-xl md:text-2xl font-black text-white tracking-tight flex items-center gap-2.5 text-left">
+                <span className="w-2.5 h-6 rounded-full bg-red-600"></span>
+                Anime Catalog
+              </h2>
+            </div>
+            
+            <div className="relative group shrink-0">
+              <button 
+                onClick={() => setIsLangDropdownOpen(!isLangDropdownOpen)} 
+                className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/15 hover:border-white/25 rounded-full text-xs font-bold text-gray-200 transition-all active:scale-95 min-w-[130px] justify-between shadow-lg backdrop-blur-md"
+              >
+                <div className="flex items-center gap-2">
+                  <Languages size={14} className="text-red-500" /> 
+                  <span>{titleLanguage === 'english' ? 'English' : titleLanguage === 'romaji' ? 'Romaji' : 'Native'}</span>
+                </div>
+                <ChevronDown size={12} className="text-zinc-500 group-hover:text-white transition-colors" />
+              </button>
+              {isLangDropdownOpen && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setIsLangDropdownOpen(false)} />
+                  <div className="absolute right-0 mt-2 w-40 bg-[#0c0c0e]/95 backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden shadow-2xl transition-all origin-top-right z-50 p-1.5 animate-in fade-in slide-in-from-top-2 duration-200">
+                    {[
+                      { value: 'english', label: 'English' },
+                      { value: 'romaji', label: 'Romaji' },
+                      { value: 'native', label: 'Native' }
+                    ].map(opt => (
+                      <button 
+                        key={opt.value} 
+                        onClick={() => { 
+                          setTitleLanguage(opt.value as any); 
+                          setIsLangDropdownOpen(false); 
+                        }} 
+                        className={`w-full text-left px-3.5 py-2 text-xs font-bold rounded-xl transition-colors flex items-center justify-between ${
+                          titleLanguage === opt.value 
+                            ? 'bg-red-600 text-white shadow-md shadow-red-600/20' 
+                            : 'text-zinc-400 hover:bg-white/5 hover:text-white'
+                        }`}
+                      >
+                        {opt.label}
+                        {titleLanguage === opt.value && <Check size={12} />}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+
+          <AnimeRow title="Trending Right Now" items={trending} apiKey={apiKey} onAnimeClick={handleAnimeClick} titleLanguage={titleLanguage} />
+          <AnimeRow title="Summer 2026 Season" items={seasonal} apiKey={apiKey} onAnimeClick={handleAnimeClick} titleLanguage={titleLanguage} />
+          <AnimeRow title="All-Time Popular Favorites" items={popular} apiKey={apiKey} onAnimeClick={handleAnimeClick} titleLanguage={titleLanguage} />
+          <AnimeRow title="Top Ranked Masterpieces" items={topRated} apiKey={apiKey} onAnimeClick={handleAnimeClick} titleLanguage={titleLanguage} />
+          <AnimeRow title="Upcoming Anticipated Releases" items={upcoming} apiKey={apiKey} onAnimeClick={handleAnimeClick} titleLanguage={titleLanguage} />
           
           {/* Dynamically Lazy-loaded Endless Genres */}
           {genreRows.map((row) => (
@@ -751,6 +830,7 @@ export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick }) =>
               items={row.media} 
               apiKey={apiKey} 
               onAnimeClick={handleAnimeClick} 
+              titleLanguage={titleLanguage}
             />
           ))}
 
@@ -819,9 +899,10 @@ interface AnimeCardProps {
   anime: AniListMedia;
   apiKey: string;
   onAnimeClick: (anime: AniListMedia) => void;
+  titleLanguage: 'english' | 'romaji' | 'native';
 }
 
-const AnimeCard: React.FC<AnimeCardProps> = ({ anime, apiKey, onAnimeClick }) => {
+const AnimeCard: React.FC<AnimeCardProps> = ({ anime, apiKey, onAnimeClick, titleLanguage }) => {
   const [backdropUrl, setBackdropUrl] = useState<string | null>(null);
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [logoLoading, setLogoLoading] = useState(true);
@@ -830,7 +911,17 @@ const AnimeCard: React.FC<AnimeCardProps> = ({ anime, apiKey, onAnimeClick }) =>
     onEnterPress: () => onAnimeClick(anime)
   });
 
-  const title = anime.title.english || anime.title.romaji || anime.title.userPreferred;
+  const getAnimeTitle = (a: AniListMedia, lang: 'english' | 'romaji' | 'native') => {
+    if (lang === 'english') {
+      return a.title.english || a.title.romaji || a.title.native || a.title.userPreferred;
+    } else if (lang === 'romaji') {
+      return a.title.romaji || a.title.english || a.title.native || a.title.userPreferred;
+    } else {
+      return a.title.native || a.title.romaji || a.title.english || a.title.userPreferred;
+    }
+  };
+
+  const title = getAnimeTitle(anime, titleLanguage);
 
   // Background resolver for each card's TMDB match & logo
   useEffect(() => {
@@ -1044,9 +1135,10 @@ interface AnimeRowProps {
   items: AniListMedia[];
   apiKey: string;
   onAnimeClick: (anime: AniListMedia) => void;
+  titleLanguage: 'english' | 'romaji' | 'native';
 }
 
-const AnimeRow: React.FC<AnimeRowProps> = ({ title, items, apiKey, onAnimeClick }) => {
+const AnimeRow: React.FC<AnimeRowProps> = ({ title, items, apiKey, onAnimeClick, titleLanguage }) => {
   if (items.length === 0) return null;
   return (
     <div className="mb-10 animate-in fade-in duration-500 text-left">
@@ -1056,7 +1148,7 @@ const AnimeRow: React.FC<AnimeRowProps> = ({ title, items, apiKey, onAnimeClick 
       </h3>
       <div className="flex gap-5 overflow-x-auto px-4 md:px-12 pb-4 hide-scrollbar scroll-smooth">
         {items.map((anime) => (
-          <AnimeCard key={anime.id} anime={anime} apiKey={apiKey} onAnimeClick={onAnimeClick} />
+          <AnimeCard key={anime.id} anime={anime} apiKey={apiKey} onAnimeClick={onAnimeClick} titleLanguage={titleLanguage} />
         ))}
       </div>
     </div>

@@ -51,6 +51,8 @@ interface MangaPageProps {
   activeChapterId: string | null;
   onChapterSelect: (id: string | null) => void;
   onMovieClick: (m: any) => void; // Unused but kept to match props shape of other tabs
+  searchQuery?: string;
+  onSearchClear?: () => void;
 }
 
 const MANGA_GENRES = [
@@ -89,7 +91,9 @@ export const MangaPage: React.FC<MangaPageProps> = ({
   selectedMangaId,
   onMangaSelect,
   activeChapterId,
-  onChapterSelect
+  onChapterSelect,
+  searchQuery: parentSearchQuery,
+  onSearchClear
 }) => {
   const [trending, setTrending] = useState<MangaDexManga[]>([]);
   const [latest, setLatest] = useState<MangaDexManga[]>([]);
@@ -363,6 +367,17 @@ export const MangaPage: React.FC<MangaPageProps> = ({
     const delay = setTimeout(() => setSearchQuery(searchInput), 500);
     return () => clearTimeout(delay);
   }, [searchInput]);
+
+  // Debounce parent search query updates
+  useEffect(() => {
+    if (parentSearchQuery !== undefined) {
+      setSearchInput(parentSearchQuery);
+      const delay = setTimeout(() => {
+        setSearchQuery(parentSearchQuery);
+      }, 400);
+      return () => clearTimeout(delay);
+    }
+  }, [parentSearchQuery]);
 
   // Search runner
   useEffect(() => {
@@ -1189,48 +1204,42 @@ export const MangaPage: React.FC<MangaPageProps> = ({
           
           {/* Right Column - Main Info Description Tabs */}
           <div className="flex-1 min-w-0">
-            <h1 className="text-3xl md:text-5xl font-semibold text-white tracking-tight leading-tight mb-2">
+            <h1 className="text-3xl md:text-5xl font-extrabold text-white tracking-tight leading-tight mb-6">
               {getMangaTitle(selectedManga)}
             </h1>
-            
-            {selectedManga.attributes.altTitles && selectedManga.attributes.altTitles.length > 0 && (
-              <p className="text-xs text-zinc-500 font-normal mb-5 leading-relaxed max-h-12 overflow-y-auto pr-2 custom-scrollbar">
-                {selectedManga.attributes.altTitles.map(t => Object.values(t)[0]).filter(Boolean).join(' • ')}
-              </p>
-            )}
 
             {/* Quick Metrics Badge row */}
-            <div className="flex flex-wrap gap-2 mb-6">
-              <span className="px-3 py-1 rounded-md text-xs font-light bg-white/[0.03] text-zinc-400 flex items-center gap-1.5" title="MAL Rating">
+            <div className="flex flex-wrap gap-2 mb-6 text-left">
+              <span className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-white/5 border border-white/10 text-zinc-300 flex items-center gap-1.5" title="MAL Rating">
                 ⭐ {ratingScore} MAL
               </span>
-              <span className="px-3 py-1 rounded-md text-xs font-light bg-white/[0.03] text-zinc-400 flex items-center gap-1.5" title="Reviews Score">
+              <span className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-white/5 border border-white/10 text-zinc-300 flex items-center gap-1.5" title="Reviews Score">
                 🏆 {reviewScore} / 10 ({reviewCount} reviews)
               </span>
-              <span className="px-3 py-1 rounded-md text-xs font-light bg-white/[0.03] text-zinc-400 flex items-center gap-1.5">
+              <span className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-white/5 border border-white/10 text-zinc-300 flex items-center gap-1.5">
                 <Users size={12} className="text-zinc-500" /> {formatFollowers(selectedManga.attributes.relevance || 0)} Followers
               </span>
-              <span className="px-3 py-1 rounded-md text-xs font-light bg-white/[0.03] text-zinc-400 capitalize">
+              <span className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-white/5 border border-white/10 text-zinc-300 capitalize">
                 {selectedManga.attributes.contentRating}
               </span>
             </div>
 
             {/* Synopsis */}
-            <div className="mb-8">
-              <h3 className="text-xs font-normal tracking-wide text-zinc-500 mb-2">Synopsis</h3>
-              <p className="text-sm text-zinc-400 leading-relaxed font-light">
+            <div className="mb-8 text-left">
+              <h3 className="text-xl font-bold text-white mb-4">Synopsis</h3>
+              <p className="text-gray-300 leading-relaxed text-base font-light">
                 {cleanDescription(selectedManga.attributes.description?.en || null)}
               </p>
             </div>
 
             {/* Genres & Tags */}
-            <div className="mb-8">
-              <h3 className="text-xs font-normal tracking-wide text-zinc-500 mb-2.5">Genres & Themes</h3>
+            <div className="mb-8 text-left">
+              <h3 className="text-xl font-bold text-white mb-4">Genres & Themes</h3>
               <div className="flex flex-wrap gap-2">
                 {selectedManga.attributes.tags?.map((t: any) => (
                   <span
                     key={t.id}
-                    className="px-3 py-1 rounded-md text-xs font-normal bg-white/[0.03] text-zinc-400 transition-colors cursor-default"
+                    className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-white/5 border border-white/10 text-zinc-300 transition-colors cursor-default"
                   >
                     {t.attributes.name.en}
                   </span>
@@ -1240,8 +1249,8 @@ export const MangaPage: React.FC<MangaPageProps> = ({
 
             {/* External Links */}
             {externalLinks.length > 0 && (
-              <div className="mb-10">
-                <h3 className="text-xs font-normal tracking-wide text-zinc-500 mb-2.5">Official & Database Links</h3>
+              <div className="mb-10 text-left">
+                <h3 className="text-xl font-bold text-white mb-4">Official & Database Links</h3>
                 <div className="flex flex-wrap gap-2">
                   {externalLinks.map((link) => (
                     <a
@@ -1249,7 +1258,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                       href={link.url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="px-3 py-1 rounded-md text-xs font-normal bg-white/[0.03] hover:bg-white/[0.06] text-zinc-400 hover:text-white transition-all flex items-center gap-1.5 active:scale-95"
+                      className="px-3.5 py-2 rounded-lg text-xs font-bold bg-white/5 border border-white/10 hover:border-white/20 text-zinc-300 hover:text-white transition-all flex items-center gap-2 active:scale-95 shadow-sm"
                     >
                       <Globe size={13} className="text-zinc-500" /> {link.name}
                     </a>
@@ -1487,7 +1496,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
               <span>Search Results for "{searchQuery}"</span>
             </h2>
             <button
-              onClick={() => { setSearchInput(''); setSearchQuery(''); }}
+              onClick={() => { setSearchInput(''); setSearchQuery(''); if (onSearchClear) onSearchClear(); }}
               className="text-xs font-bold text-red-500 hover:text-red-400 bg-red-600/10 px-3 py-1.5 rounded-full flex items-center gap-1.5 active:scale-95 transition-all"
             >
               <ChevronLeft size={13} /> Back to Catalog

@@ -2566,6 +2566,10 @@ export default function App() {
     const handleSearchSubmit = (query: string) => {
         if (selectedCategory === "Categories") return;
         resetFilters();
+        if (selectedCategory === "Manga") {
+            setSelectedMangaId(null);
+            setActiveMangaChapterId(null);
+        }
         setSearchQuery(query);
         addToSearchHistory(query);
         setShowSuggestions(false);
@@ -3684,12 +3688,14 @@ export default function App() {
                             onMovieClick={setSelectedMovie}
                             onClose={() => setSelectedCategory("All")}
                         />
-                    ) : selectedCategory === "Anime" && !searchQuery ? (
+                    ) : selectedCategory === "Anime" ? (
                         <AnimePage
                             apiKey={apiKey}
                             onMovieClick={setSelectedMovie}
+                            searchQuery={searchQuery}
+                            onSearchClear={() => setSearchQuery('')}
                         />
-                    ) : selectedCategory === "Manga" && !searchQuery ? (
+                    ) : selectedCategory === "Manga" ? (
                         <MangaPage
                             apiKey={apiKey}
                             selectedMangaId={selectedMangaId}
@@ -3697,6 +3703,8 @@ export default function App() {
                             activeChapterId={activeMangaChapterId}
                             onChapterSelect={setActiveMangaChapterId}
                             onMovieClick={setSelectedMovie}
+                            searchQuery={searchQuery}
+                            onSearchClear={() => setSearchQuery('')}
                         />
                     ) : selectedCategory === "Explore" && !searchQuery ? (
                         <ExplorePage
