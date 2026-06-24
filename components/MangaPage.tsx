@@ -641,6 +641,17 @@ export const MangaPage: React.FC<MangaPageProps> = ({ apiKey }) => {
                       referrerPolicy="no-referrer"
                       className="w-full object-contain pointer-events-none"
                       loading="lazy"
+                      onError={(e) => {
+                        const target = e.currentTarget;
+                        if (!target.src.includes('uploads.mangadex.org')) {
+                          try {
+                            const parsedUrl = new URL(target.src);
+                            target.src = `https://uploads.mangadex.org${parsedUrl.pathname}`;
+                          } catch (err) {
+                            console.error('Failed to resolve fallback URL:', err);
+                          }
+                        }
+                      }}
                     />
                     <div className="absolute bottom-2 right-2 bg-black/70 px-2 py-0.5 rounded text-[10px] text-zinc-400 border border-white/5 select-none font-semibold">
                       {i + 1} / {pages.length}
@@ -669,6 +680,17 @@ export const MangaPage: React.FC<MangaPageProps> = ({ apiKey }) => {
                       alt={`Page ${activePageIdx + 1}`}
                       referrerPolicy="no-referrer"
                       className="max-h-full max-w-full object-contain pointer-events-none"
+                      onError={(e) => {
+                        const target = e.currentTarget;
+                        if (!target.src.includes('uploads.mangadex.org')) {
+                          try {
+                            const parsedUrl = new URL(target.src);
+                            target.src = `https://uploads.mangadex.org${parsedUrl.pathname}`;
+                          } catch (err) {
+                            console.error('Failed to resolve fallback URL:', err);
+                          }
+                        }
+                      }}
                     />
                     
                     <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/85 border border-white/10 backdrop-blur-md px-3.5 py-1 rounded-full text-xs text-white select-none font-bold">

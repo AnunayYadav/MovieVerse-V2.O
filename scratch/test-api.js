@@ -1,21 +1,13 @@
 async function run() {
-  const url = 'https://api.mangadex.org/manga?limit=20&order[rating]=desc&includes[]=cover_art&contentRating[]=safe&contentRating[]=suggestive&availableTranslatedLanguage[]=en';
-  console.log('Fetching:', url);
+  const volunteerUrl = 'https://cmdxd98sb0x3yprd.mangadex.network/data/35e8b23d329407071b8f393bad9dbe93/11-10de292f7fa7b0f7d731897cf055490caf67a5eaffe5dfc46ba5dcd8c5559e78.jpg';
+  const centralUrl = 'https://uploads.mangadex.org/data/35e8b23d329407071b8f393bad9dbe93/11-10de292f7fa7b0f7d731897cf055490caf67a5eaffe5dfc46ba5dcd8c5559e78.jpg';
 
   try {
-    const res = await fetch(url, {
-      headers: {
-        'User-Agent': 'MovieVerse/2.0 (contact@movieverse.app)'
-      }
-    });
-    const json = await res.json();
-    console.log('Data length:', json.data?.length);
-    if (json.data) {
-      json.data.forEach((manga, idx) => {
-        const title = manga.attributes?.title?.en || Object.values(manga.attributes?.title || {})[0];
-        console.log(`${idx + 1}. [ID: ${manga.id}] ${title} (${manga.attributes.contentRating})`);
-      });
-    }
+    const res1 = await fetch(volunteerUrl, { headers: { 'User-Agent': 'MovieVerse/2.0' } });
+    console.log('Volunteer Node Status:', res1.status);
+
+    const res2 = await fetch(centralUrl, { headers: { 'User-Agent': 'MovieVerse/2.0' } });
+    console.log('Central Server Status:', res2.status);
   } catch (err) {
     console.error('Error:', err);
   }
