@@ -1,8 +1,17 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { MANGA } from '@consumet/extensions';
 
-// Initialize MangaPill provider
-const mangapill = new MANGA.MangaPill();
+// Initialize and cache provider instances
+const providers: Record<string, any> = {
+  mangadex: new MANGA.MangaDex(),
+  comick: new MANGA.ComicK(),
+  mangahere: new MANGA.MangaHere(),
+  mangapill: new MANGA.MangaPill(),
+  mangareader: new MANGA.MangaReader(),
+  asurascans: new MANGA.AsuraScans(),
+  weebcentral: new MANGA.WeebCentral(),
+  mangakakalot: new MANGA.MangaKakalot()
+};
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Set CORS headers to allow cross-origin requests
@@ -16,18 +25,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(200).end();
   }
 
-  const { action, query, id } = req.query;
+  const { action, query, id, provider: providerQuery } = req.query;
 
   if (!action || typeof action !== 'string') {
     return res.status(400).json({ error: 'Action parameter is required and must be a string' });
   }
+
+  // Resolve the active provider (defaults to mangapill)
+  const providerKey = typeof providerQuery === 'string' ? providerQuery.toLowerCase() : 'mangapill';
+  const provider = providers[providerKey] || providers.mangapill;
 
   try {
     if (action === 'search') {
       if (!query || typeof query !== 'string') {
         return res.status(400).json({ error: 'Query parameter is required' });
       }
-      const data = await mangapill.search(query);
+      const data = await provider.search(query);
       // Ensure we always return a flat array of results
       const results = Array.isArray(data) ? data : (data.results || []);
       return res.status(200).json(results);
@@ -37,7 +50,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (!id || typeof id !== 'string') {
         return res.status(400).json({ error: 'ID parameter is required' });
       }
-      const data = await mangapill.fetchMangaInfo(id);
+      const data = await provider.fetchMangaInfo(id);
       return res.status(200).json(data);
     }
 
@@ -45,13 +58,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (!id || typeof id !== 'string') {
         return res.status(400).json({ error: 'ID parameter is required' });
       }
-      const data = await mangapill.fetchChapterPages(id);
+      const data = await provider.fetchChapterPages(id);
       return res.status(200).json(data);
     }
 
     if (action === 'proxy-image') {
       const imageUrl = req.query.url;
-      const refererUrl = req.query.referer;
+      const refererUrl = req.query.referer || provider.baseUrl;
       if (!imageUrl || typeof imageUrl !== 'string') {
         return res.status(400).json({ error: 'URL parameter is required' });
       }
@@ -83,7 +96,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     return res.status(400).json({ error: `Invalid action: ${action}` });
   } catch (error: any) {
-    console.error(`Manga API error [action=${action}]:`, error);
+    console.error(`Manga API error [action=${action}, provider=${providerKey}]:`, error);
     return res.status(500).json({ error: error.message || 'Internal Server Error' });
   }
 }

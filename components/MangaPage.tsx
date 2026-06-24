@@ -173,8 +173,8 @@ export const MangaPage: React.FC<MangaPageProps> = ({
   const [chapterFilter, setChapterFilter] = useState('');
   const [chapterSort, setChapterSort] = useState<'asc' | 'desc'>('desc');
 
-  // MangaPill states
-  const [readingSource, setReadingSource] = useState<'mangadex' | 'mangapill'>('mangapill');
+  // MangaPill states (generalized for all Consumet providers)
+  const [readingSource, setReadingSource] = useState<string>('mangadex');
   const [mangapillMangaId, setMangapillMangaId] = useState<string | null>(null);
   const [mangapillChapters, setMangapillChapters] = useState<any[]>([]);
   const [mangapillLoading, setMangapillLoading] = useState(false);
@@ -380,36 +380,36 @@ export const MangaPage: React.FC<MangaPageProps> = ({
     }
   }, [fetchAniList, getMangaTitle]);
 
-  const resolveMangaPill = useCallback(async (manga: MangaDexManga) => {
+  const resolveMangaPill = useCallback(async (manga: MangaDexManga, provider = readingSource) => {
     setMangapillLoading(true);
     setMangapillError(null);
     setMangapillMangaId(null);
     setMangapillChapters([]);
     try {
       const title = getMangaTitle(manga);
-      const searchRes = await window.fetch(`/api/manga?action=search&query=${encodeURIComponent(title)}`);
-      if (!searchRes.ok) throw new Error("Search on MangaPill failed");
+      const searchRes = await window.fetch(`/api/manga?action=search&provider=${provider}&query=${encodeURIComponent(title)}`);
+      if (!searchRes.ok) throw new Error(`Search on ${provider} failed`);
       const searchList = await searchRes.json();
       
       if (!searchList || searchList.length === 0) {
-        throw new Error("No matching manga found on MangaPill");
+        throw new Error(`No matching manga found on ${provider}`);
       }
 
       const bestMatch = searchList[0];
       setMangapillMangaId(bestMatch.id);
 
-      const infoRes = await window.fetch(`/api/manga?action=info&id=${encodeURIComponent(bestMatch.id)}`);
-      if (!infoRes.ok) throw new Error("Failed to fetch chapters from MangaPill");
+      const infoRes = await window.fetch(`/api/manga?action=info&provider=${provider}&id=${encodeURIComponent(bestMatch.id)}`);
+      if (!infoRes.ok) throw new Error(`Failed to fetch chapters from ${provider}`);
       const infoData = await infoRes.json();
       
       setMangapillChapters(infoData.chapters || []);
     } catch (err: any) {
-      console.error("MangaPill resolution error:", err);
-      setMangapillError(err.message || "Failed to resolve MangaPill source");
+      console.error(`${provider} resolution error:`, err);
+      setMangapillError(err.message || `Failed to resolve ${provider} source`);
     } finally {
       setMangapillLoading(false);
     }
-  }, [getMangaTitle]);
+  }, [getMangaTitle, readingSource]);
 
   const getContentRatingParams = useCallback(() => {
     let params = '&contentRating[]=safe&contentRating[]=suggestive&contentRating[]=erotica';
@@ -428,7 +428,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
       setChapterFilter('');
       setDetailsTab('chapters');
       setSelectedLanguage('en');
-      setReadingSource('mangapill');
+      setReadingSource('mangadex');
       setMangapillMangaId(null);
       setMangapillChapters([]);
       return;
@@ -490,7 +490,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
       setActiveChapter(null);
       return;
     }
-    if (readingSource === 'mangapill') {
+    if (readingSource !== 'mangadex') {
       const ch = mangapillChapters.find(c => c.id === activeChapterId);
       if (ch) {
         setActiveChapter({
@@ -564,8 +564,8 @@ export const MangaPage: React.FC<MangaPageProps> = ({
       setMangapillChapters([]);
       return;
     }
-    if (readingSource === 'mangapill') {
-      resolveMangaPill(selectedManga);
+    if (readingSource !== 'mangadex') {
+      resolveMangaPill(selectedManga, readingSource);
     }
   }, [selectedManga, readingSource, resolveMangaPill]);
 
@@ -741,15 +741,15 @@ export const MangaPage: React.FC<MangaPageProps> = ({
       setPagesLoading(true);
       setActivePageIdx(0);
       try {
-        if (readingSource === 'mangapill') {
-          const res = await window.fetch(`/api/manga?action=pages&id=${encodeURIComponent(activeChapter.id)}`);
-          if (!res.ok) throw new Error("Failed to load pages from MangaPill");
+        if (readingSource !== 'mangadex') {
+          const res = await window.fetch(`/api/manga?action=pages&provider=${readingSource}&id=${encodeURIComponent(activeChapter.id)}`);
+          if (!res.ok) throw new Error(`Failed to load pages from ${readingSource}`);
           const pageData = await res.json();
           if (!isMounted) return;
 
-          const urls = pageData.map((p: any) => `/api/manga?action=proxy-image&url=${encodeURIComponent(p.img)}&referer=${encodeURIComponent('https://mangapill.com')}`);
+          const urls = pageData.map((p: any) => `/api/manga?action=proxy-image&provider=${readingSource}&url=${encodeURIComponent(p.img || p.image || p.url)}`);
           setPages(urls);
-          setChapterServerData({ provider: 'mangapill' });
+          setChapterServerData({ provider: readingSource });
           return;
         }
 
@@ -777,7 +777,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
 
   // Sync pages when DataSaver is toggled
   useEffect(() => {
-    if (!chapterServerData || readingSource === 'mangapill') return;
+    if (!chapterServerData || readingSource !== 'mangadex') return;
     const baseUrl = chapterServerData.baseUrl;
     const hash = chapterServerData.chapter.hash;
     const fileNames = isDataSaver ? chapterServerData.chapter.dataSaver : chapterServerData.chapter.data;
@@ -919,7 +919,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
 
   // Mapped chapters from MangaPill
   const mappedMangapillChapters = useMemo(() => {
-    if (readingSource !== 'mangapill') return [];
+    if (readingSource === 'mangadex') return [];
     return mangapillChapters.map((ch: any) => {
       return {
         id: ch.id,
@@ -935,7 +935,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
 
   // Chapter filter/sort memo
   const filteredAndSortedChapters = useMemo(() => {
-    let result = readingSource === 'mangapill' ? [...mappedMangapillChapters] : [...chapters];
+    let result = readingSource !== 'mangadex' ? [...mappedMangapillChapters] : [...chapters];
     if (chapterFilter.trim()) {
       const q = chapterFilter.toLowerCase();
       result = result.filter(ch => 
@@ -1652,11 +1652,17 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                       <span className="text-[10px] font-medium text-zinc-500">Source</span>
                       <select
                         value={readingSource}
-                        onChange={(e) => setReadingSource(e.target.value as 'mangadex' | 'mangapill')}
+                        onChange={(e) => setReadingSource(e.target.value)}
                         className="px-3 py-1.5 rounded-lg bg-white/5 text-xs font-medium text-zinc-300 hover:text-white transition-all focus:outline-none cursor-pointer"
                       >
                         <option value="mangadex" className="bg-[#0c0c0e]">MangaDex (Official)</option>
+                        <option value="comick" className="bg-[#0c0c0e]">ComicK (Recommended)</option>
                         <option value="mangapill" className="bg-[#0c0c0e]">MangaPill (Mainstream)</option>
+                        <option value="mangareader" className="bg-[#0c0c0e]">MangaReader</option>
+                        <option value="mangakakalot" className="bg-[#0c0c0e]">MangaKakalot</option>
+                        <option value="asurascans" className="bg-[#0c0c0e]">AsuraScans</option>
+                        <option value="weebcentral" className="bg-[#0c0c0e]">WeebCentral</option>
+                        <option value="mangahere" className="bg-[#0c0c0e]">MangaHere</option>
                       </select>
                     </div>
 
@@ -1689,30 +1695,30 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                 </div>
 
                 {/* Chapters List */}
-                {readingSource === 'mangapill' && mangapillError ? (
+                {readingSource !== 'mangadex' && mangapillError ? (
                   <div className="flex flex-col items-center justify-center py-16 text-zinc-500 gap-2">
                     <AlertCircle size={28} className="text-red-500/80 mb-1" />
                     <span className="text-xs font-medium">{mangapillError}</span>
                     <button 
-                      onClick={() => selectedManga && resolveMangaPill(selectedManga)}
+                      onClick={() => selectedManga && resolveMangaPill(selectedManga, readingSource)}
                       className="mt-2 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 hover:border-white/20 text-[10px] font-bold text-white transition-all flex items-center gap-2"
                     >
                       <RefreshCcw size={11} /> Retry
                     </button>
                   </div>
-                ) : (chaptersLoading || (readingSource === 'mangapill' && mangapillLoading)) ? (
+                ) : (chaptersLoading || (readingSource !== 'mangadex' && mangapillLoading)) ? (
                   <div className="flex flex-col items-center justify-center py-16 gap-2">
                     <Loader2 className="animate-spin text-red-500" size={24} />
                     <span className="text-[10px] text-zinc-500 font-medium tracking-wide">
-                      {readingSource === 'mangapill' ? 'Resolving MangaPill source...' : 'Loading chapters...'}
+                      {readingSource !== 'mangadex' ? `Resolving ${readingSource} source...` : 'Loading chapters...'}
                     </span>
                   </div>
                 ) : filteredAndSortedChapters.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-16 opacity-50 text-center">
                     <AlertCircle size={28} className="text-zinc-600 mb-2" />
                     <span className="text-xs text-zinc-500">
-                      {readingSource === 'mangapill' 
-                        ? 'No chapters found on MangaPill.' 
+                      {readingSource !== 'mangadex' 
+                        ? `No chapters found on ${readingSource}.` 
                         : `No chapters found matching filter in ${LANGUAGE_NAMES[selectedLanguage] || selectedLanguage}.`}
                     </span>
                     {readingSource === 'mangadex' && (
