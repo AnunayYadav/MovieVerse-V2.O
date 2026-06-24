@@ -16,6 +16,8 @@ import { LiveTV } from './components/LiveTV';
 import { ExplorePage } from './components/ExplorePage';
 import { AnimePage } from './components/AnimePage';
 import { MovieDome } from './components/MovieDome';
+import { MangaPage } from './components/MangaPage';
+import { BookOpen } from 'lucide-react';
 import { useTvFocus, TvFocusButton, TvFocusInput } from './tvNavigation';
 import AppTV from './components/AppTV';
 
@@ -1674,9 +1676,9 @@ export default function App() {
     const accentBg = "bg-red-600";
     const accentBgLow = "bg-red-600/20";
 
-    const showStickyHeader = !["Categories", "Franchise", "Explore", "LiveTV", "Multiverse", "Anime"].includes(selectedCategory);
+    const showStickyHeader = !["Categories", "Franchise", "Explore", "LiveTV", "Multiverse", "Anime", "Manga"].includes(selectedCategory);
     const hasHeroBanner = !!(
-        (!searchQuery && featuredMovie && !["People", "Coming", "Collections", "Categories", "Franchise", "Explore", "LiveTV", "Multiverse", "Anime"].includes(selectedCategory)) ||
+        (!searchQuery && featuredMovie && !["People", "Coming", "Collections", "Categories", "Franchise", "Explore", "LiveTV", "Multiverse", "Anime", "Manga"].includes(selectedCategory)) ||
         (selectedCategory === "Franchise" && franchiseList.length > 0)
     );
 
@@ -2244,6 +2246,7 @@ export default function App() {
 
     const fetchMovies = useCallback(async (pageNum: number = 1, isLoadMore = false) => {
         if (!apiKey) return;
+        if (selectedCategory === "Manga") return;
         setFetchError(false);
         if (["Watchlist", "Favorites", "History"].includes(selectedCategory)) {
             const list = selectedCategory === "Watchlist" ? watchlistRef.current : selectedCategory === "Favorites" ? favoritesRef.current : watchedRef.current;
@@ -3245,6 +3248,7 @@ export default function App() {
         { id: "Multiverse", icon: Sparkles, label: "Multiverse", action: () => { resetFilters(); setSelectedCategory("Multiverse"); } },
         { id: "Awards", icon: Award, label: "Awards", action: () => { resetFilters(); setSelectedCategory("Awards"); } },
         { id: "Anime", icon: Ghost, label: "Anime", action: () => { resetFilters(); setSelectedCategory("Anime"); } },
+        { id: "Manga", icon: BookOpen, label: "Manga", action: () => { resetFilters(); setSelectedCategory("Manga"); } },
         { id: "Franchise", icon: Layers, label: "Franchises", action: () => { resetFilters(); setSelectedCategory("Franchise"); } },
         { id: "Family", icon: Baby, label: "Family", action: () => { resetFilters(); setSelectedCategory("Family"); } },
         { id: "TV Shows", icon: Tv, label: "TV Shows", action: () => { resetFilters(); setSelectedCategory("TV Shows"); } },
@@ -3649,6 +3653,11 @@ export default function App() {
                         />
                     ) : selectedCategory === "Anime" && !searchQuery ? (
                         <AnimePage
+                            apiKey={apiKey}
+                            onMovieClick={setSelectedMovie}
+                        />
+                    ) : selectedCategory === "Manga" && !searchQuery ? (
+                        <MangaPage
                             apiKey={apiKey}
                             onMovieClick={setSelectedMovie}
                         />

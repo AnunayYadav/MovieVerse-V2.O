@@ -72,6 +72,9 @@ export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick }) =>
   const currentGenreIndexRef = useRef(0);
 
   const [heroIndex, setHeroIndex] = useState(0);
+  const featured = trending[heroIndex];
+  const [featuredLogoUrl, setFeaturedLogoUrl] = useState<string | null>(null);
+  const [featuredLogoLoading, setFeaturedLogoLoading] = useState(true);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -268,6 +271,122 @@ export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick }) =>
     return () => clearInterval(interval);
   }, [trending, searchQuery]);
 
+  // Resolve logo for Spotlight Anime
+  useEffect(() => {
+    if (!featured) {
+      setFeaturedLogoUrl(null);
+      setFeaturedLogoLoading(false);
+      return;
+    }
+
+    let isMounted = true;
+    setFeaturedLogoLoading(true);
+    setFeaturedLogoUrl(null);
+
+    const resolveFeaturedLogo = async () => {
+      const matchCacheKey = `movieverse_anilist_tmdb_match_${featured.id}`;
+      const logoCacheKey = `movieverse_anime_logo_${featured.id}`;
+      
+      const cachedMatch = localStorage.getItem(matchCacheKey);
+      const cachedLogo = localStorage.getItem(logoCacheKey);
+      
+      let tmdbId: number | null = null;
+      let mediaType: string | null = null;
+      
+      if (cachedMatch) {
+        try {
+          const parsed = JSON.parse(cachedMatch);
+          tmdbId = parsed.id;
+          mediaType = parsed.mediaType;
+        } catch (_) {}
+      }
+      
+      if (!tmdbId && apiKey) {
+        const titlesToTry = [
+          featured.title.english,
+          featured.title.romaji,
+          featured.title.userPreferred
+        ].filter((t): t is string => typeof t === 'string' && t.length > 0);
+        
+        for (const searchTitle of titlesToTry) {
+          const cleanTitle = searchTitle.replace(/\s*\(?(Dub|Sub|TV|Movie|uncensored|censored|season\s*\d+|part\s*\d+)\)?\s*$/i, '').trim();
+          try {
+            const res = await window.fetch(`${TMDB_BASE_URL}/search/tv?api_key=${apiKey}&query=${encodeURIComponent(cleanTitle)}`);
+            const data = await res.json();
+            if (data && data.results && data.results.length > 0) {
+              const match = data.results.find((item: any) => 
+                item.genre_ids?.includes(16) && item.original_language === 'ja'
+              ) || data.results.find((item: any) => 
+                item.genre_ids?.includes(16)
+              ) || data.results[0];
+              
+              if (match) {
+                tmdbId = match.id;
+                mediaType = 'tv';
+                break;
+              }
+            }
+          } catch (e) {}
+
+          try {
+            const res = await window.fetch(`${TMDB_BASE_URL}/search/movie?api_key=${apiKey}&query=${encodeURIComponent(cleanTitle)}`);
+            const data = await res.json();
+            if (data && data.results && data.results.length > 0) {
+              const match = data.results.find((item: any) => 
+                item.genre_ids?.includes(16) && item.original_language === 'ja'
+              ) || data.results.find((item: any) => 
+                item.genre_ids?.includes(16)
+              ) || data.results[0];
+              
+              if (match) {
+                tmdbId = match.id;
+                mediaType = 'movie';
+                break;
+              }
+            }
+          } catch (e) {}
+        }
+      }
+      
+      if (!isMounted) return;
+
+      if (tmdbId && mediaType) {
+        if (cachedLogo !== null) {
+          setFeaturedLogoUrl(cachedLogo || null);
+          setFeaturedLogoLoading(false);
+        } else if (apiKey) {
+          try {
+            const res = await window.fetch(`${TMDB_BASE_URL}/${mediaType}/${tmdbId}/images?api_key=${apiKey}`);
+            const data = await res.json();
+            const logo = data.logos?.find((l: any) => l.iso_639_1 === 'en') || data.logos?.[0];
+            if (logo && isMounted) {
+              const logoPath = `https://image.tmdb.org/t/p/w500${logo.file_path}`;
+              setFeaturedLogoUrl(logoPath);
+              localStorage.setItem(logoCacheKey, logoPath);
+            } else if (isMounted) {
+              setFeaturedLogoUrl(null);
+              localStorage.setItem(logoCacheKey, '');
+            }
+          } catch (e) {
+            if (isMounted) {
+              setFeaturedLogoUrl(null);
+              localStorage.setItem(logoCacheKey, '');
+            }
+          } finally {
+            if (isMounted) setFeaturedLogoLoading(false);
+          }
+        } else {
+          setFeaturedLogoLoading(false);
+        }
+      } else {
+        setFeaturedLogoLoading(false);
+      }
+    };
+
+    resolveFeaturedLogo();
+    return () => { isMounted = false; };
+  }, [featured, apiKey]);
+
   // Debounced search handler
   useEffect(() => {
     const delayDebounce = setTimeout(() => {
@@ -462,8 +581,6 @@ export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick }) =>
     return htmlStr.replace(/<\/?[^>]+(>|$)/g, "");
   };
 
-  const featured = trending[heroIndex];
-
   return (
     <div className="min-h-screen bg-[#030303] text-white pb-16 relative">
       
@@ -485,9 +602,17 @@ export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick }) =>
               <Sparkles size={11} fill="currentColor" /> Spotlight Anime
             </span>
             
-            <h1 className="text-3xl md:text-5xl font-bold text-white leading-tight tracking-tight drop-shadow-2xl text-left">
-              {featured.title.english || featured.title.romaji}
-            </h1>
+            {!featuredLogoLoading && featuredLogoUrl ? (
+              <img
+                src={featuredLogoUrl}
+                alt={featured.title.english || featured.title.romaji}
+                className="max-h-20 md:max-h-32 max-w-[85%] object-contain object-left mb-2 drop-shadow-[0_4px_12px_rgba(0,0,0,0.9)] animate-in fade-in duration-300"
+              />
+            ) : (
+              <h1 className="text-3xl md:text-5xl font-bold text-white leading-tight tracking-tight drop-shadow-2xl text-left">
+                {featured.title.english || featured.title.romaji}
+              </h1>
+            )}
 
             <div className="flex flex-wrap items-center gap-3.5 text-xs font-bold text-gray-300">
               {featured.averageScore && (
@@ -542,36 +667,7 @@ export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick }) =>
         </div>
       )}
 
-      {/* 2. Custom Sticky Anime Header / Sub Search */}
-      <div className="px-4 md:px-12 py-3 flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-white/5 mb-8 select-none bg-[#030303]/80 backdrop-blur-xl sticky top-16 z-40">
-        <div>
-          <h2 className="text-xl md:text-2xl font-bold text-white tracking-tight flex items-center gap-2 text-left">
-            <span className="w-1.5 h-5 bg-red-600 rounded-full inline-block"></span>
-            Anime Universe
-          </h2>
-          <p className="text-zinc-500 text-[11px] md:text-xs mt-0.5 text-left">Explore thousands of titles directly powered by AniList tracking system.</p>
-        </div>
 
-        <div className="relative group w-full md:w-80">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-white transition-colors" size={16} />
-          <TvFocusInput
-            id="anime-universe-search-input"
-            type="text"
-            value={searchInput}
-            onChange={(e: any) => setSearchInput(e.target.value)}
-            placeholder="Search anime database..."
-            className="w-full bg-[#121214] border border-white/5 hover:border-white/10 rounded-full py-2.5 pl-10 pr-4 text-xs md:text-sm focus:outline-none focus:bg-[#161619] focus:border-white/20 transition-all placeholder-gray-500 text-white shadow-inner"
-          />
-          {searchInput && (
-            <button
-              onClick={() => { setSearchInput(''); setSearchQuery(''); }}
-              className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-gray-500 hover:text-white rounded-full bg-white/5 hover:bg-white/10 transition-colors"
-            >
-              <X size={12} />
-            </button>
-          )}
-        </div>
-      </div>
 
       {/* 3. Search Results or Categories */}
       {searchQuery ? (
