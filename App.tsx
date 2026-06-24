@@ -14,6 +14,7 @@ import { WatchPartyRoomsPage } from './components/WatchPartyRoomsPage';
 import { MoviePlayer, PROVIDERS } from './components/MoviePlayer';
 import { LiveTV } from './components/LiveTV';
 import { ExplorePage } from './components/ExplorePage';
+import { AnimePage } from './components/AnimePage';
 import { MovieDome } from './components/MovieDome';
 import { useTvFocus, TvFocusButton, TvFocusInput } from './tvNavigation';
 import AppTV from './components/AppTV';
@@ -1673,9 +1674,9 @@ export default function App() {
     const accentBg = "bg-red-600";
     const accentBgLow = "bg-red-600/20";
 
-    const showStickyHeader = !["Categories", "Franchise", "Explore", "LiveTV", "Multiverse"].includes(selectedCategory);
+    const showStickyHeader = !["Categories", "Franchise", "Explore", "LiveTV", "Multiverse", "Anime"].includes(selectedCategory);
     const hasHeroBanner = !!(
-        (!searchQuery && featuredMovie && !["People", "Coming", "Collections", "Categories", "Franchise", "Explore", "LiveTV", "Multiverse"].includes(selectedCategory)) ||
+        (!searchQuery && featuredMovie && !["People", "Coming", "Collections", "Categories", "Franchise", "Explore", "LiveTV", "Multiverse", "Anime"].includes(selectedCategory)) ||
         (selectedCategory === "Franchise" && franchiseList.length > 0)
     );
 
@@ -3645,6 +3646,11 @@ export default function App() {
                             apiKey={apiKey}
                             onMovieClick={setSelectedMovie}
                             onClose={() => setSelectedCategory("All")}
+                        />
+                    ) : selectedCategory === "Anime" && !searchQuery ? (
+                        <AnimePage
+                            apiKey={apiKey}
+                            onMovieClick={setSelectedMovie}
                         />
                     ) : selectedCategory === "Explore" && !searchQuery ? (
                         <ExplorePage

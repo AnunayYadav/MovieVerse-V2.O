@@ -1,0 +1,968 @@
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { Play, Info, Search, Star, Film, X, Layers, TrendingUp, Sparkles, Trophy, Calendar, RefreshCcw, Loader2, ArrowLeft, Tv, AlertCircle } from 'lucide-react';
+import { Movie } from '../types';
+import { TMDB_BASE_URL, TMDB_IMAGE_BASE, TMDB_BACKDROP_BASE, tvFetch } from './Shared';
+import { useTvFocus, TvFocusButton, TvFocusInput } from '../tvNavigation';
+
+const fetch = tvFetch;
+
+interface AnimePageProps {
+  apiKey: string;
+  onMovieClick: (m: Movie) => void;
+}
+
+interface AniListMedia {
+  id: number;
+  title: {
+    romaji: string;
+    english: string | null;
+    native: string;
+    userPreferred: string;
+  };
+  coverImage: {
+    extraLarge: string;
+    large: string;
+    medium: string;
+    color: string;
+  };
+  bannerImage: string | null;
+  description: string | null;
+  season: string | null;
+  seasonYear: number | null;
+  status: string;
+  episodes: number | null;
+  duration: number | null;
+  averageScore: number | null;
+  popularity: number;
+  genres: string[];
+  trailer?: {
+    id: string;
+    site: string;
+  } | null;
+}
+
+// Endless categories list from AniList standard genres
+const ANIME_GENRES = [
+  "Action", 
+  "Adventure", 
+  "Comedy", 
+  "Drama", 
+  "Fantasy", 
+  "Romance", 
+  "Sci-Fi", 
+  "Supernatural", 
+  "Thriller", 
+  "Sports", 
+  "Mecha", 
+  "Mystery", 
+  "Slice of Life", 
+  "Psychological"
+];
+
+export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick }) => {
+  const [trending, setTrending] = useState<AniListMedia[]>([]);
+  const [popular, setPopular] = useState<AniListMedia[]>([]);
+  const [topRated, setTopRated] = useState<AniListMedia[]>([]);
+  const [seasonal, setSeasonal] = useState<AniListMedia[]>([]);
+  const [upcoming, setUpcoming] = useState<AniListMedia[]>([]);
+  
+  // Infinite Scroll Category Rows
+  const [genreRows, setGenreRows] = useState<{ genre: string; media: AniListMedia[] }[]>([]);
+  const [loadingGenreRows, setLoadingGenreRows] = useState(false);
+  const currentGenreIndexRef = useRef(0);
+
+  const [heroIndex, setHeroIndex] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Search States
+  const [searchInput, setSearchInput] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<AniListMedia[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+
+  // TMDB Matching Sync Overlay
+  const [matchingStatus, setMatchingStatus] = useState<{
+    isActive: boolean;
+    title: string;
+    error: string | null;
+  }>({ isActive: false, title: '', error: null });
+
+  // GraphQL fetch helper
+  const fetchAniList = useCallback(async (query: string, variables: any = {}) => {
+    const url = 'https://graphql.anilist.co';
+    const response = await window.fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+      body: JSON.stringify({ query, variables })
+    });
+    
+    const json = await response.json();
+    if (json.errors) {
+      throw new Error(json.errors[0]?.message || 'GraphQL Error');
+    }
+    return json.data;
+  }, []);
+
+  const loadPageData = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const query = `
+        query ($season: MediaSeason, $seasonYear: Int) {
+          trending: Page(page: 1, perPage: 12) {
+            media(type: ANIME, sort: [TRENDING_DESC, POPULARITY_DESC]) {
+              ...animeFields
+            }
+          }
+          popular: Page(page: 1, perPage: 12) {
+            media(type: ANIME, sort: [POPULARITY_DESC]) {
+              ...animeFields
+            }
+          }
+          topRated: Page(page: 1, perPage: 12) {
+            media(type: ANIME, sort: [SCORE_DESC]) {
+              ...animeFields
+            }
+          }
+          seasonal: Page(page: 1, perPage: 12) {
+            media(type: ANIME, season: $season, seasonYear: $seasonYear, sort: [POPULARITY_DESC]) {
+              ...animeFields
+            }
+          }
+          upcoming: Page(page: 1, perPage: 12) {
+            media(type: ANIME, status: NOT_YET_RELEASED, sort: [POPULARITY_DESC]) {
+              ...animeFields
+            }
+          }
+        }
+
+        fragment animeFields on Media {
+          id
+          title {
+            romaji
+            english
+            native
+            userPreferred
+          }
+          coverImage {
+            extraLarge
+            large
+            medium
+            color
+          }
+          bannerImage
+          description
+          season
+          seasonYear
+          status
+          episodes
+          duration
+          averageScore
+          popularity
+          genres
+          trailer {
+            id
+            site
+          }
+        }
+      `;
+
+      // Current local metadata year is 2026, month is June -> Summer 2026
+      const data = await fetchAniList(query, { season: 'SUMMER', seasonYear: 2026 });
+      
+      setTrending(data.trending?.media || []);
+      setPopular(data.popular?.media || []);
+      setTopRated(data.topRated?.media || []);
+      setSeasonal(data.seasonal?.media || []);
+      setUpcoming(data.upcoming?.media || []);
+      
+      // Reset infinite scrolling indices
+      setGenreRows([]);
+      currentGenreIndexRef.current = 0;
+    } catch (err: any) {
+      console.error("Error loading AniList home data:", err);
+      setError(err?.message || "Failed to retrieve AniList catalog");
+    } finally {
+      setLoading(false);
+    }
+  }, [fetchAniList]);
+
+  // Load next genre row (infinite scroll function)
+  const loadNextGenreRow = useCallback(async () => {
+    if (loadingGenreRows || currentGenreIndexRef.current >= ANIME_GENRES.length) return;
+    setLoadingGenreRows(true);
+    
+    const genre = ANIME_GENRES[currentGenreIndexRef.current];
+    try {
+      const query = `
+        query ($genre: String) {
+          Page(page: 1, perPage: 12) {
+            media(type: ANIME, genre: $genre, sort: [POPULARITY_DESC]) {
+              id
+              title {
+                romaji
+                english
+                native
+                userPreferred
+              }
+              coverImage {
+                extraLarge
+                large
+                medium
+                color
+              }
+              bannerImage
+              description
+              season
+              seasonYear
+              status
+              episodes
+              duration
+              averageScore
+              popularity
+              genres
+              trailer {
+                id
+                site
+              }
+            }
+          }
+        }
+      `;
+      const data = await fetchAniList(query, { genre });
+      const media = data.Page?.media || [];
+      
+      if (media.length > 0) {
+        setGenreRows(prev => [...prev, { genre, media }]);
+      }
+      currentGenreIndexRef.current += 1;
+    } catch (e) {
+      console.error("Failed to load genre row for:", genre, e);
+    } finally {
+      setLoadingGenreRows(false);
+    }
+  }, [fetchAniList, loadingGenreRows]);
+
+  // Load Home Data on Mount
+  useEffect(() => {
+    loadPageData();
+  }, [loadPageData]);
+
+  // Pre-load first genre row after primary home data succeeds
+  useEffect(() => {
+    if (!loading && trending.length > 0 && genreRows.length === 0) {
+      loadNextGenreRow();
+    }
+  }, [loading, trending, genreRows, loadNextGenreRow]);
+
+  // Auto scroll Hero banner slideshow
+  useEffect(() => {
+    if (trending.length === 0 || searchQuery) return;
+    const interval = setInterval(() => {
+      setHeroIndex((prev) => (prev + 1) % Math.min(trending.length, 5));
+    }, 8000);
+    return () => clearInterval(interval);
+  }, [trending, searchQuery]);
+
+  // Debounced search handler
+  useEffect(() => {
+    const delayDebounce = setTimeout(() => {
+      setSearchQuery(searchInput);
+    }, 500);
+    return () => clearTimeout(delayDebounce);
+  }, [searchInput]);
+
+  // Fetch search results when query changes
+  useEffect(() => {
+    if (!searchQuery.trim()) {
+      setSearchResults([]);
+      setSearchLoading(false);
+      return;
+    }
+
+    let isMounted = true;
+    const performSearch = async () => {
+      setSearchLoading(true);
+      try {
+        const query = `
+          query ($search: String) {
+            Page(page: 1, perPage: 24) {
+              media(type: ANIME, search: $search) {
+                id
+                title {
+                  romaji
+                  english
+                  native
+                  userPreferred
+                }
+                coverImage {
+                  extraLarge
+                  large
+                  medium
+                  color
+                }
+                bannerImage
+                description
+                season
+                seasonYear
+                status
+                episodes
+                duration
+                averageScore
+                popularity
+                genres
+                trailer {
+                  id
+                  site
+                }
+              }
+            }
+          }
+        `;
+        const data = await fetchAniList(query, { search: searchQuery });
+        if (isMounted) {
+          setSearchResults(data.Page?.media || []);
+        }
+      } catch (err) {
+        console.error("Error executing AniList search:", err);
+      } finally {
+        if (isMounted) setSearchLoading(false);
+      }
+    };
+
+    performSearch();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [searchQuery, fetchAniList]);
+
+  // Hook up window scroll event listener for category lazy load
+  useEffect(() => {
+    if (searchQuery || loading) return;
+
+    const handleScroll = () => {
+      const threshold = 1200;
+      const isNearBottom = window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - threshold;
+      
+      if (isNearBottom && !loadingGenreRows && currentGenreIndexRef.current < ANIME_GENRES.length) {
+        loadNextGenreRow();
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [searchQuery, loading, loadingGenreRows, loadNextGenreRow]);
+
+  // TMDB ID Resolver and Click Handler
+  const handleAnimeClick = async (anime: AniListMedia) => {
+    const matchCacheKey = `movieverse_anilist_tmdb_match_${anime.id}`;
+    const cachedMatch = localStorage.getItem(matchCacheKey);
+    
+    if (cachedMatch) {
+      try {
+        const parsed = JSON.parse(cachedMatch);
+        if (parsed && parsed.id && parsed.mediaType) {
+          onMovieClick({
+            id: parsed.id,
+            media_type: parsed.mediaType,
+            title: anime.title.english || anime.title.romaji || anime.title.userPreferred,
+            name: anime.title.english || anime.title.romaji || anime.title.userPreferred,
+            overview: anime.description || '',
+            poster_path: null,
+            backdrop_path: parsed.backdropPath,
+            vote_average: anime.averageScore ? anime.averageScore / 10 : 0,
+            vote_count: 100,
+            popularity: anime.popularity
+          } as any);
+          return;
+        }
+      } catch (_) {}
+    }
+
+    const titlesToTry = [
+      anime.title.english,
+      anime.title.romaji,
+      anime.title.userPreferred,
+      anime.title.native
+    ].filter((t): t is string => typeof t === 'string' && t.length > 0);
+
+    const displayName = anime.title.english || anime.title.romaji || anime.title.userPreferred;
+    setMatchingStatus({ isActive: true, title: displayName, error: null });
+
+    let matchedItem: any = null;
+
+    for (const title of titlesToTry) {
+      const cleanTitle = title.replace(/\s*\(?(Dub|Sub|TV|Movie|uncensored|censored|season\s*\d+|part\s*\d+)\)?\s*$/i, '').trim();
+      
+      // 1. Search TMDB TV shows
+      try {
+        const res = await fetch(`${TMDB_BASE_URL}/search/tv?api_key=${apiKey}&query=${encodeURIComponent(cleanTitle)}`);
+        const data = await res.json();
+        
+        if (data && data.results && data.results.length > 0) {
+          const match = data.results.find((item: any) => 
+            item.genre_ids?.includes(16) && item.original_language === 'ja'
+          ) || data.results.find((item: any) => 
+            item.genre_ids?.includes(16)
+          ) || data.results[0];
+
+          if (match) {
+            matchedItem = { ...match, media_type: 'tv', title: match.name || match.original_name };
+            break;
+          }
+        }
+      } catch (e) {
+        console.error("TMDB TV search match failed:", e);
+      }
+
+      // 2. Search TMDB Movies
+      try {
+        const res = await fetch(`${TMDB_BASE_URL}/search/movie?api_key=${apiKey}&query=${encodeURIComponent(cleanTitle)}`);
+        const data = await res.json();
+        
+        if (data && data.results && data.results.length > 0) {
+          const match = data.results.find((item: any) => 
+            item.genre_ids?.includes(16) && item.original_language === 'ja'
+          ) || data.results.find((item: any) => 
+            item.genre_ids?.includes(16)
+          ) || data.results[0];
+
+          if (match) {
+            matchedItem = { ...match, media_type: 'movie', title: match.title || match.original_title };
+            break;
+          }
+        }
+      } catch (e) {
+        console.error("TMDB Movie search match failed:", e);
+      }
+    }
+
+    if (matchedItem) {
+      setMatchingStatus({ isActive: false, title: '', error: null });
+      
+      const cacheKey = `movieverse_anilist_map_${matchedItem.id}`;
+      localStorage.setItem(cacheKey, anime.id.toString());
+      
+      onMovieClick(matchedItem);
+    } else {
+      setMatchingStatus(prev => ({
+        ...prev,
+        error: `Could not link "${displayName}" to a streaming source on MovieVerse. Please try searching for it using the global search.`
+      }));
+    }
+  };
+
+  const cleanDescription = (htmlStr: string | null) => {
+    if (!htmlStr) return '';
+    return htmlStr.replace(/<\/?[^>]+(>|$)/g, "");
+  };
+
+  const featured = trending[heroIndex];
+
+  return (
+    <div className="min-h-screen bg-[#030303] text-white pb-16 relative">
+      
+      {/* 1. Hero Spotlight Carousel */}
+      {!searchQuery && featured && (
+        <div className="relative w-full h-[65vh] md:h-[75vh] overflow-hidden group mb-10 border-b border-white/5 select-none">
+          <div className="absolute inset-0">
+            <img
+              src={featured.bannerImage || featured.coverImage.extraLarge || featured.coverImage.large}
+              alt={featured.title.english || featured.title.romaji}
+              className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-102 opacity-75"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-[#030303] via-[#030303]/60 to-transparent" />
+            <div className="absolute inset-0 bg-gradient-to-r from-[#030303] via-[#030303]/40 to-transparent" />
+          </div>
+
+          <div className="absolute bottom-0 left-0 w-full p-6 md:p-12 z-20 flex flex-col items-start gap-3.5 md:max-w-4xl animate-in slide-in-from-bottom-8 duration-700">
+            <span className="px-3 py-1 rounded-full text-[9px] font-bold uppercase tracking-widest bg-red-600 text-white shadow-lg shadow-red-600/30 flex items-center gap-1.5">
+              <Sparkles size={11} fill="currentColor" /> Spotlight Anime
+            </span>
+            
+            <h1 className="text-3xl md:text-5xl font-bold text-white leading-tight tracking-tight drop-shadow-2xl text-left">
+              {featured.title.english || featured.title.romaji}
+            </h1>
+
+            <div className="flex flex-wrap items-center gap-3.5 text-xs font-bold text-gray-300">
+              {featured.averageScore && (
+                <span className="text-yellow-400 font-extrabold flex items-center gap-1 text-sm bg-yellow-400/10 px-2 py-0.5 rounded border border-yellow-400/20 shadow-[0_0_10px_rgba(250,204,21,0.05)]">
+                  <Star size={12} fill="currentColor" />
+                  {(featured.averageScore / 10).toFixed(1)} Score
+                </span>
+              )}
+              <span>•</span>
+              <span className="text-green-400">{featured.episodes ? `${featured.episodes} Episodes` : 'Ongoing'}</span>
+              <span>•</span>
+              <span className="uppercase">{featured.season} {featured.seasonYear}</span>
+              <span>•</span>
+              <span className="px-2 py-0.5 rounded bg-white/10 text-white text-[9px] tracking-wider font-extrabold uppercase">
+                {featured.status.replace('_', ' ')}
+              </span>
+            </div>
+
+            <p className="text-gray-300 text-xs md:text-sm line-clamp-3 max-w-2xl leading-relaxed text-left font-medium drop-shadow-md">
+              {cleanDescription(featured.description) || "Step into this captivating anime world."}
+            </p>
+
+            <div className="flex flex-row items-center gap-3 w-full sm:w-auto mt-2">
+              <TvFocusButton
+                onClick={() => handleAnimeClick(featured)}
+                className="flex-1 sm:flex-none px-6 py-2.5 text-sm sm:text-base rounded-md font-bold flex items-center justify-center gap-2.5 transition-all hover:scale-[1.02] active:scale-95 shadow-md bg-white text-black hover:bg-white/90"
+              >
+                <Play size={18} fill="currentColor" /> Watch Now
+              </TvFocusButton>
+              {featured.trailer && featured.trailer.site === 'youtube' && (
+                <a
+                  href={`https://www.youtube.com/watch?v=${featured.trailer.id}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex-1 sm:flex-none px-6 py-2.5 text-sm sm:text-base rounded-md font-bold flex items-center justify-center gap-2.5 bg-white/10 hover:bg-white/20 text-white transition-all hover:scale-[1.02] active:scale-95 border border-white/10 backdrop-blur-md"
+                >
+                  Trailer
+                </a>
+              )}
+            </div>
+          </div>
+
+          <div className="absolute right-6 bottom-12 z-30 flex flex-col gap-2">
+            {[...Array(Math.min(trending.length, 5))].map((_, i) => (
+              <button
+                key={i}
+                onClick={() => setHeroIndex(i)}
+                className={`w-2 h-2 rounded-full transition-all duration-300 ${heroIndex === i ? 'bg-red-600 h-6' : 'bg-white/30 hover:bg-white/60'}`}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* 2. Custom Sticky Anime Header / Sub Search */}
+      <div className="px-4 md:px-12 py-3 flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-white/5 mb-8 select-none bg-[#030303]/80 backdrop-blur-xl sticky top-16 z-40">
+        <div>
+          <h2 className="text-xl md:text-2xl font-bold text-white tracking-tight flex items-center gap-2 text-left">
+            <span className="w-1.5 h-5 bg-red-600 rounded-full inline-block"></span>
+            Anime Universe
+          </h2>
+          <p className="text-zinc-500 text-[11px] md:text-xs mt-0.5 text-left">Explore thousands of titles directly powered by AniList tracking system.</p>
+        </div>
+
+        <div className="relative group w-full md:w-80">
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-white transition-colors" size={16} />
+          <TvFocusInput
+            id="anime-universe-search-input"
+            type="text"
+            value={searchInput}
+            onChange={(e: any) => setSearchInput(e.target.value)}
+            placeholder="Search anime database..."
+            className="w-full bg-[#121214] border border-white/5 hover:border-white/10 rounded-full py-2.5 pl-10 pr-4 text-xs md:text-sm focus:outline-none focus:bg-[#161619] focus:border-white/20 transition-all placeholder-gray-500 text-white shadow-inner"
+          />
+          {searchInput && (
+            <button
+              onClick={() => { setSearchInput(''); setSearchQuery(''); }}
+              className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-gray-500 hover:text-white rounded-full bg-white/5 hover:bg-white/10 transition-colors"
+            >
+              <X size={12} />
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* 3. Search Results or Categories */}
+      {searchQuery ? (
+        <div className="px-4 md:px-12 max-w-7xl mx-auto text-left animate-in fade-in duration-500">
+          <div className="flex items-center justify-between mb-8 border-b border-white/5 pb-4">
+            <h2 className="text-lg font-bold text-white flex items-center gap-2">
+              <Search size={18} className="text-red-500" />
+              <span>Search Results for "{searchQuery}"</span>
+            </h2>
+            <button
+              onClick={() => { setSearchInput(''); setSearchQuery(''); }}
+              className="text-xs font-bold text-red-500 hover:text-red-400 bg-red-600/10 px-3 py-1.5 rounded-full flex items-center gap-1.5 active:scale-95 transition-all"
+            >
+              <ArrowLeft size={13} /> Back to Catalog
+            </button>
+          </div>
+
+          {searchLoading ? (
+            <div className="flex flex-col items-center justify-center py-24 gap-3">
+              <Loader2 className="animate-spin text-red-500" size={32} />
+              <p className="text-xs text-zinc-500 font-bold tracking-widest uppercase">Searching database...</p>
+            </div>
+          ) : searchResults.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-20 text-center opacity-60">
+              <Film size={48} className="text-white/20 mb-4" />
+              <h3 className="text-lg font-bold text-white mb-1">No Anime Found</h3>
+              <p className="text-zinc-500 text-xs md:text-sm max-w-sm">No titles matched your search query. Check for typos or try searching general key words.</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+              {searchResults.map((anime) => (
+                <AnimeCard key={anime.id} anime={anime} apiKey={apiKey} onAnimeClick={handleAnimeClick} />
+              ))}
+            </div>
+          )}
+        </div>
+      ) : loading ? (
+        // Loader Skeletons
+        <div className="space-y-12 py-10 px-4 md:px-12 select-none">
+          {[...Array(3)].map((_, rIdx) => (
+            <div key={rIdx} className="space-y-4">
+              <div className="flex items-center gap-2">
+                <div className="w-1.5 h-5 bg-zinc-800 rounded-full animate-pulse"></div>
+                <div className="h-5 w-48 bg-zinc-800 rounded-full animate-pulse"></div>
+              </div>
+              <div className="flex gap-5 overflow-hidden">
+                {[...Array(6)].map((_, i) => (
+                  <div key={i} className="w-[220px] md:w-[260px] shrink-0 aspect-[16/9] bg-zinc-900 border border-white/5 rounded-xl animate-pulse"></div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : error ? (
+        // Error display
+        <div className="flex flex-col items-center justify-center py-24 text-center max-w-md mx-auto px-4">
+          <AlertCircle size={48} className="text-red-500 mb-4 animate-bounce" />
+          <h3 className="text-xl font-bold text-white mb-2">Failed to load AniList catalog</h3>
+          <p className="text-zinc-500 text-xs leading-relaxed mb-6">{error}</p>
+          <button
+            onClick={loadPageData}
+            className="flex items-center gap-2 px-6 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-bold uppercase tracking-wider rounded-full shadow-lg transition-all active:scale-95"
+          >
+            <RefreshCcw size={14} /> Retry Loading
+          </button>
+        </div>
+      ) : (
+        // Standard Grid Sections and Dynamic Scroll Genre Rows
+        <div className="space-y-4">
+          <AnimeRow title="Trending Right Now" items={trending} apiKey={apiKey} onAnimeClick={handleAnimeClick} />
+          <AnimeRow title="Summer 2026 Season" items={seasonal} apiKey={apiKey} onAnimeClick={handleAnimeClick} />
+          <AnimeRow title="All-Time Popular Favorites" items={popular} apiKey={apiKey} onAnimeClick={handleAnimeClick} />
+          <AnimeRow title="Top Ranked Masterpieces" items={topRated} apiKey={apiKey} onAnimeClick={handleAnimeClick} />
+          <AnimeRow title="Upcoming Anticipated Releases" items={upcoming} apiKey={apiKey} onAnimeClick={handleAnimeClick} />
+          
+          {/* Dynamically Lazy-loaded Endless Genres */}
+          {genreRows.map((row) => (
+            <AnimeRow 
+              key={row.genre} 
+              title={`${row.genre} Series`} 
+              items={row.media} 
+              apiKey={apiKey} 
+              onAnimeClick={handleAnimeClick} 
+            />
+          ))}
+
+          {/* Endless Row Loading Spinner Indicator */}
+          {loadingGenreRows && (
+            <div className="flex items-center justify-center py-8 gap-2">
+              <Loader2 className="animate-spin text-red-600" size={20} />
+              <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Loading more categories...</span>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 4. TMDB Syncing Modal Overlay */}
+      {matchingStatus.isActive && (
+        <div className="fixed inset-0 z-[110] bg-black/85 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-300 select-none">
+          <div className="bg-[#0c0c0e] border border-white/10 max-w-md w-full rounded-2xl shadow-2xl p-6 flex flex-col items-center justify-center text-center relative overflow-hidden">
+            
+            <div className="absolute w-24 h-24 rounded-full bg-red-600/10 blur-2xl top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none" />
+
+            <button
+              onClick={() => setMatchingStatus({ isActive: false, title: '', error: null })}
+              className="absolute top-3.5 right-3.5 text-zinc-500 hover:text-white p-1 rounded-lg transition-colors z-20 hover:bg-white/5 active:scale-95"
+              title="Close Sync Overlay"
+            >
+              <X size={15} />
+            </button>
+
+            {matchingStatus.error ? (
+              <>
+                <AlertCircle size={40} className="text-red-500 mb-4 animate-bounce" />
+                <h3 className="text-lg font-bold text-white mb-2">Syncing Failed</h3>
+                <p className="text-zinc-400 text-xs leading-relaxed mb-6 px-4">{matchingStatus.error}</p>
+                <button
+                  onClick={() => setMatchingStatus({ isActive: false, title: '', error: null })}
+                  className="px-6 py-2.5 bg-white text-black hover:bg-zinc-200 text-xs font-bold rounded-lg shadow-md transition-all active:scale-95"
+                >
+                  Dismiss
+                </button>
+              </>
+            ) : (
+              <>
+                <div className="relative mb-6">
+                  <div className="w-16 h-16 border-2 border-red-500/20 border-t-red-600 rounded-full animate-spin flex items-center justify-center" />
+                  <Film size={20} className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-red-500 animate-pulse" />
+                </div>
+                <h3 className="text-base font-extrabold text-white mb-1.5">Syncing with Player</h3>
+                <p className="text-zinc-400 text-[11px] mb-4 tracking-tight px-4 leading-normal">
+                  Matching <strong className="text-red-500 font-bold">"{matchingStatus.title}"</strong> with MovieVerse streaming servers.
+                </p>
+                <div className="text-[10px] text-zinc-500 font-semibold uppercase tracking-[0.2em] animate-pulse">
+                  Searching media databases...
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// --- SUB-COMPONENTS (DEFINED OUTSIDE TO AVOID NESTED RE-RENDERS AND TYPING ISSUES) ---
+
+interface AnimeCardProps {
+  anime: AniListMedia;
+  apiKey: string;
+  onAnimeClick: (anime: AniListMedia) => void;
+}
+
+const AnimeCard: React.FC<AnimeCardProps> = ({ anime, apiKey, onAnimeClick }) => {
+  const [backdropUrl, setBackdropUrl] = useState<string | null>(null);
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [logoLoading, setLogoLoading] = useState(true);
+
+  const { ref } = useTvFocus({
+    onEnterPress: () => onAnimeClick(anime)
+  });
+
+  const title = anime.title.english || anime.title.romaji || anime.title.userPreferred;
+
+  // Background resolver for each card's TMDB match & logo
+  useEffect(() => {
+    let isMounted = true;
+    
+    const resolveTmdbAndLogo = async () => {
+      const matchCacheKey = `movieverse_anilist_tmdb_match_${anime.id}`;
+      const logoCacheKey = `movieverse_anime_logo_${anime.id}`;
+      
+      const cachedMatch = localStorage.getItem(matchCacheKey);
+      const cachedLogo = localStorage.getItem(logoCacheKey);
+      
+      let tmdbId: number | null = null;
+      let mediaType: string | null = null;
+      let backdropPath: string | null = null;
+      
+      if (cachedMatch) {
+        try {
+          const parsed = JSON.parse(cachedMatch);
+          tmdbId = parsed.id;
+          mediaType = parsed.mediaType;
+          backdropPath = parsed.backdropPath;
+        } catch (_) {}
+      }
+      
+      // Search TMDB to map ID if not cached
+      if (!tmdbId && apiKey) {
+        const titlesToTry = [
+          anime.title.english,
+          anime.title.romaji,
+          anime.title.userPreferred
+        ].filter((t): t is string => typeof t === 'string' && t.length > 0);
+        
+        for (const searchTitle of titlesToTry) {
+          const cleanTitle = searchTitle.replace(/\s*\(?(Dub|Sub|TV|Movie|uncensored|censored|season\s*\d+|part\s*\d+)\)?\s*$/i, '').trim();
+          
+          // Try TV search
+          try {
+            const res = await fetch(`${TMDB_BASE_URL}/search/tv?api_key=${apiKey}&query=${encodeURIComponent(cleanTitle)}`);
+            const data = await res.json();
+            if (data && data.results && data.results.length > 0) {
+              const match = data.results.find((item: any) => 
+                item.genre_ids?.includes(16) && item.original_language === 'ja'
+              ) || data.results.find((item: any) => 
+                item.genre_ids?.includes(16)
+              ) || data.results[0];
+              
+              if (match) {
+                tmdbId = match.id;
+                mediaType = 'tv';
+                backdropPath = match.backdrop_path;
+                break;
+              }
+            }
+          } catch (e) {
+            console.error("TV search failed for AnimeCard resolver:", cleanTitle, e);
+          }
+          
+          // Try Movie search
+          try {
+            const res = await fetch(`${TMDB_BASE_URL}/search/movie?api_key=${apiKey}&query=${encodeURIComponent(cleanTitle)}`);
+            const data = await res.json();
+            if (data && data.results && data.results.length > 0) {
+              const match = data.results.find((item: any) => 
+                item.genre_ids?.includes(16) && item.original_language === 'ja'
+              ) || data.results.find((item: any) => 
+                item.genre_ids?.includes(16)
+              ) || data.results[0];
+              
+              if (match) {
+                tmdbId = match.id;
+                mediaType = 'movie';
+                backdropPath = match.backdrop_path;
+                break;
+              }
+            }
+          } catch (e) {
+            console.error("Movie search failed for AnimeCard resolver:", cleanTitle, e);
+          }
+        }
+        
+        if (tmdbId && mediaType) {
+          localStorage.setItem(matchCacheKey, JSON.stringify({ id: tmdbId, mediaType, backdropPath }));
+        }
+      }
+      
+      if (!isMounted) return;
+      
+      if (tmdbId && mediaType) {
+        // Set backdrop URL (prefer TMDB landscape backdrop)
+        if (backdropPath) {
+          setBackdropUrl(`https://image.tmdb.org/t/p/w500${backdropPath}`);
+        } else {
+          setBackdropUrl(anime.bannerImage || anime.coverImage.extraLarge || anime.coverImage.large);
+        }
+        
+        // Fetch Title Logo
+        if (cachedLogo !== null) {
+          setLogoUrl(cachedLogo || null);
+          setLogoLoading(false);
+        } else if (apiKey) {
+          try {
+            const res = await fetch(`${TMDB_BASE_URL}/${mediaType}/${tmdbId}/images?api_key=${apiKey}`);
+            const data = await res.json();
+            const logo = data.logos?.find((l: any) => l.iso_639_1 === 'en') || data.logos?.[0];
+            if (logo && isMounted) {
+              const logoPath = `https://image.tmdb.org/t/p/w300${logo.file_path}`;
+              setLogoUrl(logoPath);
+              localStorage.setItem(logoCacheKey, logoPath);
+            } else if (isMounted) {
+              setLogoUrl(null);
+              localStorage.setItem(logoCacheKey, '');
+            }
+          } catch (e) {
+            console.error("Logo fetch failed for AnimeCard:", e);
+            if (isMounted) {
+              setLogoUrl(null);
+              localStorage.setItem(logoCacheKey, '');
+            }
+          } finally {
+            if (isMounted) {
+              setLogoLoading(false);
+            }
+          }
+        } else {
+          setLogoLoading(false);
+        }
+      } else {
+        // Match failed, use AniList landscape images as fallback
+        setBackdropUrl(anime.bannerImage || anime.coverImage.extraLarge || anime.coverImage.large);
+        setLogoLoading(false);
+      }
+    };
+    
+    resolveTmdbAndLogo();
+    
+    return () => {
+      isMounted = false;
+    };
+  }, [anime.id, apiKey]);
+
+  return (
+    <div
+      ref={ref}
+      onClick={() => onAnimeClick(anime)}
+      className="group relative shrink-0 w-[220px] md:w-[260px] aspect-[16/9] rounded-xl overflow-hidden cursor-pointer bg-zinc-900 border border-white/5 hover:border-red-500/50 hover:shadow-[0_0_20px_rgba(239,68,68,0.25)] hover:scale-[1.03] transition-all duration-500"
+    >
+      <img
+        src={backdropUrl || "https://placehold.co/600x338/111/444?text=Loading..."}
+        alt={title}
+        loading="lazy"
+        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+      />
+
+      {/* Glassmorphic Gradient Overlay */}
+      <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/45 to-transparent opacity-85 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
+
+      {/* Rating Badge */}
+      {anime.averageScore && (
+        <div className="absolute top-2 left-2 bg-black/75 backdrop-blur-md text-[9.5px] font-bold text-white px-2 py-0.5 rounded shadow-md border border-white/5 flex items-center gap-1">
+          <Star size={9} fill="currentColor" className="text-yellow-400" />
+          {(anime.averageScore / 10).toFixed(1)}
+        </div>
+      )}
+
+      {/* Episode / Status Badge */}
+      {anime.episodes && (
+        <div className="absolute top-2 right-2 bg-red-600/90 backdrop-blur-sm text-[9.5px] font-bold text-white px-1.5 py-0.5 rounded shadow-md">
+          {anime.episodes} Ep
+        </div>
+      )}
+
+      {/* Content Details Overlay */}
+      <div className="absolute inset-0 p-3 flex flex-col justify-end text-left select-none pointer-events-none">
+        <div className="min-h-[32px] flex items-end">
+          {!logoLoading && logoUrl ? (
+            <img
+              src={logoUrl}
+              alt={title}
+              className="max-h-[28px] max-w-[85%] object-contain drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)] group-hover:scale-105 transition-transform duration-300 origin-left"
+              loading="lazy"
+            />
+          ) : (
+            <h4 className="text-xs sm:text-sm font-bold text-white line-clamp-1 group-hover:text-red-500 transition-colors duration-300 drop-shadow-md">
+              {title}
+            </h4>
+          )}
+        </div>
+
+        {/* Hover Expanded Info */}
+        <div className="max-h-0 overflow-hidden group-hover:max-h-12 group-hover:mt-1.5 transition-all duration-500 ease-out opacity-0 group-hover:opacity-100 flex flex-col gap-1">
+          <div className="flex items-center justify-between text-[10px] text-zinc-300 font-semibold">
+            <span>{anime.seasonYear || anime.season || 'TBA'}</span>
+            <span className="uppercase text-[9px] px-1 rounded bg-white/10">{anime.status.replace('_', ' ')}</span>
+          </div>
+          <div className="flex flex-wrap gap-1">
+            {anime.genres.slice(0, 2).map((g) => (
+              <span key={g} className="text-[7.5px] font-bold uppercase tracking-wider bg-white/5 text-zinc-400 px-1 rounded border border-white/5">
+                {g}
+              </span>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+interface AnimeRowProps {
+  title: string;
+  items: AniListMedia[];
+  apiKey: string;
+  onAnimeClick: (anime: AniListMedia) => void;
+}
+
+const AnimeRow: React.FC<AnimeRowProps> = ({ title, items, apiKey, onAnimeClick }) => {
+  if (items.length === 0) return null;
+  return (
+    <div className="mb-10 animate-in fade-in duration-500 text-left">
+      <h3 className="text-lg font-bold text-white mb-4 px-4 md:px-12 tracking-tight flex items-center gap-2">
+        <span className="w-1.5 h-5 bg-red-600 rounded-full inline-block"></span>
+        {title}
+      </h3>
+      <div className="flex gap-5 overflow-x-auto px-4 md:px-12 pb-4 hide-scrollbar scroll-smooth">
+        {items.map((anime) => (
+          <AnimeCard key={anime.id} anime={anime} apiKey={apiKey} onAnimeClick={onAnimeClick} />
+        ))}
+      </div>
+    </div>
+  );
+};
