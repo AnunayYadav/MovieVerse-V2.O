@@ -190,6 +190,7 @@ interface LiveTVCardProps {
     index: number;
     onPlay: (channel: LiveChannel) => void;
     onFocus?: (index: number) => void;
+    className?: string;
 }
 
 // Sleek 16:9 premium channel card component
@@ -197,7 +198,8 @@ const LiveTVCard: React.FC<LiveTVCardProps> = React.memo(({
     channel, 
     index,
     onPlay,
-    onFocus
+    onFocus,
+    className = "w-[200px] md:w-[240px] shrink-0"
 }) => {
     const handlePlay = useCallback(() => {
         onPlay(channel);
@@ -218,7 +220,7 @@ const LiveTVCard: React.FC<LiveTVCardProps> = React.memo(({
         <div 
             ref={ref}
             onClick={handlePlay}
-            className="relative w-[200px] md:w-[240px] shrink-0 aspect-[16/9] rounded-xl overflow-hidden bg-zinc-900/60 backdrop-blur-md border border-white/5 cursor-pointer shadow-lg hover:scale-105 hover:border-white/20 hover:shadow-2xl transition-all duration-500 group select-none flex flex-col justify-between"
+            className={`relative aspect-[16/9] rounded-xl overflow-hidden bg-zinc-900/60 backdrop-blur-md border border-white/5 cursor-pointer shadow-lg hover:scale-105 hover:border-white/20 hover:shadow-2xl transition-all duration-500 group select-none flex flex-col justify-between ${className}`}
         >
             <div className="absolute inset-0 bg-gradient-to-tr from-[#0b0c10] via-transparent to-white/[0.02]" />
             
@@ -693,6 +695,7 @@ export const LiveTV: React.FC<LiveTVProps> = ({ userProfile }) => {
                                         index={index}
                                         onPlay={handleChannelClick}
                                         onFocus={handleSearchCardFocus}
+                                        className="w-full"
                                     />
                                 ))}
                             </div>
