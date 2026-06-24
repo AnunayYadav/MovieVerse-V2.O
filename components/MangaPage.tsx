@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Play, Info, Search, Star, BookOpen, X, ChevronLeft, ChevronRight, FileText, LayoutList, RefreshCcw, Loader2, AlertCircle, Sparkles, Trophy, Calendar, TrendingUp, ArrowLeft, Users, Globe, Bookmark, AlertTriangle, Settings, Heart, Maximize, Languages, ChevronDown, Check } from 'lucide-react';
 import { useTvFocus, TvFocusButton, TvFocusInput } from '../tvNavigation';
+import { ExpandedCategoryModal } from './Modals';
 
-interface MangaDexManga {
+export interface MangaDexManga {
   id: string;
   attributes: {
     title: {
@@ -103,7 +104,7 @@ const RELATION_NAMES: Record<string, string> = {
   main_story: 'Main Story'
 };
 
-const getMangaTitleHelper = (manga: MangaDexManga, lang: 'english' | 'romaji' | 'native') => {
+export const getMangaTitleHelper = (manga: MangaDexManga, lang: 'english' | 'romaji' | 'native') => {
   if (!manga.attributes) return "Untitled Manga";
   const titleObj = manga.attributes.title || {};
   const altTitles = manga.attributes.altTitles || [];
@@ -135,6 +136,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
   const [trending, setTrending] = useState<MangaDexManga[]>([]);
   const [latest, setLatest] = useState<MangaDexManga[]>([]);
   const [topRated, setTopRated] = useState<MangaDexManga[]>([]);
+  const [expandedCategory, setExpandedCategory] = useState<{ title: string; items: MangaDexManga[] } | null>(null);
   
   // Endless scroll genre rows
   const [genreRows, setGenreRows] = useState<{ genre: string; media: MangaDexManga[] }[]>([]);
@@ -2115,9 +2117,9 @@ export const MangaPage: React.FC<MangaPageProps> = ({
           </div>
         </div>
 
-          <MangaRow title="Trending Manga Releases" items={trending} onMangaClick={onMangaSelect} titleLanguage={titleLanguage} />
-          <MangaRow title="Recently Uploaded Chapters" items={latest} onMangaClick={onMangaSelect} titleLanguage={titleLanguage} />
-          <MangaRow title="Top Followed Favorites" items={topRated} onMangaClick={onMangaSelect} titleLanguage={titleLanguage} />
+          <MangaRow title="Trending Manga Releases" items={trending} onMangaClick={onMangaSelect} titleLanguage={titleLanguage} onExpand={() => setExpandedCategory({ title: "Trending Manga Releases", items: trending })} />
+          <MangaRow title="Recently Uploaded Chapters" items={latest} onMangaClick={onMangaSelect} titleLanguage={titleLanguage} onExpand={() => setExpandedCategory({ title: "Recently Uploaded Chapters", items: latest })} />
+          <MangaRow title="Top Followed Favorites" items={topRated} onMangaClick={onMangaSelect} titleLanguage={titleLanguage} onExpand={() => setExpandedCategory({ title: "Top Followed Favorites", items: topRated })} />
 
           {/* Endless Scroll Genre Rows */}
           {genreRows.map((row) => (
@@ -2127,6 +2129,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
               items={row.media}
               onMangaClick={onMangaSelect}
               titleLanguage={titleLanguage}
+              onExpand={() => setExpandedCategory({ title: `${row.genre} Manga`, items: row.media })}
             />
           ))}
 
@@ -2146,19 +2149,35 @@ export const MangaPage: React.FC<MangaPageProps> = ({
           {toastMessage}
         </div>
       )}
+      <ExpandedCategoryModal
+        isOpen={expandedCategory !== null}
+        onClose={() => setExpandedCategory(null)}
+        title={expandedCategory?.title || ""}
+        mode="manga"
+        initialItems={expandedCategory?.items || []}
+        onItemClick={onMangaSelect}
+        titleLanguage={titleLanguage}
+        renderItem={(item) => (
+          <MangaCard
+            manga={item}
+            onMangaClick={onMangaSelect}
+            titleLanguage={titleLanguage}
+          />
+        )}
+      />
     </div>
   );
 };
 
 // --- SUB COMPONENTS ---
 
-interface MangaCardProps {
+export interface MangaCardProps {
   manga: MangaDexManga;
   onMangaClick: (id: string) => void;
   titleLanguage: 'english' | 'romaji' | 'native';
 }
 
-const MangaCard: React.FC<MangaCardProps> = ({ manga, onMangaClick, titleLanguage }) => {
+export const MangaCard: React.FC<MangaCardProps> = ({ manga, onMangaClick, titleLanguage }) => {
   const { ref } = useTvFocus({
     onEnterPress: () => onMangaClick(manga.id)
   });
@@ -2197,21 +2216,33 @@ const MangaCard: React.FC<MangaCardProps> = ({ manga, onMangaClick, titleLanguag
   );
 };
 
-interface MangaRowProps {
+export interface MangaRowProps {
   title: string;
   items: MangaDexManga[];
   onMangaClick: (id: string) => void;
   titleLanguage: 'english' | 'romaji' | 'native';
+  onExpand?: () => void;
 }
 
-const MangaRow: React.FC<MangaRowProps> = ({ title, items, onMangaClick, titleLanguage }) => {
+export const MangaRow: React.FC<MangaRowProps> = ({ title, items, onMangaClick, titleLanguage, onExpand }) => {
   if (items.length === 0) return null;
   return (
     <div className="mb-10 animate-in fade-in duration-500 text-left font-sans">
-      <h3 className="text-lg font-bold text-white mb-4 px-4 md:px-12 tracking-tight flex items-center gap-2 select-none">
-        <span className="w-1.5 h-5 bg-red-600 rounded-full inline-block"></span>
-        {title}
-      </h3>
+      <div className="flex items-center justify-between px-4 md:px-12 mb-4">
+        <h3 className="text-lg font-bold text-white tracking-tight flex items-center gap-2 select-none">
+          <span className="w-1.5 h-5 bg-red-600 rounded-full inline-block"></span>
+          {title}
+        </h3>
+        {onExpand && (
+          <button
+            onClick={onExpand}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-white/5 hover:bg-white/10 hover:text-white text-zinc-400 text-xs font-bold transition-all border border-white/5 hover:border-white/10 active:scale-95 shadow-md select-none"
+          >
+            <span>See All</span>
+            <ChevronRight size={14} />
+          </button>
+        )}
+      </div>
       <div className="flex gap-5 overflow-x-auto px-4 md:px-12 pb-4 hide-scrollbar scroll-smooth">
         {items.map((manga) => (
           <MangaCard key={manga.id} manga={manga} onMangaClick={onMangaClick} titleLanguage={titleLanguage} />

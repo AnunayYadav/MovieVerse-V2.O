@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Tv, Play, Search, AlertCircle, RefreshCcw, Wifi, Globe, Loader2, Lock, ChevronDown, Check, Info } from 'lucide-react';
+import { Tv, Play, Search, AlertCircle, RefreshCcw, Wifi, Globe, Loader2, Lock, ChevronDown, Check, Info, ChevronRight } from 'lucide-react';
 import { LiveChannel, UserProfile } from '../types';
 import { LiveTVPlayer } from './LiveTVPlayer';
 import { useTvFocus, TvFocusButton, TvFocusInput } from '../tvNavigation';
+import { ExpandedCategoryModal } from './Modals';
 
 interface LiveTVProps {
     userProfile: UserProfile;
@@ -185,7 +186,7 @@ const fetchAndParseM3U = (url: string): Promise<LiveChannel[]> => {
 };
 
 // Sleek 16:9 premium channel card component
-interface LiveTVCardProps {
+export interface LiveTVCardProps {
     channel: LiveChannel; 
     index: number;
     onPlay: (channel: LiveChannel) => void;
@@ -194,7 +195,7 @@ interface LiveTVCardProps {
 }
 
 // Sleek 16:9 premium channel card component
-const LiveTVCard: React.FC<LiveTVCardProps> = React.memo(({ 
+export const LiveTVCard: React.FC<LiveTVCardProps> = React.memo(({ 
     channel, 
     index,
     onPlay,
@@ -295,12 +296,14 @@ const LiveTVRow: React.FC<{
     countryCode: string;
     searchQuery: string;
     onChannelClick: (c: LiveChannel) => void;
+    onExpand?: (items: LiveChannel[]) => void;
 }> = ({
     title,
     categoryId,
     countryCode,
     searchQuery,
-    onChannelClick
+    onChannelClick,
+    onExpand
 }) => {
     const [channels, setChannels] = useState<LiveChannel[]>([]);
     const [loading, setLoading] = useState(false);
@@ -381,10 +384,21 @@ const LiveTVRow: React.FC<{
 
     return (
         <div className="mb-10 animate-in fade-in duration-500 text-left">
-            <h3 className="text-lg font-bold text-white/90 mb-4 px-4 md:px-12 tracking-tight flex items-center gap-2">
-                <span className="w-1.5 h-5 bg-red-600 rounded-full inline-block"></span>
-                {title}
-            </h3>
+            <div className="flex items-center justify-between px-4 md:px-12 mb-4">
+                <h3 className="text-lg font-bold text-white/90 tracking-tight flex items-center gap-2 select-none">
+                    <span className="w-1.5 h-5 bg-red-600 rounded-full inline-block"></span>
+                    {title}
+                </h3>
+                {onExpand && filtered.length > 0 && (
+                    <button
+                        onClick={() => onExpand(filtered)}
+                        className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-white/5 hover:bg-white/10 hover:text-white text-zinc-400 text-xs font-bold transition-all border border-white/5 hover:border-white/10 active:scale-95 shadow-md select-none"
+                    >
+                        <span>See All</span>
+                        <ChevronRight size={14} />
+                    </button>
+                )}
+            </div>
             
             <div 
                 ref={rowRef}
@@ -415,6 +429,7 @@ export const LiveTV: React.FC<LiveTVProps> = ({ userProfile }) => {
     const [selectedCountry, setSelectedCountry] = useState('ALL');
     const [selectedChannel, setSelectedChannel] = useState<LiveChannel | null>(null);
     const [searchQuery, setSearchQuery] = useState("");
+    const [expandedCategory, setExpandedCategory] = useState<{ title: string; items: LiveChannel[] } | null>(null);
     
     // Search states
     const [searchChannels, setSearchChannels] = useState<LiveChannel[]>([]);
@@ -669,6 +684,7 @@ export const LiveTV: React.FC<LiveTVProps> = ({ userProfile }) => {
                                 countryCode={selectedCountry}
                                 searchQuery={searchQuery}
                                 onChannelClick={handleChannelClick}
+                                onExpand={(channels) => setExpandedCategory({ title: cat.name, items: channels })}
                             />
                         ))}
                     </div>
@@ -719,6 +735,23 @@ export const LiveTV: React.FC<LiveTVProps> = ({ userProfile }) => {
                      </p>
                 </div>
             </div>
+
+            <ExpandedCategoryModal
+                isOpen={expandedCategory !== null}
+                onClose={() => setExpandedCategory(null)}
+                title={expandedCategory?.title || ""}
+                mode="livetv"
+                initialItems={expandedCategory?.items || []}
+                onItemClick={handleChannelClick}
+                renderItem={(item, idx) => (
+                    <LiveTVCard
+                        channel={item}
+                        index={idx}
+                        onPlay={handleChannelClick}
+                        className="w-full"
+                    />
+                )}
+            />
         </div>
     );
 };

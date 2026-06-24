@@ -4,7 +4,7 @@ import { Search, Film, Menu, TrendingUp, Tv, Ghost, Calendar, Star, X, Sparkles,
 import { Movie, UserProfile, GENRES_MAP, GENRES_LIST, INDIAN_LANGUAGES, MaturityRating, Keyword } from './types';
 import { LogoLoader, MovieSkeleton, MovieCard, PersonCard, TMDB_BASE_URL, TMDB_BACKDROP_BASE, TMDB_IMAGE_BASE, getTmdbKey, BrandLogo, getMovieVerseRating, tvFetch } from './components/Shared';
 import { MoviePage } from './components/MovieDetails';
-import { PersonPage, NotificationModal, ComparisonModal } from './components/Modals';
+import { PersonPage, NotificationModal, ComparisonModal, ExpandedCategoryModal } from './components/Modals';
 import { SettingsPage } from './components/SettingsModal';
 import { getSearchSuggestions } from './services/gemini';
 import { LoginPage } from './components/LoginPage';
@@ -545,7 +545,8 @@ const MovieRow = ({
     onMovieClick,
     apiKey,
     sortOption,
-    selectedLanguage
+    selectedLanguage,
+    onExpand
 }: {
     title: string;
     movies?: Movie[];
@@ -556,6 +557,7 @@ const MovieRow = ({
     key?: string | number;
     sortOption?: string;
     selectedLanguage?: string;
+    onExpand?: () => void;
 }) => {
     const [movies, setMovies] = useState<Movie[]>(staticMovies || []);
     const [loading, setLoading] = useState(endpoint ? true : false);
@@ -746,10 +748,21 @@ const MovieRow = ({
 
     return (
         <div ref={rowRef} className="mb-10 animate-in fade-in duration-500">
-            <h3 className="text-lg font-bold text-white mb-4 px-4 md:px-12 tracking-tight flex items-center gap-2">
-                <span className="w-1.5 h-5 bg-red-600 rounded-full inline-block"></span>
-                {title}
-            </h3>
+            <div className="flex items-center justify-between px-4 md:px-12 mb-4">
+                <h3 className="text-lg font-bold text-white tracking-tight flex items-center gap-2 select-none">
+                    <span className="w-1.5 h-5 bg-red-600 rounded-full inline-block"></span>
+                    {title}
+                </h3>
+                {onExpand && movies.length > 0 && (
+                    <button
+                        onClick={onExpand}
+                        className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-white/5 hover:bg-white/10 hover:text-white text-zinc-400 text-xs font-bold transition-all border border-white/5 hover:border-white/10 active:scale-95 shadow-md select-none"
+                    >
+                        <span>See All</span>
+                        <ChevronRight size={14} />
+                    </button>
+                )}
+            </div>
             <div
                 onScroll={handleScroll}
                 className="flex gap-5 overflow-x-auto px-4 md:px-12 pb-4 hide-scrollbar scroll-smooth"
@@ -867,19 +880,32 @@ const ContinueWatchingCard = ({
 // Sub-component for Continue Watching row with visual progress
 const ContinueWatchingRow = ({
     watchedMovies,
-    onMovieClick
+    onMovieClick,
+    onExpand
 }: {
     watchedMovies: Movie[];
     onMovieClick: (m: Movie) => void;
+    onExpand?: () => void;
 }) => {
     const activeProgress = watchedMovies.filter(m => m.play_progress && m.play_progress > 0 && m.play_progress < 95);
     if (activeProgress.length === 0) return null;
     return (
         <div className="mb-10 animate-in fade-in duration-500">
-            <h3 className="text-lg font-bold text-white mb-4 px-4 md:px-12 tracking-tight flex items-center gap-2">
-                <span className="w-1.5 h-5 bg-red-600 rounded-full inline-block"></span>
-                Continue Watching
-            </h3>
+            <div className="flex items-center justify-between px-4 md:px-12 mb-4">
+                <h3 className="text-lg font-bold text-white tracking-tight flex items-center gap-2 select-none">
+                    <span className="w-1.5 h-5 bg-red-600 rounded-full inline-block"></span>
+                    Continue Watching
+                </h3>
+                {onExpand && activeProgress.length > 0 && (
+                    <button
+                        onClick={onExpand}
+                        className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-white/5 hover:bg-white/10 hover:text-white text-zinc-400 text-xs font-bold transition-all border border-white/5 hover:border-white/10 active:scale-95 shadow-md select-none"
+                    >
+                        <span>See All</span>
+                        <ChevronRight size={14} />
+                    </button>
+                )}
+            </div>
             <div className="flex gap-5 overflow-x-auto px-4 md:px-12 pb-4 hide-scrollbar scroll-smooth">
                 {activeProgress.map(movie => (
                     <ContinueWatchingCard
@@ -1106,6 +1132,7 @@ export default function App() {
     const [modalHistory, setModalHistory] = useState<Array<{ type: 'movie' | 'person'; data: any }>>([]);
     const [featuredMovie, setFeaturedMovie] = useState<Movie | null>(null);
     const [featuredLogo, setFeaturedLogo] = useState<string | null>(null);
+    const [expandedCategory, setExpandedCategory] = useState<{ title: string; items: Movie[]; endpoint?: string; mediaType?: 'movie' | 'tv' } | null>(null);
 
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -4131,9 +4158,14 @@ export default function App() {
                                                         onMovieClick={setSelectedMovie}
                                                         sortOption={sortOption}
                                                         selectedLanguage={selectedLanguage}
+                                                        onExpand={() => setExpandedCategory({ title: cat.title, items: [], endpoint: cat.endpoint, mediaType: cat.mediaType })}
                                                     />
                                                 ))}
-                                                <ContinueWatchingRow watchedMovies={watched} onMovieClick={setSelectedMovie} />
+                                                <ContinueWatchingRow 
+                                                    watchedMovies={watched} 
+                                                    onMovieClick={setSelectedMovie} 
+                                                    onExpand={() => setExpandedCategory({ title: "Continue Watching", items: watched.filter(m => m.play_progress && m.play_progress > 0 && m.play_progress < 95) })}
+                                                />
 
                                                 {watched.length > 0 && (
                                                     <MovieRow
@@ -4142,6 +4174,7 @@ export default function App() {
                                                         onMovieClick={setSelectedMovie}
                                                         sortOption={sortOption}
                                                         selectedLanguage={selectedLanguage}
+                                                        onExpand={() => setExpandedCategory({ title: "Watch Again", items: watched.filter(m => !m.play_progress || m.play_progress >= 95) })}
                                                     />
                                                 )}
 
@@ -4152,6 +4185,7 @@ export default function App() {
                                                         onMovieClick={setSelectedMovie}
                                                         sortOption={sortOption}
                                                         selectedLanguage={selectedLanguage}
+                                                        onExpand={() => setExpandedCategory({ title: `Because You Watched ${recBaseMovie.title || recBaseMovie.name}`, items: recommendations })}
                                                     />
                                                 )}
 
@@ -4177,6 +4211,7 @@ export default function App() {
                                                             onMovieClick={setSelectedMovie}
                                                             sortOption={sortOption}
                                                             selectedLanguage={selectedLanguage}
+                                                            onExpand={() => setExpandedCategory({ title: cat.title, items: [], endpoint: cat.endpoint, mediaType: cat.mediaType })}
                                                         />
                                                     );
                                                 })}
@@ -4207,6 +4242,7 @@ export default function App() {
                                                                 onMovieClick={setSelectedMovie}
                                                                 sortOption={sortOption}
                                                                 selectedLanguage={selectedLanguage}
+                                                                onExpand={() => setExpandedCategory({ title: cat.title, items: [], endpoint: cat.endpoint, mediaType: cat.mediaType })}
                                                             />
                                                         ))}
                                                         <div className="space-y-4 animate-pulse mt-8 pb-10">
@@ -4235,6 +4271,7 @@ export default function App() {
                                                                         onMovieClick={setSelectedMovie}
                                                                         sortOption={sortOption}
                                                                         selectedLanguage={selectedLanguage}
+                                                                        onExpand={() => setExpandedCategory({ title: cat.title, items: [], endpoint: cat.endpoint, mediaType: cat.mediaType })}
                                                                     />
                                                                 ))}
                                                             </div>
@@ -4325,6 +4362,29 @@ export default function App() {
             )}
             <PersonPage key={selectedPersonId || 0} personId={selectedPersonId || 0} onClose={() => setSelectedPersonId(null)} apiKey={apiKey} onMovieClick={(m) => { setSelectedPersonId(null); setSelectedMovie(m); }} />
             <ComparisonModal isOpen={isComparisonOpen} onClose={() => setIsComparisonOpen(false)} baseMovie={comparisonBaseMovie} apiKey={apiKey} />
+            <ExpandedCategoryModal
+                isOpen={expandedCategory !== null}
+                onClose={() => setExpandedCategory(null)}
+                title={expandedCategory?.title || ""}
+                mode="movie"
+                initialItems={expandedCategory?.items || []}
+                apiKey={apiKey}
+                endpoint={expandedCategory?.endpoint}
+                mediaType={expandedCategory?.mediaType}
+                onItemClick={setSelectedMovie}
+                onToggleWatched={handleToggleWatched}
+                watched={watched}
+                sortOption={sortOption}
+                selectedLanguage={selectedLanguage}
+                renderItem={(item) => (
+                    <MovieCard
+                        movie={item}
+                        onClick={setSelectedMovie}
+                        isWatched={watched.some(m => m.id === item.id)}
+                        onToggleWatched={handleToggleWatched}
+                    />
+                )}
+            />
             <SettingsPage isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} apiKey={apiKey} setApiKey={(k) => saveSettings(k)} maturityRating={maturityRating} setMaturityRating={setMaturityRating} profile={userProfile} onUpdateProfile={setUserProfile} onLogout={handleLogout} searchHistory={searchHistory} setSearchHistory={(h) => { setSearchHistory(h); localStorage.setItem('movieverse_search_history', JSON.stringify(h)); }} watchedMovies={watched} setWatchedMovies={(m) => { setWatched(m); localStorage.setItem('movieverse_watched', JSON.stringify(m)); }} />
             <NotificationModal isOpen={isNotificationOpen} onClose={() => setIsNotificationOpen(false)} onUpdate={checkUnreadNotifications} userProfile={userProfile} />
 

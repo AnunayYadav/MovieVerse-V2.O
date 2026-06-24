@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { UserCircle, X, ListPlus, Plus, Check, Loader2, Film, AlertCircle, BrainCircuit, Search, Star, RefreshCcw, Bell, CheckCheck, Inbox, Heart, PaintBucket, Upload, Facebook, Instagram, Twitter, Globe, Scale, DollarSign, Clock, Trophy, ChevronRight, ChevronDown, Calendar, ArrowUp, ArrowDown, TrendingUp, History, ArrowLeft, MoreHorizontal, Dice5, Shield, ExternalLink } from 'lucide-react';
 import { UserProfile, Movie, GENRES_LIST, PersonDetails, AppNotification, MovieDetails } from '../types';
-import { TMDB_BASE_URL, TMDB_IMAGE_BASE, TMDB_BACKDROP_BASE, formatCurrency, MovieSkeleton, ImageLightbox } from './Shared';
+import { TMDB_BASE_URL, TMDB_IMAGE_BASE, TMDB_BACKDROP_BASE, formatCurrency, MovieSkeleton, ImageLightbox, tvFetch } from './Shared';
 import { generateSmartRecommendations } from '../services/gemini';
 import { getNotifications, markNotificationsRead } from '../services/supabase';
+
+const fetch = tvFetch;
 
 // FULL CREDITS MODAL
 interface FullCreditsModalProps {
@@ -978,6 +980,240 @@ export const ComparisonModal: React.FC<ComparisonModalProps> = ({ isOpen, onClos
                         </div>
                     )}
                 </div>
+            </div>
+        </div>
+    );
+};
+
+// EXPANDED CATEGORY GRID VIEW MODAL
+interface ExpandedCategoryModalProps {
+    isOpen: boolean;
+    onClose: () => void;
+    title: string;
+    mode: 'movie' | 'anime' | 'manga' | 'livetv';
+    initialItems: any[];
+    apiKey?: string;
+    endpoint?: string;
+    mediaType?: 'movie' | 'tv';
+    onItemClick: (item: any) => void;
+    renderItem: (item: any, idx: number) => React.ReactNode;
+    sortOption?: string;
+    selectedLanguage?: string;
+}
+
+export const ExpandedCategoryModal: React.FC<ExpandedCategoryModalProps> = ({
+    isOpen,
+    onClose,
+    title,
+    mode,
+    initialItems,
+    apiKey,
+    endpoint,
+    mediaType,
+    onItemClick,
+    renderItem,
+    sortOption,
+    selectedLanguage
+}) => {
+    const [items, setItems] = useState<any[]>(initialItems);
+    const [loadingMore, setLoadingMore] = useState(false);
+    const [page, setPage] = useState(1);
+    const [hasMore, setHasMore] = useState(true);
+    const [searchQuery, setSearchQuery] = useState("");
+    const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+
+    useEffect(() => {
+        if (isOpen) {
+            setItems(initialItems);
+            setPage(1);
+            setHasMore(initialItems.length >= 10);
+            setSearchQuery("");
+            if (scrollContainerRef.current) {
+                scrollContainerRef.current.scrollTop = 0;
+            }
+        }
+    }, [isOpen, initialItems]);
+
+    const getFinalEndpoint = useCallback((baseEndpoint: string) => {
+        let finalEndpoint = baseEndpoint;
+        if (finalEndpoint.includes('/discover/') || finalEndpoint.includes('/trending/')) {
+            const searchParams = new URLSearchParams();
+            if (sortOption) {
+                if (finalEndpoint.includes('sort_by=')) {
+                    finalEndpoint = finalEndpoint.replace(/([?&])sort_by=[^&]*/, '');
+                }
+                searchParams.set('sort_by', sortOption);
+                if (sortOption === 'vote_average.desc') {
+                    if (finalEndpoint.includes('vote_count.gte=')) {
+                        finalEndpoint = finalEndpoint.replace(/([?&])vote_count\.gte=[^&]*/, '');
+                    }
+                    searchParams.set('vote_count.gte', '100');
+                } else if (sortOption === 'revenue.desc') {
+                    if (finalEndpoint.includes('vote_count.gte=')) {
+                        finalEndpoint = finalEndpoint.replace(/([?&])vote_count\.gte=[^&]*/, '');
+                    }
+                    searchParams.set('vote_count.gte', '300');
+                }
+            }
+
+            if (selectedLanguage && selectedLanguage !== 'All') {
+                if (finalEndpoint.includes('with_original_language=')) {
+                    finalEndpoint = finalEndpoint.replace(/([?&])with_original_language=[^&]*/, '');
+                }
+                searchParams.set('with_original_language', selectedLanguage);
+            }
+
+            finalEndpoint = finalEndpoint.replace(/\?&/, '?').replace(/&&+/, '&');
+            const newParams = searchParams.toString();
+            if (newParams) {
+                finalEndpoint = `${finalEndpoint}${finalEndpoint.includes('?') ? '&' : '?'}${newParams}`;
+            }
+        }
+        return finalEndpoint;
+    }, [sortOption, selectedLanguage]);
+
+    const loadNextPage = async () => {
+        if (!endpoint || !apiKey || loadingMore || !hasMore) return;
+        setLoadingMore(true);
+        const nextPage = page + 1;
+        const finalEndpoint = getFinalEndpoint(endpoint);
+        const separator = finalEndpoint.includes('?') ? '&' : '?';
+        const url = `${finalEndpoint}${separator}api_key=${apiKey}&page=${nextPage}`;
+        try {
+            const res = await fetch(url);
+            const data = await res.json();
+            let results = data.results || [];
+            if (results.length === 0) {
+                setHasMore(false);
+            } else {
+                results = results.map((item: any) => ({
+                    ...item,
+                    media_type: mediaType || item.media_type || (finalEndpoint.includes('/tv/') ? 'tv' : 'movie'),
+                    title: item.title || item.name
+                }));
+                setItems(prev => [...prev, ...results]);
+                setPage(nextPage);
+            }
+        } catch (e) {
+            console.error("Error loading more in ExpandedCategoryModal:", e);
+        } finally {
+            setLoadingMore(false);
+        }
+    };
+
+    const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+        if (mode !== 'movie' || !endpoint || !apiKey || loadingMore || !hasMore) return;
+        const target = e.currentTarget;
+        if (target.scrollHeight - target.scrollTop - target.clientHeight < 300) {
+            loadNextPage();
+        }
+    };
+
+    const filteredItems = useMemo(() => {
+        if (!searchQuery.trim()) return items;
+        const q = searchQuery.toLowerCase();
+        return items.filter(item => {
+            if (mode === 'movie') {
+                const titleText = (item.title || item.name || "").toLowerCase();
+                const overview = (item.overview || "").toLowerCase();
+                return titleText.includes(q) || overview.includes(q);
+            } else if (mode === 'anime') {
+                const titleEnglish = (item.title?.english || "").toLowerCase();
+                const titleRomaji = (item.title?.romaji || "").toLowerCase();
+                const titleNative = (item.title?.native || "").toLowerCase();
+                const desc = (item.description || "").toLowerCase();
+                return titleEnglish.includes(q) || titleRomaji.includes(q) || titleNative.includes(q) || desc.includes(q);
+            } else if (mode === 'manga') {
+                const titleObj = item.attributes?.title || {};
+                const altTitles = item.attributes?.altTitles || [];
+                const descObj = item.attributes?.description || {};
+                
+                const matchesTitle = Object.values(titleObj).some(t => typeof t === 'string' && t.toLowerCase().includes(q)) ||
+                                    altTitles.some((t: any) => Object.values(t).some(val => typeof val === 'string' && val.toLowerCase().includes(q)));
+                const matchesDesc = Object.values(descObj).some(d => typeof d === 'string' && d.toLowerCase().includes(q));
+                
+                return matchesTitle || matchesDesc;
+            } else if (mode === 'livetv') {
+                const name = (item.name || "").toLowerCase();
+                const group = (item.group || "").toLowerCase();
+                return name.includes(q) || group.includes(q);
+            }
+            return false;
+        });
+    }, [items, searchQuery, mode]);
+
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 z-[150] flex flex-col transition-all duration-300 transform bg-[#030303]/95 backdrop-blur-2xl">
+            {/* Header */}
+            <div className="p-6 border-b border-white/10 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-black/40">
+                <div className="flex items-center gap-4">
+                    <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-full transition-colors text-white">
+                        <ArrowLeft size={20}/>
+                    </button>
+                    <h2 className="text-xl font-bold text-white">{title}</h2>
+                    <span className="text-xs font-bold bg-white/10 px-3 py-1 rounded-full text-gray-300">
+                        {filteredItems.length} {filteredItems.length === 1 ? 'Item' : 'Items'}
+                    </span>
+                </div>
+
+                {/* Real-time search inside modal */}
+                <div className="relative w-full md:w-80 group">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-white transition-colors" size={16}/>
+                    <input 
+                        type="text" 
+                        value={searchQuery} 
+                        onChange={(e) => setSearchQuery(e.target.value)} 
+                        placeholder="Search items..." 
+                        className="w-full bg-white/5 border border-white/10 rounded-xl py-2.5 pl-10 pr-4 text-sm text-white focus:outline-none focus:border-red-500 transition-colors"
+                    />
+                    {searchQuery && (
+                        <button 
+                            onClick={() => setSearchQuery("")} 
+                            className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-gray-500 hover:text-white rounded-full bg-white/5 hover:bg-white/10 transition-colors"
+                        >
+                            <X size={12}/>
+                        </button>
+                    )}
+                </div>
+            </div>
+            
+            {/* Scrollable Container */}
+            <div 
+                ref={scrollContainerRef}
+                onScroll={handleScroll}
+                className="flex-1 overflow-y-auto custom-scrollbar p-6 md:p-12"
+            >
+                {filteredItems.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-20 text-center opacity-60">
+                        <Film size={48} className="text-white/20 mb-4" />
+                        <h3 className="text-lg font-bold text-white mb-1">No Items Found</h3>
+                        <p className="text-zinc-500 text-xs md:text-sm max-w-sm">No matches found for your search query. Try another term.</p>
+                    </div>
+                ) : (
+                    <div className={
+                        mode === 'manga'
+                            ? "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-5"
+                            : mode === 'livetv'
+                                ? "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6"
+                                : "grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-x-4 gap-y-8"
+                    }>
+                        {filteredItems.map((item, idx) => (
+                            <React.Fragment key={idx}>
+                                {renderItem(item, idx)}
+                            </React.Fragment>
+                        ))}
+
+                        {loadingMore && mode === 'movie' && (
+                            [...Array(5)].map((_, i) => (
+                                <div key={`loadmore-skeleton-${i}`} className="w-full shrink-0 aspect-[16/9] bg-zinc-900/45 rounded-xl animate-pulse border border-white/5 flex items-center justify-center">
+                                    <Loader2 className="animate-spin text-red-600" size={24} />
+                                </div>
+                            ))
+                        )}
+                    </div>
+                )}
             </div>
         </div>
     );

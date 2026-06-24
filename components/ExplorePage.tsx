@@ -4,6 +4,7 @@ import { Award, TrendingUp, Tv, Film, Star, Play, Plus, LayoutGrid, Sparkles, Ch
 import { Movie, UserProfile, Provider, GENRES_MAP } from '../types';
 import { TMDB_BASE_URL, TMDB_IMAGE_BASE, TMDB_BACKDROP_BASE, MovieCard, MovieSkeleton, getWatchmodeKey, PosterMarquee, tvFetch } from './Shared';
 import { useTvFocus, TvFocusButton, TvFocusInput } from '../tvNavigation';
+import { ExpandedCategoryModal } from './Modals';
 
 const fetch = tvFetch;
 
@@ -185,16 +186,26 @@ interface SubcategoryRowProps {
     title: string;
     items: Movie[];
     onMovieClick: (m: Movie) => void;
+    onExpand?: () => void;
 }
 
-const SubcategoryRow: React.FC<SubcategoryRowProps> = ({ title, items, onMovieClick }) => {
+const SubcategoryRow: React.FC<SubcategoryRowProps> = ({ title, items, onMovieClick, onExpand }) => {
     if (!items || items.length === 0) return null;
     return (
         <div className="mb-10">
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center justify-between mb-4 px-1 select-none">
                 <h4 className="text-sm md:text-base font-bold tracking-tight text-white/90">
                     {title}
                 </h4>
+                {onExpand && items.length > 0 && (
+                    <button
+                        onClick={onExpand}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 hover:text-white text-zinc-400 text-xs font-bold transition-all border border-white/5 hover:border-white/10 active:scale-95 shadow-md"
+                    >
+                        <span>See All</span>
+                        <ChevronRight size={12} />
+                    </button>
+                )}
             </div>
             <div className="flex gap-4 overflow-x-auto pb-4 pt-1 hide-scrollbar -mx-4 px-4 md:-mx-8 md:px-8">
                 {items.map((movie) => (
@@ -249,6 +260,7 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ apiKey, onMovieClick, 
     const [loadingMore, setLoadingMore] = useState(false);
     const [platforms, setPlatforms] = useState<any[]>([]);
     const [activeOtt, setActiveOtt] = useState<number | null>(null);
+    const [expandedCategory, setExpandedCategory] = useState<{ title: string; items: Movie[]; endpoint?: string } | null>(null);
     const [loading, setLoading] = useState(true);
     const [loadingPlatforms, setLoadingPlatforms] = useState(true);
     const [marqueeMovies, setMarqueeMovies] = useState<Movie[]>([]);
@@ -929,14 +941,34 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ apiKey, onMovieClick, 
                                 </div>
                             ) : (
                                 <div className="mb-12">
-                                    {getSubcategoriesConfig(activeOtt, activeProvider?.provider_name || 'this App').map(cat => (
-                                        <SubcategoryRow 
-                                            key={cat.id} 
-                                            title={cat.label} 
-                                            items={subcategoriesData[cat.id] || []} 
-                                            onMovieClick={onMovieClick}
-                                        />
-                                    ))}
+                                    {getSubcategoriesConfig(activeOtt, activeProvider?.provider_name || 'this App').map(cat => {
+                                        let targetRegion = exploreRegion === 'Global' ? (appRegion || 'US') : exploreRegion;
+                                        if (exploreRegion === 'Global' && activeProvider && activeProvider.regions) {
+                                            const userReg = appRegion || 'US';
+                                            if (activeProvider.regions.includes(userReg)) {
+                                                targetRegion = userReg;
+                                            } else if (activeProvider.regions.length > 0) {
+                                                targetRegion = activeProvider.regions[0];
+                                            }
+                                        }
+                                        const genreParam = cat.genres ? `&with_genres=${cat.genres}` : '';
+                                        const yearParam = cat.year ? `&primary_release_year=${cat.year}` : '';
+                                        const endpoint = `${TMDB_BASE_URL}/discover/movie?watch_region=${targetRegion}&with_watch_providers=${activeOtt}${genreParam}${yearParam}&sort_by=popularity.desc`;
+
+                                        return (
+                                            <SubcategoryRow 
+                                                key={cat.id} 
+                                                title={cat.label} 
+                                                items={subcategoriesData[cat.id] || []} 
+                                                onMovieClick={onMovieClick}
+                                                onExpand={() => setExpandedCategory({
+                                                    title: cat.label,
+                                                    items: subcategoriesData[cat.id] || [],
+                                                    endpoint: endpoint
+                                                })}
+                                            />
+                                        );
+                                    })}
                                 </div>
                             )}
 
@@ -965,6 +997,25 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ apiKey, onMovieClick, 
                         </div>
                     </>
                 )}
+                
+                <ExpandedCategoryModal
+                    isOpen={expandedCategory !== null}
+                    onClose={() => setExpandedCategory(null)}
+                    title={expandedCategory?.title || ""}
+                    mode="movie"
+                    initialItems={expandedCategory?.items || []}
+                    apiKey={apiKey}
+                    endpoint={expandedCategory?.endpoint}
+                    onItemClick={onMovieClick}
+                    renderItem={(item) => (
+                        <MovieCard 
+                            movie={item} 
+                            onClick={onMovieClick} 
+                            isWatched={false} 
+                            onToggleWatched={() => {}} 
+                        />
+                    )}
+                />
             </div>
         );
     }

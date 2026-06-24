@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Play, Info, Search, Star, Film, X, Layers, TrendingUp, Sparkles, Trophy, Calendar, RefreshCcw, Loader2, ArrowLeft, Tv, AlertCircle, Languages, ChevronDown, Check } from 'lucide-react';
+import { Play, Info, Search, Star, Film, X, Layers, TrendingUp, Sparkles, Trophy, Calendar, RefreshCcw, Loader2, ArrowLeft, Tv, AlertCircle, Languages, ChevronDown, Check, ChevronRight } from 'lucide-react';
 import { Movie } from '../types';
 import { TMDB_BASE_URL, TMDB_IMAGE_BASE, TMDB_BACKDROP_BASE, tvFetch } from './Shared';
 import { useTvFocus, TvFocusButton, TvFocusInput } from '../tvNavigation';
+import { ExpandedCategoryModal } from './Modals';
 
 const fetch = tvFetch;
 
@@ -13,7 +14,7 @@ interface AnimePageProps {
   onSearchClear?: () => void;
 }
 
-interface AniListMedia {
+export interface AniListMedia {
   id: number;
   title: {
     romaji: string;
@@ -67,6 +68,7 @@ export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick, sear
   const [topRated, setTopRated] = useState<AniListMedia[]>([]);
   const [seasonal, setSeasonal] = useState<AniListMedia[]>([]);
   const [upcoming, setUpcoming] = useState<AniListMedia[]>([]);
+  const [expandedCategory, setExpandedCategory] = useState<{ title: string; items: AniListMedia[] } | null>(null);
   
   // Infinite Scroll Category Rows
   const [genreRows, setGenreRows] = useState<{ genre: string; media: AniListMedia[] }[]>([]);
@@ -965,11 +967,11 @@ export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick, sear
             </div>
           </div>
 
-          <AnimeRow title="Trending Right Now" items={trending} apiKey={apiKey} onAnimeClick={handleAnimeClick} titleLanguage={titleLanguage} />
-          <AnimeRow title="Summer 2026 Season" items={seasonal} apiKey={apiKey} onAnimeClick={handleAnimeClick} titleLanguage={titleLanguage} />
-          <AnimeRow title="All-Time Popular Favorites" items={popular} apiKey={apiKey} onAnimeClick={handleAnimeClick} titleLanguage={titleLanguage} />
-          <AnimeRow title="Top Ranked Masterpieces" items={topRated} apiKey={apiKey} onAnimeClick={handleAnimeClick} titleLanguage={titleLanguage} />
-          <AnimeRow title="Upcoming Anticipated Releases" items={upcoming} apiKey={apiKey} onAnimeClick={handleAnimeClick} titleLanguage={titleLanguage} />
+          <AnimeRow title="Trending Right Now" items={trending} apiKey={apiKey} onAnimeClick={handleAnimeClick} titleLanguage={titleLanguage} onExpand={() => setExpandedCategory({ title: "Trending Right Now", items: trending })} />
+          <AnimeRow title="Summer 2026 Season" items={seasonal} apiKey={apiKey} onAnimeClick={handleAnimeClick} titleLanguage={titleLanguage} onExpand={() => setExpandedCategory({ title: "Summer 2026 Season", items: seasonal })} />
+          <AnimeRow title="All-Time Popular Favorites" items={popular} apiKey={apiKey} onAnimeClick={handleAnimeClick} titleLanguage={titleLanguage} onExpand={() => setExpandedCategory({ title: "All-Time Popular Favorites", items: popular })} />
+          <AnimeRow title="Top Ranked Masterpieces" items={topRated} apiKey={apiKey} onAnimeClick={handleAnimeClick} titleLanguage={titleLanguage} onExpand={() => setExpandedCategory({ title: "Top Ranked Masterpieces", items: topRated })} />
+          <AnimeRow title="Upcoming Anticipated Releases" items={upcoming} apiKey={apiKey} onAnimeClick={handleAnimeClick} titleLanguage={titleLanguage} onExpand={() => setExpandedCategory({ title: "Upcoming Anticipated Releases", items: upcoming })} />
           
           {/* Dynamically Lazy-loaded Endless Genres */}
           {genreRows.map((row) => (
@@ -980,6 +982,7 @@ export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick, sear
               apiKey={apiKey} 
               onAnimeClick={handleAnimeClick} 
               titleLanguage={titleLanguage}
+              onExpand={() => setExpandedCategory({ title: `${row.genre} Series`, items: row.media })}
             />
           ))}
 
@@ -1038,20 +1041,37 @@ export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick, sear
           </div>
         </div>
       )}
+      <ExpandedCategoryModal
+        isOpen={expandedCategory !== null}
+        onClose={() => setExpandedCategory(null)}
+        title={expandedCategory?.title || ""}
+        mode="anime"
+        initialItems={expandedCategory?.items || []}
+        onItemClick={handleAnimeClick}
+        titleLanguage={titleLanguage}
+        renderItem={(item) => (
+          <AnimeCard
+            anime={item}
+            apiKey={apiKey}
+            onAnimeClick={handleAnimeClick}
+            titleLanguage={titleLanguage}
+          />
+        )}
+      />
     </div>
   );
 };
 
 // --- SUB-COMPONENTS (DEFINED OUTSIDE TO AVOID NESTED RE-RENDERS AND TYPING ISSUES) ---
 
-interface AnimeCardProps {
+export interface AnimeCardProps {
   anime: AniListMedia;
   apiKey: string;
   onAnimeClick: (anime: AniListMedia) => void;
   titleLanguage: 'english' | 'romaji' | 'native';
 }
 
-const AnimeCard: React.FC<AnimeCardProps> = ({ anime, apiKey, onAnimeClick, titleLanguage }) => {
+export const AnimeCard: React.FC<AnimeCardProps> = ({ anime, apiKey, onAnimeClick, titleLanguage }) => {
   const [backdropUrl, setBackdropUrl] = useState<string | null>(null);
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [logoLoading, setLogoLoading] = useState(true);
@@ -1279,22 +1299,34 @@ const AnimeCard: React.FC<AnimeCardProps> = ({ anime, apiKey, onAnimeClick, titl
   );
 };
 
-interface AnimeRowProps {
+export interface AnimeRowProps {
   title: string;
   items: AniListMedia[];
   apiKey: string;
   onAnimeClick: (anime: AniListMedia) => void;
   titleLanguage: 'english' | 'romaji' | 'native';
+  onExpand?: () => void;
 }
 
-const AnimeRow: React.FC<AnimeRowProps> = ({ title, items, apiKey, onAnimeClick, titleLanguage }) => {
+export const AnimeRow: React.FC<AnimeRowProps> = ({ title, items, apiKey, onAnimeClick, titleLanguage, onExpand }) => {
   if (items.length === 0) return null;
   return (
     <div className="mb-10 animate-in fade-in duration-500 text-left">
-      <h3 className="text-lg font-bold text-white mb-4 px-4 md:px-12 tracking-tight flex items-center gap-2">
-        <span className="w-1.5 h-5 bg-red-600 rounded-full inline-block"></span>
-        {title}
-      </h3>
+      <div className="flex items-center justify-between px-4 md:px-12 mb-4">
+        <h3 className="text-lg font-bold text-white tracking-tight flex items-center gap-2 select-none">
+          <span className="w-1.5 h-5 bg-red-600 rounded-full inline-block"></span>
+          {title}
+        </h3>
+        {onExpand && (
+          <button
+            onClick={onExpand}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-white/5 hover:bg-white/10 hover:text-white text-zinc-400 text-xs font-bold transition-all border border-white/5 hover:border-white/10 active:scale-95 shadow-md"
+          >
+            <span>See All</span>
+            <ChevronRight size={14} />
+          </button>
+        )}
+      </div>
       <div className="flex gap-5 overflow-x-auto px-4 md:px-12 pb-4 hide-scrollbar scroll-smooth">
         {items.map((anime) => (
           <AnimeCard key={anime.id} anime={anime} apiKey={apiKey} onAnimeClick={onAnimeClick} titleLanguage={titleLanguage} />
