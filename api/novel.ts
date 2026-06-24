@@ -4,13 +4,24 @@ import * as cheerio from 'cheerio';
 async function fetchHtmlWithFallback(targetUrl: string, headers: any): Promise<{ html: string; isProxied: boolean }> {
   let lastError: any = null;
   
+  const isCloudflareChallenge = (html: string) => {
+    const lower = html.toLowerCase();
+    return html.includes('Just a moment...') || 
+           html.includes('Attention Required!') || 
+           html.includes('cf-challenge') || 
+           lower.includes('id="cf-wrapper"') || 
+           lower.includes('cf-browser-verification') || 
+           lower.includes('cf_challenge') ||
+           (lower.includes('cloudflare') && lower.includes('security'));
+  };
+
   // Try 1: Direct fetch
   try {
     const res = await fetch(targetUrl, { headers });
     if (res.ok) {
       const html = await res.text();
       // Check for Cloudflare challenge
-      if (!html.includes('Just a moment...') && !html.includes('cloudflare') && !html.includes('Attention Required!')) {
+      if (!isCloudflareChallenge(html)) {
         return { html, isProxied: false };
       }
       lastError = new Error(`Direct fetch hit Cloudflare security check [status=${res.status}]`);
@@ -29,7 +40,7 @@ async function fetchHtmlWithFallback(targetUrl: string, headers: any): Promise<{
     const proxyRes = await fetch(proxyUrl, { headers });
     if (proxyRes.ok) {
       const html = await proxyRes.text();
-      if (!html.includes('Just a moment...') && !html.includes('cloudflare') && !html.includes('Attention Required!')) {
+      if (!isCloudflareChallenge(html)) {
         return { html, isProxied: true };
       }
       throw new Error(`Google Translate proxy hit Cloudflare security check [status=${proxyRes.status}]`);
@@ -70,7 +81,28 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(400).json({ error: 'Query parameter is required' });
       }
       
-      const searchUrl = `https://novelbin.me/search?keyword=${encodeURIComponent(query)}`;
+      // Clean query to avoid Cloudflare WAF triggers (e.g. colons, special characters, long strings)
+      let cleanedQuery = query
+        .split(':')[0]
+        .split('(')[0]
+        .split('[')[0]
+        .split('-')[0]
+        .replace(/[^a-zA-Z0-9\s]/g, ' ')
+        .trim();
+        
+      // Limit to first 4 words to prevent long string signatures
+      const words = cleanedQuery.split(/\s+/).filter(Boolean);
+      if (words.length > 4) {
+        cleanedQuery = words.slice(0, 4).join(' ');
+      } else {
+        cleanedQuery = words.join(' ');
+      }
+      
+      if (!cleanedQuery) {
+        cleanedQuery = query;
+      }
+      
+      const searchUrl = `https://novelbin.me/search?keyword=${encodeURIComponent(cleanedQuery)}`;
       const { html } = await fetchHtmlWithFallback(searchUrl, headers);
       const $ = cheerio.load(html);
       const results: any[] = [];

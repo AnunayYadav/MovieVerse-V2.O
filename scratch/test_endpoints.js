@@ -4,8 +4,8 @@ async function runTests() {
 
   try {
     // Test 1: Novel Search
-    console.log('\n--- Test 1: Novel Search ("solo") ---');
-    const res1 = await fetch(`${baseUrl}/api/novel?action=search&query=solo`);
+    console.log('\n--- Test 1: Novel Search ("Mushoku Tensei: Jobless Reincarnation") ---');
+    const res1 = await fetch(`${baseUrl}/api/novel?action=search&query=${encodeURIComponent('Mushoku Tensei: Jobless Reincarnation')}`);
     console.log('Status:', res1.status);
     const data1 = await res1.json();
     console.log('Results Count:', data1.length);

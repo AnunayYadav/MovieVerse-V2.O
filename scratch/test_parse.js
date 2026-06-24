@@ -1,7 +1,7 @@
 import * as cheerio from 'cheerio';
 
 async function debugParse() {
-  const query = 'I Got a Cheat and Moved to Another World, so I Want to Live as I Like';
+  const query = 'Mushoku Tensei: Jobless Reincarnation';
   const searchUrl = `https://novelbin.me/search?keyword=${encodeURIComponent(query)}`;
   const headers = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
