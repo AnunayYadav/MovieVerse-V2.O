@@ -33,9 +33,9 @@ export default defineConfig(({ mode }) => {
               const parsedUrl = url.parse(req.url || '', true);
               const pathname = parsedUrl.pathname;
               
-              if (pathname === '/api/manga' || pathname === '/api/novel') {
+              if (pathname === '/api/manga') {
                 try {
-                  const modulePath = pathname === '/api/manga' ? './api/manga.ts' : './api/novel.ts';
+                  const modulePath = './api/manga.ts';
                   const { default: handler } = await server.ssrLoadModule(modulePath);
                   
                   // Mock VercelResponse

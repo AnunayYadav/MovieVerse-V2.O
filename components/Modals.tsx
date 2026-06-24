@@ -990,7 +990,7 @@ interface ExpandedCategoryModalProps {
     isOpen: boolean;
     onClose: () => void;
     title: string;
-    mode: 'movie' | 'anime' | 'manga' | 'livetv' | 'novel';
+    mode: 'movie' | 'anime' | 'manga' | 'livetv';
     initialItems: any[];
     apiKey?: string;
     endpoint?: string;
@@ -1117,7 +1117,7 @@ export const ExpandedCategoryModal: React.FC<ExpandedCategoryModalProps> = ({
                 const titleText = (item.title || item.name || "").toLowerCase();
                 const overview = (item.overview || "").toLowerCase();
                 return titleText.includes(q) || overview.includes(q);
-            } else if (mode === 'anime' || mode === 'novel') {
+            } else if (mode === 'anime') {
                 const titleEnglish = (item.title?.english || "").toLowerCase();
                 const titleRomaji = (item.title?.romaji || "").toLowerCase();
                 const titleNative = (item.title?.native || "").toLowerCase();
@@ -1193,7 +1193,7 @@ export const ExpandedCategoryModal: React.FC<ExpandedCategoryModalProps> = ({
                     </div>
                 ) : (
                     <div className={
-                        mode === 'manga' || mode === 'novel'
+                        mode === 'manga'
                             ? "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-5"
                             : mode === 'livetv'
                                 ? "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6"
