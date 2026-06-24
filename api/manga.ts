@@ -1,8 +1,8 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { MANGA } from '@consumet/extensions';
 
-// Initialize MangaKakalot provider
-const mangakakalot = new MANGA.MangaKakalot();
+// Initialize MangaPill provider
+const mangapill = new MANGA.MangaPill();
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Set CORS headers to allow cross-origin requests
@@ -27,15 +27,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (!query || typeof query !== 'string') {
         return res.status(400).json({ error: 'Query parameter is required' });
       }
-      const data = await mangakakalot.search(query);
-      return res.status(200).json(data);
+      const data = await mangapill.search(query);
+      // Ensure we always return a flat array of results
+      const results = Array.isArray(data) ? data : (data.results || []);
+      return res.status(200).json(results);
     }
 
     if (action === 'info') {
       if (!id || typeof id !== 'string') {
         return res.status(400).json({ error: 'ID parameter is required' });
       }
-      const data = await mangakakalot.fetchMangaInfo(id);
+      const data = await mangapill.fetchMangaInfo(id);
       return res.status(200).json(data);
     }
 
@@ -43,7 +45,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (!id || typeof id !== 'string') {
         return res.status(400).json({ error: 'ID parameter is required' });
       }
-      const data = await mangakakalot.fetchChapterPages(id);
+      const data = await mangapill.fetchChapterPages(id);
       return res.status(200).json(data);
     }
 

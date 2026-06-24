@@ -171,12 +171,12 @@ export const MangaPage: React.FC<MangaPageProps> = ({
   const [chapterFilter, setChapterFilter] = useState('');
   const [chapterSort, setChapterSort] = useState<'asc' | 'desc'>('desc');
 
-  // MangaKakalot states
-  const [readingSource, setReadingSource] = useState<'mangadex' | 'mangakakalot'>('mangadex');
-  const [kakalotMangaId, setKakalotMangaId] = useState<string | null>(null);
-  const [kakalotChapters, setKakalotChapters] = useState<any[]>([]);
-  const [kakalotLoading, setKakalotLoading] = useState(false);
-  const [kakalotError, setKakalotError] = useState<string | null>(null);
+  // MangaPill states
+  const [readingSource, setReadingSource] = useState<'mangadex' | 'mangapill'>('mangadex');
+  const [mangapillMangaId, setMangapillMangaId] = useState<string | null>(null);
+  const [mangapillChapters, setMangapillChapters] = useState<any[]>([]);
+  const [mangapillLoading, setMangapillLoading] = useState(false);
+  const [mangapillError, setMangapillError] = useState<string | null>(null);
   const [recommendations, setRecommendations] = useState<MangaDexManga[]>([]);
   const [recLoading, setRecLoading] = useState(false);
   const [relations, setRelations] = useState<any[]>([]);
@@ -378,34 +378,34 @@ export const MangaPage: React.FC<MangaPageProps> = ({
     }
   }, [fetchAniList, getMangaTitle]);
 
-  const resolveMangaKakalot = useCallback(async (manga: MangaDexManga) => {
-    setKakalotLoading(true);
-    setKakalotError(null);
-    setKakalotMangaId(null);
-    setKakalotChapters([]);
+  const resolveMangaPill = useCallback(async (manga: MangaDexManga) => {
+    setMangapillLoading(true);
+    setMangapillError(null);
+    setMangapillMangaId(null);
+    setMangapillChapters([]);
     try {
       const title = getMangaTitle(manga);
       const searchRes = await window.fetch(`/api/manga?action=search&query=${encodeURIComponent(title)}`);
-      if (!searchRes.ok) throw new Error("Search on MangaKakalot failed");
+      if (!searchRes.ok) throw new Error("Search on MangaPill failed");
       const searchList = await searchRes.json();
       
       if (!searchList || searchList.length === 0) {
-        throw new Error("No matching manga found on MangaKakalot");
+        throw new Error("No matching manga found on MangaPill");
       }
 
       const bestMatch = searchList[0];
-      setKakalotMangaId(bestMatch.id);
+      setMangapillMangaId(bestMatch.id);
 
       const infoRes = await window.fetch(`/api/manga?action=info&id=${encodeURIComponent(bestMatch.id)}`);
-      if (!infoRes.ok) throw new Error("Failed to fetch chapters from MangaKakalot");
+      if (!infoRes.ok) throw new Error("Failed to fetch chapters from MangaPill");
       const infoData = await infoRes.json();
       
-      setKakalotChapters(infoData.chapters || []);
+      setMangapillChapters(infoData.chapters || []);
     } catch (err: any) {
-      console.error("MangaKakalot resolution error:", err);
-      setKakalotError(err.message || "Failed to resolve MangaKakalot source");
+      console.error("MangaPill resolution error:", err);
+      setMangapillError(err.message || "Failed to resolve MangaPill source");
     } finally {
-      setKakalotLoading(false);
+      setMangapillLoading(false);
     }
   }, [getMangaTitle]);
 
@@ -427,8 +427,8 @@ export const MangaPage: React.FC<MangaPageProps> = ({
       setDetailsTab('chapters');
       setSelectedLanguage('en');
       setReadingSource('mangadex');
-      setKakalotMangaId(null);
-      setKakalotChapters([]);
+      setMangapillMangaId(null);
+      setMangapillChapters([]);
       return;
     }
     let isMounted = true;
@@ -488,14 +488,14 @@ export const MangaPage: React.FC<MangaPageProps> = ({
       setActiveChapter(null);
       return;
     }
-    if (readingSource === 'mangakakalot') {
-      const ch = kakalotChapters.find(c => c.id === activeChapterId);
+    if (readingSource === 'mangapill') {
+      const ch = mangapillChapters.find(c => c.id === activeChapterId);
       if (ch) {
         setActiveChapter({
           id: ch.id,
           attributes: {
             title: ch.title || '',
-            chapter: ch.chapterNumber?.toString() || ch.title?.match(/Chapter\s+([\d.]+)/i)?.[1] || '',
+            chapter: ch.chapterNumber?.toString() || ch.chapter || ch.title?.match(/Chapter\s+([\d.]+)/i)?.[1] || '',
             pages: 0,
             publishAt: ch.released || ''
           }
@@ -516,7 +516,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
     };
     fetchSelectedChapterDetails();
     return () => { isMounted = false; };
-  }, [activeChapterId, readingSource, kakalotChapters, fetchMangaDex]);
+  }, [activeChapterId, readingSource, mangapillChapters, fetchMangaDex]);
 
   // Load recommendations when selectedManga changes
   useEffect(() => {
@@ -555,17 +555,17 @@ export const MangaPage: React.FC<MangaPageProps> = ({
     fetchMangaCharacters(selectedManga);
   }, [selectedManga, fetchMangaCharacters]);
 
-  // Load MangaKakalot data when readingSource is set to mangakakalot
+  // Load MangaPill data when readingSource is set to mangapill
   useEffect(() => {
     if (!selectedManga) {
-      setKakalotMangaId(null);
-      setKakalotChapters([]);
+      setMangapillMangaId(null);
+      setMangapillChapters([]);
       return;
     }
-    if (readingSource === 'mangakakalot') {
-      resolveMangaKakalot(selectedManga);
+    if (readingSource === 'mangapill') {
+      resolveMangaPill(selectedManga);
     }
-  }, [selectedManga, readingSource, resolveMangaKakalot]);
+  }, [selectedManga, readingSource, resolveMangaPill]);
 
   // Load Initial Manga Lists
   const loadMangaCatalog = useCallback(async () => {
@@ -739,15 +739,15 @@ export const MangaPage: React.FC<MangaPageProps> = ({
       setPagesLoading(true);
       setActivePageIdx(0);
       try {
-        if (readingSource === 'mangakakalot') {
+        if (readingSource === 'mangapill') {
           const res = await window.fetch(`/api/manga?action=pages&id=${encodeURIComponent(activeChapter.id)}`);
-          if (!res.ok) throw new Error("Failed to load pages from MangaKakalot");
+          if (!res.ok) throw new Error("Failed to load pages from MangaPill");
           const pageData = await res.json();
           if (!isMounted) return;
 
           const urls = pageData.map((p: any) => p.img);
           setPages(urls);
-          setChapterServerData({ provider: 'mangakakalot' });
+          setChapterServerData({ provider: 'mangapill' });
           return;
         }
 
@@ -915,25 +915,25 @@ export const MangaPage: React.FC<MangaPageProps> = ({
     return result;
   }, [selectedManga]);
 
-  // Mapped chapters from MangaKakalot
-  const mappedKakalotChapters = useMemo(() => {
-    if (readingSource !== 'mangakakalot') return [];
-    return kakalotChapters.map((ch: any) => {
+  // Mapped chapters from MangaPill
+  const mappedMangapillChapters = useMemo(() => {
+    if (readingSource !== 'mangapill') return [];
+    return mangapillChapters.map((ch: any) => {
       return {
         id: ch.id,
         attributes: {
-          chapter: ch.chapterNumber?.toString() || ch.title?.match(/Chapter\s+([\d.]+)/i)?.[1] || '',
+          chapter: ch.chapterNumber?.toString() || ch.chapter || ch.title?.match(/Chapter\s+([\d.]+)/i)?.[1] || '',
           title: ch.title || '',
           pages: 0,
           publishAt: ch.released || ''
         }
       };
     });
-  }, [kakalotChapters, readingSource]);
+  }, [mangapillChapters, readingSource]);
 
   // Chapter filter/sort memo
   const filteredAndSortedChapters = useMemo(() => {
-    let result = readingSource === 'mangakakalot' ? [...mappedKakalotChapters] : [...chapters];
+    let result = readingSource === 'mangapill' ? [...mappedMangapillChapters] : [...chapters];
     if (chapterFilter.trim()) {
       const q = chapterFilter.toLowerCase();
       result = result.filter(ch => 
@@ -952,7 +952,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
       return chapterSort === 'asc' ? numA - numB : numB - numA;
     });
     return result;
-  }, [chapters, mappedKakalotChapters, readingSource, chapterFilter, chapterSort]);
+  }, [chapters, mappedMangapillChapters, readingSource, chapterFilter, chapterSort]);
 
   const formatChapterDate = (dateStr: string) => {
     try {
@@ -1648,11 +1648,11 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                       <span className="text-[10px] font-medium text-zinc-500">Source</span>
                       <select
                         value={readingSource}
-                        onChange={(e) => setReadingSource(e.target.value as 'mangadex' | 'mangakakalot')}
+                        onChange={(e) => setReadingSource(e.target.value as 'mangadex' | 'mangapill')}
                         className="px-3 py-1.5 rounded-lg bg-white/5 text-xs font-medium text-zinc-300 hover:text-white transition-all focus:outline-none cursor-pointer"
                       >
                         <option value="mangadex" className="bg-[#0c0c0e]">MangaDex (Official)</option>
-                        <option value="mangakakalot" className="bg-[#0c0c0e]">MangaKakalot (Mainstream)</option>
+                        <option value="mangapill" className="bg-[#0c0c0e]">MangaPill (Mainstream)</option>
                       </select>
                     </div>
 
@@ -1685,30 +1685,30 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                 </div>
 
                 {/* Chapters List */}
-                {readingSource === 'mangakakalot' && kakalotError ? (
+                {readingSource === 'mangapill' && mangapillError ? (
                   <div className="flex flex-col items-center justify-center py-16 text-zinc-500 gap-2">
                     <AlertCircle size={28} className="text-red-500/80 mb-1" />
-                    <span className="text-xs font-medium">{kakalotError}</span>
+                    <span className="text-xs font-medium">{mangapillError}</span>
                     <button 
-                      onClick={() => selectedManga && resolveMangaKakalot(selectedManga)}
+                      onClick={() => selectedManga && resolveMangaPill(selectedManga)}
                       className="mt-2 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 hover:border-white/20 text-[10px] font-bold text-white transition-all flex items-center gap-2"
                     >
                       <RefreshCcw size={11} /> Retry
                     </button>
                   </div>
-                ) : (chaptersLoading || (readingSource === 'mangakakalot' && kakalotLoading)) ? (
+                ) : (chaptersLoading || (readingSource === 'mangapill' && mangapillLoading)) ? (
                   <div className="flex flex-col items-center justify-center py-16 gap-2">
                     <Loader2 className="animate-spin text-red-500" size={24} />
                     <span className="text-[10px] text-zinc-500 font-medium tracking-wide">
-                      {readingSource === 'mangakakalot' ? 'Resolving MangaKakalot source...' : 'Loading chapters...'}
+                      {readingSource === 'mangapill' ? 'Resolving MangaPill source...' : 'Loading chapters...'}
                     </span>
                   </div>
                 ) : filteredAndSortedChapters.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-16 opacity-50 text-center">
                     <AlertCircle size={28} className="text-zinc-600 mb-2" />
                     <span className="text-xs text-zinc-500">
-                      {readingSource === 'mangakakalot' 
-                        ? 'No chapters found on MangaKakalot.' 
+                      {readingSource === 'mangapill' 
+                        ? 'No chapters found on MangaPill.' 
                         : `No chapters found matching filter in ${LANGUAGE_NAMES[selectedLanguage] || selectedLanguage}.`}
                     </span>
                     {readingSource === 'mangadex' && (
