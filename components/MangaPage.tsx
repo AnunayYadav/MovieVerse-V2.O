@@ -68,6 +68,22 @@ const MANGA_GENRES = [
   { name: "Psychological", id: "3b60b75c-a2d7-4860-ab56-05f391bb889c" }
 ];
 
+const LANGUAGE_NAMES: Record<string, string> = {
+  en: 'English (EN)',
+  es: 'Spanish (ES)',
+  'es-la': 'Spanish LatAm (ES-LA)',
+  fr: 'French (FR)',
+  ja: 'Japanese (JA)',
+  'pt-br': 'Portuguese Br (PT-BR)',
+  ru: 'Russian (RU)',
+  de: 'German (DE)',
+  it: 'Italian (IT)',
+  zh: 'Chinese (ZH)',
+  ko: 'Korean (KO)',
+  id: 'Indonesian (ID)',
+  vi: 'Vietnamese (VI)'
+};
+
 export const MangaPage: React.FC<MangaPageProps> = ({
   apiKey,
   selectedMangaId,
@@ -103,6 +119,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
   const [chapterSort, setChapterSort] = useState<'asc' | 'desc'>('desc');
   const [recommendations, setRecommendations] = useState<MangaDexManga[]>([]);
   const [recLoading, setRecLoading] = useState(false);
+  const [selectedLanguage, setSelectedLanguage] = useState('en');
 
   // Reader Overlay
   const [activeChapter, setActiveChapter] = useState<MangaDexChapter | null>(null);
@@ -164,6 +181,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
       setSelectedManga(null);
       setChapterFilter('');
       setDetailsTab('chapters');
+      setSelectedLanguage('en');
       return;
     }
     let isMounted = true;
@@ -329,7 +347,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
     const runSearch = async () => {
       setSearchLoading(true);
       try {
-        const data = await fetchMangaDex(`/manga?limit=24&title=${encodeURIComponent(searchQuery)}&includes[]=cover_art&contentRating[]=safe&contentRating[]=suggestive&availableTranslatedLanguage[]=en`);
+        const data = await fetchMangaDex(`/manga?limit=24&title=${encodeURIComponent(searchQuery)}&includes[]=cover_art&contentRating[]=safe&contentRating[]=suggestive`);
         if (isMounted) setSearchResults(data.data || []);
       } catch (err) {
         console.error("Manga search failed:", err);
@@ -351,7 +369,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
     const fetchChapters = async () => {
       setChaptersLoading(true);
       try {
-        const data = await fetchMangaDex(`/manga/${selectedManga.id}/feed?translatedLanguage[]=en&order[chapter]=asc&limit=100`);
+        const data = await fetchMangaDex(`/manga/${selectedManga.id}/feed?translatedLanguage[]=${selectedLanguage}&order[chapter]=asc&limit=100`);
         const list: MangaDexChapter[] = data.data || [];
         
         // Filter unique chapters to prevent duplicate group uploads
@@ -374,7 +392,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
     };
     fetchChapters();
     return () => { isMounted = false; };
-  }, [selectedManga, fetchMangaDex]);
+  }, [selectedManga, selectedLanguage, fetchMangaDex]);
 
   // Load Chapter Pages on Reader active
   useEffect(() => {
@@ -656,7 +674,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
             </h3>
             <p className="text-[11px] text-zinc-400 font-semibold mt-1 flex items-center gap-1.5">
               <Globe size={11} className="text-red-500" />
-              <span>Language: English</span>
+              <span>Language: {LANGUAGE_NAMES[selectedLanguage] || selectedLanguage}</span>
             </p>
           </div>
         </div>
@@ -897,7 +915,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
 
             {/* Large screen stats info */}
             <div className="hidden lg:flex items-center gap-4 text-xs font-bold text-zinc-400">
-              <span className="flex items-center gap-1.5"><Globe size={13} className="text-red-500" /> English</span>
+              <span className="flex items-center gap-1.5"><Globe size={13} className="text-red-500" /> {LANGUAGE_NAMES[selectedLanguage] || selectedLanguage}</span>
               <span>•</span>
               <span>{pages.length} Pages</span>
               {readerMode === 'single' && (
@@ -1212,14 +1230,31 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                       className="w-full bg-[#111] text-xs text-white border border-white/5 hover:border-white/10 focus:border-red-600 rounded-lg pl-9 pr-4 py-2 focus:outline-none transition-all placeholder-zinc-500 font-bold"
                     />
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-black uppercase text-zinc-500">Sort</span>
-                    <button
-                      onClick={() => setChapterSort(prev => prev === 'asc' ? 'desc' : 'asc')}
-                      className="px-3 py-1.5 rounded-lg bg-[#111] border border-white/5 text-xs font-bold text-zinc-300 hover:text-white transition-all hover:scale-102 active:scale-98"
-                    >
-                      {chapterSort === 'asc' ? 'Oldest First' : 'Newest First'}
-                    </button>
+
+                  <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto justify-end">
+                    {/* Language Picker */}
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-black uppercase text-zinc-500">Language</span>
+                      <select
+                        value={selectedLanguage}
+                        onChange={(e) => setSelectedLanguage(e.target.value)}
+                        className="px-3 py-1.5 rounded-lg bg-[#111] border border-white/5 text-xs font-bold text-zinc-300 hover:text-white transition-all focus:outline-none cursor-pointer"
+                      >
+                        {Object.entries(LANGUAGE_NAMES).map(([code, name]) => (
+                          <option key={code} value={code}>{name}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-black uppercase text-zinc-500">Sort</span>
+                      <button
+                        onClick={() => setChapterSort(prev => prev === 'asc' ? 'desc' : 'asc')}
+                        className="px-3 py-1.5 rounded-lg bg-[#111] border border-white/5 text-xs font-bold text-zinc-300 hover:text-white transition-all hover:scale-102 active:scale-98"
+                      >
+                        {chapterSort === 'asc' ? 'Oldest First' : 'Newest First'}
+                      </button>
+                    </div>
                   </div>
                 </div>
 
@@ -1230,9 +1265,14 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                     <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">Loading chapters...</span>
                   </div>
                 ) : filteredAndSortedChapters.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-16 opacity-50">
+                  <div className="flex flex-col items-center justify-center py-16 opacity-50 text-center">
                     <AlertCircle size={28} className="text-zinc-600 mb-2" />
-                    <span className="text-xs text-zinc-500">No chapters found matching filter.</span>
+                    <span className="text-xs text-zinc-500">
+                      No chapters found matching filter in {LANGUAGE_NAMES[selectedLanguage] || selectedLanguage}.
+                    </span>
+                    <span className="text-[10px] text-zinc-600 font-bold uppercase mt-1 block">
+                      Try selecting another language from the dropdown.
+                    </span>
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
