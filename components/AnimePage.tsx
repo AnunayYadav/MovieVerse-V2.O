@@ -90,6 +90,45 @@ export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick, sear
   const [titleLanguage, setTitleLanguage] = useState<'english' | 'romaji' | 'native'>('english');
   const [isLangDropdownOpen, setIsLangDropdownOpen] = useState(false);
 
+  const getAnimeGroupKey = (anime: AniListMedia): string => {
+    const matchCacheKey = `movieverse_anilist_tmdb_match_${anime.id}`;
+    const cachedMatch = localStorage.getItem(matchCacheKey);
+    if (cachedMatch) {
+      try {
+        const parsed = JSON.parse(cachedMatch);
+        if (parsed && parsed.id && parsed.mediaType) {
+          return `${parsed.mediaType}_${parsed.id}`;
+        }
+      } catch (_) {}
+    }
+
+    const titles = [
+      anime.title.english,
+      anime.title.romaji,
+      anime.title.userPreferred
+    ].filter((t): t is string => typeof t === 'string' && t.length > 0);
+
+    if (titles.length === 0) return anime.id.toString();
+
+    const title = titles[0];
+    return title
+      .replace(/\s*\(?(Dub|Sub|TV|Movie|uncensored|censored|season\s*\d+|part\s*\d+|2nd season|3rd season|4th season|final season|the final season|final chapter|\d+(?:st|nd|rd|th)\s*(?:season|part))\)?\s*$/i, '')
+      .trim()
+      .toLowerCase();
+  };
+
+  const filterDuplicateAnime = (list: AniListMedia[]): AniListMedia[] => {
+    const seen = new Set<string>();
+    return list.filter(anime => {
+      const key = getAnimeGroupKey(anime);
+      if (seen.has(key)) {
+        return false;
+      }
+      seen.add(key);
+      return true;
+    });
+  };
+
   const getAnimeTitle = (anime: AniListMedia) => {
     if (titleLanguage === 'english') {
       return anime.title.english || anime.title.romaji || anime.title.native || anime.title.userPreferred;
@@ -132,27 +171,27 @@ export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick, sear
     try {
       const query = `
         query ($season: MediaSeason, $seasonYear: Int) {
-          trending: Page(page: 1, perPage: 12) {
+          trending: Page(page: 1, perPage: 30) {
             media(type: ANIME, sort: [TRENDING_DESC, POPULARITY_DESC]) {
               ...animeFields
             }
           }
-          popular: Page(page: 1, perPage: 12) {
+          popular: Page(page: 1, perPage: 30) {
             media(type: ANIME, sort: [POPULARITY_DESC]) {
               ...animeFields
             }
           }
-          topRated: Page(page: 1, perPage: 12) {
+          topRated: Page(page: 1, perPage: 30) {
             media(type: ANIME, sort: [SCORE_DESC]) {
               ...animeFields
             }
           }
-          seasonal: Page(page: 1, perPage: 12) {
+          seasonal: Page(page: 1, perPage: 30) {
             media(type: ANIME, season: $season, seasonYear: $seasonYear, sort: [POPULARITY_DESC]) {
               ...animeFields
             }
           }
-          upcoming: Page(page: 1, perPage: 12) {
+          upcoming: Page(page: 1, perPage: 30) {
             media(type: ANIME, status: NOT_YET_RELEASED, sort: [POPULARITY_DESC]) {
               ...animeFields
             }
@@ -193,11 +232,11 @@ export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick, sear
       // Current local metadata year is 2026, month is June -> Summer 2026
       const data = await fetchAniList(query, { season: 'SUMMER', seasonYear: 2026 });
       
-      setTrending(data.trending?.media || []);
-      setPopular(data.popular?.media || []);
-      setTopRated(data.topRated?.media || []);
-      setSeasonal(data.seasonal?.media || []);
-      setUpcoming(data.upcoming?.media || []);
+      setTrending(filterDuplicateAnime(data.trending?.media || []).slice(0, 12));
+      setPopular(filterDuplicateAnime(data.popular?.media || []).slice(0, 12));
+      setTopRated(filterDuplicateAnime(data.topRated?.media || []).slice(0, 12));
+      setSeasonal(filterDuplicateAnime(data.seasonal?.media || []).slice(0, 12));
+      setUpcoming(filterDuplicateAnime(data.upcoming?.media || []).slice(0, 12));
       
       // Reset infinite scrolling indices
       setGenreRows([]);
@@ -219,7 +258,7 @@ export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick, sear
     try {
       const query = `
         query ($genre: String) {
-          Page(page: 1, perPage: 12) {
+          Page(page: 1, perPage: 30) {
             media(type: ANIME, genre: $genre, sort: [POPULARITY_DESC]) {
               id
               title {
@@ -256,7 +295,7 @@ export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick, sear
       const media = data.Page?.media || [];
       
       if (media.length > 0) {
-        setGenreRows(prev => [...prev, { genre, media }]);
+        setGenreRows(prev => [...prev, { genre, media: filterDuplicateAnime(media).slice(0, 12) }]);
       }
       currentGenreIndexRef.current += 1;
     } catch (e) {
@@ -436,7 +475,7 @@ export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick, sear
       try {
         const query = `
           query ($search: String) {
-            Page(page: 1, perPage: 24) {
+            Page(page: 1, perPage: 40) {
               media(type: ANIME, search: $search) {
                 id
                 title {
@@ -471,7 +510,7 @@ export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick, sear
         `;
         const data = await fetchAniList(query, { search: searchQuery });
         if (isMounted) {
-          setSearchResults(data.Page?.media || []);
+          setSearchResults(filterDuplicateAnime(data.Page?.media || []));
         }
       } catch (err) {
         console.error("Error executing AniList search:", err);
