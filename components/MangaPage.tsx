@@ -156,9 +156,9 @@ export const MangaPage: React.FC<MangaPageProps> = ({
   const [isLangDropdownOpen, setIsLangDropdownOpen] = useState(false);
   const [includeNsfw, setIncludeNsfw] = useState(false);
 
-  const getMangaTitle = (manga: MangaDexManga) => {
+  const getMangaTitle = useCallback((manga: MangaDexManga) => {
     return getMangaTitleHelper(manga, titleLanguage);
-  };
+  }, [titleLanguage]);
 
   // Details screen
   const [selectedManga, setSelectedManga] = useState<MangaDexManga | null>(null);
