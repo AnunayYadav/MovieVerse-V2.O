@@ -172,7 +172,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
   const [chapterSort, setChapterSort] = useState<'asc' | 'desc'>('desc');
 
   // MangaPill states
-  const [readingSource, setReadingSource] = useState<'mangadex' | 'mangapill'>('mangadex');
+  const [readingSource, setReadingSource] = useState<'mangadex' | 'mangapill'>('mangapill');
   const [mangapillMangaId, setMangapillMangaId] = useState<string | null>(null);
   const [mangapillChapters, setMangapillChapters] = useState<any[]>([]);
   const [mangapillLoading, setMangapillLoading] = useState(false);
@@ -426,7 +426,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
       setChapterFilter('');
       setDetailsTab('chapters');
       setSelectedLanguage('en');
-      setReadingSource('mangadex');
+      setReadingSource('mangapill');
       setMangapillMangaId(null);
       setMangapillChapters([]);
       return;
@@ -775,14 +775,14 @@ export const MangaPage: React.FC<MangaPageProps> = ({
 
   // Sync pages when DataSaver is toggled
   useEffect(() => {
-    if (!chapterServerData) return;
+    if (!chapterServerData || readingSource === 'mangapill') return;
     const baseUrl = chapterServerData.baseUrl;
     const hash = chapterServerData.chapter.hash;
     const fileNames = isDataSaver ? chapterServerData.chapter.dataSaver : chapterServerData.chapter.data;
     const folder = isDataSaver ? 'data-saver' : 'data';
     const urls = fileNames.map((f: string) => `${baseUrl}/${folder}/${hash}/${f}`);
     setPages(urls);
-  }, [isDataSaver, chapterServerData]);
+  }, [isDataSaver, chapterServerData, readingSource]);
 
   // Single page keyboard arrows
   useEffect(() => {
