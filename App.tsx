@@ -1309,6 +1309,10 @@ export default function App() {
         if (selectedCategory === "History") setMovies(watched);
     }, [watchlist, favorites, watched, selectedCategory]);
 
+    useEffect(() => {
+        window.scrollTo({ top: 0, behavior: 'instant' });
+    }, [selectedCategory]);
+
     const isSyncingPath = useRef(false);
     const urlPushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const lastPushedPathRef = useRef<string>(window.location.pathname);

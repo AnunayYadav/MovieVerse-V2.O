@@ -136,6 +136,29 @@ export const MangaPage: React.FC<MangaPageProps> = ({
   const [readerBg, setReaderBg] = useState<'black' | 'gray' | 'darker'>('black');
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [isBookmarked, setIsBookmarked] = useState(false);
+  const [isDetailsExiting, setIsDetailsExiting] = useState(false);
+  const [isReaderExiting, setIsReaderExiting] = useState(false);
+
+  // Reset scroll to top on mount
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'instant' });
+  }, []);
+
+  const handleCloseDetails = useCallback(() => {
+    setIsDetailsExiting(true);
+    setTimeout(() => {
+      onMangaSelect(null);
+      setIsDetailsExiting(false);
+    }, 300);
+  }, [onMangaSelect]);
+
+  const handleCloseReader = useCallback(() => {
+    setIsReaderExiting(true);
+    setTimeout(() => {
+      onChapterSelect(null);
+      setIsReaderExiting(false);
+    }, 300);
+  }, [onChapterSelect]);
 
   const showToast = useCallback((msg: string) => {
     setToastMessage(msg);
@@ -452,7 +475,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
       } else if (e.key === 'ArrowLeft') {
         setActivePageIdx(p => Math.max(0, p - 1));
       } else if (e.key === 'Escape') {
-        onChapterSelect(null);
+        handleCloseReader();
       }
     };
     window.addEventListener('keydown', handleKey);
@@ -655,10 +678,10 @@ export const MangaPage: React.FC<MangaPageProps> = ({
           <div className="flex items-center justify-between pb-3 border-b border-white/5">
             <div className="flex items-center gap-2">
               <span className="w-1 h-3.5 bg-red-600 rounded-full inline-block"></span>
-              <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Manga Reader</span>
+              <span className="text-[10px] font-medium text-zinc-400 tracking-wider">Manga Reader</span>
             </div>
             <button
-              onClick={() => { onChapterSelect(null); }}
+              onClick={handleCloseReader}
               className="p-1.5 text-zinc-400 hover:text-white rounded-md bg-white/5 hover:bg-white/10 transition-colors"
               title="Back to details"
             >
@@ -668,12 +691,12 @@ export const MangaPage: React.FC<MangaPageProps> = ({
 
           <div>
             <span className="text-[10px] font-medium text-zinc-400 tracking-wide">You are reading</span>
-            <h3 className="text-sm font-semibold text-white line-clamp-2 mt-1 flex items-center gap-1.5">
+            <h3 className="text-sm font-medium text-white line-clamp-2 mt-1 flex items-center gap-1.5">
               {selectedManga ? getMangaTitle(selectedManga) : 'Loading...'}
               <Info
                 size={14}
                 className="text-zinc-500 hover:text-white cursor-pointer shrink-0"
-                onClick={() => onChapterSelect(null)}
+                onClick={handleCloseReader}
                 title="View Manga details"
               />
             </h3>
@@ -690,7 +713,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <span className="text-[10px] font-medium text-zinc-400 tracking-wide">Select Chapter</span>
-              <span className="text-[10px] font-bold text-zinc-400">
+              <span className="text-[10px] font-medium text-zinc-400">
                 {currentChapterIdx !== -1 ? `${currentChapterIdx + 1} / ${chapters.length}` : ''}
               </span>
             </div>
@@ -698,7 +721,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
               <button
                 onClick={goToPrevChapter}
                 disabled={!hasPrevChapter}
-                className="p-2 rounded-lg bg-[#111] hover:bg-zinc-800 border border-white/5 disabled:opacity-20 text-white transition-all active:scale-95 shrink-0"
+                className="p-2 rounded-lg bg-white/5 hover:bg-zinc-800 disabled:opacity-20 text-white transition-all active:scale-95 shrink-0"
                 title="Older Chapter"
               >
                 <ChevronLeft size={16} />
@@ -708,7 +731,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                 <select
                   value={activeChapter.id}
                   onChange={handleChapterChange}
-                  className="w-full bg-[#111] text-xs text-white border border-white/5 hover:border-white/10 focus:border-red-600 rounded-lg px-2.5 py-2 focus:outline-none transition-all font-bold cursor-pointer appearance-none"
+                  className="w-full bg-white/5 text-xs text-white hover:bg-zinc-900 focus:border-red-600 rounded-lg px-2.5 py-2 focus:outline-none transition-all font-medium cursor-pointer appearance-none"
                 >
                   {chapters.map((ch, idx) => (
                     <option key={ch.id} value={ch.id}>
@@ -723,8 +746,8 @@ export const MangaPage: React.FC<MangaPageProps> = ({
 
               <button
                 onClick={goToNextChapter}
-                disabled={!hasNextChapter}
-                className="p-2 rounded-lg bg-[#111] hover:bg-zinc-800 border border-white/5 disabled:opacity-20 text-white transition-all active:scale-95 shrink-0"
+                disabled={hasNextChapter}
+                className="p-2 rounded-lg bg-white/5 hover:bg-zinc-800 disabled:opacity-20 text-white transition-all active:scale-95 shrink-0"
                 title="Newer Chapter"
               >
                 <ChevronRight size={16} />
@@ -740,7 +763,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                 <button
                   onClick={() => setActivePageIdx(p => Math.max(0, p - 1))}
                   disabled={activePageIdx === 0}
-                  className="p-2 rounded-lg bg-[#111] hover:bg-zinc-800 border border-white/5 disabled:opacity-20 text-white transition-all active:scale-95 shrink-0"
+                  className="p-2 rounded-lg bg-white/5 hover:bg-zinc-800 disabled:opacity-20 text-white transition-all active:scale-95 shrink-0"
                 >
                   <ChevronLeft size={16} />
                 </button>
@@ -749,7 +772,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                   <select
                     value={activePageIdx}
                     onChange={(e) => setActivePageIdx(parseInt(e.target.value, 10))}
-                    className="w-full bg-[#111] text-xs text-white border border-white/5 hover:border-white/10 focus:border-red-600 rounded-lg px-2.5 py-2 focus:outline-none transition-all font-normal cursor-pointer appearance-none"
+                    className="w-full bg-white/5 text-xs text-white hover:bg-zinc-900 focus:border-red-600 rounded-lg px-2.5 py-2 focus:outline-none transition-all font-normal cursor-pointer appearance-none"
                   >
                     {pages.map((_, i) => (
                       <option key={i} value={i}>
@@ -765,7 +788,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                 <button
                   onClick={() => setActivePageIdx(p => Math.min(pages.length - 1, p + 1))}
                   disabled={activePageIdx === pages.length - 1}
-                  className="p-2 rounded-lg bg-[#111] hover:bg-zinc-800 border border-white/5 disabled:opacity-20 text-white transition-all active:scale-95 shrink-0"
+                  className="p-2 rounded-lg bg-white/5 hover:bg-zinc-800 disabled:opacity-20 text-white transition-all active:scale-95 shrink-0"
                 >
                   <ChevronRight size={16} />
                 </button>
@@ -780,15 +803,15 @@ export const MangaPage: React.FC<MangaPageProps> = ({
           <div className="grid grid-cols-1 gap-2">
             <button
               onClick={toggleBookmark}
-              className={`w-full py-2 rounded-lg border text-xs font-normal transition-all flex items-center justify-center gap-2 active:scale-98 ${isBookmarked ? 'bg-red-600/15 border-red-500/25 text-red-500' : 'bg-[#111] border-white/5 text-zinc-300 hover:text-white'}`}
+              className={`w-full py-2 rounded-lg text-xs font-normal transition-all flex items-center justify-center gap-2 active:scale-98 ${isBookmarked ? 'bg-red-600/15 text-red-500' : 'bg-white/5 text-zinc-300 hover:text-white'}`}
             >
               <Bookmark size={13} fill={isBookmarked ? "currentColor" : "none"} />
               <span>{isBookmarked ? 'Bookmarked' : 'Bookmark'}</span>
             </button>
             
             <button
-              onClick={() => onChapterSelect(null)}
-              className="w-full py-2 rounded-lg bg-[#111] border border-white/5 text-xs font-normal text-zinc-300 hover:text-white transition-all flex items-center justify-center gap-2 active:scale-98"
+              onClick={handleCloseReader}
+              className="w-full py-2 rounded-lg bg-white/5 text-xs font-normal text-zinc-300 hover:text-white transition-all flex items-center justify-center gap-2 active:scale-98"
             >
               <Info size={13} />
               <span>Manga Detail</span>
@@ -796,7 +819,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
 
             <button
               onClick={() => showToast('Thank you! Issue has been reported to staff.')}
-              className="w-full py-2 rounded-lg bg-[#111] border border-white/5 text-xs font-normal text-zinc-300 hover:text-white transition-all flex items-center justify-center gap-2 active:scale-98"
+              className="w-full py-2 rounded-lg bg-white/5 text-xs font-normal text-zinc-300 hover:text-white transition-all flex items-center justify-center gap-2 active:scale-98"
             >
               <AlertTriangle size={13} />
               <span>Report Error</span>
@@ -811,7 +834,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
           <div className="space-y-3.5 text-xs">
             <div className="flex items-center justify-between">
               <span className="font-normal text-zinc-400">View Mode</span>
-              <div className="flex items-center rounded-lg bg-black p-0.5 border border-white/5">
+              <div className="flex items-center rounded-lg bg-white/5 p-0.5">
                 <button
                   onClick={() => setReaderMode('strip')}
                   className={`px-2.5 py-1 rounded-md text-[10px] font-normal transition-all ${readerMode === 'strip' ? 'bg-red-600 text-white' : 'text-zinc-500 hover:text-white'}`}
@@ -831,7 +854,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
               <span className="font-normal text-zinc-400 font-sans">Data Saver</span>
               <button
                 onClick={() => setIsDataSaver(!isDataSaver)}
-                className={`px-2.5 py-1 rounded-md text-[10px] font-normal transition-all border ${isDataSaver ? 'border-red-600 bg-red-600/20 text-red-400' : 'border-white/10 bg-black text-zinc-500 hover:text-white'}`}
+                className={`px-2.5 py-1 rounded-md text-[10px] font-normal transition-all ${isDataSaver ? 'bg-red-600/20 text-red-400' : 'bg-white/5 text-zinc-500 hover:text-white'}`}
               >
                 {isDataSaver ? 'On' : 'Off'}
               </button>
@@ -840,7 +863,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
             {readerMode === 'strip' && (
               <div className="flex items-center justify-between">
                 <span className="font-normal text-zinc-400">Page Width</span>
-                <div className="flex items-center rounded-lg bg-black p-0.5 border border-white/5">
+                <div className="flex items-center rounded-lg bg-white/5 p-0.5">
                   {(['normal', 'wide', 'full'] as const).map((sz) => (
                     <button
                       key={sz}
@@ -856,7 +879,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
 
             <div className="flex items-center justify-between">
               <span className="font-normal text-zinc-400">Theme</span>
-              <div className="flex items-center rounded-lg bg-black p-0.5 border border-white/5">
+              <div className="flex items-center rounded-lg bg-white/5 p-0.5">
                 {(['black', 'gray', 'darker'] as const).map((bg) => (
                   <button
                     key={bg}
@@ -872,23 +895,23 @@ export const MangaPage: React.FC<MangaPageProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="text-center pt-4 border-t border-white/5 text-[9px] font-bold text-zinc-600 uppercase tracking-widest">
+        <div className="text-center pt-4 border-t border-white/5 text-[9px] font-normal text-zinc-500 tracking-wider">
           MovieVerse Reader v2.0
         </div>
       </div>
     );
 
     return (
-      <div className={`fixed inset-0 z-[120] ${getBgClass()} flex flex-col lg:flex-row font-sans select-none animate-in fade-in duration-300`}>
+      <div className={`fixed inset-0 z-[120] ${getBgClass()} flex flex-col lg:flex-row font-sans select-none ${isReaderExiting ? 'animate-fade-out' : 'animate-fade-in'}`}>
         
         {/* Main Reader Content Area (Left side) */}
         <div className="flex-1 flex flex-col h-full overflow-hidden">
           
           {/* Top navigation header panel */}
-          <div className="p-4 bg-zinc-950/80 border-b border-white/5 flex items-center justify-between z-30 backdrop-blur-md">
+          <div className="p-3 bg-zinc-950/80 border-b border-white/5 flex items-center justify-between z-30 backdrop-blur-md">
             <div className="flex items-center gap-3">
               <button
-                onClick={() => onChapterSelect(null)}
+                onClick={handleCloseReader}
                 className="p-2 text-zinc-400 hover:text-white rounded-full bg-white/5 hover:bg-white/10 transition-colors"
                 title="Back to Manga Details"
               >
@@ -910,7 +933,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                 <span>Menu</span>
               </button>
               <button
-                onClick={() => { onChapterSelect(null); onMangaSelect(null); }}
+                onClick={() => { handleCloseReader(); onMangaSelect(null); }}
                 className="p-2 text-zinc-400 hover:text-white rounded-full bg-white/5 hover:bg-white/10 transition-colors"
                 title="Close Reader"
               >
@@ -933,11 +956,11 @@ export const MangaPage: React.FC<MangaPageProps> = ({
           </div>
 
           {/* Reader Body container */}
-          <div className="flex-1 overflow-y-auto custom-scrollbar p-4 relative flex flex-col items-center justify-start">
+          <div className="flex-1 overflow-y-auto custom-scrollbar pt-2 pb-4 px-4 relative flex flex-col items-center justify-start">
             {pagesLoading ? (
               <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
                 <Loader2 className="animate-spin text-red-600" size={36} />
-                <span className="text-xs text-zinc-500 font-bold uppercase tracking-widest">Streaming pages...</span>
+                <span className="text-xs text-zinc-400 font-medium tracking-wider">Streaming pages...</span>
               </div>
             ) : pages.length === 0 ? (
               <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
@@ -946,9 +969,9 @@ export const MangaPage: React.FC<MangaPageProps> = ({
               </div>
             ) : readerMode === 'strip' ? (
               /* Long Strip Mode (Stacked scroll) */
-              <div className={`${getPageWidthClass()} w-full flex flex-col gap-4 py-8`}>
+              <div className={`${getPageWidthClass()} w-full flex flex-col gap-4 py-2`}>
                 {pages.map((url, i) => (
-                  <div key={i} className="w-full relative bg-zinc-950/20 rounded-xl overflow-hidden min-h-[300px] sm:min-h-[400px] flex items-center justify-center border border-white/5 shadow-lg">
+                  <div key={i} className="w-full relative bg-zinc-950/20 rounded-xl overflow-hidden min-h-[300px] sm:min-h-[400px] flex items-center justify-center shadow-lg">
                     <img
                       src={url}
                       alt={`Page ${i + 1}`}
@@ -967,7 +990,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                         }
                       }}
                     />
-                    <div className="absolute bottom-3 right-3 bg-black/80 backdrop-blur-md px-2.5 py-0.5 rounded text-[10px] text-zinc-300 border border-white/5 select-none font-bold shadow-md">
+                    <div className="absolute bottom-3 right-3 bg-black/80 backdrop-blur-md px-2.5 py-0.5 rounded text-[10px] text-zinc-300 select-none font-medium shadow-md">
                       {i + 1} / {pages.length}
                     </div>
                   </div>
@@ -1005,7 +1028,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                       }}
                     />
                     
-                    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/85 border border-white/10 backdrop-blur-md px-3.5 py-1 rounded-full text-xs text-white select-none font-bold shadow-xl">
+                    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/85 backdrop-blur-md px-3.5 py-1 rounded-full text-xs text-white select-none font-medium shadow-xl">
                       {activePageIdx + 1} / {pages.length}
                     </div>
                   </div>
@@ -1033,7 +1056,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
           <div className="lg:hidden fixed inset-0 z-[140] bg-black/70 backdrop-blur-sm animate-in fade-in duration-200">
             <div className="absolute right-0 top-0 bottom-0 w-80 bg-[#0c0c0e] border-l border-white/10 flex flex-col animate-in slide-in-from-right duration-300">
               <div className="p-4 border-b border-white/5 flex items-center justify-between">
-                <span className="text-xs font-black uppercase tracking-wider text-zinc-400">Settings & Menu</span>
+                <span className="text-xs font-medium tracking-wide text-zinc-400">Settings & Menu</span>
                 <button
                   onClick={() => setIsMobileSidebarOpen(false)}
                   className="p-1 rounded-full hover:bg-white/10 text-zinc-400 hover:text-white transition-colors"
@@ -1054,31 +1077,31 @@ export const MangaPage: React.FC<MangaPageProps> = ({
   // Premium Details Screen active checks
   if (selectedMangaId && !selectedManga) {
     return (
-      <div className="min-h-screen bg-[#030303] text-white pb-16 animate-in fade-in duration-500 font-sans">
+      <div className="min-h-screen bg-[#030303] text-white pb-16 animate-fade-in font-sans">
         {/* Backdrop Banner skeleton */}
-        <div className="relative w-full h-[22vh] md:h-[28vh] bg-zinc-950/40 animate-pulse" />
+        <div className="relative w-full h-[14vh] md:h-[18vh] bg-zinc-950/20 shimmer-bg" />
         
         {/* Content Skeleton */}
-        <div className="max-w-7xl mx-auto px-4 md:px-12 -mt-16 md:-mt-20 relative z-20 flex flex-col md:flex-row gap-8 text-left">
+        <div className="max-w-7xl mx-auto px-4 md:px-12 -mt-10 md:-mt-12 relative z-20 flex flex-col md:flex-row gap-8 text-left">
           {/* Left cover block */}
           <div className="w-[180px] md:w-[280px] shrink-0">
-            <div className="w-[180px] md:w-full aspect-[2/3] bg-zinc-900 rounded-xl animate-pulse" />
-            <div className="w-full h-10 bg-zinc-900 rounded-lg mt-5 animate-pulse" />
+            <div className="w-[180px] md:w-full aspect-[2/3] shimmer-bg rounded-xl" />
+            <div className="w-full h-10 shimmer-bg rounded-lg mt-5" />
           </div>
           {/* Right details block */}
           <div className="flex-1 space-y-6">
-            <div className="h-10 w-2/3 bg-zinc-900 rounded-lg animate-pulse" />
-            <div className="h-4 w-1/2 bg-zinc-900 rounded-lg animate-pulse" />
+            <div className="h-10 w-2/3 shimmer-bg rounded-lg" />
+            <div className="h-4 w-1/2 shimmer-bg rounded-lg" />
             <div className="flex gap-3">
-              <div className="h-8 w-24 bg-zinc-900 rounded-md animate-pulse" />
-              <div className="h-8 w-32 bg-zinc-900 rounded-md animate-pulse" />
-              <div className="h-8 w-20 bg-zinc-900 rounded-md animate-pulse" />
+              <div className="h-8 w-24 shimmer-bg rounded-md" />
+              <div className="h-8 w-32 shimmer-bg rounded-md" />
+              <div className="h-8 w-20 shimmer-bg rounded-md" />
             </div>
-            <div className="space-y-2.5 pt-4">
-              <div className="h-4 w-full bg-zinc-900 rounded-lg animate-pulse" />
-              <div className="h-4 w-full bg-zinc-900 rounded-lg animate-pulse" />
-              <div className="h-4 w-3/4 bg-zinc-900 rounded-lg animate-pulse" />
-            </div>
+              <div className="space-y-2.5 pt-4">
+                <div className="h-4 w-full shimmer-bg rounded-lg" />
+                <div className="h-4 w-full shimmer-bg rounded-lg" />
+                <div className="h-4 w-3/4 shimmer-bg rounded-lg" />
+              </div>
           </div>
         </div>
       </div>
@@ -1088,10 +1111,10 @@ export const MangaPage: React.FC<MangaPageProps> = ({
   // Premium Details Screen active checks
   if (selectedManga) {
     return (
-      <div className="min-h-screen bg-[#030303] text-white pb-16 relative select-none animate-in fade-in slide-in-from-bottom-4 duration-500 font-sans">
+      <div className={`min-h-screen bg-[#030303] text-white pb-16 relative select-none font-sans ${isDetailsExiting ? 'animate-fade-out' : 'animate-fade-in'}`}>
         
         {/* Backdrop Hero Banner */}
-        <div className="relative w-full h-[22vh] md:h-[28vh] overflow-hidden select-none">
+        <div className="relative w-full h-[14vh] md:h-[18vh] overflow-hidden select-none">
           <img
             src={getMangaCover(selectedManga)}
             alt={getMangaTitle(selectedManga)}
@@ -1101,15 +1124,15 @@ export const MangaPage: React.FC<MangaPageProps> = ({
           <div className="absolute inset-0 bg-gradient-to-t from-[#030303] via-[#030303]/60 to-transparent" />
           
           <button
-            onClick={() => onMangaSelect(null)}
-            className="absolute top-4 left-4 md:left-12 flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/5 hover:bg-white/10 text-xs font-normal text-zinc-300 hover:text-white transition-all active:scale-95 z-30"
+            onClick={handleCloseDetails}
+            className="absolute top-4 left-4 md:left-12 flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/[0.03] hover:bg-white/[0.07] border border-white/[0.04] text-xs font-normal text-zinc-300 hover:text-white transition-all active:scale-95 z-30"
           >
             <ArrowLeft size={14} /> Back to Manga
           </button>
         </div>
 
         {/* Main Grid Content */}
-        <div className="max-w-7xl mx-auto px-4 md:px-12 -mt-16 md:-mt-20 relative z-20 flex flex-col md:flex-row gap-8 pb-16 text-left">
+        <div className="max-w-7xl mx-auto px-4 md:px-12 -mt-10 md:-mt-12 relative z-20 flex flex-col md:flex-row gap-8 pb-16 text-left">
           
           {/* Left Column - Side Cover Card & Specs */}
           <div className="w-full md:w-[280px] shrink-0 flex flex-col items-center md:items-start">
@@ -1178,23 +1201,23 @@ export const MangaPage: React.FC<MangaPageProps> = ({
 
             {/* Quick Metrics Badge row */}
             <div className="flex flex-wrap gap-2 mb-6">
-              <span className="px-3 py-1 rounded-md text-xs font-medium bg-white/5 text-zinc-300 flex items-center gap-1.5" title="MAL Rating">
+              <span className="px-3 py-1 rounded-md text-xs font-light bg-white/[0.03] text-zinc-400 flex items-center gap-1.5" title="MAL Rating">
                 ⭐ {ratingScore} MAL
               </span>
-              <span className="px-3 py-1 rounded-md text-xs font-medium bg-white/5 text-zinc-300 flex items-center gap-1.5" title="Reviews Score">
+              <span className="px-3 py-1 rounded-md text-xs font-light bg-white/[0.03] text-zinc-400 flex items-center gap-1.5" title="Reviews Score">
                 🏆 {reviewScore} / 10 ({reviewCount} reviews)
               </span>
-              <span className="px-3 py-1 rounded-md text-xs font-medium bg-white/5 text-zinc-300 flex items-center gap-1.5">
+              <span className="px-3 py-1 rounded-md text-xs font-light bg-white/[0.03] text-zinc-400 flex items-center gap-1.5">
                 <Users size={12} className="text-zinc-500" /> {formatFollowers(selectedManga.attributes.relevance || 0)} Followers
               </span>
-              <span className="px-3 py-1 rounded-md text-xs font-medium bg-white/5 text-zinc-300 capitalize">
+              <span className="px-3 py-1 rounded-md text-xs font-light bg-white/[0.03] text-zinc-400 capitalize">
                 {selectedManga.attributes.contentRating}
               </span>
             </div>
 
             {/* Synopsis */}
             <div className="mb-8">
-              <h3 className="text-xs font-medium tracking-wide text-zinc-400 mb-2">Synopsis</h3>
+              <h3 className="text-xs font-normal tracking-wide text-zinc-500 mb-2">Synopsis</h3>
               <p className="text-sm text-zinc-400 leading-relaxed font-light">
                 {cleanDescription(selectedManga.attributes.description?.en || null)}
               </p>
@@ -1202,12 +1225,12 @@ export const MangaPage: React.FC<MangaPageProps> = ({
 
             {/* Genres & Tags */}
             <div className="mb-8">
-              <h3 className="text-xs font-medium tracking-wide text-zinc-400 mb-2.5">Genres & Themes</h3>
+              <h3 className="text-xs font-normal tracking-wide text-zinc-500 mb-2.5">Genres & Themes</h3>
               <div className="flex flex-wrap gap-2">
                 {selectedManga.attributes.tags?.map((t: any) => (
                   <span
                     key={t.id}
-                    className="px-3 py-1.5 rounded-lg text-xs font-normal bg-white/5 hover:bg-white/10 text-zinc-300 transition-colors cursor-default"
+                    className="px-3 py-1 rounded-md text-xs font-normal bg-white/[0.03] text-zinc-400 transition-colors cursor-default"
                   >
                     {t.attributes.name.en}
                   </span>
@@ -1218,15 +1241,15 @@ export const MangaPage: React.FC<MangaPageProps> = ({
             {/* External Links */}
             {externalLinks.length > 0 && (
               <div className="mb-10">
-                <h3 className="text-xs font-medium tracking-wide text-zinc-400 mb-2.5">Official & Database Links</h3>
-                <div className="flex flex-wrap gap-2.5">
+                <h3 className="text-xs font-normal tracking-wide text-zinc-500 mb-2.5">Official & Database Links</h3>
+                <div className="flex flex-wrap gap-2">
                   {externalLinks.map((link) => (
                     <a
                       key={link.name}
                       href={link.url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="px-3 py-1.5 rounded-md text-xs font-normal bg-white/5 hover:bg-white/10 text-zinc-300 transition-all flex items-center gap-1.5 active:scale-95"
+                      className="px-3 py-1 rounded-md text-xs font-normal bg-white/[0.03] hover:bg-white/[0.06] text-zinc-400 hover:text-white transition-all flex items-center gap-1.5 active:scale-95"
                     >
                       <Globe size={13} className="text-zinc-500" /> {link.name}
                     </a>
@@ -1265,30 +1288,30 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                       placeholder="Search chapter..."
                       value={chapterFilter}
                       onChange={(e) => setChapterFilter(e.target.value)}
-                      className="w-full bg-[#111] text-xs text-white border border-white/5 hover:border-white/10 focus:border-red-600 rounded-lg pl-9 pr-4 py-2 focus:outline-none transition-all placeholder-zinc-500 font-bold"
+                      className="w-full bg-[#111] text-xs text-white border border-white/5 hover:border-white/10 focus:border-red-600 rounded-lg pl-9 pr-4 py-2 focus:outline-none transition-all placeholder-zinc-500 font-medium"
                     />
                   </div>
 
                   <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto justify-end">
                     {/* Language Picker */}
                     <div className="flex items-center gap-2">
-                      <span className="text-[10px] font-black uppercase text-zinc-500">Language</span>
+                      <span className="text-[10px] font-medium text-zinc-500">Language</span>
                       <select
                         value={selectedLanguage}
                         onChange={(e) => setSelectedLanguage(e.target.value)}
-                        className="px-3 py-1.5 rounded-lg bg-[#111] border border-white/5 text-xs font-bold text-zinc-300 hover:text-white transition-all focus:outline-none cursor-pointer"
+                        className="px-3 py-1.5 rounded-lg bg-white/5 text-xs font-medium text-zinc-300 hover:text-white transition-all focus:outline-none cursor-pointer"
                       >
                         {Object.entries(LANGUAGE_NAMES).map(([code, name]) => (
-                          <option key={code} value={code}>{name}</option>
+                          <option key={code} value={code} className="bg-[#0c0c0e]">{name}</option>
                         ))}
                       </select>
                     </div>
 
                     <div className="flex items-center gap-2">
-                      <span className="text-[10px] font-black uppercase text-zinc-500">Sort</span>
+                      <span className="text-[10px] font-medium text-zinc-500">Sort</span>
                       <button
                         onClick={() => setChapterSort(prev => prev === 'asc' ? 'desc' : 'asc')}
-                        className="px-3 py-1.5 rounded-lg bg-[#111] border border-white/5 text-xs font-bold text-zinc-300 hover:text-white transition-all hover:scale-102 active:scale-98"
+                        className="px-3 py-1.5 rounded-lg bg-white/5 text-xs font-medium text-zinc-300 hover:text-white transition-all hover:scale-102 active:scale-98"
                       >
                         {chapterSort === 'asc' ? 'Oldest First' : 'Newest First'}
                       </button>
@@ -1300,7 +1323,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                 {chaptersLoading ? (
                   <div className="flex flex-col items-center justify-center py-16 gap-2">
                     <Loader2 className="animate-spin text-red-500" size={24} />
-                    <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">Loading chapters...</span>
+                    <span className="text-[10px] text-zinc-500 font-medium tracking-wide">Loading chapters...</span>
                   </div>
                 ) : filteredAndSortedChapters.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-16 opacity-50 text-center">
@@ -1308,7 +1331,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                     <span className="text-xs text-zinc-500">
                       No chapters found matching filter in {LANGUAGE_NAMES[selectedLanguage] || selectedLanguage}.
                     </span>
-                    <span className="text-[10px] text-zinc-600 font-bold uppercase mt-1 block">
+                    <span className="text-[10px] text-zinc-600 font-medium mt-1 block">
                       Try selecting another language from the dropdown.
                     </span>
                   </div>
@@ -1318,23 +1341,23 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                       <button
                         key={ch.id}
                         onClick={() => onChapterSelect(ch.id)}
-                        className="p-4 rounded-xl border border-white/5 hover:border-red-600/40 bg-[#0c0c0e]/30 hover:bg-red-600/5 text-left text-xs transition-all flex items-center justify-between group active:scale-99"
+                        className="p-4 rounded-xl bg-white/[0.02] hover:bg-red-600/[0.04] text-left text-xs transition-all flex items-center justify-between group active:scale-99 border border-white/[0.03] hover:border-red-600/20"
                       >
                         <div className="space-y-1">
-                          <span className="text-white font-bold text-sm block group-hover:text-red-500 transition-colors">
+                          <span className="text-white font-medium text-sm block group-hover:text-red-500 transition-colors">
                             Chapter {ch.attributes.chapter || 'Oneshot'}
                           </span>
                           {ch.attributes.title && (
-                            <span className="text-zinc-400 font-semibold block truncate max-w-[200px] sm:max-w-[260px]">
+                            <span className="text-zinc-400 font-normal block truncate max-w-[200px] sm:max-w-[260px]">
                               {ch.attributes.title}
                             </span>
                           )}
                         </div>
                         <div className="text-right shrink-0">
-                          <span className="text-[10px] text-zinc-500 font-bold block mb-1">
+                          <span className="text-[10px] text-zinc-500 font-normal block mb-1">
                             {formatChapterDate(ch.attributes.publishAt)}
                           </span>
-                          <span className="px-2 py-0.5 rounded bg-white/5 text-[9px] font-black text-zinc-400 group-hover:text-red-500 group-hover:bg-red-500/10 transition-colors">
+                          <span className="px-2 py-0.5 rounded bg-white/5 text-[9px] font-medium text-zinc-400 group-hover:text-red-500 group-hover:bg-red-500/10 transition-colors">
                             Read
                           </span>
                         </div>
@@ -1348,8 +1371,8 @@ export const MangaPage: React.FC<MangaPageProps> = ({
               recLoading ? (
                 <div className="flex flex-col items-center justify-center py-16 gap-2">
                   <Loader2 className="animate-spin text-red-500" size={24} />
-                  <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">Finding recommendations...</span>
-                </div>
+                  <span className="text-[10px] text-zinc-500 font-medium tracking-wide">Finding recommendations...</span>
+                 </div>
               ) : recommendations.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-16 opacity-50">
                   <Sparkles size={28} className="text-zinc-600 mb-2" />
