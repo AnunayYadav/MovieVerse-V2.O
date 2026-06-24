@@ -50,28 +50,6 @@ const MANGA_GENRES = [
   { name: "Psychological", id: "3b60b75c-a2d7-4860-ab56-05f391bb889c" }
 ];
 
-const CURATED_TRENDING_IDS = [
-  'ae793444-984e-4e67-8547-5264b3837920', // One Piece
-  '713346b0-6d47-4934-8c83-057476839352', // Chainsaw Man
-  '32454687-d1a2-4a7b-99d9-6ec599b5edc7', // Solo Leveling
-  '610f6074-d4b9-4089-8d77-96a928236166', // Jujutsu Kaisen
-  '561937ce-8802-411a-82dc-30477e713606', // Demon Slayer
-  '532f8313-0947-417d-9441-2a945d8204b7', // My Hero Academia
-  '87b5c464-98c8-472d-8386-81cf80389d3e', // Frieren
-  'd0d31cdc-5e48-4f0f-8c38-8c105658e37d'  // Oshi no Ko
-];
-
-const CURATED_TOP_RATED_IDS = [
-  '801513ba-a727-4dbd-b9ca-a2a50f001284', // Berserk
-  '8186e27c-b31c-439d-9d41-35b80453d854', // Vagabond
-  '6349c25e-3162-4299-8806-389f41b2c451', // Vinland Saga
-  '03d6d028-55a2-4a7b-a01c-99c58c281734', // Hunter x Hunter
-  'c530864e-3467-4d76-b60f-e6022e37943d', // Fullmetal Alchemist
-  'ae0656a1-a083-4a11-b19e-055d21396a84', // Death Note
-  '001a1532-a541-4c12-8803-b0973a11029c', // Monster
-  '82a4401a-85d5-4340-9751-c0bc4c718501'  // Tokyo Ghoul
-];
-
 export const MangaPage: React.FC<MangaPageProps> = ({ apiKey }) => {
   const [trending, setTrending] = useState<MangaDexManga[]>([]);
   const [latest, setLatest] = useState<MangaDexManga[]>([]);
@@ -118,29 +96,17 @@ export const MangaPage: React.FC<MangaPageProps> = ({ apiKey }) => {
     setLoading(true);
     setError(null);
     try {
-      // 1. Curated Trending Manga (authentic blockbusters)
-      const trendingIdsQuery = CURATED_TRENDING_IDS.map(id => `ids[]=${id}`).join('&');
-      const trendingData = await fetchMangaDex(`/manga?${trendingIdsQuery}&includes[]=cover_art`);
-      
-      // Sort to match requested CURATED_TRENDING_IDS order
-      const sortedTrending = (trendingData.data || []).sort((a: any, b: any) => {
-        return CURATED_TRENDING_IDS.indexOf(a.id) - CURATED_TRENDING_IDS.indexOf(b.id);
-      });
-      setTrending(sortedTrending);
+      // 1. Trending Manga (most followed, safe, English translated)
+      const trendingData = await fetchMangaDex('/manga?limit=12&order[followedCount]=desc&includes[]=cover_art&contentRating[]=safe&contentRating[]=suggestive&availableTranslatedLanguage[]=en');
+      setTrending(trendingData.data || []);
 
-      // 2. Latest Updates (filtered for safe, English releases to ensure premium list)
-      const latestData = await fetchMangaDex('/manga?limit=12&order[latestUploadedChapter]=desc&includes[]=cover_art&contentRating[]=safe&contentRating[]=suggestive&availableTranslatedLanguage[]=en&originalLanguage[]=ja&originalLanguage[]=ko');
+      // 2. Latest Updates (filtered for safe, English releases)
+      const latestData = await fetchMangaDex('/manga?limit=12&order[latestUploadedChapter]=desc&includes[]=cover_art&contentRating[]=safe&contentRating[]=suggestive&availableTranslatedLanguage[]=en');
       setLatest(latestData.data || []);
 
-      // 3. Curated Top Rated Classics
-      const topRatedIdsQuery = CURATED_TOP_RATED_IDS.map(id => `ids[]=${id}`).join('&');
-      const topRatedData = await fetchMangaDex(`/manga?${topRatedIdsQuery}&includes[]=cover_art`);
-      
-      // Sort to match requested CURATED_TOP_RATED_IDS order
-      const sortedTopRated = (topRatedData.data || []).sort((a: any, b: any) => {
-        return CURATED_TOP_RATED_IDS.indexOf(a.id) - CURATED_TOP_RATED_IDS.indexOf(b.id);
-      });
-      setTopRated(sortedTopRated);
+      // 3. Top Rated (safe, English translated)
+      const topRatedData = await fetchMangaDex('/manga?limit=12&order[rating]=desc&includes[]=cover_art&contentRating[]=safe&contentRating[]=suggestive&availableTranslatedLanguage[]=en');
+      setTopRated(topRatedData.data || []);
 
       // Reset endless categories
       setGenreRows([]);
