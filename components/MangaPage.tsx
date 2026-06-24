@@ -153,6 +153,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
   // Title Language settings
   const [titleLanguage, setTitleLanguage] = useState<'english' | 'romaji' | 'native'>('english');
   const [isLangDropdownOpen, setIsLangDropdownOpen] = useState(false);
+  const [includeNsfw, setIncludeNsfw] = useState(false);
 
   const getMangaTitle = (manga: MangaDexManga) => {
     return getMangaTitleHelper(manga, titleLanguage);
@@ -248,6 +249,14 @@ export const MangaPage: React.FC<MangaPageProps> = ({
     if (!res.ok) throw new Error(`MangaDex request failed: ${res.statusText}`);
     return res.json();
   }, []);
+
+  const getContentRatingParams = useCallback(() => {
+    let params = '&contentRating[]=safe&contentRating[]=suggestive&contentRating[]=erotica';
+    if (includeNsfw) {
+      params += '&contentRating[]=pornographic';
+    }
+    return params;
+  }, [includeNsfw]);
 
   // Sync selectedManga details, statistics, and relations with selectedMangaId prop
   useEffect(() => {
@@ -365,16 +374,17 @@ export const MangaPage: React.FC<MangaPageProps> = ({
     setLoading(true);
     setError(null);
     try {
-      // 1. Trending Manga (most followed, safe, English translated)
-      const trendingData = await fetchMangaDex('/manga?limit=12&order[followedCount]=desc&includes[]=cover_art&contentRating[]=safe&contentRating[]=suggestive&availableTranslatedLanguage[]=en');
+      const ratings = getContentRatingParams();
+      // 1. Trending Manga (most followed, English translated)
+      const trendingData = await fetchMangaDex(`/manga?limit=12&order[followedCount]=desc&includes[]=cover_art&availableTranslatedLanguage[]=en${ratings}`);
       setTrending(trendingData.data || []);
 
-      // 2. Latest Updates (filtered for safe, English releases)
-      const latestData = await fetchMangaDex('/manga?limit=12&order[latestUploadedChapter]=desc&includes[]=cover_art&contentRating[]=safe&contentRating[]=suggestive&availableTranslatedLanguage[]=en');
+      // 2. Latest Updates (filtered for English releases)
+      const latestData = await fetchMangaDex(`/manga?limit=12&order[latestUploadedChapter]=desc&includes[]=cover_art&availableTranslatedLanguage[]=en${ratings}`);
       setLatest(latestData.data || []);
 
-      // 3. Top Rated (safe, English translated)
-      const topRatedData = await fetchMangaDex('/manga?limit=12&order[rating]=desc&includes[]=cover_art&contentRating[]=safe&contentRating[]=suggestive&availableTranslatedLanguage[]=en');
+      // 3. Top Rated (English translated)
+      const topRatedData = await fetchMangaDex(`/manga?limit=12&order[rating]=desc&includes[]=cover_art&availableTranslatedLanguage[]=en${ratings}`);
       setTopRated(topRatedData.data || []);
 
       // Reset endless categories
@@ -386,15 +396,16 @@ export const MangaPage: React.FC<MangaPageProps> = ({
     } finally {
       setLoading(false);
     }
-  }, [fetchMangaDex]);
+  }, [fetchMangaDex, getContentRatingParams]);
 
   // Load next genre row
   const loadNextGenreRow = useCallback(async () => {
     if (loadingGenreRows || currentGenreIndexRef.current >= MANGA_GENRES.length) return;
     setLoadingGenreRows(true);
     const genre = MANGA_GENRES[currentGenreIndexRef.current];
+    const ratings = getContentRatingParams();
     try {
-      const data = await fetchMangaDex(`/manga?limit=12&includedTags[]=${genre.id}&includes[]=cover_art&order[followedCount]=desc&contentRating[]=safe&contentRating[]=suggestive&availableTranslatedLanguage[]=en`);
+      const data = await fetchMangaDex(`/manga?limit=12&includedTags[]=${genre.id}&includes[]=cover_art&order[followedCount]=desc&availableTranslatedLanguage[]=en${ratings}`);
       const list = data.data || [];
       if (list.length > 0) {
         setGenreRows(prev => [...prev, { genre: genre.name, media: list }]);
@@ -405,7 +416,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
     } finally {
       setLoadingGenreRows(false);
     }
-  }, [fetchMangaDex, loadingGenreRows]);
+  }, [fetchMangaDex, loadingGenreRows, getContentRatingParams]);
 
   // Load first catalogs
   useEffect(() => {
@@ -469,8 +480,9 @@ export const MangaPage: React.FC<MangaPageProps> = ({
     let isMounted = true;
     const runSearch = async () => {
       setSearchLoading(true);
+      const ratings = getContentRatingParams();
       try {
-        const data = await fetchMangaDex(`/manga?limit=24&title=${encodeURIComponent(searchQuery)}&includes[]=cover_art&contentRating[]=safe&contentRating[]=suggestive`);
+        const data = await fetchMangaDex(`/manga?limit=24&title=${encodeURIComponent(searchQuery)}&includes[]=cover_art${ratings}`);
         if (isMounted) setSearchResults(data.data || []);
       } catch (err) {
         console.error("Manga search failed:", err);
@@ -480,7 +492,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
     };
     runSearch();
     return () => { isMounted = false; };
-  }, [searchQuery, fetchMangaDex]);
+  }, [searchQuery, fetchMangaDex, getContentRatingParams]);
 
   // Load Chapter list on Details open
   useEffect(() => {
@@ -1713,7 +1725,22 @@ export const MangaPage: React.FC<MangaPageProps> = ({
               </h2>
             </div>
             
-            <div className="relative group shrink-0">
+            <div className="flex items-center gap-3">
+              {/* NSFW Content Toggle Button */}
+              <button
+                onClick={() => setIncludeNsfw(prev => !prev)}
+                className={`flex items-center gap-2 px-4 py-2 border rounded-full text-xs font-bold transition-all active:scale-95 shadow-lg backdrop-blur-md ${
+                  includeNsfw
+                    ? 'bg-red-600/20 border-red-500/40 text-red-400 hover:bg-red-600/30'
+                    : 'bg-white/5 border-white/15 text-gray-400 hover:bg-white/10'
+                }`}
+                title="Toggle Explicit/NSFW content"
+              >
+                <AlertTriangle size={14} className={includeNsfw ? 'text-red-400 animate-pulse' : 'text-zinc-500'} />
+                <span>NSFW Content</span>
+              </button>
+
+              <div className="relative group shrink-0">
               <button 
                 onClick={() => setIsLangDropdownOpen(!isLangDropdownOpen)} 
                 className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/15 hover:border-white/25 rounded-full text-xs font-bold text-gray-200 transition-all active:scale-95 min-w-[130px] justify-between shadow-lg backdrop-blur-md"
@@ -1754,6 +1781,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
               )}
             </div>
           </div>
+        </div>
 
           <MangaRow title="Trending Manga Releases" items={trending} onMangaClick={onMangaSelect} titleLanguage={titleLanguage} />
           <MangaRow title="Recently Uploaded Chapters" items={latest} onMangaClick={onMangaSelect} titleLanguage={titleLanguage} />
