@@ -860,28 +860,103 @@ export const MoviePage: React.FC<MoviePageProps> = ({
 
     useEffect(() => {
         const isTvShow = movie.media_type === 'tv' || !!(details && details.first_air_date);
-        if (!isTvShow || !apiKey || !movie.id || activeTab !== 'seasons') return;
+        if (!isTvShow || !movie.id || activeTab !== 'seasons') return;
         
         let isMounted = true;
         setEpisodesLoading(true);
-        
-        fetch(`${TMDB_BASE_URL}/tv/${movie.id}/season/${selectedSeason}?api_key=${apiKey}`)
-            .then(res => {
-                if (!res.ok) throw new Error();
-                return res.json();
-            })
-            .then(data => {
-                if (isMounted) {
-                    setEpisodes(data.episodes || []);
+
+        const isAnimeMovie = (movie as any).is_anime || (details?.genres?.some((g: any) => g.id === 16) && details?.original_language === 'ja');
+        const anilistId = (movie as any).anilist_id;
+        const anilistEpsCount = (movie as any).anilist_episodes;
+
+        const getAnimeEpisodes = (tmdbEpisodes: any[]): any[] => {
+            if (!tmdbEpisodes || tmdbEpisodes.length === 0) return [];
+            
+            const totalAniListEps = anilistEpsCount || tmdbEpisodes.length;
+            
+            if (tmdbEpisodes.length === totalAniListEps) {
+                return tmdbEpisodes;
+            }
+            
+            const title = ((movie as any).anilist_title || movie.title || movie.name || '').toLowerCase();
+            const isPart2 = title.includes('part 2') || title.includes('part ii') || title.includes('2nd part') || title.includes('cour 2') || title.includes('season 2 part 2') || title.includes('season 3 part 2');
+            const isPart3 = title.includes('part 3') || title.includes('part iii') || title.includes('3rd part') || title.includes('cour 3');
+            
+            let slicedEpisodes = tmdbEpisodes;
+            if (isPart3) {
+                const startIdx = Math.max(0, tmdbEpisodes.length - totalAniListEps);
+                slicedEpisodes = tmdbEpisodes.slice(startIdx, startIdx + totalAniListEps);
+            } else if (isPart2) {
+                const startIdx = Math.max(0, tmdbEpisodes.length - totalAniListEps);
+                slicedEpisodes = tmdbEpisodes.slice(startIdx, startIdx + totalAniListEps);
+            } else {
+                slicedEpisodes = tmdbEpisodes.slice(0, totalAniListEps);
+            }
+            
+            return slicedEpisodes.map((ep, index) => ({
+                ...ep,
+                episode_number: index + 1,
+                name: ep.name || `Episode ${index + 1}`
+            }));
+        };
+
+        const generateDummyEpisodes = (): any[] => {
+            const totalAniListEps = anilistEpsCount || 12;
+            const dummyEpisodes = [];
+            for (let i = 1; i <= totalAniListEps; i++) {
+                dummyEpisodes.push({
+                    id: `anilist-${anilistId}-${i}`,
+                    episode_number: i,
+                    name: `Episode ${i}`,
+                    overview: `Watch Episode ${i} of ${(movie as any).anilist_title || movie.title || movie.name} on MovieVerse.`,
+                    still_path: null,
+                    runtime: (movie as any).duration || 24,
+                    air_date: null
+                });
+            }
+            return dummyEpisodes;
+        };
+
+        if (apiKey) {
+            fetch(`${TMDB_BASE_URL}/tv/${movie.id}/season/${selectedSeason}?api_key=${apiKey}`)
+                .then(res => {
+                    if (!res.ok) throw new Error();
+                    return res.json();
+                })
+                .then(data => {
+                    if (isMounted) {
+                        let rawEpisodes = data.episodes || [];
+                        if (isAnimeMovie && anilistId && rawEpisodes.length > 0) {
+                            rawEpisodes = getAnimeEpisodes(rawEpisodes);
+                        } else if (isAnimeMovie && anilistId && rawEpisodes.length === 0 && anilistEpsCount) {
+                            rawEpisodes = generateDummyEpisodes();
+                        }
+                        setEpisodes(rawEpisodes);
+                    }
+                })
+                .catch(err => {
+                    console.error("Error fetching season details", err);
+                    if (isMounted) {
+                        if (isAnimeMovie && anilistId && anilistEpsCount) {
+                            setEpisodes(generateDummyEpisodes());
+                        } else {
+                            setEpisodes([]);
+                        }
+                    }
+                })
+                .finally(() => { 
+                    if (isMounted) setEpisodesLoading(false); 
+                });
+        } else {
+            if (isMounted) {
+                if (isAnimeMovie && anilistId && anilistEpsCount) {
+                    setEpisodes(generateDummyEpisodes());
+                } else {
+                    setEpisodes([]);
                 }
-            })
-            .catch(err => {
-                console.error("Error fetching season details", err);
-                if (isMounted) setEpisodes([]);
-            })
-            .finally(() => { 
-                if (isMounted) setEpisodesLoading(false); 
-            });
+                setEpisodesLoading(false);
+            }
+        }
             
         return () => { isMounted = false; };
     }, [movie.id, selectedSeason, apiKey, activeTab, details]);
@@ -1492,48 +1567,50 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                 </div>
                                                 <div className="flex items-center gap-2 w-full sm:w-auto">
                                                     {/* Season Selector Dropdown */}
-                                                    <div className="relative shrink-0 z-30" ref={dropdownRef}>
-                                                        <TvFocusButton
-                                                            onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                                                            className="flex items-center justify-between gap-3 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 px-3.5 py-2 rounded-xl text-white text-[10px] sm:text-xs font-bold cursor-pointer transition-all duration-300 focus:outline-none select-none min-w-[140px] sm:min-w-[160px] active:scale-[0.98]"
-                                                        >
-                                                            <span className="truncate">
-                                                                {displayData.seasons?.find(s => s.season_number === selectedSeason)?.name || `Season ${selectedSeason}`} 
-                                                                {(() => {
-                                                                    const s = displayData.seasons?.find(s => s.season_number === selectedSeason);
-                                                                    return s ? ` (${s.episode_count} Ep)` : '';
-                                                                })()}
-                                                            </span>
-                                                            <ChevronDown size={14} className={`text-gray-400 transition-transform duration-300 ${isDropdownOpen ? 'rotate-180 text-white' : ''}`} />
-                                                        </TvFocusButton>
+                                                    {!((movie as any).is_anime && (movie as any).anilist_id) && (
+                                                        <div className="relative shrink-0 z-30" ref={dropdownRef}>
+                                                            <TvFocusButton
+                                                                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                                                                className="flex items-center justify-between gap-3 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 px-3.5 py-2 rounded-xl text-white text-[10px] sm:text-xs font-bold cursor-pointer transition-all duration-300 focus:outline-none select-none min-w-[140px] sm:min-w-[160px] active:scale-[0.98]"
+                                                            >
+                                                                <span className="truncate">
+                                                                    {displayData.seasons?.find(s => s.season_number === selectedSeason)?.name || `Season ${selectedSeason}`} 
+                                                                    {(() => {
+                                                                        const s = displayData.seasons?.find(s => s.season_number === selectedSeason);
+                                                                        return s ? ` (${s.episode_count} Ep)` : '';
+                                                                    })()}
+                                                                </span>
+                                                                <ChevronDown size={14} className={`text-gray-400 transition-transform duration-300 ${isDropdownOpen ? 'rotate-180 text-white' : ''}`} />
+                                                            </TvFocusButton>
 
-                                                        {isDropdownOpen && (
-                                                            <div className="absolute right-0 mt-2 min-w-[160px] sm:min-w-[180px] bg-[#0c0c0e]/95 backdrop-blur-3xl border border-white/10 rounded-xl shadow-[0_12px_40px_rgba(0,0,0,0.8)] p-1.5 z-50 transition-all duration-200 transform origin-top-right max-h-60 overflow-y-auto custom-scrollbar animate-in fade-in slide-in-from-top-2">
-                                                                {displayData.seasons?.filter(s => s.season_number > 0).map((s) => {
-                                                                    const isActive = s.season_number === selectedSeason;
-                                                                    return (
-                                                                        <TvFocusButton
-                                                                            key={s.id}
-                                                                            onClick={() => {
-                                                                                setSelectedSeason(s.season_number);
-                                                                                setIsDropdownOpen(false);
-                                                                            }}
-                                                                            className={`w-full text-left px-3 py-2 text-xs font-bold rounded-lg transition-all flex items-center justify-between gap-4 ${
-                                                                                isActive 
-                                                                                    ? `${accentBg} text-white` 
-                                                                                    : 'text-gray-400 hover:bg-white/5 hover:text-white'
-                                                                            }`}
-                                                                        >
-                                                                            <span className="truncate">{s.name}</span>
-                                                                            <span className={`text-[10px] shrink-0 ${isActive ? 'text-white/80' : 'text-zinc-500'}`}>
-                                                                                {s.episode_count} Ep
-                                                                            </span>
-                                                                        </TvFocusButton>
-                                                                    );
-                                                                })}
-                                                            </div>
-                                                        )}
-                                                    </div>
+                                                            {isDropdownOpen && (
+                                                                <div className="absolute right-0 mt-2 min-w-[160px] sm:min-w-[180px] bg-[#0c0c0e]/95 backdrop-blur-3xl border border-white/10 rounded-xl shadow-[0_12px_40px_rgba(0,0,0,0.8)] p-1.5 z-50 transition-all duration-200 transform origin-top-right max-h-60 overflow-y-auto custom-scrollbar animate-in fade-in slide-in-from-top-2">
+                                                                    {displayData.seasons?.filter(s => s.season_number > 0).map((s) => {
+                                                                        const isActive = s.season_number === selectedSeason;
+                                                                        return (
+                                                                            <TvFocusButton
+                                                                                key={s.id}
+                                                                                onClick={() => {
+                                                                                    setSelectedSeason(s.season_number);
+                                                                                    setIsDropdownOpen(false);
+                                                                                }}
+                                                                                className={`w-full text-left px-3 py-2 text-xs font-bold rounded-lg transition-all flex items-center justify-between gap-4 ${
+                                                                                    isActive 
+                                                                                        ? `${accentBg} text-white` 
+                                                                                        : 'text-gray-400 hover:bg-white/5 hover:text-white'
+                                                                                }`}
+                                                                            >
+                                                                                <span className="truncate">{s.name}</span>
+                                                                                <span className={`text-[10px] shrink-0 ${isActive ? 'text-white/80' : 'text-zinc-500'}`}>
+                                                                                    {s.episode_count} Ep
+                                                                                </span>
+                                                                            </TvFocusButton>
+                                                                        );
+                                                                    })}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    )}
 
                                                     {/* Episode Search Bar */}
                                                     <div className="relative flex-1 sm:flex-none sm:min-w-[180px]">
@@ -1876,6 +1953,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                 providerId={selectedProviderId}
                                 onProviderChange={handleProviderChange}
                                 onEpisodeChange={(season, episode) => setPlayParams({ season, episode })}
+                                anilistId={(movie as any).anilist_id}
                             />
                         </Suspense>
                     </div>

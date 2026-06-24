@@ -597,7 +597,7 @@ export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick, sear
     if (cachedMatch) {
       try {
         const parsed = JSON.parse(cachedMatch);
-        if (parsed && parsed.id && parsed.mediaType) {
+        if (parsed && parsed.id && parsed.mediaType && parsed.anilist_id) {
           onMovieClick({
             id: parsed.id,
             media_type: parsed.mediaType,
@@ -609,7 +609,12 @@ export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick, sear
             vote_average: anime.averageScore ? anime.averageScore / 10 : 0,
             vote_count: 100,
             popularity: anime.popularity,
-            initial_season: parsed.initial_season || 1
+            initial_season: parsed.initial_season || 1,
+            is_anime: true,
+            anilist_id: parsed.anilist_id,
+            anilist_episodes: parsed.anilist_episodes || anime.episodes || 12,
+            anilist_title: parsed.anilist_title || getAnimeTitle(anime),
+            anilist_description: parsed.anilist_description || anime.description || ''
           } as any);
           return;
         }
@@ -698,12 +703,22 @@ export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick, sear
         id: matchedItem.id,
         mediaType: matchedItem.media_type,
         backdropPath: matchedItem.backdrop_path,
-        initial_season: resolvedSeason
+        initial_season: resolvedSeason,
+        is_anime: true,
+        anilist_id: anime.id,
+        anilist_episodes: anime.episodes || 12,
+        anilist_title: getAnimeTitle(anime),
+        anilist_description: anime.description || ''
       }));
 
       onMovieClick({
         ...matchedItem,
-        initial_season: resolvedSeason
+        initial_season: resolvedSeason,
+        is_anime: true,
+        anilist_id: anime.id,
+        anilist_episodes: anime.episodes || 12,
+        anilist_title: getAnimeTitle(anime),
+        anilist_description: anime.description || ''
       });
     } else {
       setMatchingStatus(prev => ({

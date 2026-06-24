@@ -22,6 +22,7 @@ interface MoviePlayerProps {
   playState?: 'play' | 'pause';
   onProviderChange?: (id: string) => void;
   onEpisodeChange?: (season: number, episode: number) => void;
+  anilistId?: number;
 }
 
 export interface Provider {
@@ -150,7 +151,7 @@ export const PROVIDERS: Provider[] = [
 ];
 
 export const MoviePlayer: React.FC<MoviePlayerProps> = ({ 
-  tmdbId, onClose, mediaType, isAnime, initialSeason = 1, initialEpisode = 1, onProgress, color = 'EF4444', forceProgress, title, providerId, isWatchParty = false, playState = 'play', onProviderChange, onEpisodeChange, apiKey
+  tmdbId, onClose, mediaType, isAnime, initialSeason = 1, initialEpisode = 1, onProgress, color = 'EF4444', forceProgress, title, providerId, isWatchParty = false, playState = 'play', onProviderChange, onEpisodeChange, apiKey, anilistId: anilistIdProp
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -177,6 +178,11 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   });
 
   useEffect(() => {
+    if (anilistIdProp) {
+      setAnilistId(anilistIdProp);
+      return;
+    }
+
     if (!isAnime || !title) {
       setAnilistId(null);
       return;
@@ -220,7 +226,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
         console.error("Error fetching AniList mapping:", err);
         setAnilistLoading(false);
       });
-  }, [tmdbId, isAnime, title]);
+  }, [tmdbId, isAnime, title, anilistIdProp]);
 
   useEffect(() => {
     setCurrentSeason(initialSeason);
