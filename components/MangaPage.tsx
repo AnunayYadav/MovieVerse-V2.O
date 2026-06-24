@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { Play, Info, Search, Star, BookOpen, X, ChevronLeft, ChevronRight, FileText, LayoutList, RefreshCcw, Loader2, AlertCircle, Sparkles, Trophy, Calendar, TrendingUp, ArrowLeft, Users, Globe, Bookmark, AlertTriangle, Settings, Heart, Maximize } from 'lucide-react';
+import { Play, Info, Search, Star, BookOpen, X, ChevronLeft, ChevronRight, FileText, LayoutList, RefreshCcw, Loader2, AlertCircle, Sparkles, Trophy, Calendar, TrendingUp, ArrowLeft, Users, Globe, Bookmark, AlertTriangle, Settings, Heart, Maximize, Languages, ChevronDown, Check } from 'lucide-react';
 import { useTvFocus, TvFocusButton, TvFocusInput } from '../tvNavigation';
 
 interface MangaDexManga {
@@ -86,6 +86,26 @@ const LANGUAGE_NAMES: Record<string, string> = {
   vi: 'Vietnamese (VI)'
 };
 
+const getMangaTitleHelper = (manga: MangaDexManga, lang: 'english' | 'romaji' | 'native') => {
+  if (!manga.attributes) return "Untitled Manga";
+  const titleObj = manga.attributes.title || {};
+  const altTitles = manga.attributes.altTitles || [];
+  
+  const findAltTitle = (l: string) => {
+    const found = altTitles.find(t => t[l] !== undefined);
+    return found ? found[l] : null;
+  };
+  
+  if (lang === 'english') {
+    return titleObj.en || findAltTitle('en') || titleObj['ja-ro'] || findAltTitle('ja-ro') || Object.values(titleObj)[0] || "Untitled Manga";
+  } else if (lang === 'romaji') {
+    return titleObj['ja-ro'] || findAltTitle('ja-ro') || titleObj.en || findAltTitle('en') || Object.values(titleObj)[0] || "Untitled Manga";
+  } else {
+    // Native (usually ja, ko, zh)
+    return titleObj.ja || findAltTitle('ja') || titleObj.ko || findAltTitle('ko') || titleObj.zh || findAltTitle('zh') || Object.values(titleObj)[0] || "Untitled Manga";
+  }
+};
+
 export const MangaPage: React.FC<MangaPageProps> = ({
   apiKey,
   selectedMangaId,
@@ -113,6 +133,14 @@ export const MangaPage: React.FC<MangaPageProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<MangaDexManga[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
+
+  // Title Language settings
+  const [titleLanguage, setTitleLanguage] = useState<'english' | 'romaji' | 'native'>('english');
+  const [isLangDropdownOpen, setIsLangDropdownOpen] = useState(false);
+
+  const getMangaTitle = (manga: MangaDexManga) => {
+    return getMangaTitleHelper(manga, titleLanguage);
+  };
 
   // Details screen
   const [selectedManga, setSelectedManga] = useState<MangaDexManga | null>(null);
@@ -504,10 +532,6 @@ export const MangaPage: React.FC<MangaPageProps> = ({
       return `https://uploads.mangadex.org/covers/${manga.id}/${coverRel.attributes.fileName}.512.jpg`;
     }
     return 'https://placehold.co/400x600/111/444?text=No+Cover';
-  };
-
-  const getMangaTitle = (manga: MangaDexManga) => {
-    return manga.attributes?.title?.en || Object.values(manga.attributes?.title || {})[0] || "Untitled Manga";
   };
 
   const cleanDescription = (descStr: string | null) => {
@@ -1517,7 +1541,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-5">
               {searchResults.map((manga) => (
-                <MangaCard key={manga.id} manga={manga} onMangaClick={onMangaSelect} />
+                <MangaCard key={manga.id} manga={manga} onMangaClick={onMangaSelect} titleLanguage={titleLanguage} />
               ))}
             </div>
           )}
@@ -1554,9 +1578,61 @@ export const MangaPage: React.FC<MangaPageProps> = ({
       ) : (
         // Category rows
         <div className="space-y-4">
-          <MangaRow title="Trending Manga Releases" items={trending} onMangaClick={onMangaSelect} />
-          <MangaRow title="Recently Uploaded Chapters" items={latest} onMangaClick={onMangaSelect} />
-          <MangaRow title="Top Followed Favorites" items={topRated} onMangaClick={onMangaSelect} />
+          
+          {/* Section Header with Language Selector Dropdown */}
+          <div className="flex items-center justify-between px-4 md:px-12 py-4 border-b border-white/5 mb-6 select-none">
+            <div className="flex items-center gap-3">
+              <h2 className="text-xl md:text-2xl font-black text-white tracking-tight flex items-center gap-2.5 text-left">
+                <span className="w-2.5 h-6 rounded-full bg-red-600"></span>
+                Manga Catalog
+              </h2>
+            </div>
+            
+            <div className="relative group shrink-0">
+              <button 
+                onClick={() => setIsLangDropdownOpen(!isLangDropdownOpen)} 
+                className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/15 hover:border-white/25 rounded-full text-xs font-bold text-gray-200 transition-all active:scale-95 min-w-[130px] justify-between shadow-lg backdrop-blur-md"
+              >
+                <div className="flex items-center gap-2">
+                  <Languages size={14} className="text-red-500" /> 
+                  <span>{titleLanguage === 'english' ? 'English' : titleLanguage === 'romaji' ? 'Romaji' : 'Native'}</span>
+                </div>
+                <ChevronDown size={12} className="text-zinc-500 group-hover:text-white transition-colors" />
+              </button>
+              {isLangDropdownOpen && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setIsLangDropdownOpen(false)} />
+                  <div className="absolute right-0 mt-2 w-40 bg-[#0c0c0e]/95 backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden shadow-2xl transition-all origin-top-right z-50 p-1.5 animate-in fade-in slide-in-from-top-2 duration-200">
+                    {[
+                      { value: 'english', label: 'English' },
+                      { value: 'romaji', label: 'Romaji' },
+                      { value: 'native', label: 'Native' }
+                    ].map(opt => (
+                      <button 
+                        key={opt.value} 
+                        onClick={() => { 
+                          setTitleLanguage(opt.value as any); 
+                          setIsLangDropdownOpen(false); 
+                        }} 
+                        className={`w-full text-left px-3.5 py-2 text-xs font-bold rounded-xl transition-colors flex items-center justify-between ${
+                          titleLanguage === opt.value 
+                            ? 'bg-red-600 text-white shadow-md shadow-red-600/20' 
+                            : 'text-zinc-400 hover:bg-white/5 hover:text-white'
+                        }`}
+                      >
+                        {opt.label}
+                        {titleLanguage === opt.value && <Check size={12} />}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+
+          <MangaRow title="Trending Manga Releases" items={trending} onMangaClick={onMangaSelect} titleLanguage={titleLanguage} />
+          <MangaRow title="Recently Uploaded Chapters" items={latest} onMangaClick={onMangaSelect} titleLanguage={titleLanguage} />
+          <MangaRow title="Top Followed Favorites" items={topRated} onMangaClick={onMangaSelect} titleLanguage={titleLanguage} />
 
           {/* Endless Scroll Genre Rows */}
           {genreRows.map((row) => (
@@ -1565,6 +1641,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
               title={`${row.genre} Manga`}
               items={row.media}
               onMangaClick={onMangaSelect}
+              titleLanguage={titleLanguage}
             />
           ))}
 
@@ -1593,14 +1670,15 @@ export const MangaPage: React.FC<MangaPageProps> = ({
 interface MangaCardProps {
   manga: MangaDexManga;
   onMangaClick: (id: string) => void;
+  titleLanguage: 'english' | 'romaji' | 'native';
 }
 
-const MangaCard: React.FC<MangaCardProps> = ({ manga, onMangaClick }) => {
+const MangaCard: React.FC<MangaCardProps> = ({ manga, onMangaClick, titleLanguage }) => {
   const { ref } = useTvFocus({
     onEnterPress: () => onMangaClick(manga.id)
   });
 
-  const title = manga.attributes.title.en || Object.values(manga.attributes.title || {})[0] || "Untitled";
+  const title = getMangaTitleHelper(manga, titleLanguage);
   const coverUrl = manga.relationships?.find(r => r.type === 'cover_art')?.attributes?.fileName
     ? `https://uploads.mangadex.org/covers/${manga.id}/${manga.relationships.find(r => r.type === 'cover_art').attributes.fileName}.256.jpg`
     : 'https://placehold.co/400x600/111/444?text=No+Cover';
@@ -1638,9 +1716,10 @@ interface MangaRowProps {
   title: string;
   items: MangaDexManga[];
   onMangaClick: (id: string) => void;
+  titleLanguage: 'english' | 'romaji' | 'native';
 }
 
-const MangaRow: React.FC<MangaRowProps> = ({ title, items, onMangaClick }) => {
+const MangaRow: React.FC<MangaRowProps> = ({ title, items, onMangaClick, titleLanguage }) => {
   if (items.length === 0) return null;
   return (
     <div className="mb-10 animate-in fade-in duration-500 text-left font-sans">
@@ -1650,7 +1729,7 @@ const MangaRow: React.FC<MangaRowProps> = ({ title, items, onMangaClick }) => {
       </h3>
       <div className="flex gap-5 overflow-x-auto px-4 md:px-12 pb-4 hide-scrollbar scroll-smooth">
         {items.map((manga) => (
-          <MangaCard key={manga.id} manga={manga} onMangaClick={onMangaClick} />
+          <MangaCard key={manga.id} manga={manga} onMangaClick={onMangaClick} titleLanguage={titleLanguage} />
         ))}
       </div>
     </div>
