@@ -49,6 +49,38 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(200).json(data);
     }
 
+    if (action === 'proxy-image') {
+      const imageUrl = req.query.url;
+      const refererUrl = req.query.referer;
+      if (!imageUrl || typeof imageUrl !== 'string') {
+        return res.status(400).json({ error: 'URL parameter is required' });
+      }
+
+      const headers: Record<string, string> = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
+      };
+
+      if (refererUrl && typeof refererUrl === 'string') {
+        headers['Referer'] = refererUrl;
+      }
+
+      const response = await fetch(imageUrl, { headers });
+      if (!response.ok) {
+        return res.status(response.status).json({ error: `Proxy fetch failed: ${response.statusText}` });
+      }
+
+      const contentType = response.headers.get('content-type');
+      if (contentType) {
+        res.setHeader('Content-Type', contentType);
+      }
+
+      // Cache the image for 1 day
+      res.setHeader('Cache-Control', 'public, max-age=86400, s-maxage=86400');
+
+      const arrayBuffer = await response.arrayBuffer();
+      return res.status(200).send(Buffer.from(arrayBuffer));
+    }
+
     return res.status(400).json({ error: `Invalid action: ${action}` });
   } catch (error: any) {
     console.error(`Manga API error [action=${action}]:`, error);

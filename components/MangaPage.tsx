@@ -745,7 +745,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
           const pageData = await res.json();
           if (!isMounted) return;
 
-          const urls = pageData.map((p: any) => p.img);
+          const urls = pageData.map((p: any) => `/api/manga?action=proxy-image&url=${encodeURIComponent(p.img)}&referer=${encodeURIComponent('https://mangapill.com')}`);
           setPages(urls);
           setChapterServerData({ provider: 'mangapill' });
           return;
@@ -1321,6 +1321,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                       className="w-full object-contain pointer-events-none"
                       loading="lazy"
                       onError={(e) => {
+                        if (readingSource !== 'mangadex') return;
                         const target = e.currentTarget;
                         if (!target.src.includes('uploads.mangadex.org')) {
                           try {
@@ -1358,6 +1359,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                       referrerPolicy="no-referrer"
                       className="max-h-full max-w-full object-contain pointer-events-none"
                       onError={(e) => {
+                        if (readingSource !== 'mangadex') return;
                         const target = e.currentTarget;
                         if (!target.src.includes('uploads.mangadex.org')) {
                           try {
