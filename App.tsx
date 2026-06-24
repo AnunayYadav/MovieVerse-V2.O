@@ -1144,6 +1144,8 @@ export default function App() {
 
 
     const [selectedPersonId, setSelectedPersonId] = useState<number | null>(null);
+    const [selectedMangaId, setSelectedMangaId] = useState<string | null>(null);
+    const [activeMangaChapterId, setActiveMangaChapterId] = useState<string | null>(null);
 
     // Routing-related details & player states
     const [activeDetailsTab, setActiveDetailsTab] = useState("overview");
@@ -1326,6 +1328,8 @@ export default function App() {
         setActiveKeyword(null);
         setActiveCountry(null);
         setIsSidebarOpen(false);
+        setSelectedMangaId(null);
+        setActiveMangaChapterId(null);
 
         let category = "All";
         let movieToSelect: Movie | null = null;
@@ -1335,6 +1339,8 @@ export default function App() {
         let countryToSelect: { code: string, name: string } | null = null;
         let customCollectionKey: string | null = null;
         let personIdToSelect: number | null = null;
+        let mangaIdToSelect: string | null = null;
+        let mangaChapterIdToSelect: string | null = null;
 
         // Details-related states to sync
         let detailsTab = "overview";
@@ -1350,6 +1356,17 @@ export default function App() {
             category = "Explore";
         } else if (path === '/live-tv') {
             category = "LiveTV";
+        } else if (path === '/browse/manga') {
+            category = "Manga";
+        } else if (path.startsWith('/manga/')) {
+            category = "Manga";
+            const mangaId = parts[2];
+            if (mangaId) {
+                mangaIdToSelect = mangaId;
+                if (parts[3] === 'chapter') {
+                    mangaChapterIdToSelect = parts[4] || null;
+                }
+            }
         } else if (path.startsWith('/browse/')) {
             const sub = parts[2];
             if (sub === 'awards') category = "Awards";
@@ -1459,6 +1476,8 @@ export default function App() {
         setActiveCountry(countryToSelect);
         setCurrentCollection(customCollectionKey);
         setSelectedPersonId(personIdToSelect);
+        setSelectedMangaId(mangaIdToSelect);
+        setActiveMangaChapterId(mangaChapterIdToSelect);
 
         if (movieToSelect) {
             setModalHistory([{ type: 'movie', data: movieToSelect }]);
@@ -1558,6 +1577,16 @@ export default function App() {
                 newPath = `/collection/${tmdbCollectionId}`;
             } else if (selectedCategory === 'Countries' && activeCountry) {
                 newPath = `/country/${activeCountry.code}/${encodeURIComponent(activeCountry.name)}`;
+            } else if (selectedCategory === 'Manga') {
+                if (selectedMangaId) {
+                    if (activeMangaChapterId) {
+                        newPath = `/manga/${selectedMangaId}/chapter/${activeMangaChapterId}`;
+                    } else {
+                        newPath = `/manga/${selectedMangaId}`;
+                    }
+                } else {
+                    newPath = '/browse/manga';
+                }
             } else if (selectedCategory === 'Collection' && currentCollection) {
                 newPath = `/custom-collection/${currentCollection}`;
             }
@@ -1573,7 +1602,7 @@ export default function App() {
                 clearTimeout(urlPushTimerRef.current);
             }
         };
-    }, [selectedCategory, selectedMovie, selectedPersonId, activeWatchPartyRoom, activeKeyword, tmdbCollectionId, activeCountry, currentCollection, isWatching, watchSeason, watchEpisode, showDetailsCast, showDetailsCrew, activeDetailsTab]);
+    }, [selectedCategory, selectedMovie, selectedPersonId, activeWatchPartyRoom, activeKeyword, tmdbCollectionId, activeCountry, currentCollection, isWatching, watchSeason, watchEpisode, showDetailsCast, showDetailsCrew, activeDetailsTab, selectedMangaId, activeMangaChapterId]);
 
 
     // Load recommendations based on watch history
@@ -3248,7 +3277,7 @@ export default function App() {
         { id: "Multiverse", icon: Sparkles, label: "Multiverse", action: () => { resetFilters(); setSelectedCategory("Multiverse"); } },
         { id: "Awards", icon: Award, label: "Awards", action: () => { resetFilters(); setSelectedCategory("Awards"); } },
         { id: "Anime", icon: Ghost, label: "Anime", action: () => { resetFilters(); setSelectedCategory("Anime"); } },
-        { id: "Manga", icon: BookOpen, label: "Manga", action: () => { resetFilters(); setSelectedCategory("Manga"); } },
+        { id: "Manga", icon: BookOpen, label: "Manga", action: () => { resetFilters(); setSelectedMangaId(null); setActiveMangaChapterId(null); setSelectedCategory("Manga"); } },
         { id: "Franchise", icon: Layers, label: "Franchises", action: () => { resetFilters(); setSelectedCategory("Franchise"); } },
         { id: "Family", icon: Baby, label: "Family", action: () => { resetFilters(); setSelectedCategory("Family"); } },
         { id: "TV Shows", icon: Tv, label: "TV Shows", action: () => { resetFilters(); setSelectedCategory("TV Shows"); } },
@@ -3659,6 +3688,10 @@ export default function App() {
                     ) : selectedCategory === "Manga" && !searchQuery ? (
                         <MangaPage
                             apiKey={apiKey}
+                            selectedMangaId={selectedMangaId}
+                            onMangaSelect={setSelectedMangaId}
+                            activeChapterId={activeMangaChapterId}
+                            onChapterSelect={setActiveMangaChapterId}
                             onMovieClick={setSelectedMovie}
                         />
                     ) : selectedCategory === "Explore" && !searchQuery ? (
