@@ -13,6 +13,11 @@ export default defineConfig(({ mode }) => {
             target: 'https://api.themoviedb.org/3',
             changeOrigin: true,
             rewrite: (path) => path.replace(/^\/api\/tmdb/, ''),
+          },
+          '/api/mangadex': {
+            target: 'https://api.mangadex.org',
+            changeOrigin: true,
+            rewrite: (path) => path.replace(/^\/api\/mangadex/, ''),
           }
         }
       },

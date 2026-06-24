@@ -86,7 +86,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({ apiKey }) => {
 
   // Fetch helper
   const fetchMangaDex = useCallback(async (endpoint: string) => {
-    const res = await window.fetch(`https://api.mangadex.org${endpoint}`);
+    const res = await window.fetch(`/api/mangadex${endpoint}`);
     if (!res.ok) throw new Error(`MangaDex request failed: ${res.statusText}`);
     return res.json();
   }, []);

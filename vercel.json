@@ -5,6 +5,10 @@
       "destination": "/api/tmdb.ts?path=/$1"
     },
     {
+      "source": "/api/mangadex/(.*)",
+      "destination": "/api/mangadex.ts?path=/$1"
+    },
+    {
       "source": "/((?!api/).*)",
       "destination": "/index.html"
     }
