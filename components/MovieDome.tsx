@@ -1,18 +1,17 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Sparkles, X, Star, Loader2 } from 'lucide-react';
 import { Movie } from '../types';
-import { TMDB_BASE_URL, tvFetch, isSafeTMDBItem } from './Shared';
+import { TMDB_BASE_URL, tvFetch } from './Shared';
 
 interface MovieDomeProps {
   apiKey: string;
   onMovieClick: (movie: Movie) => void;
   onClose?: () => void;
-  isStrictFilter?: boolean;
 }
 
 const CATEGORIES = ['Trending', 'Action', 'Sci-Fi', 'Horror', 'Comedy', 'Animation', 'Drama'];
 
-export const MovieDome: React.FC<MovieDomeProps> = ({ apiKey, onMovieClick, onClose, isStrictFilter = false }) => {
+export const MovieDome: React.FC<MovieDomeProps> = ({ apiKey, onMovieClick, onClose }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const gridRef = useRef<HTMLDivElement>(null);
   const [movies, setMovies] = useState<Movie[]>([]);
@@ -144,10 +143,7 @@ export const MovieDome: React.FC<MovieDomeProps> = ({ apiKey, onMovieClick, onCl
         );
 
         // Filter out movies with missing posters
-        let validMovies = unique.filter(m => m.poster_path);
-        if (isStrictFilter) {
-          validMovies = validMovies.filter(isSafeTMDBItem);
-        }
+        const validMovies = unique.filter(m => m.poster_path);
 
         setMovies(validMovies);
       } catch (err) {
@@ -165,7 +161,7 @@ export const MovieDome: React.FC<MovieDomeProps> = ({ apiKey, onMovieClick, onCl
 
     fetchMovies();
     return () => { isMounted = false; };
-  }, [activeCategory, apiKey, isStrictFilter]);
+  }, [activeCategory, apiKey]);
 
   // 4. Tile movies to fill the grid config
   const cells = useMemo(() => {

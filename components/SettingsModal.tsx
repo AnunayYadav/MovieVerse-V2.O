@@ -547,8 +547,8 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                                         <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider ml-1">Maturity Rating Limit</label>
                                         <span className="text-[10px] text-red-500 bg-red-950/40 px-2 py-0.5 rounded border border-red-800/40 font-bold uppercase tracking-wider">Restricts display</span>
                                     </div>
-                                    <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5">
-                                        {['G', 'PG', 'PG-13', 'R', 'NC-17', 'MV18+'].map((rate) => (
+                                    <div className="grid grid-cols-5 gap-1.5">
+                                        {['G', 'PG', 'PG-13', 'R', 'NC-17'].map((rate) => (
                                             <button 
                                                 key={rate} 
                                                 type="button"
