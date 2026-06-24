@@ -1,7 +1,8 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import * as cheerio from 'cheerio';
 
-async function fetchHtmlWithFallback(targetUrl: string, headers: any): Promise<{ html: string; isProxied: boolean }> {
+async function fetchHtmlWithFallback(path: string, headers: any): Promise<{ html: string; isProxied: boolean; domainUsed: string }> {
+  const domains = ['https://novelbin.com', 'https://novelbin.me'];
   let lastError: any = null;
   
   const isCloudflareChallenge = (html: string) => {
@@ -15,42 +16,61 @@ async function fetchHtmlWithFallback(targetUrl: string, headers: any): Promise<{
            (lower.includes('cloudflare') && lower.includes('security'));
   };
 
-  // Try 1: Direct fetch
-  try {
-    const res = await fetch(targetUrl, { headers });
-    if (res.ok) {
-      const html = await res.text();
-      // Check for Cloudflare challenge
-      if (!isCloudflareChallenge(html)) {
-        return { html, isProxied: false };
-      }
-      lastError = new Error(`Direct fetch hit Cloudflare security check [status=${res.status}]`);
-    } else {
-      lastError = new Error(`Direct fetch failed with status ${res.status}: ${res.statusText}`);
+  for (const domain of domains) {
+    const targetUrl = `${domain}${path}`;
+    
+    // Construct request headers with the correct referer matching the active domain
+    const reqHeaders = { ...headers };
+    if (reqHeaders['Referer'] && typeof reqHeaders['Referer'] === 'string') {
+      reqHeaders['Referer'] = reqHeaders['Referer'].replace(/https:\/\/novelbin\.(me|com|net|org)/gi, domain);
     }
-  } catch (err: any) {
-    lastError = err;
-  }
-  
-  console.warn(`Direct fetch to ${targetUrl} failed, trying Google Translate proxy. Error:`, lastError?.message || lastError);
-  
-  // Try 2: Google Translate proxy
-  try {
-    const proxyUrl = `https://translate.google.com/translate?sl=auto&tl=en&u=${encodeURIComponent(targetUrl)}`;
-    const proxyRes = await fetch(proxyUrl, { headers });
-    if (proxyRes.ok) {
-      const html = await proxyRes.text();
-      if (!isCloudflareChallenge(html)) {
-        return { html, isProxied: true };
-      }
-      throw new Error(`Google Translate proxy hit Cloudflare security check [status=${proxyRes.status}]`);
-    } else {
-      throw new Error(`Google Translate proxy failed with status ${proxyRes.status}: ${proxyRes.statusText}`);
+    if (reqHeaders['referer'] && typeof reqHeaders['referer'] === 'string') {
+      reqHeaders['referer'] = reqHeaders['referer'].replace(/https:\/\/novelbin\.(me|com|net|org)/gi, domain);
     }
-  } catch (err: any) {
-    console.error(`Google Translate proxy also failed for ${targetUrl}:`, err.message || err);
-    throw new Error(`Failed to load content. Direct: ${lastError?.message || 'Network Error'}. Proxy: ${err.message || 'Network Error'}`);
+
+    // Try 1: Direct fetch
+    try {
+      const res = await fetch(targetUrl, { headers: reqHeaders });
+      if (res.ok) {
+        const html = await res.text();
+        if (!isCloudflareChallenge(html)) {
+          return { html, isProxied: false, domainUsed: domain };
+        }
+        lastError = new Error(`Direct fetch to ${domain} hit Cloudflare security check [status=${res.status}]`);
+      } else {
+        lastError = new Error(`Direct fetch to ${domain} failed with status ${res.status}: ${res.statusText}`);
+      }
+    } catch (err: any) {
+      lastError = err;
+    }
+    
+    console.warn(`Direct fetch to ${targetUrl} failed, trying Google Translate proxy. Error:`, lastError?.message || lastError);
+    
+    // Try 2: Google Translate proxy
+    try {
+      const proxyUrl = `https://translate.google.com/translate?sl=auto&tl=en&u=${encodeURIComponent(targetUrl)}`;
+      // Clear referer header when calling translate.google.com to avoid 403 Forbidden on translate.google.com
+      const proxyHeaders = { ...reqHeaders };
+      delete proxyHeaders['Referer'];
+      delete proxyHeaders['referer'];
+      
+      const proxyRes = await fetch(proxyUrl, { headers: proxyHeaders });
+      if (proxyRes.ok) {
+        const html = await proxyRes.text();
+        if (!isCloudflareChallenge(html)) {
+          return { html, isProxied: true, domainUsed: domain };
+        }
+        throw new Error(`Google Translate proxy for ${domain} hit Cloudflare security check [status=${proxyRes.status}]`);
+      } else {
+        throw new Error(`Google Translate proxy for ${domain} failed with status ${proxyRes.status}: ${proxyRes.statusText}`);
+      }
+    } catch (err: any) {
+      console.error(`Google Translate proxy also failed for ${targetUrl}:`, err.message || err);
+      lastError = err;
+    }
   }
+
+  throw new Error(`Failed to load content from all mirrors. Last error: ${lastError?.message || 'Network Error'}`);
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -71,9 +91,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const headers = {
+    const headers: Record<string, string> = {
       'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-      'Referer': 'https://novelbin.me'
+      'Referer': 'https://novelbin.com'
     };
 
     if (action === 'search') {
@@ -102,8 +122,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         cleanedQuery = query;
       }
       
-      const searchUrl = `https://novelbin.me/search?keyword=${encodeURIComponent(cleanedQuery)}`;
-      const { html } = await fetchHtmlWithFallback(searchUrl, headers);
+      const searchPath = `/search?keyword=${encodeURIComponent(cleanedQuery)}`;
+      const { html } = await fetchHtmlWithFallback(searchPath, headers);
       const $ = cheerio.load(html);
       const results: any[] = [];
       
@@ -143,9 +163,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
 
       // Fetch the main novel page to get metadata and description
-      const infoUrl = `https://novelbin.me/novel-book/${encodeURIComponent(id)}`;
-      const infoHeaders = { ...headers, 'Referer': 'https://novelbin.me/search' };
-      const { html } = await fetchHtmlWithFallback(infoUrl, infoHeaders);
+      const infoPath = `/novel-book/${encodeURIComponent(id)}`;
+      const infoHeaders = { ...headers, 'Referer': 'https://novelbin.com/search' };
+      const { html, domainUsed } = await fetchHtmlWithFallback(infoPath, infoHeaders);
       const $ = cheerio.load(html);
       
       const title = $('h3.title').text().trim() || $('title').text().replace('Novel - Read Online For Free - Novel Bin', '').trim();
@@ -155,9 +175,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const description = $('.desc').text().trim() || '';
       
       // Retrieve chapters using the archive AJAX endpoint
-      const archiveUrl = `https://novelbin.me/ajax/chapter-archive?novelId=${encodeURIComponent(id)}`;
-      const archiveHeaders = { ...headers, 'Referer': infoUrl };
-      const { html: archiveHtml } = await fetchHtmlWithFallback(archiveUrl, archiveHeaders);
+      const archivePath = `/ajax/chapter-archive?novelId=${encodeURIComponent(id)}`;
+      const archiveHeaders = { ...headers, 'Referer': `${domainUsed}/novel-book/${encodeURIComponent(id)}` };
+      const { html: archiveHtml } = await fetchHtmlWithFallback(archivePath, archiveHeaders);
       const $archive = cheerio.load(archiveHtml);
       
       const chapters: any[] = [];
@@ -199,10 +219,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       // ID is e.g. "campus-rebirth-the-strongest-female-agent/chapter-2813-..."
       const novelId = id.split('/')[0];
-      const parentUrl = `https://novelbin.me/novel-book/${novelId}`;
-      const chapterUrl = `https://novelbin.me/novel-book/${id}`;
+      const parentUrl = `https://novelbin.com/novel-book/${novelId}`;
+      const chapterPath = `/novel-book/${id}`;
       const chapterHeaders = { ...headers, 'Referer': parentUrl };
-      const { html } = await fetchHtmlWithFallback(chapterUrl, chapterHeaders);
+      const { html } = await fetchHtmlWithFallback(chapterPath, chapterHeaders);
       const $ = cheerio.load(html);
       
       const title = $('.chr-title').text().trim() || $('title').text().trim();
