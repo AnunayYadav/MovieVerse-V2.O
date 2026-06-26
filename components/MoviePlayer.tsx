@@ -3,6 +3,7 @@ import { X, Tv, ChevronLeft, ChevronRight, Check, ListVideo, Sliders, ChevronDow
 import { TvFocusButton } from '../tvNavigation';
 import { pause, resume } from '@noriginmedia/norigin-spatial-navigation';
 import { TMDB_BASE_URL, TMDB_IMAGE_BASE } from './Shared';
+import { DirectVideoPlayer } from './DirectVideoPlayer';
 
 interface MoviePlayerProps {
   tmdbId: number;
@@ -59,6 +60,13 @@ const getBrowserLanguage = (): string => {
 };
 
 export const PROVIDERS: Provider[] = [
+  {
+    id: 'movieverse_direct',
+    name: 'MovieVerse Premium (Direct)',
+    getMovieUrl: (tmdbId) => `direct://${tmdbId}`,
+    getTvUrl: (tmdbId, season, episode) => `direct://${tmdbId}/${season}/${episode}`,
+    supportsPostMessage: true
+  },
   {
     id: 'videasy',
     name: 'VidEasy',
@@ -267,7 +275,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   
   const [selectedProviderId, setSelectedProviderId] = useState(() => {
     if (typeof window !== 'undefined') {
-      const preferred = localStorage.getItem('movieverse_preferred_provider') || 'videasy';
+      const preferred = localStorage.getItem('movieverse_preferred_provider') || 'movieverse_direct';
       if (isWatchParty) {
         const prov = PROVIDERS.find(p => p.id === preferred);
         if (!prov || !prov.supportsPostMessage) {
@@ -276,7 +284,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
       }
       return preferred;
     }
-    return isWatchParty ? 'vidfast' : 'videasy';
+    return isWatchParty ? 'vidfast' : 'movieverse_direct';
   });
 
   useEffect(() => {
@@ -608,17 +616,42 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
       className="w-full h-full flex flex-col bg-black relative group/player select-none overflow-hidden"
     >
       <div className="flex-1 relative w-full h-full z-0 overflow-hidden bg-black">
-        {embedUrl && (
-          <iframe 
-              ref={iframeRef}
-              src={embedUrl}
-              onLoad={handleIframeLoad}
-              className="w-full h-full absolute inset-0 bg-black z-0"
-              title="Media Player"
-              frameBorder="0"
-              allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
-              allowFullScreen
+        {selectedProviderId === 'movieverse_direct' ? (
+          <DirectVideoPlayer
+            tmdbId={tmdbId}
+            title={title || ''}
+            mediaType={mediaType}
+            isAnime={isAnime}
+            season={currentSeason}
+            episode={currentEpisode}
+            onClose={onClose}
+            onProgress={onProgress}
+            accentColor={activeColor}
+            isWatchParty={isWatchParty}
+            playState={playState}
+            onNextEpisode={() => {
+              if (mediaType === 'tv' && currentEpisode < episodes.length) {
+                setCurrentEpisode(prev => {
+                  const next = prev + 1;
+                  if (onEpisodeChange) onEpisodeChange(currentSeason, next);
+                  return next;
+                });
+              }
+            }}
           />
+        ) : (
+          embedUrl && (
+            <iframe 
+                ref={iframeRef}
+                src={embedUrl}
+                onLoad={handleIframeLoad}
+                className="w-full h-full absolute inset-0 bg-black z-0"
+                title="Media Player"
+                frameBorder="0"
+                allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
+                allowFullScreen
+            />
+          )
         )}
 
         {/* TV close button (hidden on TV via CSS but clickable, visible on Desktop) */}
