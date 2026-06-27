@@ -25,7 +25,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(200).end();
   }
 
-  const { tmdbId, mediaType, title: queryTitle, season: querySeason, episode: queryEpisode, isAnime: queryIsAnime, anilistId: queryAnilistId, animeLanguage = 'sub' } = req.query;
+  const { tmdbId, mediaType, title: queryTitle, season: querySeason, episode: queryEpisode, isAnime: queryIsAnime, anilistId: queryAnilistId, animeLanguage = 'sub', provider: requestedProvider } = req.query;
 
   const isAnime = queryIsAnime === 'true';
   const season = querySeason ? parseInt(querySeason as string, 10) : 1;
@@ -54,7 +54,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (isAnime) {
       // Handle Anime Stream Resolution
-      const animeToTry = ['hianime', 'animepahe'];
+      let animeToTry = ['hianime', 'animepahe'];
+      if (requestedProvider && animeToTry.includes(requestedProvider as string)) {
+        animeToTry = [requestedProvider as string, ...animeToTry.filter(p => p !== requestedProvider)];
+      }
       let lastAnimeError = null;
 
       for (const aName of animeToTry) {
@@ -90,7 +93,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(404).json({ error: `No anime stream sources found for: ${cleanTitle}`, details: lastAnimeError?.message });
     } else {
       // Handle Movies & TV Series Stream Resolution
-      const providersToTry = ['flixhq', 'sflix', 'himovies', 'goku'];
+      let providersToTry = ['flixhq', 'sflix', 'himovies', 'goku'];
+      if (requestedProvider && providersToTry.includes(requestedProvider as string)) {
+        providersToTry = [requestedProvider as string, ...providersToTry.filter(p => p !== requestedProvider)];
+      }
       let lastError = null;
 
       for (const pName of providersToTry) {

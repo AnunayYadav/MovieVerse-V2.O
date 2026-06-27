@@ -273,6 +273,13 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     }
   }, [tmdbId, mediaType, currentSeason, apiKey]);
   
+  const [useIframeFallback, setUseIframeFallback] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('movieverse_use_iframe_fallback') === 'true';
+    }
+    return false;
+  });
+
   const [selectedProviderId, setSelectedProviderId] = useState(() => {
     if (typeof window !== 'undefined') {
       const preferred = localStorage.getItem('movieverse_preferred_provider') || 'movieverse_direct';
@@ -474,6 +481,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
             }
 
             if (parsed) {
+                console.log('[postMessage Received] Stringified:', JSON.stringify(parsed, null, 2));
                 // Handle Peachify & VidCore PLAYER_EVENTs
                 if (event.origin === 'https://peachify.pro' || event.origin === 'https://vidcore.net' || parsed.type === 'PLAYER_EVENT' || parsed.type === 'MEDIA_DATA') {
                     const type = parsed.type;
@@ -616,7 +624,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
       className="w-full h-full flex flex-col bg-black relative group/player select-none overflow-hidden"
     >
       <div className="flex-1 relative w-full h-full z-0 overflow-hidden bg-black">
-        {selectedProviderId === 'movieverse_direct' ? (
+        {!useIframeFallback ? (
           <DirectVideoPlayer
             tmdbId={tmdbId}
             title={title || ''}
@@ -629,6 +637,15 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
             accentColor={activeColor}
             isWatchParty={isWatchParty}
             playState={playState}
+            requestedProvider={
+              selectedProviderId === 'vidfast' || selectedProviderId === 'vidgod' ? 'goku' :
+              selectedProviderId === 'vidcore' || selectedProviderId === 'vidify' ? 'sflix' :
+              selectedProviderId === 'videasy' ? 'himovies' :
+              selectedProviderId === 'peachify' ? 'flixhq' :
+              selectedProviderId === 'vidnest' ? 'animepahe' :
+              selectedProviderId === 'vidnest_animepahe' ? 'hianime' :
+              undefined
+            }
             onNextEpisode={() => {
               if (mediaType === 'tv' && currentEpisode < episodes.length) {
                 setCurrentEpisode(prev => {
@@ -637,6 +654,10 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                   return next;
                 });
               }
+            }}
+            onError={(err) => {
+              console.warn("MovieVerse: Direct player failed, falling back to Iframe view...", err);
+              setUseIframeFallback(true);
             }}
           />
         ) : (
@@ -936,6 +957,38 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                     </div>
                   </div>
                 )}
+
+                {/* Iframe Fallback Setting */}
+                <div className="border-t border-white/5 pt-4">
+                  <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block mb-2.5 px-1">
+                    Player Mode
+                  </span>
+                  <div className="flex gap-1.5">
+                    {[
+                      { id: false, label: 'Ad-Free Player' },
+                      { id: true, label: 'Backup Player (Iframe)' }
+                    ].map(mode => {
+                      const isSel = useIframeFallback === mode.id;
+                      return (
+                        <button
+                          key={mode.label}
+                          onClick={() => {
+                            setUseIframeFallback(mode.id);
+                            localStorage.setItem('movieverse_use_iframe_fallback', mode.id ? 'true' : 'false');
+                            setIsDrawerOpen(false);
+                          }}
+                          className={`flex-1 py-2 rounded-xl text-[10px] font-black tracking-wider transition-all border ${
+                            isSel
+                              ? 'bg-red-600/20 text-red-500 border-red-500/30 font-extrabold shadow-[0_0_15px_rgba(239,68,68,0.15)]'
+                              : 'bg-white/5 text-zinc-400 border-white/5 hover:border-white/10 hover:text-white'
+                          }`}
+                        >
+                          {mode.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
 
                 {/* Utilities */}
                 <div className="border-t border-white/5 pt-4">

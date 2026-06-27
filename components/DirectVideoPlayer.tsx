@@ -15,6 +15,8 @@ interface DirectVideoPlayerProps {
   isWatchParty?: boolean;
   playState?: 'play' | 'pause';
   onNextEpisode?: () => void;
+  onError?: (err: string) => void;
+  requestedProvider?: string;
 }
 
 interface StreamSource {
@@ -41,7 +43,9 @@ export const DirectVideoPlayer: React.FC<DirectVideoPlayerProps> = ({
   accentColor,
   isWatchParty = false,
   playState = 'play',
-  onNextEpisode
+  onNextEpisode,
+  onError,
+  requestedProvider
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -97,16 +101,22 @@ export const DirectVideoPlayer: React.FC<DirectVideoPlayerProps> = ({
     setSubtitles([]);
     setShowSettings(false);
 
-    const queryParams = new URLSearchParams({
+    const queryParams: any = {
       tmdbId: tmdbId.toString(),
       mediaType,
       title,
       season: season.toString(),
       episode: episode.toString(),
       isAnime: isAnime.toString()
-    });
+    };
 
-    fetch(`/api/movie-stream?${queryParams.toString()}`)
+    if (requestedProvider) {
+      queryParams.provider = requestedProvider;
+    }
+
+    const searchParams = new URLSearchParams(queryParams);
+
+    fetch(`/api/movie-stream?${searchParams.toString()}`)
       .then((res) => {
         if (!res.ok) throw new Error('Stream resolution failed.');
         return res.json();
@@ -145,6 +155,9 @@ export const DirectVideoPlayer: React.FC<DirectVideoPlayerProps> = ({
         console.error('Direct player source error:', err);
         setError('Direct streaming server is currently unavailable. Please switch to a backup provider.');
         setLoading(false);
+        if (onError) {
+          onError(err.message || 'Stream resolution failed.');
+        }
       });
   }, [tmdbId, title, mediaType, isAnime, season, episode]);
 
@@ -219,6 +232,9 @@ export const DirectVideoPlayer: React.FC<DirectVideoPlayerProps> = ({
               console.error('Fatal HLS error, source cannot be played');
               setError('Failed to decode media source.');
               setLoading(false);
+              if (onError) {
+                onError('Failed to decode media source.');
+              }
               break;
           }
         }

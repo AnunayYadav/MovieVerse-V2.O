@@ -11,9 +11,12 @@ export default defineConfig(({ mode }) => {
         host: '0.0.0.0',
         proxy: {
           '/api/tmdb': {
-            target: 'https://api.themoviedb.org/3',
+            target: 'https://movieverseofficial.vercel.app',
             changeOrigin: true,
-            rewrite: (path) => path.replace(/^\/api\/tmdb/, ''),
+          },
+          '/api/movie-stream': {
+            target: 'https://movieverseofficial.vercel.app',
+            changeOrigin: true,
           },
           '/api/mangadex': {
             target: 'https://api.mangadex.org',
