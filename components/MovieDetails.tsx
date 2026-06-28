@@ -472,6 +472,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
     const [showDownloadModal, setShowDownloadModal] = useState(false);
     const [downloadSeason, setDownloadSeason] = useState(1);
     const [downloadEpisode, setDownloadEpisode] = useState(1);
+    const [activeDownloadUrl, setActiveDownloadUrl] = useState<string | null>(null);
 
     const handleProviderChange = (providerId: string) => {
         setSelectedProviderId(providerId);
@@ -762,7 +763,11 @@ export const MoviePage: React.FC<MoviePageProps> = ({
         const handleEsc = (e: KeyboardEvent) => {
             if (e.key === 'Escape') {
                 if (showDownloadModal) {
-                    setShowDownloadModal(false);
+                    if (activeDownloadUrl) {
+                        setActiveDownloadUrl(null);
+                    } else {
+                        setShowDownloadModal(false);
+                    }
                     e.stopPropagation();
                     return;
                 }
@@ -792,7 +797,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
         };
         window.addEventListener('keydown', handleEsc, true);
         return () => window.removeEventListener('keydown', handleEsc, true);
-    }, [showPlayer, showFullCast, showFullCrew, viewingImage, showDownloadModal]);
+    }, [showPlayer, showFullCast, showFullCrew, viewingImage, showDownloadModal, activeDownloadUrl]);
 
     useEffect(() => {
         if (movie.last_watched_data?.season) {
@@ -2056,134 +2061,189 @@ export const MoviePage: React.FC<MoviePageProps> = ({
             
             {showDownloadModal && (
                 <div className="fixed inset-0 z-[250] bg-black/85 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-300">
-                    <div className="bg-[#0c0c0e]/95 border border-white/10 rounded-3xl p-6 max-w-md w-full shadow-2xl relative overflow-hidden text-center select-none animate-in zoom-in-95 duration-300 animate-slide-in-bottom">
+                    <div className={`bg-[#0c0c0e]/95 border border-white/10 rounded-3xl p-6 shadow-2xl relative overflow-hidden select-none animate-in zoom-in-95 duration-300 animate-slide-in-bottom flex flex-col transition-all duration-300 ${activeDownloadUrl ? 'max-w-4xl w-full h-[80vh]' : 'max-w-md w-full'}`}>
                         {/* Header border design */}
                         <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-red-600 via-purple-600 to-red-600"></div>
                         
-                        <button 
-                            onClick={() => setShowDownloadModal(false)}
-                            className="absolute top-4 right-4 p-2 hover:bg-white/10 rounded-full transition-colors text-gray-400 hover:text-white"
-                            title="Close"
-                        >
-                            <X size={18} />
-                        </button>
+                        {activeDownloadUrl ? (
+                            // Embedded Iframe view
+                            <div className="w-full h-full flex flex-col min-h-0 text-left">
+                                {/* Header bar */}
+                                <div className="flex items-center justify-between pb-3 mb-3 border-b border-white/10">
+                                    <div className="flex items-center gap-3">
+                                        <button 
+                                            onClick={() => setActiveDownloadUrl(null)}
+                                            className="p-2 hover:bg-white/10 rounded-full transition-colors text-gray-400 hover:text-white"
+                                            title="Back to Servers"
+                                        >
+                                            <ArrowLeft size={18} />
+                                        </button>
+                                        <div>
+                                            <h3 className="font-bold text-white text-sm md:text-base leading-none">Downloader Portal</h3>
+                                            <p className="text-[10px] text-gray-500 mt-1 truncate max-w-[200px] sm:max-w-xs md:max-w-md">
+                                                {activeDownloadUrl.includes('peachify') ? 'Server 1: Peachify' : 'Server 2: 02MovieDownloader'}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <button 
+                                            onClick={() => window.open(activeDownloadUrl, '_blank')}
+                                            className="p-2 hover:bg-white/10 rounded-full transition-colors text-gray-400 hover:text-white"
+                                            title="Open in New Tab"
+                                        >
+                                            <Globe size={16} />
+                                        </button>
+                                        <button 
+                                            onClick={() => {
+                                                setActiveDownloadUrl(null);
+                                                setShowDownloadModal(false);
+                                            }}
+                                            className="p-2 hover:bg-white/10 rounded-full transition-colors text-gray-400 hover:text-white"
+                                            title="Close"
+                                        >
+                                            <X size={16} />
+                                        </button>
+                                    </div>
+                                </div>
 
-                        <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mx-auto mb-4 border border-white/10 shadow-inner">
-                            <Download size={32} className="text-red-500" />
-                        </div>
-
-                        <h3 className="text-xl font-bold text-white mb-1">{isTv ? "Download Episode" : "Download Movie"}</h3>
-                        <p className="text-[10px] text-gray-500 mb-5 leading-normal max-w-[280px] mx-auto">
-                            Choose a server to download this {isTv ? "episode" : "movie"}.
-                        </p>
-
-                        <div className="space-y-5">
-                            {/* Movie/Show Poster Preview */}
-                            <div className="bg-white/5 border border-white/5 rounded-2xl p-4 flex items-center gap-3.5 text-left">
-                                <img 
-                                    src={displayData.poster_path ? `${TMDB_IMAGE_BASE}${displayData.poster_path}` : "https://placehold.co/300x450"} 
-                                    className="w-12 h-18 object-cover rounded-md border border-white/10 shadow-md animate-in fade-in"
-                                    alt={title}
+                                {/* Iframe */}
+                                <iframe 
+                                    src={activeDownloadUrl} 
+                                    className="w-full flex-1 rounded-2xl bg-black border border-white/5 shadow-inner"
+                                    allow="autoplay; encrypted-media; fullscreen"
+                                    title="Downloader Interface"
                                 />
-                                <div className="min-w-0 flex-1">
-                                    <h4 className="text-sm font-bold text-white line-clamp-1">{title}</h4>
-                                    <p className="text-[11px] text-gray-500 mt-0.5">
-                                        {releaseDate.split(',')[1]?.trim() || releaseDate} • {runtime}
-                                    </p>
+                            </div>
+                        ) : (
+                            // Server selection view
+                            <>
+                                <button 
+                                    onClick={() => {
+                                        setActiveDownloadUrl(null);
+                                        setShowDownloadModal(false);
+                                    }}
+                                    className="absolute top-4 right-4 p-2 hover:bg-white/10 rounded-full transition-colors text-gray-400 hover:text-white"
+                                    title="Close"
+                                >
+                                    <X size={18} />
+                                </button>
+
+                                <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mx-auto mb-4 border border-white/10 shadow-inner">
+                                    <Download size={32} className="text-red-500" />
+                                </div>
+
+                                <h3 className="text-xl font-bold text-white mb-1">{isTv ? "Download Episode" : "Download Movie"}</h3>
+                                <p className="text-[10px] text-gray-500 mb-5 leading-normal max-w-[280px] mx-auto">
+                                    Choose a server to download this {isTv ? "episode" : "movie"}.
+                                </p>
+
+                                <div className="space-y-5">
+                                    {/* Movie/Show Poster Preview */}
+                                    <div className="bg-white/5 border border-white/5 rounded-2xl p-4 flex items-center gap-3.5 text-left">
+                                        <img 
+                                            src={displayData.poster_path ? `${TMDB_IMAGE_BASE}${displayData.poster_path}` : "https://placehold.co/300x450"} 
+                                            className="w-12 h-18 object-cover rounded-md border border-white/10 shadow-md animate-in fade-in"
+                                            alt={title}
+                                        />
+                                        <div className="min-w-0 flex-1">
+                                            <h4 className="text-sm font-bold text-white line-clamp-1">{title}</h4>
+                                            <p className="text-[11px] text-gray-500 mt-0.5">
+                                                {releaseDate.split(',')[1]?.trim() || releaseDate} • {runtime}
+                                            </p>
+                                            {isTv && (
+                                                <p className="text-[11px] text-red-400 font-semibold mt-1">
+                                                    Season {downloadSeason}, Episode {downloadEpisode}
+                                                </p>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    {/* TV Episode Selector inside Modal */}
                                     {isTv && (
-                                        <p className="text-[11px] text-red-400 font-semibold mt-1">
-                                            Season {downloadSeason}, Episode {downloadEpisode}
-                                        </p>
+                                        <div className="grid grid-cols-2 gap-3 text-left">
+                                            {/* Season select */}
+                                            <div className="space-y-1.5">
+                                                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block px-1">Season</label>
+                                                <div className="relative">
+                                                    <select
+                                                        value={downloadSeason}
+                                                        onChange={(e) => {
+                                                            const sNum = Number(e.target.value);
+                                                            setDownloadSeason(sNum);
+                                                            setDownloadEpisode(1); // Reset episode
+                                                        }}
+                                                        className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-white text-xs font-bold focus:outline-none appearance-none cursor-pointer"
+                                                    >
+                                                        {displayData.seasons?.filter(s => s.season_number > 0).map(s => (
+                                                            <option key={s.id} value={s.season_number} className="bg-[#0c0c0e]">
+                                                                {s.name || `Season ${s.season_number}`}
+                                                            </option>
+                                                        ))}
+                                                    </select>
+                                                    <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                                                </div>
+                                            </div>
+
+                                            {/* Episode select */}
+                                            <div className="space-y-1.5">
+                                                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block px-1">Episode</label>
+                                                <div className="relative">
+                                                    <select
+                                                        value={downloadEpisode}
+                                                        onChange={(e) => setDownloadEpisode(Number(e.target.value))}
+                                                        className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-white text-xs font-bold focus:outline-none appearance-none cursor-pointer"
+                                                    >
+                                                        {Array.from({ length: displayData.seasons?.find(s => s.season_number === downloadSeason)?.episode_count || 1 }, (_, idx) => idx + 1).map(epNum => (
+                                                            <option key={epNum} value={epNum} className="bg-[#0c0c0e]">
+                                                                Episode {epNum}
+                                                            </option>
+                                                        ))}
+                                                    </select>
+                                                    <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                                                </div>
+                                            </div>
+                                        </div>
                                     )}
-                                </div>
-                            </div>
 
-                            {/* TV Episode Selector inside Modal */}
-                            {isTv && (
-                                <div className="grid grid-cols-2 gap-3 text-left">
-                                    {/* Season select */}
-                                    <div className="space-y-1.5">
-                                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block px-1">Season</label>
-                                        <div className="relative">
-                                            <select
-                                                value={downloadSeason}
-                                                onChange={(e) => {
-                                                    const sNum = Number(e.target.value);
-                                                    setDownloadSeason(sNum);
-                                                    setDownloadEpisode(1); // Reset episode
-                                                }}
-                                                className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-white text-xs font-bold focus:outline-none appearance-none cursor-pointer"
-                                            >
-                                                {displayData.seasons?.filter(s => s.season_number > 0).map(s => (
-                                                    <option key={s.id} value={s.season_number} className="bg-[#0c0c0e]">
-                                                        {s.name || `Season ${s.season_number}`}
-                                                    </option>
-                                                ))}
-                                            </select>
-                                            <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-                                        </div>
+                                    {/* Download Buttons */}
+                                    <div className="space-y-3 pt-2 text-left">
+                                        <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider px-1">Available Servers:</h4>
+                                        
+                                        {/* Peachify Downloader */}
+                                        <button
+                                            onClick={() => {
+                                                const url = isTv
+                                                    ? `https://dl.peachify.top/tv/${displayData.id}/${downloadSeason}/${downloadEpisode}`
+                                                    : `https://dl.peachify.top/movie/${displayData.id}`;
+                                                setActiveDownloadUrl(url);
+                                            }}
+                                            className="w-full py-3 px-4 bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white font-medium text-sm rounded-xl transition-all hover:scale-[1.01] active:scale-95 shadow-md shadow-red-600/10 flex items-center justify-between border border-red-500/20 cursor-pointer"
+                                        >
+                                            <span>Server 1: Peachify Downloader</span>
+                                            <Download size={14} />
+                                        </button>
+
+                                        {/* 02MovieDownloader */}
+                                        <button
+                                            onClick={() => {
+                                                const url = isTv
+                                                    ? `https://02moviedownloader.site/api/download/tv/${displayData.id}/${downloadSeason}/${downloadEpisode}`
+                                                    : `https://02moviedownloader.site/api/download/movie/${displayData.id}`;
+                                                setActiveDownloadUrl(url);
+                                            }}
+                                            className="w-full py-3 px-4 bg-white/5 hover:bg-white/10 text-zinc-300 hover:text-white font-medium text-sm rounded-xl transition-all hover:scale-[1.01] active:scale-95 shadow-md flex items-center justify-between border border-white/5 hover:border-white/15 cursor-pointer"
+                                        >
+                                            <span>Server 2: 02MovieDownloader</span>
+                                            <Download size={14} />
+                                        </button>
                                     </div>
 
-                                    {/* Episode select */}
-                                    <div className="space-y-1.5">
-                                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block px-1">Episode</label>
-                                        <div className="relative">
-                                            <select
-                                                value={downloadEpisode}
-                                                onChange={(e) => setDownloadEpisode(Number(e.target.value))}
-                                                className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-white text-xs font-bold focus:outline-none appearance-none cursor-pointer"
-                                            >
-                                                {Array.from({ length: displayData.seasons?.find(s => s.season_number === downloadSeason)?.episode_count || 1 }, (_, idx) => idx + 1).map(epNum => (
-                                                    <option key={epNum} value={epNum} className="bg-[#0c0c0e]">
-                                                        Episode {epNum}
-                                                    </option>
-                                                ))}
-                                            </select>
-                                            <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-                                        </div>
-                                    </div>
+                                    <p className="text-[9px] text-gray-500 italic mt-3 text-center">
+                                        Downloader portal will open inside the application frame.
+                                    </p>
                                 </div>
-                            )}
-
-                            {/* Download Buttons */}
-                            <div className="space-y-3 pt-2 text-left">
-                                <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider px-1">Available Servers:</h4>
-                                
-                                {/* Peachify Downloader */}
-                                <a
-                                    href={
-                                        isTv
-                                            ? `https://dl.peachify.top/tv/${displayData.id}/${downloadSeason}/${downloadEpisode}`
-                                            : `https://dl.peachify.top/movie/${displayData.id}`
-                                    }
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="w-full py-3 px-4 bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white font-medium text-sm rounded-xl transition-all hover:scale-[1.01] active:scale-95 shadow-md shadow-red-600/10 flex items-center justify-between border border-red-500/20"
-                                >
-                                    <span>Server 1: Peachify Downloader</span>
-                                    <Download size={14} />
-                                </a>
-
-                                {/* 02MovieDownloader */}
-                                <a
-                                    href={
-                                        isTv
-                                            ? `https://02moviedownloader.site/api/download/tv/${displayData.id}/${downloadSeason}/${downloadEpisode}`
-                                            : `https://02moviedownloader.site/api/download/movie/${displayData.id}`
-                                    }
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="w-full py-3 px-4 bg-white/5 hover:bg-white/10 text-zinc-300 hover:text-white font-medium text-sm rounded-xl transition-all hover:scale-[1.01] active:scale-95 shadow-md flex items-center justify-between border border-white/5 hover:border-white/15"
-                                >
-                                    <span>Server 2: 02MovieDownloader</span>
-                                    <Download size={14} />
-                                </a>
-                            </div>
-
-                            <p className="text-[9px] text-gray-500 italic mt-3 text-center">
-                                Direct links will open in a new browser tab.
-                            </p>
-                        </div>
+                            </>
+                        )}
                     </div>
                 </div>
             )}
