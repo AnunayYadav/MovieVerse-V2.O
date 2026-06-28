@@ -386,6 +386,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
 
   const resolveMangaPill = useCallback(async (manga: MangaDexManga, provider = readingSource) => {
     if (resolvedProvider === provider && mangapillChapters.length > 0) {
+      setMangapillError(null);
       return; // Already resolved for this provider!
     }
     setMangapillLoading(true);
@@ -440,6 +441,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
       setMangapillMangaId(null);
       setMangapillChapters([]);
       setResolvedProvider(null);
+      setMangapillError(null);
       return;
     }
     let isMounted = true;
@@ -616,10 +618,12 @@ export const MangaPage: React.FC<MangaPageProps> = ({
         setResolvedProvider(bestProvider);
         setMangapillMangaId(resolvedMangaIdMap[bestProvider] || null);
         setMangapillChapters(resolvedChaptersMap[bestProvider] || []);
+        setMangapillError(null);
         setReadingSource(bestProvider);
       } else {
         setReadingSource('mangadex');
         setResolvedProvider('mangadex');
+        setMangapillError(null);
       }
     } catch (error) {
       console.error("[Auto-Detector] Critical error in autoSelectBestProvider:", error);
