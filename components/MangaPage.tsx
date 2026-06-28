@@ -722,15 +722,13 @@ export const MangaPage: React.FC<MangaPageProps> = ({
 
   // Load MangaPill data when readingSource is set to mangapill
   useEffect(() => {
-    if (!selectedManga) {
-      setMangapillMangaId(null);
-      setMangapillChapters([]);
+    if (!selectedManga || isAutoResolving || !resolvedProvider) {
       return;
     }
     if (readingSource !== 'mangadex') {
       resolveMangaPill(selectedManga, readingSource);
     }
-  }, [selectedManga, readingSource, resolveMangaPill]);
+  }, [selectedManga, readingSource, resolveMangaPill, isAutoResolving, resolvedProvider]);
 
   // Load Initial Manga Lists
   const loadMangaCatalog = useCallback(async () => {
@@ -1940,7 +1938,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                 </div>
 
                 {/* Chapters List */}
-                {readingSource !== 'mangadex' && mangapillError ? (
+                {readingSource !== 'mangadex' && mangapillError && !isAutoResolving ? (
                   <div className="flex flex-col items-center justify-center py-16 text-zinc-500 gap-2">
                     <AlertCircle size={28} className="text-red-500/80 mb-1" />
                     <span className="text-xs font-medium">{mangapillError}</span>
