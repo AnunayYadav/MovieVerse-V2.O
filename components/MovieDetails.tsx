@@ -2081,7 +2081,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                         <div>
                                             <h3 className="font-bold text-white text-sm md:text-base leading-none">Downloader Portal</h3>
                                             <p className="text-[10px] text-gray-500 mt-1 truncate max-w-[200px] sm:max-w-xs md:max-w-md">
-                                                {activeDownloadUrl.includes('peachify') ? 'Server 1: Peachify' : 'Server 2: 02MovieDownloader'}
+                                                {activeDownloadUrl.includes('02moviedownloader') ? 'Server 1: 02MovieDownloader' : 'Server 2: Peachify'}
                                             </p>
                                         </div>
                                     </div>
@@ -2209,20 +2209,6 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                     <div className="space-y-3 pt-2 text-left">
                                         <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider px-1">Available Servers:</h4>
                                         
-                                        {/* Peachify Downloader */}
-                                        <button
-                                            onClick={() => {
-                                                const url = isTv
-                                                    ? `https://dl.peachify.top/tv/${displayData.id}/${downloadSeason}/${downloadEpisode}`
-                                                    : `https://dl.peachify.top/movie/${displayData.id}`;
-                                                setActiveDownloadUrl(url);
-                                            }}
-                                            className="w-full py-3 px-4 bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white font-medium text-sm rounded-xl transition-all hover:scale-[1.01] active:scale-95 shadow-md shadow-red-600/10 flex items-center justify-between border border-red-500/20 cursor-pointer"
-                                        >
-                                            <span>Server 1: Peachify Downloader</span>
-                                            <Download size={14} />
-                                        </button>
-
                                         {/* 02MovieDownloader */}
                                         <button
                                             onClick={() => {
@@ -2231,9 +2217,23 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                     : `https://02moviedownloader.site/api/download/movie/${displayData.id}`;
                                                 setActiveDownloadUrl(url);
                                             }}
+                                            className="w-full py-3 px-4 bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white font-medium text-sm rounded-xl transition-all hover:scale-[1.01] active:scale-95 shadow-md shadow-red-600/10 flex items-center justify-between border border-red-500/20 cursor-pointer"
+                                        >
+                                            <span>Server 1: 02MovieDownloader</span>
+                                            <Download size={14} />
+                                        </button>
+
+                                        {/* Peachify Downloader */}
+                                        <button
+                                            onClick={() => {
+                                                const url = isTv
+                                                    ? `https://dl.peachify.top/tv/${displayData.id}/${downloadSeason}/${downloadEpisode}`
+                                                    : `https://dl.peachify.top/movie/${displayData.id}`;
+                                                setActiveDownloadUrl(url);
+                                            }}
                                             className="w-full py-3 px-4 bg-white/5 hover:bg-white/10 text-zinc-300 hover:text-white font-medium text-sm rounded-xl transition-all hover:scale-[1.01] active:scale-95 shadow-md flex items-center justify-between border border-white/5 hover:border-white/15 cursor-pointer"
                                         >
-                                            <span>Server 2: 02MovieDownloader</span>
+                                            <span>Server 2: Peachify Downloader</span>
                                             <Download size={14} />
                                         </button>
                                     </div>
