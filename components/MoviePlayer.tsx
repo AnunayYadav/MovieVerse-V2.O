@@ -808,45 +808,64 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     return () => clearInterval(interval);
   }, [useCustomControls, sendPlayerCommand]);
 
-  // Keyboard shortcuts for custom controls
+  // Universal keyboard shortcuts
   useEffect(() => {
-    if (!useCustomControls) return;
     const handleKeyDown = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement).tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA') return;
-      switch (e.key) {
-        case ' ':
-          e.preventDefault();
-          togglePlayback();
-          break;
-        case 'ArrowLeft':
-          e.preventDefault();
-          seekTo(Math.max(0, playerCurrentTime - 10));
-          break;
-        case 'ArrowRight':
-          e.preventDefault();
-          seekTo(Math.min(playerDuration, playerCurrentTime + 10));
-          break;
-        case 'ArrowUp':
-          e.preventDefault();
-          changeVolume(playerVolume + 0.1);
-          break;
-        case 'ArrowDown':
-          e.preventDefault();
-          changeVolume(playerVolume - 0.1);
-          break;
-        case 'm': case 'M':
-          toggleMuteState();
-          break;
-        case 'f': case 'F':
-          toggleFullscreen();
-          break;
+
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        if (isDrawerOpen) {
+          setIsDrawerOpen(false);
+        } else {
+          onClose();
+        }
+        return;
       }
-      resetControlsTimeout();
+
+      if (e.key.toLowerCase() === 's') {
+        e.preventDefault();
+        setIsDrawerOpen(prev => !prev);
+        return;
+      }
+
+      // Custom controls shortcuts
+      if (useCustomControls) {
+        switch (e.key) {
+          case ' ':
+            e.preventDefault();
+            togglePlayback();
+            break;
+          case 'ArrowLeft':
+            e.preventDefault();
+            seekTo(Math.max(0, playerCurrentTime - 10));
+            break;
+          case 'ArrowRight':
+            e.preventDefault();
+            seekTo(Math.min(playerDuration, playerCurrentTime + 10));
+            break;
+          case 'ArrowUp':
+            e.preventDefault();
+            changeVolume(playerVolume + 0.1);
+            break;
+          case 'ArrowDown':
+            e.preventDefault();
+            changeVolume(playerVolume - 0.1);
+            break;
+          case 'm': case 'M':
+            toggleMuteState();
+            break;
+          case 'f': case 'F':
+            toggleFullscreen();
+            break;
+        }
+        resetControlsTimeout();
+      }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [useCustomControls, togglePlayback, seekTo, changeVolume, toggleMuteState, toggleFullscreen, resetControlsTimeout, playerCurrentTime, playerDuration, playerVolume]);
+  }, [useCustomControls, isDrawerOpen, onClose, togglePlayback, seekTo, changeVolume, toggleMuteState, toggleFullscreen, resetControlsTimeout, playerCurrentTime, playerDuration, playerVolume]);
 
   // Fullscreen change listener
   useEffect(() => {
@@ -971,28 +990,26 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
           </div>
         )}
 
-        {/* TV close button (hidden on TV via CSS but clickable, visible on Desktop) */}
-        {!isWatchParty && (
-          <button 
-            id="tv-player-close-btn" 
-            onClick={onClose} 
-            className="absolute top-4 right-4 z-50 p-2.5 bg-black/60 hover:bg-black/80 text-white/85 hover:text-white rounded-full transition-all border border-white/10 active:scale-95 flex items-center justify-center"
-            title="Close Player"
+        {/* Top-Right Player Action Controls */}
+        <div className="absolute top-4 right-4 z-50 flex items-center gap-2">
+          <TvFocusButton
+            onClick={() => setIsDrawerOpen(!isDrawerOpen)}
+            className="p-2.5 bg-black/60 hover:bg-black/80 text-white/85 hover:text-white rounded-full transition-all border border-white/10 active:scale-95 flex items-center justify-center shadow-lg backdrop-blur-md"
+            title={isDrawerOpen ? "Close Settings" : "Player Settings"}
           >
-            <X size={20} />
-          </button>
-        )}
-
-        {/* Floating pull-out arrow button for control drawer */}
-        <button
-          onClick={() => setIsDrawerOpen(!isDrawerOpen)}
-          className={`absolute top-1/2 -translate-y-1/2 z-50 p-2 py-4 bg-black/60 hover:bg-black/80 text-white/80 hover:text-white border border-r-0 border-white/10 rounded-l-2xl backdrop-blur-md active:scale-95 shadow-lg shadow-black/50 transition-all duration-300 ${
-            isDrawerOpen ? 'right-72 sm:right-80' : 'right-0'
-          }`}
-          title={isDrawerOpen ? "Close Controls" : "Open Controls & Settings"}
-        >
-          {isDrawerOpen ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
-        </button>
+            <Sliders size={20} />
+          </TvFocusButton>
+          {!isWatchParty && (
+            <TvFocusButton 
+              id="tv-player-close-btn" 
+              onClick={onClose} 
+              className="p-2.5 bg-black/60 hover:bg-black/80 text-white/85 hover:text-white rounded-full transition-all border border-white/10 active:scale-95 flex items-center justify-center shadow-lg backdrop-blur-md"
+              title="Close Player"
+            >
+              <X size={20} />
+            </TvFocusButton>
+          )}
+        </div>
 
         <div
           className={`absolute right-0 top-0 h-full z-45 backdrop-blur-xl border-l border-white/10 shadow-[0_0_50px_rgba(0,0,0,0.8)] transition-transform duration-300 ease-out flex flex-col w-72 sm:w-80 ${
