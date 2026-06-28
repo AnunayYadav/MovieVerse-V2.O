@@ -174,11 +174,13 @@ export const MangaPage: React.FC<MangaPageProps> = ({
   const [chapterSort, setChapterSort] = useState<'asc' | 'desc'>('desc');
 
   // MangaPill states (generalized for all Consumet providers)
-  const [readingSource, setReadingSource] = useState<string>('mangadex');
+  const [readingSource, setReadingSource] = useState<string>('weebcentral');
   const [mangapillMangaId, setMangapillMangaId] = useState<string | null>(null);
   const [mangapillChapters, setMangapillChapters] = useState<any[]>([]);
   const [mangapillLoading, setMangapillLoading] = useState(false);
   const [mangapillError, setMangapillError] = useState<string | null>(null);
+  const [resolvedProvider, setResolvedProvider] = useState<string | null>(null);
+  const [isAutoResolving, setIsAutoResolving] = useState(false);
   const [recommendations, setRecommendations] = useState<MangaDexManga[]>([]);
   const [recLoading, setRecLoading] = useState(false);
   const [relations, setRelations] = useState<any[]>([]);
@@ -381,6 +383,9 @@ export const MangaPage: React.FC<MangaPageProps> = ({
   }, [fetchAniList, getMangaTitle]);
 
   const resolveMangaPill = useCallback(async (manga: MangaDexManga, provider = readingSource) => {
+    if (resolvedProvider === provider && mangapillChapters.length > 0) {
+      return; // Already resolved for this provider!
+    }
     setMangapillLoading(true);
     setMangapillError(null);
     setMangapillMangaId(null);
@@ -403,13 +408,14 @@ export const MangaPage: React.FC<MangaPageProps> = ({
       const infoData = await infoRes.json();
       
       setMangapillChapters(infoData.chapters || []);
+      setResolvedProvider(provider);
     } catch (err: any) {
       console.error(`${provider} resolution error:`, err);
       setMangapillError(err.message || `Failed to resolve ${provider} source`);
     } finally {
       setMangapillLoading(false);
     }
-  }, [getMangaTitle, readingSource]);
+  }, [getMangaTitle, readingSource, resolvedProvider, mangapillChapters.length]);
 
   const getContentRatingParams = useCallback(() => {
     let params = '&contentRating[]=safe&contentRating[]=suggestive&contentRating[]=erotica';
@@ -428,9 +434,10 @@ export const MangaPage: React.FC<MangaPageProps> = ({
       setChapterFilter('');
       setDetailsTab('chapters');
       setSelectedLanguage('en');
-      setReadingSource('mangadex');
+      setReadingSource('weebcentral');
       setMangapillMangaId(null);
       setMangapillChapters([]);
+      setResolvedProvider(null);
       return;
     }
     let isMounted = true;
@@ -478,6 +485,112 @@ export const MangaPage: React.FC<MangaPageProps> = ({
 
     return () => { isMounted = false; };
   }, [selectedMangaId, fetchMangaDex]);
+
+  const autoSelectBestProvider = useCallback(async (manga: MangaDexManga) => {
+    setIsAutoResolving(true);
+    const title = getMangaTitle(manga);
+    
+    // We will check: mangadex, weebcentral, comick, mangapill
+    let maxDexChapter = 0;
+    try {
+      const data = await fetchMangaDex(`/manga/${manga.id}/feed?translatedLanguage[]=en&order[chapter]=desc&limit=1`);
+      if (data && data.data && data.data[0]) {
+        maxDexChapter = parseFloat(data.data[0].attributes?.chapter) || 0;
+      }
+    } catch (e) {
+      console.warn("Failed to fetch max MangaDex chapter:", e);
+    }
+
+    const providersToCheck = ['weebcentral', 'comick', 'mangapill'];
+    let bestProvider = 'mangadex';
+    let maxChapterNum = maxDexChapter;
+    let resolvedChaptersMap: Record<string, any[]> = {};
+    let resolvedMangaIdMap: Record<string, string> = {};
+
+    const priority: Record<string, number> = {
+      'weebcentral': 4,
+      'comick': 3,
+      'mangapill': 2,
+      'mangadex': 1
+    };
+
+    const parseChapterNumber = (ch: any): number => {
+      if (!ch) return 0;
+      if (ch.chapter !== undefined && ch.chapter !== null) {
+        const num = parseFloat(ch.chapter);
+        if (!isNaN(num)) return num;
+      }
+      if (ch.number !== undefined && ch.number !== null) {
+        const num = parseFloat(ch.number);
+        if (!isNaN(num)) return num;
+      }
+      const fieldsToSearch = [ch.title, ch.chapter, ch.number, ch.id].filter(Boolean);
+      for (const field of fieldsToSearch) {
+        const match = String(field).match(/(\d+(?:\.\d+)?)/);
+        if (match) {
+          const num = parseFloat(match[1]);
+          if (!isNaN(num)) return num;
+        }
+      }
+      return 0;
+    };
+
+    const promises = providersToCheck.map(async (prov) => {
+      try {
+        const searchRes = await window.fetch(`/api/manga?action=search&provider=${prov}&query=${encodeURIComponent(title)}`);
+        if (!searchRes.ok) return;
+        const searchList = await searchRes.json();
+        if (!searchList || searchList.length === 0) return;
+        
+        const bestMatch = searchList[0];
+        const infoRes = await window.fetch(`/api/manga?action=info&provider=${prov}&id=${encodeURIComponent(bestMatch.id)}`);
+        if (!infoRes.ok) return;
+        const infoData = await infoRes.json();
+        
+        const chList = infoData.chapters || [];
+        resolvedChaptersMap[prov] = chList;
+        resolvedMangaIdMap[prov] = bestMatch.id;
+        
+        let maxCh = 0;
+        for (const ch of chList) {
+          const num = parseChapterNumber(ch);
+          if (num > maxCh) maxCh = num;
+        }
+        
+        if (maxCh > maxChapterNum || (maxCh === maxChapterNum && (priority[prov] || 0) > (priority[bestProvider] || 0))) {
+          maxChapterNum = maxCh;
+          bestProvider = prov;
+        }
+      } catch (err) {
+        console.warn(`Failed to auto-resolve provider ${prov}:`, err);
+      }
+    });
+
+    await Promise.all(promises);
+
+    console.log(`Auto-selected best provider: ${bestProvider} with chapter ${maxChapterNum} (MangaDex had chapter ${maxDexChapter})`);
+    
+    if (bestProvider !== 'mangadex') {
+      setResolvedProvider(bestProvider);
+      setMangapillMangaId(resolvedMangaIdMap[bestProvider] || null);
+      setMangapillChapters(resolvedChaptersMap[bestProvider] || []);
+      setReadingSource(bestProvider);
+    } else {
+      setReadingSource('mangadex');
+      setResolvedProvider('mangadex');
+    }
+    setIsAutoResolving(false);
+  }, [getMangaTitle, fetchMangaDex]);
+
+  // Automatically select the best source provider when a manga is selected
+  useEffect(() => {
+    if (!selectedManga) {
+      setResolvedProvider(null);
+      return;
+    }
+    setResolvedProvider(null);
+    autoSelectBestProvider(selectedManga);
+  }, [selectedManga, autoSelectBestProvider]);
 
   // Reset scroll position when details page or reader state changes
   useEffect(() => {
@@ -1706,11 +1819,13 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                       <RefreshCcw size={11} /> Retry
                     </button>
                   </div>
-                ) : (chaptersLoading || (readingSource !== 'mangadex' && mangapillLoading)) ? (
+                ) : (chaptersLoading || (readingSource !== 'mangadex' && mangapillLoading) || isAutoResolving) ? (
                   <div className="flex flex-col items-center justify-center py-16 gap-2">
                     <Loader2 className="animate-spin text-red-500" size={24} />
                     <span className="text-[10px] text-zinc-500 font-medium tracking-wide">
-                      {readingSource !== 'mangadex' ? `Resolving ${readingSource} source...` : 'Loading chapters...'}
+                      {isAutoResolving 
+                        ? 'Auto-detecting best source for latest chapters...' 
+                        : (readingSource !== 'mangadex' ? `Resolving ${readingSource} source...` : 'Loading chapters...')}
                     </span>
                   </div>
                 ) : filteredAndSortedChapters.length === 0 ? (
