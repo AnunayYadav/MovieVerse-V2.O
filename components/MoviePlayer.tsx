@@ -145,6 +145,15 @@ export const PROVIDERS: Provider[] = [
       `https://vidgod.net/tv/${tmdbId}/${season}/${episode}${progress && progress > 0 ? `?startAt=${Math.floor(progress)}&t=${Math.floor(progress)}` : ''}`,
     supportsPostMessage: false
   },
+  {
+    id: 'zxcstream',
+    name: 'ZXCStream',
+    getMovieUrl: (tmdbId, color, progress) =>
+      `https://zxcstream.xyz/player/movie/${tmdbId}?dubLang=hi&color=${color.replace('#', '')}&autoplay=true${progress && progress > 0 ? `&startAt=${Math.floor(progress)}` : ''}`,
+    getTvUrl: (tmdbId, season, episode, color, progress) =>
+      `https://zxcstream.xyz/player/tv/${tmdbId}/${season}/${episode}?dubLang=hi&color=${color.replace('#', '')}&autoplay=true${progress && progress > 0 ? `&startAt=${Math.floor(progress)}` : ''}`,
+    supportsPostMessage: false
+  },
 ];
 
 export const MoviePlayer: React.FC<MoviePlayerProps> = ({ 
