@@ -991,7 +991,10 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
         )}
 
         {/* Top-Right Player Action Controls */}
-        <div className="absolute top-4 right-4 z-50 flex items-center gap-2">
+        <div 
+          className="absolute top-4 right-4 z-50 flex items-center gap-2"
+          onClick={(e) => e.stopPropagation()}
+        >
           <TvFocusButton
             onClick={() => setIsDrawerOpen(!isDrawerOpen)}
             className="p-2.5 bg-black/60 hover:bg-black/80 text-white/85 hover:text-white rounded-full transition-all border border-white/10 active:scale-95 flex items-center justify-center shadow-lg backdrop-blur-md"
@@ -1012,6 +1015,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
         </div>
 
         <div
+          onClick={(e) => e.stopPropagation()}
           className={`absolute right-0 top-0 h-full z-45 backdrop-blur-xl border-l border-white/10 shadow-[0_0_50px_rgba(0,0,0,0.8)] transition-transform duration-300 ease-out flex flex-col w-72 sm:w-80 ${
             isDrawerOpen ? 'translate-x-0' : 'translate-x-full'
           }`}
