@@ -452,17 +452,17 @@ export const MoviePage: React.FC<MoviePageProps> = ({
     const [castVolume, setCastVolume] = useState(1);
     const [selectedCastProviderId, setSelectedCastProviderId] = useState(() => {
         if (typeof window !== 'undefined') {
-            return localStorage.getItem('movieverse_preferred_provider') || 'videasy';
+            return localStorage.getItem('movieverse_preferred_provider') || 'peachify';
         }
-        return 'videasy';
+        return 'peachify';
     });
     const dropdownRef = useRef<HTMLDivElement>(null);
 
     const [selectedProviderId, setSelectedProviderId] = useState(() => {
         if (typeof window !== 'undefined') {
-            return localStorage.getItem('movieverse_preferred_provider') || 'videasy';
+            return localStorage.getItem('movieverse_preferred_provider') || 'peachify';
         }
-        return 'videasy';
+        return 'peachify';
     });
     const [isProviderDropdownOpen, setIsProviderDropdownOpen] = useState(false);
     const [isMobileProviderDropdownOpen, setIsMobileProviderDropdownOpen] = useState(false);

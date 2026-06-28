@@ -116,12 +116,10 @@ export const PROVIDERS: Provider[] = [
     id: 'peachify',
     name: 'Peachify',
     getMovieUrl: (tmdbId, color, progress) => {
-      const lang = getBrowserLanguage();
-      return `https://peachify.pro/embed/movie/${tmdbId}?accent=${color.replace('#', '')}&dub=${lang}&sub=${lang}&quality=1080&showNextBtn=true&autoPlay=true${progress && progress > 0 ? `&startAt=${Math.floor(progress)}` : ''}`;
+      return `https://peachify.pro/embed/movie/${tmdbId}?accent=${color.replace('#', '')}&dub=Hindi&sub=English&quality=1080&showNextBtn=true&autoPlay=true${progress && progress > 0 ? `&startAt=${Math.floor(progress)}` : ''}`;
     },
     getTvUrl: (tmdbId, season, episode, color, progress) => {
-      const lang = getBrowserLanguage();
-      return `https://peachify.pro/embed/tv/${tmdbId}/${season}/${episode}?accent=${color.replace('#', '')}&dub=${lang}&sub=${lang}&quality=1080&autoNext=30&showNextBtn=true&autoPlay=true${progress && progress > 0 ? `&startAt=${Math.floor(progress)}` : ''}`;
+      return `https://peachify.pro/embed/tv/${tmdbId}/${season}/${episode}?accent=${color.replace('#', '')}&dub=Hindi&sub=English&quality=1080&autoNext=30&showNextBtn=true&autoPlay=true${progress && progress > 0 ? `&startAt=${Math.floor(progress)}` : ''}`;
     },
     supportsPostMessage: false
   },
@@ -267,7 +265,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   
   const [selectedProviderId, setSelectedProviderId] = useState(() => {
     if (typeof window !== 'undefined') {
-      const preferred = localStorage.getItem('movieverse_preferred_provider') || 'videasy';
+      const preferred = localStorage.getItem('movieverse_preferred_provider') || 'peachify';
       if (isWatchParty) {
         const prov = PROVIDERS.find(p => p.id === preferred);
         if (!prov || !prov.supportsPostMessage) {
@@ -276,7 +274,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
       }
       return preferred;
     }
-    return isWatchParty ? 'vidfast' : 'videasy';
+    return isWatchParty ? 'vidfast' : 'peachify';
   });
 
   useEffect(() => {
