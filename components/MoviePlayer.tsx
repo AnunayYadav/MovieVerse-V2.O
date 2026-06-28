@@ -154,6 +154,19 @@ export const PROVIDERS: Provider[] = [
       `https://zxcstream.xyz/player/tv/${tmdbId}/${season}/${episode}?dubLang=hi&color=${color.replace('#', '')}&autoplay=true${progress && progress > 0 ? `&startAt=${Math.floor(progress)}` : ''}`,
     supportsPostMessage: false
   },
+  {
+    id: 'vidlink',
+    name: 'VidLink (JW)',
+    getMovieUrl: (tmdbId, color, progress) => {
+      const c = color.replace('#', '');
+      return `https://vidlink.pro/movie/${tmdbId}?primaryColor=${c}&iconColor=${c}&player=jw&autoplay=true${progress && progress > 0 ? `&startAt=${Math.floor(progress)}` : ''}`;
+    },
+    getTvUrl: (tmdbId, season, episode, color, progress) => {
+      const c = color.replace('#', '');
+      return `https://vidlink.pro/tv/${tmdbId}/${season}/${episode}?primaryColor=${c}&iconColor=${c}&player=jw&nextbutton=true&autoplay=true${progress && progress > 0 ? `&startAt=${Math.floor(progress)}` : ''}`;
+    },
+    supportsPostMessage: false
+  },
 ];
 
 export const MoviePlayer: React.FC<MoviePlayerProps> = ({ 
@@ -586,12 +599,15 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
             }
 
             if (parsed) {
-                // Handle Peachify & VidCore PLAYER_EVENTs
-                if (event.origin === 'https://peachify.pro' || event.origin === 'https://vidcore.net' || parsed.type === 'PLAYER_EVENT' || parsed.type === 'MEDIA_DATA') {
+                // Handle Peachify, VidCore & VidLink PLAYER_EVENTs / MEDIA_DATAs
+                if (event.origin === 'https://peachify.pro' || event.origin === 'https://vidcore.net' || event.origin === 'https://vidlink.pro' || parsed.type === 'PLAYER_EVENT' || parsed.type === 'MEDIA_DATA') {
                     const type = parsed.type;
                     const data = parsed.data;
                     if (type === 'MEDIA_DATA') {
                         localStorage.setItem('peachifyProgress', JSON.stringify(data));
+                        if (event.origin === 'https://vidlink.pro') {
+                            localStorage.setItem('vidLinkProgress', JSON.stringify(data));
+                        }
                         return;
                     }
                     if (type === 'PLAYER_EVENT' && data) {

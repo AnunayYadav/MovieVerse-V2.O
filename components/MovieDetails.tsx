@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, Suspense, useRef, useMemo } from 'react';
-import { X, Info, Calendar, Clock, Star, Play, Bookmark, Heart, Share2, Clapperboard, Sparkles, Loader2, Tag, MessageCircle, Globe, Facebook, Instagram, Twitter, Film, PlayCircle, Eye, Volume2, VolumeX, Users, ArrowLeft, Lightbulb, DollarSign, Trophy, Tv, Check, Mic2, Video, PenTool, ChevronRight, ChevronDown, Search, Monitor, Plus, Layers, Shield, Building2, Languages, Headphones, Activity, Target, TrendingUp, Cast, AlertCircle, Pause, PieChart as PieChartIcon } from 'lucide-react';
+import { X, Info, Calendar, Clock, Star, Play, Bookmark, Heart, Share2, Clapperboard, Sparkles, Loader2, Tag, MessageCircle, Globe, Facebook, Instagram, Twitter, Film, PlayCircle, Eye, Volume2, VolumeX, Users, ArrowLeft, Lightbulb, DollarSign, Trophy, Tv, Check, Mic2, Video, PenTool, ChevronRight, ChevronDown, Search, Monitor, Plus, Layers, Shield, Building2, Languages, Headphones, Activity, Target, TrendingUp, Cast, AlertCircle, Pause, Download, PieChart as PieChartIcon } from 'lucide-react';
 import { Movie, MovieDetails, Season, UserProfile, Keyword, Review, CastMember, CrewMember, CollectionDetails, Genre } from '../types';
 import { TMDB_BASE_URL, TMDB_IMAGE_BASE, TMDB_BACKDROP_BASE, formatCurrency, ImageLightbox, PersonCard, MovieCard, tvFetch } from '../components/Shared';
 import { FullCreditsModal } from './Modals';
@@ -469,6 +469,10 @@ export const MoviePage: React.FC<MoviePageProps> = ({
     const providerDropdownRef = useRef<HTMLDivElement>(null);
     const mobileProviderDropdownRef = useRef<HTMLDivElement>(null);
 
+    const [showDownloadModal, setShowDownloadModal] = useState(false);
+    const [downloadSeason, setDownloadSeason] = useState(1);
+    const [downloadEpisode, setDownloadEpisode] = useState(1);
+
     const handleProviderChange = (providerId: string) => {
         setSelectedProviderId(providerId);
         setSelectedCastProviderId(providerId);
@@ -516,6 +520,10 @@ export const MoviePage: React.FC<MoviePageProps> = ({
         setPlayParams(initialPlayParams);
         if (initialPlayParams.season) {
             setSelectedSeason(initialPlayParams.season);
+            setDownloadSeason(initialPlayParams.season);
+        }
+        if (initialPlayParams.episode) {
+            setDownloadEpisode(initialPlayParams.episode);
         }
     }, [initialPlayParams.season, initialPlayParams.episode]);
     useEffect(() => { setShowFullCast(showFullCastProp); }, [showFullCastProp]);
@@ -753,6 +761,11 @@ export const MoviePage: React.FC<MoviePageProps> = ({
     useEffect(() => {
         const handleEsc = (e: KeyboardEvent) => {
             if (e.key === 'Escape') {
+                if (showDownloadModal) {
+                    setShowDownloadModal(false);
+                    e.stopPropagation();
+                    return;
+                }
                 if (viewingImage) {
                     setViewingImage(null);
                     e.stopPropagation();
@@ -779,7 +792,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
         };
         window.addEventListener('keydown', handleEsc, true);
         return () => window.removeEventListener('keydown', handleEsc, true);
-    }, [showPlayer, showFullCast, showFullCrew, viewingImage]);
+    }, [showPlayer, showFullCast, showFullCrew, viewingImage, showDownloadModal]);
 
     useEffect(() => {
         if (movie.last_watched_data?.season) {
@@ -1099,6 +1112,13 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                         {isExclusive && (
                                             <TvFocusButton onClick={() => onStartWatchParty && onStartWatchParty(displayData, playParams.season, playParams.episode)} className="flex items-center justify-center gap-2 px-6 py-2.5 rounded-md font-bold text-sm sm:text-base transition-all hover:scale-[1.02] active:scale-95 bg-transparent text-white border border-white/20 hover:bg-white/5 shadow-md" title="Start a Watch Party"><Users size={18} /> Watch Party</TvFocusButton>
                                         )}
+                                        <TvFocusButton 
+                                            onClick={() => setShowDownloadModal(true)} 
+                                            className="flex items-center justify-center gap-2 px-6 py-2.5 rounded-md font-bold text-sm sm:text-base transition-all hover:scale-[1.02] active:scale-95 bg-blue-600/20 text-blue-400 border border-blue-500/30 hover:bg-blue-600/30 shadow-md shadow-blue-600/5" 
+                                            title="Download Options"
+                                        >
+                                            <Download size={18} /> Download
+                                        </TvFocusButton>
                                         <div className="flex items-center gap-3">
                                             <TvFocusButton onClick={() => onToggleWatchlist(displayData)} className={`w-10 h-10 rounded-full border flex items-center justify-center transition-all active:scale-95 group relative ${isWatchlisted ? 'text-green-400 border-green-500 bg-transparent hover:bg-green-500/10' : 'text-white border-white/20 hover:border-white/40 bg-transparent hover:bg-white/5'}`} title="Add to Watchlist">{isWatchlisted ? <Check size={18} strokeWidth={2.5}/> : <Plus size={18}/>}</TvFocusButton>
                                             <TvFocusButton onClick={() => onToggleFavorite(displayData)} className={`w-10 h-10 rounded-full border flex items-center justify-center transition-all active:scale-95 group ${isFavorite ? 'text-red-500 border-red-500 bg-transparent hover:bg-red-500/10' : 'text-white border-white/20 hover:border-white/40 bg-transparent hover:bg-white/5'}`} title="Add to Favorites"><Heart size={18} fill={isFavorite ? "currentColor" : "none"}/></TvFocusButton>
@@ -1175,6 +1195,12 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                     </TvFocusButton>
                                 )}
                             </div>
+                            <TvFocusButton 
+                                onClick={() => setShowDownloadModal(true)} 
+                                className="w-full py-2.5 px-4 rounded-md font-extrabold text-xs flex items-center justify-center gap-2 transition-all active:scale-95 bg-blue-600/10 hover:bg-blue-600/20 text-blue-400 border border-blue-500/20 shadow-md mt-1"
+                            >
+                                <Download size={14}/> Download Options
+                            </TvFocusButton>
 
                             {/* Secondary Action Buttons Compact Row */}
                             <div className="grid grid-cols-6 gap-1 py-3 border-y border-white/5 mt-1.5 text-gray-400">
@@ -2032,6 +2058,140 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                 </TvFocusButton>
                             </div>
                         )}
+                    </div>
+                </div>
+            )}
+            
+            {showDownloadModal && (
+                <div className="fixed inset-0 z-[250] bg-black/85 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-300">
+                    <div className="bg-[#0c0c0e]/95 border border-white/10 rounded-3xl p-6 max-w-md w-full shadow-2xl relative overflow-hidden text-center select-none animate-in zoom-in-95 duration-300 animate-slide-in-bottom">
+                        {/* Header border design */}
+                        <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-600"></div>
+                        
+                        <button 
+                            onClick={() => setShowDownloadModal(false)}
+                            className="absolute top-4 right-4 p-2 hover:bg-white/10 rounded-full transition-colors text-gray-400 hover:text-white"
+                            title="Close"
+                        >
+                            <X size={18} />
+                        </button>
+
+                        <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mx-auto mb-4 border border-white/10 shadow-inner">
+                            <Download size={32} className="text-blue-500" />
+                        </div>
+
+                        <h3 className="text-xl font-bold text-white mb-1">{isTv ? "Download Episode" : "Download Movie"}</h3>
+                        <p className="text-[10px] text-gray-500 mb-5 leading-normal max-w-[280px] mx-auto">
+                            Choose a server to download this {isTv ? "episode" : "movie"}.
+                        </p>
+
+                        <div className="space-y-5">
+                            {/* Movie/Show Poster Preview */}
+                            <div className="bg-white/5 border border-white/5 rounded-2xl p-4 flex items-center gap-3.5 text-left">
+                                <img 
+                                    src={displayData.poster_path ? `${TMDB_IMAGE_BASE}${displayData.poster_path}` : "https://placehold.co/300x450"} 
+                                    className="w-12 h-18 object-cover rounded-md border border-white/10 shadow-md animate-in fade-in"
+                                    alt={title}
+                                />
+                                <div className="min-w-0 flex-1">
+                                    <h4 className="text-sm font-bold text-white line-clamp-1">{title}</h4>
+                                    <p className="text-[11px] text-gray-500 mt-0.5">
+                                        {releaseDate.split(',')[1]?.trim() || releaseDate} • {runtime}
+                                    </p>
+                                    {isTv && (
+                                        <p className="text-[11px] text-blue-400 font-semibold mt-1">
+                                            Season {downloadSeason}, Episode {downloadEpisode}
+                                        </p>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* TV Episode Selector inside Modal */}
+                            {isTv && (
+                                <div className="grid grid-cols-2 gap-3 text-left">
+                                    {/* Season select */}
+                                    <div className="space-y-1.5">
+                                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block px-1">Season</label>
+                                        <div className="relative">
+                                            <select
+                                                value={downloadSeason}
+                                                onChange={(e) => {
+                                                    const sNum = Number(e.target.value);
+                                                    setDownloadSeason(sNum);
+                                                    setDownloadEpisode(1); // Reset episode
+                                                }}
+                                                className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-white text-xs font-bold focus:outline-none appearance-none cursor-pointer"
+                                            >
+                                                {displayData.seasons?.filter(s => s.season_number > 0).map(s => (
+                                                    <option key={s.id} value={s.season_number} className="bg-[#0c0c0e]">
+                                                        {s.name || `Season ${s.season_number}`}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                            <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                                        </div>
+                                    </div>
+
+                                    {/* Episode select */}
+                                    <div className="space-y-1.5">
+                                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block px-1">Episode</label>
+                                        <div className="relative">
+                                            <select
+                                                value={downloadEpisode}
+                                                onChange={(e) => setDownloadEpisode(Number(e.target.value))}
+                                                className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-white text-xs font-bold focus:outline-none appearance-none cursor-pointer"
+                                            >
+                                                {Array.from({ length: displayData.seasons?.find(s => s.season_number === downloadSeason)?.episode_count || 1 }, (_, idx) => idx + 1).map(epNum => (
+                                                    <option key={epNum} value={epNum} className="bg-[#0c0c0e]">
+                                                        Episode {epNum}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                            <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Download Buttons */}
+                            <div className="space-y-3 pt-2 text-left">
+                                <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider px-1">Available Servers:</h4>
+                                
+                                {/* Peachify Downloader */}
+                                <a
+                                    href={
+                                        isTv
+                                            ? `https://dl.peachify.top/tv/${displayData.id}/${downloadSeason}/${downloadEpisode}`
+                                            : `https://dl.peachify.top/movie/${displayData.id}`
+                                    }
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="w-full py-3 px-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-extrabold text-xs uppercase tracking-wider rounded-xl transition-all hover:scale-[1.01] active:scale-95 shadow-md shadow-blue-600/10 flex items-center justify-between border border-blue-500/30"
+                                >
+                                    <span>Server 1: Peachify Downloader</span>
+                                    <Download size={14} />
+                                </a>
+
+                                {/* 02MovieDownloader */}
+                                <a
+                                    href={
+                                        isTv
+                                            ? `https://02moviedownloader.site/api/download/tv/${displayData.id}/${downloadSeason}/${downloadEpisode}`
+                                            : `https://02moviedownloader.site/api/download/movie/${displayData.id}`
+                                    }
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="w-full py-3 px-4 bg-white/5 hover:bg-white/10 text-zinc-300 hover:text-white font-extrabold text-xs uppercase tracking-wider rounded-xl transition-all hover:scale-[1.01] active:scale-95 shadow-md flex items-center justify-between border border-white/5 hover:border-white/15"
+                                >
+                                    <span>Server 2: 02MovieDownloader</span>
+                                    <Download size={14} />
+                                </a>
+                            </div>
+
+                            <p className="text-[9px] text-gray-500 italic mt-3 text-center">
+                                Direct links will open in a new browser tab.
+                            </p>
+                        </div>
                     </div>
                 </div>
             )}
