@@ -6,6 +6,7 @@ interface ComicObject {
   title: string;
   image: string;
   excerpt: string;
+  link?: string;
   year?: string;
   size?: string;
   description?: string;
@@ -28,6 +29,7 @@ export const ComicsPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedComic, setSelectedComic] = useState<ComicObject | null>(null);
+  const [loadingDetail, setLoadingDetail] = useState(false);
 
   // Fetch comics from serverless endpoint
   const fetchComics = useCallback(async (searchQuery: string, pageNum: number) => {
@@ -53,6 +55,22 @@ export const ComicsPage: React.FC = () => {
   useEffect(() => {
     fetchComics(query, page);
   }, [query, page, fetchComics]);
+
+  const handleComicClick = async (comic: ComicObject) => {
+    setSelectedComic(comic);
+    if (!comic.link) return;
+    setLoadingDetail(true);
+    try {
+      const res = await window.fetch(`/api/comics?action=info&url=${encodeURIComponent(comic.link)}`);
+      if (!res.ok) throw new Error('Failed to load download mirrors');
+      const details = await res.json();
+      setSelectedComic(prev => prev ? { ...prev, ...details } : null);
+    } catch (err) {
+      console.error('Failed to fetch download links:', err);
+    } finally {
+      setLoadingDetail(false);
+    }
+  };
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -180,13 +198,13 @@ export const ComicsPage: React.FC = () => {
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-6">
               {comics.map((comic, index) => {
                 const { ref } = useTvFocus({
-                  onEnterPress: () => setSelectedComic(comic)
+                  onEnterPress: () => handleComicClick(comic)
                 });
                 return (
                   <div
                     key={index}
                     ref={ref}
-                    onClick={() => setSelectedComic(comic)}
+                    onClick={() => handleComicClick(comic)}
                     className="group relative shrink-0 aspect-[2/3] rounded-xl overflow-hidden cursor-pointer bg-zinc-900 border border-white/5 hover:border-red-500/50 hover:shadow-[0_0_20px_rgba(239,68,68,0.25)] hover:scale-[1.03] transition-all duration-500"
                   >
                     <img
@@ -306,68 +324,79 @@ export const ComicsPage: React.FC = () => {
               <div className="space-y-3.5 pt-4 border-t border-white/5">
                 <h4 className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block">Available Server Links</h4>
                 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                  
-                  {/* Direct Download Now */}
-                  {selectedComic.download && (
-                    <a
-                      href={selectedComic.download}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="w-full py-2.5 rounded-lg font-bold bg-red-600 hover:bg-red-700 text-white flex items-center justify-center gap-1.5 transition-all shadow-md shadow-red-600/10 active:scale-98"
-                    >
-                      <Download size={14} /> Download Now
-                    </a>
-                  )}
+                {loadingDetail ? (
+                  <div className="flex flex-col items-center justify-center py-6 gap-2 bg-white/5 rounded-xl border border-white/5">
+                    <Loader2 className="animate-spin text-red-500" size={20} />
+                    <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">Generating secure mirrors...</span>
+                  </div>
+                ) : !selectedComic.download && !selectedComic.mega && !selectedComic.mediafire && !selectedComic.ufile ? (
+                  <div className="py-4 text-center text-xs text-zinc-500 font-semibold bg-white/5 rounded-xl border border-white/5">
+                    No active mirror servers found for this item.
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                    
+                    {/* Direct Download Now */}
+                    {selectedComic.download && (
+                      <a
+                        href={selectedComic.download}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="w-full py-2.5 rounded-lg font-bold bg-red-600 hover:bg-red-700 text-white flex items-center justify-center gap-1.5 transition-all shadow-md shadow-red-600/10 active:scale-98"
+                      >
+                        <Download size={14} /> Download Now
+                      </a>
+                    )}
 
-                  {/* Read Online */}
-                  {selectedComic.readOnline && (
-                    <a
-                      href={selectedComic.readOnline}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="w-full py-2.5 rounded-lg font-bold bg-white/5 border border-white/10 hover:border-white/20 text-white flex items-center justify-center gap-1.5 transition-all active:scale-98"
-                    >
-                      <ExternalLink size={14} /> Read Online
-                    </a>
-                  )}
+                    {/* Read Online */}
+                    {selectedComic.readOnline && (
+                      <a
+                        href={selectedComic.readOnline}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="w-full py-2.5 rounded-lg font-bold bg-white/5 border border-white/10 hover:border-white/20 text-white flex items-center justify-center gap-1.5 transition-all active:scale-98"
+                      >
+                        <ExternalLink size={14} /> Read Online
+                      </a>
+                    )}
 
-                  {/* Mega Upload Mirror */}
-                  {selectedComic.mega && (
-                    <a
-                      href={selectedComic.mega}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="w-full py-2.5 rounded-lg font-bold bg-pink-600/10 border border-pink-500/20 hover:border-pink-500/40 text-pink-400 flex items-center justify-center gap-1.5 transition-all active:scale-98"
-                    >
-                      <ArrowRight size={14} className="rotate-45" /> Server: Mega
-                    </a>
-                  )}
+                    {/* Mega Upload Mirror */}
+                    {selectedComic.mega && (
+                      <a
+                        href={selectedComic.mega}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="w-full py-2.5 rounded-lg font-bold bg-pink-600/10 border border-pink-500/20 hover:border-pink-500/40 text-pink-400 flex items-center justify-center gap-1.5 transition-all active:scale-98"
+                      >
+                        <ArrowRight size={14} className="rotate-45" /> Server: Mega
+                      </a>
+                    )}
 
-                  {/* Mediafire Mirror */}
-                  {selectedComic.mediafire && (
-                    <a
-                      href={selectedComic.mediafire}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="w-full py-2.5 rounded-lg font-bold bg-blue-600/10 border border-blue-500/20 hover:border-blue-500/40 text-blue-400 flex items-center justify-center gap-1.5 transition-all active:scale-98"
-                    >
-                      <ArrowRight size={14} className="rotate-45" /> Server: Mediafire
-                    </a>
-                  )}
+                    {/* Mediafire Mirror */}
+                    {selectedComic.mediafire && (
+                      <a
+                        href={selectedComic.mediafire}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="w-full py-2.5 rounded-lg font-bold bg-blue-600/10 border border-blue-500/20 hover:border-blue-500/40 text-blue-400 flex items-center justify-center gap-1.5 transition-all active:scale-98"
+                      >
+                        <ArrowRight size={14} className="rotate-45" /> Server: Mediafire
+                      </a>
+                    )}
 
-                  {/* Ufile Mirror */}
-                  {selectedComic.ufile && (
-                    <a
-                      href={selectedComic.ufile}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="w-full py-2.5 rounded-lg font-bold bg-emerald-600/10 border border-emerald-500/20 hover:border-emerald-500/40 text-emerald-400 flex items-center justify-center gap-1.5 transition-all active:scale-98 col-span-1 sm:col-span-2"
-                    >
-                      <ArrowRight size={14} className="rotate-45" /> Server: Ufile Mirror
-                    </a>
-                  )}
-                </div>
+                    {/* Ufile Mirror */}
+                    {selectedComic.ufile && (
+                      <a
+                        href={selectedComic.ufile}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="w-full py-2.5 rounded-lg font-bold bg-emerald-600/10 border border-emerald-500/20 hover:border-emerald-500/40 text-emerald-400 flex items-center justify-center gap-1.5 transition-all active:scale-98 col-span-1 sm:col-span-2"
+                      >
+                        <ArrowRight size={14} className="rotate-45" /> Server: Ufile Mirror
+                      </a>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           </div>
