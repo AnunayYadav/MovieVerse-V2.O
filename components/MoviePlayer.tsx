@@ -27,8 +27,8 @@ interface MoviePlayerProps {
 export interface Provider {
   id: string;
   name: string;
-  getMovieUrl: (tmdbId: number, color: string, progress?: number, isAnime?: boolean, anilistId?: number | null, animeLanguage?: string) => string;
-  getTvUrl: (tmdbId: number, season: number, episode: number, color: string, progress?: number, isAnime?: boolean, anilistId?: number | null, animeLanguage?: string) => string;
+  getMovieUrl: (tmdbId: number, color: string, progress?: number, isAnime?: boolean, anilistId?: number | null, animeLanguage?: string, language?: string, subtitle?: string) => string;
+  getTvUrl: (tmdbId: number, season: number, episode: number, color: string, progress?: number, isAnime?: boolean, anilistId?: number | null, animeLanguage?: string, language?: string, subtitle?: string) => string;
   supportsPostMessage: boolean;
 }
 
@@ -58,6 +58,34 @@ const getBrowserLanguage = (): string => {
   return langMap[code] || 'English';
 };
 
+const getAudioCode = (lang: string, format: 'name' | 'iso') => {
+  const map: Record<string, string> = {
+    'English': 'en',
+    'Hindi': 'hi',
+    'Spanish': 'es',
+    'Japanese': 'ja',
+    'French': 'fr',
+    'German': 'de',
+    'Portuguese': 'pt',
+    'Russian': 'ru'
+  };
+  return format === 'iso' ? (map[lang] || 'en') : lang;
+};
+
+const getSubtitleCode = (sub: string, format: 'name' | 'iso') => {
+  if (sub === 'None') return '';
+  const map: Record<string, string> = {
+    'English': 'en',
+    'Hindi': 'hi',
+    'Spanish': 'es',
+    'French': 'fr',
+    'German': 'de',
+    'Portuguese': 'pt',
+    'Russian': 'ru'
+  };
+  return format === 'iso' ? (map[sub] || 'en') : sub;
+};
+
 export const PROVIDERS: Provider[] = [
   {
     id: 'videasy',
@@ -71,19 +99,19 @@ export const PROVIDERS: Provider[] = [
   {
     id: 'vidfast',
     name: 'VidFast',
-    getMovieUrl: (tmdbId, color, progress) => 
-      `https://vidfast.pro/movie/${tmdbId}?autoPlay=true&theme=${color.replace('#', '')}${progress && progress > 0 ? `&startAt=${Math.floor(progress)}` : ''}`,
-    getTvUrl: (tmdbId, season, episode, color, progress) => 
-      `https://vidfast.pro/tv/${tmdbId}/${season}/${episode}?autoPlay=true&theme=${color.replace('#', '')}&nextButton=true&autoNext=true${progress && progress > 0 ? `&startAt=${Math.floor(progress)}` : ''}`,
+    getMovieUrl: (tmdbId, color, progress, isAnime, anilistId, animeLanguage, language, subtitle) => 
+      `https://vidfast.pro/movie/${tmdbId}?autoPlay=true&theme=${color.replace('#', '')}${subtitle && subtitle !== 'None' ? `&sub=${getSubtitleCode(subtitle, 'iso')}` : ''}${progress && progress > 0 ? `&startAt=${Math.floor(progress)}` : ''}`,
+    getTvUrl: (tmdbId, season, episode, color, progress, isAnime, anilistId, animeLanguage, language, subtitle) => 
+      `https://vidfast.pro/tv/${tmdbId}/${season}/${episode}?autoPlay=true&theme=${color.replace('#', '')}&nextButton=true&autoNext=true${subtitle && subtitle !== 'None' ? `&sub=${getSubtitleCode(subtitle, 'iso')}` : ''}${progress && progress > 0 ? `&startAt=${Math.floor(progress)}` : ''}`,
     supportsPostMessage: true
   },
   {
     id: 'vidcore',
     name: 'VidCore',
-    getMovieUrl: (tmdbId, color, progress) => 
-      `https://vidcore.net/movie/${tmdbId}?autoPlay=true&theme=${color.replace('#', '')}${progress && progress > 0 ? `&startAt=${Math.floor(progress)}` : ''}`,
-    getTvUrl: (tmdbId, season, episode, color, progress) => 
-      `https://vidcore.net/tv/${tmdbId}/${season}/${episode}?autoPlay=true&theme=${color.replace('#', '')}&nextButton=true&autoNext=true${progress && progress > 0 ? `&startAt=${Math.floor(progress)}` : ''}`,
+    getMovieUrl: (tmdbId, color, progress, isAnime, anilistId, animeLanguage, language, subtitle) => 
+      `https://vidcore.net/movie/${tmdbId}?autoPlay=true&theme=${color.replace('#', '')}${subtitle && subtitle !== 'None' ? `&sub=${getSubtitleCode(subtitle, 'iso')}` : ''}${progress && progress > 0 ? `&startAt=${Math.floor(progress)}` : ''}`,
+    getTvUrl: (tmdbId, season, episode, color, progress, isAnime, anilistId, animeLanguage, language, subtitle) => 
+      `https://vidcore.net/tv/${tmdbId}/${season}/${episode}?autoPlay=true&theme=${color.replace('#', '')}&nextButton=true&autoNext=true${subtitle && subtitle !== 'None' ? `&sub=${getSubtitleCode(subtitle, 'iso')}` : ''}${progress && progress > 0 ? `&startAt=${Math.floor(progress)}` : ''}`,
     supportsPostMessage: true
   },
   {
@@ -115,11 +143,15 @@ export const PROVIDERS: Provider[] = [
   {
     id: 'peachify',
     name: 'Peachify',
-    getMovieUrl: (tmdbId, color, progress) => {
-      return `https://peachify.pro/embed/movie/${tmdbId}?accent=${color.replace('#', '')}&dub=Hindi&sub=English&quality=1080&showNextBtn=true&autoPlay=true${progress && progress > 0 ? `&startAt=${Math.floor(progress)}` : ''}`;
+    getMovieUrl: (tmdbId, color, progress, isAnime, anilistId, animeLanguage, language, subtitle) => {
+      const dubVal = language || 'Hindi';
+      const subVal = subtitle === 'None' ? '' : (subtitle || 'English');
+      return `https://peachify.pro/embed/movie/${tmdbId}?accent=${color.replace('#', '')}&dub=${dubVal}&sub=${subVal}&quality=1080&showNextBtn=true&autoPlay=true${progress && progress > 0 ? `&startAt=${Math.floor(progress)}` : ''}`;
     },
-    getTvUrl: (tmdbId, season, episode, color, progress) => {
-      return `https://peachify.pro/embed/tv/${tmdbId}/${season}/${episode}?accent=${color.replace('#', '')}&dub=Hindi&sub=English&quality=1080&autoNext=30&showNextBtn=true&autoPlay=true${progress && progress > 0 ? `&startAt=${Math.floor(progress)}` : ''}`;
+    getTvUrl: (tmdbId, season, episode, color, progress, isAnime, anilistId, animeLanguage, language, subtitle) => {
+      const dubVal = language || 'Hindi';
+      const subVal = subtitle === 'None' ? '' : (subtitle || 'English');
+      return `https://peachify.pro/embed/tv/${tmdbId}/${season}/${episode}?accent=${color.replace('#', '')}&dub=${dubVal}&sub=${subVal}&quality=1080&autoNext=30&showNextBtn=true&autoPlay=true${progress && progress > 0 ? `&startAt=${Math.floor(progress)}` : ''}`;
     },
     supportsPostMessage: false
   },
@@ -148,22 +180,28 @@ export const PROVIDERS: Provider[] = [
   {
     id: 'zxcstream',
     name: 'ZXCStream',
-    getMovieUrl: (tmdbId, color, progress) =>
-      `https://zxcstream.xyz/player/movie/${tmdbId}?dubLang=hi&color=${color.replace('#', '')}&autoplay=true${progress && progress > 0 ? `&startAt=${Math.floor(progress)}` : ''}`,
-    getTvUrl: (tmdbId, season, episode, color, progress) =>
-      `https://zxcstream.xyz/player/tv/${tmdbId}/${season}/${episode}?dubLang=hi&color=${color.replace('#', '')}&autoplay=true${progress && progress > 0 ? `&startAt=${Math.floor(progress)}` : ''}`,
+    getMovieUrl: (tmdbId, color, progress, isAnime, anilistId, animeLanguage, language, subtitle) => {
+      const dub = language ? getAudioCode(language, 'iso') : 'hi';
+      const subVal = subtitle && subtitle !== 'None' ? `&sub=${getSubtitleCode(subtitle, 'iso')}` : '';
+      return `https://zxcstream.xyz/player/movie/${tmdbId}?dubLang=${dub}&color=${color.replace('#', '')}&autoplay=true${subVal}${progress && progress > 0 ? `&startAt=${Math.floor(progress)}` : ''}`;
+    },
+    getTvUrl: (tmdbId, season, episode, color, progress, isAnime, anilistId, animeLanguage, language, subtitle) => {
+      const dub = language ? getAudioCode(language, 'iso') : 'hi';
+      const subVal = subtitle && subtitle !== 'None' ? `&sub=${getSubtitleCode(subtitle, 'iso')}` : '';
+      return `https://zxcstream.xyz/player/tv/${tmdbId}/${season}/${episode}?dubLang=${dub}&color=${color.replace('#', '')}&autoplay=true${subVal}${progress && progress > 0 ? `&startAt=${Math.floor(progress)}` : ''}`;
+    },
     supportsPostMessage: false
   },
   {
     id: 'vidlink',
-    name: 'VidLink (JW)',
+    name: 'VidLink',
     getMovieUrl: (tmdbId, color, progress) => {
       const c = color.replace('#', '');
-      return `https://vidlink.pro/movie/${tmdbId}?primaryColor=${c}&iconColor=${c}&player=jw&autoplay=true${progress && progress > 0 ? `&startAt=${Math.floor(progress)}` : ''}`;
+      return `https://vidlink.pro/movie/${tmdbId}?primaryColor=${c}&iconColor=${c}&player=default&autoplay=true${progress && progress > 0 ? `&startAt=${Math.floor(progress)}` : ''}`;
     },
     getTvUrl: (tmdbId, season, episode, color, progress) => {
       const c = color.replace('#', '');
-      return `https://vidlink.pro/tv/${tmdbId}/${season}/${episode}?primaryColor=${c}&iconColor=${c}&player=jw&nextbutton=true&autoplay=true${progress && progress > 0 ? `&startAt=${Math.floor(progress)}` : ''}`;
+      return `https://vidlink.pro/tv/${tmdbId}/${season}/${episode}?primaryColor=${c}&iconColor=${c}&player=default&nextbutton=true&autoplay=true${progress && progress > 0 ? `&startAt=${Math.floor(progress)}` : ''}`;
     },
     supportsPostMessage: false
   },
@@ -206,6 +244,18 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
       return localStorage.getItem('movieverse_anime_language') || 'sub';
     }
     return 'sub';
+  });
+  const [audioLanguage, setAudioLanguage] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('movieverse_preferred_audio_language') || 'English';
+    }
+    return 'English';
+  });
+  const [subtitleLanguage, setSubtitleLanguage] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('movieverse_preferred_subtitle_language') || 'English';
+    }
+    return 'English';
   });
 
   useEffect(() => {
@@ -577,12 +627,12 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     if (shouldUpdateUrl) {
       const startProgress = currentProgressRef.current;
       const newUrl = isTvShow
-        ? provider.getTvUrl(tmdbId, currentSeason, currentEpisode, activeColor, startProgress, isAnime, anilistId, animeLanguage)
-        : provider.getMovieUrl(tmdbId, activeColor, startProgress, isAnime, anilistId, animeLanguage);
+        ? provider.getTvUrl(tmdbId, currentSeason, currentEpisode, activeColor, startProgress, isAnime, anilistId, animeLanguage, audioLanguage, subtitleLanguage)
+        : provider.getMovieUrl(tmdbId, activeColor, startProgress, isAnime, anilistId, animeLanguage, audioLanguage, subtitleLanguage);
 
       setEmbedUrl(newUrl);
     }
-  }, [tmdbId, mediaType, isAnime, currentSeason, currentEpisode, activeColor, selectedProviderId, forceProgress, isWatchParty, anilistId, animeLanguage]);
+  }, [tmdbId, mediaType, isAnime, currentSeason, currentEpisode, activeColor, selectedProviderId, forceProgress, isWatchParty, anilistId, animeLanguage, audioLanguage, subtitleLanguage]);
 
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
@@ -1204,6 +1254,56 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                   </div>
                 )}
 
+                {/* Audio Language Preference */}
+                <div className="border-t border-white/5 pt-4">
+                  <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block mb-2 px-1">
+                    Audio Language
+                  </span>
+                  <div className="relative mt-1.5">
+                    <select
+                      value={audioLanguage}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setAudioLanguage(val);
+                        localStorage.setItem('movieverse_preferred_audio_language', val);
+                      }}
+                      className="w-full bg-[#141417] border border-white/10 rounded-xl px-3.5 py-2.5 text-white text-xs font-bold focus:outline-none appearance-none cursor-pointer"
+                    >
+                      {['English', 'Hindi', 'Spanish', 'Japanese', 'French', 'German', 'Portuguese', 'Russian'].map(lang => (
+                        <option key={lang} value={lang} className="bg-[#141417] text-white">
+                          {lang}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown size={14} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none" />
+                  </div>
+                </div>
+
+                {/* Subtitle Preference */}
+                <div className="border-t border-white/5 pt-4">
+                  <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block mb-2 px-1">
+                    Subtitles Language
+                  </span>
+                  <div className="relative mt-1.5">
+                    <select
+                      value={subtitleLanguage}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setSubtitleLanguage(val);
+                        localStorage.setItem('movieverse_preferred_subtitle_language', val);
+                      }}
+                      className="w-full bg-[#141417] border border-white/10 rounded-xl px-3.5 py-2.5 text-white text-xs font-bold focus:outline-none appearance-none cursor-pointer"
+                    >
+                      {['None', 'English', 'Hindi', 'Spanish', 'French', 'German', 'Portuguese', 'Russian'].map(sub => (
+                        <option key={sub} value={sub} className="bg-[#141417] text-white">
+                          {sub}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown size={14} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none" />
+                  </div>
+                </div>
+
                 {/* Utilities */}
                 <div className="border-t border-white/5 pt-4">
                   <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block mb-2 px-1">Utilities</span>
@@ -1222,8 +1322,8 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                       const isTvShow = mediaType === 'tv' || (isAnime && mediaType !== 'movie');
                       const provider = PROVIDERS.find(p => p.id === selectedProviderId) || PROVIDERS[0];
                       const newUrl = isTvShow
-                        ? provider.getTvUrl(tmdbId, currentSeason, currentEpisode, activeColor, 0)
-                        : provider.getMovieUrl(tmdbId, activeColor, 0);
+                        ? provider.getTvUrl(tmdbId, currentSeason, currentEpisode, activeColor, 0, isAnime, anilistId, animeLanguage, audioLanguage, subtitleLanguage)
+                        : provider.getMovieUrl(tmdbId, activeColor, 0, isAnime, anilistId, animeLanguage, audioLanguage, subtitleLanguage);
                       setEmbedUrl(newUrl);
                       setIsDrawerOpen(false);
                     }}
