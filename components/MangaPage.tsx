@@ -205,6 +205,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
   const [isBookmarked, setIsBookmarked] = useState(false);
   const [isDetailsExiting, setIsDetailsExiting] = useState(false);
   const [isReaderExiting, setIsReaderExiting] = useState(false);
+  const [scrollPercent, setScrollPercent] = useState(0);
 
   // Reset scroll to top on mount
   useEffect(() => {
@@ -557,9 +558,11 @@ export const MangaPage: React.FC<MangaPageProps> = ({
           if (num > maxCh) maxCh = num;
         }
         
-        if (maxCh > maxChapterNum || (maxCh === maxChapterNum && (priority[prov] || 0) > (priority[bestProvider] || 0))) {
-          maxChapterNum = maxCh;
-          bestProvider = prov;
+        if (resolvedMangaIdMap[prov]) {
+          if (maxCh > maxChapterNum || (maxCh === maxChapterNum && (priority[prov] || 0) > (priority[bestProvider] || 0))) {
+            maxChapterNum = maxCh;
+            bestProvider = prov;
+          }
         }
       } catch (err) {
         console.warn(`Failed to auto-resolve provider ${prov}:`, err);
@@ -899,21 +902,59 @@ export const MangaPage: React.FC<MangaPageProps> = ({
     setPages(urls);
   }, [isDataSaver, chapterServerData, readingSource]);
 
-  // Single page keyboard arrows
+  // Keyboard navigation & scrolling
   useEffect(() => {
-    if (!activeChapter || readerMode !== 'single') return;
+    if (!activeChapter) return;
     const handleKey = (e: KeyboardEvent) => {
-      if (e.key === 'ArrowRight') {
-        setActivePageIdx(p => Math.min(pages.length - 1, p + 1));
-      } else if (e.key === 'ArrowLeft') {
-        setActivePageIdx(p => Math.max(0, p - 1));
-      } else if (e.key === 'Escape') {
+      const tag = (e.target as HTMLElement).tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+
+      if (readerMode === 'strip') {
+        if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          window.scrollBy({ top: window.innerHeight * 0.4, behavior: 'smooth' });
+        } else if (e.key === 'ArrowUp') {
+          e.preventDefault();
+          window.scrollBy({ top: -window.innerHeight * 0.4, behavior: 'smooth' });
+        }
+      } else if (readerMode === 'single') {
+        if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+          e.preventDefault();
+          setActivePageIdx(p => Math.min(pages.length - 1, p + 1));
+        } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+          e.preventDefault();
+          setActivePageIdx(p => Math.max(0, p - 1));
+        }
+      }
+
+      if (e.key === 'Escape') {
+        e.preventDefault();
         handleCloseReader();
       }
     };
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
-  }, [activeChapter, readerMode, pages.length, onChapterSelect]);
+  }, [activeChapter, readerMode, pages.length]);
+
+  // Track scroll position in strip mode
+  useEffect(() => {
+    if (!activeChapter || readerMode !== 'strip') {
+      setScrollPercent(0);
+      return;
+    }
+    const handleScroll = () => {
+      const scrollHeight = document.documentElement.scrollHeight - window.innerHeight;
+      if (scrollHeight <= 0) {
+        setScrollPercent(100);
+        return;
+      }
+      const pct = Math.min(100, Math.max(0, Math.round((window.scrollY / scrollHeight) * 100)));
+      setScrollPercent(pct);
+    };
+    window.addEventListener('scroll', handleScroll);
+    handleScroll();
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [activeChapter, readerMode, pages.length]);
 
   // Resolve cover image helper
   const getMangaCover = (manga: MangaDexManga) => {
@@ -1093,21 +1134,34 @@ export const MangaPage: React.FC<MangaPageProps> = ({
     }
   };
 
+  const activeReaderChapters = useMemo(() => {
+    let result = readingSource !== 'mangadex' ? [...mappedMangapillChapters] : [...chapters];
+    result.sort((a, b) => {
+      const numA = parseFloat(a.attributes.chapter || '0');
+      const numB = parseFloat(b.attributes.chapter || '0');
+      if (isNaN(numA) || isNaN(numB)) {
+        return (b.attributes.chapter || '').localeCompare(a.attributes.chapter || '');
+      }
+      return numB - numA;
+    });
+    return result;
+  }, [chapters, mappedMangapillChapters, readingSource]);
+
   // Reader overlay active checks
   if (activeChapter) {
-    const currentChapterIdx = chapters.findIndex(ch => ch.id === activeChapter.id);
-    const hasPrevChapter = currentChapterIdx > 0;
-    const hasNextChapter = currentChapterIdx < chapters.length - 1;
+    const currentChapterIdx = activeReaderChapters.findIndex(ch => ch.id === activeChapter.id);
+    const hasPrevChapter = currentChapterIdx < activeReaderChapters.length - 1; // older chapter (at higher index)
+    const hasNextChapter = currentChapterIdx > 0; // newer chapter (at lower index)
 
     const goToPrevChapter = () => {
       if (hasPrevChapter) {
-        onChapterSelect(chapters[currentChapterIdx - 1].id);
+        onChapterSelect(activeReaderChapters[currentChapterIdx + 1].id);
       }
     };
 
     const goToNextChapter = () => {
       if (hasNextChapter) {
-        onChapterSelect(chapters[currentChapterIdx + 1].id);
+        onChapterSelect(activeReaderChapters[currentChapterIdx - 1].id);
       }
     };
 
@@ -1171,7 +1225,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
             <div className="flex items-center justify-between">
               <span className="text-[10px] font-medium text-zinc-400 tracking-wide">Select Chapter</span>
               <span className="text-[10px] font-medium text-zinc-400">
-                {currentChapterIdx !== -1 ? `${currentChapterIdx + 1} / ${chapters.length}` : ''}
+                {currentChapterIdx !== -1 ? `${activeReaderChapters.length - currentChapterIdx} / ${activeReaderChapters.length}` : ''}
               </span>
             </div>
             <div className="flex items-center gap-2">
@@ -1190,8 +1244,8 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                   onChange={handleChapterChange}
                   className="w-full bg-white/5 text-xs text-white hover:bg-zinc-900 focus:border-red-600 rounded-lg px-2.5 py-2 focus:outline-none transition-all font-medium cursor-pointer appearance-none"
                 >
-                  {chapters.map((ch, idx) => (
-                    <option key={ch.id} value={ch.id}>
+                  {activeReaderChapters.map((ch) => (
+                    <option key={ch.id} value={ch.id} className="bg-[#0c0c0e]">
                       Ch {ch.attributes.chapter || 'Oneshot'}{ch.attributes.title ? `: ${ch.attributes.title.substring(0, 16)}${ch.attributes.title.length > 16 ? '...' : ''}` : ''}
                     </option>
                   ))}
@@ -1203,7 +1257,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
 
               <button
                 onClick={goToNextChapter}
-                disabled={hasNextChapter}
+                disabled={!hasNextChapter}
                 className="p-2 rounded-lg bg-white/5 hover:bg-zinc-800 disabled:opacity-20 text-white transition-all active:scale-95 shrink-0"
                 title="Newer Chapter"
               >
@@ -1254,33 +1308,62 @@ export const MangaPage: React.FC<MangaPageProps> = ({
           )}
         </div>
 
-        {/* Action Panel */}
-        <div className="space-y-2">
-          <span className="text-[10px] font-medium text-zinc-400 tracking-wide">Actions</span>
-          <div className="grid grid-cols-1 gap-2">
-            <button
-              onClick={toggleBookmark}
-              className={`w-full py-2 rounded-lg text-xs font-normal transition-all flex items-center justify-center gap-2 active:scale-98 ${isBookmarked ? 'bg-red-600/15 text-red-500' : 'bg-white/5 text-zinc-300 hover:text-white'}`}
-            >
-              <Bookmark size={13} fill={isBookmarked ? "currentColor" : "none"} />
-              <span>{isBookmarked ? 'Bookmarked' : 'Bookmark'}</span>
-            </button>
-            
-            <button
-              onClick={handleCloseReader}
-              className="w-full py-2 rounded-lg bg-white/5 text-xs font-normal text-zinc-300 hover:text-white transition-all flex items-center justify-center gap-2 active:scale-98"
-            >
-              <Info size={13} />
-              <span>Manga Detail</span>
-            </button>
+        {/* Reading Status & Stats Panel */}
+        <div className="bg-white/5 border border-white/5 rounded-xl p-4.5 space-y-4">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Reading Progress</span>
+            <span className="text-xs font-black text-red-500">
+              {readerMode === 'single'
+                ? `${Math.round(((activePageIdx + 1) / (pages.length || 1)) * 100)}%`
+                : `${scrollPercent}%`
+              }
+            </span>
+          </div>
 
-            <button
-              onClick={() => showToast('Thank you! Issue has been reported to staff.')}
-              className="w-full py-2 rounded-lg bg-white/5 text-xs font-normal text-zinc-300 hover:text-white transition-all flex items-center justify-center gap-2 active:scale-98"
-            >
-              <AlertTriangle size={13} />
-              <span>Report Error</span>
-            </button>
+          {/* Progress Bar */}
+          <div className="w-full bg-white/10 h-1.5 rounded-full overflow-hidden">
+            <div 
+              className="bg-red-600 h-full rounded-full transition-all duration-300"
+              style={{ 
+                width: `${readerMode === 'single' 
+                  ? ((activePageIdx + 1) / (pages.length || 1)) * 100 
+                  : scrollPercent}%` 
+              }}
+            />
+          </div>
+
+          <div className="pt-2 border-t border-white/5 space-y-2">
+            <div className="flex justify-between text-[10px] text-zinc-400">
+              <span>Source Provider:</span>
+              <span className="text-white font-bold capitalize">{readingSource}</span>
+            </div>
+            {pages.length > 0 && (
+              <div className="flex justify-between text-[10px] text-zinc-400">
+                <span>Active Page:</span>
+                <span className="text-white font-bold">
+                  {readerMode === 'single' ? `${activePageIdx + 1} / ${pages.length}` : `All ${pages.length} Loaded`}
+                </span>
+              </div>
+            )}
+          </div>
+
+          {/* Keyboard Shortcuts Help */}
+          <div className="pt-3 border-t border-white/5 space-y-1.5">
+            <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-wider block">Shortcuts</span>
+            <div className="grid grid-cols-2 gap-2 text-[10px] text-zinc-400">
+              <div className="flex items-center gap-1.5">
+                <span className="bg-zinc-800 border border-zinc-700 px-1.5 py-0.5 rounded text-[8px] font-mono text-zinc-300">↑/↓</span>
+                <span>Scroll</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="bg-zinc-800 border border-zinc-700 px-1.5 py-0.5 rounded text-[8px] font-mono text-zinc-300">←/→</span>
+                <span>Pages</span>
+              </div>
+              <div className="flex items-center gap-1.5 col-span-2">
+                <span className="bg-zinc-800 border border-zinc-700 px-1.5 py-0.5 rounded text-[8px] font-mono text-zinc-300">Esc</span>
+                <span>Exit Reader</span>
+              </div>
+            </div>
           </div>
         </div>
 
