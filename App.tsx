@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef, Suspense } from 'react';
 import { App as CapApp } from '@capacitor/app';
-import { Search, Film, Menu, TrendingUp, Tv, Ghost, Calendar, Star, X, Sparkles, Settings, Globe, Bookmark, Heart, Folder, Languages, Filter, ChevronDown, Info, Plus, Cloud, CloudOff, Clock, Bell, History, Users, Tag, Dice5, Crown, Radio, LayoutGrid, Award, Baby, Clapperboard, ChevronRight, PlayCircle, Play, Megaphone, CalendarDays, Compass, Home, Map, Loader2, Trophy, RefreshCcw, Check, MonitorPlay, Layers, LogOut, Download, User } from 'lucide-react';
+import { Search, Film, Menu, TrendingUp, Tv, Ghost, Calendar, Star, X, Sparkles, Settings, Globe, Bookmark, Heart, Folder, Languages, Filter, ChevronDown, Info, Plus, Cloud, CloudOff, Clock, Bell, History, Users, Tag, Dice5, Crown, Radio, LayoutGrid, Award, Baby, Clapperboard, ChevronRight, PlayCircle, Play, Megaphone, CalendarDays, Compass, Home, Map, Loader2, Trophy, RefreshCcw, Check, MonitorPlay, Layers, LogOut, Download, User, FileText } from 'lucide-react';
 import { Movie, UserProfile, GENRES_MAP, GENRES_LIST, INDIAN_LANGUAGES, MaturityRating, Keyword } from './types';
 import { LogoLoader, MovieSkeleton, MovieCard, PersonCard, TMDB_BASE_URL, TMDB_BACKDROP_BASE, TMDB_IMAGE_BASE, getTmdbKey, BrandLogo, getMovieVerseRating, tvFetch } from './components/Shared';
 import { MoviePage } from './components/MovieDetails';
@@ -17,6 +17,7 @@ import { ExplorePage } from './components/ExplorePage';
 import { AnimePage } from './components/AnimePage';
 import { MovieDome } from './components/MovieDome';
 import { MangaPage } from './components/MangaPage';
+import { ComicsPage } from './components/ComicsPage';
 import { BookOpen } from 'lucide-react';
 import { useTvFocus, TvFocusButton, TvFocusInput } from './tvNavigation';
 import AppTV from './components/AppTV';
@@ -1742,9 +1743,9 @@ export default function App() {
     const accentBg = "bg-red-600";
     const accentBgLow = "bg-red-600/20";
 
-    const showStickyHeader = !["Categories", "Franchise", "Explore", "LiveTV", "Multiverse", "Anime", "Manga"].includes(selectedCategory);
+    const showStickyHeader = !["Categories", "Franchise", "Explore", "LiveTV", "Multiverse", "Anime", "Manga", "Comics"].includes(selectedCategory);
     const hasHeroBanner = !!(
-        (!searchQuery && featuredMovie && !["People", "Coming", "Collections", "Categories", "Franchise", "Explore", "LiveTV", "Multiverse", "Anime", "Manga"].includes(selectedCategory)) ||
+        (!searchQuery && featuredMovie && !["People", "Coming", "Collections", "Categories", "Franchise", "Explore", "LiveTV", "Multiverse", "Anime", "Manga", "Comics"].includes(selectedCategory)) ||
         (selectedCategory === "Franchise" && franchiseList.length > 0)
     );
 
@@ -2312,7 +2313,7 @@ export default function App() {
 
     const fetchMovies = useCallback(async (pageNum: number = 1, isLoadMore = false) => {
         if (!apiKey) return;
-        if (selectedCategory === "Manga") return;
+        if (selectedCategory === "Manga" || selectedCategory === "Comics") return;
         setFetchError(false);
         if (["Watchlist", "Favorites", "History"].includes(selectedCategory)) {
             const list = selectedCategory === "Watchlist" ? watchlistRef.current : selectedCategory === "Favorites" ? favoritesRef.current : watchedRef.current;
@@ -3319,6 +3320,7 @@ export default function App() {
         { id: "Awards", icon: Award, label: "Awards", action: () => { resetFilters(); setSelectedCategory("Awards"); } },
         { id: "Anime", icon: Ghost, label: "Anime", action: () => { resetFilters(); setSelectedCategory("Anime"); } },
         { id: "Manga", icon: BookOpen, label: "Manga", action: () => { resetFilters(); setSelectedMangaId(null); setActiveMangaChapterId(null); setSelectedCategory("Manga"); } },
+        { id: "Comics", icon: FileText, label: "Comics", action: () => { resetFilters(); setSelectedCategory("Comics"); } },
 
         { id: "Franchise", icon: Layers, label: "Franchises", action: () => { resetFilters(); setSelectedCategory("Franchise"); } },
         { id: "Family", icon: Baby, label: "Family", action: () => { resetFilters(); setSelectedCategory("Family"); } },
@@ -3746,6 +3748,8 @@ export default function App() {
                             searchQuery={searchQuery}
                             onSearchClear={() => setSearchQuery('')}
                         />
+                    ) : selectedCategory === "Comics" ? (
+                        <ComicsPage />
 
                     ) : selectedCategory === "Explore" && !searchQuery ? (
                         <ExplorePage
