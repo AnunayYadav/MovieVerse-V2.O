@@ -99,8 +99,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // 2. Search/browse action (Extremely fast, no nested scrapes)
     const getComicsUrl = searchQuery
-      ? `https://getcomics.info/page/${pageNum}/?s=${encodeURIComponent(searchQuery)}`
-      : `https://getcomics.info/page/${pageNum}/`;
+      ? `https://getcomics.org/page/${pageNum}/?s=${encodeURIComponent(searchQuery)}`
+      : `https://getcomics.org/page/${pageNum}/`;
 
     const response = await fetch(getComicsUrl, {
       headers: {
