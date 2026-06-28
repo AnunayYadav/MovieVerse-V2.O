@@ -207,6 +207,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
   const [isReaderExiting, setIsReaderExiting] = useState(false);
   const [scrollPercent, setScrollPercent] = useState(0);
   const readerScrollContainerRef = useRef<HTMLDivElement>(null);
+  const [visiblePagesCount, setVisiblePagesCount] = useState(5);
 
   // Reset scroll to top on mount
   useEffect(() => {
@@ -946,6 +947,11 @@ export const MangaPage: React.FC<MangaPageProps> = ({
     const urls = fileNames.map((f: string) => `${baseUrl}/${folder}/${hash}/${f}`);
     setPages(urls);
   }, [isDataSaver, chapterServerData, readingSource]);
+ 
+  // Reset visible pages count when pages change
+  useEffect(() => {
+    setVisiblePagesCount(5);
+  }, [pages]);
 
   // Keyboard navigation & scrolling
   useEffect(() => {
@@ -981,7 +987,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
     return () => window.removeEventListener('keydown', handleKey);
   }, [activeChapter, readerMode, pages.length]);
 
-  // Track scroll position in strip mode
+  // Track scroll position in strip mode & lazy load next batches of pages
   useEffect(() => {
     const container = readerScrollContainerRef.current;
     if (!activeChapter || readerMode !== 'strip' || !container) {
@@ -996,6 +1002,16 @@ export const MangaPage: React.FC<MangaPageProps> = ({
       }
       const pct = Math.min(100, Math.max(0, Math.round((container.scrollTop / scrollHeight) * 100)));
       setScrollPercent(pct);
+
+      // Dynamically load 5 more pages when scrolled past 65%
+      if (pct > 65) {
+        setVisiblePagesCount(prev => {
+          if (prev < pages.length) {
+            return Math.min(pages.length, prev + 5);
+          }
+          return prev;
+        });
+      }
     };
     container.addEventListener('scroll', handleScroll);
     handleScroll();
@@ -1557,7 +1573,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
             ) : readerMode === 'strip' ? (
               /* Long Strip Mode (Stacked scroll) */
               <div className={`${getPageWidthClass()} w-full flex flex-col gap-4 py-2`}>
-                {pages.map((url, i) => (
+                {pages.slice(0, visiblePagesCount).map((url, i) => (
                   <div key={i} className="w-full relative bg-zinc-950/20 rounded-xl overflow-hidden min-h-[300px] sm:min-h-[400px] flex items-center justify-center shadow-lg">
                     <img
                       src={url}
