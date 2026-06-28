@@ -32,6 +32,7 @@ export interface MangaDexManga {
       };
     }[];
     links?: Record<string, string | undefined>;
+    originalLanguage?: string;
   };
   relationships: any[];
 }
@@ -1501,6 +1502,9 @@ export const MangaPage: React.FC<MangaPageProps> = ({
       </div>
     );
 
+    const formatInfo = selectedManga ? getMangaFormat(selectedManga) : null;
+    const isStitchedFormat = formatInfo?.label === 'Manhwa' || formatInfo?.label === 'Manhua';
+
     return (
       <div className={`fixed inset-0 z-[120] ${getBgClass()} flex flex-col lg:flex-row font-sans select-none ${isReaderExiting ? 'animate-fade-out' : 'animate-fade-in'}`}>
         
@@ -1572,9 +1576,9 @@ export const MangaPage: React.FC<MangaPageProps> = ({
               </div>
             ) : readerMode === 'strip' ? (
               /* Long Strip Mode (Stacked scroll) */
-              <div className={`${getPageWidthClass()} w-full flex flex-col gap-4 py-2`}>
+              <div className={`${getPageWidthClass()} w-full flex flex-col ${isStitchedFormat ? 'gap-0 py-0' : 'gap-4 py-2'}`}>
                 {pages.slice(0, visiblePagesCount).map((url, i) => (
-                  <div key={i} className="w-full relative bg-zinc-950/20 rounded-xl overflow-hidden min-h-[300px] sm:min-h-[400px] flex items-center justify-center shadow-lg">
+                  <div key={i} className={`w-full relative overflow-hidden min-h-[300px] sm:min-h-[400px] flex items-center justify-center ${isStitchedFormat ? 'bg-transparent rounded-none' : 'bg-zinc-950/20 rounded-xl shadow-lg'}`}>
                     <img
                       src={url}
                       alt={`Page ${i + 1}`}
@@ -1594,9 +1598,11 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                         }
                       }}
                     />
-                    <div className="absolute bottom-3 right-3 bg-black/80 backdrop-blur-md px-2.5 py-0.5 rounded text-[10px] text-zinc-300 select-none font-medium shadow-md">
-                      {i + 1} / {pages.length}
-                    </div>
+                    {!isStitchedFormat && (
+                      <div className="absolute bottom-3 right-3 bg-black/80 backdrop-blur-md px-2.5 py-0.5 rounded text-[10px] text-zinc-300 select-none font-medium shadow-md">
+                        {i + 1} / {pages.length}
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -1788,6 +1794,12 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                   <span className="text-zinc-500 font-normal block mb-0.5">Status</span>
                   <span className="text-zinc-300 font-medium capitalize">{selectedManga.attributes.status}</span>
                 </div>
+                <div>
+                  <span className="text-zinc-500 font-normal block mb-0.5">Format</span>
+                  <span className={`inline-block px-2.5 py-0.5 rounded text-[10px] font-bold border ${getMangaFormat(selectedManga).badgeClass}`}>
+                    {getMangaFormat(selectedManga).label}
+                  </span>
+                </div>
               </div>
             </div>
           </div>
@@ -1800,6 +1812,9 @@ export const MangaPage: React.FC<MangaPageProps> = ({
 
             {/* Quick Metrics Badge row */}
             <div className="flex flex-wrap gap-2 mb-6 text-left">
+              <span className={`px-3 py-1.5 rounded-lg text-xs font-bold border ${getMangaFormat(selectedManga).badgeClass}`}>
+                {getMangaFormat(selectedManga).label}
+              </span>
               <span className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-white/5 border border-white/10 text-zinc-300 flex items-center gap-1.5" title="MAL Rating">
                 ⭐ {ratingScore} MAL
               </span>
@@ -2438,6 +2453,36 @@ export const MangaPage: React.FC<MangaPageProps> = ({
 
 // --- SUB COMPONENTS ---
 
+export const getMangaFormat = (manga: MangaDexManga) => {
+  const lang = manga?.attributes?.originalLanguage;
+  if (lang === 'ja') {
+    return {
+      label: 'Manga',
+      cardClass: 'bg-red-600/90 text-white border-red-500/30',
+      badgeClass: 'bg-red-500/10 text-red-400 border-red-500/20'
+    };
+  }
+  if (lang === 'ko') {
+    return {
+      label: 'Manhwa',
+      cardClass: 'bg-blue-600/90 text-white border-blue-500/30',
+      badgeClass: 'bg-blue-500/10 text-blue-400 border-blue-500/20'
+    };
+  }
+  if (lang === 'zh' || lang === 'zh-hk') {
+    return {
+      label: 'Manhua',
+      cardClass: 'bg-emerald-600/90 text-white border-emerald-500/30',
+      badgeClass: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+    };
+  }
+  return {
+    label: 'Comic',
+    cardClass: 'bg-zinc-600/90 text-white border-zinc-500/30',
+    badgeClass: 'bg-zinc-500/10 text-zinc-400 border-zinc-500/20'
+  };
+};
+
 export interface MangaCardProps {
   manga: MangaDexManga;
   onMangaClick: (id: string) => void;
@@ -2453,6 +2498,7 @@ export const MangaCard: React.FC<MangaCardProps> = ({ manga, onMangaClick, title
   const coverUrl = manga.relationships?.find(r => r.type === 'cover_art')?.attributes?.fileName
     ? `https://uploads.mangadex.org/covers/${manga.id}/${manga.relationships.find(r => r.type === 'cover_art').attributes.fileName}.256.jpg`
     : 'https://placehold.co/400x600/111/444?text=No+Cover';
+  const formatInfo = getMangaFormat(manga);
 
   return (
     <div
@@ -2460,6 +2506,11 @@ export const MangaCard: React.FC<MangaCardProps> = ({ manga, onMangaClick, title
       onClick={() => onMangaClick(manga.id)}
       className="group relative shrink-0 w-[140px] sm:w-[170px] aspect-[2/3] rounded-xl overflow-hidden cursor-pointer bg-zinc-900 border border-white/5 hover:border-red-500/50 hover:shadow-[0_0_20px_rgba(239,68,68,0.25)] hover:scale-[1.03] transition-all duration-500"
     >
+      {/* Format Badge (Manga/Manhwa/Manhua) */}
+      <div className={`absolute top-2 left-2 z-10 px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider border shadow-md ${formatInfo.cardClass}`}>
+        {formatInfo.label}
+      </div>
+
       <img
         src={coverUrl}
         alt={title}
