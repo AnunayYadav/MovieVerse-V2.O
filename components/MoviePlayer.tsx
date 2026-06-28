@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
-import { X, Tv, ChevronLeft, ChevronRight, Check, ListVideo, Sliders, ChevronDown, Info, RefreshCw, Palette, Copy, Play } from 'lucide-react';
+import { X, Tv, ChevronLeft, ChevronRight, Check, ListVideo, Sliders, ChevronDown, Info, RefreshCw, Palette, Copy, Play, Pause, Volume2, VolumeX, Maximize } from 'lucide-react';
 import { TvFocusButton } from '../tvNavigation';
 import { pause, resume } from '@noriginmedia/norigin-spatial-navigation';
 import { TMDB_BASE_URL, TMDB_IMAGE_BASE } from './Shared';
@@ -165,6 +165,18 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   const [episodesLoading, setEpisodesLoading] = useState(false);
   const [isSeasonDropdownOpen, setIsSeasonDropdownOpen] = useState(false);
 
+  // Custom player controls state (PostMessage providers)
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [playerCurrentTime, setPlayerCurrentTime] = useState(0);
+  const [playerDuration, setPlayerDuration] = useState(0);
+  const [playerVolume, setPlayerVolume] = useState(1);
+  const [playerMuted, setPlayerMuted] = useState(false);
+  const [showControls, setShowControls] = useState(true);
+  const [isSeeking, setIsSeeking] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const controlsTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const progressBarRef = useRef<HTMLDivElement>(null);
+
   const [anilistId, setAnilistId] = useState<number | null>(null);
   const [anilistLoading, setAnilistLoading] = useState(false);
   const [animeLanguage, setAnimeLanguage] = useState(() => {
@@ -294,6 +306,22 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     window.location.search.includes("tv=true")
   );
 
+  // Custom controls derived values & refs
+  const currentProvider = PROVIDERS.find(p => p.id === selectedProviderId);
+  const useCustomControls = currentProvider?.supportsPostMessage === true;
+  const isPlayingRef = useRef(false);
+  const isSeekingRef = useRef(false);
+  const playerDurationRef = useRef(0);
+
+  const formatTime = (seconds: number): string => {
+    if (isNaN(seconds) || seconds < 0) return '0:00';
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = Math.floor(seconds % 60);
+    if (h > 0) return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+    return `${m}:${s.toString().padStart(2, '0')}`;
+  };
+
   const focusIframe = () => {
     if (isTV && iframeRef.current) {
       console.log("MovieVerse TV: Focusing iframe player content");
@@ -305,6 +333,85 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
       }
     }
   };
+
+  // --- Custom Controls PostMessage Helpers ---
+  const sendPlayerCommand = useCallback((command: string, params?: Record<string, any>) => {
+    if (!iframeRef.current?.contentWindow) return;
+    iframeRef.current.contentWindow.postMessage({ command, ...params }, '*');
+  }, []);
+
+  const togglePlayback = useCallback(() => {
+    const next = !isPlaying;
+    sendPlayerCommand(next ? 'play' : 'pause');
+    setIsPlaying(next);
+  }, [isPlaying, sendPlayerCommand]);
+
+  const seekTo = useCallback((time: number) => {
+    sendPlayerCommand('seek', { time: Math.floor(time) });
+    setPlayerCurrentTime(time);
+  }, [sendPlayerCommand]);
+
+  const changeVolume = useCallback((level: number) => {
+    const clamped = Math.max(0, Math.min(1, level));
+    sendPlayerCommand('volume', { level: clamped });
+    setPlayerVolume(clamped);
+    if (clamped > 0 && playerMuted) {
+      sendPlayerCommand('mute', { muted: false });
+      setPlayerMuted(false);
+    }
+  }, [sendPlayerCommand, playerMuted]);
+
+  const toggleMuteState = useCallback(() => {
+    sendPlayerCommand('mute', { muted: !playerMuted });
+    setPlayerMuted(!playerMuted);
+  }, [sendPlayerCommand, playerMuted]);
+
+  const toggleFullscreen = useCallback(() => {
+    if (!containerRef.current) return;
+    if (document.fullscreenElement) {
+      document.exitFullscreen();
+    } else {
+      containerRef.current.requestFullscreen();
+    }
+  }, []);
+
+  const resetControlsTimeout = useCallback(() => {
+    setShowControls(true);
+    if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
+    controlsTimeoutRef.current = setTimeout(() => {
+      if (isPlayingRef.current) setShowControls(false);
+    }, 3000);
+  }, []);
+
+  const handleProgressBarMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsSeeking(true);
+    isSeekingRef.current = true;
+
+    const bar = progressBarRef.current;
+    if (!bar) return;
+
+    const updatePos = (clientX: number) => {
+      const rect = bar.getBoundingClientRect();
+      const frac = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+      setPlayerCurrentTime(frac * playerDurationRef.current);
+    };
+    updatePos(e.clientX);
+
+    const onMove = (ev: MouseEvent) => updatePos(ev.clientX);
+    const onUp = (ev: MouseEvent) => {
+      const rect = bar.getBoundingClientRect();
+      const frac = Math.max(0, Math.min(1, (ev.clientX - rect.left) / rect.width));
+      seekTo(frac * playerDurationRef.current);
+      setIsSeeking(false);
+      isSeekingRef.current = false;
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  }, [seekTo]);
 
   const sendPlayState = useCallback((state: 'play' | 'pause') => {
     if (!iframeRef.current || !iframeRef.current.contentWindow) return;
@@ -338,6 +445,12 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     sendPlayState(playState);
     setTimeout(() => sendPlayState(playState), 1000);
     setTimeout(() => sendPlayState(playState), 2000);
+    if (useCustomControls) {
+      setIsPlaying(true);
+      setShowControls(true);
+      setTimeout(() => sendPlayerCommand('getStatus'), 500);
+      setTimeout(() => sendPlayerCommand('getStatus'), 1500);
+    }
   };
 
   useEffect(() => {
@@ -474,6 +587,14 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                     }
                     if (type === 'PLAYER_EVENT' && data) {
                         const { event: playerEvent, currentTime, duration, season, episode, playing } = data;
+
+                        // Sync custom controls state from player events
+                        if (playing !== undefined) setIsPlaying(playing);
+                        if (currentTime !== undefined && !isSeekingRef.current) setPlayerCurrentTime(Number(currentTime));
+                        if (duration !== undefined && Number(duration) > 0) setPlayerDuration(Number(duration));
+                        if (data.volume !== undefined) setPlayerVolume(Number(data.volume));
+                        if (data.muted !== undefined) setPlayerMuted(data.muted);
+
                         if (currentTime !== undefined && currentTime !== null) {
                             const timeNum = Number(currentTime);
                             const durationNum = duration !== undefined && duration !== null ? Number(duration) : 0;
@@ -599,6 +720,71 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     sendPlayState(playState);
   }, [playState, sendPlayState]);
 
+  // Sync refs with state for use in closures/handlers
+  useEffect(() => { isPlayingRef.current = isPlaying; }, [isPlaying]);
+  useEffect(() => { playerDurationRef.current = playerDuration; }, [playerDuration]);
+
+  // Poll player status for custom controls
+  useEffect(() => {
+    if (!useCustomControls) return;
+    const interval = setInterval(() => {
+      if (!isSeekingRef.current) sendPlayerCommand('getStatus');
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [useCustomControls, sendPlayerCommand]);
+
+  // Keyboard shortcuts for custom controls
+  useEffect(() => {
+    if (!useCustomControls) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement).tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+      switch (e.key) {
+        case ' ':
+          e.preventDefault();
+          togglePlayback();
+          break;
+        case 'ArrowLeft':
+          e.preventDefault();
+          seekTo(Math.max(0, playerCurrentTime - 10));
+          break;
+        case 'ArrowRight':
+          e.preventDefault();
+          seekTo(Math.min(playerDuration, playerCurrentTime + 10));
+          break;
+        case 'ArrowUp':
+          e.preventDefault();
+          changeVolume(playerVolume + 0.1);
+          break;
+        case 'ArrowDown':
+          e.preventDefault();
+          changeVolume(playerVolume - 0.1);
+          break;
+        case 'm': case 'M':
+          toggleMuteState();
+          break;
+        case 'f': case 'F':
+          toggleFullscreen();
+          break;
+      }
+      resetControlsTimeout();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [useCustomControls, togglePlayback, seekTo, changeVolume, toggleMuteState, toggleFullscreen, resetControlsTimeout, playerCurrentTime, playerDuration, playerVolume]);
+
+  // Fullscreen change listener
+  useEffect(() => {
+    const onFsChange = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener('fullscreenchange', onFsChange);
+    return () => document.removeEventListener('fullscreenchange', onFsChange);
+  }, []);
+
+  // Cleanup controls timeout on unmount
+  useEffect(() => {
+    return () => { if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current); };
+  }, []);
+
 
   return (
     <div 
@@ -617,6 +803,97 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
               allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
               allowFullScreen
           />
+        )}
+
+        {/* Custom Controls Overlay for PostMessage providers */}
+        {useCustomControls && (
+          <div
+            className="absolute inset-0 z-10 flex flex-col justify-end select-none"
+            onMouseMove={resetControlsTimeout}
+            onTouchStart={resetControlsTimeout}
+            onMouseLeave={() => { if (isPlayingRef.current) setShowControls(false); }}
+            onClick={(e) => {
+              if ((e.target as HTMLElement).closest('[data-controls]')) return;
+              togglePlayback();
+              resetControlsTimeout();
+            }}
+            style={{ cursor: showControls ? 'default' : 'none' }}
+          >
+            {/* Center play button when paused */}
+            {!isPlaying && playerDuration > 0 && (
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20">
+                <div className="w-20 h-20 rounded-full bg-black/60 backdrop-blur-md flex items-center justify-center border border-white/20 shadow-2xl animate-pulse">
+                  <Play size={36} className="text-white ml-1" fill="white" />
+                </div>
+              </div>
+            )}
+
+            {/* Bottom gradient + controls */}
+            <div
+              data-controls
+              className={`relative z-20 transition-all duration-300 ease-out ${
+                showControls ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 pointer-events-none'
+              }`}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="bg-gradient-to-t from-black/95 via-black/60 to-transparent pt-16 pb-4 px-4 sm:px-6">
+                {/* Progress bar */}
+                <div
+                  ref={progressBarRef}
+                  className="group/progress w-full h-1.5 bg-white/20 rounded-full cursor-pointer relative mb-3 hover:h-2.5 transition-all duration-150"
+                  onMouseDown={handleProgressBarMouseDown}
+                >
+                  <div
+                    className="absolute inset-y-0 left-0 rounded-full transition-[width] duration-75"
+                    style={{
+                      width: playerDuration > 0 ? `${(playerCurrentTime / playerDuration) * 100}%` : '0%',
+                      backgroundColor: `#${activeColor.replace('#', '')}`
+                    }}
+                  />
+                  <div
+                    className="absolute top-1/2 -translate-y-1/2 w-4 h-4 rounded-full shadow-lg opacity-0 group-hover/progress:opacity-100 transition-opacity pointer-events-none border-2 border-white"
+                    style={{
+                      left: playerDuration > 0 ? `calc(${(playerCurrentTime / playerDuration) * 100}% - 8px)` : '-8px',
+                      backgroundColor: `#${activeColor.replace('#', '')}`
+                    }}
+                  />
+                </div>
+
+                {/* Controls row */}
+                <div className="flex items-center gap-2 sm:gap-3">
+                  <button onClick={togglePlayback} className="p-2 text-white hover:bg-white/10 rounded-lg transition-all active:scale-90" title={isPlaying ? 'Pause (Space)' : 'Play (Space)'}>
+                    {isPlaying ? <Pause size={22} fill="white" /> : <Play size={22} fill="white" className="ml-0.5" />}
+                  </button>
+
+                  <span className="text-white/80 text-[11px] sm:text-xs font-mono tabular-nums whitespace-nowrap">
+                    {formatTime(playerCurrentTime)}<span className="text-white/30 mx-1">/</span>{formatTime(playerDuration)}
+                  </span>
+
+                  <div className="flex-1" />
+
+                  {/* Volume (desktop) */}
+                  <div className="hidden sm:flex items-center gap-1 group/vol">
+                    <button onClick={toggleMuteState} className="p-2 text-white/80 hover:text-white hover:bg-white/10 rounded-lg transition-all" title={playerMuted ? 'Unmute (M)' : 'Mute (M)'}>
+                      {playerMuted || playerVolume === 0 ? <VolumeX size={18} /> : <Volume2 size={18} />}
+                    </button>
+                    <div className="w-0 group-hover/vol:w-20 overflow-hidden transition-all duration-300">
+                      <input type="range" min="0" max="1" step="0.05" value={playerMuted ? 0 : playerVolume} onChange={(e) => changeVolume(parseFloat(e.target.value))} className="w-20 h-1 cursor-pointer appearance-none bg-white/30 rounded-full outline-none" style={{ accentColor: `#${activeColor.replace('#', '')}` }} />
+                    </div>
+                  </div>
+
+                  {/* Mute (mobile) */}
+                  <button onClick={toggleMuteState} className="sm:hidden p-2 text-white/80 hover:text-white hover:bg-white/10 rounded-lg transition-all" title={playerMuted ? 'Unmute' : 'Mute'}>
+                    {playerMuted || playerVolume === 0 ? <VolumeX size={18} /> : <Volume2 size={18} />}
+                  </button>
+
+                  {/* Fullscreen */}
+                  <button onClick={toggleFullscreen} className="p-2 text-white/80 hover:text-white hover:bg-white/10 rounded-lg transition-all" title="Fullscreen (F)">
+                    <Maximize size={18} />
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
         )}
 
         {/* TV close button (hidden on TV via CSS but clickable, visible on Desktop) */}
