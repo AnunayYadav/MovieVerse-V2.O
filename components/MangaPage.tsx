@@ -206,6 +206,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
   const [isDetailsExiting, setIsDetailsExiting] = useState(false);
   const [isReaderExiting, setIsReaderExiting] = useState(false);
   const [scrollPercent, setScrollPercent] = useState(0);
+  const readerScrollContainerRef = useRef<HTMLDivElement>(null);
 
   // Reset scroll to top on mount
   useEffect(() => {
@@ -489,100 +490,142 @@ export const MangaPage: React.FC<MangaPageProps> = ({
 
   const autoSelectBestProvider = useCallback(async (manga: MangaDexManga) => {
     setIsAutoResolving(true);
-    const title = getMangaTitle(manga);
-    
-    // We will check: mangadex, weebcentral, comick, mangapill
-    let maxDexChapter = 0;
     try {
-      const data = await fetchMangaDex(`/manga/${manga.id}/feed?translatedLanguage[]=en&order[chapter]=desc&limit=1`);
-      if (data && data.data && data.data[0]) {
-        maxDexChapter = parseFloat(data.data[0].attributes?.chapter) || 0;
-      }
-    } catch (e) {
-      console.warn("Failed to fetch max MangaDex chapter:", e);
-    }
+      const title = getMangaTitle(manga);
+      console.log(`[Auto-Detector] Starting search for "${title}"...`);
+      
+      // Helper to fetch with timeout
+      const fetchWithTimeout = async (url: string, ms = 3000) => {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), ms);
+        try {
+          const response = await window.fetch(url, { signal: controller.signal });
+          clearTimeout(timeoutId);
+          return response;
+        } catch (err) {
+          clearTimeout(timeoutId);
+          throw err;
+        }
+      };
 
-    const providersToCheck = ['weebcentral', 'comick', 'mangapill'];
-    let bestProvider = 'mangadex';
-    let maxChapterNum = maxDexChapter;
-    let resolvedChaptersMap: Record<string, any[]> = {};
-    let resolvedMangaIdMap: Record<string, string> = {};
-
-    const priority: Record<string, number> = {
-      'weebcentral': 4,
-      'comick': 3,
-      'mangapill': 2,
-      'mangadex': 1
-    };
-
-    const parseChapterNumber = (ch: any): number => {
-      if (!ch) return 0;
-      if (ch.chapter !== undefined && ch.chapter !== null) {
-        const num = parseFloat(ch.chapter);
-        if (!isNaN(num)) return num;
+      // We will check: mangadex, weebcentral, comick, mangapill
+      let maxDexChapter = 0;
+      try {
+        const res = await fetchMangaDex(`/manga/${manga.id}/feed?translatedLanguage[]=en&order[chapter]=desc&limit=1`);
+        if (res && res.data && res.data[0]) {
+          maxDexChapter = parseFloat(res.data[0].attributes?.chapter) || 0;
+        }
+      } catch (e) {
+        console.warn("[Auto-Detector] Failed to fetch max MangaDex chapter:", e);
       }
-      if (ch.number !== undefined && ch.number !== null) {
-        const num = parseFloat(ch.number);
-        if (!isNaN(num)) return num;
-      }
-      const fieldsToSearch = [ch.title, ch.chapter, ch.number, ch.id].filter(Boolean);
-      for (const field of fieldsToSearch) {
-        const match = String(field).match(/(\d+(?:\.\d+)?)/);
-        if (match) {
-          const num = parseFloat(match[1]);
+
+      console.log(`[Auto-Detector] MangaDex max chapter: ${maxDexChapter}`);
+
+      const providersToCheck = ['weebcentral', 'comick', 'mangapill'];
+      let bestProvider = 'mangadex';
+      let maxChapterNum = maxDexChapter;
+      let resolvedChaptersMap: Record<string, any[]> = {};
+      let resolvedMangaIdMap: Record<string, string> = {};
+
+      const priority: Record<string, number> = {
+        'weebcentral': 4,
+        'comick': 3,
+        'mangapill': 2,
+        'mangadex': 1
+      };
+
+      const parseChapterNumber = (ch: any): number => {
+        if (!ch) return 0;
+        if (ch.chapter !== undefined && ch.chapter !== null) {
+          const num = parseFloat(ch.chapter);
           if (!isNaN(num)) return num;
         }
-      }
-      return 0;
-    };
-
-    const promises = providersToCheck.map(async (prov) => {
-      try {
-        const searchRes = await window.fetch(`/api/manga?action=search&provider=${prov}&query=${encodeURIComponent(title)}`);
-        if (!searchRes.ok) return;
-        const searchList = await searchRes.json();
-        if (!searchList || searchList.length === 0) return;
-        
-        const bestMatch = searchList[0];
-        const infoRes = await window.fetch(`/api/manga?action=info&provider=${prov}&id=${encodeURIComponent(bestMatch.id)}`);
-        if (!infoRes.ok) return;
-        const infoData = await infoRes.json();
-        
-        const chList = infoData.chapters || [];
-        resolvedChaptersMap[prov] = chList;
-        resolvedMangaIdMap[prov] = bestMatch.id;
-        
-        let maxCh = 0;
-        for (const ch of chList) {
-          const num = parseChapterNumber(ch);
-          if (num > maxCh) maxCh = num;
+        if (ch.number !== undefined && ch.number !== null) {
+          const num = parseFloat(ch.number);
+          if (!isNaN(num)) return num;
         }
-        
-        if (resolvedMangaIdMap[prov]) {
-          if (maxCh > maxChapterNum || (maxCh === maxChapterNum && (priority[prov] || 0) > (priority[bestProvider] || 0))) {
-            maxChapterNum = maxCh;
-            bestProvider = prov;
+        const fieldsToSearch = [ch.title, ch.chapter, ch.number, ch.id].filter(Boolean);
+        for (const field of fieldsToSearch) {
+          const match = String(field).match(/(\d+(?:\.\d+)?)/);
+          if (match) {
+            const num = parseFloat(match[1]);
+            if (!isNaN(num)) return num;
           }
         }
-      } catch (err) {
-        console.warn(`Failed to auto-resolve provider ${prov}:`, err);
+        return 0;
+      };
+
+      const promises = providersToCheck.map(async (prov) => {
+        try {
+          console.log(`[Auto-Detector] Fetching search matches for ${prov}...`);
+          const searchRes = await fetchWithTimeout(`/api/manga?action=search&provider=${prov}&query=${encodeURIComponent(title)}`, 3000);
+          if (!searchRes.ok) {
+            console.warn(`[Auto-Detector] Search request failed for ${prov}: ${searchRes.statusText}`);
+            return;
+          }
+          const searchList = await searchRes.json();
+          if (!searchList || searchList.length === 0) {
+            console.log(`[Auto-Detector] No matches found for ${prov}`);
+            return;
+          }
+          
+          const bestMatch = searchList[0];
+          console.log(`[Auto-Detector] Found match for ${prov}: ${bestMatch.title || bestMatch.id}`);
+          
+          const infoRes = await fetchWithTimeout(`/api/manga?action=info&provider=${prov}&id=${encodeURIComponent(bestMatch.id)}`, 3000);
+          if (!infoRes.ok) {
+            console.warn(`[Auto-Detector] Info request failed for ${prov}: ${infoRes.statusText}`);
+            return;
+          }
+          const infoData = await infoRes.json();
+          
+          const chList = infoData.chapters || [];
+          if (chList.length === 0) {
+            console.log(`[Auto-Detector] Provider ${prov} returned 0 chapters`);
+            return;
+          }
+          
+          resolvedChaptersMap[prov] = chList;
+          resolvedMangaIdMap[prov] = bestMatch.id;
+          
+          let maxCh = 0;
+          for (const ch of chList) {
+            const num = parseChapterNumber(ch);
+            if (num > maxCh) maxCh = num;
+          }
+          
+          console.log(`[Auto-Detector] Provider ${prov} has ${chList.length} chapters, max chapter parsed: ${maxCh}`);
+
+          if (resolvedMangaIdMap[prov] && chList.length > 0) {
+            if (maxCh > maxChapterNum || (maxCh === maxChapterNum && (priority[prov] || 0) > (priority[bestProvider] || 0))) {
+              maxChapterNum = maxCh;
+              bestProvider = prov;
+              console.log(`[Auto-Detector] New best provider candidate: ${bestProvider} with chapter: ${maxChapterNum}`);
+            }
+          }
+        } catch (err) {
+          console.warn(`[Auto-Detector] Failed to auto-resolve provider ${prov}:`, err);
+        }
+      });
+
+      await Promise.all(promises);
+
+      console.log(`[Auto-Detector] Final decision: ${bestProvider} with chapter ${maxChapterNum} (MangaDex had ${maxDexChapter})`);
+      
+      if (bestProvider !== 'mangadex') {
+        setResolvedProvider(bestProvider);
+        setMangapillMangaId(resolvedMangaIdMap[bestProvider] || null);
+        setMangapillChapters(resolvedChaptersMap[bestProvider] || []);
+        setReadingSource(bestProvider);
+      } else {
+        setReadingSource('mangadex');
+        setResolvedProvider('mangadex');
       }
-    });
-
-    await Promise.all(promises);
-
-    console.log(`Auto-selected best provider: ${bestProvider} with chapter ${maxChapterNum} (MangaDex had chapter ${maxDexChapter})`);
-    
-    if (bestProvider !== 'mangadex') {
-      setResolvedProvider(bestProvider);
-      setMangapillMangaId(resolvedMangaIdMap[bestProvider] || null);
-      setMangapillChapters(resolvedChaptersMap[bestProvider] || []);
-      setReadingSource(bestProvider);
-    } else {
-      setReadingSource('mangadex');
-      setResolvedProvider('mangadex');
+    } catch (error) {
+      console.error("[Auto-Detector] Critical error in autoSelectBestProvider:", error);
+    } finally {
+      setIsAutoResolving(false);
     }
-    setIsAutoResolving(false);
   }, [getMangaTitle, fetchMangaDex]);
 
   // Automatically select the best source provider when a manga is selected
@@ -909,13 +952,13 @@ export const MangaPage: React.FC<MangaPageProps> = ({
       const tag = (e.target as HTMLElement).tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA') return;
 
-      if (readerMode === 'strip') {
+      if (readerMode === 'strip' && readerScrollContainerRef.current) {
         if (e.key === 'ArrowDown') {
           e.preventDefault();
-          window.scrollBy({ top: window.innerHeight * 0.4, behavior: 'smooth' });
+          readerScrollContainerRef.current.scrollBy({ top: window.innerHeight * 0.4, behavior: 'smooth' });
         } else if (e.key === 'ArrowUp') {
           e.preventDefault();
-          window.scrollBy({ top: -window.innerHeight * 0.4, behavior: 'smooth' });
+          readerScrollContainerRef.current.scrollBy({ top: -window.innerHeight * 0.4, behavior: 'smooth' });
         }
       } else if (readerMode === 'single') {
         if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
@@ -938,22 +981,23 @@ export const MangaPage: React.FC<MangaPageProps> = ({
 
   // Track scroll position in strip mode
   useEffect(() => {
-    if (!activeChapter || readerMode !== 'strip') {
+    const container = readerScrollContainerRef.current;
+    if (!activeChapter || readerMode !== 'strip' || !container) {
       setScrollPercent(0);
       return;
     }
     const handleScroll = () => {
-      const scrollHeight = document.documentElement.scrollHeight - window.innerHeight;
+      const scrollHeight = container.scrollHeight - container.clientHeight;
       if (scrollHeight <= 0) {
         setScrollPercent(100);
         return;
       }
-      const pct = Math.min(100, Math.max(0, Math.round((window.scrollY / scrollHeight) * 100)));
+      const pct = Math.min(100, Math.max(0, Math.round((container.scrollTop / scrollHeight) * 100)));
       setScrollPercent(pct);
     };
-    window.addEventListener('scroll', handleScroll);
+    container.addEventListener('scroll', handleScroll);
     handleScroll();
-    return () => window.removeEventListener('scroll', handleScroll);
+    return () => container.removeEventListener('scroll', handleScroll);
   }, [activeChapter, readerMode, pages.length]);
 
   // Resolve cover image helper
@@ -1400,22 +1444,20 @@ export const MangaPage: React.FC<MangaPageProps> = ({
               </button>
             </div>
 
-            {readerMode === 'strip' && (
-              <div className="flex items-center justify-between">
-                <span className="font-normal text-zinc-400">Page Width</span>
-                <div className="flex items-center rounded-lg bg-white/5 p-0.5">
-                  {(['normal', 'wide', 'full'] as const).map((sz) => (
-                    <button
-                      key={sz}
-                      onClick={() => setPageSize(sz)}
-                      className={`px-2 py-1 rounded-md text-[9px] font-normal capitalize transition-all ${pageSize === sz ? 'bg-red-600 text-white' : 'text-zinc-500 hover:text-white'}`}
-                    >
-                      {sz}
-                    </button>
-                  ))}
-                </div>
+            <div className="flex items-center justify-between">
+              <span className="font-normal text-zinc-400">Page Width</span>
+              <div className="flex items-center rounded-lg bg-white/5 p-0.5">
+                {(['normal', 'wide', 'full'] as const).map((sz) => (
+                  <button
+                    key={sz}
+                    onClick={() => setPageSize(sz)}
+                    className={`px-2 py-1 rounded-md text-[9px] font-normal capitalize transition-all ${pageSize === sz ? 'bg-red-600 text-white' : 'text-zinc-500 hover:text-white'}`}
+                  >
+                    {sz}
+                  </button>
+                ))}
               </div>
-            )}
+            </div>
 
             <div className="flex items-center justify-between">
               <span className="font-normal text-zinc-400">Theme</span>
@@ -1496,7 +1538,10 @@ export const MangaPage: React.FC<MangaPageProps> = ({
           </div>
 
           {/* Reader Body container */}
-          <div className="flex-1 overflow-y-auto custom-scrollbar pt-2 pb-4 px-4 relative flex flex-col items-center justify-start">
+          <div 
+            ref={readerScrollContainerRef}
+            className="flex-1 overflow-y-auto custom-scrollbar pt-2 pb-4 px-4 relative flex flex-col items-center justify-start"
+          >
             {pagesLoading ? (
               <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
                 <Loader2 className="animate-spin text-red-600" size={36} />
@@ -1539,18 +1584,18 @@ export const MangaPage: React.FC<MangaPageProps> = ({
               </div>
             ) : (
               /* Single Page Mode (Slideshow) */
-              <div className="flex-1 w-full flex flex-col justify-center items-center py-4">
-                <div className="w-full max-w-2xl flex items-center justify-between gap-2 sm:gap-6">
+              <div className="flex-1 w-full flex flex-col justify-center items-center py-2 h-full">
+                <div className={`w-full ${getPageWidthClass()} flex items-center justify-between gap-2 sm:gap-6 h-full`}>
                   
                   <button
                     onClick={() => setActivePageIdx(p => Math.max(0, p - 1))}
                     disabled={activePageIdx === 0}
-                    className="p-2 sm:p-3 rounded-full bg-zinc-900/80 hover:bg-zinc-800 text-white disabled:opacity-10 disabled:pointer-events-none transition-all active:scale-90 shadow-lg border border-white/5"
+                    className="p-2 sm:p-3 rounded-full bg-zinc-900/80 hover:bg-zinc-800 text-white disabled:opacity-10 disabled:pointer-events-none transition-all active:scale-90 shadow-lg border border-white/5 shrink-0"
                   >
                     <ChevronLeft size={20} />
                   </button>
 
-                  <div className="flex-1 aspect-[3/4] max-h-[72vh] bg-zinc-950/20 border border-white/5 rounded-2xl overflow-hidden flex items-center justify-center relative shadow-2xl">
+                  <div className="flex-1 aspect-[3/4] max-h-[82vh] md:max-h-[86vh] bg-zinc-950/20 border border-white/5 rounded-2xl overflow-hidden flex items-center justify-center relative shadow-2xl">
                     <img
                       src={pages[activePageIdx]}
                       alt={`Page ${activePageIdx + 1}`}
