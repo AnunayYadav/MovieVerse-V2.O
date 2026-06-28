@@ -1112,18 +1112,12 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                         {isExclusive && (
                                             <TvFocusButton onClick={() => onStartWatchParty && onStartWatchParty(displayData, playParams.season, playParams.episode)} className="flex items-center justify-center gap-2 px-6 py-2.5 rounded-md font-bold text-sm sm:text-base transition-all hover:scale-[1.02] active:scale-95 bg-transparent text-white border border-white/20 hover:bg-white/5 shadow-md" title="Start a Watch Party"><Users size={18} /> Watch Party</TvFocusButton>
                                         )}
-                                        <TvFocusButton 
-                                            onClick={() => setShowDownloadModal(true)} 
-                                            className="flex items-center justify-center gap-2 px-6 py-2.5 rounded-md font-bold text-sm sm:text-base transition-all hover:scale-[1.02] active:scale-95 bg-blue-600/20 text-blue-400 border border-blue-500/30 hover:bg-blue-600/30 shadow-md shadow-blue-600/5" 
-                                            title="Download Options"
-                                        >
-                                            <Download size={18} /> Download
-                                        </TvFocusButton>
                                         <div className="flex items-center gap-3">
                                             <TvFocusButton onClick={() => onToggleWatchlist(displayData)} className={`w-10 h-10 rounded-full border flex items-center justify-center transition-all active:scale-95 group relative ${isWatchlisted ? 'text-green-400 border-green-500 bg-transparent hover:bg-green-500/10' : 'text-white border-white/20 hover:border-white/40 bg-transparent hover:bg-white/5'}`} title="Add to Watchlist">{isWatchlisted ? <Check size={18} strokeWidth={2.5}/> : <Plus size={18}/>}</TvFocusButton>
                                             <TvFocusButton onClick={() => onToggleFavorite(displayData)} className={`w-10 h-10 rounded-full border flex items-center justify-center transition-all active:scale-95 group ${isFavorite ? 'text-red-500 border-red-500 bg-transparent hover:bg-red-500/10' : 'text-white border-white/20 hover:border-white/40 bg-transparent hover:bg-white/5'}`} title="Add to Favorites"><Heart size={18} fill={isFavorite ? "currentColor" : "none"}/></TvFocusButton>
                                             <TvFocusButton onClick={handleShare} className={`w-10 h-10 rounded-full border flex items-center justify-center transition-all active:scale-95 group relative ${copied ? 'text-green-400 border-green-500 bg-transparent hover:bg-green-500/10' : 'text-white border-white/20 hover:border-white/40 bg-transparent hover:bg-white/5'}`} title="Share Movie">{copied ? <Check size={18} strokeWidth={2.5}/> : <Share2 size={18}/>}</TvFocusButton>
                                             <TvFocusButton onClick={() => setShowCastModal(true)} className={`w-10 h-10 rounded-full border flex items-center justify-center transition-all active:scale-95 group relative ${isCasting ? 'text-red-500 border-red-500 bg-transparent hover:bg-red-500/10 shadow-[0_0_12px_rgba(239,68,68,0.25)]' : 'text-white border-white/20 hover:border-white/40 bg-transparent hover:bg-white/5'}`} title="Chromecast">{isCasting ? <Cast size={18} className="animate-pulse" /> : <Cast size={18} />}</TvFocusButton>
+                                            <TvFocusButton onClick={() => setShowDownloadModal(true)} className="w-10 h-10 rounded-full border border-white/20 hover:border-white/40 bg-transparent hover:bg-white/5 flex items-center justify-center transition-all active:scale-95 text-white" title="Download Options"><Download size={18} /></TvFocusButton>
                                             <TvFocusButton onClick={() => details?.external_ids?.imdb_id && window.open(`https://www.imdb.com/title/${details.external_ids.imdb_id}/parentalguide`, '_blank')} disabled={!details?.external_ids?.imdb_id} className={`w-10 h-10 rounded-full border border-white/20 hover:border-white/40 bg-transparent hover:bg-white/5 flex items-center justify-center transition-all active:scale-95 text-white ${!details?.external_ids?.imdb_id ? 'opacity-30 cursor-not-allowed' : ''}`} title="Parents Guide (IMDb)"><Shield size={18}/></TvFocusButton>
                                             {details?.videos?.results?.[0] && <TvFocusButton onClick={() => window.open(`https://www.youtube.com/watch?v=${details.videos.results[0].key}`)} className="w-10 h-10 rounded-full border border-white/20 hover:border-white/40 bg-transparent hover:bg-white/5 flex items-center justify-center transition-all active:scale-95 text-white" title="Watch Trailer"><Play size={16} fill="currentColor" className="ml-0.5"/></TvFocusButton>}
                                         </div>
@@ -1195,15 +1189,9 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                     </TvFocusButton>
                                 )}
                             </div>
-                            <TvFocusButton 
-                                onClick={() => setShowDownloadModal(true)} 
-                                className="w-full py-2.5 px-4 rounded-md font-extrabold text-xs flex items-center justify-center gap-2 transition-all active:scale-95 bg-blue-600/10 hover:bg-blue-600/20 text-blue-400 border border-blue-500/20 shadow-md mt-1"
-                            >
-                                <Download size={14}/> Download Options
-                            </TvFocusButton>
 
                             {/* Secondary Action Buttons Compact Row */}
-                            <div className="grid grid-cols-6 gap-1 py-3 border-y border-white/5 mt-1.5 text-gray-400">
+                            <div className="grid grid-cols-7 gap-0.5 py-3 border-y border-white/5 mt-1.5 text-gray-400">
                                 <TvFocusButton onClick={() => onToggleWatchlist(displayData)} className="flex flex-col items-center gap-1.5 py-0.5 active:scale-95 text-center">
                                     {isWatchlisted ? <Check size={18} className="text-green-400" strokeWidth={2.5}/> : <Plus size={18} className="text-white"/>}
                                     <span className="text-[9px] font-bold tracking-wide mt-0.5">My List</span>
@@ -1219,6 +1207,10 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                 <TvFocusButton onClick={() => setShowCastModal(true)} className="flex flex-col items-center gap-1.5 py-0.5 active:scale-95 text-center">
                                     <Cast size={18} className={isCasting ? "text-red-500 animate-pulse" : "text-white"}/>
                                     <span className="text-[9px] font-bold tracking-wide mt-0.5">Cast</span>
+                                </TvFocusButton>
+                                <TvFocusButton onClick={() => setShowDownloadModal(true)} className="flex flex-col items-center gap-1.5 py-0.5 active:scale-95 text-center">
+                                    <Download size={18} className="text-white"/>
+                                    <span className="text-[9px] font-bold tracking-wide mt-0.5">Download</span>
                                 </TvFocusButton>
                                 <TvFocusButton onClick={() => details?.external_ids?.imdb_id && window.open(`https://www.imdb.com/title/${details.external_ids.imdb_id}/parentalguide`, '_blank')} disabled={!details?.external_ids?.imdb_id} className="flex flex-col items-center gap-1.5 py-0.5 active:scale-95 text-center disabled:opacity-30">
                                     <Shield size={18} className="text-white"/>
@@ -2066,7 +2058,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                 <div className="fixed inset-0 z-[250] bg-black/85 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-300">
                     <div className="bg-[#0c0c0e]/95 border border-white/10 rounded-3xl p-6 max-w-md w-full shadow-2xl relative overflow-hidden text-center select-none animate-in zoom-in-95 duration-300 animate-slide-in-bottom">
                         {/* Header border design */}
-                        <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-600"></div>
+                        <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-red-600 via-purple-600 to-red-600"></div>
                         
                         <button 
                             onClick={() => setShowDownloadModal(false)}
@@ -2077,7 +2069,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                         </button>
 
                         <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mx-auto mb-4 border border-white/10 shadow-inner">
-                            <Download size={32} className="text-blue-500" />
+                            <Download size={32} className="text-red-500" />
                         </div>
 
                         <h3 className="text-xl font-bold text-white mb-1">{isTv ? "Download Episode" : "Download Movie"}</h3>
@@ -2099,7 +2091,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                         {releaseDate.split(',')[1]?.trim() || releaseDate} • {runtime}
                                     </p>
                                     {isTv && (
-                                        <p className="text-[11px] text-blue-400 font-semibold mt-1">
+                                        <p className="text-[11px] text-red-400 font-semibold mt-1">
                                             Season {downloadSeason}, Episode {downloadEpisode}
                                         </p>
                                     )}
@@ -2166,7 +2158,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                     }
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="w-full py-3 px-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-extrabold text-xs uppercase tracking-wider rounded-xl transition-all hover:scale-[1.01] active:scale-95 shadow-md shadow-blue-600/10 flex items-center justify-between border border-blue-500/30"
+                                    className="w-full py-3 px-4 bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white font-medium text-sm rounded-xl transition-all hover:scale-[1.01] active:scale-95 shadow-md shadow-red-600/10 flex items-center justify-between border border-red-500/20"
                                 >
                                     <span>Server 1: Peachify Downloader</span>
                                     <Download size={14} />
@@ -2181,7 +2173,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                     }
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="w-full py-3 px-4 bg-white/5 hover:bg-white/10 text-zinc-300 hover:text-white font-extrabold text-xs uppercase tracking-wider rounded-xl transition-all hover:scale-[1.01] active:scale-95 shadow-md flex items-center justify-between border border-white/5 hover:border-white/15"
+                                    className="w-full py-3 px-4 bg-white/5 hover:bg-white/10 text-zinc-300 hover:text-white font-medium text-sm rounded-xl transition-all hover:scale-[1.01] active:scale-95 shadow-md flex items-center justify-between border border-white/5 hover:border-white/15"
                                 >
                                     <span>Server 2: 02MovieDownloader</span>
                                     <Download size={14} />
