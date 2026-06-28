@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { Play, Info, Search, Star, BookOpen, X, ChevronLeft, ChevronRight, FileText, LayoutList, RefreshCcw, Loader2, AlertCircle, Sparkles, Trophy, Calendar, TrendingUp, ArrowLeft, Users, Globe, Bookmark, AlertTriangle, Settings, Heart, Maximize, Languages, ChevronDown, Check } from 'lucide-react';
+import { Play, Info, Search, Star, BookOpen, X, ChevronLeft, ChevronRight, FileText, LayoutList, RefreshCcw, Loader2, AlertCircle, Sparkles, Trophy, Calendar, TrendingUp, ArrowLeft, Users, Globe, Bookmark, AlertTriangle, Settings, Heart, Maximize, Minimize, Languages, ChevronDown, Check } from 'lucide-react';
 import { useTvFocus, TvFocusButton, TvFocusInput } from '../tvNavigation';
 import { ExpandedCategoryModal } from './Modals';
 
@@ -209,6 +209,34 @@ export const MangaPage: React.FC<MangaPageProps> = ({
   const [scrollPercent, setScrollPercent] = useState(0);
   const readerScrollContainerRef = useRef<HTMLDivElement>(null);
   const [visiblePagesCount, setVisiblePagesCount] = useState(5);
+  const [autoScrollSpeed, setAutoScrollSpeed] = useState<number>(0);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  const toggleFullscreen = useCallback(() => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().then(() => {
+        setIsFullscreen(true);
+      }).catch(err => {
+        console.error("Error attempting to enable fullscreen mode:", err);
+      });
+    } else {
+      if (document.exitFullscreen) {
+        document.exitFullscreen().then(() => {
+          setIsFullscreen(false);
+        }).catch(err => {
+          console.error("Error attempting to exit fullscreen mode:", err);
+        });
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, []);
 
   // Reset scroll to top on mount
   useEffect(() => {
@@ -979,6 +1007,11 @@ export const MangaPage: React.FC<MangaPageProps> = ({
         }
       }
 
+      if ((e.key === 'a' || e.key === 'A') && readerMode === 'strip') {
+        e.preventDefault();
+        setAutoScrollSpeed(s => (s + 1) % 4);
+      }
+
       if (e.key === 'Escape') {
         e.preventDefault();
         handleCloseReader();
@@ -1018,6 +1051,30 @@ export const MangaPage: React.FC<MangaPageProps> = ({
     handleScroll();
     return () => container.removeEventListener('scroll', handleScroll);
   }, [activeChapter, readerMode, pages.length]);
+
+  // Autoscroll animation loop in strip mode
+  useEffect(() => {
+    const container = readerScrollContainerRef.current;
+    if (readerMode !== 'strip' || autoScrollSpeed === 0 || !container) return;
+
+    let lastTime = performance.now();
+    let frameId: number;
+
+    const step = (time: number) => {
+      if (!container) return;
+      const elapsed = time - lastTime;
+      let speedFactor = 0.02; // Slow
+      if (autoScrollSpeed === 2) speedFactor = 0.06; // Med
+      if (autoScrollSpeed === 3) speedFactor = 0.15; // Fast
+
+      container.scrollTop += elapsed * speedFactor;
+      lastTime = time;
+      frameId = requestAnimationFrame(step);
+    };
+
+    frameId = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(frameId);
+  }, [autoScrollSpeed, readerMode]);
 
   // Resolve cover image helper
   const getMangaCover = (manga: MangaDexManga) => {
@@ -1255,11 +1312,11 @@ export const MangaPage: React.FC<MangaPageProps> = ({
               <span className="text-[10px] font-medium text-zinc-400 tracking-wider">Manga Reader</span>
             </div>
             <button
-              onClick={handleCloseReader}
+              onClick={toggleFullscreen}
               className="p-1.5 text-zinc-400 hover:text-white rounded-md bg-white/5 hover:bg-white/10 transition-colors"
-              title="Back to details"
+              title={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
             >
-              <ArrowLeft size={14} />
+              {isFullscreen ? <Minimize size={14} /> : <Maximize size={14} />}
             </button>
           </div>
 
@@ -1282,7 +1339,12 @@ export const MangaPage: React.FC<MangaPageProps> = ({
         </div>
 
         {/* Navigation panel */}
-        <div className="space-y-4">
+        <div className="bg-white/5 border border-white/5 rounded-xl p-4 space-y-4">
+          <div className="flex items-center gap-2 border-b border-white/5 pb-2">
+            <span className="w-1 h-3 bg-red-600 rounded-full inline-block"></span>
+            <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Navigation</span>
+          </div>
+
           {/* Chapter selector */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
@@ -1314,7 +1376,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                   ))}
                 </select>
                 <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-zinc-400">
-                  <ChevronRight className="rotate-90" size={14} />
+                  <ChevronDown size={14} />
                 </div>
               </div>
 
@@ -1355,7 +1417,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                     ))}
                   </select>
                   <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-zinc-400">
-                    <ChevronRight className="rotate-90" size={14} />
+                    <ChevronDown size={14} />
                   </div>
                 </div>
 
@@ -1426,13 +1488,22 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                 <span className="bg-zinc-800 border border-zinc-700 px-1.5 py-0.5 rounded text-[8px] font-mono text-zinc-300">Esc</span>
                 <span>Exit Reader</span>
               </div>
+              {readerMode === 'strip' && (
+                <div className="flex items-center gap-1.5 col-span-2">
+                  <span className="bg-zinc-800 border border-zinc-700 px-1.5 py-0.5 rounded text-[8px] font-mono text-zinc-300">A</span>
+                  <span>Toggle Autoscroll</span>
+                </div>
+              )}
             </div>
           </div>
         </div>
 
         {/* Display Settings */}
-        <div className="space-y-4">
-          <span className="text-[10px] font-medium text-zinc-400 tracking-wide">Layout Settings</span>
+        <div className="bg-white/5 border border-white/5 rounded-xl p-4 space-y-4">
+          <div className="flex items-center gap-2 border-b border-white/5 pb-2">
+            <span className="w-1 h-3 bg-red-600 rounded-full inline-block"></span>
+            <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Layout Settings</span>
+          </div>
           
           <div className="space-y-3.5 text-xs">
             <div className="flex items-center justify-between">
@@ -1479,7 +1550,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
             </div>
 
             <div className="flex items-center justify-between">
-              <span className="font-normal text-zinc-400">Theme</span>
+              <span className="font-normal text-zinc-400 font-sans">Theme</span>
               <div className="flex items-center rounded-lg bg-white/5 p-0.5">
                 {(['black', 'gray', 'darker'] as const).map((bg) => (
                   <button
@@ -1492,6 +1563,23 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                 ))}
               </div>
             </div>
+
+            {readerMode === 'strip' && (
+              <div className="flex items-center justify-between">
+                <span className="font-normal text-zinc-400">Autoscroll</span>
+                <div className="flex items-center rounded-lg bg-white/5 p-0.5">
+                  {([0, 1, 2, 3] as const).map((spd) => (
+                    <button
+                      key={spd}
+                      onClick={() => setAutoScrollSpeed(spd)}
+                      className={`px-2 py-1 rounded-md text-[9px] font-normal transition-all ${autoScrollSpeed === spd ? 'bg-red-600 text-white' : 'text-zinc-500 hover:text-white'}`}
+                    >
+                      {spd === 0 ? 'Off' : spd === 1 ? 'Slow' : spd === 2 ? 'Med' : 'Fast'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -1621,10 +1709,11 @@ export const MangaPage: React.FC<MangaPageProps> = ({
 
                   <div className="flex-1 aspect-[3/4] max-h-[82vh] md:max-h-[86vh] bg-zinc-950/20 border border-white/5 rounded-2xl overflow-hidden flex items-center justify-center relative shadow-2xl">
                     <img
+                      key={activePageIdx}
                       src={pages[activePageIdx]}
                       alt={`Page ${activePageIdx + 1}`}
                       referrerPolicy="no-referrer"
-                      className="max-h-full max-w-full object-contain pointer-events-none"
+                      className="max-h-full max-w-full object-contain pointer-events-none animate-fade-in duration-300"
                       onError={(e) => {
                         if (readingSource !== 'mangadex') return;
                         const target = e.currentTarget;
