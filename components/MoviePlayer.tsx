@@ -1,5 +1,6 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
-import { X, Tv, ChevronLeft, ChevronRight, Check, ListVideo, Sliders, ChevronDown, Info, RefreshCw, Palette, Copy, Play, Pause, Volume2, VolumeX, Maximize } from 'lucide-react';
+import { X, Tv, ChevronLeft, ChevronRight, Check, ListVideo, Sliders, ChevronDown, Info, RefreshCw, Palette, Copy, Play, Pause, Volume2, VolumeX, Maximize, Loader2, AlertTriangle } from 'lucide-react';
+import Hls from 'hls.js';
 import { TvFocusButton } from '../tvNavigation';
 import { pause, resume } from '@noriginmedia/norigin-spatial-navigation';
 import { TMDB_BASE_URL, TMDB_IMAGE_BASE } from './Shared';
@@ -87,6 +88,13 @@ const getSubtitleCode = (sub: string, format: 'name' | 'iso') => {
 };
 
 export const PROVIDERS: Provider[] = [
+  {
+    id: 'anivexa',
+    name: 'Anivexa (HLS Ad-Free)',
+    getMovieUrl: () => '',
+    getTvUrl: () => '',
+    supportsPostMessage: false
+  },
   {
     id: 'videasy',
     name: 'VidEasy',
@@ -237,6 +245,44 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   const controlsTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const progressBarRef = useRef<HTMLDivElement>(null);
 
+  const [selectedProviderId, setSelectedProviderId] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const preferred = localStorage.getItem('movieverse_preferred_provider') || (isAnime ? 'anivexa' : 'peachify');
+      if (isWatchParty) {
+        const prov = PROVIDERS.find(p => p.id === preferred);
+        if (!prov || !prov.supportsPostMessage) {
+          return 'vidfast'; // Fallback default for Watch Party
+        }
+      }
+      return preferred;
+    }
+    return isWatchParty ? 'vidfast' : (isAnime ? 'anivexa' : 'peachify');
+  });
+
+  useEffect(() => {
+    if (providerId) {
+      const prov = PROVIDERS.find(p => p.id === providerId);
+      if (isWatchParty && prov && !prov.supportsPostMessage) {
+        return;
+      }
+      setSelectedProviderId(providerId);
+    }
+  }, [providerId, isWatchParty]);
+
+  const isTV = typeof window !== 'undefined' && (
+    /Android TV|GoogleTV|AFT|Tizen|Web0S|SmartTV/i.test(navigator.userAgent) || 
+    navigator.userAgent.includes("MovieVerseTV") ||
+    (window as any).Capacitor?.platform === 'android' ||
+    window.location.search.includes("tv=true")
+  );
+
+  // Custom controls derived values & refs
+  const currentProvider = PROVIDERS.find(p => p.id === selectedProviderId);
+  const useCustomControls = currentProvider?.supportsPostMessage === true || selectedProviderId === 'anivexa';
+  const isPlayingRef = useRef(false);
+  const isSeekingRef = useRef(false);
+  const playerDurationRef = useRef(0);
+
   const [anilistId, setAnilistId] = useState<number | null>(null);
   const [anilistLoading, setAnilistLoading] = useState(false);
   const [animeLanguage, setAnimeLanguage] = useState(() => {
@@ -257,6 +303,197 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     }
     return 'English';
   });
+
+  // Anivexa states
+  const [anivexaEpisodes, setAnivexaEpisodes] = useState<Record<string, any[]> | null>(null);
+  const [anivexaActiveSubProvider, setAnivexaActiveSubProvider] = useState<string>('');
+  const [anivexaStreamUrl, setAnivexaStreamUrl] = useState<string>('');
+  const [anivexaSubtitles, setAnivexaSubtitles] = useState<any[]>([]);
+  const [anivexaLoading, setAnivexaLoading] = useState(false);
+  const [anivexaError, setAnivexaError] = useState<string | null>(null);
+
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const hlsRef = useRef<Hls | null>(null);
+
+  // Fetch episodes list from Anivexa
+  useEffect(() => {
+    if (!isAnime || !anilistId || selectedProviderId !== 'anivexa') return;
+
+    let isMounted = true;
+    const fetchEpisodes = async () => {
+      setAnivexaLoading(true);
+      setAnivexaError(null);
+      try {
+        const res = await window.fetch(`https://anivexa.vercel.app/api/episodes/${anilistId}`);
+        if (!res.ok) throw new Error("Failed to load episode list from Anivexa.");
+        const data = await res.json();
+        
+        if (isMounted) {
+          setAnivexaEpisodes(data);
+          const keys = Object.keys(data);
+          if (keys.length > 0) {
+            const preferred = keys.find(k => k === 'reanime') || keys.find(k => k === 'allmanga') || keys[0];
+            setAnivexaActiveSubProvider(preferred);
+          } else {
+            throw new Error("No active streaming servers found on Anivexa.");
+          }
+        }
+      } catch (err: any) {
+        console.error("Anivexa fetch episodes error:", err);
+        if (isMounted) {
+          setAnivexaError(err.message || "Failed to load stream servers.");
+        }
+      } finally {
+        if (isMounted) setAnivexaLoading(false);
+      }
+    };
+
+    fetchEpisodes();
+    return () => { isMounted = false; };
+  }, [isAnime, anilistId, selectedProviderId]);
+
+  // Fetch watch URL when active sub-provider, episode, or language changes
+  useEffect(() => {
+    if (!isAnime || !anilistId || selectedProviderId !== 'anivexa' || !anivexaEpisodes || !anivexaActiveSubProvider) return;
+
+    let isMounted = true;
+    const fetchWatchUrl = async () => {
+      setAnivexaLoading(true);
+      setAnivexaStreamUrl('');
+      setAnivexaError(null);
+      try {
+        const eps = anivexaEpisodes[anivexaActiveSubProvider] || [];
+        const epMatch = eps.find((e: any) => e.number === currentEpisode);
+        if (!epMatch) {
+          throw new Error(`Episode ${currentEpisode} is not available on ${anivexaActiveSubProvider}.`);
+        }
+
+        const watchRes = await window.fetch(`https://anivexa.vercel.app/api/watch/${anivexaActiveSubProvider}/${anilistId}/${animeLanguage}/${encodeURIComponent(epMatch.id)}`);
+        if (!watchRes.ok) throw new Error("Failed to resolve streaming link.");
+        const data = await watchRes.json();
+
+        if (isMounted) {
+          const m3u8Source = data.sources?.find((s: any) => s.isM3U8 || s.url.includes('.m3u8')) || data.sources?.[0];
+          if (m3u8Source?.url) {
+            setAnivexaStreamUrl(m3u8Source.url);
+            setAnivexaSubtitles(data.subtitles || []);
+          } else {
+            throw new Error("No valid HLS (.m3u8) source found.");
+          }
+        }
+      } catch (err: any) {
+        console.error("Anivexa fetch watch error:", err);
+        if (isMounted) {
+          setAnivexaError(err.message || "Failed to resolve stream link.");
+        }
+      } finally {
+        if (isMounted) setAnivexaLoading(false);
+      }
+    };
+
+    fetchWatchUrl();
+    return () => { isMounted = false; };
+  }, [isAnime, anilistId, selectedProviderId, anivexaEpisodes, anivexaActiveSubProvider, currentEpisode, animeLanguage]);
+
+  // Bind video element events to state
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || selectedProviderId !== 'anivexa') return;
+
+    const onPlay = () => setIsPlaying(true);
+    const onPause = () => setIsPlaying(false);
+    const onTimeUpdate = () => {
+      if (!isSeeking) {
+        setPlayerCurrentTime(video.currentTime);
+        currentProgressRef.current = video.currentTime;
+      }
+    };
+    const onDurationChange = () => setPlayerDuration(video.duration);
+    const onVolumeChange = () => {
+      setPlayerVolume(video.volume);
+      setPlayerMuted(video.muted);
+    };
+
+    video.addEventListener('play', onPlay);
+    video.addEventListener('pause', onPause);
+    video.addEventListener('timeupdate', onTimeUpdate);
+    video.addEventListener('durationchange', onDurationChange);
+    video.addEventListener('volumechange', onVolumeChange);
+
+    return () => {
+      video.removeEventListener('play', onPlay);
+      video.removeEventListener('pause', onPause);
+      video.removeEventListener('timeupdate', onTimeUpdate);
+      video.removeEventListener('durationchange', onDurationChange);
+      video.removeEventListener('volumechange', onVolumeChange);
+    };
+  }, [selectedProviderId, isSeeking]);
+
+  // Hls.js player initialization and lifecycle management
+  useEffect(() => {
+    if (selectedProviderId !== 'anivexa' || !anivexaStreamUrl) return;
+
+    const video = videoRef.current;
+    if (!video) return;
+
+    setPlayerCurrentTime(0);
+    setPlayerDuration(0);
+
+    if (Hls.isSupported()) {
+      if (hlsRef.current) {
+        hlsRef.current.destroy();
+      }
+      const hls = new Hls({
+        maxMaxBufferLength: 30,
+        enableWorker: true
+      });
+      hls.loadSource(anivexaStreamUrl);
+      hls.attachMedia(video);
+      hlsRef.current = hls;
+
+      hls.on(Hls.Events.MANIFEST_PARSED, () => {
+        if (currentProgressRef.current > 0) {
+          video.currentTime = currentProgressRef.current;
+        }
+        if (playState === 'play') {
+          video.play().catch(() => {});
+        }
+      });
+
+      hls.on(Hls.Events.ERROR, (event, data) => {
+        if (data.fatal) {
+          switch (data.type) {
+            case Hls.ErrorTypes.NETWORK_ERROR:
+              hls.startLoad();
+              break;
+            case Hls.ErrorTypes.MEDIA_ERROR:
+              hls.recoverMediaError();
+              break;
+            default:
+              setAnivexaError("Fatal HLS playback error. Try another server.");
+              break;
+          }
+        }
+      });
+    } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+      video.src = anivexaStreamUrl;
+      video.addEventListener('loadedmetadata', () => {
+        if (currentProgressRef.current > 0) {
+          video.currentTime = currentProgressRef.current;
+        }
+        if (playState === 'play') {
+          video.play().catch(() => {});
+        }
+      });
+    }
+
+    return () => {
+      if (hlsRef.current) {
+        hlsRef.current.destroy();
+        hlsRef.current = null;
+      }
+    };
+  }, [selectedProviderId, anivexaStreamUrl, playState]);
 
   useEffect(() => {
     if (!isAnime || !title) {
@@ -347,43 +584,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     }
   }, [tmdbId, mediaType, currentSeason, apiKey]);
   
-  const [selectedProviderId, setSelectedProviderId] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const preferred = localStorage.getItem('movieverse_preferred_provider') || 'peachify';
-      if (isWatchParty) {
-        const prov = PROVIDERS.find(p => p.id === preferred);
-        if (!prov || !prov.supportsPostMessage) {
-          return 'vidfast'; // Fallback default for Watch Party
-        }
-      }
-      return preferred;
-    }
-    return isWatchParty ? 'vidfast' : 'peachify';
-  });
 
-  useEffect(() => {
-    if (providerId) {
-      const prov = PROVIDERS.find(p => p.id === providerId);
-      if (isWatchParty && prov && !prov.supportsPostMessage) {
-        return;
-      }
-      setSelectedProviderId(providerId);
-    }
-  }, [providerId, isWatchParty]);
-
-  const isTV = typeof window !== 'undefined' && (
-    /Android TV|GoogleTV|AFT|Tizen|Web0S|SmartTV/i.test(navigator.userAgent) || 
-    navigator.userAgent.includes("MovieVerseTV") ||
-    (window as any).Capacitor?.platform === 'android' ||
-    window.location.search.includes("tv=true")
-  );
-
-  // Custom controls derived values & refs
-  const currentProvider = PROVIDERS.find(p => p.id === selectedProviderId);
-  const useCustomControls = currentProvider?.supportsPostMessage === true;
-  const isPlayingRef = useRef(false);
-  const isSeekingRef = useRef(false);
-  const playerDurationRef = useRef(0);
 
   const formatTime = (seconds: number): string => {
     if (isNaN(seconds) || seconds < 0) return '0:00';
@@ -413,30 +614,64 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   }, []);
 
   const togglePlayback = useCallback(() => {
+    if (selectedProviderId === 'anivexa') {
+      const video = videoRef.current;
+      if (video) {
+        if (video.paused) video.play().catch(() => {});
+        else video.pause();
+      }
+      return;
+    }
     const next = !isPlaying;
     sendPlayerCommand(next ? 'play' : 'pause');
     setIsPlaying(next);
-  }, [isPlaying, sendPlayerCommand]);
+  }, [isPlaying, sendPlayerCommand, selectedProviderId]);
 
   const seekTo = useCallback((time: number) => {
+    if (selectedProviderId === 'anivexa') {
+      const video = videoRef.current;
+      if (video) video.currentTime = time;
+      setPlayerCurrentTime(time);
+      return;
+    }
     sendPlayerCommand('seek', { time: Math.floor(time) });
     setPlayerCurrentTime(time);
-  }, [sendPlayerCommand]);
+  }, [sendPlayerCommand, selectedProviderId]);
 
   const changeVolume = useCallback((level: number) => {
     const clamped = Math.max(0, Math.min(1, level));
+    if (selectedProviderId === 'anivexa') {
+      const video = videoRef.current;
+      if (video) {
+        video.volume = clamped;
+        video.muted = clamped === 0;
+      }
+      setPlayerVolume(clamped);
+      if (clamped > 0 && playerMuted) {
+        setPlayerMuted(false);
+      }
+      return;
+    }
     sendPlayerCommand('volume', { level: clamped });
     setPlayerVolume(clamped);
     if (clamped > 0 && playerMuted) {
       sendPlayerCommand('mute', { muted: false });
       setPlayerMuted(false);
     }
-  }, [sendPlayerCommand, playerMuted]);
+  }, [sendPlayerCommand, playerMuted, selectedProviderId]);
 
   const toggleMuteState = useCallback(() => {
+    if (selectedProviderId === 'anivexa') {
+      const video = videoRef.current;
+      if (video) {
+        video.muted = !video.muted;
+        setPlayerMuted(video.muted);
+      }
+      return;
+    }
     sendPlayerCommand('mute', { muted: !playerMuted });
     setPlayerMuted(!playerMuted);
-  }, [sendPlayerCommand, playerMuted]);
+  }, [sendPlayerCommand, playerMuted, selectedProviderId]);
 
   const toggleFullscreen = useCallback(() => {
     if (!containerRef.current) return;
@@ -801,12 +1036,12 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
 
   // Poll player status for custom controls
   useEffect(() => {
-    if (!useCustomControls) return;
+    if (!useCustomControls || selectedProviderId === 'anivexa') return;
     const interval = setInterval(() => {
       if (!isSeekingRef.current) sendPlayerCommand('getStatus');
     }, 1000);
     return () => clearInterval(interval);
-  }, [useCustomControls, sendPlayerCommand]);
+  }, [useCustomControls, sendPlayerCommand, selectedProviderId]);
 
   // Universal keyboard shortcuts
   useEffect(() => {
@@ -886,17 +1121,53 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
       className="w-full h-full flex flex-col bg-black relative group/player select-none overflow-hidden"
     >
       <div className="flex-1 relative w-full h-full z-0 overflow-hidden bg-black">
-        {embedUrl && (
-          <iframe 
-              ref={iframeRef}
-              src={embedUrl}
-              onLoad={handleIframeLoad}
-              className="w-full h-full absolute inset-0 bg-black z-0"
-              title="Media Player"
-              frameBorder="0"
-              allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
-              allowFullScreen
-          />
+        {selectedProviderId === 'anivexa' && isAnime && anilistId ? (
+          <div className="w-full h-full absolute inset-0 bg-zinc-950 z-0 flex items-center justify-center">
+            {anivexaLoading && !anivexaStreamUrl && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-zinc-950/90 backdrop-blur-xl z-30">
+                <Loader2 className="animate-spin text-red-500" size={36} />
+                <span className="text-[10px] text-zinc-400 font-bold tracking-[0.2em] uppercase">Resolving Ad-Free Stream</span>
+              </div>
+            )}
+            {anivexaError && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-zinc-950/95 backdrop-blur-2xl z-30 p-8 text-center">
+                <AlertTriangle className="text-red-500 animate-pulse" size={48} />
+                <div className="space-y-1">
+                  <h4 className="text-white font-extrabold text-sm tracking-wider uppercase">Playback Error</h4>
+                  <p className="text-zinc-500 text-xs max-w-xs mx-auto leading-relaxed">{anivexaError}</p>
+                </div>
+                <button
+                  onClick={() => {
+                    setSelectedProviderId('vidnest');
+                  }}
+                  className="px-5 py-2.5 bg-white/10 hover:bg-white/15 text-white font-bold text-xs uppercase tracking-wider rounded-xl transition-all border border-white/10 backdrop-blur-md active:scale-95 shadow-xl"
+                >
+                  Switch to Embed Player
+                </button>
+              </div>
+            )}
+            {anivexaStreamUrl && (
+              <video
+                ref={videoRef}
+                className="w-full h-full object-contain"
+                playsInline
+                crossOrigin="anonymous"
+              />
+            )}
+          </div>
+        ) : (
+          embedUrl && (
+            <iframe 
+                ref={iframeRef}
+                src={embedUrl}
+                onLoad={handleIframeLoad}
+                className="w-full h-full absolute inset-0 bg-black z-0"
+                title="Media Player"
+                frameBorder="0"
+                allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
+                allowFullScreen
+            />
+          )
         )}
 
         {/* Custom Controls Overlay for PostMessage providers */}
@@ -1102,6 +1373,27 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                     </button>
                   );
                 })}
+
+                {selectedProviderId === 'anivexa' && anivexaEpisodes && (
+                  <div className="mt-5 pt-5 border-t border-white/5 space-y-2">
+                    <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block mb-2 px-1">Select Stream Server</span>
+                    <div className="grid grid-cols-2 gap-2">
+                      {Object.keys(anivexaEpisodes).map((subProv) => (
+                        <button
+                          key={subProv}
+                          onClick={() => setAnivexaActiveSubProvider(subProv)}
+                          className={`px-3 py-2 text-xs font-bold rounded-xl border transition-all ${
+                            anivexaActiveSubProvider === subProv
+                              ? 'bg-red-600/20 border-red-500/50 text-red-400 font-extrabold shadow-[0_0_15px_rgba(239,68,68,0.1)]'
+                              : 'bg-white/5 border-white/5 text-zinc-400 hover:bg-white/10 hover:text-white'
+                          }`}
+                        >
+                          <span className="capitalize">{subProv}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
