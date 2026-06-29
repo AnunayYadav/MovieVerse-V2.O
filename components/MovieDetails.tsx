@@ -476,6 +476,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
     const [nyaaTorrents, setNyaaTorrents] = useState<any[]>([]);
     const [nyaaLoading, setNyaaLoading] = useState(false);
     const [nyaaError, setNyaaError] = useState<string | null>(null);
+    const [visibleNyaaCount, setVisibleNyaaCount] = useState(10);
 
     const handleProviderChange = (providerId: string) => {
         setSelectedProviderId(providerId);
@@ -985,6 +986,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
         if (!showDownloadModal || !isAnime) return;
         
         let active = true;
+        setVisibleNyaaCount(10);
         const fetchTorrents = async () => {
             setNyaaLoading(true);
             setNyaaError(null);
@@ -1019,6 +1021,15 @@ export const MoviePage: React.FC<MoviePageProps> = ({
         fetchTorrents();
         return () => { active = false; };
     }, [showDownloadModal, isAnime, downloadSeason, downloadEpisode, isTv, displayData.id]);
+
+    const handleNyaaScroll = (e: React.UIEvent<HTMLDivElement>) => {
+        const container = e.currentTarget;
+        if (!container) return;
+        const { scrollTop, scrollHeight, clientHeight } = container;
+        if (scrollHeight - scrollTop - clientHeight < 40) {
+            setVisibleNyaaCount(prev => Math.min(prev + 10, nyaaTorrents.length));
+        }
+    };
 
     const director = displayData.credits?.crew?.find(c => c.job === 'Director') || displayData.created_by?.[0];
     
@@ -2294,8 +2305,8 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                             ) : nyaaTorrents.length === 0 ? (
                                                 <div className="text-zinc-500 text-xs py-3 px-1 italic">No torrents found for this episode on Nyaa.si.</div>
                                             ) : (
-                                                <div className="space-y-2 max-h-52 overflow-y-auto pr-1 custom-scrollbar">
-                                                    {nyaaTorrents.slice(0, 10).map((t, idx) => {
+                                                <div onScroll={handleNyaaScroll} className="space-y-2 max-h-52 overflow-y-auto pr-1 custom-scrollbar">
+                                                    {nyaaTorrents.slice(0, visibleNyaaCount).map((t, idx) => {
                                                         const formattedDate = t.pubDate
                                                             ? new Date(t.pubDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
                                                             : 'TBA';
