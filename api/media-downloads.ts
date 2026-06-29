@@ -1,81 +1,99 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
 async function fetchFromApibay(q: string) {
-  const url = `https://apibay.org/q.php?q=${encodeURIComponent(q)}`;
-  const response = await fetch(url, {
-    headers: {
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-      'Accept': 'application/json',
-      'Accept-Language': 'en-US,en;q=0.9',
-      'Referer': 'https://tpb.party/'
-    }
-  });
-  
-  if (!response.ok) {
-    throw new Error(`apibay status: ${response.status}`);
-  }
+  const tpbMirrors = [
+    'https://apibay.org/q.php?q=',
+    'https://thepiratebay10.org/q.php?q=',
+    'https://piratebay.live/q.php?q=',
+    'https://tpb.party/q.php?q='
+  ];
 
-  const data = await response.json();
-  
-  if (!data || (data.length === 1 && (data[0].id === '0' || data[0].name === 'No results found'))) {
-    return [];
-  }
-
-  return data
-    .filter((item: any) => item.category && item.category.startsWith('2')) // Video categories only
-    .map((item: any) => {
-      const title = item.name || '';
-      const infoHash = item.info_hash || '';
-      const sizeBytes = Number(item.size) || 0;
+  let lastError: any = null;
+  for (const mirror of tpbMirrors) {
+    try {
+      const url = `${mirror}${encodeURIComponent(q)}`;
+      const response = await fetch(url, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+          'Accept': 'application/json',
+          'Accept-Language': 'en-US,en;q=0.9',
+          'Referer': 'https://tpb.party/'
+        },
+        signal: AbortSignal.timeout(4000)
+      });
       
-      let size = '0 B';
-      if (sizeBytes > 0) {
-        const giB = sizeBytes / (1024 * 1024 * 1024);
-        if (giB >= 0.9) {
-          size = `${giB.toFixed(1)} GiB`;
-        } else {
-          size = `${(sizeBytes / (1024 * 1024)).toFixed(1)} MiB`;
-        }
+      if (!response.ok) {
+        throw new Error(`apibay mirror returned status: ${response.status}`);
       }
 
-      let category = 'Video';
-      if (['201', '202', '203', '204'].includes(item.category)) {
-        category = 'Movie';
-      } else if (['207', '208'].includes(item.category)) {
-        category = 'HD Movie';
-      } else if (['205', '206'].includes(item.category)) {
-        category = 'TV Show';
+      const data = await response.json();
+      
+      if (!data || (data.length === 1 && (data[0].id === '0' || data[0].name === 'No results found'))) {
+        return [];
       }
 
-      const trackers = [
-        'udp://tracker.coppersurfer.tk:6969/announce',
-        'udp://tracker.openbittorrent.com:80/announce',
-        'udp://9.rarbg.to:2710/announce',
-        'udp://9.rarbg.me:2710/announce',
-        'udp://tracker.opentrackr.org:1337/announce',
-        'udp://tracker.cyberia.is:6969/announce'
-      ];
-      const trackerParams = trackers.map(tr => `&tr=${encodeURIComponent(tr)}`).join('');
-      const magnet = infoHash ? `magnet:?xt=urn:btih:${infoHash}&dn=${encodeURIComponent(title)}${trackerParams}` : '';
-      const link = infoHash ? `https://itorrents.org/torrent/${infoHash}.torrent` : '';
+      return data
+        .filter((item: any) => item.category && item.category.startsWith('2')) // Video categories only
+        .map((item: any) => {
+          const title = item.name || '';
+          const infoHash = item.info_hash || '';
+          const sizeBytes = Number(item.size) || 0;
+          
+          let size = '0 B';
+          if (sizeBytes > 0) {
+            const giB = sizeBytes / (1024 * 1024 * 1024);
+            if (giB >= 0.9) {
+              size = `${giB.toFixed(1)} GiB`;
+            } else {
+              size = `${(sizeBytes / (1024 * 1024)).toFixed(1)} MiB`;
+            }
+          }
 
-      const addedUnix = Number(item.added) || 0;
-      const pubDate = addedUnix > 0 ? new Date(addedUnix * 1000).toUTCString() : '';
+          let category = 'Video';
+          if (['201', '202', '203', '204'].includes(item.category)) {
+            category = 'Movie';
+          } else if (['207', '208'].includes(item.category)) {
+            category = 'HD Movie';
+          } else if (['205', '206'].includes(item.category)) {
+            category = 'TV Show';
+          }
 
-      return {
-        title,
-        link,
-        guid: item.id || '',
-        pubDate,
-        seeders: Number(item.seeders) || 0,
-        leechers: Number(item.leechers) || 0,
-        downloads: Number(item.seeders + item.leechers) || 0,
-        infoHash,
-        size,
-        category,
-        magnet
-      };
-    });
+          const trackers = [
+            'udp://tracker.coppersurfer.tk:6969/announce',
+            'udp://tracker.openbittorrent.com:80/announce',
+            'udp://9.rarbg.to:2710/announce',
+            'udp://9.rarbg.me:2710/announce',
+            'udp://tracker.opentrackr.org:1337/announce',
+            'udp://tracker.cyberia.is:6969/announce'
+          ];
+          const trackerParams = trackers.map(tr => `&tr=${encodeURIComponent(tr)}`).join('');
+          const magnet = infoHash ? `magnet:?xt=urn:btih:${infoHash}&dn=${encodeURIComponent(title)}${trackerParams}` : '';
+          const link = infoHash ? `https://itorrents.org/torrent/${infoHash}.torrent` : '';
+
+          const addedUnix = Number(item.added) || 0;
+          const pubDate = addedUnix > 0 ? new Date(addedUnix * 1000).toUTCString() : '';
+
+          return {
+            title,
+            link,
+            guid: item.id || '',
+            pubDate,
+            seeders: Number(item.seeders) || 0,
+            leechers: Number(item.leechers) || 0,
+            downloads: Number(item.seeders + item.leechers) || 0,
+            infoHash,
+            size,
+            category,
+            magnet
+          };
+        });
+    } catch (err: any) {
+      console.warn(`Apibay mirror ${mirror} failed:`, err.message || err);
+      lastError = err;
+    }
+  }
+
+  throw new Error(lastError ? lastError.message : 'All Apibay mirrors failed to respond.');
 }
 
 async function fetchFromYts(q: string) {
