@@ -514,98 +514,85 @@ export const AnimeForum: React.FC<AnimeForumProps> = ({ apiKey, onAnimeClick, fe
                 <div className="text-zinc-500 text-xs py-10 italic">No community activity found at this time.</div>
               ) : (
                 <>
-                  <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                     {activities.map((act) => {
                       const isText = act.type === 'TEXT';
                       const hasMedia = act.media;
                       const actionText = isText ? act.text : `${act.status.toLowerCase().replace('_', ' ')} ${act.progress ? `${act.progress} of` : ''}`;
                       
                       return (
-                        <div key={act.id} className="bg-[#0d0d0f]/40 border border-white/5 hover:border-white/10 transition-all rounded-3xl p-5 md:p-6 flex flex-col md:flex-row gap-5 backdrop-blur-sm group/card">
-                          
-                          {/* Left Avatar Column */}
-                          <div className="shrink-0 flex items-start gap-4">
-                            <img 
-                              src={act.user?.avatar?.large || `https://ui-avatars.com/api/?name=${encodeURIComponent(act.user?.name || 'User')}&background=333&color=fff`} 
-                              alt={act.user?.name}
-                              onClick={() => { setSelectedUser(act.user?.name); fetchUserProfile(act.user?.name); }}
-                              className="w-12 h-12 rounded-2xl object-cover border border-white/10 shadow-md cursor-pointer hover:scale-105 transition-transform" 
-                            />
-                            <div className="md:hidden text-left">
-                              <h4 
-                                onClick={() => { setSelectedUser(act.user?.name); fetchUserProfile(act.user?.name); }}
-                                className="font-medium text-sm text-white hover:text-red-500 transition-colors cursor-pointer"
-                              >
-                                {act.user?.name}
-                              </h4>
-                              <p className="text-[10px] text-zinc-500 font-medium">{formatTimeAgo(act.createdAt)}</p>
-                            </div>
-                          </div>
-
-                          {/* Right Content Column */}
-                          <div className="flex-1 flex flex-col justify-between text-left min-w-0">
-                            <div>
-                              {/* User details on desktop */}
-                              <div className="hidden md:flex items-center gap-2.5 mb-1.5">
+                        <div key={act.id} className="bg-[#0d0d0f]/40 border border-white/5 hover:border-white/10 transition-all rounded-3xl p-5 md:p-6 flex flex-col justify-between h-full backdrop-blur-sm group/card">
+                          <div>
+                            {/* User Avatar & Info Header */}
+                            <div className="flex items-center gap-3.5 mb-3.5">
+                              <img 
+                                src={act.user?.avatar?.large || `https://ui-avatars.com/api/?name=${encodeURIComponent(act.user?.name || 'User')}&background=333&color=fff`} 
+                                alt={act.user?.name}
+                                onClick={(e) => { e.stopPropagation(); setSelectedUser(act.user?.name); fetchUserProfile(act.user?.name); }}
+                                className="w-10 h-10 rounded-xl object-cover border border-white/10 shadow-md cursor-pointer hover:scale-105 transition-transform shrink-0" 
+                              />
+                              <div className="text-left min-w-0">
                                 <h4 
-                                  onClick={() => { setSelectedUser(act.user?.name); fetchUserProfile(act.user?.name); }}
-                                  className="font-medium text-sm text-white hover:text-red-500 transition-colors cursor-pointer"
+                                  onClick={(e) => { e.stopPropagation(); setSelectedUser(act.user?.name); fetchUserProfile(act.user?.name); }}
+                                  className="font-medium text-xs sm:text-sm text-zinc-200 hover:text-red-500 transition-colors cursor-pointer truncate"
                                 >
                                   {act.user?.name}
                                 </h4>
-                                <span className="w-1 h-1 rounded-full bg-zinc-700" />
                                 <p className="text-[10px] text-zinc-500 font-medium">{formatTimeAgo(act.createdAt)}</p>
                               </div>
-
-                              {/* Activity Content Description */}
-                              {!isText ? (
-                                <p className="text-zinc-300 text-xs sm:text-sm font-semibold leading-relaxed">
-                                  <span className="text-zinc-400 capitalize">{actionText}</span>{' '}
-                                  {hasMedia && (
-                                    <span 
-                                      onClick={() => handleMediaClick(act.media.id, act.media.title.userPreferred)}
-                                      className="text-zinc-100 hover:text-red-500 transition-colors cursor-pointer font-medium"
-                                    >
-                                      {act.media.title.english || act.media.title.userPreferred}
-                                    </span>
-                                  )}
-                                </p>
-                              ) : (
-                                <p className="text-zinc-300 text-xs sm:text-sm leading-relaxed font-normal whitespace-pre-line break-words">
-                                  {act.text}
-                                </p>
-                              )}
                             </div>
 
-                            {/* Likes / Comments row */}
-                            <div className="flex items-center gap-6 mt-5 pt-3 border-t border-white/5">
-                              <button className="flex items-center gap-2 text-zinc-500 hover:text-zinc-300 transition-colors">
-                                <Heart size={14} className="fill-none transition-transform" />
-                                <span className="text-[11px] font-medium">{act.likeCount || 0}</span>
-                              </button>
-                              <button 
-                                onClick={() => { setSelectedActivity(act); fetchReplies(act.id); }} 
-                                className="flex items-center gap-2 text-zinc-500 hover:text-zinc-300 transition-colors"
-                              >
-                                <MessageCircle size={14} className="fill-none" />
-                                <span className="text-[11px] font-medium">{act.replyCount || 0} Comments</span>
-                              </button>
+                            {/* Card Body - Content & Poster Side-by-Side */}
+                            <div className="flex flex-row gap-4 items-start flex-1 min-w-0 mb-4">
+                              <div className="flex-1 min-w-0 text-left">
+                                {!isText ? (
+                                  <p className="text-zinc-300 text-xs sm:text-sm font-semibold leading-relaxed">
+                                    <span className="text-zinc-400 capitalize">{actionText}</span>{' '}
+                                    {hasMedia && (
+                                      <span 
+                                        onClick={(e) => { e.stopPropagation(); handleMediaClick(act.media.id, act.media.title.userPreferred); }}
+                                        className="text-zinc-100 hover:text-red-500 transition-colors cursor-pointer font-medium"
+                                      >
+                                        {act.media.title.english || act.media.title.userPreferred}
+                                      </span>
+                                    )}
+                                  </p>
+                                ) : (
+                                  <p className="text-zinc-300 text-xs sm:text-sm leading-relaxed font-normal whitespace-pre-line break-words line-clamp-5">
+                                    {act.text}
+                                  </p>
+                                )}
+                              </div>
+
+                              {hasMedia && (
+                                <div 
+                                  onClick={(e) => { e.stopPropagation(); handleMediaClick(act.media.id, act.media.title.userPreferred); }}
+                                  className="shrink-0 w-16 h-24 rounded-2xl overflow-hidden border border-white/10 shadow-md cursor-pointer hover:scale-105 transition-transform"
+                                >
+                                  <img 
+                                    src={act.media.coverImage?.large} 
+                                    alt={act.media.title.userPreferred} 
+                                    className="w-full h-full object-cover" 
+                                  />
+                                </div>
+                              )}
                             </div>
                           </div>
 
-                          {/* Media cover image inline for updates */}
-                          {hasMedia && (
-                            <div 
-                              onClick={() => handleMediaClick(act.media.id, act.media.title.userPreferred)}
-                              className="shrink-0 w-full md:w-16 aspect-[2/3] md:aspect-auto md:h-24 rounded-2xl overflow-hidden border border-white/5 shadow-md cursor-pointer hover:scale-105 transition-transform"
+                          {/* Footer Likes / Comments row */}
+                          <div className="flex items-center gap-5 pt-3.5 border-t border-white/5 mt-auto">
+                            <button className="flex items-center gap-1.5 text-zinc-500 hover:text-zinc-300 transition-colors">
+                              <Heart size={13} className="fill-none transition-transform" />
+                              <span className="text-[11px] font-medium">{act.likeCount || 0}</span>
+                            </button>
+                            <button 
+                              onClick={(e) => { e.stopPropagation(); setSelectedActivity(act); fetchReplies(act.id); }} 
+                              className="flex items-center gap-1.5 text-zinc-500 hover:text-zinc-300 transition-colors ml-auto"
                             >
-                              <img 
-                                src={act.media.coverImage?.large} 
-                                alt={act.media.title.userPreferred} 
-                                className="w-full h-full object-cover" 
-                              />
-                            </div>
-                          )}
+                              <MessageCircle size={13} className="fill-none" />
+                              <span className="text-[11px] font-medium">{act.replyCount || 0} Comments</span>
+                            </button>
+                          </div>
                         </div>
                       );
                     })}
@@ -644,20 +631,11 @@ export const AnimeForum: React.FC<AnimeForumProps> = ({ apiKey, onAnimeClick, fe
                       const isExpanded = expandedReviews[rev.id] || false;
                       
                       return (
-                        <div key={rev.id} className="bg-[#0d0d0f]/40 border border-white/5 hover:border-white/10 transition-all rounded-3xl p-5 md:p-6 flex flex-col md:flex-row gap-6 backdrop-blur-sm">
-                          
-                          {/* Media Poster Column */}
-                          <div 
-                            onClick={() => handleMediaClick(rev.media.id, rev.media.title.userPreferred)}
-                            className="shrink-0 w-24 aspect-[2/3] rounded-2xl overflow-hidden border border-white/5 shadow-md cursor-pointer hover:scale-[1.03] transition-transform mx-auto md:mx-0"
-                          >
-                            <img 
-                              src={rev.media.coverImage?.large} 
-                              alt={rev.media.title.userPreferred} 
-                              className="w-full h-full object-cover" 
-                            />
-                          </div>
-
+                        <div 
+                          key={rev.id} 
+                          onClick={() => toggleReviewExpand(rev.id)} 
+                          className="bg-[#0d0d0f]/40 border border-white/5 hover:border-white/10 transition-all rounded-3xl p-5 md:p-6 flex flex-col md:flex-row justify-between items-start gap-6 backdrop-blur-sm cursor-pointer select-none"
+                        >
                           {/* Review Content */}
                           <div className="flex-1 flex flex-col text-left min-w-0">
                             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
@@ -665,12 +643,12 @@ export const AnimeForum: React.FC<AnimeForumProps> = ({ apiKey, onAnimeClick, fe
                                 <img 
                                   src={rev.user?.avatar?.large || `https://ui-avatars.com/api/?name=${encodeURIComponent(rev.user?.name || 'User')}&background=333&color=fff`} 
                                   alt={rev.user?.name}
-                                  onClick={() => { setSelectedUser(rev.user?.name); fetchUserProfile(rev.user?.name); }}
+                                  onClick={(e) => { e.stopPropagation(); setSelectedUser(rev.user?.name); fetchUserProfile(rev.user?.name); }}
                                   className="w-9 h-9 rounded-xl object-cover cursor-pointer hover:scale-105 transition-transform" 
                                 />
                                 <div>
                                   <h4 
-                                    onClick={() => { setSelectedUser(rev.user?.name); fetchUserProfile(rev.user?.name); }}
+                                    onClick={(e) => { e.stopPropagation(); setSelectedUser(rev.user?.name); fetchUserProfile(rev.user?.name); }}
                                     className="font-medium text-xs sm:text-sm text-white hover:text-red-500 transition-colors cursor-pointer"
                                   >
                                     {rev.user?.name}
@@ -694,7 +672,7 @@ export const AnimeForum: React.FC<AnimeForumProps> = ({ apiKey, onAnimeClick, fe
 
                             {rev.body && rev.body.length > 300 && (
                               <button 
-                                onClick={() => toggleReviewExpand(rev.id)} 
+                                onClick={(e) => { e.stopPropagation(); toggleReviewExpand(rev.id); }} 
                                 className="text-xs font-medium text-red-500 hover:text-red-400 transition-colors mb-4 self-start flex items-center gap-1 select-none"
                               >
                                 {isExpanded ? 'Show Less' : 'Read Full Review'}
@@ -706,7 +684,7 @@ export const AnimeForum: React.FC<AnimeForumProps> = ({ apiKey, onAnimeClick, fe
                               <span className="text-[10px] text-zinc-500 font-medium uppercase tracking-widest">
                                 Review for:{' '}
                                 <span 
-                                  onClick={() => handleMediaClick(rev.media.id, rev.media.title.userPreferred)}
+                                  onClick={(e) => { e.stopPropagation(); handleMediaClick(rev.media.id, rev.media.title.userPreferred); }}
                                   className="text-zinc-300 hover:text-red-500 cursor-pointer font-semibold normal-case"
                                 >
                                   {rev.media.title.english || rev.media.title.userPreferred}
@@ -716,6 +694,18 @@ export const AnimeForum: React.FC<AnimeForumProps> = ({ apiKey, onAnimeClick, fe
                                 <span className="text-[10px] text-zinc-500 font-normal">{rev.rating} of {rev.ratingAmount} found helpful</span>
                               )}
                             </div>
+                          </div>
+
+                          {/* Media Poster Column on the Right */}
+                          <div 
+                            onClick={(e) => { e.stopPropagation(); handleMediaClick(rev.media.id, rev.media.title.userPreferred); }}
+                            className="shrink-0 w-24 md:w-28 aspect-[2/3] rounded-2xl overflow-hidden border border-white/10 shadow-md cursor-pointer hover:scale-[1.03] transition-transform mx-auto md:mx-0 self-center md:self-start"
+                          >
+                            <img 
+                              src={rev.media.coverImage?.large} 
+                              alt={rev.media.title.userPreferred} 
+                              className="w-full h-full object-cover" 
+                            />
                           </div>
                         </div>
                       );
@@ -760,13 +750,13 @@ export const AnimeForum: React.FC<AnimeForumProps> = ({ apiKey, onAnimeClick, fe
                               <img 
                                 src={rec.user?.avatar?.large || `https://ui-avatars.com/api/?name=${encodeURIComponent(rec.user?.name || 'User')}&background=333&color=fff`} 
                                 alt={rec.user?.name}
-                                onClick={() => { setSelectedUser(rec.user?.name); fetchUserProfile(rec.user?.name); }}
+                                onClick={(e) => { e.stopPropagation(); setSelectedUser(rec.user?.name); fetchUserProfile(rec.user?.name); }}
                                 className="w-8 h-8 rounded-lg object-cover cursor-pointer hover:scale-105 transition-transform" 
                               />
                               <div>
                                 <h4 
-                                  onClick={() => { setSelectedUser(rec.user?.name); fetchUserProfile(rec.user?.name); }}
-                                  className="font-medium text-xs text-white hover:text-red-500 transition-colors cursor-pointer"
+                                  onClick={(e) => { e.stopPropagation(); setSelectedUser(rec.user?.name); fetchUserProfile(rec.user?.name); }}
+                                  className="font-normal text-xs sm:text-sm text-zinc-200 hover:text-red-500 transition-colors cursor-pointer"
                                 >
                                   {rec.user?.name}
                                 </h4>
@@ -774,34 +764,34 @@ export const AnimeForum: React.FC<AnimeForumProps> = ({ apiKey, onAnimeClick, fe
                               </div>
                             </div>
 
-                            <div className="flex items-center justify-between gap-4 p-3 bg-white/5 rounded-2xl mb-4">
+                            <div className="flex flex-row items-center justify-between gap-4 p-4 bg-white/5 border border-white/[0.03] rounded-2xl mb-4">
                               {/* Left Media */}
                               <div 
-                                onClick={() => handleMediaClick(rec.media.id, rec.media.title.userPreferred)}
-                                className="flex items-center gap-2.5 min-w-0 cursor-pointer group/item flex-1"
+                                onClick={(e) => { e.stopPropagation(); handleMediaClick(rec.media.id, rec.media.title.userPreferred); }}
+                                className="flex items-center gap-3.5 min-w-0 cursor-pointer group/item flex-1"
                               >
-                                <img src={rec.media.coverImage?.large} className="w-10 h-14 rounded-lg object-cover border border-white/10 shrink-0" alt="" />
-                                <div className="min-w-0 text-left">
-                                  <p className="text-[9px] text-zinc-500 font-medium uppercase">If you liked</p>
-                                  <h5 className="font-medium text-[11px] sm:text-xs text-white group-hover/item:text-red-500 truncate transition-colors">
+                                <img src={rec.media.coverImage?.large} className="w-16 h-24 rounded-xl object-cover border border-white/10 shrink-0 shadow-md group-hover/item:scale-102 transition-transform" alt="" />
+                                <div className="min-w-0 text-left flex flex-col gap-0.5">
+                                  <p className="text-[9px] text-zinc-500 font-medium uppercase tracking-wider">If you liked</p>
+                                  <h5 className="font-medium text-xs text-zinc-200 group-hover/item:text-red-500 line-clamp-3 leading-snug transition-colors">
                                     {rec.media.title.english || rec.media.title.userPreferred}
                                   </h5>
                                 </div>
                               </div>
 
-                              <div className="shrink-0 flex items-center justify-center font-medium text-red-500">
-                                <ChevronRight size={18} />
+                              <div className="shrink-0 flex items-center justify-center text-red-500 bg-red-500/10 w-8 h-8 rounded-full">
+                                <ChevronRight size={16} />
                               </div>
 
                               {/* Right Media */}
                               <div 
-                                onClick={() => handleMediaClick(rec.mediaRecommendation.id, rec.mediaRecommendation.title.userPreferred)}
-                                className="flex items-center gap-2.5 min-w-0 cursor-pointer group/item flex-1"
+                                onClick={(e) => { e.stopPropagation(); handleMediaClick(rec.mediaRecommendation.id, rec.mediaRecommendation.title.userPreferred); }}
+                                className="flex items-center gap-3.5 min-w-0 cursor-pointer group/item flex-1"
                               >
-                                <img src={rec.mediaRecommendation.coverImage?.large} className="w-10 h-14 rounded-lg object-cover border border-white/10 shrink-0" alt="" />
-                                <div className="min-w-0 text-left">
-                                  <p className="text-[9px] text-red-500 font-medium uppercase">Check out</p>
-                                  <h5 className="font-medium text-[11px] sm:text-xs text-white group-hover/item:text-red-500 truncate transition-colors">
+                                <img src={rec.mediaRecommendation.coverImage?.large} className="w-16 h-24 rounded-xl object-cover border border-white/10 shrink-0 shadow-md group-hover/item:scale-102 transition-transform" alt="" />
+                                <div className="min-w-0 text-left flex flex-col gap-0.5">
+                                  <p className="text-[9px] text-red-500/90 font-medium uppercase tracking-wider">Check out</p>
+                                  <h5 className="font-medium text-xs text-zinc-200 group-hover/item:text-red-500 line-clamp-3 leading-snug transition-colors">
                                     {rec.mediaRecommendation.title.english || rec.mediaRecommendation.title.userPreferred}
                                   </h5>
                                 </div>
