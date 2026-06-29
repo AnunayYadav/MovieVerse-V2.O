@@ -437,114 +437,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
     const [episodes, setEpisodes] = useState<any[]>([]);
     const [episodesLoading, setEpisodesLoading] = useState(false);
     const [episodeSearch, setEpisodeSearch] = useState("");
-    const [animeEpisodesCountBySeason, setAnimeEpisodesCountBySeason] = useState<Record<number, number>>({});
     const [viewingImage, setViewingImage] = useState<string | null>(null);
-    let isAnime = !!((movie.genre_ids?.includes(16) || details?.genres?.some((g: any) => g.id === 16)) && (movie.original_language === 'ja' || details?.original_language === 'ja'));
-
-    const fetchAniListSeasonEpisodes = async (seasonNum: number) => {
-        if (!movie) return null;
-        const animeName = movie.title || movie.name || details?.name || details?.title || '';
-        if (!animeName) return null;
-
-        const cleanAnimeTitle = animeName.replace(/\s*\(?(Dub|Sub|TV|Movie|uncensored|censored)\)?\s*$/i, '').trim();
-        
-        const cacheKey = `movieverse_anilist_season_episodes_${movie.id}_${seasonNum}`;
-        const cached = localStorage.getItem(cacheKey);
-        if (cached) {
-            try {
-                const parsed = JSON.parse(cached);
-                if (parsed && Array.isArray(parsed.episodes)) {
-                    return parsed;
-                }
-            } catch (_) {}
-        }
-
-        const searchQueries = [];
-        const seasonName = details?.seasons?.find((s: any) => s.season_number === seasonNum)?.name;
-        
-        if (seasonName && !/^season\s+\d+$/i.test(seasonName.trim()) && seasonName.trim() !== `Season ${seasonNum}`) {
-            searchQueries.push(`${cleanAnimeTitle} ${seasonName}`);
-        }
-        if (seasonNum > 1) {
-            searchQueries.push(`${cleanAnimeTitle} Season ${seasonNum}`);
-            searchQueries.push(`${cleanAnimeTitle} Part ${seasonNum}`);
-            searchQueries.push(`${cleanAnimeTitle} ${seasonNum}`);
-        }
-        searchQueries.push(cleanAnimeTitle);
-
-        let mediaData: any = null;
-
-        for (const q of searchQueries) {
-            try {
-                const query = `
-                  query ($search: String) {
-                    Media(search: $search, type: ANIME) {
-                      id
-                      title {
-                        romaji
-                        english
-                        native
-                        userPreferred
-                      }
-                      episodes
-                      duration
-                      streamingEpisodes {
-                        title
-                        thumbnail
-                        url
-                        site
-                      }
-                    }
-                  }
-                `;
-                const response = await window.fetch('https://graphql.anilist.co', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ query, variables: { search: q } })
-                });
-                const json = await response.json();
-                const media = json?.data?.Media;
-                if (media && media.episodes) {
-                    mediaData = media;
-                    break;
-                }
-            } catch (err) {
-                console.error(`Error querying AniList for ${q}:`, err);
-            }
-        }
-
-        if (mediaData) {
-            const totalEpisodesCount = mediaData.episodes || 0;
-            const streamingEps = mediaData.streamingEpisodes || [];
-            const resolvedEpisodes = [];
-
-            for (let i = 1; i <= totalEpisodesCount; i++) {
-                const streamEp = streamingEps[i - 1] || streamingEps.find((se: any) => se.title?.toLowerCase().includes(`episode ${i}`));
-                resolvedEpisodes.push({
-                    id: `anilist-${mediaData.id}-ep-${i}`,
-                    episode_number: i,
-                    name: streamEp ? streamEp.title : `Episode ${i}`,
-                    overview: streamEp ? `Watch Episode ${i} on ${streamEp.site || 'AniList'}` : `Episode ${i} of ${mediaData.title.english || mediaData.title.romaji || mediaData.title.userPreferred}`,
-                    still_path: streamEp?.thumbnail || null,
-                    runtime: mediaData.duration || 24,
-                    air_date: null,
-                    vote_average: 0
-                });
-            }
-
-            const result = {
-                episodes: resolvedEpisodes,
-                episodeCount: totalEpisodesCount
-            };
-
-            const playerCacheKey = `movieverse_anilist_map_${movie.id}`;
-            localStorage.setItem(playerCacheKey, mediaData.id.toString());
-            localStorage.setItem(cacheKey, JSON.stringify(result));
-            return result;
-        }
-        
-        return null;
-    };
     const showPlayer = initialShowPlayer;
     const [playParams, setPlayParams] = useState(initialPlayParams);
     const [expandedReviews, setExpandedReviews] = useState<Record<string, boolean>>({});
@@ -1088,72 +981,26 @@ export const MoviePage: React.FC<MoviePageProps> = ({
         let isMounted = true;
         setEpisodesLoading(true);
         
-        if (isAnime) {
-            fetchAniListSeasonEpisodes(selectedSeason)
-                .then(data => {
-                    if (isMounted) {
-                        if (data) {
-                            setEpisodes(data.episodes);
-                            setAnimeEpisodesCountBySeason(prev => ({
-                                ...prev,
-                                [selectedSeason]: data.episodeCount
-                            }));
-                        } else {
-                            setEpisodes([]);
-                        }
-                    }
-                })
-                .catch(err => {
-                    console.error("Error loading AniList season episodes", err);
-                    if (isMounted) setEpisodes([]);
-                })
-                .finally(() => {
-                    if (isMounted) setEpisodesLoading(false);
-                });
-        } else {
-            fetch(`${TMDB_BASE_URL}/tv/${movie.id}/season/${selectedSeason}?api_key=${apiKey}`)
-                .then(res => {
-                    if (!res.ok) throw new Error();
-                    return res.json();
-                })
-                .then(data => {
-                    if (isMounted) {
-                        setEpisodes(data.episodes || []);
-                    }
-                })
-                .catch(err => {
-                    console.error("Error fetching season details", err);
-                    if (isMounted) setEpisodes([]);
-                })
-                .finally(() => { 
-                    if (isMounted) setEpisodesLoading(false); 
-                });
-        }
-            
-        return () => { isMounted = false; };
-    }, [movie.id, selectedSeason, apiKey, activeTab, details, isAnime]);
-
-    useEffect(() => {
-        if (!isAnime || !showDownloadModal) return;
-        
-        let isMounted = true;
-        if (animeEpisodesCountBySeason[downloadSeason] !== undefined) return;
-        
-        fetchAniListSeasonEpisodes(downloadSeason)
+        fetch(`${TMDB_BASE_URL}/tv/${movie.id}/season/${selectedSeason}?api_key=${apiKey}`)
+            .then(res => {
+                if (!res.ok) throw new Error();
+                return res.json();
+            })
             .then(data => {
-                if (isMounted && data) {
-                    setAnimeEpisodesCountBySeason(prev => ({
-                        ...prev,
-                        [downloadSeason]: data.episodeCount
-                    }));
+                if (isMounted) {
+                    setEpisodes(data.episodes || []);
                 }
             })
             .catch(err => {
-                console.error("Error fetching AniList episode count for download modal:", err);
+                console.error("Error fetching season details", err);
+                if (isMounted) setEpisodes([]);
+            })
+            .finally(() => { 
+                if (isMounted) setEpisodesLoading(false); 
             });
             
         return () => { isMounted = false; };
-    }, [downloadSeason, isAnime, showDownloadModal]);
+    }, [movie.id, selectedSeason, apiKey, activeTab, details]);
 
     useEffect(() => {
         if (!timelineContainerRef.current || !activeTimelineItemRef.current || hasCenteredTimeline.current === movie.id) return;
@@ -1206,7 +1053,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
 
     const displayData = { ...movie, ...details } as MovieDetails;
     const isTv = movie.media_type === 'tv' || displayData.first_air_date;
-    isAnime = !!((displayData.genres?.some(g => g.id === 16) || movie.genre_ids?.includes(16)) && ((displayData as any).original_language === 'ja' || movie.original_language === 'ja'));
+    const isAnime = (displayData.genres?.some(g => g.id === 16) && (displayData as any).original_language === 'ja');
     const title = displayData.title || displayData.name;
     const runtime = displayData.runtime ? `${Math.floor(displayData.runtime/60)}h ${displayData.runtime%60}m` : (displayData.episode_run_time?.[0] ? `${displayData.episode_run_time[0]}m / ep` : "N/A");
     
@@ -2595,16 +2442,11 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                         onChange={(e) => setDownloadEpisode(Number(e.target.value))}
                                                         className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-white text-xs font-bold focus:outline-none appearance-none cursor-pointer"
                                                     >
-                                                        {(() => {
-                                                            const epCount = isAnime 
-                                                                ? (animeEpisodesCountBySeason[downloadSeason] || displayData.seasons?.find(s => s.season_number === downloadSeason)?.episode_count || 1)
-                                                                : (displayData.seasons?.find(s => s.season_number === downloadSeason)?.episode_count || 1);
-                                                            return Array.from({ length: epCount }, (_, idx) => idx + 1).map(epNum => (
-                                                                <option key={epNum} value={epNum} className="bg-[#0c0c0e]">
-                                                                    Episode {epNum}
-                                                                </option>
-                                                            ));
-                                                        })()}
+                                                        {Array.from({ length: displayData.seasons?.find(s => s.season_number === downloadSeason)?.episode_count || 1 }, (_, idx) => idx + 1).map(epNum => (
+                                                            <option key={epNum} value={epNum} className="bg-[#0c0c0e]">
+                                                                Episode {epNum}
+                                                            </option>
+                                                        ))}
                                                     </select>
                                                     <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
                                                 </div>

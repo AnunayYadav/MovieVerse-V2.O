@@ -2312,7 +2312,7 @@ export default function App() {
 
     const fetchMovies = useCallback(async (pageNum: number = 1, isLoadMore = false) => {
         if (!apiKey) return;
-        if (selectedCategory === "Manga" || selectedCategory === "Anime") return;
+        if (selectedCategory === "Manga") return;
         setFetchError(false);
         if (["Watchlist", "Favorites", "History"].includes(selectedCategory)) {
             const list = selectedCategory === "Watchlist" ? watchlistRef.current : selectedCategory === "Favorites" ? favoritesRef.current : watchedRef.current;
@@ -3386,15 +3386,7 @@ export default function App() {
                         <div className="mb-8 md:hidden relative group">
                             <input
                                 type="text"
-                                placeholder={
-                                    selectedCategory === "Categories" 
-                                        ? "Search categories..." 
-                                        : selectedCategory === "Anime"
-                                            ? "Search Anime (AniList)..."
-                                            : selectedCategory === "Manga"
-                                                ? "Search Manga (MangaDex)..."
-                                                : "Search... (Press /)"
-                                }
+                                placeholder={selectedCategory === "Categories" ? "Search categories..." : "Search... (Press /)"}
                                 className="w-full bg-white/5 border border-white/10 rounded-xl py-2.5 pl-10 pr-4 text-sm focus:outline-none focus:border-white/30"
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -3562,15 +3554,7 @@ export default function App() {
                                 <TvFocusInput
                                     ref={searchInputRef}
                                     type="text"
-                                    placeholder={
-                                        selectedCategory === "Categories" 
-                                            ? (window.innerWidth < 640 ? "Search..." : "Search categories...") 
-                                            : selectedCategory === "Anime"
-                                                ? "Search Anime (AniList)..."
-                                                : selectedCategory === "Manga"
-                                                    ? "Search Manga (MangaDex)..."
-                                                    : (window.innerWidth < 640 ? "Search..." : "Search... (Press /)")
-                                    }
+                                    placeholder={selectedCategory === "Categories" ? (window.innerWidth < 640 ? "Search..." : "Search categories...") : (window.innerWidth < 640 ? "Search..." : "Search... (Press /)")}
                                     className={`w-full bg-[#1a1a1a] border border-white/5 rounded-full py-1.5 md:py-2 pl-8 md:pl-10 pr-4 text-xs md:text-sm focus:outline-none transition-all text-white placeholder-gray-500 ${loading && searchQuery ? "border-opacity-50" : "focus:border-white/20"}`}
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value)}
