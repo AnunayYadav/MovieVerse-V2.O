@@ -1009,8 +1009,9 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                     }
                 }
                 
-                const apiEndpoint = isAnime ? '/api/nyaa' : '/api/media-downloads';
-                const res = await fetch(`${apiEndpoint}?q=${encodeURIComponent(q)}`);
+                const apiEndpoint = isAnime ? '/api/nyaa' : `/api/media-downloads?type=${isTv ? 'tv' : 'movie'}`;
+                const separator = isAnime ? '?' : '&';
+                const res = await fetch(`${apiEndpoint}${separator}q=${encodeURIComponent(q)}`);
                 if (!res.ok) throw new Error("Failed to fetch torrents");
                 const data = await res.json();
                 
