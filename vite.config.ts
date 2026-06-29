@@ -38,6 +38,8 @@ export default defineConfig(({ mode }) => {
               // Only handle our serverless API routes
               const apiRoutes: Record<string, string> = {
                 '/api/manga': './api/manga.ts',
+                '/api/anime': './api/anime.ts',
+                '/api/anilist': './api/anilist.ts',
                 '/api/mangadex': './api/mangadex.ts',
                 '/api/nyaa': './api/nyaa.ts',
                 '/api/tmdb': './api/tmdb.ts',
