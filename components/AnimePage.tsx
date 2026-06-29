@@ -1077,21 +1077,21 @@ export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick, sear
 
           {/* Streaming Timeline Section */}
           <div className="px-4 md:px-12 mb-10 text-left">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">
-              <div className="flex items-center gap-2.5">
-                <span className="w-2.5 h-6 rounded-full bg-red-600 shadow-[0_0_10px_rgba(220,38,38,0.5)]"></span>
-                <h2 className="text-xl md:text-2xl font-black text-white tracking-tight flex items-center gap-2">
-                  <Calendar className="text-red-500" size={20} />
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-5 gap-3">
+              <div className="flex items-center gap-2">
+                <span className="w-1.5 h-5 rounded-full bg-red-600"></span>
+                <h2 className="text-base md:text-lg font-semibold text-white tracking-tight flex items-center gap-2 select-none">
+                  <Calendar className="text-red-500" size={16} />
                   Streaming Timeline
                 </h2>
               </div>
-              <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest bg-white/5 border border-white/5 px-2.5 py-1 rounded-full">
+              <span className="text-[9px] font-medium text-zinc-500 uppercase tracking-widest bg-white/5 border border-white/5 px-2.5 py-0.5 rounded-full select-none">
                 Airing Schedule (Local Time)
               </span>
             </div>
 
             {/* Day Selectors */}
-            <div className="flex items-center gap-2 overflow-x-auto pb-3 mb-6 scrollbar-thin scrollbar-thumb-zinc-800 scrollbar-track-transparent">
+            <div className="flex items-center gap-2 overflow-x-auto pb-3 mb-6 hide-scrollbar">
               {next7Days.map((day, idx) => {
                 const isSelected = selectedDayIdx === idx;
                 const isToday = idx === 0;
@@ -1102,16 +1102,16 @@ export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick, sear
                   <button
                     key={idx}
                     onClick={() => setSelectedDayIdx(idx)}
-                    className={`flex flex-col items-center justify-center min-w-[70px] py-2 px-3.5 rounded-2xl border transition-all duration-300 active:scale-95 shrink-0 ${
+                    className={`flex flex-col items-center justify-center min-w-[58px] py-2 px-3 rounded-xl border transition-all duration-300 active:scale-95 shrink-0 ${
                       isSelected
-                        ? 'bg-red-600 border-red-500 text-white shadow-[0_4px_20px_rgba(239,68,68,0.35)] scale-[1.02]'
-                        : 'bg-zinc-900/60 hover:bg-zinc-800/80 border-white/5 hover:border-white/10 text-zinc-400 hover:text-white'
+                        ? 'bg-red-600/10 border-red-500/35 text-red-500 shadow-[0_2px_10px_rgba(239,68,68,0.1)] scale-[1.02]'
+                        : 'bg-zinc-900/40 hover:bg-zinc-800/50 border-white/5 hover:border-white/10 text-zinc-400 hover:text-white'
                     }`}
                   >
-                    <span className="text-[10px] uppercase font-bold tracking-wider opacity-85">
+                    <span className="text-[9px] uppercase font-semibold tracking-wider opacity-85">
                       {isToday ? "Today" : dayName}
                     </span>
-                    <span className="text-lg font-black mt-0.5">{dateNum}</span>
+                    <span className="text-sm font-semibold mt-0.5">{dateNum}</span>
                   </button>
                 );
               })}
@@ -1119,76 +1119,32 @@ export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick, sear
 
             {/* Airing Cards List/Grid */}
             {scheduleLoading ? (
-              <div className="flex flex-col items-center justify-center py-16 gap-3">
-                <Loader2 className="animate-spin text-red-500" size={24} />
-                <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Fetching schedule...</span>
+              <div className="flex items-center justify-center py-12 gap-2">
+                <Loader2 className="animate-spin text-red-500" size={20} />
+                <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">Fetching schedule...</span>
               </div>
             ) : scheduleError ? (
-              <div className="flex items-center gap-3 bg-red-950/20 border border-red-500/20 p-4 rounded-2xl text-zinc-400 text-xs">
+              <div className="flex items-center gap-3 bg-red-950/20 border border-red-500/20 p-4 rounded-xl text-zinc-400 text-xs">
                 <AlertCircle className="text-red-500 shrink-0" size={16} />
                 <span>{scheduleError}</span>
               </div>
             ) : filteredSchedules.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-12 text-center border border-dashed border-white/5 bg-zinc-950/20 rounded-2xl opacity-60">
-                <Film size={32} className="text-zinc-600 mb-2 animate-pulse" />
-                <h4 className="text-sm font-bold text-zinc-300 mb-0.5">No Airing Scheduled</h4>
-                <p className="text-zinc-500 text-[11px]">No anime episodes tracked by AniList are airing on this day.</p>
+              <div className="flex flex-col items-center justify-center py-10 text-center border border-dashed border-white/5 bg-zinc-950/20 rounded-xl opacity-60">
+                <Film size={28} className="text-zinc-600 mb-2 animate-pulse" />
+                <h4 className="text-xs font-semibold text-zinc-300 mb-0.5">No Airing Scheduled</h4>
+                <p className="text-zinc-500 text-[10px]">No anime episodes tracked by AniList are airing on this day.</p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                {filteredSchedules.map((item) => {
-                  const airTime = new Date(item.airingAt * 1000).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-                  const title = getAnimeTitle(item.media);
-                  return (
-                    <div
-                      key={item.id}
-                      onClick={() => handleAnimeClick(item.media)}
-                      className="group flex gap-3.5 bg-zinc-900/40 hover:bg-zinc-900/80 border border-white/5 hover:border-red-500/35 p-3 rounded-2xl cursor-pointer hover:shadow-[0_8px_30px_rgba(0,0,0,0.4)] transition-all duration-300 relative overflow-hidden"
-                    >
-                      {/* Left thumbnail */}
-                      <div className="w-20 md:w-24 aspect-[3/4] shrink-0 rounded-xl overflow-hidden bg-zinc-800 relative">
-                        <img
-                          src={item.media.coverImage.large || item.media.coverImage.medium}
-                          alt={title}
-                          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                          loading="lazy"
-                        />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
-                        <span className="absolute bottom-1 right-1 bg-red-600/90 text-white font-extrabold text-[8px] px-1 py-0.5 rounded tracking-wide">
-                          Ep {item.episode}
-                        </span>
-                      </div>
-
-                      {/* Right info */}
-                      <div className="flex-1 flex flex-col justify-between py-0.5 select-none text-left">
-                        <div>
-                          <h4 className="text-xs md:text-sm font-extrabold text-white line-clamp-2 leading-snug group-hover:text-red-500 transition-colors duration-300">
-                            {title}
-                          </h4>
-                          <div className="flex flex-wrap gap-1 mt-1.5">
-                            {item.media.genres.slice(0, 2).map((g) => (
-                              <span key={g} className="text-[7.5px] font-extrabold uppercase tracking-wider bg-white/5 text-zinc-400 px-1 py-0.5 rounded border border-white/5">
-                                {g}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-
-                        <div className="flex flex-col gap-0.5 mt-2">
-                          <span className="text-[10px] text-zinc-400 font-bold">
-                            Air Time: <strong className="text-white">{airTime}</strong>
-                          </span>
-                          <AiringCountdown airingAt={item.airingAt} />
-                        </div>
-                      </div>
-
-                      {/* Small subtle hovering play icon */}
-                      <div className="absolute right-3 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-red-600/10 text-red-500 hover:bg-red-600 hover:text-white p-2.5 rounded-full border border-red-500/20 shadow-md">
-                        <Play size={14} fill="currentColor" />
-                      </div>
-                    </div>
-                  );
-                })}
+              <div className="flex gap-5 overflow-x-auto pb-4 hide-scrollbar scroll-smooth">
+                {filteredSchedules.map((item) => (
+                  <AiringCard
+                    key={item.id}
+                    item={item}
+                    apiKey={apiKey}
+                    onAnimeClick={handleAnimeClick}
+                    titleLanguage={titleLanguage}
+                  />
+                ))}
               </div>
             )}
           </div>
@@ -1618,4 +1574,209 @@ export const AiringCountdown: React.FC<AiringCountdownProps> = ({ airingAt }) =>
     </span>
   );
 };
+
+interface AiringCardProps {
+  item: AiringScheduleItem;
+  apiKey: string;
+  onAnimeClick: (anime: AniListMedia) => void;
+  titleLanguage: 'english' | 'romaji' | 'native';
+}
+
+export const AiringCard: React.FC<AiringCardProps> = ({ item, apiKey, onAnimeClick, titleLanguage }) => {
+  const [backdropUrl, setBackdropUrl] = useState<string | null>(null);
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [logoLoading, setLogoLoading] = useState(true);
+
+  const { ref } = useTvFocus({
+    onEnterPress: () => onAnimeClick(item.media)
+  });
+
+  const getAnimeTitle = (a: AniListMedia, lang: 'english' | 'romaji' | 'native') => {
+    if (lang === 'english') {
+      return a.title.english || a.title.romaji || a.title.native || a.title.userPreferred;
+    } else if (lang === 'romaji') {
+      return a.title.romaji || a.title.english || a.title.native || a.title.userPreferred;
+    } else {
+      return a.title.native || a.title.romaji || a.title.english || a.title.userPreferred;
+    }
+  };
+
+  const title = getAnimeTitle(item.media, titleLanguage);
+
+  useEffect(() => {
+    let isMounted = true;
+    
+    const resolveTmdbAndLogo = async () => {
+      const matchCacheKey = `movieverse_anilist_tmdb_match_${item.media.id}`;
+      const logoCacheKey = `movieverse_anime_logo_${item.media.id}`;
+      
+      const cachedMatch = localStorage.getItem(matchCacheKey);
+      const cachedLogo = localStorage.getItem(logoCacheKey);
+      
+      let tmdbId: number | null = null;
+      let mediaType: string | null = null;
+      let backdropPath: string | null = null;
+      
+      if (cachedMatch) {
+        try {
+          const parsed = JSON.parse(cachedMatch);
+          tmdbId = parsed.id;
+          mediaType = parsed.mediaType;
+          backdropPath = parsed.backdropPath;
+        } catch (_) {}
+      }
+      
+      if (!tmdbId && apiKey) {
+        const titlesToTry = [
+          item.media.title.english,
+          item.media.title.romaji,
+          item.media.title.userPreferred
+        ].filter((t): t is string => typeof t === 'string' && t.length > 0);
+        
+        for (const searchTitle of titlesToTry) {
+          const cleanTitle = searchTitle.replace(/\s*\(?(Dub|Sub|TV|Movie|uncensored|censored|season\s*\d+|part\s*\d+)\)?\s*$/i, '').trim();
+          
+          try {
+            const res = await fetch(`${TMDB_BASE_URL}/search/tv?api_key=${apiKey}&query=${encodeURIComponent(cleanTitle)}`);
+            const data = await res.json();
+            if (data && data.results && data.results.length > 0) {
+              const match = data.results.find((m: any) => 
+                m.genre_ids?.includes(16) && m.original_language === 'ja'
+              ) || data.results.find((m: any) => 
+                m.genre_ids?.includes(16)
+              ) || data.results[0];
+              
+              if (match) {
+                tmdbId = match.id;
+                mediaType = 'tv';
+                backdropPath = match.backdrop_path;
+                break;
+              }
+            }
+          } catch (e) {}
+          
+          try {
+            const res = await fetch(`${TMDB_BASE_URL}/search/movie?api_key=${apiKey}&query=${encodeURIComponent(cleanTitle)}`);
+            const data = await res.json();
+            if (data && data.results && data.results.length > 0) {
+              const match = data.results.find((m: any) => 
+                m.genre_ids?.includes(16) && m.original_language === 'ja'
+              ) || data.results.find((m: any) => 
+                m.genre_ids?.includes(16)
+              ) || data.results[0];
+              
+              if (match) {
+                tmdbId = match.id;
+                mediaType = 'movie';
+                backdropPath = match.backdrop_path;
+                break;
+              }
+            }
+          } catch (e) {}
+        }
+        
+        if (tmdbId && mediaType) {
+          localStorage.setItem(matchCacheKey, JSON.stringify({ id: tmdbId, mediaType, backdropPath }));
+        }
+      }
+      
+      if (!isMounted) return;
+      
+      if (tmdbId && mediaType) {
+        if (backdropPath) {
+          setBackdropUrl(`https://image.tmdb.org/t/p/w500${backdropPath}`);
+        } else {
+          setBackdropUrl(item.media.bannerImage || item.media.coverImage.extraLarge || item.media.coverImage.large);
+        }
+        
+        if (cachedLogo !== null) {
+          setLogoUrl(cachedLogo || null);
+          setLogoLoading(false);
+        } else if (apiKey) {
+          try {
+            const res = await fetch(`${TMDB_BASE_URL}/${mediaType}/${tmdbId}/images?api_key=${apiKey}`);
+            const data = await res.json();
+            const logo = data.logos?.find((l: any) => l.iso_639_1 === 'en') || data.logos?.[0];
+            if (logo && isMounted) {
+              const logoPath = `https://image.tmdb.org/t/p/w300${logo.file_path}`;
+              setLogoUrl(logoPath);
+              localStorage.setItem(logoCacheKey, logoPath);
+            } else if (isMounted) {
+              setLogoUrl(null);
+              localStorage.setItem(logoCacheKey, '');
+            }
+          } catch (e) {
+            if (isMounted) {
+              setLogoUrl(null);
+              localStorage.setItem(logoCacheKey, '');
+            }
+          } finally {
+            if (isMounted) setLogoLoading(false);
+          }
+        } else {
+          setLogoLoading(false);
+        }
+      } else {
+        setBackdropUrl(item.media.bannerImage || item.media.coverImage.extraLarge || item.media.coverImage.large);
+        setLogoLoading(false);
+      }
+    };
+    
+    resolveTmdbAndLogo();
+    return () => { isMounted = false; };
+  }, [item.media.id, apiKey]);
+
+  const airTime = new Date(item.airingAt * 1000).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+
+  return (
+    <div
+      ref={ref}
+      onClick={() => onAnimeClick(item.media)}
+      className="group relative shrink-0 w-[220px] md:w-[260px] aspect-[16/9] rounded-2xl overflow-hidden cursor-pointer bg-zinc-950 border border-white/5 hover:border-red-500/35 hover:shadow-[0_4px_15px_rgba(239,68,68,0.15)] hover:scale-[1.02] transition-all duration-500"
+    >
+      <img
+        src={backdropUrl || "https://placehold.co/600x338/111/444?text=Loading..."}
+        alt={title}
+        loading="lazy"
+        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+      />
+
+      {/* Modern gradient overlay */}
+      <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/45 to-transparent opacity-90 transition-opacity duration-300 pointer-events-none" />
+
+      {/* Episode Badge */}
+      <div className="absolute top-2 left-2 bg-red-600/90 text-[9px] font-semibold text-white px-2 py-0.5 rounded shadow-sm">
+        Ep {item.episode}
+      </div>
+
+      {/* Air Time Badge */}
+      <div className="absolute top-2 right-2 bg-black/60 backdrop-blur-sm text-[9px] font-semibold text-white/90 px-2 py-0.5 rounded border border-white/5 shadow-sm">
+        {airTime}
+      </div>
+
+      {/* Details (Clean typography, font-medium/semibold, no heavy font-black or font-extrabold) */}
+      <div className="absolute inset-0 p-3.5 flex flex-col justify-end text-left select-none pointer-events-none">
+        <div className="min-h-[22px] flex items-end">
+          {!logoLoading && logoUrl ? (
+            <img
+              src={logoUrl}
+              alt={title}
+              className="max-h-[22px] max-w-[85%] object-contain drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)] transition-transform duration-300 origin-left group-hover:scale-[1.02]"
+              loading="lazy"
+            />
+          ) : (
+            <h4 className="text-xs sm:text-sm font-semibold text-white line-clamp-1 group-hover:text-red-500 transition-colors duration-300">
+              {title}
+            </h4>
+          )}
+        </div>
+        
+        <div className="mt-1 flex items-center justify-between text-[9px] font-normal text-zinc-400">
+          <AiringCountdown airingAt={item.airingAt} />
+        </div>
+      </div>
+    </div>
+  );
+};
+
 
