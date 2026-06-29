@@ -206,6 +206,9 @@ export const MangaPage: React.FC<MangaPageProps> = ({
   const [aniListMangaLoading, setAniListMangaLoading] = useState(false);
   const [isReaderSettingsOpen, setIsReaderSettingsOpen] = useState(false);
   const [isMenuVisible, setIsMenuVisible] = useState(true);
+  const [showTopBar, setShowTopBar] = useState(true);
+  const [showBottomBar, setShowBottomBar] = useState(false);
+  const lastScrollTopRef = useRef(0);
   
   // Endless scroll genre rows
   const [genreRows, setGenreRows] = useState<{ genre: string; media: MangaDexManga[] }[]>([]);
@@ -1401,9 +1404,12 @@ export const MangaPage: React.FC<MangaPageProps> = ({
     autoSelectBestProvider(selectedManga);
   }, [selectedManga, autoSelectBestProvider]);
 
-  // Reset scroll position when details page or reader state changes
+  // Reset scroll position and reader top/bottom bars when details page or reader state changes
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'instant' });
+    setShowTopBar(true);
+    setShowBottomBar(false);
+    lastScrollTopRef.current = 0;
   }, [selectedMangaId, activeChapterId]);
 
   // Hide controls in fullscreen mode after 3 seconds of mouse inactivity
@@ -2717,6 +2723,35 @@ export const MangaPage: React.FC<MangaPageProps> = ({
       onChapterSelect(e.target.value);
     };
 
+    const handleReaderScroll = (e: React.UIEvent<HTMLDivElement>) => {
+      const container = e.currentTarget;
+      if (!container) return;
+
+      const { scrollTop, scrollHeight, clientHeight } = container;
+      const currentScrollTop = scrollTop;
+      
+      const isAtBottom = scrollHeight - currentScrollTop - clientHeight < 80;
+      const isAtTop = currentScrollTop < 20;
+      const isScrollingUp = currentScrollTop < lastScrollTopRef.current;
+      
+      if (isAtTop) {
+        setShowTopBar(true);
+        setShowBottomBar(false);
+      } else if (isAtBottom) {
+        setShowTopBar(false);
+        setShowBottomBar(true);
+      } else {
+        setShowBottomBar(false);
+        if (isScrollingUp) {
+          setShowTopBar(true);
+        } else {
+          setShowTopBar(false);
+        }
+      }
+
+      lastScrollTopRef.current = currentScrollTop;
+    };
+
     const SidebarContent = () => (
       <div className="w-full h-full flex flex-col justify-between text-left p-5 space-y-6 overflow-y-auto custom-scrollbar select-none text-zinc-300">
         
@@ -3011,9 +3046,11 @@ export const MangaPage: React.FC<MangaPageProps> = ({
 
     const HorizontalMenuBar = ({ isBottom = false }: { isBottom?: boolean }) => {
       const barClass = isBottom
-        ? "my-12 mx-auto w-[92vw] max-w-5xl"
+        ? `fixed bottom-4 left-1/2 -translate-x-1/2 z-50 transition-all duration-300 ${
+            showBottomBar ? 'translate-y-0 opacity-100' : 'translate-y-20 opacity-0 pointer-events-none'
+          } w-[92vw] max-w-5xl`
         : `fixed top-4 left-1/2 -translate-x-1/2 z-50 transition-all duration-300 ${
-            isMenuVisible ? 'translate-y-0 opacity-100' : '-translate-y-20 opacity-0 pointer-events-none'
+            showTopBar && isMenuVisible ? 'translate-y-0 opacity-100' : '-translate-y-20 opacity-0 pointer-events-none'
           } w-[92vw] max-w-5xl`;
 
       return (
@@ -3106,12 +3143,16 @@ export const MangaPage: React.FC<MangaPageProps> = ({
         {/* Top Horizontal Floating Menu Bar */}
         <HorizontalMenuBar />
 
+        {/* Bottom Horizontal Floating Menu Bar */}
+        <HorizontalMenuBar isBottom={true} />
+
         {/* Main Reader Content Area */}
         <div className="flex-1 flex flex-col h-full overflow-hidden">
           
           {/* Reader Body container */}
           <div 
             ref={readerScrollContainerRef}
+            onScroll={handleReaderScroll}
             className="flex-1 overflow-y-auto custom-scrollbar pt-20 pb-4 px-4 relative flex flex-col items-center justify-start"
           >
             {pagesLoading ? (
@@ -3155,9 +3196,6 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                     )}
                   </div>
                 ))}
-                
-                {/* Bottom Horizontal Menu Bar at the end of manga pages list */}
-                <HorizontalMenuBar isBottom={true} />
               </div>
             ) : (
               /* Single Page Mode (Slideshow) */
