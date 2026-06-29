@@ -992,11 +992,16 @@ export const MoviePage: React.FC<MoviePageProps> = ({
             setNyaaError(null);
             try {
                 const title = displayData.name || displayData.title || displayData.original_title || displayData.original_name || "";
-                // Clean title
                 const cleanTitle = title.replace(/[^\w\s-]/g, '').trim();
                 let q = cleanTitle;
                 if (isTv) {
-                    q = `${cleanTitle} ${downloadEpisode}`;
+                    const seasonStr = downloadSeason < 10 ? `0${downloadSeason}` : `${downloadSeason}`;
+                    const episodeStr = downloadEpisode < 10 ? `0${downloadEpisode}` : `${downloadEpisode}`;
+                    if (downloadSeason > 1) {
+                        q = `${cleanTitle} S${seasonStr}E${episodeStr}`;
+                    } else {
+                        q = `${cleanTitle} ${episodeStr}`;
+                    }
                 }
                 
                 const res = await fetch(`/api/nyaa?q=${encodeURIComponent(q)}`);
@@ -1004,7 +1009,30 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                 const data = await res.json();
                 
                 if (active) {
-                    const sorted = (data || []).sort((a: any, b: any) => b.seeders - a.seeders);
+                    const sorted = (data || []).sort((a: any, b: any) => {
+                        const seasonStr = downloadSeason < 10 ? `0${downloadSeason}` : `${downloadSeason}`;
+                        const episodeStr = downloadEpisode < 10 ? `0${downloadEpisode}` : `${downloadEpisode}`;
+                        
+                        const titleA = a.title.toLowerCase();
+                        const titleB = b.title.toLowerCase();
+                        
+                        const sFormat = `s${seasonStr}e${episodeStr}`;
+                        const matchA_S = titleA.includes(sFormat);
+                        const matchB_S = titleB.includes(sFormat);
+                        
+                        if (matchA_S && !matchB_S) return -1;
+                        if (!matchA_S && matchB_S) return 1;
+                        
+                        if (downloadSeason === 1) {
+                            const hasOtherSeasonA = /s0[2-9]|s[1-9]\d|season\s*[2-9]/i.test(titleA);
+                            const hasOtherSeasonB = /s0[2-9]|s[1-9]\d|season\s*[2-9]/i.test(titleB);
+                            
+                            if (!hasOtherSeasonA && hasOtherSeasonB) return -1;
+                            if (hasOtherSeasonA && !hasOtherSeasonB) return 1;
+                        }
+                        
+                        return b.seeders - a.seeders;
+                    });
                     setNyaaTorrents(sorted);
                 }
             } catch (err: any) {
@@ -2312,37 +2340,37 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                             : 'TBA';
                                                         
                                                         const categoryBadge = t.category?.includes('English-translated')
-                                                            ? <span className="bg-purple-600/15 text-purple-400 border border-purple-500/20 px-1.5 py-0.5 rounded text-[8px] font-extrabold uppercase tracking-wide">English Sub/Dub</span>
+                                                            ? <span className="bg-purple-600/15 text-purple-400 border border-purple-500/20 px-1.5 py-0.5 rounded text-[8px] font-semibold uppercase tracking-wide">English Sub/Dub</span>
                                                             : t.category?.includes('Raw')
-                                                            ? <span className="bg-emerald-600/15 text-emerald-400 border border-emerald-500/20 px-1.5 py-0.5 rounded text-[8px] font-extrabold uppercase tracking-wide">Raw</span>
+                                                            ? <span className="bg-emerald-600/15 text-emerald-400 border border-emerald-500/20 px-1.5 py-0.5 rounded text-[8px] font-semibold uppercase tracking-wide">Raw</span>
                                                             : t.category?.includes('Non-English-translated')
-                                                            ? <span className="bg-blue-600/15 text-blue-400 border border-blue-500/20 px-1.5 py-0.5 rounded text-[8px] font-extrabold uppercase tracking-wide">Non-Eng</span>
-                                                            : <span className="bg-zinc-800 text-zinc-400 border border-zinc-700/50 px-1.5 py-0.5 rounded text-[8px] font-extrabold uppercase tracking-wide">Anime</span>;
+                                                            ? <span className="bg-blue-600/15 text-blue-400 border border-blue-500/20 px-1.5 py-0.5 rounded text-[8px] font-semibold uppercase tracking-wide">Non-Eng</span>
+                                                            : <span className="bg-zinc-800 text-zinc-400 border border-zinc-700/50 px-1.5 py-0.5 rounded text-[8px] font-semibold uppercase tracking-wide">Anime</span>;
 
                                                         return (
                                                             <div key={idx} className="p-3 rounded-xl bg-white/5 border border-white/5 hover:border-white/10 transition-all text-xs flex flex-col gap-2">
                                                                 {/* Badges Row */}
                                                                 <div className="flex flex-wrap items-center gap-2">
                                                                     {categoryBadge}
-                                                                    <span className="flex items-center gap-1 bg-white/5 text-[9px] text-zinc-400 px-1.5 py-0.5 rounded border border-white/5 font-semibold">
+                                                                    <span className="flex items-center gap-1 bg-white/5 text-[9px] text-zinc-400 px-1.5 py-0.5 rounded border border-white/5 font-normal">
                                                                         <Clock size={10} className="text-zinc-500" />
                                                                         {formattedDate}
                                                                     </span>
-                                                                    <span className="flex items-center gap-1 bg-white/5 text-[9px] text-zinc-400 px-1.5 py-0.5 rounded border border-white/5 font-semibold" title="Completed Downloads">
+                                                                    <span className="flex items-center gap-1 bg-white/5 text-[9px] text-zinc-400 px-1.5 py-0.5 rounded border border-white/5 font-normal" title="Completed Downloads">
                                                                         <Check size={10} className="text-zinc-500" strokeWidth={3} />
                                                                         {t.downloads}
                                                                     </span>
                                                                 </div>
 
                                                                 {/* Release Title */}
-                                                                <div className="font-bold text-white line-clamp-2 leading-snug">{t.title}</div>
+                                                                <div className="font-medium text-zinc-200 line-clamp-2 leading-snug">{t.title}</div>
 
                                                                 {/* Metrics (Size, Seeds, Leech) */}
                                                                 <div className="flex items-center justify-between text-[10px] text-zinc-400 pt-1 border-t border-white/5">
-                                                                    <span className="font-semibold text-zinc-400">Size: {t.size}</span>
+                                                                    <span className="font-normal text-zinc-400">Size: {t.size}</span>
                                                                     <div className="flex items-center gap-2">
-                                                                        <span className="text-green-500 font-bold">▲ {t.seeders}</span>
-                                                                        <span className="text-red-500 font-bold">▼ {t.leechers}</span>
+                                                                        <span className="text-green-500 font-medium">▲ {t.seeders}</span>
+                                                                        <span className="text-red-500 font-medium">▼ {t.leechers}</span>
                                                                     </div>
                                                                 </div>
 
@@ -2351,14 +2379,14 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                                     <a 
                                                                         href={t.link}
                                                                         download
-                                                                        className="flex-1 py-1.5 px-2 bg-red-600/15 hover:bg-red-600/25 border border-red-500/20 hover:border-red-500/40 text-red-400 font-bold rounded-lg text-center transition-all flex items-center justify-center gap-1.5 active:scale-95 text-[10px]"
+                                                                        className="flex-1 py-1.5 px-2 bg-red-600/15 hover:bg-red-600/25 border border-red-500/20 hover:border-red-500/40 text-red-400 font-medium rounded-lg text-center transition-all flex items-center justify-center gap-1.5 active:scale-95 text-[10px]"
                                                                     >
                                                                         <Download size={10} /> torrent file
                                                                     </a>
                                                                     {t.magnet && (
                                                                         <a 
                                                                             href={t.magnet}
-                                                                            className="flex-1 py-1.5 px-2 bg-emerald-600/15 hover:bg-emerald-600/25 border border-emerald-500/20 hover:border-emerald-500/40 text-emerald-400 font-bold rounded-lg text-center transition-all flex items-center justify-center gap-1.5 active:scale-95 text-[10px]"
+                                                                            className="flex-1 py-1.5 px-2 bg-emerald-600/15 hover:bg-emerald-600/25 border border-emerald-500/20 hover:border-emerald-500/40 text-emerald-400 font-medium rounded-lg text-center transition-all flex items-center justify-center gap-1.5 active:scale-95 text-[10px]"
                                                                         >
                                                                             🧲 magnet
                                                                         </a>
