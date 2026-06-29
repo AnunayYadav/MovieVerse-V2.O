@@ -204,6 +204,8 @@ export const MangaPage: React.FC<MangaPageProps> = ({
   // AniList Media Details
   const [aniListMangaData, setAniListMangaData] = useState<any | null>(null);
   const [aniListMangaLoading, setAniListMangaLoading] = useState(false);
+  const [isReaderSettingsOpen, setIsReaderSettingsOpen] = useState(false);
+  const [isMenuVisible, setIsMenuVisible] = useState(true);
   
   // Endless scroll genre rows
   const [genreRows, setGenreRows] = useState<{ genre: string; media: MangaDexManga[] }[]>([]);
@@ -1403,6 +1405,31 @@ export const MangaPage: React.FC<MangaPageProps> = ({
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'instant' });
   }, [selectedMangaId, activeChapterId]);
+
+  // Hide controls in fullscreen mode after 3 seconds of mouse inactivity
+  useEffect(() => {
+    if (!isFullscreen) {
+      setIsMenuVisible(true);
+      return;
+    }
+    
+    let timer: NodeJS.Timeout;
+    const handleMouseMove = () => {
+      setIsMenuVisible(true);
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        setIsMenuVisible(false);
+      }, 3000);
+    };
+    
+    window.addEventListener('mousemove', handleMouseMove);
+    handleMouseMove();
+    
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      clearTimeout(timer);
+    };
+  }, [isFullscreen]);
 
   // Sync activeChapter with activeChapterId prop
   useEffect(() => {
@@ -2982,64 +3009,110 @@ export const MangaPage: React.FC<MangaPageProps> = ({
     const formatInfo = selectedManga ? getMangaFormat(selectedManga) : null;
     const isStitchedFormat = formatInfo?.label === 'Manhwa' || formatInfo?.label === 'Manhua';
 
-    return (
-      <div className={`fixed inset-0 z-[120] ${getBgClass()} flex flex-col lg:flex-row font-sans select-none ${isReaderExiting ? 'animate-fade-out' : 'animate-fade-in'}`}>
-        
-        {/* Main Reader Content Area (Left side) */}
-        <div className="flex-1 flex flex-col h-full overflow-hidden">
-          
-          {/* Top navigation header panel */}
-          <div className="p-3 bg-zinc-950/80 border-b border-white/5 flex items-center justify-between z-30 backdrop-blur-md">
-            <div className="flex items-center gap-3">
+    const HorizontalMenuBar = ({ isBottom = false }: { isBottom?: boolean }) => {
+      const barClass = isBottom
+        ? "my-12 mx-auto w-[92vw] max-w-5xl"
+        : `fixed top-4 left-1/2 -translate-x-1/2 z-50 transition-all duration-300 ${
+            isMenuVisible ? 'translate-y-0 opacity-100' : '-translate-y-20 opacity-0 pointer-events-none'
+          } w-[92vw] max-w-5xl`;
+
+      return (
+        <div 
+          className={`${barClass} bg-[#101014]/95 border border-white/5 hover:border-white/10 rounded-2xl px-4 py-2.5 flex items-center justify-between gap-4 font-sans text-xs text-zinc-300 shadow-2xl backdrop-blur-md transition-all active:scale-[0.99] select-none`}
+        >
+          {/* Left section: Manga Title & Back button */}
+          <div className="flex items-center gap-2">
+            {!isBottom && (
               <button
                 onClick={handleCloseReader}
-                className="p-2 text-zinc-400 hover:text-white rounded-full bg-white/5 hover:bg-white/10 transition-colors"
+                className="p-2 text-zinc-400 hover:text-white rounded-lg bg-white/5 hover:bg-white/10 transition-colors"
                 title="Back to Manga Details"
               >
-                <ChevronLeft size={16} />
+                <ChevronLeft size={15} />
               </button>
-              <div className="text-left">
-                <h4 className="text-[10px] font-medium text-red-500 tracking-wider leading-none mb-1">Manga Reader</h4>
-                <p className="text-xs text-white font-normal line-clamp-1">Chapter {activeChapter.attributes.chapter || 'Oneshot'}</p>
-              </div>
-            </div>
-
-            {/* Quick action buttons for mobile */}
-            <div className="flex items-center gap-2 lg:hidden">
-              <button
-                onClick={() => setIsMobileSidebarOpen(prev => !prev)}
-                className="p-2 rounded-lg bg-red-600 text-white font-normal text-xs flex items-center gap-1 active:scale-95 transition-all shadow-md shadow-red-600/20"
-              >
-                <Settings size={14} />
-                <span>Menu</span>
-              </button>
-              <button
-                onClick={() => { handleCloseReader(); onMangaSelect(null); }}
-                className="p-2 text-zinc-400 hover:text-white rounded-full bg-white/5 hover:bg-white/10 transition-colors"
-                title="Close Reader"
-              >
-                <X size={16} />
-              </button>
-            </div>
-
-            {/* Quick stats for large screens */}
-            <div className="hidden lg:flex items-center gap-4 text-xs font-normal text-zinc-400">
-              <span className="flex items-center gap-1.5"><Globe size={13} className="text-red-500" /> {LANGUAGE_NAMES[selectedLanguage] || selectedLanguage}</span>
-              <span>•</span>
-              <span>{pages.length} Pages</span>
-              {readerMode === 'single' && (
-                <>
-                  <span>•</span>
-                  <span className="px-2.5 py-0.5 rounded bg-white/5 text-white">Page {activePageIdx + 1}/{pages.length}</span>
-                </>
-              )}
+            )}
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-white/5 border border-white/5 rounded-xl font-bold text-white max-w-[140px] sm:max-w-[240px] truncate">
+              <BookOpen size={14} className="text-red-500 shrink-0" />
+              <span className="truncate">{selectedManga ? getMangaTitle(selectedManga) : 'Loading...'}</span>
             </div>
           </div>
 
+          {/* Center section: Chapter Selector */}
+          <div className="relative flex items-center gap-2 px-3 py-1.5 bg-white/5 border border-white/5 rounded-xl hover:bg-white/10 transition-all font-semibold cursor-pointer">
+            <LayoutList size={14} className="text-red-500 shrink-0" />
+            <select
+              value={activeChapter.id}
+              onChange={handleChapterChange}
+              className="bg-transparent text-xs text-white focus:outline-none cursor-pointer pr-4 appearance-none font-semibold"
+            >
+              {activeReaderChapters.map((ch) => (
+                <option key={ch.id} value={ch.id} className="bg-[#0c0c0e]">
+                  Ch {ch.attributes.chapter || 'Oneshot'}
+                </option>
+              ))}
+            </select>
+            <ChevronDown size={12} className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-zinc-400" />
+          </div>
+
+          {/* Right section: Navigation & Settings */}
+          <div className="flex items-center gap-2">
+            {/* PREV button */}
+            <button
+              onClick={goToPrevChapter}
+              disabled={!hasPrevChapter}
+              className="flex items-center gap-1 px-3 py-1.5 bg-white/5 border border-white/5 hover:bg-white/10 disabled:opacity-20 text-white rounded-xl transition-all font-bold active:scale-95 text-[10px] tracking-wider uppercase shrink-0"
+              title="Older Chapter"
+            >
+              <ChevronLeft size={13} /> PREV
+            </button>
+
+            {/* NEXT button */}
+            <button
+              onClick={goToNextChapter}
+              disabled={!hasNextChapter}
+              className="flex items-center gap-1 px-3 py-1.5 bg-white/5 border border-white/5 hover:bg-white/10 disabled:opacity-20 text-white rounded-xl transition-all font-bold active:scale-95 text-[10px] tracking-wider uppercase shrink-0"
+              title="Newer Chapter"
+            >
+              NEXT <ChevronRight size={13} />
+            </button>
+
+            {/* Bookmark button */}
+            <button
+              onClick={() => showToast("Added to reading list")}
+              className="hidden sm:inline-flex p-2 bg-white/5 border border-white/5 hover:bg-white/10 text-zinc-300 hover:text-white rounded-xl transition-all active:scale-95 shrink-0"
+              title="Bookmark Chapter"
+            >
+              <Bookmark size={14} />
+            </button>
+
+            {/* Settings toggler (only at top) */}
+            {!isBottom && (
+              <button
+                onClick={() => setIsReaderSettingsOpen(prev => !prev)}
+                className={`p-2 border rounded-xl transition-all active:scale-95 shrink-0 ${isReaderSettingsOpen ? 'bg-red-600 border-red-500 text-white shadow-lg shadow-red-600/35' : 'bg-white/5 border-white/5 hover:bg-white/10 text-zinc-300'}`}
+                title="Settings & Info"
+              >
+                <Settings size={14} />
+              </button>
+            )}
+          </div>
+        </div>
+      );
+    };
+
+    return (
+      <div className={`fixed inset-0 z-[120] ${getBgClass()} flex flex-col font-sans select-none ${isReaderExiting ? 'animate-fade-out' : 'animate-fade-in'}`}>
+        
+        {/* Top Horizontal Floating Menu Bar */}
+        <HorizontalMenuBar />
+
+        {/* Main Reader Content Area */}
+        <div className="flex-1 flex flex-col h-full overflow-hidden">
+          
           {/* Reader Body container */}
           <div 
             ref={readerScrollContainerRef}
-            className="flex-1 overflow-y-auto custom-scrollbar pt-2 pb-4 px-4 relative flex flex-col items-center justify-start"
+            className="flex-1 overflow-y-auto custom-scrollbar pt-20 pb-4 px-4 relative flex flex-col items-center justify-start"
           >
             {pagesLoading ? (
               <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
@@ -3082,6 +3155,9 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                     )}
                   </div>
                 ))}
+                
+                {/* Bottom Horizontal Menu Bar at the end of manga pages list */}
+                <HorizontalMenuBar isBottom={true} />
               </div>
             ) : (
               /* Single Page Mode (Slideshow) */
@@ -3096,7 +3172,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                     <ChevronLeft size={20} />
                   </button>
 
-                  <div className="flex-1 aspect-[3/4] max-h-[82vh] md:max-h-[86vh] bg-zinc-950/20 border border-white/5 rounded-2xl overflow-hidden flex items-center justify-center relative shadow-2xl">
+                  <div className="flex-1 aspect-[3/4] max-h-[76vh] md:max-h-[80vh] bg-zinc-950/20 border border-white/5 rounded-2xl overflow-hidden flex items-center justify-center relative shadow-2xl">
                     <img
                       key={activePageIdx}
                       src={pages[activePageIdx]}
@@ -3135,19 +3211,19 @@ export const MangaPage: React.FC<MangaPageProps> = ({
           </div>
         </div>
 
-        {/* Desktop Sidebar Control Panel (Right side) */}
-        <div className="hidden lg:flex w-80 shrink-0 bg-[#0c0c0e]/98 border-l border-white/5 flex-col z-35 relative h-full">
-          {SidebarContent()}
-        </div>
-
-        {/* Mobile Slide-Out Settings Overlay */}
-        {isMobileSidebarOpen && (
-          <div className="lg:hidden fixed inset-0 z-[140] bg-black/70 backdrop-blur-sm animate-in fade-in duration-200">
-            <div className="absolute right-0 top-0 bottom-0 w-80 bg-[#0c0c0e] border-l border-white/10 flex flex-col animate-in slide-in-from-right duration-300">
+        {/* Slide-out Settings Drawer (Desktop + Mobile Overlay) */}
+        {isReaderSettingsOpen && (
+          <div className="fixed inset-0 z-[140] bg-black/60 backdrop-blur-xs animate-in fade-in duration-200">
+            {/* Click outside to close */}
+            <div className="absolute inset-0" onClick={() => setIsReaderSettingsOpen(false)} />
+            <div className="absolute right-0 top-0 bottom-0 w-80 bg-[#0c0c0e]/98 border-l border-white/5 flex flex-col animate-in slide-in-from-right duration-300 shadow-2xl">
               <div className="p-4 border-b border-white/5 flex items-center justify-between">
-                <span className="text-xs font-medium tracking-wide text-zinc-400">Settings & Menu</span>
+                <div className="flex items-center gap-2">
+                  <Settings size={15} className="text-red-500" />
+                  <span className="text-xs font-bold uppercase tracking-wider text-white">Settings & Info</span>
+                </div>
                 <button
-                  onClick={() => setIsMobileSidebarOpen(false)}
+                  onClick={() => setIsReaderSettingsOpen(false)}
                   className="p-1 rounded-full hover:bg-white/10 text-zinc-400 hover:text-white transition-colors"
                 >
                   <X size={18} />
