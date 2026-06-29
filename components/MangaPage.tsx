@@ -136,8 +136,18 @@ export const MangaPage: React.FC<MangaPageProps> = ({
 }) => {
   const [trending, setTrending] = useState<MangaDexManga[]>([]);
   const [latest, setLatest] = useState<MangaDexManga[]>([]);
+  const [popular, setPopular] = useState<MangaDexManga[]>([]);
   const [topRated, setTopRated] = useState<MangaDexManga[]>([]);
   const [expandedCategory, setExpandedCategory] = useState<{ title: string; items: MangaDexManga[] } | null>(null);
+
+  // Character Details Modal States
+  const [selectedCharacterId, setSelectedCharacterId] = useState<number | null>(null);
+  const [characterDetails, setCharacterDetails] = useState<any | null>(null);
+  const [characterDetailsLoading, setCharacterDetailsLoading] = useState(false);
+  const [characterDetailsError, setCharacterDetailsError] = useState<string | null>(null);
+  const [isCharacterModalClosing, setIsCharacterModalClosing] = useState(false);
+  const [characterModalMediaManga, setCharacterModalMediaManga] = useState<MangaDexManga[]>([]);
+  const [characterModalMediaLoading, setCharacterModalMediaLoading] = useState(false);
   
   // Endless scroll genre rows
   const [genreRows, setGenreRows] = useState<{ genre: string; media: MangaDexManga[] }[]>([]);
@@ -313,8 +323,29 @@ export const MangaPage: React.FC<MangaPageProps> = ({
     if (json.errors) {
       throw new Error(json.errors[0]?.message || 'GraphQL Error');
     }
-    return json.data;
   }, []);
+
+  const mapAniListToMangaDex = useCallback(async (aniListMedia: any[], ratings: string) => {
+    if (!aniListMedia || aniListMedia.length === 0) return [];
+    const ids = aniListMedia.map(m => m.id);
+    const externalIdParams = ids.map(id => `externalIds[al][]=${id}`).join('&');
+    try {
+      const endpoint = `/manga?limit=100&includes[]=cover_art&includes[]=author&includes[]=artist&includes[]=serialization&availableTranslatedLanguage[]=en${ratings}&${externalIdParams}`;
+      const res = await fetchMangaDex(endpoint);
+      const mangadexList: MangaDexManga[] = res.data || [];
+      const mapped: MangaDexManga[] = [];
+      for (const media of aniListMedia) {
+        const found = mangadexList.find(m => m.attributes?.links?.al === String(media.id));
+        if (found) {
+          mapped.push(found);
+        }
+      }
+      return mapped;
+    } catch (err) {
+      console.error("Failed to map AniList to MangaDex:", err);
+      return [];
+    }
+  }, [fetchMangaDex]);
 
   const fetchMangaCharacters = useCallback(async (manga: MangaDexManga) => {
     setCharactersLoading(true);
@@ -750,6 +781,100 @@ export const MangaPage: React.FC<MangaPageProps> = ({
     fetchMangaCharacters(selectedManga);
   }, [selectedManga, fetchMangaCharacters]);
 
+  // Load Character details when selectedCharacterId changes
+  useEffect(() => {
+    if (!selectedCharacterId) {
+      setCharacterDetails(null);
+      setCharacterModalMediaManga([]);
+      return;
+    }
+
+    let isMounted = true;
+    const fetchCharDetails = async () => {
+      setCharacterDetailsLoading(true);
+      setCharacterDetailsError(null);
+      setCharacterModalMediaManga([]);
+      setCharacterModalMediaLoading(true);
+
+      const query = `
+        query ($id: Int) {
+          Character(id: $id) {
+            id
+            name {
+              full
+              native
+              alternative
+              alternativeSpoiler
+            }
+            image {
+              large
+            }
+            description(asHtml: false)
+            gender
+            dateOfBirth {
+              year
+              month
+              day
+            }
+            age
+            bloodType
+            media(type: MANGA, sort: POPULARITY_DESC, perPage: 12) {
+              edges {
+                role
+                node {
+                  id
+                  title {
+                    romaji
+                    english
+                    native
+                  }
+                  coverImage {
+                    large
+                  }
+                }
+              }
+            }
+          }
+        }
+      `;
+
+      try {
+        const data = await fetchAniList(query, { id: selectedCharacterId });
+        if (!isMounted) return;
+        
+        if (data && data.Character) {
+          setCharacterDetails(data.Character);
+          
+          const mediaNodes = data.Character.media?.edges?.map((edge: any) => edge.node) || [];
+          if (mediaNodes.length > 0) {
+            const ratings = getContentRatingParams();
+            const mappedMedia = await mapAniListToMangaDex(mediaNodes, ratings);
+            if (isMounted) {
+              setCharacterModalMediaManga(mappedMedia);
+            }
+          }
+        } else {
+          throw new Error("Character not found");
+        }
+      } catch (err: any) {
+        console.error("Failed to load character details:", err);
+        if (isMounted) {
+          setCharacterDetailsError(err.message || "Failed to load character details");
+        }
+      } finally {
+        if (isMounted) {
+          setCharacterDetailsLoading(false);
+          setCharacterModalMediaLoading(false);
+        }
+      }
+    };
+
+    fetchCharDetails();
+    return () => {
+      isMounted = false;
+    };
+  }, [selectedCharacterId, fetchAniList, mapAniListToMangaDex, getContentRatingParams]);
+
   // Load MangaPill data when readingSource is set to mangapill
   useEffect(() => {
     if (!selectedManga || isAutoResolving || !resolvedProvider) {
@@ -766,28 +891,81 @@ export const MangaPage: React.FC<MangaPageProps> = ({
     setError(null);
     try {
       const ratings = getContentRatingParams();
-      // 1. Trending Manga (most followed, English translated)
-      const trendingData = await fetchMangaDex(`/manga?limit=12&order[followedCount]=desc&includes[]=cover_art&availableTranslatedLanguage[]=en${ratings}`);
-      setTrending(trendingData.data || []);
+      
+      // 1. Recently Uploaded Chapters (keep on MangaDex)
+      const latestPromise = fetchMangaDex(`/manga?limit=12&order[latestUploadedChapter]=desc&includes[]=cover_art&availableTranslatedLanguage[]=en${ratings}`)
+        .then(data => data.data || [])
+        .catch(err => {
+          console.error("Failed to load latest updates from MangaDex:", err);
+          return [];
+        });
 
-      // 2. Latest Updates (filtered for English releases)
-      const latestData = await fetchMangaDex(`/manga?limit=12&order[latestUploadedChapter]=desc&includes[]=cover_art&availableTranslatedLanguage[]=en${ratings}`);
-      setLatest(latestData.data || []);
+      // Fetch Trending, Popular, and Top Rated from AniList
+      const aniListQuery = `
+        query {
+          trending: Page(page: 1, perPage: 25) {
+            media(type: MANGA, sort: TRENDING_DESC, format_in: [MANGA, ONE_SHOT]) {
+              id
+            }
+          }
+          popular: Page(page: 1, perPage: 25) {
+            media(type: MANGA, sort: POPULARITY_DESC, format_in: [MANGA, ONE_SHOT]) {
+              id
+            }
+          }
+          topRated: Page(page: 1, perPage: 25) {
+            media(type: MANGA, sort: SCORE_DESC, format_in: [MANGA, ONE_SHOT]) {
+              id
+            }
+          }
+        }
+      `;
 
-      // 3. Top Rated (English translated)
-      const topRatedData = await fetchMangaDex(`/manga?limit=12&order[rating]=desc&includes[]=cover_art&availableTranslatedLanguage[]=en${ratings}`);
-      setTopRated(topRatedData.data || []);
+      let trendingMapped: MangaDexManga[] = [];
+      let popularMapped: MangaDexManga[] = [];
+      let topRatedMapped: MangaDexManga[] = [];
+
+      try {
+        const aniListData = await fetchAniList(aniListQuery);
+        
+        const [tMapped, pMapped, trMapped] = await Promise.all([
+          mapAniListToMangaDex(aniListData.trending?.media || [], ratings),
+          mapAniListToMangaDex(aniListData.popular?.media || [], ratings),
+          mapAniListToMangaDex(aniListData.topRated?.media || [], ratings)
+        ]);
+
+        trendingMapped = tMapped.slice(0, 12);
+        popularMapped = pMapped.slice(0, 12);
+        topRatedMapped = trMapped.slice(0, 12);
+      } catch (aniListErr) {
+        console.error("Failed to load or map categories from AniList, falling back to MangaDex:", aniListErr);
+        // Fallback to MangaDex queries
+        const [fallbackTrending, fallbackTopRated] = await Promise.all([
+          fetchMangaDex(`/manga?limit=12&order[followedCount]=desc&includes[]=cover_art&availableTranslatedLanguage[]=en${ratings}`).then(d => d.data || []),
+          fetchMangaDex(`/manga?limit=12&order[rating]=desc&includes[]=cover_art&availableTranslatedLanguage[]=en${ratings}`).then(d => d.data || [])
+        ]);
+        trendingMapped = fallbackTrending;
+        popularMapped = fallbackTrending;
+        topRatedMapped = fallbackTopRated;
+      }
+
+      const latestMapped = await latestPromise;
+
+      setTrending(trendingMapped);
+      setLatest(latestMapped);
+      setPopular(popularMapped);
+      setTopRated(topRatedMapped);
 
       // Reset endless categories
       setGenreRows([]);
       currentGenreIndexRef.current = 0;
     } catch (err: any) {
-      console.error("MangaDex catalog load error:", err);
+      console.error("Manga catalog load error:", err);
       setError(err?.message || "Failed to retrieve Manga catalog");
     } finally {
       setLoading(false);
     }
-  }, [fetchMangaDex, getContentRatingParams]);
+  }, [fetchMangaDex, fetchAniList, mapAniListToMangaDex, getContentRatingParams]);
 
   // Load next genre row
   const loadNextGenreRow = useCallback(async () => {
@@ -2250,7 +2428,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                     return (
                       <div
                         key={charNode.id}
-                        onClick={() => window.open(`https://anilist.co/character/${charNode.id}`, '_blank')}
+                        onClick={() => setSelectedCharacterId(charNode.id)}
                         className="group relative shrink-0 aspect-[2/3] rounded-xl overflow-hidden cursor-pointer bg-zinc-900 border border-white/5 hover:border-red-500/50 hover:shadow-[0_0_20px_rgba(239,68,68,0.25)] hover:scale-[1.03] transition-all duration-500 animate-in fade-in zoom-in-95 duration-300"
                       >
                         <img
@@ -2490,7 +2668,8 @@ export const MangaPage: React.FC<MangaPageProps> = ({
 
           <MangaRow title="Trending Manga Releases" items={trending} onMangaClick={onMangaSelect} titleLanguage={titleLanguage} onExpand={() => setExpandedCategory({ title: "Trending Manga Releases", items: trending })} />
           <MangaRow title="Recently Uploaded Chapters" items={latest} onMangaClick={onMangaSelect} titleLanguage={titleLanguage} onExpand={() => setExpandedCategory({ title: "Recently Uploaded Chapters", items: latest })} />
-          <MangaRow title="Top Followed Favorites" items={topRated} onMangaClick={onMangaSelect} titleLanguage={titleLanguage} onExpand={() => setExpandedCategory({ title: "Top Followed Favorites", items: topRated })} />
+          <MangaRow title="Most Popular Favorites" items={popular} onMangaClick={onMangaSelect} titleLanguage={titleLanguage} onExpand={() => setExpandedCategory({ title: "Most Popular Favorites", items: popular })} />
+          <MangaRow title="Top Rated of All Time" items={topRated} onMangaClick={onMangaSelect} titleLanguage={titleLanguage} onExpand={() => setExpandedCategory({ title: "Top Rated of All Time", items: topRated })} />
 
           {/* Endless Scroll Genre Rows */}
           {genreRows.map((row) => (
@@ -2536,6 +2715,176 @@ export const MangaPage: React.FC<MangaPageProps> = ({
           />
         )}
       />
+
+      {/* Character Details Modal */}
+      {selectedCharacterId && (
+        <div className={`fixed inset-0 z-[150] flex items-center justify-center bg-black/85 backdrop-blur-md p-4 sm:p-6 overflow-y-auto custom-scrollbar ${isCharacterModalClosing ? 'animate-fade-out' : 'animate-fade-in'}`}>
+          <div className={`relative w-full max-w-4xl bg-[#0c0c0e]/95 border border-white/10 rounded-2xl overflow-hidden shadow-2xl transition-all duration-300 max-h-[90vh] flex flex-col ${isCharacterModalClosing ? 'scale-95 opacity-0' : 'scale-100 opacity-100'}`}>
+            
+            {/* Close Button */}
+            <button
+              onClick={() => {
+                setIsCharacterModalClosing(true);
+                setTimeout(() => {
+                  setSelectedCharacterId(null);
+                  setIsCharacterModalClosing(false);
+                }, 300);
+              }}
+              className="absolute top-4 right-4 z-50 p-2 rounded-full bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white transition-all active:scale-95"
+              title="Close modal"
+            >
+              <X size={18} />
+            </button>
+
+            {characterDetailsLoading ? (
+              <div className="flex-1 flex flex-col items-center justify-center p-24 gap-3 text-zinc-400">
+                <Loader2 className="animate-spin text-red-600" size={36} />
+                <span className="text-xs font-semibold tracking-wider">Loading character dossiers...</span>
+              </div>
+            ) : characterDetailsError ? (
+              <div className="flex-1 flex flex-col items-center justify-center p-24 text-center text-zinc-400 gap-2">
+                <AlertCircle size={40} className="text-red-500" />
+                <h3 className="text-lg font-bold text-white">Failed to load character details</h3>
+                <p className="text-xs text-zinc-500 max-w-sm">{characterDetailsError}</p>
+                <button
+                  onClick={() => selectedCharacterId && setSelectedCharacterId(selectedCharacterId)}
+                  className="mt-4 px-5 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-bold uppercase rounded-lg shadow-lg active:scale-95 transition-all"
+                >
+                  Retry
+                </button>
+              </div>
+            ) : characterDetails ? (
+              <div className="flex-1 overflow-y-auto custom-scrollbar p-6 sm:p-8 flex flex-col md:flex-row gap-8 text-left">
+                {/* Left column: Image & Stats */}
+                <div className="w-full md:w-[220px] shrink-0 flex flex-col items-center md:items-start font-sans">
+                  <div className="w-[160px] md:w-full aspect-[2/3] bg-zinc-900 rounded-xl overflow-hidden shadow-lg border border-white/5">
+                    <img
+                      src={characterDetails.image?.large}
+                      alt={characterDetails.name?.full}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+
+                  {/* Quick specs */}
+                  <div className="w-full mt-6 bg-white/[0.02] border border-white/5 rounded-xl p-4.5 space-y-3.5 text-xs">
+                    <h4 className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">Profile</h4>
+                    {characterDetails.gender && (
+                      <div>
+                        <span className="text-zinc-500 font-normal block mb-0.5">Gender</span>
+                        <span className="text-zinc-300 font-medium">{characterDetails.gender}</span>
+                      </div>
+                    )}
+                    {characterDetails.age && (
+                      <div>
+                        <span className="text-zinc-500 font-normal block mb-0.5">Age</span>
+                        <span className="text-zinc-300 font-medium">{characterDetails.age}</span>
+                      </div>
+                    )}
+                    {(characterDetails.dateOfBirth?.day || characterDetails.dateOfBirth?.month) && (
+                      <div>
+                        <span className="text-zinc-500 font-normal block mb-0.5">Birthday</span>
+                        <span className="text-zinc-300 font-medium font-sans">
+                          {characterDetails.dateOfBirth.month ? new Date(2000, characterDetails.dateOfBirth.month - 1).toLocaleString('en-US', { month: 'long' }) : ''} {characterDetails.dateOfBirth.day || ''}
+                          {characterDetails.dateOfBirth.year ? `, ${characterDetails.dateOfBirth.year}` : ''}
+                        </span>
+                      </div>
+                    )}
+                    {characterDetails.bloodType && (
+                      <div>
+                        <span className="text-zinc-500 font-normal block mb-0.5">Blood Type</span>
+                        <span className="text-zinc-300 font-medium">{characterDetails.bloodType}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Right column: Bio & Other Works */}
+                <div className="flex-1 min-w-0 flex flex-col justify-between font-sans">
+                  <div>
+                    {/* Character Names */}
+                    <div className="mb-6">
+                      <h2 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight leading-tight">
+                        {characterDetails.name?.full}
+                      </h2>
+                      {characterDetails.name?.native && (
+                        <h4 className="text-sm font-semibold text-red-500 mt-1">
+                          {characterDetails.name.native}
+                        </h4>
+                      )}
+                      {(characterDetails.name?.alternative?.length > 0 || characterDetails.name?.alternativeSpoiler?.length > 0) && (
+                        <p className="text-[10px] text-zinc-500 mt-1 line-clamp-1">
+                          Aliases: {[...(characterDetails.name.alternative || []), ...(characterDetails.name.alternativeSpoiler || [])].filter(Boolean).join(', ')}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Biography */}
+                    <div className="mb-8">
+                      <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-400 mb-3">Biography</h3>
+                      <div className="text-zinc-300 leading-relaxed text-xs font-normal max-h-[220px] overflow-y-auto custom-scrollbar pr-2 whitespace-pre-line bg-white/[0.01] p-3 rounded-lg border border-white/[0.03]">
+                        {characterDetails.description || 'No biography available for this character.'}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Appears In Manga Section */}
+                  <div className="border-t border-white/5 pt-5">
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-400 mb-3 flex items-center gap-1.5">
+                      <BookOpen size={13} className="text-red-500" />
+                      <span>Appears In ({characterModalMediaManga.length})</span>
+                    </h3>
+                    
+                    {characterModalMediaLoading ? (
+                      <div className="flex items-center gap-2 py-4">
+                        <Loader2 className="animate-spin text-red-500" size={16} />
+                        <span className="text-[10px] text-zinc-500 font-medium">Mapping appearances to catalog...</span>
+                      </div>
+                    ) : characterModalMediaManga.length === 0 ? (
+                      <p className="text-[11px] text-zinc-500 italic py-2">No other mapped manga entries available.</p>
+                    ) : (
+                      <div className="flex gap-4 overflow-x-auto pb-2 hide-scrollbar scroll-smooth">
+                        {characterModalMediaManga.map((manga) => {
+                          const title = getMangaTitleHelper(manga, titleLanguage);
+                          const coverUrl = manga.relationships?.find(r => r.type === 'cover_art')?.attributes?.fileName
+                            ? `https://uploads.mangadex.org/covers/${manga.id}/${manga.relationships.find(r => r.type === 'cover_art').attributes.fileName}.256.jpg`
+                            : 'https://placehold.co/400x600/111/444?text=No+Cover';
+                          return (
+                            <div
+                              key={manga.id}
+                              onClick={() => {
+                                onMangaSelect(manga.id);
+                                setIsCharacterModalClosing(true);
+                                setTimeout(() => {
+                                  setSelectedCharacterId(null);
+                                  setIsCharacterModalClosing(false);
+                                }, 300);
+                              }}
+                              className="group w-[100px] sm:w-[120px] shrink-0 aspect-[2/3] rounded-lg overflow-hidden cursor-pointer bg-zinc-900 border border-white/5 hover:border-red-500/50 hover:scale-[1.02] transition-all duration-300 relative"
+                            >
+                              <img
+                                src={coverUrl}
+                                alt={title}
+                                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                                loading="lazy"
+                              />
+                              <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/45 to-transparent pointer-events-none" />
+                              <div className="absolute inset-0 p-2 flex flex-col justify-end text-left pointer-events-none">
+                                <h5 className="text-[9px] sm:text-[10px] font-bold text-white line-clamp-2 leading-tight group-hover:text-red-500 transition-colors">
+                                  {title}
+                                </h5>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ) : null}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
