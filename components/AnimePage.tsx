@@ -119,6 +119,18 @@ export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick, sear
   // Sub-tab selection: catalog vs community
   const [activeTab, setActiveTab] = useState<'catalog' | 'community'>(initialTab);
 
+  useEffect(() => {
+    setActiveTab(initialTab);
+  }, [initialTab]);
+
+  const [expandedReviews, setExpandedReviews] = useState<Record<number, boolean>>({});
+  const toggleReviewExpand = (reviewId: number) => {
+    setExpandedReviews(prev => ({
+      ...prev,
+      [reviewId]: !prev[reviewId]
+    }));
+  };
+
   // Community discussion board state variables
   const [forumSection, setForumSection] = useState<'feed' | 'reviews' | 'recommendations'>('feed');
   const [activities, setActivities] = useState<any[]>([]);
@@ -1534,7 +1546,7 @@ export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick, sear
                   {reviews.length === 0 && communityLoading ? (
                     <div className="flex flex-col items-center justify-center py-20 gap-3">
                       <Loader2 className="animate-spin text-red-500" size={32} />
-                      <p className="text-xs text-zinc-500 font-bold uppercase tracking-wider">Loading reviews...</p>
+                      <p className="text-xs text-zinc-500 font-medium uppercase tracking-wider">Loading reviews...</p>
                     </div>
                   ) : reviews.length === 0 ? (
                     <div className="text-zinc-500 text-xs py-10 italic">No reviews found at this time.</div>
@@ -1544,9 +1556,10 @@ export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick, sear
                         {reviews.map((rev) => {
                           const reviewScore = rev.score;
                           const formattedScore = `${reviewScore}%`;
+                          const isExpanded = expandedReviews[rev.id] || false;
                           
                           return (
-                            <div key={rev.id} className="bg-zinc-900/40 border border-white/5 hover:border-white/10 transition-all rounded-3xl p-5 md:p-6 flex flex-col md:flex-row gap-6 backdrop-blur-sm">
+                            <div key={rev.id} className="bg-[#0d0d0f]/40 border border-white/5 hover:border-white/10 transition-all rounded-3xl p-5 md:p-6 flex flex-col md:flex-row gap-6 backdrop-blur-sm">
                               
                               {/* Media Poster Column */}
                               <div 
@@ -1573,39 +1586,49 @@ export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick, sear
                                     <div>
                                       <h4 
                                         onClick={() => { setSelectedUser(rev.user?.name); fetchUserProfile(rev.user?.name); }}
-                                        className="font-black text-xs sm:text-sm text-white hover:text-red-500 transition-colors cursor-pointer"
+                                        className="font-medium text-xs sm:text-sm text-white hover:text-red-500 transition-colors cursor-pointer"
                                       >
                                         {rev.user?.name}
                                       </h4>
-                                      <p className="text-[10px] text-zinc-500 font-semibold uppercase">{new Date(rev.createdAt * 1000).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
+                                      <p className="text-[10px] text-zinc-500 font-normal uppercase">{new Date(rev.createdAt * 1000).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
                                     </div>
                                   </div>
 
-                                  <div className="flex items-center gap-1.5 self-start sm:self-center px-2.5 py-1 bg-red-500/10 border border-red-500/20 text-red-500 rounded-lg text-xs font-black shadow-sm">
+                                  <div className="flex items-center gap-1.5 self-start sm:self-center px-2.5 py-1 bg-amber-500/10 border border-amber-500/20 text-amber-500 rounded-lg text-xs font-semibold">
                                     <Star size={12} fill="currentColor"/> {formattedScore} Score
                                   </div>
                                 </div>
 
-                                <h3 className="font-extrabold text-white text-base md:text-lg mb-2 leading-tight">
+                                <h3 className="font-semibold text-white text-base md:text-lg mb-2 leading-tight">
                                   {rev.summary}
                                 </h3>
 
-                                <p className="text-zinc-400 text-xs sm:text-sm leading-relaxed line-clamp-5 whitespace-pre-line font-medium mb-4">
+                                <p className={`text-zinc-400 text-xs sm:text-sm leading-relaxed whitespace-pre-line font-normal mb-3 transition-all duration-300 ${isExpanded ? '' : 'line-clamp-4'}`}>
                                   {rev.body}
                                 </p>
 
+                                {rev.body && rev.body.length > 300 && (
+                                  <button 
+                                    onClick={() => toggleReviewExpand(rev.id)} 
+                                    className="text-xs font-medium text-red-500 hover:text-red-400 transition-colors mb-4 self-start flex items-center gap-1 select-none"
+                                  >
+                                    {isExpanded ? 'Show Less' : 'Read Full Review'}
+                                    <ChevronDown size={14} className={`transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`} />
+                                  </button>
+                                )}
+
                                 <div className="mt-auto pt-4 border-t border-white/5 flex justify-between items-center">
-                                  <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">
+                                  <span className="text-[10px] text-zinc-500 font-medium uppercase tracking-widest">
                                     Review for:{' '}
                                     <span 
                                       onClick={() => handleMediaClick(rev.media.id, rev.media.title.userPreferred)}
-                                      className="text-zinc-300 hover:text-red-500 cursor-pointer font-extrabold normal-case"
+                                      className="text-zinc-300 hover:text-red-500 cursor-pointer font-semibold normal-case"
                                     >
                                       {rev.media.title.english || rev.media.title.userPreferred}
                                     </span>
                                   </span>
                                   {rev.ratingAmount > 0 && (
-                                    <span className="text-[10px] text-zinc-500 font-semibold">{rev.rating} of {rev.ratingAmount} found helpful</span>
+                                    <span className="text-[10px] text-zinc-500 font-normal">{rev.rating} of {rev.ratingAmount} found helpful</span>
                                   )}
                                 </div>
                               </div>

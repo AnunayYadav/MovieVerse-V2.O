@@ -1407,6 +1407,7 @@ export default function App() {
             const sub = parts[2];
             if (sub === 'awards') category = "Awards";
             else if (sub === 'anime') category = "Anime";
+            else if (sub === 'anime-forum') category = "AnimeCommunity";
             else if (sub === 'family') category = "Family";
             else if (sub === 'tv-shows') category = "TV Shows";
             else if (sub === 'coming') category = "Coming";
@@ -1592,6 +1593,8 @@ export default function App() {
                 newPath = '/browse/awards';
             } else if (selectedCategory === 'Anime') {
                 newPath = '/browse/anime';
+            } else if (selectedCategory === 'AnimeCommunity') {
+                newPath = '/browse/anime-forum';
             } else if (selectedCategory === 'Family') {
                 newPath = '/browse/family';
             } else if (selectedCategory === 'TV Shows') {
