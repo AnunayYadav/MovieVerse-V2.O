@@ -277,7 +277,7 @@ export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick, sear
       const query = `
         query ($start: Int, $end: Int) {
           Page(page: 1, perPage: 100) {
-            airingSchedules(airingAt_greater: $start, airingAt_lesser: $end, sort: TIME_ASC) {
+            airingSchedules(airingAt_greater: $start, airingAt_lesser: $end, sort: TIME) {
               id
               airingAt
               episode
