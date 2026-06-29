@@ -29,52 +29,67 @@ export default defineConfig(({ mode }) => {
         {
           name: 'vercel-api-dev-server',
           configureServer(server) {
+            // Return a function to add middleware AFTER Vite internals
+            // But we actually want it BEFORE — so we use server.middlewares.use directly
             server.middlewares.use(async (req, res, next) => {
               const parsedUrl = url.parse(req.url || '', true);
               const pathname = parsedUrl.pathname;
               
-              if (pathname === '/api/manga' || pathname === '/api/comics') {
-                try {
-                  const apiName = pathname.substring(5);
-                  const modulePath = `./api/${apiName}.ts`;
-                  const { default: handler } = await server.ssrLoadModule(modulePath);
-                  
-                  // Mock VercelResponse
-                  const mockRes = Object.create(res);
-                  mockRes.status = (statusCode: number) => {
-                    res.statusCode = statusCode;
+              // Only handle our serverless API routes
+              const apiRoutes: Record<string, string> = {
+                '/api/manga': './api/manga.ts',
+              };
+              
+              const modulePath = apiRoutes[pathname || ''];
+              if (!modulePath) {
+                return next();
+              }
+
+              try {
+                const { default: handler } = await server.ssrLoadModule(modulePath);
+                
+                // Build a complete mock VercelResponse
+                let statusCode = 200;
+                const mockRes: any = {
+                  statusCode: 200,
+                  status(code: number) {
+                    statusCode = code;
+                    res.statusCode = code;
                     return mockRes;
-                  };
-                  mockRes.json = (data: any) => {
+                  },
+                  setHeader(name: string, value: string | string[]) {
+                    res.setHeader(name, value);
+                    return mockRes;
+                  },
+                  json(data: any) {
                     res.setHeader('Content-Type', 'application/json');
                     res.end(JSON.stringify(data));
                     return mockRes;
-                  };
-                  mockRes.send = (data: any) => {
+                  },
+                  send(data: any) {
+                    res.end(typeof data === 'object' ? JSON.stringify(data) : data);
+                    return mockRes;
+                  },
+                  end(data?: any) {
                     res.end(data);
                     return mockRes;
-                  };
-                  mockRes.setHeader = (name: string, value: string) => {
-                    res.setHeader(name, value);
-                    return mockRes;
-                  };
-                  
-                  // Mock VercelRequest
-                  const mockReq = Object.create(req);
-                  mockReq.query = parsedUrl.query;
-                  
-                  // Call the handler
-                  await handler(mockReq, mockRes);
-                } catch (err: any) {
-                  console.error(`Dev API handler failed for ${pathname}:`, err);
+                  },
+                };
+                
+                // Build mock VercelRequest
+                const mockReq: any = Object.create(req);
+                mockReq.query = parsedUrl.query;
+                mockReq.method = req.method;
+                
+                await handler(mockReq, mockRes);
+              } catch (err: any) {
+                console.error(`Dev API handler failed for ${pathname}:`, err);
+                if (!res.headersSent) {
                   res.statusCode = 500;
                   res.setHeader('Content-Type', 'application/json');
                   res.end(JSON.stringify({ error: err.message || 'Internal Server Error' }));
                 }
-                return;
               }
-              
-              next();
             });
           }
         }
