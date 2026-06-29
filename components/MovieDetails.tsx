@@ -509,18 +509,23 @@ export const MoviePage: React.FC<MoviePageProps> = ({
         setVisibleImagesCount(12);
     }, [mediaCategory, activeTab]);
 
-    // Next Airing Episode for Anime
+    // Next Airing Episode and Characters for Anime
     const [nextAiringEpisode, setNextAiringEpisode] = useState<any | null>(null);
+    const [animeCharacters, setAnimeCharacters] = useState<any[]>([]);
+    const [charactersLoading, setCharactersLoading] = useState(false);
+    const [charactersError, setCharactersError] = useState<string | null>(null);
 
     useEffect(() => {
         if (!details) {
             setNextAiringEpisode(null);
+            setAnimeCharacters([]);
             return;
         }
 
         const isAnimeLocal = (details.genres?.some((g: any) => g.id === 16) && details.original_language === 'ja');
         if (!isAnimeLocal) {
             setNextAiringEpisode(null);
+            setAnimeCharacters([]);
             return;
         }
 
@@ -528,6 +533,9 @@ export const MoviePage: React.FC<MoviePageProps> = ({
         if (!title) return;
 
         const cleanTitle = title.replace(/\s*\(?(Dub|Sub|TV|Movie|uncensored|censored|season\s*\d+|part\s*\d+)\)?\s*$/i, '').trim();
+
+        setCharactersLoading(true);
+        setCharactersError(null);
 
         const query = `
           query ($search: String) {
@@ -537,6 +545,22 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                 airingAt
                 timeUntilAiring
                 episode
+              }
+              characters(sort: [ROLE, RELEVANCE, ID], perPage: 18) {
+                edges {
+                  role
+                  node {
+                    id
+                    name {
+                      userPreferred
+                      full
+                    }
+                    image {
+                      large
+                      medium
+                    }
+                  }
+                }
               }
             }
           }
@@ -553,15 +577,30 @@ export const MoviePage: React.FC<MoviePageProps> = ({
         .then(res => res.json())
         .then(json => {
             const media = json?.data?.Media;
-            if (media?.nextAiringEpisode) {
-                setNextAiringEpisode(media.nextAiringEpisode);
+            if (media) {
+                if (media.nextAiringEpisode) {
+                    setNextAiringEpisode(media.nextAiringEpisode);
+                } else {
+                    setNextAiringEpisode(null);
+                }
+
+                if (media.characters?.edges) {
+                    setAnimeCharacters(media.characters.edges);
+                } else {
+                    setAnimeCharacters([]);
+                }
             } else {
                 setNextAiringEpisode(null);
+                setAnimeCharacters([]);
             }
+            setCharactersLoading(false);
         })
         .catch(err => {
-            console.error("Error fetching next airing episode details:", err);
+            console.error("Error fetching AniList anime details:", err);
             setNextAiringEpisode(null);
+            setAnimeCharacters([]);
+            setCharactersError(err.message || "Failed to load anime characters");
+            setCharactersLoading(false);
         });
     }, [details]);
 
@@ -1035,6 +1074,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
         { id: 'reviews', label: 'Reviews' },
         { id: 'media', label: 'Media' },
         ...(isTv ? [{ id: 'seasons', label: 'Seasons' }] : []),
+        ...(isAnime ? [{ id: 'characters', label: 'Characters' }] : []),
     ];
 
     // Fetch Torrents for Anime Only
@@ -1366,8 +1406,8 @@ export const MoviePage: React.FC<MoviePageProps> = ({
 
                         {/* Details and Tabs section wrapper */}
                         <div className="max-w-7xl mx-auto w-full px-4 py-6 md:p-10 mt-0 md:-mt-6 relative z-20">
-                            {/* Premium Tab Navigation Outlined Pills */}
-                            <div className="flex gap-3 mb-8 overflow-x-auto hide-scrollbar w-full py-1">
+                            {/* Premium Tab Navigation Underlined Text */}
+                            <div className="flex items-center gap-6 md:gap-8 border-b border-white/10 pb-2 mb-8 overflow-x-auto hide-scrollbar w-full py-1 select-none">
                                 {tabs.map(tab => (
                                     <TvFocusButton 
                                         key={tab.id} 
@@ -1375,13 +1415,16 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                             tabChangedByUserRef.current = true;
                                             setActiveTab(tab.id);
                                         }} 
-                                        className={`px-5 py-2 rounded-full text-xs md:text-sm font-bold transition-all duration-300 whitespace-nowrap active:scale-95 border ${
+                                        className={`relative pb-2.5 text-xs md:text-sm font-medium tracking-wide transition-all duration-300 whitespace-nowrap active:scale-95 bg-transparent border-0 outline-none p-0 cursor-pointer ${
                                             activeTab === tab.id 
-                                                ? 'bg-white text-black border-white shadow-md shadow-white/5' 
-                                                : 'bg-transparent text-gray-300 border-white/15 hover:border-white/30 hover:bg-white/5'
+                                                ? 'text-red-500' 
+                                                : 'text-zinc-500 hover:text-zinc-300'
                                         }`}
                                     >
-                                        {tab.label}
+                                        <span>{tab.label}</span>
+                                        {activeTab === tab.id && (
+                                            <span className="absolute bottom-0 left-0 w-full h-[2.5px] bg-red-600 rounded-full shadow-[0_0_8px_rgba(220,38,38,0.4)] animate-in fade-in" />
+                                        )}
                                     </TvFocusButton>
                                 ))}
                             </div>
@@ -1456,6 +1499,58 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                             )}
                                         </div>
                                     )}
+                                    {activeTab === 'characters' && (
+                                        <div className="animate-in fade-in text-left">
+                                            {charactersLoading ? (
+                                                <div className="flex flex-col items-center justify-center py-16 gap-3">
+                                                    <Loader2 className="animate-spin text-red-500" size={24} />
+                                                    <span className="text-[10px] text-zinc-500 font-medium tracking-wider uppercase">Summoning characters...</span>
+                                                </div>
+                                            ) : charactersError ? (
+                                                <div className="text-zinc-500 text-xs py-3 px-1 italic">{charactersError}</div>
+                                            ) : animeCharacters.length === 0 ? (
+                                                <div className="text-zinc-500 text-xs py-3 px-1 italic">No character data found for this anime.</div>
+                                            ) : (
+                                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                                                    {animeCharacters.map((edge: any) => {
+                                                        const charNode = edge.node;
+                                                        const charName = charNode.name.userPreferred || charNode.name.full;
+                                                        const charImage = charNode.image.large || `https://ui-avatars.com/api/?name=${encodeURIComponent(charName)}&background=333&color=fff`;
+                                                        const charRole = edge.role === 'MAIN' ? 'Main' : 'Supporting';
+                                                        
+                                                        return (
+                                                            <div
+                                                                key={charNode.id}
+                                                                className="group relative aspect-[2/3] rounded-2xl overflow-hidden bg-zinc-950 border border-white/5 hover:border-red-500/40 hover:shadow-[0_4px_15px_rgba(239,68,68,0.15)] hover:scale-[1.02] transition-all duration-500 animate-in fade-in"
+                                                            >
+                                                                <img
+                                                                    src={charImage}
+                                                                    alt={charName}
+                                                                    loading="lazy"
+                                                                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                                                                />
+                                                                <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/35 to-transparent opacity-90 transition-opacity duration-300 pointer-events-none" />
+                                                                
+                                                                {/* Role Badge */}
+                                                                <div className="absolute top-2 left-2 z-10 select-none">
+                                                                    <span className={`px-2 py-0.5 rounded text-[8px] font-semibold uppercase tracking-wider ${edge.role === 'MAIN' ? 'bg-red-600/90 text-white shadow-md shadow-red-600/10' : 'bg-black/60 text-zinc-300 border border-white/5'} backdrop-blur-sm`}>
+                                                                        {charRole}
+                                                                    </span>
+                                                                </div>
+
+                                                                <div className="absolute inset-0 p-3 flex flex-col justify-end text-left select-none pointer-events-none">
+                                                                    <h4 className="text-xs font-semibold text-white line-clamp-2 leading-tight group-hover:text-red-500 transition-colors duration-300">
+                                                                        {charName}
+                                                                    </h4>
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+
                                     {activeTab === 'reviews' && (
                                         <div className="space-y-4 animate-in fade-in max-h-[820px] overflow-y-auto pr-1.5 custom-scrollbar">
                                             {displayData.reviews?.results?.length ? displayData.reviews.results.map(review => (
