@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { Play, Info, Search, Star, BookOpen, X, ChevronLeft, ChevronRight, FileText, LayoutList, RefreshCcw, Loader2, AlertCircle, Sparkles, Trophy, Calendar, TrendingUp, ArrowLeft, Users, Globe, Bookmark, AlertTriangle, Settings, Heart, Maximize, Minimize, Languages, ChevronDown, Check } from 'lucide-react';
+import { Play, Info, Search, Star, BookOpen, X, ChevronLeft, ChevronRight, FileText, LayoutList, RefreshCcw, Loader2, AlertCircle, Sparkles, Trophy, Calendar, TrendingUp, ArrowLeft, Users, Globe, Bookmark, AlertTriangle, Settings, Heart, Maximize, Minimize, Languages, ChevronDown, Check, Send } from 'lucide-react';
 import { useTvFocus, TvFocusButton, TvFocusInput } from '../tvNavigation';
 import { ExpandedCategoryModal } from './Modals';
 
@@ -238,12 +238,230 @@ export const MangaPage: React.FC<MangaPageProps> = ({
   const [selectedManga, setSelectedManga] = useState<MangaDexManga | null>(null);
   const [chapters, setChapters] = useState<MangaDexChapter[]>([]);
   const [chaptersLoading, setChaptersLoading] = useState(false);
-  const [detailsTab, setDetailsTab] = useState<'chapters' | 'relations' | 'recommendations' | 'characters' | 'staff' | 'reviews'>('chapters');
+  const [detailsTab, setDetailsTab] = useState<'chapters' | 'relations' | 'recommendations' | 'characters' | 'staff' | 'reviews' | 'social'>('chapters');
   const [characters, setCharacters] = useState<any[]>([]);
   const [charactersLoading, setCharactersLoading] = useState(false);
   const [charactersError, setCharactersError] = useState<string | null>(null);
   const [chapterFilter, setChapterFilter] = useState('');
   const [chapterSort, setChapterSort] = useState<'asc' | 'desc'>('desc');
+
+  // Resolve AniList ID and load social tab details for Manga
+  const [aniListMangaId, setAniListMangaId] = useState<number | null>(null);
+  const [socialActivities, setSocialActivities] = useState<any[]>([]);
+  const [socialActivitiesLoading, setSocialActivitiesLoading] = useState(false);
+  const [socialRecommendations, setSocialRecommendations] = useState<any[]>([]);
+  const [socialRecommendationsLoading, setSocialRecommendationsLoading] = useState(false);
+  const [socialPostText, setSocialPostText] = useState("");
+
+  useEffect(() => {
+    if (!selectedManga) {
+      setAniListMangaId(null);
+      return;
+    }
+
+    const title = getMangaTitle(selectedManga);
+    if (!title) return;
+
+    const resolveAniListManga = async () => {
+      try {
+        const cached = localStorage.getItem(`movieverse_anilist_manga_map_${selectedManga.id}`);
+        if (cached) {
+          setAniListMangaId(parseInt(cached, 10));
+          return;
+        }
+
+        const q = `
+          query ($search: String) {
+            Media(search: $search, type: MANGA) {
+              id
+            }
+          }
+        `;
+        const res = await fetch('https://graphql.anilist.co', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query: q, variables: { search: title } })
+        });
+        const json = await res.json();
+        const id = json.data?.Media?.id;
+        if (id) {
+          setAniListMangaId(id);
+          localStorage.setItem(`movieverse_anilist_manga_map_${selectedManga.id}`, id.toString());
+        }
+      } catch (e) {
+        console.error("Failed to map MangaDex to AniList ID", e);
+      }
+    };
+
+    resolveAniListManga();
+  }, [selectedManga]);
+
+  // Load activities and recommendations for Manga when the social tab is selected
+  useEffect(() => {
+    if (detailsTab === 'social' && aniListMangaId) {
+      const fetchActivities = async () => {
+        setSocialActivitiesLoading(true);
+        try {
+          const q = `
+            query ($mediaId: Int) {
+              Page(page: 1, perPage: 15) {
+                activities(mediaId: $mediaId, sort: ID_DESC) {
+                  ... on ListActivity {
+                    id
+                    userId
+                    type
+                    status
+                    progress
+                    replyCount
+                    likeCount
+                    createdAt
+                    user {
+                      name
+                      avatar { large }
+                    }
+                  }
+                  ... on TextActivity {
+                    id
+                    userId
+                    type
+                    text
+                    replyCount
+                    likeCount
+                    createdAt
+                    user {
+                      name
+                      avatar { large }
+                    }
+                  }
+                }
+              }
+            }
+          `;
+          const res = await fetch('https://graphql.anilist.co', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ query: q, variables: { mediaId: aniListMangaId } })
+          });
+          const json = await res.json();
+          setSocialActivities(json.data?.Page?.activities || []);
+        } catch (e) {
+          console.error("Failed to fetch Manga activities:", e);
+        } finally {
+          setSocialActivitiesLoading(false);
+        }
+      };
+
+      const fetchRecommendations = async () => {
+        setSocialRecommendationsLoading(true);
+        try {
+          const q = `
+            query ($mediaId: Int) {
+              Media(id: $mediaId) {
+                recommendations(page: 1, perPage: 6, sort: RATING_DESC) {
+                  nodes {
+                    id
+                    rating
+                    mediaRecommendation {
+                      id
+                      title {
+                        userPreferred
+                        english
+                      }
+                      coverImage { large }
+                    }
+                  }
+                }
+              }
+            }
+          `;
+          const res = await fetch('https://graphql.anilist.co', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ query: q, variables: { mediaId: aniListMangaId } })
+          });
+          const json = await res.json();
+          setSocialRecommendations(json.data?.Media?.recommendations?.nodes || []);
+        } catch (e) {
+          console.error("Failed to fetch recommendations:", e);
+        } finally {
+          setSocialRecommendationsLoading(false);
+        }
+      };
+
+      fetchActivities();
+      fetchRecommendations();
+    }
+  }, [detailsTab, aniListMangaId]);
+
+  const localPostsForThisManga = useMemo(() => {
+    try {
+      const saved = localStorage.getItem('movieverse_local_posts');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          return parsed.filter((p: any) => p.media?.id === aniListMangaId);
+        }
+      }
+    } catch (e) {}
+    return [];
+  }, [aniListMangaId, socialActivities]);
+
+  const combinedSocialActivities = useMemo(() => {
+    return [...localPostsForThisManga, ...socialActivities].sort((a, b) => b.createdAt - a.createdAt);
+  }, [localPostsForThisManga, socialActivities]);
+
+  const handleSocialPostSubmit = () => {
+    if (!socialPostText.trim() || !aniListMangaId || !selectedManga) return;
+    
+    let currentUser = { name: "Guest User", avatar: "" };
+    try {
+      const savedProfile = localStorage.getItem('movieverse_profile');
+      if (savedProfile) {
+        const parsed = JSON.parse(savedProfile);
+        if (parsed && parsed.name) {
+          currentUser = { name: parsed.name, avatar: parsed.avatar };
+        }
+      }
+    } catch (e) {}
+
+    const newPost = {
+      id: Date.now(),
+      userId: 999999,
+      type: 'TEXT',
+      text: socialPostText,
+      replyCount: 0,
+      likeCount: 0,
+      createdAt: Math.floor(Date.now() / 1000),
+      user: {
+        id: 999999,
+        name: currentUser.name,
+        avatar: {
+          large: currentUser.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser.name)}&background=ef4444&color=fff`
+        }
+      },
+      media: {
+        id: aniListMangaId,
+        title: {
+          userPreferred: getMangaTitle(selectedManga),
+          english: getMangaTitle(selectedManga)
+        },
+        coverImage: {
+          large: selectedManga.coverImage || ''
+        }
+      },
+      isLocal: true
+    };
+
+    try {
+      const saved = localStorage.getItem('movieverse_local_posts');
+      const currentPosts = saved ? JSON.parse(saved) : [];
+      const updated = [newPost, ...currentPosts];
+      localStorage.setItem('movieverse_local_posts', JSON.stringify(updated));
+    } catch (e) {}
+
+    setSocialActivities(prev => [newPost, ...prev]);
+    setSocialPostText("");
+  };
 
   // MangaPill states (generalized for all Consumet providers)
   const [readingSource, setReadingSource] = useState<string>('weebcentral');
@@ -3586,6 +3804,13 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                 Reviews
                 {detailsTab === 'reviews' && <span className="absolute bottom-0 left-0 w-full h-0.5 bg-red-600 rounded-full" />}
               </button>
+              <button
+                onClick={() => setDetailsTab('social')}
+                className={`pb-2 text-xs md:text-sm font-medium tracking-wide relative transition-colors ${detailsTab === 'social' ? 'text-red-500' : 'text-zinc-500 hover:text-white'}`}
+              >
+                Social
+                {detailsTab === 'social' && <span className="absolute bottom-0 left-0 w-full h-0.5 bg-red-600 rounded-full" />}
+              </button>
             </div>
 
             {/* Tab Contents */}
@@ -3985,6 +4210,108 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                   ))}
                 </div>
               )
+            )}
+
+            {/* Social Tab */}
+            {detailsTab === 'social' && (
+              <div className="space-y-6 text-left animate-in fade-in">
+                {/* Create Post Form */}
+                <div className="bg-white/5 border border-white/5 rounded-2xl p-5 md:p-6 backdrop-blur-md">
+                  <h4 className="font-bold text-xs sm:text-sm text-white mb-3">Discuss this Manga</h4>
+                  <textarea
+                    rows={3}
+                    value={socialPostText}
+                    onChange={(e) => setSocialPostText(e.target.value)}
+                    placeholder="Write your thoughts or questions about this manga..."
+                    className="w-full bg-white/5 border border-white/5 focus:border-white/10 rounded-xl py-2.5 px-3.5 text-xs sm:text-sm text-white placeholder-zinc-500 focus:outline-none resize-none custom-scrollbar font-normal"
+                  />
+                  <div className="flex justify-end mt-2">
+                    <button
+                      onClick={handleSocialPostSubmit}
+                      disabled={!socialPostText.trim()}
+                      className="px-4 py-2 rounded-full bg-red-600 hover:bg-red-700 disabled:opacity-40 text-white font-bold text-xs uppercase tracking-widest active:scale-95 transition-all flex items-center gap-1.5"
+                    >
+                      <Send size={12} />
+                      <span>Post Discussion</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Activities list */}
+                <div className="space-y-4">
+                  <h4 className="font-semibold text-xs sm:text-sm text-zinc-300 border-b border-white/5 pb-2 uppercase tracking-wider">Community Feed</h4>
+                  {socialActivitiesLoading ? (
+                    <div className="flex items-center justify-center py-8 gap-2">
+                      <Loader2 className="animate-spin text-red-500" size={16} />
+                      <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider">Fetching discussion feed...</span>
+                    </div>
+                  ) : combinedSocialActivities.length === 0 ? (
+                    <p className="text-zinc-500 text-xs italic py-6">No discussions about this manga yet. Be the first to share your thoughts!</p>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {combinedSocialActivities.map((act) => {
+                        const isText = act.type === 'TEXT';
+                        const actionText = isText ? act.text : `${act.status.toLowerCase().replace('_', ' ')} ${act.progress ? `${act.progress} of` : ''}`;
+                        return (
+                          <div key={act.id} className="bg-white/5 p-4 rounded-xl border border-white/5 text-left flex flex-col justify-between h-full">
+                            <div>
+                              <div className="flex items-center gap-2 mb-3">
+                                <img 
+                                  src={act.user?.avatar?.large || `https://ui-avatars.com/api/?name=${encodeURIComponent(act.user?.name || 'User')}&background=333&color=fff`} 
+                                  className="w-8 h-8 rounded-lg object-cover" 
+                                  alt="" 
+                                />
+                                <div>
+                                  <h5 className="font-bold text-xs text-white leading-tight">{act.user?.name}</h5>
+                                  <p className="text-[8px] text-gray-500">{new Date(act.createdAt * 1000).toLocaleDateString('en-US', { day: 'numeric', month: 'short' })}</p>
+                                </div>
+                                {act.isLocal && (
+                                  <span className="ml-auto px-1.5 py-0.5 rounded text-[8px] bg-red-600/10 border border-red-500/20 text-red-500 uppercase font-semibold">Local</span>
+                                )}
+                              </div>
+                              <p className="text-gray-300 text-xs leading-relaxed line-clamp-4 font-normal whitespace-pre-line break-words">
+                                {isText ? act.text : actionText}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-4 pt-3.5 mt-4 border-t border-white/5 text-[10px] text-gray-500 font-semibold">
+                              <span>❤️ {act.likeCount || 0} Likes</span>
+                              <span>💬 {act.replyCount || 0} Comments</span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {/* Recommendations list */}
+                {socialRecommendations.length > 0 && (
+                  <div className="space-y-4 pt-4 border-t border-white/5">
+                    <h4 className="font-semibold text-xs sm:text-sm text-zinc-300 uppercase tracking-wider">Fans Also Recommended</h4>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4">
+                      {socialRecommendations.map((node) => (
+                        <div 
+                          key={node.id} 
+                          onClick={() => {
+                            if (node.mediaRecommendation?.id) {
+                              window.location.hash = `#manga-${node.mediaRecommendation.id}`;
+                            }
+                          }}
+                          className="cursor-pointer group/rec"
+                        >
+                          <div className="aspect-[2/3] w-full rounded-xl overflow-hidden border border-white/5 group-hover/rec:border-white/20 transition-all mb-1 shadow">
+                            <img src={node.mediaRecommendation?.coverImage?.large} className="w-full h-full object-cover group-hover/rec:scale-102 transition-transform animate-none" alt="" />
+                          </div>
+                          <h5 className="font-medium text-[10px] text-gray-400 group-hover/rec:text-white transition-colors line-clamp-2 leading-tight">
+                            {node.mediaRecommendation?.title?.english || node.mediaRecommendation?.title?.userPreferred}
+                          </h5>
+                          <span className="text-[8px] text-zinc-600 font-bold">★ {node.rating} rating</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
             )}
           </div>
         </div>

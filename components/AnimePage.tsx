@@ -1080,12 +1080,18 @@ export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick, sear
         </div>
       )}
 
-      {activeTab === 'community' && !searchQuery ? (
+      {activeTab === 'community' ? (
         <AnimeForum
           apiKey={apiKey}
           onAnimeClick={handleAnimeClick}
           fetchAniList={fetchAniList}
           titleLanguage={titleLanguage}
+          searchQuery={searchQuery}
+          onSearchClear={() => {
+            setSearchInput('');
+            setSearchQuery('');
+            if (onSearchClear) onSearchClear();
+          }}
         />
       ) : searchQuery ? (
         <div className="px-4 md:px-12 max-w-7xl mx-auto text-left animate-in fade-in duration-500">

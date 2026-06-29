@@ -443,6 +443,15 @@ export const MoviePage: React.FC<MoviePageProps> = ({
     const showPlayer = initialShowPlayer;
     const [playParams, setPlayParams] = useState(initialPlayParams);
     const [expandedReviews, setExpandedReviews] = useState<Record<string, boolean>>({});
+
+    const [aniListId, setAniListId] = useState<number | null>(null);
+    const [socialActivities, setSocialActivities] = useState<any[]>([]);
+    const [socialActivitiesLoading, setSocialActivitiesLoading] = useState(false);
+    const [socialRecommendations, setSocialRecommendations] = useState<any[]>([]);
+    const [socialRecommendationsLoading, setSocialRecommendationsLoading] = useState(false);
+    const [socialPostText, setSocialPostText] = useState("");
+    const [aniListReviews, setAniListReviews] = useState<any[]>([]);
+    const [aniListReviewsLoading, setAniListReviewsLoading] = useState(false);
     
     // Custom Seasons Dropdown State
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -524,6 +533,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
             setNextAiringEpisode(null);
             setAnimeCharacters([]);
             setAnimeRelations([]);
+            setAniListId(null);
             return;
         }
 
@@ -532,6 +542,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
             setNextAiringEpisode(null);
             setAnimeCharacters([]);
             setAnimeRelations([]);
+            setAniListId(null);
             return;
         }
 
@@ -543,70 +554,135 @@ export const MoviePage: React.FC<MoviePageProps> = ({
         setCharactersLoading(true);
         setCharactersError(null);
 
-        const query = `
-          query ($search: String) {
-            Media(search: $search, type: ANIME) {
-              id
-              nextAiringEpisode {
-                airingAt
-                timeUntilAiring
-                episode
-              }
-              characters(sort: [ROLE, RELEVANCE, ID], perPage: 18) {
-                edges {
-                  role
-                  node {
-                    id
-                    name {
-                      userPreferred
-                      full
+        // Check if there is a cached map
+        const cachedId = localStorage.getItem(`movieverse_anilist_map_${details.id}`);
+        const variables: any = {};
+        let query = "";
+
+        if (cachedId) {
+            setAniListId(parseInt(cachedId, 10));
+            variables.id = parseInt(cachedId, 10);
+            query = `
+              query ($id: Int) {
+                Media(id: $id, type: ANIME) {
+                  id
+                  nextAiringEpisode {
+                    airingAt
+                    timeUntilAiring
+                    episode
+                  }
+                  characters(sort: [ROLE, RELEVANCE, ID], perPage: 18) {
+                    edges {
+                      role
+                      node {
+                        id
+                        name {
+                          userPreferred
+                          full
+                        }
+                        image {
+                          large
+                          medium
+                        }
+                      }
                     }
-                    image {
-                      large
-                      medium
+                  }
+                  relations {
+                    edges {
+                      relationType
+                      node {
+                        id
+                        title {
+                          userPreferred
+                          english
+                          romaji
+                        }
+                        type
+                        status
+                        format
+                        startDate {
+                          year
+                        }
+                        coverImage {
+                          large
+                        }
+                        bannerImage
+                      }
                     }
                   }
                 }
               }
-              relations {
-                edges {
-                  relationType
-                  node {
-                    id
-                    title {
-                      userPreferred
-                      english
-                      romaji
+            `;
+        } else {
+            variables.search = cleanTitle;
+            query = `
+              query ($search: String) {
+                Media(search: $search, type: ANIME) {
+                  id
+                  nextAiringEpisode {
+                    airingAt
+                    timeUntilAiring
+                    episode
+                  }
+                  characters(sort: [ROLE, RELEVANCE, ID], perPage: 18) {
+                    edges {
+                      role
+                      node {
+                        id
+                        name {
+                          userPreferred
+                          full
+                        }
+                        image {
+                          large
+                          medium
+                        }
+                      }
                     }
-                    type
-                    status
-                    format
-                    startDate {
-                      year
+                  }
+                  relations {
+                    edges {
+                      relationType
+                      node {
+                        id
+                        title {
+                          userPreferred
+                          english
+                          romaji
+                        }
+                        type
+                        status
+                        format
+                        startDate {
+                          year
+                        }
+                        coverImage {
+                          large
+                        }
+                        bannerImage
+                      }
                     }
-                    coverImage {
-                      large
-                    }
-                    bannerImage
                   }
                 }
               }
-            }
-          }
-        `;
+            `;
+        }
 
         fetch('https://graphql.anilist.co', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 query,
-                variables: { search: cleanTitle }
+                variables
             })
         })
         .then(res => res.json())
         .then(json => {
             const media = json?.data?.Media;
             if (media) {
+                setAniListId(media.id);
+                localStorage.setItem(`movieverse_anilist_map_${details.id}`, media.id.toString());
+
                 if (media.nextAiringEpisode) {
                     setNextAiringEpisode(media.nextAiringEpisode);
                 } else {
@@ -628,6 +704,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                 setNextAiringEpisode(null);
                 setAnimeCharacters([]);
                 setAnimeRelations([]);
+                setAniListId(null);
             }
             setCharactersLoading(false);
         })
@@ -646,6 +723,219 @@ export const MoviePage: React.FC<MoviePageProps> = ({
             ...prev,
             [reviewId]: !prev[reviewId]
         }));
+    };
+
+    const isAnime = !!(details?.genres?.some((g: any) => g.id === 16) && details.original_language === 'ja');
+
+    useEffect(() => {
+      if (activeTab === 'social' && aniListId) {
+        // Fetch activities
+        const fetchActivities = async () => {
+          setSocialActivitiesLoading(true);
+          try {
+            const q = `
+              query ($mediaId: Int) {
+                Page(page: 1, perPage: 15) {
+                  activities(mediaId: $mediaId, sort: ID_DESC) {
+                    ... on ListActivity {
+                      id
+                      userId
+                      type
+                      status
+                      progress
+                      replyCount
+                      likeCount
+                      createdAt
+                      user {
+                        name
+                        avatar { large }
+                      }
+                    }
+                    ... on TextActivity {
+                      id
+                      userId
+                      type
+                      text
+                      replyCount
+                      likeCount
+                      createdAt
+                      user {
+                        name
+                        avatar { large }
+                      }
+                    }
+                  }
+                }
+              }
+            `;
+            const res = await window.fetch('https://graphql.anilist.co', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ query: q, variables: { mediaId: aniListId } })
+            });
+            const json = await res.json();
+            setSocialActivities(json.data?.Page?.activities || []);
+          } catch (e) {
+            console.error("Failed to fetch social activities:", e);
+          } finally {
+            setSocialActivitiesLoading(false);
+          }
+        };
+
+        // Fetch recommendations
+        const fetchRecommendations = async () => {
+          setSocialRecommendationsLoading(true);
+          try {
+            const q = `
+              query ($mediaId: Int) {
+                Media(id: $mediaId) {
+                  recommendations(page: 1, perPage: 6, sort: RATING_DESC) {
+                    nodes {
+                      id
+                      rating
+                      mediaRecommendation {
+                        id
+                        title {
+                          userPreferred
+                          english
+                        }
+                        coverImage { large }
+                      }
+                    }
+                  }
+                }
+              }
+            `;
+            const res = await window.fetch('https://graphql.anilist.co', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ query: q, variables: { mediaId: aniListId } })
+            });
+            const json = await res.json();
+            setSocialRecommendations(json.data?.Media?.recommendations?.nodes || []);
+          } catch (e) {
+            console.error("Failed to fetch recommendations:", e);
+          } finally {
+            setSocialRecommendationsLoading(false);
+          }
+        };
+
+        fetchActivities();
+        fetchRecommendations();
+      }
+    }, [activeTab, aniListId]);
+
+    useEffect(() => {
+      if (activeTab === 'reviews' && aniListId) {
+        const fetchReviews = async () => {
+          setAniListReviewsLoading(true);
+          try {
+            const q = `
+              query ($mediaId: Int) {
+                Media(id: $mediaId) {
+                  reviews(limit: 10, sort: [RATING_DESC, ID]) {
+                    nodes {
+                      id
+                      summary
+                      body(asHtml: false)
+                      rating
+                      ratingAmount
+                      score
+                      createdAt
+                      user {
+                        name
+                        avatar { large }
+                      }
+                    }
+                  }
+                }
+              }
+            `;
+            const res = await window.fetch('https://graphql.anilist.co', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ query: q, variables: { mediaId: aniListId } })
+            });
+            const json = await res.json();
+            setAniListReviews(json.data?.Media?.reviews?.nodes || []);
+          } catch (e) {
+            console.error("Failed to fetch AniList reviews:", e);
+          } finally {
+            setAniListReviewsLoading(false);
+          }
+        };
+        fetchReviews();
+      }
+    }, [activeTab, aniListId]);
+
+    const localPostsForThisAnime = React.useMemo(() => {
+      try {
+        const saved = localStorage.getItem('movieverse_local_posts');
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed)) {
+            return parsed.filter((p: any) => p.media?.id === aniListId);
+          }
+        }
+      } catch (e) {}
+      return [];
+    }, [aniListId, socialActivities]);
+
+    const combinedSocialActivities = React.useMemo(() => {
+      return [...localPostsForThisAnime, ...socialActivities].sort((a, b) => b.createdAt - a.createdAt);
+    }, [localPostsForThisAnime, socialActivities]);
+
+    const handleSocialPostSubmit = () => {
+      if (!socialPostText.trim() || !aniListId || !details) return;
+      
+      let currentUser = { name: "Guest User", avatar: "" };
+      try {
+        const savedProfile = localStorage.getItem('movieverse_profile');
+        if (savedProfile) {
+          const parsed = JSON.parse(savedProfile);
+          if (parsed && parsed.name) {
+            currentUser = { name: parsed.name, avatar: parsed.avatar };
+          }
+        }
+      } catch (e) {}
+
+      const newPost = {
+        id: Date.now(),
+        userId: 999999,
+        type: 'TEXT',
+        text: socialPostText,
+        replyCount: 0,
+        likeCount: 0,
+        createdAt: Math.floor(Date.now() / 1000),
+        user: {
+          id: 999999,
+          name: currentUser.name,
+          avatar: {
+            large: currentUser.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser.name)}&background=ef4444&color=fff`
+          }
+        },
+        media: {
+          id: aniListId,
+          title: {
+            userPreferred: details.name || details.title,
+            english: details.title || details.name
+          },
+          coverImage: {
+            large: details.poster_path ? `https://image.tmdb.org/t/p/w500${details.poster_path}` : ''
+          }
+        },
+        isLocal: true
+      };
+
+      try {
+        const saved = localStorage.getItem('movieverse_local_posts');
+        const currentPosts = saved ? JSON.parse(saved) : [];
+        const updated = [newPost, ...currentPosts];
+        localStorage.setItem('movieverse_local_posts', JSON.stringify(updated));
+      } catch (e) {}
+
+      setSocialActivities(prev => [newPost, ...prev]);
+      setSocialPostText("");
     };
     
     const [showFullCast, setShowFullCast] = useState(showFullCastProp);
@@ -1297,6 +1587,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
         { id: 'overview', label: 'Overview' },
         { id: 'reviews', label: 'Reviews' },
         { id: 'media', label: 'Media' },
+        ...(isAnime ? [{ id: 'social', label: 'Social' }] : []),
         ...(isTv ? [{ id: 'seasons', label: 'Seasons' }] : []),
         ...(isAnime ? [{ id: 'characters', label: 'Characters' }] : []),
         ...(isAnime && sortedRelations.length > 0 ? [{ id: 'relations', label: 'Relations' }] : []),
@@ -1852,8 +2143,10 @@ export const MoviePage: React.FC<MoviePageProps> = ({
 
                                     {activeTab === 'reviews' && (
                                         <div className="space-y-4 animate-in fade-in max-h-[820px] overflow-y-auto pr-1.5 custom-scrollbar">
+                                            {/* Render TMDB Reviews */}
                                             {displayData.reviews?.results?.length ? displayData.reviews.results.map(review => (
-                                                <div key={review.id} className="bg-white/5 p-5 rounded-2xl border border-white/5 hover:border-white/10 transition-colors text-left">
+                                                <div key={review.id} className="bg-white/5 p-5 rounded-2xl border border-white/5 hover:border-white/10 transition-colors text-left relative">
+                                                    <span className="absolute top-4 right-4 bg-red-600/10 border border-red-500/20 text-red-500 text-[8px] uppercase tracking-widest font-extrabold px-2 py-0.5 rounded-full">TMDB Critic</span>
                                                     <div className="flex items-center justify-between mb-3">
                                                         <div className="flex items-center gap-3">
                                                             <div className="w-9 h-9 rounded-full bg-gradient-to-br from-red-600/20 to-purple-600/20 border border-white/10 flex items-center justify-center font-extrabold text-sm text-white uppercase">
@@ -1865,7 +2158,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                             </div>
                                                         </div>
                                                         {review.author_details?.rating && (
-                                                            <div className="flex items-center gap-1 bg-white/10 px-2 py-0.5 rounded-md text-[10px] sm:text-xs font-bold text-yellow-500">
+                                                            <div className="flex items-center gap-1 bg-white/10 px-2 py-0.5 rounded-md text-[10px] sm:text-xs font-bold text-yellow-500 mr-20">
                                                                 <Star size={11} fill="currentColor"/> {review.author_details.rating}
                                                             </div>
                                                         )}
@@ -1882,7 +2175,52 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                         </TvFocusButton>
                                                     )}
                                                 </div>
-                                            )) : (
+                                            )) : null}
+
+                                            {/* Render AniList Reviews */}
+                                            {isAnime && aniListReviewsLoading ? (
+                                                <div className="flex items-center justify-center py-6 gap-2">
+                                                    <Loader2 className="animate-spin text-red-500" size={16} />
+                                                    <span className="text-[9px] text-zinc-500 font-bold uppercase tracking-wider">Fetching AniList reviews...</span>
+                                                </div>
+                                            ) : isAnime && aniListReviews.length ? aniListReviews.map(rev => (
+                                                <div key={rev.id} className="bg-[#0c0c0e]/60 p-5 rounded-2xl border border-white/5 hover:border-white/10 transition-colors text-left relative">
+                                                    <span className="absolute top-4 right-4 bg-amber-500/10 border border-amber-500/20 text-amber-500 text-[8px] uppercase tracking-widest font-extrabold px-2 py-0.5 rounded-full">AniList Fan Review</span>
+                                                    <div className="flex items-center justify-between mb-3">
+                                                        <div className="flex items-center gap-3">
+                                                            <img 
+                                                                src={rev.user?.avatar?.large || `https://ui-avatars.com/api/?name=${encodeURIComponent(rev.user?.name || 'User')}&background=333&color=fff`} 
+                                                                className="w-9 h-9 rounded-full object-cover border border-white/10" 
+                                                                alt="" 
+                                                            />
+                                                            <div>
+                                                                <h4 className="font-bold text-white text-xs sm:text-sm">{rev.user?.name}</h4>
+                                                                <p className="text-[10px] text-gray-500">{new Date(rev.createdAt * 1000).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
+                                                            </div>
+                                                        </div>
+                                                        {rev.score && (
+                                                            <div className="flex items-center gap-1 bg-white/10 px-2 py-0.5 rounded-md text-[10px] sm:text-xs font-bold text-amber-500 mr-24">
+                                                                <Star size={11} fill="currentColor"/> {rev.score}%
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                    <h5 className="font-semibold text-zinc-200 text-xs sm:text-sm mb-1 leading-snug">{rev.summary}</h5>
+                                                    <p className={`text-gray-400 text-xs sm:text-sm leading-relaxed whitespace-pre-line transition-all duration-300 ${expandedReviews[rev.id.toString()] ? '' : 'line-clamp-4'}`}>
+                                                        {rev.body}
+                                                    </p>
+                                                    {rev.body.length > 280 && (
+                                                        <TvFocusButton
+                                                            onClick={() => toggleReviewExpand(rev.id.toString())}
+                                                            className="mt-2.5 text-xs font-bold text-red-500 hover:text-red-400 transition-colors focus:outline-none"
+                                                        >
+                                                            {expandedReviews[rev.id.toString()] ? 'Show Less' : 'Read More'}
+                                                        </TvFocusButton>
+                                                    )}
+                                                </div>
+                                            )) : null}
+
+                                            {/* Fallback if no reviews at all */}
+                                            {!displayData.reviews?.results?.length && (!isAnime || (!aniListReviewsLoading && !aniListReviews.length)) && (
                                                 <div className="text-center py-12 text-gray-500 border border-white/5 rounded-2xl text-xs">
                                                     No reviews yet.
                                                 </div>
@@ -2049,6 +2387,110 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                             No logos available.
                                                         </div>
                                                     )}
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                                    {activeTab === 'social' && isAnime && (
+                                        <div className="space-y-6 animate-in fade-in select-none text-left">
+                                            {/* Create Post Form */}
+                                            <div className="bg-white/5 border border-white/5 rounded-2xl p-5 md:p-6 backdrop-blur-md">
+                                                <h4 className="font-bold text-xs sm:text-sm text-white mb-3">Discuss this Anime</h4>
+                                                <textarea
+                                                    rows={3}
+                                                    value={socialPostText}
+                                                    onChange={(e) => setSocialPostText(e.target.value)}
+                                                    placeholder="Write your thoughts or questions about this anime..."
+                                                    className="w-full bg-white/5 border border-white/5 focus:border-white/10 rounded-xl py-2.5 px-3.5 text-xs sm:text-sm text-white placeholder-zinc-500 focus:outline-none resize-none custom-scrollbar font-normal"
+                                                />
+                                                <div className="flex justify-end mt-2">
+                                                    <TvFocusButton
+                                                        onClick={handleSocialPostSubmit}
+                                                        disabled={!socialPostText.trim()}
+                                                        className="px-4 py-2 rounded-full bg-red-600 hover:bg-red-700 disabled:opacity-40 text-white font-bold text-xs uppercase tracking-widest active:scale-95 transition-all flex items-center gap-1.5"
+                                                    >
+                                                        <Send size={12} />
+                                                        <span>Post Discussion</span>
+                                                    </TvFocusButton>
+                                                </div>
+                                            </div>
+
+                                            {/* Activities list */}
+                                            <div className="space-y-4">
+                                                <h4 className="font-semibold text-xs sm:text-sm text-zinc-300 border-b border-white/5 pb-2 uppercase tracking-wider">Community Feed</h4>
+                                                {socialActivitiesLoading ? (
+                                                    <div className="flex items-center justify-center py-8 gap-2">
+                                                        <Loader2 className="animate-spin text-red-500" size={16} />
+                                                        <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider">Fetching discussion feed...</span>
+                                                    </div>
+                                                ) : combinedSocialActivities.length === 0 ? (
+                                                    <p className="text-zinc-500 text-xs italic py-6">No discussions about this anime yet. Be the first to share your thoughts!</p>
+                                                ) : (
+                                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                        {combinedSocialActivities.map((act) => {
+                                                            const isText = act.type === 'TEXT';
+                                                            const actionText = isText ? act.text : `${act.status.toLowerCase().replace('_', ' ')} ${act.progress ? `${act.progress} of` : ''}`;
+                                                            return (
+                                                                <div key={act.id} className="bg-white/5 p-4 rounded-xl border border-white/5 text-left flex flex-col justify-between h-full">
+                                                                    <div>
+                                                                        <div className="flex items-center gap-2 mb-3">
+                                                                            <img 
+                                                                                src={act.user?.avatar?.large || `https://ui-avatars.com/api/?name=${encodeURIComponent(act.user?.name || 'User')}&background=333&color=fff`} 
+                                                                                className="w-8 h-8 rounded-lg object-cover" 
+                                                                                alt="" 
+                                                                            />
+                                                                            <div>
+                                                                                <h5 className="font-bold text-xs text-white leading-tight">{act.user?.name}</h5>
+                                                                                <p className="text-[8px] text-gray-500">{new Date(act.createdAt * 1000).toLocaleDateString('en-US', { day: 'numeric', month: 'short' })}</p>
+                                                                            </div>
+                                                                            {act.isLocal && (
+                                                                                <span className="ml-auto px-1.5 py-0.5 rounded text-[8px] bg-red-600/10 border border-red-500/20 text-red-500 uppercase font-semibold">Local</span>
+                                                                            )}
+                                                                        </div>
+                                                                        <p className="text-gray-300 text-xs leading-relaxed line-clamp-4 font-normal whitespace-pre-line break-words">
+                                                                            {isText ? act.text : actionText}
+                                                                        </p>
+                                                                    </div>
+                                                                    <div className="flex items-center gap-4 pt-3.5 mt-4 border-t border-white/5 text-[10px] text-gray-500 font-semibold">
+                                                                        <span>❤️ {act.likeCount || 0} Likes</span>
+                                                                        <span>💬 {act.replyCount || 0} Comments</span>
+                                                                    </div>
+                                                                </div>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            {/* Recommendations list */}
+                                            {socialRecommendations.length > 0 && (
+                                                <div className="space-y-4 pt-4 border-t border-white/5">
+                                                    <h4 className="font-semibold text-xs sm:text-sm text-zinc-300 uppercase tracking-wider">Fans Also Recommended</h4>
+                                                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4">
+                                                        {socialRecommendations.map((node) => (
+                                                            <div 
+                                                                key={node.id} 
+                                                                onClick={() => {
+                                                                    if (node.mediaRecommendation?.id) {
+                                                                        onSwitchMovie({
+                                                                            id: node.mediaRecommendation.id,
+                                                                            title: node.mediaRecommendation.title.userPreferred,
+                                                                            media_type: 'tv'
+                                                                        } as any);
+                                                                    }
+                                                                }}
+                                                                className="cursor-pointer group/rec"
+                                                            >
+                                                                <div className="aspect-[2/3] w-full rounded-xl overflow-hidden border border-white/5 group-hover/rec:border-white/20 transition-all mb-1 shadow">
+                                                                    <img src={node.mediaRecommendation?.coverImage?.large} className="w-full h-full object-cover group-hover/rec:scale-102 transition-transform animate-none" alt="" />
+                                                                </div>
+                                                                <h5 className="font-medium text-[10px] text-gray-400 group-hover/rec:text-white transition-colors line-clamp-2 leading-tight">
+                                                                    {node.mediaRecommendation?.title?.english || node.mediaRecommendation?.title?.userPreferred}
+                                                                </h5>
+                                                                <span className="text-[8px] text-zinc-600 font-bold">★ {node.rating} rating</span>
+                                                            </div>
+                                                        ))}
+                                                    </div>
                                                 </div>
                                             )}
                                         </div>
