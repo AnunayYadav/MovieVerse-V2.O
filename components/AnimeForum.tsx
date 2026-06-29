@@ -759,14 +759,18 @@ export const AnimeForum: React.FC<AnimeForumProps> = ({
     }
   };
 
-  const handleMediaClick = async (mediaId: number, mediaTitle: string) => {
+  const handleMediaClick = async (mediaId: number, titleInput: any) => {
+    const titleObj = typeof titleInput === 'string' 
+      ? { romaji: titleInput, english: titleInput, native: titleInput, userPreferred: titleInput }
+      : titleInput;
+
     const mockMedia: AniListMedia = {
       id: mediaId,
       title: {
-        romaji: mediaTitle,
-        english: mediaTitle,
-        native: mediaTitle,
-        userPreferred: mediaTitle
+        romaji: titleObj?.romaji || titleObj?.userPreferred || '',
+        english: titleObj?.english || titleObj?.userPreferred || '',
+        native: titleObj?.native || '',
+        userPreferred: titleObj?.userPreferred || ''
       },
       coverImage: {
         extraLarge: '',
@@ -809,11 +813,43 @@ export const AnimeForum: React.FC<AnimeForumProps> = ({
       } catch (_) {}
     }
 
-    const titlesToTry = [
-      mockMedia.title.english,
-      mockMedia.title.romaji,
-      mockMedia.title.userPreferred
-    ].filter((t): t is string => typeof t === 'string' && t.length > 0);
+    const titlesToTry: string[] = [];
+    const addTitle = (t: string) => {
+      if (t && typeof t === 'string' && t.trim() && !titlesToTry.includes(t)) {
+        titlesToTry.push(t.trim());
+      }
+    };
+
+    addTitle(mockMedia.title.english);
+    addTitle(mockMedia.title.romaji);
+    addTitle(mockMedia.title.userPreferred);
+    addTitle(mockMedia.title.native);
+
+    // Split by colon or dash
+    const splitTitles: string[] = [];
+    for (const title of [...titlesToTry]) {
+      if (title.includes(':')) {
+        const firstPart = title.split(':')[0].trim();
+        if (firstPart.length > 2) splitTitles.push(firstPart);
+      }
+      if (title.includes(' - ')) {
+        const firstPart = title.split(' - ')[0].trim();
+        if (firstPart.length > 2) splitTitles.push(firstPart);
+      }
+    }
+    splitTitles.forEach(addTitle);
+
+    // Fallback: first 2 words or first word (only if long enough to prevent false positives)
+    for (const title of [...titlesToTry]) {
+      const words = title.split(/\s+/).filter(w => w.length > 0);
+      if (words.length > 1) {
+        const firstTwo = words.slice(0, 2).join(' ');
+        if (firstTwo.length > 4) addTitle(firstTwo);
+        
+        const firstWord = words[0].replace(/[^a-zA-Z0-9가-힣ぁ-んァ-ヶ一-龥]/g, '');
+        if (firstWord.length > 3) addTitle(firstWord);
+      }
+    }
 
     let matchedItem: any = null;
     let resolvedSeason = 1;
@@ -1021,7 +1057,7 @@ export const AnimeForum: React.FC<AnimeForumProps> = ({
                           {userProfileData?.favourites?.anime?.nodes?.map((fav: any) => (
                             <div 
                               key={fav.id} 
-                              onClick={() => { setSelectedUser(null); handleMediaClick(fav.id, fav.title.userPreferred); }}
+                              onClick={() => { setSelectedUser(null); handleMediaClick(fav.id, fav.title); }}
                               className="shrink-0 w-24 cursor-pointer group/fav"
                             >
                               <div className="aspect-[2/3] w-full rounded-xl overflow-hidden border border-white/5 group-hover/fav:border-white/20 transition-all mb-2">
@@ -1068,7 +1104,7 @@ export const AnimeForum: React.FC<AnimeForumProps> = ({
                                 return (
                                   <div 
                                     key={entry.id} 
-                                    onClick={() => { setSelectedUser(null); handleMediaClick(med.id, med.title.userPreferred); }}
+                                    onClick={() => { setSelectedUser(null); handleMediaClick(med.id, med.title); }}
                                     className="cursor-pointer group/entry text-center"
                                   >
                                     <div className="aspect-[2/3] w-full rounded-xl overflow-hidden border border-white/5 group-hover/entry:border-white/20 transition-all mb-2 shadow-sm">
@@ -1214,7 +1250,7 @@ export const AnimeForum: React.FC<AnimeForumProps> = ({
                   <span className="text-zinc-400 capitalize">{actionText}</span>{' '}
                   {hasMedia && (
                     <span 
-                      onClick={(e) => { e.stopPropagation(); handleMediaClick(act.media.id, act.media.title.userPreferred); }}
+                      onClick={(e) => { e.stopPropagation(); handleMediaClick(act.media.id, act.media.title); }}
                       className="text-zinc-100 hover:text-red-500 transition-colors cursor-pointer font-medium"
                     >
                       {act.media.title.english || act.media.title.userPreferred}
@@ -1230,7 +1266,7 @@ export const AnimeForum: React.FC<AnimeForumProps> = ({
 
             {hasMedia && (
               <div 
-                onClick={(e) => { e.stopPropagation(); handleMediaClick(act.media.id, act.media.title.userPreferred); }}
+                onClick={(e) => { e.stopPropagation(); handleMediaClick(act.media.id, act.media.title); }}
                 className="shrink-0 w-16 h-24 rounded-2xl overflow-hidden border border-white/10 shadow-md cursor-pointer hover:scale-105 transition-transform"
               >
                 <img 
@@ -1323,7 +1359,7 @@ export const AnimeForum: React.FC<AnimeForumProps> = ({
             <span className="text-[10px] text-zinc-500 font-medium uppercase tracking-widest">
               Review for:{' '}
               <span 
-                onClick={(e) => { e.stopPropagation(); handleMediaClick(rev.media.id, rev.media.title.userPreferred); }}
+                onClick={(e) => { e.stopPropagation(); handleMediaClick(rev.media.id, rev.media.title); }}
                 className="text-zinc-300 hover:text-red-500 cursor-pointer font-semibold normal-case"
               >
                 {rev.media.title.english || rev.media.title.userPreferred}
@@ -1337,7 +1373,7 @@ export const AnimeForum: React.FC<AnimeForumProps> = ({
 
         {/* Media Poster Column on the Right */}
         <div 
-          onClick={(e) => { e.stopPropagation(); handleMediaClick(rev.media.id, rev.media.title.userPreferred); }}
+          onClick={(e) => { e.stopPropagation(); handleMediaClick(rev.media.id, rev.media.title); }}
           className="shrink-0 w-24 md:w-28 aspect-[2/3] rounded-2xl overflow-hidden border border-white/10 shadow-md cursor-pointer hover:scale-[1.03] transition-transform mx-auto md:mx-0 self-center md:self-start"
         >
           <img 
@@ -1378,7 +1414,7 @@ export const AnimeForum: React.FC<AnimeForumProps> = ({
           <div className="flex flex-row items-center justify-between gap-4 p-4 bg-white/5 border border-white/[0.03] rounded-2xl mb-4">
             {/* Left Media */}
             <div 
-              onClick={(e) => { e.stopPropagation(); handleMediaClick(rec.media.id, rec.media.title.userPreferred); }}
+              onClick={(e) => { e.stopPropagation(); handleMediaClick(rec.media.id, rec.media.title); }}
               className="flex items-center gap-3.5 min-w-0 cursor-pointer group/item flex-1"
             >
               <img src={rec.media.coverImage?.large} className="w-16 h-24 rounded-xl object-cover border border-white/10 shrink-0 shadow-md group-hover/item:scale-102 transition-transform" alt="" />
@@ -1396,7 +1432,7 @@ export const AnimeForum: React.FC<AnimeForumProps> = ({
 
             {/* Right Media */}
             <div 
-              onClick={(e) => { e.stopPropagation(); handleMediaClick(rec.mediaRecommendation.id, rec.mediaRecommendation.title.userPreferred); }}
+              onClick={(e) => { e.stopPropagation(); handleMediaClick(rec.mediaRecommendation.id, rec.mediaRecommendation.title); }}
               className="flex items-center gap-3.5 min-w-0 cursor-pointer group/item flex-1"
             >
               <img src={rec.mediaRecommendation.coverImage?.large} className="w-16 h-24 rounded-xl object-cover border border-white/10 shrink-0 shadow-md group-hover/item:scale-102 transition-transform" alt="" />
