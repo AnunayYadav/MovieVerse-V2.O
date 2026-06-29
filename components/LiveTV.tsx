@@ -452,9 +452,7 @@ const LiveTVRow: React.FC<{
 
 export const LiveTV: React.FC<LiveTVProps> = ({ userProfile }) => {
     const [selectedCountry, setSelectedCountry] = useState('IN');
-    const [jioTvServerUrl, setJioTvServerUrl] = useState(() => {
-        return localStorage.getItem('movieverse_jiotv_url') || 'http://localhost:5001';
-    });
+    const jioTvServerUrl = 'http://localhost:5001';
     const [selectedChannel, setSelectedChannel] = useState<LiveChannel | null>(null);
     const [searchQuery, setSearchQuery] = useState("");
     const [expandedCategory, setExpandedCategory] = useState<{ title: string; items: LiveChannel[] } | null>(null);
@@ -706,35 +704,7 @@ export const LiveTV: React.FC<LiveTVProps> = ({ userProfile }) => {
                     </div>
                 </div>
 
-                {/* JioTV Go Configuration Panel */}
-                {selectedCountry === 'JIOTV' && (
-                    <div className="mx-0 md:mx-12 mb-8 p-4 bg-[#0d0d0f]/50 backdrop-blur-xl border border-white/5 rounded-2xl flex flex-col md:flex-row items-center justify-between gap-4 text-left animate-in fade-in duration-300">
-                        <div className="flex items-center gap-3">
-                            <div className="p-2 rounded-xl bg-white/5 border border-white/5">
-                                <Wifi className="text-red-500" size={18} />
-                            </div>
-                            <div>
-                                <h4 className="text-xs font-bold text-white uppercase tracking-wider">JioTV Go Server</h4>
-                                <p className="text-[10px] text-gray-400 mt-0.5">
-                                    Configure your JioTV Go instance address (default is http://localhost:5001)
-                                </p>
-                            </div>
-                        </div>
-                        <div className="w-full md:w-auto">
-                            <input 
-                                type="text"
-                                value={jioTvServerUrl}
-                                onChange={(e) => {
-                                    const val = e.target.value;
-                                    setJioTvServerUrl(val);
-                                    localStorage.setItem('movieverse_jiotv_url', val);
-                                }}
-                                className="w-full md:w-64 h-9 bg-white/5 border border-white/5 focus:border-white/10 rounded-xl px-3 text-xs focus:outline-none placeholder-zinc-600 text-white font-medium"
-                                placeholder="http://localhost:5001"
-                            />
-                        </div>
-                    </div>
-                )}
+
 
                 {/* Dynamic Netflix-style Grid or Category Rows */}
                 {!searchQuery ? (
