@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Play, Info, Search, Star, Film, X, Layers, TrendingUp, Sparkles, Trophy, Calendar, RefreshCcw, Loader2, ArrowLeft, Tv, AlertCircle, Languages, ChevronDown, Check, ChevronRight, MessageSquare, ThumbsUp, Heart, User, Clock, ExternalLink, MessageCircle, BookOpen } from 'lucide-react';
+import { Play, Info, Search, Star, Film, X, Layers, TrendingUp, Sparkles, Trophy, Calendar, RefreshCcw, Loader2, ArrowLeft, Tv, AlertCircle, Languages, ChevronDown, Check, ChevronRight, MessageSquare, ThumbsUp, Heart, User, Clock, ExternalLink, MessageCircle, BookOpen, AlertTriangle } from 'lucide-react';
 import { Movie } from '../types';
 import { AnimeForum } from './AnimeForum';
 import { TMDB_BASE_URL, TMDB_IMAGE_BASE, TMDB_BACKDROP_BASE, tvFetch } from './Shared';
@@ -92,6 +92,9 @@ export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick, sear
   const currentGenreIndexRef = useRef(0);
 
   const [heroIndex, setHeroIndex] = useState(0);
+  const [includeNsfw, setIncludeNsfw] = useState(() => {
+    return localStorage.getItem('movieverse_include_nsfw') === 'true';
+  });
   const featured = trending[heroIndex];
   const [featuredLogoUrl, setFeaturedLogoUrl] = useState<string | null>(null);
   const [featuredLogoLoading, setFeaturedLogoLoading] = useState(true);
@@ -239,29 +242,29 @@ export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick, sear
     setError(null);
     try {
       const query = `
-        query ($season: MediaSeason, $seasonYear: Int) {
+        query ($season: MediaSeason, $seasonYear: Int, $isAdult: Boolean) {
           trending: Page(page: 1, perPage: 30) {
-            media(type: ANIME, sort: [TRENDING_DESC, POPULARITY_DESC]) {
+            media(type: ANIME, isAdult: $isAdult, sort: [TRENDING_DESC, POPULARITY_DESC]) {
               ...animeFields
             }
           }
           popular: Page(page: 1, perPage: 30) {
-            media(type: ANIME, sort: [POPULARITY_DESC]) {
+            media(type: ANIME, isAdult: $isAdult, sort: [POPULARITY_DESC]) {
               ...animeFields
             }
           }
           topRated: Page(page: 1, perPage: 30) {
-            media(type: ANIME, sort: [SCORE_DESC]) {
+            media(type: ANIME, isAdult: $isAdult, sort: [SCORE_DESC]) {
               ...animeFields
             }
           }
           seasonal: Page(page: 1, perPage: 30) {
-            media(type: ANIME, season: $season, seasonYear: $seasonYear, sort: [POPULARITY_DESC]) {
+            media(type: ANIME, isAdult: $isAdult, season: $season, seasonYear: $seasonYear, sort: [POPULARITY_DESC]) {
               ...animeFields
             }
           }
           upcoming: Page(page: 1, perPage: 30) {
-            media(type: ANIME, status: NOT_YET_RELEASED, sort: [POPULARITY_DESC]) {
+            media(type: ANIME, isAdult: $isAdult, status: NOT_YET_RELEASED, sort: [POPULARITY_DESC]) {
               ...animeFields
             }
           }
@@ -299,7 +302,11 @@ export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick, sear
       `;
 
       // Current local metadata year is 2026, month is June -> Summer 2026
-      const data = await fetchAniList(query, { season: 'SUMMER', seasonYear: 2026 });
+      const data = await fetchAniList(query, { 
+        season: 'SUMMER', 
+        seasonYear: 2026, 
+        isAdult: includeNsfw ? null : false 
+      });
       
       setTrending(filterDuplicateAnime(data.trending?.media || []).slice(0, 12));
       setPopular(filterDuplicateAnime(data.popular?.media || []).slice(0, 12));
@@ -316,7 +323,16 @@ export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick, sear
     } finally {
       setLoading(false);
     }
-  }, [fetchAniList]);
+  }, [fetchAniList, includeNsfw]);
+
+  // Synchronize and trigger reloading when includeNsfw changes
+  useEffect(() => {
+    localStorage.setItem('movieverse_include_nsfw', includeNsfw.toString());
+    loadPageData();
+    // Clear and reload genre rows
+    setGenreRows([]);
+    currentGenreIndexRef.current = 0;
+  }, [includeNsfw, loadPageData]);
 
   const loadAiringSchedule = useCallback(async () => {
     setScheduleLoading(true);
@@ -395,9 +411,9 @@ export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick, sear
     const genre = ANIME_GENRES[currentGenreIndexRef.current];
     try {
       const query = `
-        query ($genre: String) {
+        query ($genre: String, $isAdult: Boolean) {
           Page(page: 1, perPage: 30) {
-            media(type: ANIME, genre: $genre, sort: [POPULARITY_DESC]) {
+            media(type: ANIME, isAdult: $isAdult, genre: $genre, sort: [POPULARITY_DESC]) {
               id
               title {
                 romaji
@@ -429,7 +445,7 @@ export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick, sear
           }
         }
       `;
-      const data = await fetchAniList(query, { genre });
+      const data = await fetchAniList(query, { genre, isAdult: includeNsfw ? null : false });
       const media = data.Page?.media || [];
       
       if (media.length > 0) {
@@ -441,7 +457,7 @@ export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick, sear
     } finally {
       setLoadingGenreRows(false);
     }
-  }, [fetchAniList, loadingGenreRows]);
+  }, [fetchAniList, loadingGenreRows, includeNsfw]);
 
   // Load Home and Schedule Data on Mount
   useEffect(() => {
@@ -613,9 +629,9 @@ export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick, sear
       setSearchLoading(true);
       try {
         const query = `
-          query ($search: String) {
+          query ($search: String, $isAdult: Boolean) {
             Page(page: 1, perPage: 40) {
-              media(type: ANIME, search: $search) {
+              media(type: ANIME, isAdult: $isAdult, search: $search) {
                 id
                 title {
                   romaji
@@ -647,7 +663,7 @@ export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick, sear
             }
           }
         `;
-        const data = await fetchAniList(query, { search: searchQuery });
+        const data = await fetchAniList(query, { search: searchQuery, isAdult: includeNsfw ? null : false });
         if (isMounted) {
           setSearchResults(data.Page?.media || []);
         }
@@ -663,7 +679,7 @@ export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick, sear
     return () => {
       isMounted = false;
     };
-  }, [searchQuery, fetchAniList]);
+  }, [searchQuery, fetchAniList, includeNsfw]);
 
   // Hook up window scroll event listener for category lazy load
   useEffect(() => {
@@ -1169,45 +1185,61 @@ export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick, sear
               </h2>
             </div>
             
-            <div className="relative group shrink-0">
-              <button 
-                onClick={() => setIsLangDropdownOpen(!isLangDropdownOpen)} 
-                className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/15 hover:border-white/25 rounded-full text-xs font-bold text-gray-200 transition-all active:scale-95 min-w-[130px] justify-between shadow-lg backdrop-blur-md"
+            <div className="flex items-center gap-3">
+              {/* NSFW Content Toggle Button */}
+              <button
+                onClick={() => setIncludeNsfw(prev => !prev)}
+                className={`flex items-center gap-2 px-4 py-2 border rounded-full text-xs font-bold transition-all active:scale-95 shadow-lg backdrop-blur-md ${
+                  includeNsfw
+                    ? 'bg-red-600/20 border-red-500/40 text-red-400 hover:bg-red-600/30'
+                    : 'bg-white/5 border-white/15 text-gray-400 hover:bg-white/10'
+                }`}
+                title="Toggle Explicit/NSFW content"
               >
-                <div className="flex items-center gap-2">
-                  <Languages size={14} className="text-red-500" /> 
-                  <span>{titleLanguage === 'english' ? 'English' : titleLanguage === 'romaji' ? 'Romaji' : 'Native'}</span>
-                </div>
-                <ChevronDown size={12} className="text-zinc-500 group-hover:text-white transition-colors" />
+                <AlertTriangle size={14} className={includeNsfw ? 'text-red-400 animate-pulse' : 'text-zinc-500'} />
+                <span>NSFW Content</span>
               </button>
-              {isLangDropdownOpen && (
-                <>
-                  <div className="fixed inset-0 z-40" onClick={() => setIsLangDropdownOpen(false)} />
-                  <div className="absolute right-0 mt-2 w-40 bg-[#0c0c0e]/95 backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden shadow-2xl transition-all origin-top-right z-50 p-1.5 animate-in fade-in slide-in-from-top-2 duration-200">
-                    {[
-                      { value: 'english', label: 'English' },
-                      { value: 'romaji', label: 'Romaji' },
-                      { value: 'native', label: 'Native' }
-                    ].map(opt => (
-                      <button 
-                        key={opt.value} 
-                        onClick={() => { 
-                          setTitleLanguage(opt.value as any); 
-                          setIsLangDropdownOpen(false); 
-                        }} 
-                        className={`w-full text-left px-3.5 py-2 text-xs font-bold rounded-xl transition-colors flex items-center justify-between ${
-                          titleLanguage === opt.value 
-                            ? 'bg-red-600 text-white shadow-md shadow-red-600/20' 
-                            : 'text-zinc-400 hover:bg-white/5 hover:text-white'
-                        }`}
-                      >
-                        {opt.label}
-                        {titleLanguage === opt.value && <Check size={12} />}
-                      </button>
-                    ))}
+
+              <div className="relative group shrink-0">
+                <button 
+                  onClick={() => setIsLangDropdownOpen(!isLangDropdownOpen)} 
+                  className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/15 hover:border-white/25 rounded-full text-xs font-bold text-gray-200 transition-all active:scale-95 min-w-[130px] justify-between shadow-lg backdrop-blur-md"
+                >
+                  <div className="flex items-center gap-2">
+                    <Languages size={14} className="text-red-500" /> 
+                    <span>{titleLanguage === 'english' ? 'English' : titleLanguage === 'romaji' ? 'Romaji' : 'Native'}</span>
                   </div>
-                </>
-              )}
+                  <ChevronDown size={12} className="text-zinc-500 group-hover:text-white transition-colors" />
+                </button>
+                {isLangDropdownOpen && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setIsLangDropdownOpen(false)} />
+                    <div className="absolute right-0 mt-2 w-40 bg-[#0c0c0e]/95 backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden shadow-2xl transition-all origin-top-right z-50 p-1.5 animate-in fade-in slide-in-from-top-2 duration-200">
+                      {[
+                        { value: 'english', label: 'English' },
+                        { value: 'romaji', label: 'Romaji' },
+                        { value: 'native', label: 'Native' }
+                      ].map(opt => (
+                        <button 
+                          key={opt.value} 
+                          onClick={() => { 
+                            setTitleLanguage(opt.value as any); 
+                            setIsLangDropdownOpen(false); 
+                          }} 
+                          className={`w-full text-left px-3.5 py-2 text-xs font-bold rounded-xl transition-colors flex items-center justify-between ${
+                            titleLanguage === opt.value 
+                              ? 'bg-red-600 text-white shadow-md shadow-red-600/20' 
+                              : 'text-zinc-400 hover:bg-white/5 hover:text-white'
+                          }`}
+                        >
+                          {opt.label}
+                          {titleLanguage === opt.value && <Check size={12} />}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
           </div>
 
