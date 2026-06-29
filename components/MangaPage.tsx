@@ -281,7 +281,22 @@ export const MangaPage: React.FC<MangaPageProps> = ({
   }, []);
 
 
-  // Reset scroll to top on mount
+  const prevMangaIdRef = useRef<string | null>(null);
+  const prevCharIdRef = useRef<number | null>(null);
+
+  // Reset scroll to top on mount and view transitions
+  useEffect(() => {
+    const isNewManga = selectedMangaId && selectedMangaId !== prevMangaIdRef.current;
+    const isNewChar = selectedCharacterId && selectedCharacterId !== prevCharIdRef.current;
+
+    if (isNewManga || isNewChar) {
+      window.scrollTo({ top: 0, behavior: 'instant' });
+    }
+
+    prevMangaIdRef.current = selectedMangaId;
+    prevCharIdRef.current = selectedCharacterId;
+  }, [selectedMangaId, selectedCharacterId]);
+
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'instant' });
   }, []);
