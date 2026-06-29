@@ -2333,7 +2333,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                             ) : nyaaTorrents.length === 0 ? (
                                                 <div className="text-zinc-500 text-xs py-3 px-1 italic">No torrents found for this episode on Nyaa.si.</div>
                                             ) : (
-                                                <div onScroll={handleNyaaScroll} className="space-y-2 max-h-52 overflow-y-auto pr-1 custom-scrollbar">
+                                                <div onScroll={handleNyaaScroll} className="space-y-2 max-h-[450px] overflow-y-auto pr-1 custom-scrollbar">
                                                     {nyaaTorrents.slice(0, visibleNyaaCount).map((t, idx) => {
                                                         const formattedDate = t.pubDate
                                                             ? new Date(t.pubDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
