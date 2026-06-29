@@ -305,8 +305,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   });
 
   // Anivexa states
-  const [anivexaEpisodes, setAnivexaEpisodes] = useState<Record<string, any[]> | null>(null);
-  const [anivexaActiveSubProvider, setAnivexaActiveSubProvider] = useState<string>('');
+  const [anivexaEpisodes, setAnivexaEpisodes] = useState<any[] | null>(null);
   const [anivexaStreamUrl, setAnivexaStreamUrl] = useState<string>('');
   const [anivexaSubtitles, setAnivexaSubtitles] = useState<any[]>([]);
   const [anivexaLoading, setAnivexaLoading] = useState(false);
@@ -315,7 +314,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<Hls | null>(null);
 
-  // Fetch episodes list from Anivexa
+  // Fetch episodes list from local AniList Meta provider
   useEffect(() => {
     if (!isAnime || !anilistId || selectedProviderId !== 'anivexa') return;
 
@@ -324,24 +323,17 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
       setAnivexaLoading(true);
       setAnivexaError(null);
       try {
-        const res = await window.fetch(`https://anivexa.vercel.app/episodes/${anilistId}`);
-        if (!res.ok) throw new Error("Failed to load episode list from Anivexa.");
+        const res = await window.fetch(`/api/anime?action=episodes&anilistId=${anilistId}`);
+        if (!res.ok) throw new Error("Failed to load episode list.");
         const data = await res.json();
         
         if (isMounted) {
-          setAnivexaEpisodes(data);
-          const keys = Object.keys(data);
-          if (keys.length > 0) {
-            const preferred = keys.find(k => k === 'reanime') || keys.find(k => k === 'allmanga') || keys[0];
-            setAnivexaActiveSubProvider(preferred);
-          } else {
-            throw new Error("No active streaming servers found on Anivexa.");
-          }
+          setAnivexaEpisodes(data.episodes || []);
         }
       } catch (err: any) {
-        console.error("Anivexa fetch episodes error:", err);
+        console.error("Anime fetch episodes error:", err);
         if (isMounted) {
-          setAnivexaError(err.message || "Failed to load stream servers.");
+          setAnivexaError(err.message || "Failed to load episodes.");
         }
       } finally {
         if (isMounted) setAnivexaLoading(false);
@@ -352,9 +344,9 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     return () => { isMounted = false; };
   }, [isAnime, anilistId, selectedProviderId]);
 
-  // Fetch watch URL when active sub-provider, episode, or language changes
+  // Fetch watch URL when currentEpisode or language changes
   useEffect(() => {
-    if (!isAnime || !anilistId || selectedProviderId !== 'anivexa' || !anivexaEpisodes || !anivexaActiveSubProvider) return;
+    if (!isAnime || !anilistId || selectedProviderId !== 'anivexa' || !anivexaEpisodes) return;
 
     let isMounted = true;
     const fetchWatchUrl = async () => {
@@ -362,13 +354,12 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
       setAnivexaStreamUrl('');
       setAnivexaError(null);
       try {
-        const eps = anivexaEpisodes[anivexaActiveSubProvider] || [];
-        const epMatch = eps.find((e: any) => e.number === currentEpisode);
+        const epMatch = anivexaEpisodes.find((e: any) => e.number === currentEpisode);
         if (!epMatch) {
-          throw new Error(`Episode ${currentEpisode} is not available on ${anivexaActiveSubProvider}.`);
+          throw new Error(`Episode ${currentEpisode} is not available.`);
         }
 
-        const watchRes = await window.fetch(`https://anivexa.vercel.app/watch/${anivexaActiveSubProvider}/${anilistId}/${animeLanguage}/${encodeURIComponent(epMatch.id)}`);
+        const watchRes = await window.fetch(`/api/anime?action=watch&episodeId=${encodeURIComponent(epMatch.id)}`);
         if (!watchRes.ok) throw new Error("Failed to resolve streaming link.");
         const data = await watchRes.json();
 
@@ -382,7 +373,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
           }
         }
       } catch (err: any) {
-        console.error("Anivexa fetch watch error:", err);
+        console.error("Anime fetch watch error:", err);
         if (isMounted) {
           setAnivexaError(err.message || "Failed to resolve stream link.");
         }
@@ -393,7 +384,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
 
     fetchWatchUrl();
     return () => { isMounted = false; };
-  }, [isAnime, anilistId, selectedProviderId, anivexaEpisodes, anivexaActiveSubProvider, currentEpisode, animeLanguage]);
+  }, [isAnime, anilistId, selectedProviderId, anivexaEpisodes, currentEpisode, animeLanguage]);
 
   // Bind video element events to state
   useEffect(() => {
@@ -1373,27 +1364,6 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                     </button>
                   );
                 })}
-
-                {selectedProviderId === 'anivexa' && anivexaEpisodes && (
-                  <div className="mt-5 pt-5 border-t border-white/5 space-y-2">
-                    <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block mb-2 px-1">Select Stream Server</span>
-                    <div className="grid grid-cols-2 gap-2">
-                      {Object.keys(anivexaEpisodes).map((subProv) => (
-                        <button
-                          key={subProv}
-                          onClick={() => setAnivexaActiveSubProvider(subProv)}
-                          className={`px-3 py-2 text-xs font-bold rounded-xl border transition-all ${
-                            anivexaActiveSubProvider === subProv
-                              ? 'bg-red-600/20 border-red-500/50 text-red-400 font-extrabold shadow-[0_0_15px_rgba(239,68,68,0.1)]'
-                              : 'bg-white/5 border-white/5 text-zinc-400 hover:bg-white/10 hover:text-white'
-                          }`}
-                        >
-                          <span className="capitalize">{subProv}</span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
               </div>
             )}
 
