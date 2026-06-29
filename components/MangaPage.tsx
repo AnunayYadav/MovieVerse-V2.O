@@ -1560,6 +1560,180 @@ export const MangaPage: React.FC<MangaPageProps> = ({
     return result;
   }, [chapters, mappedMangapillChapters, readingSource]);
 
+  // Render character details modal overlay
+  const renderCharacterModal = () => {
+    if (!selectedCharacterId) return null;
+    return (
+      <div className={`fixed inset-0 z-[150] flex items-center justify-center bg-black/85 backdrop-blur-md p-4 sm:p-6 overflow-y-auto custom-scrollbar ${isCharacterModalClosing ? 'animate-fade-out' : 'animate-fade-in'}`}>
+        <div className={`relative w-full max-w-4xl bg-[#0c0c0e]/95 border border-white/10 rounded-2xl overflow-hidden shadow-2xl transition-all duration-300 max-h-[90vh] flex flex-col ${isCharacterModalClosing ? 'scale-95 opacity-0' : 'scale-100 opacity-100'}`}>
+          
+          {/* Close Button */}
+          <button
+            onClick={() => {
+              setIsCharacterModalClosing(true);
+              setTimeout(() => {
+                setSelectedCharacterId(null);
+                setIsCharacterModalClosing(false);
+              }, 300);
+            }}
+            className="absolute top-4 right-4 z-50 p-2 rounded-full bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white transition-all active:scale-95"
+            title="Close modal"
+          >
+            <X size={18} />
+          </button>
+
+          {characterDetailsLoading ? (
+            <div className="flex-1 flex flex-col items-center justify-center p-24 gap-3 text-zinc-400">
+              <Loader2 className="animate-spin text-red-600" size={36} />
+              <span className="text-xs font-semibold tracking-wider">Loading character dossiers...</span>
+            </div>
+          ) : characterDetailsError ? (
+            <div className="flex-1 flex flex-col items-center justify-center p-24 text-center text-zinc-400 gap-2">
+              <AlertCircle size={40} className="text-red-500" />
+              <h3 className="text-lg font-bold text-white">Failed to load character details</h3>
+              <p className="text-xs text-zinc-500 max-w-sm">{characterDetailsError}</p>
+              <button
+                onClick={() => selectedCharacterId && setSelectedCharacterId(selectedCharacterId)}
+                className="mt-4 px-5 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-bold uppercase rounded-lg shadow-lg active:scale-95 transition-all"
+              >
+                Retry
+              </button>
+            </div>
+          ) : characterDetails ? (
+            <div className="flex-1 overflow-y-auto custom-scrollbar p-6 sm:p-8 flex flex-col md:flex-row gap-8 text-left">
+              {/* Left column: Image & Stats */}
+              <div className="w-full md:w-[220px] shrink-0 flex flex-col items-center md:items-start font-sans">
+                <div className="w-[160px] md:w-full aspect-[2/3] bg-zinc-900 rounded-xl overflow-hidden shadow-lg border border-white/5">
+                  <img
+                    src={characterDetails.image?.large}
+                    alt={characterDetails.name?.full}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+
+                {/* Quick specs */}
+                <div className="w-full mt-6 bg-white/[0.02] border border-white/5 rounded-xl p-4.5 space-y-3.5 text-xs">
+                  <h4 className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">Profile</h4>
+                  {characterDetails.gender && (
+                    <div>
+                      <span className="text-zinc-500 font-normal block mb-0.5">Gender</span>
+                      <span className="text-zinc-300 font-medium">{characterDetails.gender}</span>
+                    </div>
+                  )}
+                  {characterDetails.age && (
+                    <div>
+                      <span className="text-zinc-500 font-normal block mb-0.5">Age</span>
+                      <span className="text-zinc-300 font-medium">{characterDetails.age}</span>
+                    </div>
+                  )}
+                  {(characterDetails.dateOfBirth?.day || characterDetails.dateOfBirth?.month) && (
+                    <div>
+                      <span className="text-zinc-500 font-normal block mb-0.5">Birthday</span>
+                      <span className="text-zinc-300 font-medium font-sans">
+                        {characterDetails.dateOfBirth.month ? new Date(2000, characterDetails.dateOfBirth.month - 1).toLocaleString('en-US', { month: 'long' }) : ''} {characterDetails.dateOfBirth.day || ''}
+                        {characterDetails.dateOfBirth.year ? `, ${characterDetails.dateOfBirth.year}` : ''}
+                      </span>
+                    </div>
+                  )}
+                  {characterDetails.bloodType && (
+                    <div>
+                      <span className="text-zinc-500 font-normal block mb-0.5">Blood Type</span>
+                      <span className="text-zinc-300 font-medium">{characterDetails.bloodType}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Right column: Bio & Other Works */}
+              <div className="flex-1 min-w-0 flex flex-col justify-between font-sans">
+                <div>
+                  {/* Character Names */}
+                  <div className="mb-6">
+                    <h2 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight leading-tight">
+                      {characterDetails.name?.full}
+                    </h2>
+                    {characterDetails.name?.native && (
+                      <h4 className="text-sm font-semibold text-red-500 mt-1">
+                        {characterDetails.name.native}
+                      </h4>
+                    )}
+                    {(characterDetails.name?.alternative?.length > 0 || characterDetails.name?.alternativeSpoiler?.length > 0) && (
+                      <p className="text-[10px] text-zinc-500 mt-1 line-clamp-1">
+                        Aliases: {[...(characterDetails.name.alternative || []), ...(characterDetails.name.alternativeSpoiler || [])].filter(Boolean).join(', ')}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Biography */}
+                  <div className="mb-8">
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-400 mb-3">Biography</h3>
+                    <div className="text-zinc-300 leading-relaxed text-xs font-normal max-h-[220px] overflow-y-auto custom-scrollbar pr-2 whitespace-pre-line bg-white/[0.01] p-3 rounded-lg border border-white/[0.03]">
+                      {characterDetails.description || 'No biography available for this character.'}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Appears In Manga Section */}
+                <div className="border-t border-white/5 pt-5">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-400 mb-3 flex items-center gap-1.5">
+                    <BookOpen size={13} className="text-red-500" />
+                    <span>Appears In ({characterModalMediaManga.length})</span>
+                  </h3>
+                  
+                  {characterModalMediaLoading ? (
+                    <div className="flex items-center gap-2 py-4">
+                      <Loader2 className="animate-spin text-red-500" size={16} />
+                      <span className="text-[10px] text-zinc-500 font-medium">Mapping appearances to catalog...</span>
+                    </div>
+                  ) : characterModalMediaManga.length === 0 ? (
+                    <p className="text-[11px] text-zinc-500 italic py-2">No other mapped manga entries available.</p>
+                  ) : (
+                    <div className="flex gap-4 overflow-x-auto pb-2 hide-scrollbar scroll-smooth">
+                      {characterModalMediaManga.map((manga) => {
+                        const title = getMangaTitleHelper(manga, titleLanguage);
+                        const coverFileName = manga.relationships?.find(r => r.type === 'cover_art')?.attributes?.fileName;
+                        const coverUrl = coverFileName?.startsWith('http')
+                          ? coverFileName
+                          : (coverFileName ? `https://uploads.mangadex.org/covers/${manga.id}/${coverFileName}.256.jpg` : 'https://placehold.co/400x600/111/444?text=No+Cover');
+                        return (
+                          <div
+                            key={manga.id}
+                            onClick={() => {
+                              handleMangaSelect(manga.id);
+                              setIsCharacterModalClosing(true);
+                              setTimeout(() => {
+                                setSelectedCharacterId(null);
+                                setIsCharacterModalClosing(false);
+                              }, 300);
+                            }}
+                            className="group w-[100px] sm:w-[120px] shrink-0 aspect-[2/3] rounded-lg overflow-hidden cursor-pointer bg-zinc-900 border border-white/5 hover:border-red-500/50 hover:scale-[1.02] transition-all duration-300 relative"
+                          >
+                            <img
+                              src={coverUrl}
+                              alt={title}
+                              className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                              loading="lazy"
+                            />
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/45 to-transparent pointer-events-none" />
+                            <div className="absolute inset-0 p-2 flex flex-col justify-end text-left pointer-events-none">
+                              <h5 className="text-[9px] sm:text-[10px] font-bold text-white line-clamp-2 leading-tight group-hover:text-red-500 transition-colors">
+                                {title}
+                              </h5>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          ) : null}
+        </div>
+      </div>
+    );
+  };
+
   // Reader overlay active checks
   if (activeChapter) {
     const currentChapterIdx = activeReaderChapters.findIndex(ch => ch.id === activeChapter.id);
@@ -2090,13 +2264,14 @@ export const MangaPage: React.FC<MangaPageProps> = ({
               <div className="h-8 w-32 shimmer-bg rounded-md" />
               <div className="h-8 w-20 shimmer-bg rounded-md" />
             </div>
-              <div className="space-y-2.5 pt-4">
-                <div className="h-4 w-full shimmer-bg rounded-lg" />
-                <div className="h-4 w-full shimmer-bg rounded-lg" />
-                <div className="h-4 w-3/4 shimmer-bg rounded-lg" />
-              </div>
+            <div className="space-y-2.5 pt-4">
+              <div className="h-4 w-full shimmer-bg rounded-lg" />
+              <div className="h-4 w-full shimmer-bg rounded-lg" />
+              <div className="h-4 w-3/4 shimmer-bg rounded-lg" />
+            </div>
           </div>
         </div>
+        {renderCharacterModal()}
       </div>
     );
   }
@@ -2574,6 +2749,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
             )}
           </div>
         </div>
+        {renderCharacterModal()}
       </div>
     );
   }
@@ -2831,176 +3007,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
         )}
       />
 
-      {/* Character Details Modal */}
-      {selectedCharacterId && (
-        <div className={`fixed inset-0 z-[150] flex items-center justify-center bg-black/85 backdrop-blur-md p-4 sm:p-6 overflow-y-auto custom-scrollbar ${isCharacterModalClosing ? 'animate-fade-out' : 'animate-fade-in'}`}>
-          <div className={`relative w-full max-w-4xl bg-[#0c0c0e]/95 border border-white/10 rounded-2xl overflow-hidden shadow-2xl transition-all duration-300 max-h-[90vh] flex flex-col ${isCharacterModalClosing ? 'scale-95 opacity-0' : 'scale-100 opacity-100'}`}>
-            
-            {/* Close Button */}
-            <button
-              onClick={() => {
-                setIsCharacterModalClosing(true);
-                setTimeout(() => {
-                  setSelectedCharacterId(null);
-                  setIsCharacterModalClosing(false);
-                }, 300);
-              }}
-              className="absolute top-4 right-4 z-50 p-2 rounded-full bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white transition-all active:scale-95"
-              title="Close modal"
-            >
-              <X size={18} />
-            </button>
-
-            {characterDetailsLoading ? (
-              <div className="flex-1 flex flex-col items-center justify-center p-24 gap-3 text-zinc-400">
-                <Loader2 className="animate-spin text-red-600" size={36} />
-                <span className="text-xs font-semibold tracking-wider">Loading character dossiers...</span>
-              </div>
-            ) : characterDetailsError ? (
-              <div className="flex-1 flex flex-col items-center justify-center p-24 text-center text-zinc-400 gap-2">
-                <AlertCircle size={40} className="text-red-500" />
-                <h3 className="text-lg font-bold text-white">Failed to load character details</h3>
-                <p className="text-xs text-zinc-500 max-w-sm">{characterDetailsError}</p>
-                <button
-                  onClick={() => selectedCharacterId && setSelectedCharacterId(selectedCharacterId)}
-                  className="mt-4 px-5 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-bold uppercase rounded-lg shadow-lg active:scale-95 transition-all"
-                >
-                  Retry
-                </button>
-              </div>
-            ) : characterDetails ? (
-              <div className="flex-1 overflow-y-auto custom-scrollbar p-6 sm:p-8 flex flex-col md:flex-row gap-8 text-left">
-                {/* Left column: Image & Stats */}
-                <div className="w-full md:w-[220px] shrink-0 flex flex-col items-center md:items-start font-sans">
-                  <div className="w-[160px] md:w-full aspect-[2/3] bg-zinc-900 rounded-xl overflow-hidden shadow-lg border border-white/5">
-                    <img
-                      src={characterDetails.image?.large}
-                      alt={characterDetails.name?.full}
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-
-                  {/* Quick specs */}
-                  <div className="w-full mt-6 bg-white/[0.02] border border-white/5 rounded-xl p-4.5 space-y-3.5 text-xs">
-                    <h4 className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">Profile</h4>
-                    {characterDetails.gender && (
-                      <div>
-                        <span className="text-zinc-500 font-normal block mb-0.5">Gender</span>
-                        <span className="text-zinc-300 font-medium">{characterDetails.gender}</span>
-                      </div>
-                    )}
-                    {characterDetails.age && (
-                      <div>
-                        <span className="text-zinc-500 font-normal block mb-0.5">Age</span>
-                        <span className="text-zinc-300 font-medium">{characterDetails.age}</span>
-                      </div>
-                    )}
-                    {(characterDetails.dateOfBirth?.day || characterDetails.dateOfBirth?.month) && (
-                      <div>
-                        <span className="text-zinc-500 font-normal block mb-0.5">Birthday</span>
-                        <span className="text-zinc-300 font-medium font-sans">
-                          {characterDetails.dateOfBirth.month ? new Date(2000, characterDetails.dateOfBirth.month - 1).toLocaleString('en-US', { month: 'long' }) : ''} {characterDetails.dateOfBirth.day || ''}
-                          {characterDetails.dateOfBirth.year ? `, ${characterDetails.dateOfBirth.year}` : ''}
-                        </span>
-                      </div>
-                    )}
-                    {characterDetails.bloodType && (
-                      <div>
-                        <span className="text-zinc-500 font-normal block mb-0.5">Blood Type</span>
-                        <span className="text-zinc-300 font-medium">{characterDetails.bloodType}</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Right column: Bio & Other Works */}
-                <div className="flex-1 min-w-0 flex flex-col justify-between font-sans">
-                  <div>
-                    {/* Character Names */}
-                    <div className="mb-6">
-                      <h2 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight leading-tight">
-                        {characterDetails.name?.full}
-                      </h2>
-                      {characterDetails.name?.native && (
-                        <h4 className="text-sm font-semibold text-red-500 mt-1">
-                          {characterDetails.name.native}
-                        </h4>
-                      )}
-                      {(characterDetails.name?.alternative?.length > 0 || characterDetails.name?.alternativeSpoiler?.length > 0) && (
-                        <p className="text-[10px] text-zinc-500 mt-1 line-clamp-1">
-                          Aliases: {[...(characterDetails.name.alternative || []), ...(characterDetails.name.alternativeSpoiler || [])].filter(Boolean).join(', ')}
-                        </p>
-                      )}
-                    </div>
-
-                    {/* Biography */}
-                    <div className="mb-8">
-                      <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-400 mb-3">Biography</h3>
-                      <div className="text-zinc-300 leading-relaxed text-xs font-normal max-h-[220px] overflow-y-auto custom-scrollbar pr-2 whitespace-pre-line bg-white/[0.01] p-3 rounded-lg border border-white/[0.03]">
-                        {characterDetails.description || 'No biography available for this character.'}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Appears In Manga Section */}
-                  <div className="border-t border-white/5 pt-5">
-                    <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-400 mb-3 flex items-center gap-1.5">
-                      <BookOpen size={13} className="text-red-500" />
-                      <span>Appears In ({characterModalMediaManga.length})</span>
-                    </h3>
-                    
-                    {characterModalMediaLoading ? (
-                      <div className="flex items-center gap-2 py-4">
-                        <Loader2 className="animate-spin text-red-500" size={16} />
-                        <span className="text-[10px] text-zinc-500 font-medium">Mapping appearances to catalog...</span>
-                      </div>
-                    ) : characterModalMediaManga.length === 0 ? (
-                      <p className="text-[11px] text-zinc-500 italic py-2">No other mapped manga entries available.</p>
-                    ) : (
-                      <div className="flex gap-4 overflow-x-auto pb-2 hide-scrollbar scroll-smooth">
-                        {characterModalMediaManga.map((manga) => {
-                          const title = getMangaTitleHelper(manga, titleLanguage);
-                          const coverFileName = manga.relationships?.find(r => r.type === 'cover_art')?.attributes?.fileName;
-                          const coverUrl = coverFileName?.startsWith('http')
-                            ? coverFileName
-                            : (coverFileName ? `https://uploads.mangadex.org/covers/${manga.id}/${coverFileName}.256.jpg` : 'https://placehold.co/400x600/111/444?text=No+Cover');
-                          return (
-                            <div
-                              key={manga.id}
-                              onClick={() => {
-                                handleMangaSelect(manga.id);
-                                setIsCharacterModalClosing(true);
-                                setTimeout(() => {
-                                  setSelectedCharacterId(null);
-                                  setIsCharacterModalClosing(false);
-                                }, 300);
-                              }}
-                              className="group w-[100px] sm:w-[120px] shrink-0 aspect-[2/3] rounded-lg overflow-hidden cursor-pointer bg-zinc-900 border border-white/5 hover:border-red-500/50 hover:scale-[1.02] transition-all duration-300 relative"
-                            >
-                              <img
-                                src={coverUrl}
-                                alt={title}
-                                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                                loading="lazy"
-                              />
-                              <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/45 to-transparent pointer-events-none" />
-                              <div className="absolute inset-0 p-2 flex flex-col justify-end text-left pointer-events-none">
-                                <h5 className="text-[9px] sm:text-[10px] font-bold text-white line-clamp-2 leading-tight group-hover:text-red-500 transition-colors">
-                                  {title}
-                                </h5>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            ) : null}
-          </div>
-        </div>
-      )}
+      {renderCharacterModal()}
     </div>
   );
 };
