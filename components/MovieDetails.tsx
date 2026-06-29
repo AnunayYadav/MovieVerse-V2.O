@@ -1018,7 +1018,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
         
         fetchTorrents();
         return () => { active = false; };
-    }, [showDownloadModal, isAnime, downloadSeason, downloadEpisode, isTv, displayData]);
+    }, [showDownloadModal, isAnime, downloadSeason, downloadEpisode, isTv, displayData.id]);
 
     const director = displayData.credits?.crew?.find(c => c.job === 'Director') || displayData.created_by?.[0];
     
