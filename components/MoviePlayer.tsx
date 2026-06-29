@@ -258,6 +258,107 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     return 'English';
   });
 
+  const fetchAniListSeasonEpisodes = async (seasonNum: number) => {
+    if (!title) return null;
+    const cleanAnimeTitle = title.replace(/\s*\(?(Dub|Sub|TV|Movie|uncensored|censored)\)?\s*$/i, '').trim();
+    
+    const cacheKey = `movieverse_anilist_season_episodes_${tmdbId}_${seasonNum}`;
+    const cached = localStorage.getItem(cacheKey);
+    if (cached) {
+      try {
+        const parsed = JSON.parse(cached);
+        if (parsed && Array.isArray(parsed.episodes)) {
+          return parsed;
+        }
+      } catch (_) {}
+    }
+
+    const searchQueries = [];
+    const seasonObj = seasons.find((s: any) => s.season_number === seasonNum);
+    const seasonName = seasonObj?.name;
+    
+    if (seasonName && !/^season\s+\d+$/i.test(seasonName.trim()) && seasonName.trim() !== `Season ${seasonNum}`) {
+      searchQueries.push(`${cleanAnimeTitle} ${seasonName}`);
+    }
+    if (seasonNum > 1) {
+      searchQueries.push(`${cleanAnimeTitle} Season ${seasonNum}`);
+      searchQueries.push(`${cleanAnimeTitle} Part ${seasonNum}`);
+      searchQueries.push(`${cleanAnimeTitle} ${seasonNum}`);
+    }
+    searchQueries.push(cleanAnimeTitle);
+
+    let mediaData: any = null;
+    for (const q of searchQueries) {
+      try {
+        const query = `
+          query ($search: String) {
+            Media(search: $search, type: ANIME) {
+              id
+              title {
+                romaji
+                english
+                native
+                userPreferred
+              }
+              episodes
+              episodeDuration
+              streamingEpisodes {
+                title
+                thumbnail
+                url
+                site
+              }
+            }
+          }
+        `;
+        const response = await fetch('https://graphql.anilist.co', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query, variables: { search: q } })
+        });
+        const json = await response.json();
+        const media = json?.data?.Media;
+        if (media && media.episodes) {
+          mediaData = media;
+          break;
+        }
+      } catch (err) {
+        console.error(`Error querying AniList for ${q}:`, err);
+      }
+    }
+
+    if (mediaData) {
+      const totalEpisodesCount = mediaData.episodes || 0;
+      const streamingEps = mediaData.streamingEpisodes || [];
+      const resolvedEpisodes = [];
+
+      for (let i = 1; i <= totalEpisodesCount; i++) {
+        const streamEp = streamingEps[i - 1] || streamingEps.find((se: any) => se.title?.toLowerCase().includes(`episode ${i}`));
+        resolvedEpisodes.push({
+          id: `anilist-${mediaData.id}-ep-${i}`,
+          episode_number: i,
+          name: streamEp ? streamEp.title : `Episode ${i}`,
+          overview: streamEp ? `Watch Episode ${i} on ${streamEp.site || 'AniList'}` : `Episode ${i} of ${mediaData.title.english || mediaData.title.romaji || mediaData.title.userPreferred}`,
+          still_path: streamEp?.thumbnail || null,
+          runtime: mediaData.episodeDuration || 24,
+          air_date: null,
+          vote_average: 0
+        });
+      }
+
+      const result = {
+        episodes: resolvedEpisodes,
+        episodeCount: totalEpisodesCount
+      };
+
+      const playerCacheKey = `movieverse_anilist_map_${tmdbId}`;
+      localStorage.setItem(playerCacheKey, mediaData.id.toString());
+      localStorage.setItem(cacheKey, JSON.stringify(result));
+      return result;
+    }
+    return null;
+  };
+
   useEffect(() => {
     if (!isAnime || !title) {
       setAnilistId(null);
@@ -332,20 +433,41 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   useEffect(() => {
     if (mediaType === 'tv' && tmdbId && currentSeason) {
       setEpisodesLoading(true);
-      fetch(`${TMDB_BASE_URL}/tv/${tmdbId}/season/${currentSeason}?api_key=${apiKey}`)
-        .then(res => res.json())
-        .then(data => {
-          if (data && data.episodes) {
-            setEpisodes(data.episodes);
-          }
-          setEpisodesLoading(false);
-        })
-        .catch(err => {
-          console.error("Error fetching episodes:", err);
-          setEpisodesLoading(false);
-        });
+      if (isAnime) {
+        fetchAniListSeasonEpisodes(currentSeason)
+          .then(data => {
+            if (data) {
+              setEpisodes(data.episodes);
+              const cachedId = localStorage.getItem(`movieverse_anilist_map_${tmdbId}`);
+              if (cachedId) {
+                setAnilistId(parseInt(cachedId, 10));
+              }
+            } else {
+              setEpisodes([]);
+            }
+            setEpisodesLoading(false);
+          })
+          .catch(err => {
+            console.error("Error loading AniList episodes:", err);
+            setEpisodes([]);
+            setEpisodesLoading(false);
+          });
+      } else {
+        fetch(`${TMDB_BASE_URL}/tv/${tmdbId}/season/${currentSeason}?api_key=${apiKey}`)
+          .then(res => res.json())
+          .then(data => {
+            if (data && data.episodes) {
+              setEpisodes(data.episodes);
+            }
+            setEpisodesLoading(false);
+          })
+          .catch(err => {
+            console.error("Error fetching episodes:", err);
+            setEpisodesLoading(false);
+          });
+      }
     }
-  }, [tmdbId, mediaType, currentSeason, apiKey]);
+  }, [tmdbId, mediaType, currentSeason, apiKey, isAnime, seasons]);
   
   const [selectedProviderId, setSelectedProviderId] = useState(() => {
     if (typeof window !== 'undefined') {
