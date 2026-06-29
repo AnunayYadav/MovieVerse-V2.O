@@ -2295,37 +2295,67 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                 <div className="text-zinc-500 text-xs py-3 px-1 italic">No torrents found for this episode on Nyaa.si.</div>
                                             ) : (
                                                 <div className="space-y-2 max-h-52 overflow-y-auto pr-1 custom-scrollbar">
-                                                    {nyaaTorrents.slice(0, 10).map((t, idx) => (
-                                                        <div key={idx} className="p-2.5 rounded-xl bg-white/5 border border-white/5 hover:border-white/10 transition-all text-xs flex flex-col gap-1.5">
-                                                            <div className="font-semibold text-white line-clamp-2 leading-snug">{t.title}</div>
-                                                            <div className="flex items-center justify-between text-[10px] text-zinc-400">
-                                                                <span>Size: {t.size}</span>
-                                                                <div className="flex items-center gap-2">
-                                                                    <span className="text-green-500 font-bold">▲ {t.seeders}</span>
-                                                                    <span className="text-red-500 font-bold">▼ {t.leechers}</span>
+                                                    {nyaaTorrents.slice(0, 10).map((t, idx) => {
+                                                        const formattedDate = t.pubDate
+                                                            ? new Date(t.pubDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+                                                            : 'TBA';
+                                                        
+                                                        const categoryBadge = t.category?.includes('English-translated')
+                                                            ? <span className="bg-purple-600/15 text-purple-400 border border-purple-500/20 px-1.5 py-0.5 rounded text-[8px] font-extrabold uppercase tracking-wide">English Sub/Dub</span>
+                                                            : t.category?.includes('Raw')
+                                                            ? <span className="bg-emerald-600/15 text-emerald-400 border border-emerald-500/20 px-1.5 py-0.5 rounded text-[8px] font-extrabold uppercase tracking-wide">Raw</span>
+                                                            : t.category?.includes('Non-English-translated')
+                                                            ? <span className="bg-blue-600/15 text-blue-400 border border-blue-500/20 px-1.5 py-0.5 rounded text-[8px] font-extrabold uppercase tracking-wide">Non-Eng</span>
+                                                            : <span className="bg-zinc-800 text-zinc-400 border border-zinc-700/50 px-1.5 py-0.5 rounded text-[8px] font-extrabold uppercase tracking-wide">Anime</span>;
+
+                                                        return (
+                                                            <div key={idx} className="p-3 rounded-xl bg-white/5 border border-white/5 hover:border-white/10 transition-all text-xs flex flex-col gap-2">
+                                                                {/* Badges Row */}
+                                                                <div className="flex flex-wrap items-center gap-2">
+                                                                    {categoryBadge}
+                                                                    <span className="flex items-center gap-1 bg-white/5 text-[9px] text-zinc-400 px-1.5 py-0.5 rounded border border-white/5 font-semibold">
+                                                                        <Clock size={10} className="text-zinc-500" />
+                                                                        {formattedDate}
+                                                                    </span>
+                                                                    <span className="flex items-center gap-1 bg-white/5 text-[9px] text-zinc-400 px-1.5 py-0.5 rounded border border-white/5 font-semibold" title="Completed Downloads">
+                                                                        <Check size={10} className="text-zinc-500" strokeWidth={3} />
+                                                                        {t.downloads}
+                                                                    </span>
+                                                                </div>
+
+                                                                {/* Release Title */}
+                                                                <div className="font-bold text-white line-clamp-2 leading-snug">{t.title}</div>
+
+                                                                {/* Metrics (Size, Seeds, Leech) */}
+                                                                <div className="flex items-center justify-between text-[10px] text-zinc-400 pt-1 border-t border-white/5">
+                                                                    <span className="font-semibold text-zinc-400">Size: {t.size}</span>
+                                                                    <div className="flex items-center gap-2">
+                                                                        <span className="text-green-500 font-bold">▲ {t.seeders}</span>
+                                                                        <span className="text-red-500 font-bold">▼ {t.leechers}</span>
+                                                                    </div>
+                                                                </div>
+
+                                                                {/* Download & Magnet Buttons */}
+                                                                <div className="flex items-center gap-2 pt-1">
+                                                                    <a 
+                                                                        href={t.link}
+                                                                        download
+                                                                        className="flex-1 py-1.5 px-2 bg-red-600/15 hover:bg-red-600/25 border border-red-500/20 hover:border-red-500/40 text-red-400 font-bold rounded-lg text-center transition-all flex items-center justify-center gap-1.5 active:scale-95 text-[10px]"
+                                                                    >
+                                                                        <Download size={10} /> torrent file
+                                                                    </a>
+                                                                    {t.magnet && (
+                                                                        <a 
+                                                                            href={t.magnet}
+                                                                            className="flex-1 py-1.5 px-2 bg-emerald-600/15 hover:bg-emerald-600/25 border border-emerald-500/20 hover:border-emerald-500/40 text-emerald-400 font-bold rounded-lg text-center transition-all flex items-center justify-center gap-1.5 active:scale-95 text-[10px]"
+                                                                        >
+                                                                            🧲 magnet
+                                                                        </a>
+                                                                    )}
                                                                 </div>
                                                             </div>
-                                                            <div className="flex items-center gap-2 pt-1.5 border-t border-white/5">
-                                                                {/* Direct download .torrent link */}
-                                                                <a 
-                                                                    href={t.link}
-                                                                    download
-                                                                    className="flex-1 py-1.5 px-2 bg-red-600/20 hover:bg-red-600/30 border border-red-500/20 hover:border-red-500/40 text-red-400 font-semibold rounded text-center transition-all flex items-center justify-center gap-1 active:scale-95 text-[10px]"
-                                                                >
-                                                                    <Download size={10} /> torrent file
-                                                                </a>
-                                                                {/* Magnet link */}
-                                                                {t.magnet && (
-                                                                    <a 
-                                                                        href={t.magnet}
-                                                                        className="flex-1 py-1.5 px-2 bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/20 hover:border-emerald-500/40 text-emerald-400 font-semibold rounded text-center transition-all flex items-center justify-center gap-1 active:scale-95 text-[10px]"
-                                                                    >
-                                                                        🧲 magnet
-                                                                    </a>
-                                                                )}
-                                                            </div>
-                                                        </div>
-                                                    ))}
+                                                        );
+                                                    })}
                                                 </div>
                                             )}
                                         </div>
