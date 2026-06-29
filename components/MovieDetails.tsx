@@ -2213,8 +2213,8 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                     <Download size={32} className="text-red-500" />
                                 </div>
 
-                                <h3 className="text-xl font-bold text-white mb-1">{isTv ? "Download Episode" : "Download Movie"}</h3>
-                                <p className="text-[10px] text-gray-500 mb-5 leading-normal max-w-[280px] mx-auto">
+                                <h3 className="text-xl font-bold text-white mb-1 text-center">{isTv ? "Download Episode" : "Download Movie"}</h3>
+                                <p className="text-[10px] text-gray-500 mb-5 leading-normal max-w-[280px] mx-auto text-center">
                                     Choose a server to download this {isTv ? "episode" : "movie"}.
                                 </p>
 
@@ -2374,22 +2374,25 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                                     </div>
                                                                 </div>
 
-                                                                {/* Download & Magnet Buttons */}
-                                                                <div className="flex items-center gap-2 pt-1">
+                                                                {/* Download & Magnet Links */}
+                                                                <div className="flex items-center gap-2 pt-1.5 text-[10px] text-zinc-500 font-medium">
                                                                     <a 
                                                                         href={t.link}
                                                                         download
-                                                                        className="flex-1 py-1.5 px-2 bg-red-600/15 hover:bg-red-600/25 border border-red-500/20 hover:border-red-500/40 text-red-400 font-medium rounded-lg text-center transition-all flex items-center justify-center gap-1.5 active:scale-95 text-[10px]"
+                                                                        className="inline-flex items-center gap-1 text-sky-400 hover:text-sky-300 hover:underline transition-all active:scale-95"
                                                                     >
-                                                                        <Download size={10} /> torrent file
+                                                                        <Download size={11} className="shrink-0" /> Download Torrent
                                                                     </a>
                                                                     {t.magnet && (
-                                                                        <a 
-                                                                            href={t.magnet}
-                                                                            className="flex-1 py-1.5 px-2 bg-emerald-600/15 hover:bg-emerald-600/25 border border-emerald-500/20 hover:border-emerald-500/40 text-emerald-400 font-medium rounded-lg text-center transition-all flex items-center justify-center gap-1.5 active:scale-95 text-[10px]"
-                                                                        >
-                                                                            🧲 magnet
-                                                                        </a>
+                                                                        <>
+                                                                            <span className="text-zinc-600">or</span>
+                                                                            <a 
+                                                                                href={t.magnet}
+                                                                                className="inline-flex items-center gap-1 text-sky-400 hover:text-sky-300 hover:underline transition-all active:scale-95"
+                                                                            >
+                                                                                <span className="text-xs shrink-0">🧲</span> Magnet
+                                                                            </a>
+                                                                        </>
                                                                     )}
                                                                 </div>
                                                             </div>
