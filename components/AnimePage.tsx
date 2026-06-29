@@ -242,29 +242,29 @@ export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick, sear
     setError(null);
     try {
       const query = `
-        query ($season: MediaSeason, $seasonYear: Int, $isAdult: Boolean) {
+        query ($season: MediaSeason, $seasonYear: Int ${!includeNsfw ? ', $isAdult: Boolean' : ''}) {
           trending: Page(page: 1, perPage: 30) {
-            media(type: ANIME, isAdult: $isAdult, sort: [TRENDING_DESC, POPULARITY_DESC]) {
+            media(type: ANIME, ${!includeNsfw ? 'isAdult: $isAdult,' : ''} sort: [TRENDING_DESC, POPULARITY_DESC]) {
               ...animeFields
             }
           }
           popular: Page(page: 1, perPage: 30) {
-            media(type: ANIME, isAdult: $isAdult, sort: [POPULARITY_DESC]) {
+            media(type: ANIME, ${!includeNsfw ? 'isAdult: $isAdult,' : ''} sort: [POPULARITY_DESC]) {
               ...animeFields
             }
           }
           topRated: Page(page: 1, perPage: 30) {
-            media(type: ANIME, isAdult: $isAdult, sort: [SCORE_DESC]) {
+            media(type: ANIME, ${!includeNsfw ? 'isAdult: $isAdult,' : ''} sort: [SCORE_DESC]) {
               ...animeFields
             }
           }
           seasonal: Page(page: 1, perPage: 30) {
-            media(type: ANIME, isAdult: $isAdult, season: $season, seasonYear: $seasonYear, sort: [POPULARITY_DESC]) {
+            media(type: ANIME, ${!includeNsfw ? 'isAdult: $isAdult,' : ''} season: $season, seasonYear: $seasonYear, sort: [POPULARITY_DESC]) {
               ...animeFields
             }
           }
           upcoming: Page(page: 1, perPage: 30) {
-            media(type: ANIME, isAdult: $isAdult, status: NOT_YET_RELEASED, sort: [POPULARITY_DESC]) {
+            media(type: ANIME, ${!includeNsfw ? 'isAdult: $isAdult,' : ''} status: NOT_YET_RELEASED, sort: [POPULARITY_DESC]) {
               ...animeFields
             }
           }
@@ -302,11 +302,11 @@ export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick, sear
       `;
 
       // Current local metadata year is 2026, month is June -> Summer 2026
-      const data = await fetchAniList(query, { 
-        season: 'SUMMER', 
-        seasonYear: 2026, 
-        isAdult: includeNsfw ? null : false 
-      });
+      const variables: any = { season: 'SUMMER', seasonYear: 2026 };
+      if (!includeNsfw) {
+        variables.isAdult = false;
+      }
+      const data = await fetchAniList(query, variables);
       
       setTrending(filterDuplicateAnime(data.trending?.media || []).slice(0, 12));
       setPopular(filterDuplicateAnime(data.popular?.media || []).slice(0, 12));
@@ -411,9 +411,9 @@ export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick, sear
     const genre = ANIME_GENRES[currentGenreIndexRef.current];
     try {
       const query = `
-        query ($genre: String, $isAdult: Boolean) {
+        query ($genre: String ${!includeNsfw ? ', $isAdult: Boolean' : ''}) {
           Page(page: 1, perPage: 30) {
-            media(type: ANIME, isAdult: $isAdult, genre: $genre, sort: [POPULARITY_DESC]) {
+            media(type: ANIME, ${!includeNsfw ? 'isAdult: $isAdult,' : ''} genre: $genre, sort: [POPULARITY_DESC]) {
               id
               title {
                 romaji
@@ -445,7 +445,11 @@ export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick, sear
           }
         }
       `;
-      const data = await fetchAniList(query, { genre, isAdult: includeNsfw ? null : false });
+      const variables: any = { genre };
+      if (!includeNsfw) {
+        variables.isAdult = false;
+      }
+      const data = await fetchAniList(query, variables);
       const media = data.Page?.media || [];
       
       if (media.length > 0) {
@@ -629,9 +633,9 @@ export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick, sear
       setSearchLoading(true);
       try {
         const query = `
-          query ($search: String, $isAdult: Boolean) {
+          query ($search: String ${!includeNsfw ? ', $isAdult: Boolean' : ''}) {
             Page(page: 1, perPage: 40) {
-              media(type: ANIME, isAdult: $isAdult, search: $search) {
+              media(type: ANIME, ${!includeNsfw ? 'isAdult: $isAdult,' : ''} search: $search) {
                 id
                 title {
                   romaji
@@ -663,7 +667,11 @@ export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick, sear
             }
           }
         `;
-        const data = await fetchAniList(query, { search: searchQuery, isAdult: includeNsfw ? null : false });
+        const variables: any = { search: searchQuery };
+        if (!includeNsfw) {
+          variables.isAdult = false;
+        }
+        const data = await fetchAniList(query, variables);
         if (isMounted) {
           setSearchResults(data.Page?.media || []);
         }
