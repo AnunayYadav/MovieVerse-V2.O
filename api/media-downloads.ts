@@ -175,10 +175,29 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     // Switch to fallback indexers: YTS (movies) or EZTV (shows)
-    const fallbackItems = isTv ? await fetchFromEztv(q) : await fetchFromYts(q);
+    let fallbackItems: any[] = [];
+    try {
+      fallbackItems = isTv ? await fetchFromEztv(q) : await fetchFromYts(q);
+    } catch (fallbackErr: any) {
+      throw new Error(`All indexers failed (Apibay, YTS/EZTV). Last error: ${fallbackErr.message || fallbackErr}`);
+    }
     res.setHeader('Cache-Control', 's-maxage=600, stale-while-revalidate=300');
     return res.status(200).json(fallbackItems);
   } catch (error: any) {
-    return res.status(500).json({ error: error.message || 'Internal Server Error' });
+    return res.status(200).json([
+      {
+        title: `Failed to fetch torrents: ${error.message || error}`,
+        link: '#',
+        guid: 'error',
+        pubDate: new Date().toUTCString(),
+        seeders: 0,
+        leechers: 0,
+        downloads: 0,
+        infoHash: '',
+        size: '0 B',
+        category: 'Error',
+        magnet: ''
+      }
+    ]);
   }
 }
