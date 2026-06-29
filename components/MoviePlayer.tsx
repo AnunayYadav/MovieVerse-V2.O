@@ -324,7 +324,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
       setAnivexaLoading(true);
       setAnivexaError(null);
       try {
-        const res = await window.fetch(`https://anivexa.vercel.app/api/episodes/${anilistId}`);
+        const res = await window.fetch(`https://anivexa.vercel.app/episodes/${anilistId}`);
         if (!res.ok) throw new Error("Failed to load episode list from Anivexa.");
         const data = await res.json();
         
@@ -368,7 +368,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
           throw new Error(`Episode ${currentEpisode} is not available on ${anivexaActiveSubProvider}.`);
         }
 
-        const watchRes = await window.fetch(`https://anivexa.vercel.app/api/watch/${anivexaActiveSubProvider}/${anilistId}/${animeLanguage}/${encodeURIComponent(epMatch.id)}`);
+        const watchRes = await window.fetch(`https://anivexa.vercel.app/watch/${anivexaActiveSubProvider}/${anilistId}/${animeLanguage}/${encodeURIComponent(epMatch.id)}`);
         if (!watchRes.ok) throw new Error("Failed to resolve streaming link.");
         const data = await watchRes.json();
 
