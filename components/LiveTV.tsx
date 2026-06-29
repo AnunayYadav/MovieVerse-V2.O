@@ -22,7 +22,6 @@ const CATEGORIES = [
 
 const COUNTRIES = [
     { id: 'ALL', name: 'All Countries', icon: '🌍' },
-    { id: 'JIOTV', name: 'JioTV Go (Local)', icon: '📺' },
     { id: 'IN', name: 'India', icon: '🇮🇳' },
     { id: 'US', name: 'United States', icon: '🇺🇸' },
     { id: 'UK', name: 'United Kingdom', icon: '🇬🇧' },
@@ -296,7 +295,6 @@ const LiveTVRow: React.FC<{
     categoryId: string;
     countryCode: string;
     searchQuery: string;
-    jioTvServerUrl?: string;
     onChannelClick: (c: LiveChannel) => void;
     onExpand?: (items: LiveChannel[]) => void;
 }> = ({
@@ -304,7 +302,6 @@ const LiveTVRow: React.FC<{
     categoryId,
     countryCode,
     searchQuery,
-    jioTvServerUrl,
     onChannelClick,
     onExpand
 }) => {
@@ -321,7 +318,6 @@ const LiveTVRow: React.FC<{
     useEffect(() => {
         let isMounted = true;
         setLoading(true);
-        setChannels([]);
 
         const loadChannels = async () => {
             try {
@@ -330,10 +326,6 @@ const LiveTVRow: React.FC<{
 
                 if (countryCode === 'ALL') {
                     url = `https://iptv-org.github.io/iptv/categories/${categoryId}.m3u`;
-                } else if (countryCode === 'JIOTV') {
-                    const server = jioTvServerUrl || 'http://localhost:5001';
-                    url = `${server.replace(/\/$/, '')}/playlist.m3u`;
-                    isCountryFetch = true;
                 } else {
                     url = `https://iptv-org.github.io/iptv/countries/${countryCode.toLowerCase()}.m3u`;
                     isCountryFetch = true;
@@ -342,27 +334,9 @@ const LiveTVRow: React.FC<{
                 let parsed = await fetchAndParseM3U(url);
 
                 if (isCountryFetch) {
-                    if (countryCode === 'JIOTV') {
-                        // Map JioTV categories to our standard ones
-                        const catLower = categoryId.toLowerCase();
-                        parsed = parsed.filter(c => {
-                            if (!c.group) return false;
-                            const gLower = c.group.toLowerCase();
-                            if (catLower === 'news') return gLower.includes('news') || gLower.includes('business');
-                            if (catLower === 'movies') return gLower.includes('movie');
-                            if (catLower === 'sports') return gLower.includes('sports');
-                            if (catLower === 'entertainment') return gLower.includes('entertainment');
-                            if (catLower === 'documentary') return gLower.includes('documentary') || gLower.includes('infotainment');
-                            if (catLower === 'music') return gLower.includes('music') || gLower.includes('devotional');
-                            if (catLower === 'kids') return gLower.includes('kids');
-                            if (catLower === 'lifestyle') return gLower.includes('lifestyle') || gLower.includes('educational');
-                            return gLower.includes(catLower);
-                        });
-                    } else {
-                        parsed = parsed.filter(c => 
-                            c.group && c.group.toLowerCase().includes(categoryId.toLowerCase())
-                        );
-                    }
+                    parsed = parsed.filter(c => 
+                        c.group && c.group.toLowerCase().includes(categoryId.toLowerCase())
+                    );
                 }
 
                 // Prioritize channels with logos
@@ -381,7 +355,7 @@ const LiveTVRow: React.FC<{
 
         loadChannels();
         return () => { isMounted = false; };
-    }, [categoryId, countryCode, jioTvServerUrl]);
+    }, [categoryId, countryCode]);
 
     const filtered = channels.filter(c => 
         c.name.toLowerCase().includes(searchQuery.toLowerCase())
@@ -452,8 +426,7 @@ const LiveTVRow: React.FC<{
 };
 
 export const LiveTV: React.FC<LiveTVProps> = ({ userProfile }) => {
-    const [selectedCountry, setSelectedCountry] = useState('IN');
-    const jioTvServerUrl = 'http://localhost:5001';
+    const [selectedCountry, setSelectedCountry] = useState('ALL');
     const [selectedChannel, setSelectedChannel] = useState<LiveChannel | null>(null);
     const [searchQuery, setSearchQuery] = useState("");
     const [expandedCategory, setExpandedCategory] = useState<{ title: string; items: LiveChannel[] } | null>(null);
@@ -523,18 +496,12 @@ export const LiveTV: React.FC<LiveTVProps> = ({ userProfile }) => {
         }
         let isMounted = true;
         setSearchLoading(true);
-        setSearchChannels([]);
 
         const performSearch = async () => {
             try {
                 let results: LiveChannel[] = [];
                 if (selectedCountry !== 'ALL') {
-                    let url = '';
-                    if (selectedCountry === 'JIOTV') {
-                        url = `${jioTvServerUrl.replace(/\/$/, '')}/playlist.m3u`;
-                    } else {
-                        url = `https://iptv-org.github.io/iptv/countries/${selectedCountry.toLowerCase()}.m3u`;
-                    }
+                    const url = `https://iptv-org.github.io/iptv/countries/${selectedCountry.toLowerCase()}.m3u`;
                     results = await fetchAndParseM3U(url);
                 } else {
                     const categories = ['news', 'movies', 'sports', 'entertainment'];
@@ -576,7 +543,7 @@ export const LiveTV: React.FC<LiveTVProps> = ({ userProfile }) => {
             isMounted = false;
             clearTimeout(debounce);
         };
-    }, [searchQuery, selectedCountry, jioTvServerUrl]);
+    }, [searchQuery, selectedCountry]);
 
     if (!isExclusive) {
         return (
@@ -706,8 +673,6 @@ export const LiveTV: React.FC<LiveTVProps> = ({ userProfile }) => {
                     </div>
                 </div>
 
-
-
                 {/* Dynamic Netflix-style Grid or Category Rows */}
                 {!searchQuery ? (
                     <div className="space-y-4 relative z-10">
@@ -718,7 +683,6 @@ export const LiveTV: React.FC<LiveTVProps> = ({ userProfile }) => {
                                 categoryId={cat.id}
                                 countryCode={selectedCountry}
                                 searchQuery={searchQuery}
-                                jioTvServerUrl={jioTvServerUrl}
                                 onChannelClick={handleChannelClick}
                                 onExpand={(channels) => setExpandedCategory({ title: cat.name, items: channels })}
                             />
