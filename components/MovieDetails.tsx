@@ -115,6 +115,7 @@ interface MoviePageProps {
     onShowFullCastChange?: (show: boolean) => void;
     showFullCrew?: boolean;
     onShowFullCrewChange?: (show: boolean) => void;
+    onCharacterClick?: (id: number) => void;
 }
 
 const PopularityMeter = ({ score, count }: { score: number; count: number }) => {
@@ -419,7 +420,8 @@ export const MoviePage: React.FC<MoviePageProps> = ({
     showFullCast: showFullCastProp = false,
     onShowFullCastChange,
     showFullCrew: showFullCrewProp = false,
-    onShowFullCrewChange
+    onShowFullCrewChange,
+    onCharacterClick
 }) => {
     const resolvedMediaType = movie.media_type === 'tv' || (!movie.release_date && movie.first_air_date) ? 'tv' : 'movie';
     const onPlayStateChangeRef = useRef(onPlayStateChange);
@@ -1522,7 +1524,8 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                         return (
                                                             <div
                                                                 key={charNode.id}
-                                                                className="group relative aspect-[2/3] rounded-2xl overflow-hidden bg-zinc-950 border border-white/5 hover:border-red-500/40 hover:shadow-[0_4px_15px_rgba(239,68,68,0.15)] hover:scale-[1.02] transition-all duration-500 animate-in fade-in"
+                                                                onClick={() => onCharacterClick?.(charNode.id)}
+                                                                className="group relative aspect-[2/3] rounded-2xl overflow-hidden bg-zinc-950 border border-white/5 hover:border-red-500/40 hover:shadow-[0_4px_15px_rgba(239,68,68,0.15)] hover:scale-[1.02] transition-all duration-500 animate-in fade-in cursor-pointer"
                                                             >
                                                                 <img
                                                                     src={charImage}

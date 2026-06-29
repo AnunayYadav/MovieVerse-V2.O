@@ -4,7 +4,7 @@ import { Search, Film, Menu, TrendingUp, Tv, Ghost, Calendar, Star, X, Sparkles,
 import { Movie, UserProfile, GENRES_MAP, GENRES_LIST, INDIAN_LANGUAGES, MaturityRating, Keyword } from './types';
 import { LogoLoader, MovieSkeleton, MovieCard, PersonCard, TMDB_BASE_URL, TMDB_BACKDROP_BASE, TMDB_IMAGE_BASE, getTmdbKey, BrandLogo, getMovieVerseRating, tvFetch } from './components/Shared';
 import { MoviePage } from './components/MovieDetails';
-import { PersonPage, NotificationModal, ComparisonModal, ExpandedCategoryModal } from './components/Modals';
+import { PersonPage, NotificationModal, ComparisonModal, ExpandedCategoryModal, CharacterPage } from './components/Modals';
 import { SettingsPage } from './components/SettingsModal';
 import { getSearchSuggestions } from './services/gemini';
 import { LoginPage } from './components/LoginPage';
@@ -1171,6 +1171,7 @@ export default function App() {
 
 
     const [selectedPersonId, setSelectedPersonId] = useState<number | null>(null);
+    const [selectedCharacterId, setSelectedCharacterId] = useState<number | null>(null);
     const [selectedMangaId, setSelectedMangaId] = useState<string | null>(null);
     const [activeMangaChapterId, setActiveMangaChapterId] = useState<string | null>(null);
 
@@ -1298,13 +1299,13 @@ export default function App() {
 
     // Scroll Lock Controller
     useEffect(() => {
-        const isAnyModalOpen = selectedMovie || isSettingsOpen || selectedPersonId || isNotificationOpen || isComparisonOpen || isSidebarOpen;
+        const isAnyModalOpen = selectedMovie || isSettingsOpen || selectedPersonId || selectedCharacterId || isNotificationOpen || isComparisonOpen || isSidebarOpen;
         if (isAnyModalOpen) {
             document.body.style.overflow = 'hidden';
         } else {
             document.body.style.overflow = 'auto';
         }
-    }, [selectedMovie, isSettingsOpen, selectedPersonId, isNotificationOpen, isComparisonOpen, isSidebarOpen]);
+    }, [selectedMovie, isSettingsOpen, selectedPersonId, selectedCharacterId, isNotificationOpen, isComparisonOpen, isSidebarOpen]);
 
     const [isScrolled, setIsScrolled] = useState(false);
 
@@ -1765,6 +1766,7 @@ export default function App() {
                     return;
                 }
                 if (isComparisonOpen) return setIsComparisonOpen(false);
+                if (selectedCharacterId) return setSelectedCharacterId(null);
                 if (selectedPersonId) return setSelectedPersonId(null);
                 if (isSettingsOpen) return setIsSettingsOpen(false);
                 if (isNotificationOpen) return setIsNotificationOpen(false);
@@ -1793,7 +1795,7 @@ export default function App() {
 
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [isComparisonOpen, selectedPersonId, isSettingsOpen, isNotificationOpen, isSidebarOpen, selectedMovie, isWatching, isTV]);
+    }, [isComparisonOpen, selectedPersonId, selectedCharacterId, isSettingsOpen, isNotificationOpen, isSidebarOpen, selectedMovie, isWatching, isTV]);
 
     const resetAuthState = useCallback(() => {
         loadedUserIdRef.current = null;
@@ -4332,6 +4334,7 @@ export default function App() {
                     }}
                     apiKey={apiKey}
                     onPersonClick={setSelectedPersonId}
+                    onCharacterClick={setSelectedCharacterId}
                     onToggleWatchlist={(m) => toggleList(watchlist, setWatchlist, 'movieverse_watchlist', m)}
                     isWatchlisted={watchlist.some(m => m.id === selectedMovie.id)}
                     onToggleFavorite={(m) => toggleList(favorites, setFavorites, 'movieverse_favorites', m)}
@@ -4368,7 +4371,27 @@ export default function App() {
                     onShowFullCrewChange={setShowDetailsCrew}
                 />
             )}
-            <PersonPage key={selectedPersonId || 0} personId={selectedPersonId || 0} onClose={() => setSelectedPersonId(null)} apiKey={apiKey} onMovieClick={(m) => { setSelectedPersonId(null); setSelectedMovie(m); }} />
+            <PersonPage 
+                key={selectedPersonId || 0} 
+                personId={selectedPersonId || 0} 
+                onClose={() => setSelectedPersonId(null)} 
+                apiKey={apiKey} 
+                onMovieClick={(m) => { setSelectedPersonId(null); setSelectedMovie(m); }} 
+                onCharacterClick={setSelectedCharacterId}
+            />
+            {selectedCharacterId && (
+                <CharacterPage
+                    key={selectedCharacterId}
+                    characterId={selectedCharacterId}
+                    onClose={() => setSelectedCharacterId(null)}
+                    apiKey={apiKey}
+                    onMovieClick={(m) => {
+                        setSelectedCharacterId(null);
+                        setSelectedMovie(m);
+                    }}
+                    onPersonClick={setSelectedPersonId}
+                />
+            )}
             <ComparisonModal isOpen={isComparisonOpen} onClose={() => setIsComparisonOpen(false)} baseMovie={comparisonBaseMovie} apiKey={apiKey} />
             <ExpandedCategoryModal
                 isOpen={expandedCategory !== null}

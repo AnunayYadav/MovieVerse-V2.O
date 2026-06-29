@@ -288,15 +288,80 @@ const TimelineScrollRow = ({
 };
 
 
+const CharacterScrollRow = ({ 
+    title, 
+    characters, 
+    onCharacterClick 
+}: { 
+    title: string; 
+    characters: any[]; 
+    onCharacterClick: (id: number) => void; 
+}) => {
+    if (!characters || characters.length === 0) return null;
+
+    return (
+        <div className="mb-10 text-left animate-in fade-in duration-500">
+            <h3 className="text-sm md:text-base font-bold text-white mb-4 flex items-center gap-2">
+                <span className="w-1.5 h-5 bg-red-600 rounded-full inline-block" />
+                {title}
+            </h3>
+            <div className="flex overflow-x-auto gap-5 pb-4 hide-scrollbar scroll-smooth">
+                {characters.map((edge) => {
+                    const charNode = edge.node;
+                    const charName = charNode.name?.full;
+                    const charImage = charNode.image?.large || `https://ui-avatars.com/api/?name=${encodeURIComponent(charName)}&background=333&color=fff`;
+                    const charRole = edge.role === 'MAIN' ? 'Main' : 'Supporting';
+                    const animeTitle = charNode.media?.nodes?.[0]?.title?.userPreferred;
+
+                    return (
+                        <div 
+                            key={charNode.id} 
+                            onClick={() => onCharacterClick(charNode.id)}
+                            className="shrink-0 w-32 sm:w-36 md:w-40 aspect-[2/3] rounded-xl overflow-hidden bg-zinc-955 border border-white/5 hover:border-red-500/50 hover:scale-[1.03] transition-all duration-500 group relative cursor-pointer shadow-lg"
+                        >
+                            <img 
+                                src={charImage} 
+                                alt={charName} 
+                                className="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-105" 
+                                loading="lazy" 
+                            />
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/35 to-transparent opacity-90 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
+                            
+                            {/* Role Badge */}
+                            <div className="absolute top-2 left-2 z-10 select-none">
+                                <span className={`px-1.5 py-0.5 rounded text-[7px] font-bold uppercase tracking-wider ${edge.role === 'MAIN' ? 'bg-red-600/90 text-white shadow shadow-red-600/10' : 'bg-black/60 text-zinc-300 border border-white/5'} backdrop-blur-sm`}>
+                                    {charRole}
+                                </span>
+                            </div>
+
+                            <div className="absolute inset-0 p-2.5 flex flex-col justify-end text-left select-none pointer-events-none">
+                                <h4 className="text-[11px] sm:text-xs font-bold text-white line-clamp-1 group-hover:text-red-500 transition-colors duration-300 leading-tight">
+                                    {charName}
+                                </h4>
+                                {animeTitle && (
+                                    <p className="text-[8px] sm:text-[9px] text-gray-400 line-clamp-1 mt-0.5">
+                                        in {animeTitle}
+                                    </p>
+                                )}
+                            </div>
+                        </div>
+                    );
+                })}
+            </div>
+        </div>
+    );
+};
+
 // PERSON PAGE
 interface PersonPageProps {
     personId: number;
     onClose: () => void;
     apiKey: string;
     onMovieClick: (m: Movie) => void;
+    onCharacterClick?: (id: number) => void;
 }
 
-export const PersonPage: React.FC<PersonPageProps> = ({ personId, onClose, apiKey, onMovieClick }) => {
+export const PersonPage: React.FC<PersonPageProps> = ({ personId, onClose, apiKey, onMovieClick, onCharacterClick }) => {
     const [details, setDetails] = useState<PersonDetails | null>(null);
     const [loading, setLoading] = useState(true);
     const [isClosing, setIsClosing] = useState(false);
@@ -328,6 +393,9 @@ export const PersonPage: React.FC<PersonPageProps> = ({ personId, onClose, apiKe
     const [upcomingLimit, setUpcomingLimit] = useState(15);
     const [loadingUpcoming, setLoadingUpcoming] = useState(false);
 
+    const [voicedCharacters, setVoicedCharacters] = useState<any[]>([]);
+    const [vaLoading, setVaLoading] = useState(false);
+
     // Reset pagination states on actor changes
     useEffect(() => {
         if (personId) {
@@ -350,6 +418,9 @@ export const PersonPage: React.FC<PersonPageProps> = ({ personId, onClose, apiKe
             setLoadingDirectingWriting(false);
             setLoadingProducing(false);
             setLoadingUpcoming(false);
+
+            setVoicedCharacters([]);
+            setVaLoading(false);
         }
     }, [personId]);
 
@@ -439,6 +510,58 @@ export const PersonPage: React.FC<PersonPageProps> = ({ personId, onClose, apiKe
         .then(data => { setDetails(data); setLoading(false); })
         .catch(err => { console.error("Person fetch error", err); setLoading(false); setDetails(null); });
     }, [personId, apiKey]);
+
+    useEffect(() => {
+        if (!details?.name) {
+            setVoicedCharacters([]);
+            return;
+        }
+        setVaLoading(true);
+        const query = `
+            query ($search: String) {
+                Staff(search: $search) {
+                    id
+                    characters(sort: FAVOURITES_DESC, perPage: 15) {
+                        edges {
+                            role
+                            node {
+                                id
+                                name {
+                                    full
+                                }
+                                image {
+                                    large
+                                }
+                                media(type: ANIME, perPage: 1) {
+                                    nodes {
+                                        title {
+                                            userPreferred
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        `;
+        fetch('https://graphql.anilist.co', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ query, variables: { search: details.name } })
+        })
+        .then(res => res.json())
+        .then(json => {
+            const edges = json?.data?.Staff?.characters?.edges || [];
+            setVoicedCharacters(edges);
+            setVaLoading(false);
+        })
+        .catch(err => {
+            console.error("Error fetching voiced characters from AniList:", err);
+            setVoicedCharacters([]);
+            setVaLoading(false);
+        });
+    }, [details?.name]);
 
     const mergedCredits = useMemo(() => {
         if (!details?.combined_credits) return [];
@@ -708,6 +831,18 @@ export const PersonPage: React.FC<PersonPageProps> = ({ personId, onClose, apiKe
                                       onLoadMore={handleLoadMoreCameos} 
                                       onMovieClick={onMovieClick} 
                                   />
+
+                                  {/* Voice Acting Portfolio (Characters) */}
+                                   {!vaLoading && voicedCharacters.length > 0 && (
+                                       <CharacterScrollRow 
+                                           title="Anime Characters Voiced" 
+                                           characters={voicedCharacters} 
+                                           onCharacterClick={(charId) => {
+                                               handleClose();
+                                               onCharacterClick?.(charId);
+                                           }} 
+                                       />
+                                   )}
 
                                   {/* Voice Roles */}
                                   <HorizontalScrollRow 
@@ -1215,6 +1350,308 @@ export const ExpandedCategoryModal: React.FC<ExpandedCategoryModalProps> = ({
                     </div>
                 )}
             </div>
+        </div>
+    );
+};
+
+import { BookOpen, User } from 'lucide-react';
+
+interface CharacterPageProps {
+    characterId: number;
+    onClose: () => void;
+    apiKey: string;
+    onMovieClick: (m: Movie) => void;
+    onPersonClick?: (id: number) => void;
+}
+
+export const CharacterPage: React.FC<CharacterPageProps> = ({ 
+    characterId, 
+    onClose, 
+    apiKey, 
+    onMovieClick, 
+    onPersonClick 
+}) => {
+    const [details, setDetails] = useState<any | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const [isClosing, setIsClosing] = useState(false);
+    const [voiceActors, setVoiceActors] = useState<any[]>([]);
+
+    const handleClose = () => {
+        setIsClosing(true);
+        setTimeout(onClose, 350);
+    };
+
+    useEffect(() => {
+        if (!characterId) return;
+        setLoading(true);
+        setError(null);
+        setVoiceActors([]);
+        setIsClosing(false);
+
+        const query = `
+            query ($id: Int) {
+                Character(id: $id) {
+                    id
+                    name {
+                        full
+                        native
+                        alternative
+                        alternativeSpoiler
+                    }
+                    image {
+                        large
+                    }
+                    description(asHtml: false)
+                    gender
+                    dateOfBirth {
+                        year
+                        month
+                        day
+                    }
+                    age
+                    bloodType
+                    media(type: ANIME, sort: POPULARITY_DESC, perPage: 12) {
+                        edges {
+                            voiceActors(language: JAPANESE) {
+                                id
+                                name {
+                                    full
+                                }
+                                image {
+                                    large
+                                }
+                            }
+                            node {
+                                id
+                                title {
+                                    userPreferred
+                                    english
+                                    romaji
+                                }
+                                coverImage {
+                                    large
+                                }
+                                type
+                            }
+                        }
+                    }
+                }
+            }
+        `;
+
+        fetch('https://graphql.anilist.co', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ query, variables: { id: characterId } })
+        })
+        .then(res => {
+            if (!res.ok) throw new Error("Failed to fetch character details");
+            return res.json();
+        })
+        .then(json => {
+            const char = json?.data?.Character;
+            if (char) {
+                setDetails(char);
+                // Extract unique VAs
+                const vaMap = new Map<number, any>();
+                char.media?.edges?.forEach((edge: any) => {
+                    edge.voiceActors?.forEach((va: any) => {
+                        if (va && !vaMap.has(va.id)) {
+                            vaMap.set(va.id, va);
+                        }
+                    });
+                });
+                setVoiceActors(Array.from(vaMap.values()));
+            } else {
+                throw new Error("Character not found");
+            }
+            setLoading(false);
+        })
+        .catch(err => {
+            console.error("Error fetching character details:", err);
+            setError(err.message || "Failed to load character details");
+            setLoading(false);
+        });
+    }, [characterId]);
+
+    const handleAnimeClick = async (title: string) => {
+        try {
+            const res = await fetch(`${TMDB_BASE_URL}/search/multi?api_key=${apiKey}&query=${encodeURIComponent(title)}`);
+            if (!res.ok) throw new Error("Search failed");
+            const data = await res.json();
+            const movie = data.results?.find((item: any) => item.media_type === 'movie' || item.media_type === 'tv');
+            if (movie) {
+                handleClose();
+                onMovieClick(movie);
+            } else {
+                console.warn("No matching TMDB movie/show found for", title);
+            }
+        } catch (err) {
+            console.error("Error matching AniList to TMDB:", err);
+        }
+    };
+
+    const handleVoiceActorClick = async (name: string) => {
+        try {
+            const res = await fetch(`${TMDB_BASE_URL}/search/person?api_key=${apiKey}&query=${encodeURIComponent(name)}`);
+            if (!res.ok) throw new Error("Search failed");
+            const data = await res.json();
+            const person = data.results?.find((item: any) => item.known_for_department === 'Acting');
+            const targetPerson = person || data.results?.[0];
+            if (targetPerson) {
+                handleClose();
+                onPersonClick?.(targetPerson.id);
+            } else {
+                console.warn("No matching TMDB person found for", name);
+            }
+        } catch (err) {
+            console.error("Error matching VA to TMDB:", err);
+        }
+    };
+
+    if (!characterId) return null;
+
+    return (
+        <div className={`fixed inset-0 z-[110] bg-[#0a0a0a] overflow-y-auto custom-scrollbar select-none ${isClosing ? 'animate-slide-out-bottom' : 'animate-slide-in-bottom'}`}>
+            {loading ? (
+                <div className="h-screen flex items-center justify-center flex-col gap-4">
+                    <div className="w-20 h-20 rounded-full border-4 border-white/5 border-t-red-600 animate-spin"></div>
+                    <p className="text-gray-500 text-sm animate-pulse uppercase tracking-wider font-bold">Loading Character Dossier...</p>
+                </div>
+            ) : error ? (
+                <div className="h-screen flex flex-col items-center justify-center text-center p-6 text-zinc-400 gap-2">
+                    <AlertCircle size={40} className="text-red-500" />
+                    <h3 className="text-lg font-bold text-white">Failed to load character</h3>
+                    <p className="text-xs text-zinc-500 max-w-sm">{error}</p>
+                    <button onClick={handleClose} className="mt-4 px-6 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-bold uppercase rounded-lg shadow-lg active:scale-95 transition-all">Back</button>
+                </div>
+            ) : details ? (
+                <div className="w-full flex flex-col pb-20">
+                    {/* Top Header */}
+                    <div className="max-w-7xl mx-auto px-6 md:px-12 py-6 border-b border-white/5 flex items-center justify-between w-full">
+                        <button onClick={handleClose} className="flex items-center gap-2 text-zinc-400 hover:text-white transition-all text-xs font-bold uppercase tracking-wider active:scale-95 bg-white/5 hover:bg-white/10 px-4 py-2 rounded-lg border border-white/5"><ArrowLeft size={14}/> Back</button>
+                        <span className="text-zinc-500 text-xs font-black uppercase tracking-wider">Character Profile</span>
+                    </div>
+
+                    <div className="max-w-7xl mx-auto px-6 md:px-12 py-10 flex flex-col md:flex-row gap-10 w-full text-left">
+                        {/* Left column: Image & Stats */}
+                        <div className="w-full md:w-[280px] shrink-0 flex flex-col items-center md:items-start font-sans">
+                            <div className="w-[200px] md:w-full aspect-[2/3] bg-zinc-900 rounded-2xl overflow-hidden shadow-2xl border border-white/5 group hover:scale-[1.01] transition-transform duration-500">
+                                <img src={details.image?.large} alt={details.name?.full} className="w-full h-full object-cover" />
+                            </div>
+
+                            {/* Profile Dossier Stats */}
+                            <div className="w-full mt-8 bg-[#121214]/60 border border-white/5 rounded-2xl p-6 space-y-4 text-xs shadow-lg">
+                                <h4 className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest border-b border-white/5 pb-2">Profile Dossier</h4>
+                                {details.gender && (
+                                    <div>
+                                        <span className="text-zinc-500 font-normal block mb-0.5">Gender</span>
+                                        <span className="text-zinc-300 text-sm font-medium">{details.gender}</span>
+                                    </div>
+                                )}
+                                {details.age && (
+                                    <div>
+                                        <span className="text-zinc-500 font-normal block mb-0.5">Age</span>
+                                        <span className="text-zinc-300 text-sm font-medium">{details.age}</span>
+                                    </div>
+                                )}
+                                {(details.dateOfBirth?.day || details.dateOfBirth?.month) && (
+                                    <div>
+                                        <span className="text-zinc-500 font-normal block mb-0.5">Birthday</span>
+                                        <span className="text-zinc-300 text-sm font-medium font-sans">
+                                            {details.dateOfBirth.month ? new Date(2000, details.dateOfBirth.month - 1).toLocaleString('en-US', { month: 'long' }) : ''} {details.dateOfBirth.day || ''}
+                                            {details.dateOfBirth.year ? `, ${details.dateOfBirth.year}` : ''}
+                                        </span>
+                                    </div>
+                                )}
+                                {details.bloodType && (
+                                    <div>
+                                        <span className="text-zinc-500 font-normal block mb-0.5">Blood Type</span>
+                                        <span className="text-zinc-300 text-sm font-medium">{details.bloodType}</span>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Right column: Bio & Media / VAs */}
+                        <div className="flex-1 min-w-0 flex flex-col font-sans space-y-10">
+                            <div className="space-y-6">
+                                <div>
+                                    <h1 className="text-4xl md:text-5xl font-extrabold text-white tracking-tight leading-none mb-2">{details.name?.full}</h1>
+                                    {details.name?.native && <h3 className="text-xl font-bold text-red-500 mt-1">{details.name.native}</h3>}
+                                    {(details.name?.alternative?.length > 0 || details.name?.alternativeSpoiler?.length > 0) && (
+                                        <p className="text-xs text-zinc-500 mt-2">
+                                            <span className="font-semibold text-zinc-400">Alternative Names:</span> {[...(details.name.alternative || []), ...(details.name.alternativeSpoiler || [])].filter(Boolean).join(', ')}
+                                        </p>
+                                    )}
+                                </div>
+
+                                <div className="space-y-3.5">
+                                    <h3 className="text-sm font-bold uppercase tracking-widest text-zinc-400 border-b border-white/5 pb-2">Biography</h3>
+                                    <div className="text-gray-300 leading-relaxed text-sm sm:text-base font-light whitespace-pre-line bg-white/[0.01] p-6 rounded-2xl border border-white/[0.03] shadow-inner max-h-[300px] overflow-y-auto custom-scrollbar">
+                                        {details.description || 'No biography available for this character.'}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Voice Actors Section */}
+                            {voiceActors.length > 0 && (
+                                <div className="space-y-5">
+                                    <h3 className="text-sm font-bold uppercase tracking-widest text-zinc-400 border-b border-white/5 pb-2 flex items-center gap-2">
+                                        <User size={16} className="text-red-500" />
+                                        <span>Voice Actors ({voiceActors.length})</span>
+                                    </h3>
+                                    <div className="flex overflow-x-auto gap-5 pb-4 hide-scrollbar">
+                                        {voiceActors.map((va: any) => (
+                                            <div 
+                                                key={va.id} 
+                                                onClick={() => handleVoiceActorClick(va.name.full)}
+                                                className="shrink-0 w-24 sm:w-28 md:w-32 flex flex-col items-center text-center group cursor-pointer"
+                                            >
+                                                <div className="w-16 h-16 md:w-20 md:h-20 rounded-full overflow-hidden mb-3 border-2 border-transparent group-hover:border-white/20 transition-all shadow-lg bg-zinc-900">
+                                                    <img src={va.image?.large} alt={va.name.full} className="w-full h-full object-cover" />
+                                                </div>
+                                                <h4 className="text-[11px] sm:text-xs font-bold text-white leading-tight mb-1 line-clamp-2 group-hover:text-red-500 transition-colors">{va.name.full}</h4>
+                                                <p className="text-[9px] text-gray-500">Japanese</p>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Appears In Section */}
+                            {details.media?.edges?.length > 0 && (
+                                <div className="space-y-5">
+                                    <h3 className="text-sm font-bold uppercase tracking-widest text-zinc-400 border-b border-white/5 pb-2 flex items-center gap-2">
+                                        <Film size={16} className="text-red-500" />
+                                        <span>Appears In ({details.media.edges.length})</span>
+                                    </h3>
+                                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-5">
+                                        {details.media.edges.map((edge: any) => {
+                                            const mediaNode = edge.node;
+                                            const mediaTitle = mediaNode.title?.userPreferred || mediaNode.title?.english || mediaNode.title?.romaji;
+                                            return (
+                                                <div 
+                                                    key={mediaNode.id} 
+                                                    onClick={() => handleAnimeClick(mediaTitle)}
+                                                    className="group relative aspect-[2/3] rounded-xl overflow-hidden cursor-pointer bg-zinc-900 border border-white/5 hover:border-red-500/50 hover:scale-[1.02] transition-all duration-300 shadow-lg"
+                                                >
+                                                    <img src={mediaNode.coverImage?.large} alt={mediaTitle} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" loading="lazy" />
+                                                    <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/45 to-transparent pointer-events-none" />
+                                                    <div className="absolute inset-0 p-3 flex flex-col justify-end text-left pointer-events-none">
+                                                        <h5 className="text-[10px] font-bold text-white line-clamp-2 leading-tight group-hover:text-red-500 transition-colors">{mediaTitle}</h5>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            ) : null}
         </div>
     );
 };
