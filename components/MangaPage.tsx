@@ -121,8 +121,40 @@ export const getMangaTitleHelper = (manga: MangaDexManga, lang: 'english' | 'rom
     return titleObj['ja-ro'] || findAltTitle('ja-ro') || titleObj.en || findAltTitle('en') || Object.values(titleObj)[0] || "Untitled Manga";
   } else {
     // Native (usually ja, ko, zh)
-    return titleObj.ja || findAltTitle('ja') || titleObj.ko || findAltTitle('ko') || titleObj.zh || findAltTitle('zh') || Object.values(titleObj)[0] || "Untitled Manga";
   }
+};
+
+export const translateAniListToManga = (aniMedia: any): MangaDexManga => {
+  return {
+    id: `anilist-${aniMedia.id}`,
+    attributes: {
+      title: {
+        en: aniMedia.title?.english || aniMedia.title?.romaji || aniMedia.title?.native || "Untitled Manga",
+        'ja-ro': aniMedia.title?.romaji
+      },
+      description: {
+        en: aniMedia.description || ""
+      },
+      status: aniMedia.status?.toLowerCase() || "ongoing",
+      year: aniMedia.startDate?.year || null,
+      contentRating: "safe",
+      tags: aniMedia.genres?.map((g: string) => ({
+        id: g,
+        attributes: { name: { en: g } }
+      })) || []
+    },
+    relationships: [
+      {
+        type: "cover_art",
+        attributes: {
+          fileName: aniMedia.coverImage?.large || ""
+        }
+      }
+    ],
+    // Custom markers to recognize it's AniList
+    isAniList: true,
+    aniListId: aniMedia.id
+  } as any;
 };
 
 export const MangaPage: React.FC<MangaPageProps> = ({
@@ -248,6 +280,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
   }, []);
 
+
   // Reset scroll to top on mount
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'instant' });
@@ -306,6 +339,46 @@ export const MangaPage: React.FC<MangaPageProps> = ({
     if (!res.ok) throw new Error(`MangaDex request failed: ${res.statusText}`);
     return res.json();
   }, []);
+
+  const handleMangaSelect = useCallback(async (id: string | null) => {
+    if (!id) {
+      onMangaSelect(null);
+      return;
+    }
+    
+    if (id.startsWith('anilist-')) {
+      const aniIdStr = id.replace('anilist-', '');
+      const aniId = parseInt(aniIdStr, 10);
+      
+      onMangaSelect(id);
+      
+      try {
+        const allItems = [...trending, ...popular, ...topRated, ...characterModalMediaManga];
+        const item = allItems.find((x: any) => x.id === id) as any;
+        const title = item?.attributes?.title?.en || item?.attributes?.title?.['ja-ro'] || "";
+        
+        console.log(`[AniList-to-MangaDex] Resolving MangaDex ID for AniList ID ${aniId} ("${title}")...`);
+        
+        const searchRes = await fetchMangaDex(`/manga?title=${encodeURIComponent(title)}&limit=10&includes[]=cover_art`);
+        const searchList = searchRes.data || [];
+        
+        const match = searchList.find((m: any) => m.attributes?.links?.al === String(aniId)) || searchList[0];
+        
+        if (match) {
+          console.log(`[AniList-to-MangaDex] Resolved to MangaDex ID: ${match.id}`);
+          onMangaSelect(match.id);
+        } else {
+          throw new Error("No matching MangaDex entry found");
+        }
+      } catch (err) {
+        console.error("[AniList-to-MangaDex] Resolution failed:", err);
+        showToast("Manga not found on MangaDex");
+        onMangaSelect(null);
+      }
+    } else {
+      onMangaSelect(id);
+    }
+  }, [onMangaSelect, trending, popular, topRated, characterModalMediaManga, fetchMangaDex, showToast]);
 
   // GraphQL fetch helper for AniList
   const fetchAniList = useCallback(async (query: string, variables: any = {}) => {
@@ -492,7 +565,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
 
   // Sync selectedManga details, statistics, and relations with selectedMangaId prop
   useEffect(() => {
-    if (!selectedMangaId) {
+    if (!selectedMangaId || selectedMangaId.startsWith('anilist-')) {
       setSelectedManga(null);
       setStatistics(null);
       setRelations([]);
@@ -821,7 +894,6 @@ export const MangaPage: React.FC<MangaPageProps> = ({
             bloodType
             media(type: MANGA, sort: POPULARITY_DESC, perPage: 12) {
               edges {
-                role
                 node {
                   id
                   title {
@@ -832,6 +904,12 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                   coverImage {
                     large
                   }
+                  description
+                  startDate {
+                    year
+                  }
+                  status
+                  genres
                 }
               }
             }
@@ -847,12 +925,9 @@ export const MangaPage: React.FC<MangaPageProps> = ({
           setCharacterDetails(data.Character);
           
           const mediaNodes = data.Character.media?.edges?.map((edge: any) => edge.node) || [];
-          if (mediaNodes.length > 0) {
-            const ratings = getContentRatingParams();
-            const mappedMedia = await mapAniListToMangaDex(mediaNodes, ratings);
-            if (isMounted) {
-              setCharacterModalMediaManga(mappedMedia);
-            }
+          if (mediaNodes.length > 0 && isMounted) {
+            const mappedMedia = mediaNodes.map(translateAniListToManga);
+            setCharacterModalMediaManga(mappedMedia);
           }
         } else {
           throw new Error("Character not found");
@@ -874,7 +949,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
     return () => {
       isMounted = false;
     };
-  }, [selectedCharacterId, fetchAniList, mapAniListToMangaDex, getContentRatingParams]);
+  }, [selectedCharacterId, fetchAniList]);
 
   // Load MangaPill data when readingSource is set to mangapill
   useEffect(() => {
@@ -905,18 +980,60 @@ export const MangaPage: React.FC<MangaPageProps> = ({
       const aniListQuery = `
         query {
           trending: Page(page: 1, perPage: 25) {
-            media(type: MANGA, sort: TRENDING_DESC, format_in: [MANGA, ONE_SHOT]) {
+            media(type: MANGA, sort: [TRENDING_DESC], format_in: [MANGA, ONE_SHOT]) {
               id
+              title {
+                romaji
+                english
+                native
+              }
+              coverImage {
+                large
+              }
+              description
+              startDate {
+                year
+              }
+              status
+              genres
             }
           }
           popular: Page(page: 1, perPage: 25) {
-            media(type: MANGA, sort: POPULARITY_DESC, format_in: [MANGA, ONE_SHOT]) {
+            media(type: MANGA, sort: [POPULARITY_DESC], format_in: [MANGA, ONE_SHOT]) {
               id
+              title {
+                romaji
+                english
+                native
+              }
+              coverImage {
+                large
+              }
+              description
+              startDate {
+                year
+              }
+              status
+              genres
             }
           }
           topRated: Page(page: 1, perPage: 25) {
-            media(type: MANGA, sort: SCORE_DESC, format_in: [MANGA, ONE_SHOT]) {
+            media(type: MANGA, sort: [SCORE_DESC], format_in: [MANGA, ONE_SHOT]) {
               id
+              title {
+                romaji
+                english
+                native
+              }
+              coverImage {
+                large
+              }
+              description
+              startDate {
+                year
+              }
+              status
+              genres
             }
           }
         }
@@ -929,15 +1046,9 @@ export const MangaPage: React.FC<MangaPageProps> = ({
       try {
         const aniListData = await fetchAniList(aniListQuery);
         
-        const [tMapped, pMapped, trMapped] = await Promise.all([
-          mapAniListToMangaDex(aniListData.trending?.media || [], ratings),
-          mapAniListToMangaDex(aniListData.popular?.media || [], ratings),
-          mapAniListToMangaDex(aniListData.topRated?.media || [], ratings)
-        ]);
-
-        trendingMapped = tMapped.slice(0, 12);
-        popularMapped = pMapped.slice(0, 12);
-        topRatedMapped = trMapped.slice(0, 12);
+        trendingMapped = (aniListData.trending?.media || []).map(translateAniListToManga).slice(0, 12);
+        popularMapped = (aniListData.popular?.media || []).map(translateAniListToManga).slice(0, 12);
+        topRatedMapped = (aniListData.topRated?.media || []).map(translateAniListToManga).slice(0, 12);
       } catch (aniListErr) {
         console.error("Failed to load or map categories from AniList, falling back to MangaDex:", aniListErr);
         // Fallback to MangaDex queries
@@ -966,7 +1077,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
     } finally {
       setLoading(false);
     }
-  }, [fetchMangaDex, fetchAniList, mapAniListToMangaDex, getContentRatingParams]);
+  }, [fetchMangaDex, fetchAniList, getContentRatingParams]);
 
   // Load next genre row
   const loadNextGenreRow = useCallback(async () => {
@@ -1259,6 +1370,9 @@ export const MangaPage: React.FC<MangaPageProps> = ({
   const getMangaCover = (manga: MangaDexManga) => {
     const coverRel = manga.relationships?.find(r => r.type === 'cover_art');
     if (coverRel?.attributes?.fileName) {
+      if (coverRel.attributes.fileName.startsWith('http')) {
+        return coverRel.attributes.fileName;
+      }
       return `https://uploads.mangadex.org/covers/${manga.id}/${coverRel.attributes.fileName}.512.jpg`;
     }
     return 'https://placehold.co/400x600/111/444?text=No+Cover';
@@ -2325,7 +2439,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                     return (
                       <div
                         key={rel.id}
-                        onClick={() => onMangaSelect(relatedManga.id)}
+                        onClick={() => handleMangaSelect(relatedManga.id)}
                         className="group relative shrink-0 aspect-[2/3] rounded-xl overflow-hidden cursor-pointer bg-zinc-900 border border-white/5 hover:border-red-500/50 hover:shadow-[0_0_20px_rgba(239,68,68,0.25)] hover:scale-[1.03] transition-all duration-500 animate-in fade-in zoom-in-95 duration-300"
                       >
                         <img
@@ -2373,7 +2487,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                   {recommendations.map((recManga) => (
                     <div
                       key={recManga.id}
-                      onClick={() => onMangaSelect(recManga.id)}
+                      onClick={() => handleMangaSelect(recManga.id)}
                       className="group relative shrink-0 aspect-[2/3] rounded-xl overflow-hidden cursor-pointer bg-zinc-900 border border-white/5 hover:border-red-500/50 hover:shadow-[0_0_20px_rgba(239,68,68,0.25)] hover:scale-[1.03] transition-all duration-500"
                     >
                       <img
@@ -2512,7 +2626,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
 
             <div className="flex flex-row items-center gap-3 w-full sm:w-auto mt-2">
               <TvFocusButton
-                onClick={() => onMangaSelect(trending[heroIndex].id)}
+                onClick={() => handleMangaSelect(trending[heroIndex].id)}
                 className="flex-1 sm:flex-none px-6 py-2.5 text-sm sm:text-base rounded-md font-bold flex items-center justify-center gap-2.5 transition-all hover:scale-[1.02] active:scale-95 shadow-md bg-white text-black hover:bg-white/90"
               >
                 <BookOpen size={18} /> Read Now
@@ -2667,10 +2781,10 @@ export const MangaPage: React.FC<MangaPageProps> = ({
           </div>
         </div>
 
-          <MangaRow title="Trending Manga Releases" items={trending} onMangaClick={onMangaSelect} titleLanguage={titleLanguage} onExpand={() => setExpandedCategory({ title: "Trending Manga Releases", items: trending })} />
-          <MangaRow title="Recently Uploaded Chapters" items={latest} onMangaClick={onMangaSelect} titleLanguage={titleLanguage} onExpand={() => setExpandedCategory({ title: "Recently Uploaded Chapters", items: latest })} />
-          <MangaRow title="Most Popular Favorites" items={popular} onMangaClick={onMangaSelect} titleLanguage={titleLanguage} onExpand={() => setExpandedCategory({ title: "Most Popular Favorites", items: popular })} />
-          <MangaRow title="Top Rated of All Time" items={topRated} onMangaClick={onMangaSelect} titleLanguage={titleLanguage} onExpand={() => setExpandedCategory({ title: "Top Rated of All Time", items: topRated })} />
+          <MangaRow title="Trending Manga Releases" items={trending} onMangaClick={handleMangaSelect} titleLanguage={titleLanguage} onExpand={() => setExpandedCategory({ title: "Trending Manga Releases", items: trending })} />
+          <MangaRow title="Recently Uploaded Chapters" items={latest} onMangaClick={handleMangaSelect} titleLanguage={titleLanguage} onExpand={() => setExpandedCategory({ title: "Recently Uploaded Chapters", items: latest })} />
+          <MangaRow title="Most Popular Favorites" items={popular} onMangaClick={handleMangaSelect} titleLanguage={titleLanguage} onExpand={() => setExpandedCategory({ title: "Most Popular Favorites", items: popular })} />
+          <MangaRow title="Top Rated of All Time" items={topRated} onMangaClick={handleMangaSelect} titleLanguage={titleLanguage} onExpand={() => setExpandedCategory({ title: "Top Rated of All Time", items: topRated })} />
 
           {/* Endless Scroll Genre Rows */}
           {genreRows.map((row) => (
@@ -2678,7 +2792,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
               key={row.genre}
               title={`${row.genre} Manga`}
               items={row.media}
-              onMangaClick={onMangaSelect}
+              onMangaClick={handleMangaSelect}
               titleLanguage={titleLanguage}
               onExpand={() => setExpandedCategory({ title: `${row.genre} Manga`, items: row.media })}
             />
@@ -2706,12 +2820,12 @@ export const MangaPage: React.FC<MangaPageProps> = ({
         title={expandedCategory?.title || ""}
         mode="manga"
         initialItems={expandedCategory?.items || []}
-        onItemClick={onMangaSelect}
+        onItemClick={handleMangaSelect}
         titleLanguage={titleLanguage}
         renderItem={(item) => (
           <MangaCard
             manga={item}
-            onMangaClick={onMangaSelect}
+            onMangaClick={handleMangaSelect}
             titleLanguage={titleLanguage}
           />
         )}
@@ -2846,14 +2960,15 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                       <div className="flex gap-4 overflow-x-auto pb-2 hide-scrollbar scroll-smooth">
                         {characterModalMediaManga.map((manga) => {
                           const title = getMangaTitleHelper(manga, titleLanguage);
-                          const coverUrl = manga.relationships?.find(r => r.type === 'cover_art')?.attributes?.fileName
-                            ? `https://uploads.mangadex.org/covers/${manga.id}/${manga.relationships.find(r => r.type === 'cover_art').attributes.fileName}.256.jpg`
-                            : 'https://placehold.co/400x600/111/444?text=No+Cover';
+                          const coverFileName = manga.relationships?.find(r => r.type === 'cover_art')?.attributes?.fileName;
+                          const coverUrl = coverFileName?.startsWith('http')
+                            ? coverFileName
+                            : (coverFileName ? `https://uploads.mangadex.org/covers/${manga.id}/${coverFileName}.256.jpg` : 'https://placehold.co/400x600/111/444?text=No+Cover');
                           return (
                             <div
                               key={manga.id}
                               onClick={() => {
-                                onMangaSelect(manga.id);
+                                handleMangaSelect(manga.id);
                                 setIsCharacterModalClosing(true);
                                 setTimeout(() => {
                                   setSelectedCharacterId(null);
@@ -2934,9 +3049,10 @@ export const MangaCard: React.FC<MangaCardProps> = ({ manga, onMangaClick, title
   });
 
   const title = getMangaTitleHelper(manga, titleLanguage);
-  const coverUrl = manga.relationships?.find(r => r.type === 'cover_art')?.attributes?.fileName
-    ? `https://uploads.mangadex.org/covers/${manga.id}/${manga.relationships.find(r => r.type === 'cover_art').attributes.fileName}.256.jpg`
-    : 'https://placehold.co/400x600/111/444?text=No+Cover';
+  const coverFileName = manga.relationships?.find(r => r.type === 'cover_art')?.attributes?.fileName;
+  const coverUrl = coverFileName?.startsWith('http')
+    ? coverFileName
+    : (coverFileName ? `https://uploads.mangadex.org/covers/${manga.id}/${coverFileName}.256.jpg` : 'https://placehold.co/400x600/111/444?text=No+Cover');
   const formatInfo = getMangaFormat(manga);
 
   return (
