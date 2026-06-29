@@ -981,9 +981,9 @@ export const MoviePage: React.FC<MoviePageProps> = ({
         ...(isTv ? [{ id: 'seasons', label: 'Seasons' }] : []),
     ];
 
-    // Fetch Nyaa.si Torrents for Anime content
+    // Fetch Torrents for Anime and General Content
     useEffect(() => {
-        if (!showDownloadModal || !isAnime) return;
+        if (!showDownloadModal) return;
         
         let active = true;
         setVisibleNyaaCount(10);
@@ -997,14 +997,20 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                 if (isTv) {
                     const seasonStr = downloadSeason < 10 ? `0${downloadSeason}` : `${downloadSeason}`;
                     const episodeStr = downloadEpisode < 10 ? `0${downloadEpisode}` : `${downloadEpisode}`;
-                    if (downloadSeason > 1) {
-                        q = `${cleanTitle} S${seasonStr}E${episodeStr}`;
-                    } else {
+                    if (isAnime && downloadSeason === 1) {
                         q = `${cleanTitle} ${episodeStr}`;
+                    } else {
+                        q = `${cleanTitle} S${seasonStr}E${episodeStr}`;
+                    }
+                } else {
+                    const year = displayData.release_date ? displayData.release_date.split('-')[0] : displayData.first_air_date ? displayData.first_air_date.split('-')[0] : '';
+                    if (year) {
+                        q = `${cleanTitle} ${year}`;
                     }
                 }
                 
-                const res = await fetch(`/api/nyaa?q=${encodeURIComponent(q)}`);
+                const apiEndpoint = isAnime ? '/api/nyaa' : '/api/torrent';
+                const res = await fetch(`${apiEndpoint}?q=${encodeURIComponent(q)}`);
                 if (!res.ok) throw new Error("Failed to fetch torrents");
                 const data = await res.json();
                 
@@ -1023,7 +1029,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                         if (matchA_S && !matchB_S) return -1;
                         if (!matchA_S && matchB_S) return 1;
                         
-                        if (downloadSeason === 1) {
+                        if (isTv && downloadSeason === 1) {
                             const hasOtherSeasonA = /s0[2-9]|s[1-9]\d|season\s*[2-9]/i.test(titleA);
                             const hasOtherSeasonB = /s0[2-9]|s[1-9]\d|season\s*[2-9]/i.test(titleB);
                             
@@ -2319,19 +2325,23 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                         </button>
                                     </div>
 
-                                    {/* Nyaa.si Torrents Section (Anime Only) */}
-                                    {isAnime && (
+                                    {/* Torrents Section */}
+                                    {showDownloadModal && (
                                         <div className="mt-5 pt-4 border-t border-white/10 text-left">
-                                            <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider px-1 mb-2">Direct Torrent Downloads (Nyaa.si):</h4>
+                                            <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider px-1 mb-2">
+                                                {isAnime ? "Direct Torrent Downloads (Nyaa.si):" : "Direct Torrent Downloads (1337x / TPB):"}
+                                            </h4>
                                             {nyaaLoading ? (
                                                 <div className="flex items-center gap-2 text-zinc-500 text-xs py-3 px-1">
                                                     <Loader2 className="animate-spin text-red-500" size={14} />
-                                                    <span>Searching Nyaa.si for torrents...</span>
+                                                    <span>Searching {isAnime ? "Nyaa.si" : "1337x / TPB"} for torrents...</span>
                                                 </div>
                                             ) : nyaaError ? (
                                                 <div className="text-red-500 text-[10px] py-2 px-1">{nyaaError}</div>
                                             ) : nyaaTorrents.length === 0 ? (
-                                                <div className="text-zinc-500 text-xs py-3 px-1 italic">No torrents found for this episode on Nyaa.si.</div>
+                                                <div className="text-zinc-500 text-xs py-3 px-1 italic">
+                                                    No torrents found for this {isTv ? "episode" : "movie"} on {isAnime ? "Nyaa.si" : "1337x / TPB"}.
+                                                </div>
                                             ) : (
                                                 <div onScroll={handleNyaaScroll} className="space-y-2 max-h-[450px] overflow-y-auto pr-1 custom-scrollbar">
                                                     {nyaaTorrents.slice(0, visibleNyaaCount).map((t, idx) => {
@@ -2339,13 +2349,23 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                             ? new Date(t.pubDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
                                                             : 'TBA';
                                                         
-                                                        const categoryBadge = t.category?.includes('English-translated')
+                                                        const isEnglishSub = t.category?.includes('English-translated');
+                                                        const isRaw = t.category?.includes('Raw');
+                                                        const isNonEng = t.category?.includes('Non-English-translated');
+                                                        const isMovie = t.category?.includes('Movie');
+                                                        const isTVShow = t.category?.includes('TV Show');
+
+                                                        const categoryBadge = isEnglishSub
                                                             ? <span className="bg-purple-600/15 text-purple-400 border border-purple-500/20 px-1.5 py-0.5 rounded text-[8px] font-semibold uppercase tracking-wide">English Sub/Dub</span>
-                                                            : t.category?.includes('Raw')
+                                                            : isRaw
                                                             ? <span className="bg-emerald-600/15 text-emerald-400 border border-emerald-500/20 px-1.5 py-0.5 rounded text-[8px] font-semibold uppercase tracking-wide">Raw</span>
-                                                            : t.category?.includes('Non-English-translated')
+                                                            : isNonEng
                                                             ? <span className="bg-blue-600/15 text-blue-400 border border-blue-500/20 px-1.5 py-0.5 rounded text-[8px] font-semibold uppercase tracking-wide">Non-Eng</span>
-                                                            : <span className="bg-zinc-800 text-zinc-400 border border-zinc-700/50 px-1.5 py-0.5 rounded text-[8px] font-semibold uppercase tracking-wide">Anime</span>;
+                                                            : isMovie
+                                                            ? <span className="bg-blue-600/15 text-blue-400 border border-blue-500/20 px-1.5 py-0.5 rounded text-[8px] font-semibold uppercase tracking-wide">{t.category}</span>
+                                                            : isTVShow
+                                                            ? <span className="bg-purple-600/15 text-purple-400 border border-purple-500/20 px-1.5 py-0.5 rounded text-[8px] font-semibold uppercase tracking-wide">{t.category}</span>
+                                                            : <span className="bg-zinc-800 text-zinc-400 border border-zinc-700/50 px-1.5 py-0.5 rounded text-[8px] font-semibold uppercase tracking-wide">{t.category || "Torrent"}</span>;
 
                                                         return (
                                                             <div key={idx} className="p-3 rounded-xl bg-white/5 border border-white/5 hover:border-white/10 transition-all text-xs flex flex-col gap-2">
