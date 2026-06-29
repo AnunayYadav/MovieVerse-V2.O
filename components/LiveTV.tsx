@@ -321,6 +321,7 @@ const LiveTVRow: React.FC<{
     useEffect(() => {
         let isMounted = true;
         setLoading(true);
+        setChannels([]);
 
         const loadChannels = async () => {
             try {
@@ -522,6 +523,7 @@ export const LiveTV: React.FC<LiveTVProps> = ({ userProfile }) => {
         }
         let isMounted = true;
         setSearchLoading(true);
+        setSearchChannels([]);
 
         const performSearch = async () => {
             try {
