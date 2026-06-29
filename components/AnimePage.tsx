@@ -12,6 +12,7 @@ interface AnimePageProps {
   onMovieClick: (m: Movie) => void;
   searchQuery?: string;
   onSearchClear?: () => void;
+  initialTab?: 'catalog' | 'community';
 }
 
 export interface AniListMedia {
@@ -70,7 +71,7 @@ const ANIME_GENRES = [
   "Psychological"
 ];
 
-export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick, searchQuery: parentSearchQuery, onSearchClear }) => {
+export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick, searchQuery: parentSearchQuery, onSearchClear, initialTab = 'catalog' }) => {
   const [trending, setTrending] = useState<AniListMedia[]>([]);
   const [popular, setPopular] = useState<AniListMedia[]>([]);
   const [topRated, setTopRated] = useState<AniListMedia[]>([]);
@@ -116,7 +117,7 @@ export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick, sear
   const [error, setError] = useState<string | null>(null);
 
   // Sub-tab selection: catalog vs community
-  const [activeTab, setActiveTab] = useState<'catalog' | 'community'>('catalog');
+  const [activeTab, setActiveTab] = useState<'catalog' | 'community'>(initialTab);
 
   // Community discussion board state variables
   const [forumSection, setForumSection] = useState<'feed' | 'reviews' | 'recommendations'>('feed');
@@ -1347,27 +1348,7 @@ export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick, sear
           </div>
         </div>
       )}
-            {/* Sub-tab selection: Catalog vs Community Forum */}
-      {!searchQuery && (
-        <div className="flex border-b border-white/5 mb-8 max-w-7xl mx-auto px-4 md:px-12 items-center justify-between mt-10">
-          <div className="flex gap-8 select-none">
-            <button 
-              onClick={() => setActiveTab('catalog')} 
-              className={`pb-4 text-base font-black uppercase tracking-wider relative transition-colors ${activeTab === 'catalog' ? 'text-red-500' : 'text-zinc-500 hover:text-zinc-300'}`}
-            >
-              Catalog
-              {activeTab === 'catalog' && <span className="absolute bottom-0 left-0 w-full h-[2.5px] bg-red-600 rounded-full" />}
-            </button>
-            <button 
-              onClick={() => setActiveTab('community')} 
-              className={`pb-4 text-base font-black uppercase tracking-wider relative transition-colors ${activeTab === 'community' ? 'text-red-500' : 'text-zinc-500 hover:text-zinc-300'}`}
-            >
-              Community Forum
-              {activeTab === 'community' && <span className="absolute bottom-0 left-0 w-full h-[2.5px] bg-red-600 rounded-full" />}
-            </button>
-          </div>
-        </div>
-      )}
+
 
       {activeTab === 'community' && !searchQuery ? (
         <div className="max-w-7xl mx-auto px-4 md:px-12 animate-in fade-in duration-500 select-none text-left">

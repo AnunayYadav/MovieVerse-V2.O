@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef, Suspense } from 'react';
 import { App as CapApp } from '@capacitor/app';
-import { Search, Film, Menu, TrendingUp, Tv, Ghost, Calendar, Star, X, Sparkles, Settings, Globe, Bookmark, Heart, Folder, Languages, Filter, ChevronDown, Info, Plus, Cloud, CloudOff, Clock, Bell, History, Users, Tag, Dice5, Crown, Radio, LayoutGrid, Award, Baby, Clapperboard, ChevronRight, PlayCircle, Play, Megaphone, CalendarDays, Compass, Home, Map, Loader2, Trophy, RefreshCcw, Check, MonitorPlay, Layers, LogOut, Download, User, FileText } from 'lucide-react';
+import { Search, Film, Menu, TrendingUp, Tv, Ghost, Calendar, Star, X, Sparkles, Settings, Globe, Bookmark, Heart, Folder, Languages, Filter, ChevronDown, Info, Plus, Cloud, CloudOff, Clock, Bell, History, Users, Tag, Dice5, Crown, Radio, LayoutGrid, Award, Baby, Clapperboard, ChevronRight, PlayCircle, Play, Megaphone, CalendarDays, Compass, Home, Map, Loader2, Trophy, RefreshCcw, Check, MonitorPlay, Layers, LogOut, Download, User, FileText, MessageSquare } from 'lucide-react';
 import { Movie, UserProfile, GENRES_MAP, GENRES_LIST, INDIAN_LANGUAGES, MaturityRating, Keyword } from './types';
 import { LogoLoader, MovieSkeleton, MovieCard, PersonCard, TMDB_BASE_URL, TMDB_BACKDROP_BASE, TMDB_IMAGE_BASE, getTmdbKey, BrandLogo, getMovieVerseRating, tvFetch } from './components/Shared';
 import { MoviePage } from './components/MovieDetails';
@@ -3320,6 +3320,7 @@ export default function App() {
         { id: "Multiverse", icon: Sparkles, label: "Multiverse", action: () => { resetFilters(); setSelectedCategory("Multiverse"); } },
         { id: "Awards", icon: Award, label: "Awards", action: () => { resetFilters(); setSelectedCategory("Awards"); } },
         { id: "Anime", icon: Ghost, label: "Anime", action: () => { resetFilters(); setSelectedCategory("Anime"); } },
+        { id: "AnimeCommunity", icon: MessageSquare, label: "Anime Forum", action: () => { resetFilters(); setSelectedCategory("AnimeCommunity"); } },
         { id: "Manga", icon: BookOpen, label: "Manga", action: () => { resetFilters(); setSelectedMangaId(null); setActiveMangaChapterId(null); setSelectedCategory("Manga"); } },
 
         { id: "Franchise", icon: Layers, label: "Franchises", action: () => { resetFilters(); setSelectedCategory("Franchise"); } },
@@ -3508,7 +3509,7 @@ export default function App() {
                                     onMouseEnter={handleBrowseEnter}
                                     onMouseLeave={handleBrowseLeave}
                                 >
-                                    <TvFocusButton onClick={() => setIsBrowseOpen(!isBrowseOpen)} className={`flex items-center gap-2 px-5 py-2 rounded-full text-xs font-semibold tracking-wide transition-all duration-300 ${isBrowseOpen || ["Categories", "Awards", "Anime", "Manga", "Franchise", "Family", "TV Shows", "Coming"].includes(selectedCategory)
+                                    <TvFocusButton onClick={() => setIsBrowseOpen(!isBrowseOpen)} className={`flex items-center gap-2 px-5 py-2 rounded-full text-xs font-semibold tracking-wide transition-all duration-300 ${isBrowseOpen || ["Categories", "Awards", "Anime", "AnimeCommunity", "Manga", "Franchise", "Family", "TV Shows", "Coming"].includes(selectedCategory)
                                             ? "bg-white/10 text-white shadow-[0_4px_20px_rgba(0,0,0,0.3)] border border-white/10"
                                             : "text-zinc-400 hover:text-white hover:bg-white/5 border border-transparent"
                                         }`}>
@@ -3736,6 +3737,21 @@ export default function App() {
                             }}
                             searchQuery={searchQuery}
                             onSearchClear={() => setSearchQuery('')}
+                            initialTab="catalog"
+                        />
+                    ) : selectedCategory === "AnimeCommunity" ? (
+                        <AnimePage
+                            apiKey={apiKey}
+                            onMovieClick={(m: any) => {
+                                if (m.initial_season) {
+                                    setWatchSeason(m.initial_season);
+                                    setWatchEpisode(1);
+                                }
+                                setSelectedMovie(m);
+                            }}
+                            searchQuery={searchQuery}
+                            onSearchClear={() => setSearchQuery('')}
+                            initialTab="community"
                         />
                     ) : selectedCategory === "Manga" ? (
                         <MangaPage
@@ -4499,7 +4515,7 @@ export default function App() {
                             { id: 'Home', label: 'Home', icon: Home, action: () => { setIsBrowseOpen(false); resetToHome(); }, activeCondition: selectedCategory === "All" && !searchQuery },
                             { id: 'Explore', label: 'Explore', icon: Compass, action: () => { setIsBrowseOpen(false); resetFilters(); setSelectedCategory("Explore"); }, activeCondition: selectedCategory === "Explore" },
                             { id: 'LiveTV', label: 'Live TV', icon: Radio, action: () => { setIsBrowseOpen(false); resetFilters(); setSelectedCategory("LiveTV"); }, activeCondition: selectedCategory === "LiveTV" },
-                            { id: 'Browse', label: 'Browse', icon: LayoutGrid, action: () => setIsBrowseOpen(!isBrowseOpen), activeCondition: isBrowseOpen || ["Categories", "Awards", "Anime", "Manga", "Franchise", "Family", "TV Shows", "Coming"].includes(selectedCategory) }
+                            { id: 'Browse', label: 'Browse', icon: LayoutGrid, action: () => setIsBrowseOpen(!isBrowseOpen), activeCondition: isBrowseOpen || ["Categories", "Awards", "Anime", "AnimeCommunity", "Manga", "Franchise", "Family", "TV Shows", "Coming"].includes(selectedCategory) }
                         ].map((tab) => {
                             const Icon = tab.icon;
                             const isActive = tab.activeCondition;
