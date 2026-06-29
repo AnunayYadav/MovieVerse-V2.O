@@ -181,6 +181,30 @@ export const MangaPage: React.FC<MangaPageProps> = ({
   const [characterModalMediaManga, setCharacterModalMediaManga] = useState<MangaDexManga[]>([]);
   const [characterModalMediaLoading, setCharacterModalMediaLoading] = useState(false);
   
+  // Staff Details States
+  const [selectedStaffId, setSelectedStaffId] = useState<number | null>(null);
+  const [staffDetails, setStaffDetails] = useState<any | null>(null);
+  const [staffDetailsLoading, setStaffDetailsLoading] = useState(false);
+  const [staffDetailsError, setStaffDetailsError] = useState<string | null>(null);
+  const [staffMedia, setStaffMedia] = useState<MangaDexManga[]>([]);
+  const [staffMediaLoading, setStaffMediaLoading] = useState(false);
+
+  // Studio Details States
+  const [selectedStudioId, setSelectedStudioId] = useState<number | null>(null);
+  const [studioDetails, setStudioDetails] = useState<any | null>(null);
+  const [studioDetailsLoading, setStudioDetailsLoading] = useState(false);
+  const [studioDetailsError, setStudioDetailsError] = useState<string | null>(null);
+  const [studioMedia, setStudioMedia] = useState<MangaDexManga[]>([]);
+  const [studioMediaLoading, setStudioMediaLoading] = useState(false);
+
+  // Reviews States
+  const [reviews, setReviews] = useState<any[]>([]);
+  const [reviewsLoading, setReviewsLoading] = useState(false);
+
+  // AniList Media Details
+  const [aniListMangaData, setAniListMangaData] = useState<any | null>(null);
+  const [aniListMangaLoading, setAniListMangaLoading] = useState(false);
+  
   // Endless scroll genre rows
   const [genreRows, setGenreRows] = useState<{ genre: string; media: MangaDexManga[] }[]>([]);
   const [loadingGenreRows, setLoadingGenreRows] = useState(false);
@@ -209,7 +233,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
   const [selectedManga, setSelectedManga] = useState<MangaDexManga | null>(null);
   const [chapters, setChapters] = useState<MangaDexChapter[]>([]);
   const [chaptersLoading, setChaptersLoading] = useState(false);
-  const [detailsTab, setDetailsTab] = useState<'chapters' | 'relations' | 'recommendations' | 'characters'>('chapters');
+  const [detailsTab, setDetailsTab] = useState<'chapters' | 'relations' | 'recommendations' | 'characters' | 'staff' | 'reviews'>('chapters');
   const [characters, setCharacters] = useState<any[]>([]);
   const [charactersLoading, setCharactersLoading] = useState(false);
   const [charactersError, setCharactersError] = useState<string | null>(null);
@@ -283,19 +307,25 @@ export const MangaPage: React.FC<MangaPageProps> = ({
 
   const prevMangaIdRef = useRef<string | null>(null);
   const prevCharIdRef = useRef<number | null>(null);
+  const prevStaffIdRef = useRef<number | null>(null);
+  const prevStudioIdRef = useRef<number | null>(null);
 
   // Reset scroll to top on mount and view transitions
   useEffect(() => {
     const isNewManga = selectedMangaId && selectedMangaId !== prevMangaIdRef.current;
     const isNewChar = selectedCharacterId && selectedCharacterId !== prevCharIdRef.current;
+    const isNewStaff = selectedStaffId && selectedStaffId !== prevStaffIdRef.current;
+    const isNewStudio = selectedStudioId && selectedStudioId !== prevStudioIdRef.current;
 
-    if (isNewManga || isNewChar) {
+    if (isNewManga || isNewChar || isNewStaff || isNewStudio) {
       window.scrollTo({ top: 0, behavior: 'instant' });
     }
 
     prevMangaIdRef.current = selectedMangaId;
     prevCharIdRef.current = selectedCharacterId;
-  }, [selectedMangaId, selectedCharacterId]);
+    prevStaffIdRef.current = selectedStaffId;
+    prevStudioIdRef.current = selectedStudioId;
+  }, [selectedMangaId, selectedCharacterId, selectedStaffId, selectedStudioId]);
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'instant' });
@@ -636,6 +666,447 @@ export const MangaPage: React.FC<MangaPageProps> = ({
       setRecLoading(false);
     }
   }, [fetchAniList, getMangaTitle]);
+
+  const fetchMangaReviews = useCallback(async (manga: MangaDexManga) => {
+    setReviewsLoading(true);
+    try {
+      const links = manga.attributes.links || {};
+      const alId = links.al ? parseInt(links.al, 10) : null;
+      const malId = links.mal ? parseInt(links.mal, 10) : null;
+      
+      let query = '';
+      let variables: any = {};
+      
+      if (alId && !isNaN(alId)) {
+        query = `
+          query ($id: Int) {
+            Media(id: $id, type: MANGA) {
+              reviews(limit: 8, sort: [RATING_DESC, ID]) {
+                nodes {
+                  id
+                  summary
+                  body
+                  rating
+                  score
+                  user {
+                    id
+                    name
+                    avatar {
+                      medium
+                    }
+                  }
+                }
+              }
+            }
+          }
+        `;
+        variables = { id: alId };
+      } else if (malId && !isNaN(malId)) {
+        query = `
+          query ($idMal: Int) {
+            Media(idMal: $idMal, type: MANGA) {
+              reviews(limit: 8, sort: [RATING_DESC, ID]) {
+                nodes {
+                  id
+                  summary
+                  body
+                  rating
+                  score
+                  user {
+                    id
+                    name
+                    avatar {
+                      medium
+                    }
+                  }
+                }
+              }
+            }
+          }
+        `;
+        variables = { idMal: malId };
+      } else {
+        const title = getMangaTitle(manga);
+        query = `
+          query ($search: String) {
+            Media(search: $search, type: MANGA) {
+              reviews(limit: 8, sort: [RATING_DESC, ID]) {
+                nodes {
+                  id
+                  summary
+                  body
+                  rating
+                  score
+                  user {
+                    id
+                    name
+                    avatar {
+                      medium
+                    }
+                  }
+                }
+              }
+            }
+          }
+        `;
+        variables = { search: title };
+      }
+
+      const res = await fetchAniList(query, variables);
+      if (res && res.Media && res.Media.reviews && res.Media.reviews.nodes) {
+        setReviews(res.Media.reviews.nodes);
+      } else {
+        setReviews([]);
+      }
+    } catch (err) {
+      console.error("Failed to load manga reviews:", err);
+      setReviews([]);
+    } finally {
+      setReviewsLoading(false);
+    }
+  }, [fetchAniList, getMangaTitle]);
+
+  const fetchAniListMangaDetails = useCallback(async (manga: MangaDexManga) => {
+    setAniListMangaLoading(true);
+    try {
+      const links = manga.attributes.links || {};
+      const alId = links.al ? parseInt(links.al, 10) : null;
+      const malId = links.mal ? parseInt(links.mal, 10) : null;
+      
+      let query = '';
+      let variables: any = {};
+      
+      if (alId && !isNaN(alId)) {
+        query = `
+          query ($id: Int) {
+            Media(id: $id, type: MANGA) {
+              id
+              nextAiringEpisode {
+                episode
+                airingAt
+                timeUntilAiring
+              }
+              staff {
+                edges {
+                  role
+                  node {
+                    id
+                    name {
+                      full
+                      native
+                    }
+                    image {
+                      large
+                    }
+                  }
+                }
+              }
+              relations {
+                edges {
+                  relationType
+                  node {
+                    id
+                    type
+                    title {
+                      userPreferred
+                    }
+                    nextAiringEpisode {
+                      episode
+                      airingAt
+                      timeUntilAiring
+                    }
+                    studios(isMain: true) {
+                      edges {
+                        isMain
+                        node {
+                          id
+                          name
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        `;
+        variables = { id: alId };
+      } else if (malId && !isNaN(malId)) {
+        query = `
+          query ($idMal: Int) {
+            Media(idMal: $idMal, type: MANGA) {
+              id
+              nextAiringEpisode {
+                episode
+                airingAt
+                timeUntilAiring
+              }
+              staff {
+                edges {
+                  role
+                  node {
+                    id
+                    name {
+                      full
+                      native
+                    }
+                    image {
+                      large
+                    }
+                  }
+                }
+              }
+              relations {
+                edges {
+                  relationType
+                  node {
+                    id
+                    type
+                    title {
+                      userPreferred
+                    }
+                    nextAiringEpisode {
+                      episode
+                      airingAt
+                      timeUntilAiring
+                    }
+                    studios(isMain: true) {
+                      edges {
+                        isMain
+                        node {
+                          id
+                          name
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        `;
+        variables = { idMal: malId };
+      } else {
+        const title = getMangaTitle(manga);
+        query = `
+          query ($search: String) {
+            Media(search: $search, type: MANGA) {
+              id
+              nextAiringEpisode {
+                episode
+                airingAt
+                timeUntilAiring
+              }
+              staff {
+                edges {
+                  role
+                  node {
+                    id
+                    name {
+                      full
+                      native
+                    }
+                    image {
+                      large
+                    }
+                  }
+                }
+              }
+              relations {
+                edges {
+                  relationType
+                  node {
+                    id
+                    type
+                    title {
+                      userPreferred
+                    }
+                    nextAiringEpisode {
+                      episode
+                      airingAt
+                      timeUntilAiring
+                    }
+                    studios(isMain: true) {
+                      edges {
+                        isMain
+                        node {
+                          id
+                          name
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        `;
+        variables = { search: title };
+      }
+
+      const res = await fetchAniList(query, variables);
+      if (res && res.Media) {
+        setAniListMangaData(res.Media);
+      } else {
+        setAniListMangaData(null);
+      }
+    } catch (err) {
+      console.error("Failed to load AniList manga details:", err);
+      setAniListMangaData(null);
+    } finally {
+      setAniListMangaLoading(false);
+    }
+  }, [fetchAniList, getMangaTitle]);
+
+  const fetchStaffDetails = useCallback(async (id: number) => {
+    setStaffDetailsLoading(true);
+    setStaffDetailsError(null);
+    setStaffMedia([]);
+    setStaffMediaLoading(true);
+    try {
+      const query = `
+        query ($id: Int) {
+          Staff(id: $id) {
+            id
+            name {
+              full
+              native
+              alternative
+            }
+            image {
+              large
+            }
+            description
+            homeTown
+            dateOfBirth {
+              year
+              month
+              day
+            }
+            dateOfDeath {
+              year
+              month
+              day
+            }
+            language
+            staffMedia(perPage: 24, type: MANGA) {
+              nodes {
+                id
+                title {
+                  english
+                  romaji
+                  userPreferred
+                }
+                coverImage {
+                  large
+                }
+              }
+            }
+          }
+        }
+      `;
+      const res = await fetchAniList(query, { id });
+      if (res && res.Staff) {
+        setStaffDetails(res.Staff);
+        const nodes = res.Staff.staffMedia?.nodes || [];
+        const mapped = nodes.map((m: any) => translateAniListToManga(m));
+        setStaffMedia(mapped);
+      } else {
+        setStaffDetails(null);
+      }
+    } catch (err: any) {
+      console.error("Failed to load staff details:", err);
+      setStaffDetailsError(err.message || "Failed to load staff details");
+    } finally {
+      setStaffDetailsLoading(false);
+      setStaffMediaLoading(false);
+    }
+  }, [fetchAniList]);
+
+  const fetchStudioDetails = useCallback(async (id: number) => {
+    setStudioDetailsLoading(true);
+    setStudioDetailsError(null);
+    setStudioMedia([]);
+    setStudioMediaLoading(true);
+    try {
+      const query = `
+        query ($id: Int) {
+          Studio(id: $id) {
+            id
+            name
+            favourites
+            media(isMain: true, perPage: 24, sort: [POPULARITY_DESC]) {
+              nodes {
+                id
+                title {
+                  english
+                  romaji
+                  userPreferred
+                }
+                coverImage {
+                  large
+                }
+                type
+              }
+            }
+          }
+        }
+      `;
+      const res = await fetchAniList(query, { id });
+      if (res && res.Studio) {
+        setStudioDetails(res.Studio);
+        const nodes = res.Studio.media?.nodes || [];
+        const mapped = nodes.map((m: any) => translateAniListToManga(m));
+        setStudioMedia(mapped);
+      } else {
+        setStudioDetails(null);
+      }
+    } catch (err: any) {
+      console.error("Failed to load studio details:", err);
+      setStudioDetailsError(err.message || "Failed to load studio details");
+    } finally {
+      setStudioDetailsLoading(false);
+      setStudioMediaLoading(false);
+    }
+  }, [fetchAniList]);
+
+  const handleStaffSearchAndSelect = useCallback(async (name: string) => {
+    setStaffDetailsLoading(true);
+    setStaffDetailsError(null);
+    try {
+      const query = `
+        query ($search: String) {
+          Page(perPage: 1) {
+            staff(search: $search) {
+              id
+            }
+          }
+        }
+      `;
+      const cleanName = name.replace(/\([^)]*\)/g, '').trim();
+      const res = await fetchAniList(query, { search: cleanName });
+      const staffList = res?.Page?.staff || [];
+      if (staffList.length > 0) {
+        setSelectedStaffId(staffList[0].id);
+      } else {
+        const parts = cleanName.split(/\s+/);
+        if (parts.length > 1) {
+          const res2 = await fetchAniList(query, { search: parts[parts.length - 1] });
+          const staffList2 = res2?.Page?.staff || [];
+          if (staffList2.length > 0) {
+            setSelectedStaffId(staffList2[0].id);
+            return;
+          }
+        }
+        showToast(`Could not find "${name}" on AniList`);
+      }
+    } catch (e) {
+      console.error("Staff resolution error:", e);
+      showToast(`Could not resolve "${name}"`);
+    } finally {
+      setStaffDetailsLoading(false);
+    }
+  }, [fetchAniList, showToast]);
 
   const resolveMangaPill = useCallback(async (manga: MangaDexManga, provider = readingSource) => {
     if (resolvedProvider === provider && mangapillChapters.length > 0) {
@@ -986,6 +1457,37 @@ export const MangaPage: React.FC<MangaPageProps> = ({
     }
     fetchMangaCharacters(selectedManga);
   }, [selectedManga, fetchMangaCharacters]);
+
+  // Load AniList media details and reviews when selectedManga changes
+  useEffect(() => {
+    if (!selectedManga) {
+      setAniListMangaData(null);
+      setReviews([]);
+      return;
+    }
+    fetchAniListMangaDetails(selectedManga);
+    fetchMangaReviews(selectedManga);
+  }, [selectedManga, fetchAniListMangaDetails, fetchMangaReviews]);
+
+  // Load Staff details when selectedStaffId changes
+  useEffect(() => {
+    if (!selectedStaffId) {
+      setStaffDetails(null);
+      setStaffMedia([]);
+      return;
+    }
+    fetchStaffDetails(selectedStaffId);
+  }, [selectedStaffId, fetchStaffDetails]);
+
+  // Load Studio details when selectedStudioId changes
+  useEffect(() => {
+    if (!selectedStudioId) {
+      setStudioDetails(null);
+      setStudioMedia([]);
+      return;
+    }
+    fetchStudioDetails(selectedStudioId);
+  }, [selectedStudioId, fetchStudioDetails]);
 
   // Load Character details when selectedCharacterId changes
   useEffect(() => {
@@ -1616,6 +2118,38 @@ export const MangaPage: React.FC<MangaPageProps> = ({
     return result;
   }, [selectedManga]);
 
+  const mangaStudios = useMemo(() => {
+    if (!aniListMangaData?.relations?.edges) return [];
+    const studiosMap = new Map<number, { id: number; name: string }>();
+    aniListMangaData.relations.edges.forEach((edge: any) => {
+      if (edge.node?.type === 'ANIME' && edge.node?.studios?.edges) {
+        edge.node.studios.edges.forEach((stEdge: any) => {
+          if (stEdge.node) {
+            studiosMap.set(stEdge.node.id, stEdge.node);
+          }
+        });
+      }
+    });
+    return Array.from(studiosMap.values());
+  }, [aniListMangaData]);
+
+  const nextAiringEpisodeData = useMemo(() => {
+    if (aniListMangaData?.nextAiringEpisode) {
+      return aniListMangaData.nextAiringEpisode;
+    }
+    if (aniListMangaData?.relations?.edges) {
+      const animeRelation = aniListMangaData.relations.edges.find((edge: any) => edge.node?.type === 'ANIME' && edge.node?.nextAiringEpisode);
+      if (animeRelation) {
+        return animeRelation.node.nextAiringEpisode;
+      }
+    }
+  }, [aniListMangaData]);
+
+  const mangaStaffList = useMemo(() => {
+    if (!aniListMangaData?.staff?.edges) return [];
+    return aniListMangaData.staff.edges.filter((edge: any) => edge.node);
+  }, [aniListMangaData]);
+
   // Mapped chapters from MangaPill
   const mappedMangapillChapters = useMemo(() => {
     if (readingSource === 'mangadex') return [];
@@ -1847,6 +2381,274 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                   </div>
                 )}
               </div>
+            </div>
+          </div>
+        ) : null}
+      </div>
+    );
+  }
+
+  // Premium Staff Details Page layout (Early Return)
+  if (selectedStaffId) {
+    return (
+      <div className="min-h-screen bg-[#030303] text-white pb-16 relative select-none font-sans animate-fade-in text-left">
+        {/* Navigation Bar / Header */}
+        <div className="max-w-7xl mx-auto px-4 md:px-12 py-6 border-b border-white/5 flex items-center justify-between">
+          <button
+            onClick={() => setSelectedStaffId(null)}
+            className="flex items-center gap-2 text-zinc-400 hover:text-white transition-all text-xs font-bold uppercase tracking-wider active:scale-95 bg-white/5 hover:bg-white/10 px-4 py-2 rounded-lg border border-white/5"
+          >
+            <ArrowLeft size={14} /> Back
+          </button>
+          <span className="text-zinc-500 text-xs font-black uppercase tracking-wider">Creator Profile</span>
+        </div>
+
+        {staffDetailsLoading ? (
+          <div className="flex-1 flex flex-col items-center justify-center p-24 gap-3 text-zinc-400 min-h-[60vh]">
+            <Loader2 className="animate-spin text-red-600" size={36} />
+            <span className="text-xs font-semibold tracking-wider">Retrieving creator dossiers...</span>
+          </div>
+        ) : staffDetailsError ? (
+          <div className="flex-1 flex flex-col items-center justify-center p-24 text-center text-zinc-400 gap-2 min-h-[60vh]">
+            <AlertCircle size={40} className="text-red-500" />
+            <h3 className="text-lg font-bold text-white">Failed to load creator details</h3>
+            <p className="text-xs text-zinc-500 max-w-sm">{staffDetailsError}</p>
+            <button
+              onClick={() => setSelectedStaffId(selectedStaffId)}
+              className="mt-4 px-5 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-bold uppercase rounded-lg shadow-lg active:scale-95 transition-all"
+            >
+              Retry
+            </button>
+          </div>
+        ) : staffDetails ? (
+          <div className="max-w-7xl mx-auto px-4 md:px-12 py-10 flex flex-col md:flex-row gap-10 text-left">
+            {/* Left column: Image & Stats */}
+            <div className="w-full md:w-[280px] shrink-0 flex flex-col items-center md:items-start font-sans">
+              <div className="w-[200px] md:w-full aspect-[2/3] bg-zinc-900 rounded-2xl overflow-hidden shadow-2xl border border-white/5 group hover:scale-[1.01] transition-transform duration-500">
+                <img
+                  src={staffDetails.image?.large}
+                  alt={staffDetails.name?.full}
+                  className="w-full h-full object-cover"
+                />
+              </div>
+
+              {/* Stats card */}
+              <div className="w-full mt-8 bg-[#0c0c0e]/80 border border-white/5 rounded-2xl p-6 space-y-4 text-xs shadow-lg font-sans">
+                <h4 className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest border-b border-white/5 pb-2">Creator Dossier</h4>
+                {staffDetails.homeTown && (
+                  <div>
+                    <span className="text-zinc-500 font-normal block mb-0.5">Hometown</span>
+                    <span className="text-zinc-300 text-sm font-medium">{staffDetails.homeTown}</span>
+                  </div>
+                )}
+                {staffDetails.language && (
+                  <div>
+                    <span className="text-zinc-500 font-normal block mb-0.5">Language</span>
+                    <span className="text-zinc-300 text-sm font-medium">{staffDetails.language}</span>
+                  </div>
+                )}
+                {(staffDetails.dateOfBirth?.day || staffDetails.dateOfBirth?.month || staffDetails.dateOfBirth?.year) && (
+                  <div>
+                    <span className="text-zinc-500 font-normal block mb-0.5">Birth Date</span>
+                    <span className="text-zinc-300 text-sm font-medium">
+                      {staffDetails.dateOfBirth.month ? new Date(2000, staffDetails.dateOfBirth.month - 1).toLocaleString('en-US', { month: 'long' }) : ''} {staffDetails.dateOfBirth.day || ''}
+                      {staffDetails.dateOfBirth.year ? `, ${staffDetails.dateOfBirth.year}` : ''}
+                    </span>
+                  </div>
+                )}
+                {(staffDetails.dateOfDeath?.day || staffDetails.dateOfDeath?.month || staffDetails.dateOfDeath?.year) && (
+                  <div>
+                    <span className="text-zinc-500 font-normal block mb-0.5">Date of Death</span>
+                    <span className="text-zinc-300 text-sm font-medium">
+                      {staffDetails.dateOfDeath.month ? new Date(2000, staffDetails.dateOfDeath.month - 1).toLocaleString('en-US', { month: 'long' }) : ''} {staffDetails.dateOfDeath.day || ''}
+                      {staffDetails.dateOfDeath.year ? `, ${staffDetails.dateOfDeath.year}` : ''}
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Right column: Bio & Other Works */}
+            <div className="flex-1 min-w-0 flex flex-col font-sans space-y-10">
+              <div className="space-y-6">
+                <div>
+                  <h1 className="text-4xl md:text-6xl font-extrabold text-white tracking-tight leading-none mb-2">
+                    {staffDetails.name?.full}
+                  </h1>
+                  {staffDetails.name?.native && (
+                    <h3 className="text-xl font-bold text-red-500 mt-1">
+                      {staffDetails.name.native}
+                    </h3>
+                  )}
+                  {staffDetails.name?.alternative?.length > 0 && (
+                    <p className="text-xs text-zinc-500 mt-2">
+                      <span className="font-semibold text-zinc-400">Alternative Names:</span> {staffDetails.name.alternative.filter(Boolean).join(', ')}
+                    </p>
+                  )}
+                </div>
+
+                {/* Biography */}
+                <div className="space-y-3.5">
+                  <h3 className="text-sm font-bold uppercase tracking-widest text-zinc-400 border-b border-white/5 pb-2">Biography</h3>
+                  <div 
+                    className="text-gray-300 leading-relaxed text-base font-light whitespace-pre-line bg-white/[0.01] p-6 rounded-2xl border border-white/[0.03] shadow-inner max-h-[400px] overflow-y-auto custom-scrollbar text-left"
+                    dangerouslySetInnerHTML={{ __html: staffDetails.description || 'No biography available for this creator.' }}
+                  />
+                </div>
+              </div>
+
+              {/* Works Grid */}
+              <div className="space-y-5">
+                <h3 className="text-sm font-bold uppercase tracking-widest text-zinc-400 border-b border-white/5 pb-2 flex items-center gap-2">
+                  <BookOpen size={16} className="text-red-500" />
+                  <span>Works ({staffMedia.length})</span>
+                </h3>
+                
+                {staffMediaLoading ? (
+                  <div className="flex items-center gap-2 py-8">
+                    <Loader2 className="animate-spin text-red-500" size={20} />
+                    <span className="text-xs text-zinc-500 font-medium">Mapping credits to catalog...</span>
+                  </div>
+                ) : staffMedia.length === 0 ? (
+                  <p className="text-zinc-500 italic py-2 text-sm">No mapped works catalog entries available.</p>
+                ) : (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-6">
+                    {staffMedia.map((manga) => {
+                      const title = getMangaTitleHelper(manga, titleLanguage);
+                      const coverFileName = manga.relationships?.find(r => r.type === 'cover_art')?.attributes?.fileName;
+                      const coverUrl = coverFileName?.startsWith('http')
+                        ? coverFileName
+                        : (coverFileName ? `https://uploads.mangadex.org/covers/${manga.id}/${coverFileName}.256.jpg` : 'https://placehold.co/400x600/111/444?text=No+Cover');
+                      return (
+                        <div
+                          key={manga.id}
+                          onClick={() => {
+                            handleMangaSelect(manga.id);
+                            setSelectedStaffId(null);
+                          }}
+                          className="group relative shrink-0 aspect-[2/3] rounded-xl overflow-hidden cursor-pointer bg-zinc-900 border border-white/5 hover:border-red-500/50 hover:scale-[1.02] transition-all duration-300 shadow-lg"
+                        >
+                          <img
+                            src={coverUrl}
+                            alt={title}
+                            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                            loading="lazy"
+                          />
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/45 to-transparent pointer-events-none" />
+                          <div className="absolute inset-0 p-3 flex flex-col justify-end text-left pointer-events-none">
+                            <h5 className="text-[11px] font-bold text-white line-clamp-2 leading-tight group-hover:text-red-500 transition-colors">
+                              {title}
+                            </h5>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        ) : null}
+      </div>
+    );
+  }
+
+  // Premium Studio Details Page layout (Early Return)
+  if (selectedStudioId) {
+    return (
+      <div className="min-h-screen bg-[#030303] text-white pb-16 relative select-none font-sans animate-fade-in text-left">
+        {/* Navigation Bar / Header */}
+        <div className="max-w-7xl mx-auto px-4 md:px-12 py-6 border-b border-white/5 flex items-center justify-between">
+          <button
+            onClick={() => setSelectedStudioId(null)}
+            className="flex items-center gap-2 text-zinc-400 hover:text-white transition-all text-xs font-bold uppercase tracking-wider active:scale-95 bg-white/5 hover:bg-white/10 px-4 py-2 rounded-lg border border-white/5"
+          >
+            <ArrowLeft size={14} /> Back
+          </button>
+          <span className="text-zinc-500 text-xs font-black uppercase tracking-wider">Studio Profile</span>
+        </div>
+
+        {studioDetailsLoading ? (
+          <div className="flex-1 flex flex-col items-center justify-center p-24 gap-3 text-zinc-400 min-h-[60vh]">
+            <Loader2 className="animate-spin text-red-600" size={36} />
+            <span className="text-xs font-semibold tracking-wider">Retrieving studio details...</span>
+          </div>
+        ) : studioDetailsError ? (
+          <div className="flex-1 flex flex-col items-center justify-center p-24 text-center text-zinc-400 gap-2 min-h-[60vh]">
+            <AlertCircle size={40} className="text-red-500" />
+            <h3 className="text-lg font-bold text-white">Failed to load studio details</h3>
+            <p className="text-xs text-zinc-500 max-w-sm">{studioDetailsError}</p>
+            <button
+              onClick={() => setSelectedStudioId(selectedStudioId)}
+              className="mt-4 px-5 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-bold uppercase rounded-lg shadow-lg active:scale-95 transition-all"
+            >
+              Retry
+            </button>
+          </div>
+        ) : studioDetails ? (
+          <div className="max-w-7xl mx-auto px-4 md:px-12 py-10 flex flex-col gap-10 text-left">
+            {/* Studio Header block */}
+            <div className="space-y-4">
+              <h1 className="text-4xl md:text-6xl font-extrabold text-white tracking-tight leading-none">
+                {studioDetails.name}
+              </h1>
+              <div className="flex items-center gap-2 text-zinc-400 text-xs">
+                <span className="px-3 py-1 bg-white/5 border border-white/10 rounded-full font-bold uppercase text-red-500 flex items-center gap-1.5 shadow">
+                  <Heart size={11} className="fill-red-500" /> {studioDetails.favourites || 0} Favorites
+                </span>
+                <span className="text-zinc-600">|</span>
+                <span>Produced Works: {studioMedia.length}</span>
+              </div>
+            </div>
+
+            {/* Produced Works Grid */}
+            <div className="space-y-6">
+              <h3 className="text-lg font-bold uppercase tracking-widest text-zinc-400 border-b border-white/5 pb-2 flex items-center gap-2">
+                <BookOpen size={18} className="text-red-500" />
+                <span>Produced Adaptations & Works ({studioMedia.length})</span>
+              </h3>
+              
+              {studioMediaLoading ? (
+                <div className="flex items-center gap-2 py-8">
+                  <Loader2 className="animate-spin text-red-500" size={20} />
+                  <span className="text-xs text-zinc-500 font-medium">Mapping credits to catalog...</span>
+                </div>
+              ) : studioMedia.length === 0 ? (
+                <p className="text-zinc-500 italic py-2 text-sm">No mapped works catalog entries available.</p>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-6">
+                  {studioMedia.map((manga) => {
+                    const title = getMangaTitleHelper(manga, titleLanguage);
+                    const coverFileName = manga.relationships?.find(r => r.type === 'cover_art')?.attributes?.fileName;
+                    const coverUrl = coverFileName?.startsWith('http')
+                      ? coverFileName
+                      : (coverFileName ? `https://uploads.mangadex.org/covers/${manga.id}/${coverFileName}.256.jpg` : 'https://placehold.co/400x600/111/444?text=No+Cover');
+                    return (
+                      <div
+                        key={manga.id}
+                        onClick={() => {
+                          handleMangaSelect(manga.id);
+                          setSelectedStudioId(null);
+                        }}
+                        className="group relative shrink-0 aspect-[2/3] rounded-xl overflow-hidden cursor-pointer bg-zinc-900 border border-white/5 hover:border-red-500/50 hover:scale-[1.02] transition-all duration-300 shadow-lg"
+                      >
+                        <img
+                          src={coverUrl}
+                          alt={title}
+                          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                          loading="lazy"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/45 to-transparent pointer-events-none" />
+                        <div className="absolute inset-0 p-3 flex flex-col justify-end text-left pointer-events-none">
+                          <h5 className="text-[11px] font-bold text-white line-clamp-2 leading-tight group-hover:text-red-500 transition-colors">
+                            {title}
+                          </h5>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>
         ) : null}
@@ -2448,12 +3250,66 @@ export const MangaPage: React.FC<MangaPageProps> = ({
               <div className="space-y-3.5 text-xs">
                 <div>
                   <span className="text-zinc-500 font-normal block mb-0.5">Author</span>
-                  <span className="text-zinc-300 font-medium">{authors}</span>
+                  <div className="flex flex-wrap gap-1.5 mt-0.5">
+                    {selectedManga.relationships
+                      ?.filter(r => r.type === 'author')
+                      ?.map(r => {
+                        const authorName = r.attributes?.name;
+                        if (!authorName) return null;
+                        return (
+                          <button
+                            key={r.id}
+                            onClick={() => handleStaffSearchAndSelect(authorName)}
+                            className="text-red-500 hover:text-red-400 font-medium underline text-left hover:no-underline transition-all"
+                          >
+                            {authorName}
+                          </button>
+                        );
+                      })}
+                    {selectedManga.relationships?.filter(r => r.type === 'author').length === 0 && (
+                      <span className="text-zinc-300 font-medium">Unknown</span>
+                    )}
+                  </div>
                 </div>
                 <div>
                   <span className="text-zinc-500 font-normal block mb-0.5">Artist</span>
-                  <span className="text-zinc-300 font-medium">{artists}</span>
+                  <div className="flex flex-wrap gap-1.5 mt-0.5">
+                    {selectedManga.relationships
+                      ?.filter(r => r.type === 'artist')
+                      ?.map(r => {
+                        const artistName = r.attributes?.name;
+                        if (!artistName) return null;
+                        return (
+                          <button
+                            key={r.id}
+                            onClick={() => handleStaffSearchAndSelect(artistName)}
+                            className="text-red-500 hover:text-red-400 font-medium underline text-left hover:no-underline transition-all"
+                          >
+                            {artistName}
+                          </button>
+                        );
+                      })}
+                    {selectedManga.relationships?.filter(r => r.type === 'artist').length === 0 && (
+                      <span className="text-zinc-300 font-medium">Unknown</span>
+                    )}
+                  </div>
                 </div>
+                {mangaStudios.length > 0 && (
+                  <div>
+                    <span className="text-zinc-500 font-normal block mb-0.5">Animation Studio</span>
+                    <div className="flex flex-wrap gap-1.5 mt-0.5 font-sans">
+                      {mangaStudios.map((st) => (
+                        <button
+                          key={st.id}
+                          onClick={() => setSelectedStudioId(st.id)}
+                          className="text-red-500 hover:text-red-400 font-medium underline text-left hover:no-underline transition-all"
+                        >
+                          {st.name}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 <div>
                   <span className="text-zinc-500 font-normal block mb-0.5">Published</span>
                   <span className="text-zinc-300 font-medium">{selectedManga.attributes.year || 'TBA'}</span>
@@ -2504,6 +3360,30 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                 {selectedManga.attributes.contentRating}
               </span>
             </div>
+
+            {/* Airing Anime Countdown Card */}
+            {nextAiringEpisodeData && (
+              <div className="mb-8 bg-red-950/20 border border-red-500/30 rounded-2xl p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-lg text-left">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-1.5 text-red-500 font-bold text-xs tracking-wider uppercase">
+                    <Calendar size={14} className="animate-pulse" />
+                    <span>Anime Adaptation Airing</span>
+                  </div>
+                  <h4 className="text-base font-extrabold text-white leading-tight">
+                    Episode {nextAiringEpisodeData.episode} Countdown
+                  </h4>
+                  <p className="text-xs text-zinc-400">
+                    Airs on {new Date(nextAiringEpisodeData.airingAt * 1000).toLocaleString(undefined, { weekday: 'long', hour: '2-digit', minute: '2-digit', month: 'short', day: 'numeric' })}
+                  </p>
+                </div>
+                <div className="bg-red-500/10 border border-red-500/25 px-5 py-3 rounded-xl text-left sm:text-right font-sans shrink-0 w-full sm:w-auto">
+                  <span className="text-[10px] font-bold text-red-400 uppercase block tracking-wider mb-0.5">Airing In</span>
+                  <span className="text-base font-black text-white font-mono">
+                    {Math.floor(nextAiringEpisodeData.timeUntilAiring / 86400)}d {Math.floor((nextAiringEpisodeData.timeUntilAiring % 86400) / 3600)}h {Math.floor((nextAiringEpisodeData.timeUntilAiring % 3600) / 60)}m
+                  </span>
+                </div>
+              </div>
+            )}
 
             {/* Synopsis */}
             <div className="mb-8 text-left">
@@ -2577,6 +3457,20 @@ export const MangaPage: React.FC<MangaPageProps> = ({
               >
                 Characters
                 {detailsTab === 'characters' && <span className="absolute bottom-0 left-0 w-full h-0.5 bg-red-600 rounded-full" />}
+              </button>
+              <button
+                onClick={() => setDetailsTab('staff')}
+                className={`pb-2 text-xs md:text-sm font-medium tracking-wide relative transition-colors ${detailsTab === 'staff' ? 'text-red-500' : 'text-zinc-500 hover:text-white'}`}
+              >
+                Staff
+                {detailsTab === 'staff' && <span className="absolute bottom-0 left-0 w-full h-0.5 bg-red-600 rounded-full" />}
+              </button>
+              <button
+                onClick={() => setDetailsTab('reviews')}
+                className={`pb-2 text-xs md:text-sm font-medium tracking-wide relative transition-colors ${detailsTab === 'reviews' ? 'text-red-500' : 'text-zinc-500 hover:text-white'}`}
+              >
+                Reviews
+                {detailsTab === 'reviews' && <span className="absolute bottom-0 left-0 w-full h-0.5 bg-red-600 rounded-full" />}
               </button>
             </div>
 
@@ -2863,6 +3757,118 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                       </div>
                     );
                   })}
+                </div>
+              )
+            )}
+
+            {/* Staff Tab */}
+            {detailsTab === 'staff' && (
+              aniListMangaLoading ? (
+                <div className="flex flex-col items-center justify-center py-16 gap-2">
+                  <Loader2 className="animate-spin text-red-500" size={24} />
+                  <span className="text-[10px] text-zinc-500 font-medium tracking-wide">Retrieving staff members...</span>
+                </div>
+              ) : mangaStaffList.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-16 opacity-50">
+                  <Users size={28} className="text-zinc-600 mb-2" />
+                  <span className="text-xs text-zinc-500">No staff details available for this manga.</span>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4">
+                  {mangaStaffList.map((edge: any) => {
+                    const staffNode = edge.node;
+                    const staffName = staffNode.name.full;
+                    const staffImage = staffNode.image.large || `https://ui-avatars.com/api/?name=${encodeURIComponent(staffName)}&background=333&color=fff`;
+                    const staffRole = edge.role || 'Staff';
+                    
+                    return (
+                      <div
+                        key={staffNode.id}
+                        onClick={() => setSelectedStaffId(staffNode.id)}
+                        className="group relative shrink-0 aspect-[2/3] rounded-xl overflow-hidden cursor-pointer bg-zinc-900 border border-white/5 hover:border-red-500/50 hover:shadow-[0_0_20px_rgba(239,68,68,0.25)] hover:scale-[1.03] transition-all duration-500 animate-in fade-in zoom-in-95 duration-300"
+                      >
+                        <img
+                          src={staffImage}
+                          alt={staffName}
+                          loading="lazy"
+                          className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/35 to-transparent opacity-85 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
+                        
+                        {/* Role Badge */}
+                        <div className="absolute top-2 left-2 z-10">
+                          <span className="px-2 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider bg-red-600/95 text-white backdrop-blur-sm shadow">
+                            {staffRole}
+                          </span>
+                        </div>
+
+                        <div className="absolute inset-0 p-2.5 flex flex-col justify-end text-left select-none pointer-events-none">
+                          <h4 className="text-[11px] font-bold text-white line-clamp-2 group-hover:text-red-500 transition-colors duration-300 drop-shadow-md leading-tight">
+                            {staffName}
+                          </h4>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )
+            )}
+
+            {/* Reviews Tab */}
+            {detailsTab === 'reviews' && (
+              reviewsLoading ? (
+                <div className="flex flex-col items-center justify-center py-16 gap-2">
+                  <Loader2 className="animate-spin text-red-500" size={24} />
+                  <span className="text-[10px] text-zinc-500 font-medium tracking-wide">Retrieving community reviews...</span>
+                </div>
+              ) : reviews.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-16 opacity-50">
+                  <FileText size={28} className="text-zinc-600 mb-2" />
+                  <span className="text-xs text-zinc-500">No community reviews available for this manga.</span>
+                </div>
+              ) : (
+                <div className="space-y-6 text-left">
+                  {reviews.map((rev) => (
+                    <div
+                      key={rev.id}
+                      className="bg-white/5 border border-white/5 rounded-2xl p-6 space-y-4 hover:border-white/10 transition-colors shadow-lg"
+                    >
+                      {/* Review Header */}
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <img
+                            src={rev.user?.avatar?.medium || 'https://ui-avatars.com/api/?name=User&background=333&color=fff'}
+                            alt={rev.user?.name}
+                            className="w-10 h-10 rounded-full border border-white/10"
+                          />
+                          <div>
+                            <h4 className="text-sm font-bold text-white">{rev.user?.name}</h4>
+                            <p className="text-[10px] text-zinc-500 font-medium tracking-wider uppercase mt-0.5">AniList Contributor</p>
+                          </div>
+                        </div>
+
+                        {/* Scores */}
+                        <div className="flex items-center gap-3 text-xs bg-white/5 border border-white/5 px-3 py-1.5 rounded-lg">
+                          <div className="flex items-center gap-1">
+                            <Star size={12} className="text-yellow-500 fill-yellow-500" />
+                            <span className="font-semibold text-white">{rev.score}%</span>
+                          </div>
+                          <span className="text-zinc-600">|</span>
+                          <span className="text-zinc-400 font-medium">{rev.rating} Likes</span>
+                        </div>
+                      </div>
+
+                      {/* Review Content */}
+                      <div className="space-y-2">
+                        <h3 className="text-base font-bold text-red-500 leading-snug">
+                          {rev.summary}
+                        </h3>
+                        <div className="text-zinc-300 text-sm font-normal leading-relaxed max-h-[160px] overflow-y-auto pr-2 custom-scrollbar whitespace-pre-line bg-white/[0.01] p-3 rounded-lg border border-white/[0.02]">
+                          {rev.body.replace(/<br>/gi, '\n')}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               )
             )}
