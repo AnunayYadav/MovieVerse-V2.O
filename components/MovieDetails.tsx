@@ -1299,6 +1299,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
         { id: 'media', label: 'Media' },
         ...(isTv ? [{ id: 'seasons', label: 'Seasons' }] : []),
         ...(isAnime ? [{ id: 'characters', label: 'Characters' }] : []),
+        ...(isAnime && sortedRelations.length > 0 ? [{ id: 'relations', label: 'Relations' }] : []),
         ...(displayData.similar?.results && displayData.similar.results.length > 0 ? [{ id: 'similar', label: 'Similar' }] : []),
     ];
 
@@ -1782,6 +1783,64 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                                     <h4 className="text-xs font-semibold text-white line-clamp-2 leading-tight group-hover:text-red-500 transition-colors duration-300">
                                                                         {charName}
                                                                     </h4>
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+
+                                    {activeTab === 'relations' && (
+                                        <div className="animate-in fade-in text-left">
+                                            {sortedRelations.length === 0 ? (
+                                                <div className="text-zinc-500 text-xs py-3 px-1 italic">No relation data found.</div>
+                                            ) : (
+                                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                                                    {sortedRelations.map((edge: any) => {
+                                                        const relNode = edge.node;
+                                                        const relTitle = relNode.title.userPreferred || relNode.title.english || relNode.title.romaji;
+                                                        const relYear = relNode.startDate?.year || 'TBA';
+                                                        const relType = edge.relationType;
+                                                        const relFormat = relNode.format || 'Anime';
+                                                        const isMatching = matchingRelationId === relNode.id;
+
+                                                        return (
+                                                            <div 
+                                                                key={relNode.id} 
+                                                                onClick={() => {
+                                                                    if (!isMatching) handleRelationClick(relNode);
+                                                                }}
+                                                                className="group relative aspect-[2/3] rounded-2xl overflow-hidden bg-zinc-950 border border-white/5 hover:border-red-500/40 hover:shadow-[0_4px_15px_rgba(239,68,68,0.15)] hover:scale-[1.02] transition-all duration-500 animate-in fade-in cursor-pointer animate-duration-500"
+                                                            >
+                                                                <img
+                                                                    src={relNode.coverImage?.large || "https://placehold.co/300x450"}
+                                                                    alt={relTitle}
+                                                                    loading="lazy"
+                                                                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                                                                />
+                                                                {isMatching && (
+                                                                    <div className="absolute inset-0 bg-black/60 flex items-center justify-center backdrop-blur-sm z-30">
+                                                                        <Loader2 className="animate-spin text-red-600" size={24} />
+                                                                    </div>
+                                                                )}
+                                                                <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/35 to-transparent opacity-90 transition-opacity duration-300 pointer-events-none" />
+                                                                
+                                                                {/* Relation Badge */}
+                                                                <div className="absolute top-2 left-2 z-10 select-none">
+                                                                    <span className={`px-2 py-0.5 rounded text-[8px] font-semibold uppercase tracking-wider ${getRelationBadgeClass(relType)} shadow-md backdrop-blur-sm`}>
+                                                                        {formatRelationType(relType)}
+                                                                    </span>
+                                                                </div>
+
+                                                                <div className="absolute inset-0 p-3 flex flex-col justify-end text-left select-none pointer-events-none">
+                                                                    <h4 className="text-xs font-semibold text-white line-clamp-2 leading-tight group-hover:text-red-500 transition-colors duration-300">
+                                                                        {relTitle}
+                                                                    </h4>
+                                                                    <p className="text-[9px] text-zinc-400 mt-1 font-light">
+                                                                        {relFormat} • {relYear}
+                                                                    </p>
                                                                 </div>
                                                             </div>
                                                         );
@@ -2325,76 +2384,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                 </div>
                             </div>
 
-                            {/* Anime Relations Timeline */}
-                            {isAnime && sortedRelations.length > 0 && (
-                                <div className="mt-16 pt-10 border-t border-white/10 text-left">
-                                    <div className="flex flex-col gap-8 mb-12">
-                                        <div className="flex items-center gap-3 animate-in fade-in select-none">
-                                            <div className="p-2 rounded-xl bg-red-500/10 text-red-500"><Layers size={24}/></div>
-                                            <div>
-                                                <h3 className="text-2xl font-black text-white tracking-tight">Relations Timeline</h3>
-                                                <p className="text-xs text-gray-500 font-bold uppercase tracking-widest mt-1">Franchise Chronology</p>
-                                            </div>
-                                        </div>
-                                        <div className="relative w-full">
-                                            <div className="absolute top-[calc(45%+14px)] left-0 right-0 h-[2px] bg-white/10 z-0 overflow-hidden" />
-                                            <div className="flex overflow-x-auto gap-8 md:gap-12 pb-12 pt-4 hide-scrollbar relative z-10 px-4 scroll-smooth">
-                                                {sortedRelations.map((edge: any) => {
-                                                    const relNode = edge.node;
-                                                    const relTitle = relNode.title.userPreferred || relNode.title.english || relNode.title.romaji;
-                                                    const relYear = relNode.startDate?.year || 'TBA';
-                                                    const relType = edge.relationType;
-                                                    const relFormat = relNode.format || 'Anime';
-                                                    const isMatching = matchingRelationId === relNode.id;
 
-                                                    return (
-                                                        <div key={relNode.id} className="flex flex-col items-center shrink-0 w-32 md:w-44 group">
-                                                            <div 
-                                                                onClick={() => {
-                                                                    if (!isMatching) handleRelationClick(relNode);
-                                                                }} 
-                                                                className={`relative aspect-[2/3] w-full rounded-2xl overflow-hidden cursor-pointer transition-all duration-500 ease-[cubic-bezier(0.23,1,0.32,1)] mb-8 border-2 border-white/5 group-hover:border-white/20 opacity-80 hover:opacity-100 hover:scale-[1.03] shadow-lg`}
-                                                            >
-                                                                <img 
-                                                                    src={relNode.coverImage?.large || "https://placehold.co/300x450"} 
-                                                                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" 
-                                                                    alt={relTitle}
-                                                                />
-                                                                {isMatching && (
-                                                                    <div className="absolute inset-0 bg-black/60 flex items-center justify-center backdrop-blur-sm z-30">
-                                                                        <Loader2 className="animate-spin text-red-600" size={24} />
-                                                                    </div>
-                                                                )}
-                                                                <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent flex items-end justify-center p-3 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                                                                    <span className="text-[9px] font-black uppercase tracking-widest text-white">View Details</span>
-                                                                </div>
-                                                            </div>
-                                                            
-                                                            {/* Relation Badge */}
-                                                            <div className={`mb-4 px-2 py-0.5 rounded-full text-[9px] font-black border uppercase tracking-wider ${getRelationBadgeClass(relType)} shadow-sm select-none`}>
-                                                                {formatRelationType(relType)}
-                                                            </div>
-
-                                                            <div className="relative mb-6">
-                                                                <div className="w-3 h-3 rounded-full bg-white/20 scale-100 group-hover:bg-white/40 group-hover:scale-110 transition-all duration-500 shadow-xl" />
-                                                            </div>
-
-                                                            <div className="text-center w-full px-2 font-sans select-none">
-                                                                <h4 className="font-bold text-xs md:text-sm leading-tight text-gray-400 group-hover:text-white transition-colors duration-300 line-clamp-2">
-                                                                    {relTitle}
-                                                                </h4>
-                                                                <p className="text-[10px] text-zinc-500 mt-1 font-medium">
-                                                                    {relFormat} • {relYear}
-                                                                </p>
-                                                            </div>
-                                                        </div>
-                                                    );
-                                                })}
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
 
                             {collection && collection.parts && collection.parts.length > 0 && (
                                 <div className="mt-16 pt-10 border-t border-white/10">
