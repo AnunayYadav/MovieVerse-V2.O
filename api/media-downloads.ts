@@ -17,7 +17,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     const url = `https://apibay.org/q.php?q=${encodeURIComponent(q)}`;
-    const response = await fetch(url);
+    const response = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+        'Accept': 'application/json',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Referer': 'https://tpb.party/'
+      }
+    });
     
     if (!response.ok) {
       return res.status(response.status).json({ error: `apibay error: ${response.statusText}` });
@@ -25,7 +32,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const data = await response.json();
     
-    // Check if apibay returned empty search result
     if (!data || (data.length === 1 && (data[0].id === '0' || data[0].name === 'No results found'))) {
       return res.status(200).json([]);
     }
@@ -37,7 +43,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const infoHash = item.info_hash || '';
         const sizeBytes = Number(item.size) || 0;
         
-        // Format size
         let size = '0 B';
         if (sizeBytes > 0) {
           const giB = sizeBytes / (1024 * 1024 * 1024);
@@ -48,7 +53,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           }
         }
 
-        // Map category
         let category = 'Video';
         if (['201', '202', '203', '204'].includes(item.category)) {
           category = 'Movie';
@@ -58,7 +62,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           category = 'TV Show';
         }
 
-        // Magnet link
         const trackers = [
           'udp://tracker.coppersurfer.tk:6969/announce',
           'udp://tracker.openbittorrent.com:80/announce',
@@ -69,11 +72,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         ];
         const trackerParams = trackers.map(tr => `&tr=${encodeURIComponent(tr)}`).join('');
         const magnet = infoHash ? `magnet:?xt=urn:btih:${infoHash}&dn=${encodeURIComponent(title)}${trackerParams}` : '';
-        
-        // Direct .torrent cache download
         const link = infoHash ? `https://itorrents.org/torrent/${infoHash}.torrent` : '';
 
-        // pubDate from unix timestamp
         const addedUnix = Number(item.added) || 0;
         const pubDate = addedUnix > 0 ? new Date(addedUnix * 1000).toUTCString() : '';
 
@@ -84,7 +84,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           pubDate,
           seeders: Number(item.seeders) || 0,
           leechers: Number(item.leechers) || 0,
-          downloads: Number(item.seeders + item.leechers) || 0, // Fallback completed count
+          downloads: Number(item.seeders + item.leechers) || 0,
           infoHash,
           size,
           category,
@@ -92,7 +92,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         };
       });
 
-    // Cache responses for 10 minutes
     res.setHeader('Cache-Control', 's-maxage=600, stale-while-revalidate=300');
     return res.status(200).json(items);
   } catch (error: any) {
