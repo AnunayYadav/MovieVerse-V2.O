@@ -981,9 +981,9 @@ export const MoviePage: React.FC<MoviePageProps> = ({
         ...(isTv ? [{ id: 'seasons', label: 'Seasons' }] : []),
     ];
 
-    // Fetch Torrents for Anime and General Content
+    // Fetch Torrents for Anime Only
     useEffect(() => {
-        if (!showDownloadModal) return;
+        if (!showDownloadModal || !isAnime) return;
         
         let active = true;
         setVisibleNyaaCount(10);
@@ -995,23 +995,11 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                 const cleanTitle = title.replace(/[^\w\s-]/g, '').trim();
                 let q = cleanTitle;
                 if (isTv) {
-                    const seasonStr = downloadSeason < 10 ? `0${downloadSeason}` : `${downloadSeason}`;
                     const episodeStr = downloadEpisode < 10 ? `0${downloadEpisode}` : `${downloadEpisode}`;
-                    if (isAnime && downloadSeason === 1) {
-                        q = `${cleanTitle} ${episodeStr}`;
-                    } else {
-                        q = `${cleanTitle} S${seasonStr}E${episodeStr}`;
-                    }
-                } else {
-                    const year = displayData.release_date ? displayData.release_date.split('-')[0] : displayData.first_air_date ? displayData.first_air_date.split('-')[0] : '';
-                    if (year) {
-                        q = `${cleanTitle} ${year}`;
-                    }
+                    q = `${cleanTitle} ${episodeStr}`;
                 }
                 
-                const apiEndpoint = isAnime ? '/api/nyaa' : `/api/media-downloads?type=${isTv ? 'tv' : 'movie'}`;
-                const separator = isAnime ? '?' : '&';
-                const res = await fetch(`${apiEndpoint}${separator}q=${encodeURIComponent(q)}`);
+                const res = await fetch(`/api/nyaa?q=${encodeURIComponent(q)}`);
                 if (!res.ok) throw new Error("Failed to fetch torrents");
                 const data = await res.json();
                 
@@ -2326,23 +2314,19 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                         </button>
                                     </div>
 
-                                    {/* Torrents Section */}
-                                    {showDownloadModal && (
+                                    {/* Nyaa.si Torrents Section (Anime Only) */}
+                                    {isAnime && (
                                         <div className="mt-5 pt-4 border-t border-white/10 text-left">
-                                            <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider px-1 mb-2">
-                                                {isAnime ? "Direct Torrent Downloads (Nyaa.si):" : "Direct Torrent Downloads (1337x / TPB):"}
-                                            </h4>
+                                            <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider px-1 mb-2">Direct Torrent Downloads (Nyaa.si):</h4>
                                             {nyaaLoading ? (
                                                 <div className="flex items-center gap-2 text-zinc-500 text-xs py-3 px-1">
                                                     <Loader2 className="animate-spin text-red-500" size={14} />
-                                                    <span>Searching {isAnime ? "Nyaa.si" : "1337x / TPB"} for torrents...</span>
+                                                    <span>Searching Nyaa.si for torrents...</span>
                                                 </div>
                                             ) : nyaaError ? (
                                                 <div className="text-red-500 text-[10px] py-2 px-1">{nyaaError}</div>
                                             ) : nyaaTorrents.length === 0 ? (
-                                                <div className="text-zinc-500 text-xs py-3 px-1 italic">
-                                                    No torrents found for this {isTv ? "episode" : "movie"} on {isAnime ? "Nyaa.si" : "1337x / TPB"}.
-                                                </div>
+                                                <div className="text-zinc-500 text-xs py-3 px-1 italic">No torrents found for this episode on Nyaa.si.</div>
                                             ) : (
                                                 <div onScroll={handleNyaaScroll} className="space-y-2 max-h-[450px] overflow-y-auto pr-1 custom-scrollbar">
                                                     {nyaaTorrents.slice(0, visibleNyaaCount).map((t, idx) => {
@@ -2350,23 +2334,13 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                             ? new Date(t.pubDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
                                                             : 'TBA';
                                                         
-                                                        const isEnglishSub = t.category?.includes('English-translated');
-                                                        const isRaw = t.category?.includes('Raw');
-                                                        const isNonEng = t.category?.includes('Non-English-translated');
-                                                        const isMovie = t.category?.includes('Movie');
-                                                        const isTVShow = t.category?.includes('TV Show');
-
-                                                        const categoryBadge = isEnglishSub
+                                                        const categoryBadge = t.category?.includes('English-translated')
                                                             ? <span className="bg-purple-600/15 text-purple-400 border border-purple-500/20 px-1.5 py-0.5 rounded text-[8px] font-semibold uppercase tracking-wide">English Sub/Dub</span>
-                                                            : isRaw
+                                                            : t.category?.includes('Raw')
                                                             ? <span className="bg-emerald-600/15 text-emerald-400 border border-emerald-500/20 px-1.5 py-0.5 rounded text-[8px] font-semibold uppercase tracking-wide">Raw</span>
-                                                            : isNonEng
+                                                            : t.category?.includes('Non-English-translated')
                                                             ? <span className="bg-blue-600/15 text-blue-400 border border-blue-500/20 px-1.5 py-0.5 rounded text-[8px] font-semibold uppercase tracking-wide">Non-Eng</span>
-                                                            : isMovie
-                                                            ? <span className="bg-blue-600/15 text-blue-400 border border-blue-500/20 px-1.5 py-0.5 rounded text-[8px] font-semibold uppercase tracking-wide">{t.category}</span>
-                                                            : isTVShow
-                                                            ? <span className="bg-purple-600/15 text-purple-400 border border-purple-500/20 px-1.5 py-0.5 rounded text-[8px] font-semibold uppercase tracking-wide">{t.category}</span>
-                                                            : <span className="bg-zinc-800 text-zinc-400 border border-zinc-700/50 px-1.5 py-0.5 rounded text-[8px] font-semibold uppercase tracking-wide">{t.category || "Torrent"}</span>;
+                                                            : <span className="bg-zinc-800 text-zinc-400 border border-zinc-700/50 px-1.5 py-0.5 rounded text-[8px] font-semibold uppercase tracking-wide">Anime</span>;
 
                                                         return (
                                                             <div key={idx} className="p-3 rounded-xl bg-white/5 border border-white/5 hover:border-white/10 transition-all text-xs flex flex-col gap-2">

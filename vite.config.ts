@@ -39,7 +39,6 @@ export default defineConfig(({ mode }) => {
               const apiRoutes: Record<string, string> = {
                 '/api/manga': './api/manga.ts',
                 '/api/mangadex': './api/mangadex.ts',
-                '/api/media-downloads': './api/media-downloads.ts',
                 '/api/nyaa': './api/nyaa.ts',
                 '/api/tmdb': './api/tmdb.ts',
               };
