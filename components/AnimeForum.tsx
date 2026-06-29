@@ -855,6 +855,286 @@ export const AnimeForum: React.FC<AnimeForumProps> = ({
     return new Date(createdAtTimestamp * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   };
 
+  const renderModals = () => {
+    return (
+      <>
+        {/* TMDB Syncing Modal Overlay */}
+        {matchingStatus.isActive && (
+          <div className="fixed inset-0 z-[110] bg-black/85 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-300 select-none">
+            <div className="bg-[#0c0c0e] border border-white/10 max-w-md w-full rounded-2xl shadow-2xl p-6 flex flex-col items-center justify-center text-center relative overflow-hidden">
+              <div className="absolute w-24 h-24 rounded-full bg-red-600/10 blur-2xl top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none" />
+              <button
+                onClick={() => setMatchingStatus({ isActive: false, title: '', error: null })}
+                className="absolute top-3.5 right-3.5 text-zinc-500 hover:text-white p-1 rounded-lg transition-colors z-20 hover:bg-white/5 active:scale-95"
+                title="Close Sync Overlay"
+              >
+                <X size={15} />
+              </button>
+
+              {matchingStatus.error ? (
+                <>
+                  <AlertCircle size={40} className="text-red-500 mb-4 animate-bounce" />
+                  <h3 className="text-lg font-medium text-white mb-2">Syncing Failed</h3>
+                  <p className="text-zinc-400 text-xs leading-relaxed mb-6 px-4">{matchingStatus.error}</p>
+                  <button
+                    onClick={() => setMatchingStatus({ isActive: false, title: '', error: null })}
+                    className="px-6 py-2.5 bg-white text-black hover:bg-zinc-200 text-xs font-bold rounded-lg shadow-md transition-all active:scale-95"
+                  >
+                    Dismiss
+                  </button>
+                </>
+              ) : (
+                <>
+                  <div className="relative mb-6">
+                    <div className="w-16 h-16 border-2 border-red-500/20 border-t-red-600 rounded-full animate-spin flex items-center justify-center" />
+                    <Film size={20} className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-red-500 animate-pulse" />
+                  </div>
+                  <h3 className="text-base font-semibold text-white mb-1.5">Syncing with Player</h3>
+                  <p className="text-zinc-400 text-[11px] mb-4 tracking-tight px-4 leading-normal">
+                    Matching <strong className="text-red-500 font-medium">"{matchingStatus.title}"</strong> with MovieVerse streaming servers.
+                  </p>
+                  <div className="text-[10px] text-zinc-500 font-medium uppercase tracking-[0.2em] animate-pulse">
+                    Searching media databases...
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* User Profile / Favorites / Anime lists modal */}
+        {selectedUser && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-sm select-none p-4 animate-in fade-in duration-300">
+            <div className="relative w-full max-w-4xl bg-zinc-950 border border-white/10 rounded-3xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+              
+              {/* Header Banner */}
+              <div className="relative h-32 md:h-44 bg-zinc-900">
+                {userProfileData?.bannerImage && (
+                  <img src={userProfileData.bannerImage} className="w-full h-full object-cover opacity-45" alt="" />
+                )}
+                <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 to-transparent" />
+                <button 
+                  onClick={() => { setSelectedUser(null); setUserProfileData(null); setUserLists([]); }} 
+                  className="absolute top-4 right-4 z-10 p-2.5 bg-black/40 hover:bg-white/10 border border-white/5 backdrop-blur-md rounded-full text-zinc-400 hover:text-white transition-all duration-200"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+
+              {/* Profile Info Row */}
+              <div className="px-6 md:px-8 pb-4 relative z-10 -mt-10 md:-mt-16 flex flex-col md:flex-row gap-5 items-start">
+                <img 
+                  src={userProfileData?.avatar?.large || `https://ui-avatars.com/api/?name=${encodeURIComponent(selectedUser)}&background=333&color=fff`} 
+                  className="w-20 h-20 md:w-28 md:h-28 rounded-2xl object-cover border-4 border-zinc-950 shadow-lg shrink-0" 
+                  alt="" 
+                />
+                <div className="pt-2 md:pt-14 text-left">
+                  <h3 className="text-xl md:text-2xl font-medium text-white leading-none">{selectedUser}</h3>
+                  <p className="text-[10px] text-zinc-500 font-normal uppercase mt-1.5 tracking-wider">AniList Contributor</p>
+                </div>
+              </div>
+
+              <div className="flex-1 overflow-y-auto px-6 md:px-8 pb-8 space-y-8 custom-scrollbar">
+                {userProfileLoading ? (
+                  <div className="flex flex-col items-center justify-center py-20 gap-3">
+                    <Loader2 className="animate-spin text-red-500" size={32} />
+                    <span className="text-xs text-zinc-500 font-medium uppercase tracking-widest">Parsing user profile...</span>
+                  </div>
+                ) : (
+                  <>
+                    {/* Bio & Stats */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
+                      
+                      {/* Bio */}
+                      <div className="md:col-span-2 text-left bg-white/5 border border-white/5 rounded-2xl p-5">
+                        <h4 className="font-medium text-sm text-white mb-2.5">Bio / About</h4>
+                        {userProfileData?.about ? (
+                          <p className="text-zinc-400 text-xs leading-relaxed whitespace-pre-line font-normal break-words">
+                            {userProfileData.about.replace(/<\/?[^>]+(>|$)/g, "")}
+                          </p>
+                        ) : (
+                          <p className="text-zinc-500 text-xs italic">No profile bio description shared.</p>
+                        )}
+                      </div>
+
+                      {/* Stats */}
+                      <div className="text-left bg-white/5 border border-white/5 rounded-2xl p-5 space-y-4">
+                        <h4 className="font-medium text-sm text-white mb-2.5">Statistics</h4>
+                        <div>
+                          <p className="text-[10px] text-zinc-500 font-normal uppercase">Anime Watched</p>
+                          <p className="text-lg font-semibold text-white mt-0.5">{userProfileData?.statistics?.anime?.count || 0} Shows</p>
+                          <p className="text-[10px] text-zinc-500 mt-1 font-normal">{((userProfileData?.statistics?.anime?.episodesWatched || 0)).toLocaleString()} episodes</p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] text-zinc-500 font-normal uppercase">Manga Chapters Read</p>
+                          <p className="text-lg font-semibold text-white mt-0.5">{userProfileData?.statistics?.manga?.chaptersRead || 0} Chapters</p>
+                        </div>
+                      </div>
+
+                    </div>
+
+                    {/* Favorites (Anime / Manga) */}
+                    {((userProfileData?.favourites?.anime?.nodes && userProfileData.favourites.anime.nodes.length > 0) || 
+                      (userProfileData?.favourites?.manga?.nodes && userProfileData.favourites.manga.nodes.length > 0)) && (
+                      <div className="text-left space-y-4">
+                        <h4 className="font-semibold text-base text-white">Favorite Media</h4>
+                        <div className="flex overflow-x-auto gap-4 pb-2 hide-scrollbar">
+                          {userProfileData?.favourites?.anime?.nodes?.map((fav: any) => (
+                            <div 
+                              key={fav.id} 
+                              onClick={() => { setSelectedUser(null); handleMediaClick(fav.id, fav.title.userPreferred); }}
+                              className="shrink-0 w-24 cursor-pointer group/fav"
+                            >
+                              <div className="aspect-[2/3] w-full rounded-xl overflow-hidden border border-white/5 group-hover/fav:border-white/20 transition-all mb-2">
+                                <img src={fav.coverImage?.large} className="w-full h-full object-cover group-hover/fav:scale-105 transition-transform" alt="" />
+                              </div>
+                              <h5 className="font-medium text-[10px] text-zinc-400 group-hover/fav:text-white transition-colors line-clamp-2 leading-tight">
+                                {fav.title.english || fav.title.userPreferred}
+                              </h5>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* List Collections */}
+                    {userLists.length > 0 && (
+                      <div className="text-left space-y-4">
+                        <h4 className="font-semibold text-base text-white">Media List Collections</h4>
+                        
+                        {/* List Tab Switcher */}
+                        <div className="flex flex-wrap gap-2 border-b border-white/5 pb-3">
+                          {userLists.map((listCol: any) => (
+                            <button
+                              key={listCol.name}
+                              onClick={() => setActiveUserListTab(listCol.name)}
+                              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${activeUserListTab === listCol.name ? 'bg-red-600 text-white shadow-md shadow-red-600/10' : 'text-zinc-500 hover:text-zinc-300 bg-white/5'}`}
+                            >
+                              {listCol.name} ({listCol.entries?.length || 0})
+                            </button>
+                          ))}
+                        </div>
+
+                        {/* List Cards Scrollable grid */}
+                        {userLists.map((listCol: any) => {
+                          if (listCol.name !== activeUserListTab) return null;
+                          const entries = listCol.entries || [];
+                          if (entries.length === 0) return <p key={listCol.name} className="text-zinc-500 text-xs italic">No entries in this list.</p>;
+
+                          return (
+                            <div key={listCol.name} className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-4 pt-1 animate-in fade-in duration-300">
+                              {entries.map((entry: any) => {
+                                const med = entry.media;
+                                if (!med) return null;
+                                return (
+                                  <div 
+                                    key={entry.id} 
+                                    onClick={() => { setSelectedUser(null); handleMediaClick(med.id, med.title.userPreferred); }}
+                                    className="cursor-pointer group/entry text-center"
+                                  >
+                                    <div className="aspect-[2/3] w-full rounded-xl overflow-hidden border border-white/5 group-hover/entry:border-white/20 transition-all mb-2 shadow-sm">
+                                      <img src={med.coverImage?.large} className="w-full h-full object-cover group-hover/entry:scale-105 transition-transform" alt="" />
+                                    </div>
+                                    <h5 className="font-medium text-[10px] text-zinc-400 group-hover/entry:text-white transition-colors line-clamp-2 leading-tight">
+                                      {med.title.english || med.title.userPreferred}
+                                    </h5>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Activity replies / Comments modal drawer */}
+        {selectedActivity && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm select-none p-4 animate-in fade-in duration-300">
+            <div className="relative w-full max-w-2xl bg-zinc-900 border border-white/10 rounded-3xl overflow-hidden shadow-2xl flex flex-col max-h-[85vh]">
+              <div className="p-6 border-b border-white/5 flex items-center justify-between">
+                <div className="text-left">
+                  <h3 className="font-medium text-white text-base">Activity Comments</h3>
+                  <p className="text-[10px] text-zinc-500 font-normal mt-1 uppercase">Replies thread</p>
+                </div>
+                <button 
+                  onClick={() => setSelectedActivity(null)} 
+                  className="p-2 bg-white/5 border border-white/5 hover:bg-white/10 rounded-full text-zinc-400 hover:text-white transition-all duration-200"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar">
+                {repliesLoading ? (
+                  <div className="flex flex-col items-center justify-center py-20 gap-3">
+                    <Loader2 className="animate-spin text-red-500" size={24} />
+                    <span className="text-[10px] text-zinc-500 font-normal uppercase tracking-wider">Fetching replies...</span>
+                  </div>
+                ) : activityReplies.length === 0 ? (
+                  <div className="text-zinc-500 text-xs py-10 italic text-center">No replies or comments on this activity yet.</div>
+                ) : (
+                  <div className="space-y-4">
+                    {activityReplies.map((reply) => (
+                      <div key={reply.id} className="bg-white/5 p-4 border border-white/5 rounded-2xl flex gap-3 text-left">
+                        <img 
+                          src={reply.user?.avatar?.large || `https://ui-avatars.com/api/?name=${encodeURIComponent(reply.user?.name || 'User')}&background=333&color=fff`} 
+                          className="w-8 h-8 rounded-lg object-cover border border-white/10 shrink-0" 
+                          alt="" 
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <h4 className="font-medium text-xs text-white">{reply.user?.name}</h4>
+                            <span className="w-0.5 h-0.5 rounded-full bg-zinc-700" />
+                            <p className="text-[9px] text-zinc-500 font-normal">{formatTimeAgo(reply.createdAt)}</p>
+                          </div>
+                          <p className="text-zinc-300 text-xs leading-relaxed break-words font-normal whitespace-pre-line">
+                            {reply.text}
+                          </p>
+                          <div className="mt-3 flex items-center gap-1.5 text-zinc-500">
+                            <Heart size={10} className="fill-none" />
+                            <span className="text-[9px] font-normal">{reply.likeCount || 0}</span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Add Comment Reply Input */}
+              <div className="p-4 border-t border-white/5 bg-[#0d0d0f]">
+                <div className="flex gap-3">
+                  <input 
+                    type="text" 
+                    value={newReplyText} 
+                    onChange={(e) => setNewReplyText(e.target.value)} 
+                    placeholder="Write a comment..." 
+                    className="flex-1 bg-white/5 border border-white/5 focus:border-white/10 rounded-xl px-4 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none" 
+                  />
+                  <button 
+                    onClick={handleAddComment} 
+                    disabled={!newReplyText.trim()}
+                    className="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-700 disabled:opacity-40 text-white font-bold text-xs uppercase tracking-wider transition-colors"
+                  >
+                    Send
+                  </button>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        )}
+      </>
+    );
+  };
+
   // Reusable cards rendering helpers
   const renderActivityCard = (act: any) => {
     const isText = act.type === 'TEXT';
