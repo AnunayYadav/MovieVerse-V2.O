@@ -509,6 +509,62 @@ export const MoviePage: React.FC<MoviePageProps> = ({
         setVisibleImagesCount(12);
     }, [mediaCategory, activeTab]);
 
+    // Next Airing Episode for Anime
+    const [nextAiringEpisode, setNextAiringEpisode] = useState<any | null>(null);
+
+    useEffect(() => {
+        if (!details) {
+            setNextAiringEpisode(null);
+            return;
+        }
+
+        const isAnimeLocal = (details.genres?.some((g: any) => g.id === 16) && details.original_language === 'ja');
+        if (!isAnimeLocal) {
+            setNextAiringEpisode(null);
+            return;
+        }
+
+        const title = details.name || details.original_name || details.title || details.original_title;
+        if (!title) return;
+
+        const cleanTitle = title.replace(/\s*\(?(Dub|Sub|TV|Movie|uncensored|censored|season\s*\d+|part\s*\d+)\)?\s*$/i, '').trim();
+
+        const query = `
+          query ($search: String) {
+            Media(search: $search, type: ANIME) {
+              id
+              nextAiringEpisode {
+                airingAt
+                timeUntilAiring
+                episode
+              }
+            }
+          }
+        `;
+
+        fetch('https://graphql.anilist.co', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                query,
+                variables: { search: cleanTitle }
+            })
+        })
+        .then(res => res.json())
+        .then(json => {
+            const media = json?.data?.Media;
+            if (media?.nextAiringEpisode) {
+                setNextAiringEpisode(media.nextAiringEpisode);
+            } else {
+                setNextAiringEpisode(null);
+            }
+        })
+        .catch(err => {
+            console.error("Error fetching next airing episode details:", err);
+            setNextAiringEpisode(null);
+        });
+    }, [details]);
+
     const toggleReviewExpand = (reviewId: string) => {
         setExpandedReviews(prev => ({
             ...prev,
@@ -1334,6 +1390,28 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                 <div className="lg:col-span-2 space-y-10">
                                     {activeTab === 'overview' && (
                                         <div className="animate-in fade-in">
+                                            {nextAiringEpisode && (
+                                                <div className="mb-8 p-5 bg-gradient-to-r from-red-950/10 to-zinc-900/30 border border-red-500/15 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 animate-in slide-in-from-top-3 duration-500 shadow-md">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="p-2.5 bg-red-600/10 border border-red-500/25 text-red-500 rounded-xl flex items-center justify-center shrink-0">
+                                                            <Tv size={18} className="animate-pulse" />
+                                                        </div>
+                                                        <div className="text-left select-none">
+                                                            <span className="text-[9px] font-bold text-red-500 uppercase tracking-widest block">Next Episode Release</span>
+                                                            <h4 className="text-sm font-semibold text-white mt-0.5">
+                                                                Episode {nextAiringEpisode.episode}
+                                                            </h4>
+                                                            <p className="text-[11px] text-zinc-400 font-light mt-0.5">
+                                                                Airing on {new Date(nextAiringEpisode.airingAt * 1000).toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' })} at {new Date(nextAiringEpisode.airingAt * 1000).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                    <div className="shrink-0 flex items-center bg-white/5 border border-white/5 px-3.5 py-1.5 rounded-xl">
+                                                        <AiringCountdown airingAt={nextAiringEpisode.airingAt} />
+                                                    </div>
+                                                </div>
+                                            )}
+
                                             <div className="mb-10">
                                                 <h3 className="text-xl font-bold text-white mb-4">Plot Summary</h3>
                                                 <p className="text-gray-300 leading-relaxed text-base font-light">{displayData.overview || "No overview available."}</p>
@@ -2410,3 +2488,53 @@ export const MoviePage: React.FC<MoviePageProps> = ({
         </div>
     );
 };
+
+interface AiringCountdownProps {
+    airingAt: number;
+}
+
+const AiringCountdown: React.FC<AiringCountdownProps> = ({ airingAt }) => {
+    const calculateTimeLeft = () => {
+        const diff = airingAt * 1000 - Date.now();
+        if (diff <= 0) return null;
+
+        const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+        const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
+        const minutes = Math.floor((diff / 1000 / 60) % 60);
+
+        return { days, hours, minutes };
+    };
+
+    const [timeLeft, setTimeLeft] = useState(calculateTimeLeft());
+
+    useEffect(() => {
+        setTimeLeft(calculateTimeLeft());
+        const timer = setInterval(() => {
+            setTimeLeft(calculateTimeLeft());
+        }, 60000); // update every minute
+
+        return () => clearInterval(timer);
+    }, [airingAt]);
+
+    if (!timeLeft) {
+        return <span className="text-zinc-500 font-semibold text-xs">Recently Aired</span>;
+    }
+
+    const { days, hours, minutes } = timeLeft;
+    let text = '';
+    if (days > 0) {
+        text = `${days}d ${hours}h`;
+    } else if (hours > 0) {
+        text = `${hours}h ${minutes}m`;
+    } else {
+        text = `${minutes}m`;
+    }
+
+    return (
+        <span className="text-red-500 font-semibold text-xs flex items-center gap-1.5 animate-pulse">
+            <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-ping inline-block"></span>
+            Airing in {text}
+        </span>
+    );
+};
+
