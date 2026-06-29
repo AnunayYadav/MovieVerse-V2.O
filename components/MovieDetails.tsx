@@ -473,6 +473,9 @@ export const MoviePage: React.FC<MoviePageProps> = ({
     const [downloadSeason, setDownloadSeason] = useState(1);
     const [downloadEpisode, setDownloadEpisode] = useState(1);
     const [activeDownloadUrl, setActiveDownloadUrl] = useState<string | null>(null);
+    const [nyaaTorrents, setNyaaTorrents] = useState<any[]>([]);
+    const [nyaaLoading, setNyaaLoading] = useState(false);
+    const [nyaaError, setNyaaError] = useState<string | null>(null);
 
     const handleProviderChange = (providerId: string) => {
         setSelectedProviderId(providerId);
@@ -497,7 +500,6 @@ export const MoviePage: React.FC<MoviePageProps> = ({
         document.addEventListener("mousedown", handleClickOutside);
         return () => document.removeEventListener("mousedown", handleClickOutside);
     }, []);
-
     // Media category and pagination states
     const [mediaCategory, setMediaCategory] = useState<'backdrops' | 'posters' | 'logos'>('backdrops');
     const [visibleImagesCount, setVisibleImagesCount] = useState(12);
@@ -977,6 +979,46 @@ export const MoviePage: React.FC<MoviePageProps> = ({
         { id: 'media', label: 'Media' },
         ...(isTv ? [{ id: 'seasons', label: 'Seasons' }] : []),
     ];
+
+    // Fetch Nyaa.si Torrents for Anime content
+    useEffect(() => {
+        if (!showDownloadModal || !isAnime) return;
+        
+        let active = true;
+        const fetchTorrents = async () => {
+            setNyaaLoading(true);
+            setNyaaError(null);
+            try {
+                const title = displayData.name || displayData.title || displayData.original_title || displayData.original_name || "";
+                // Clean title
+                const cleanTitle = title.replace(/[^\w\s-]/g, '').trim();
+                let q = cleanTitle;
+                if (isTv) {
+                    q = `${cleanTitle} ${downloadEpisode}`;
+                }
+                
+                const res = await fetch(`/api/nyaa?q=${encodeURIComponent(q)}`);
+                if (!res.ok) throw new Error("Failed to fetch torrents");
+                const data = await res.json();
+                
+                if (active) {
+                    const sorted = (data || []).sort((a: any, b: any) => b.seeders - a.seeders);
+                    setNyaaTorrents(sorted);
+                }
+            } catch (err: any) {
+                if (active) {
+                    setNyaaError(err.message || "Failed to search torrents");
+                }
+            } finally {
+                if (active) {
+                    setNyaaLoading(false);
+                }
+            }
+        };
+        
+        fetchTorrents();
+        return () => { active = false; };
+    }, [showDownloadModal, isAnime, downloadSeason, downloadEpisode, isTv, displayData]);
 
     const director = displayData.credits?.crew?.find(c => c.job === 'Director') || displayData.created_by?.[0];
     
@@ -2061,7 +2103,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
             
             {showDownloadModal && (
                 <div className="fixed inset-0 z-[250] bg-black/85 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-300">
-                    <div className={`bg-[#0c0c0e]/95 border border-white/10 rounded-3xl p-6 shadow-2xl relative overflow-hidden select-none animate-in zoom-in-95 duration-300 animate-slide-in-bottom flex flex-col transition-all duration-300 ${activeDownloadUrl ? 'max-w-4xl w-full h-[80vh]' : 'max-w-md w-full'}`}>
+                    <div className={`bg-[#0c0c0e]/95 border border-white/10 rounded-3xl p-6 shadow-2xl relative overflow-hidden select-none animate-in zoom-in-95 duration-300 animate-slide-in-bottom flex flex-col transition-all duration-300 ${activeDownloadUrl ? 'max-w-4xl w-full h-[80vh]' : isAnime ? 'max-w-xl w-full max-h-[90vh] overflow-y-auto custom-scrollbar' : 'max-w-md w-full'}`}>
                         {/* Header border design */}
                         <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-red-600 via-purple-600 to-red-600"></div>
                         
@@ -2237,6 +2279,57 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                             <Download size={14} />
                                         </button>
                                     </div>
+
+                                    {/* Nyaa.si Torrents Section (Anime Only) */}
+                                    {isAnime && (
+                                        <div className="mt-5 pt-4 border-t border-white/10 text-left">
+                                            <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider px-1 mb-2">Direct Torrent Downloads (Nyaa.si):</h4>
+                                            {nyaaLoading ? (
+                                                <div className="flex items-center gap-2 text-zinc-500 text-xs py-3 px-1">
+                                                    <Loader2 className="animate-spin text-red-500" size={14} />
+                                                    <span>Searching Nyaa.si for torrents...</span>
+                                                </div>
+                                            ) : nyaaError ? (
+                                                <div className="text-red-500 text-[10px] py-2 px-1">{nyaaError}</div>
+                                            ) : nyaaTorrents.length === 0 ? (
+                                                <div className="text-zinc-500 text-xs py-3 px-1 italic">No torrents found for this episode on Nyaa.si.</div>
+                                            ) : (
+                                                <div className="space-y-2 max-h-52 overflow-y-auto pr-1 custom-scrollbar">
+                                                    {nyaaTorrents.slice(0, 10).map((t, idx) => (
+                                                        <div key={idx} className="p-2.5 rounded-xl bg-white/5 border border-white/5 hover:border-white/10 transition-all text-xs flex flex-col gap-1.5">
+                                                            <div className="font-semibold text-white line-clamp-2 leading-snug">{t.title}</div>
+                                                            <div className="flex items-center justify-between text-[10px] text-zinc-400">
+                                                                <span>Size: {t.size}</span>
+                                                                <div className="flex items-center gap-2">
+                                                                    <span className="text-green-500 font-bold">▲ {t.seeders}</span>
+                                                                    <span className="text-red-500 font-bold">▼ {t.leechers}</span>
+                                                                </div>
+                                                            </div>
+                                                            <div className="flex items-center gap-2 pt-1.5 border-t border-white/5">
+                                                                {/* Direct download .torrent link */}
+                                                                <a 
+                                                                    href={t.link}
+                                                                    download
+                                                                    className="flex-1 py-1.5 px-2 bg-red-600/20 hover:bg-red-600/30 border border-red-500/20 hover:border-red-500/40 text-red-400 font-semibold rounded text-center transition-all flex items-center justify-center gap-1 active:scale-95 text-[10px]"
+                                                                >
+                                                                    <Download size={10} /> torrent file
+                                                                </a>
+                                                                {/* Magnet link */}
+                                                                {t.magnet && (
+                                                                    <a 
+                                                                        href={t.magnet}
+                                                                        className="flex-1 py-1.5 px-2 bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/20 hover:border-emerald-500/40 text-emerald-400 font-semibold rounded text-center transition-all flex items-center justify-center gap-1 active:scale-95 text-[10px]"
+                                                                    >
+                                                                        🧲 magnet
+                                                                    </a>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
 
                                     <p className="text-[9px] text-gray-500 italic mt-3 text-center">
                                         Downloader portal will open inside the application frame.
