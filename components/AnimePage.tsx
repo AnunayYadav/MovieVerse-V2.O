@@ -1366,14 +1366,14 @@ export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick, sear
         <div className="max-w-7xl mx-auto px-4 md:px-12 animate-in fade-in duration-500 select-none text-left">
           
           {/* Forum Banner */}
-          <div className="relative rounded-3xl overflow-hidden mb-10 bg-gradient-to-r from-red-950/20 via-zinc-900/50 to-purple-950/20 border border-white/5 p-8 md:p-12 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+          <div className="relative rounded-3xl overflow-hidden mb-10 bg-[#0d0d0f]/50 border border-white/5 p-8 md:p-12 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
             <div className="absolute inset-0 bg-grid-white/[0.02] bg-[size:30px_30px]" />
             <div className="relative z-10 max-w-2xl">
-              <span className="px-3 py-1 rounded-full text-[9px] font-bold uppercase tracking-widest bg-red-500/10 border border-red-500/20 text-red-500 mb-4 inline-flex items-center gap-1.5 shadow-sm">
+              <span className="px-3 py-1 rounded-full text-[9px] font-medium uppercase tracking-widest bg-white/5 border border-white/10 text-zinc-400 mb-4 inline-flex items-center gap-1.5">
                 <MessageSquare size={10} /> AniList Live Feed
               </span>
-              <h2 className="text-3xl md:text-4xl font-extrabold text-white tracking-tight">MovieVerse Discussion Forum</h2>
-              <p className="text-gray-400 text-xs md:text-sm mt-2 leading-relaxed">
+              <h2 className="text-3xl md:text-4xl font-light text-white tracking-tight">MovieVerse <span className="font-semibold">Discussion Forum</span></h2>
+              <p className="text-zinc-400 text-xs md:text-sm mt-2 leading-relaxed font-normal">
                 Connect with the pulse of the global anime community. Get live activity updates, critical fan reviews, and recommendation matchings.
               </p>
             </div>
@@ -1390,24 +1390,24 @@ export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick, sear
 
           <div className="flex flex-col lg:flex-row gap-8 items-start">
             {/* Sidebar Navigation */}
-            <div className="w-full lg:w-64 shrink-0 flex lg:flex-col gap-2 p-1.5 rounded-2xl bg-zinc-900/40 border border-white/5 backdrop-blur-md">
+            <div className="w-full lg:w-64 shrink-0 flex lg:flex-col gap-2 p-1.5 rounded-2xl bg-[#0c0c0e]/30 border border-white/5 backdrop-blur-md">
               <button 
                 onClick={() => setForumSection('feed')} 
-                className={`flex-1 lg:flex-none flex items-center gap-3 px-4 py-3 rounded-xl text-xs sm:text-sm font-bold uppercase tracking-wider transition-all duration-300 ${forumSection === 'feed' ? 'bg-red-600 text-white shadow-lg shadow-red-600/20' : 'text-zinc-400 hover:text-zinc-200 hover:bg-white/5'}`}
+                className={`flex-1 lg:flex-none flex items-center gap-3 px-4 py-3 rounded-xl text-xs sm:text-sm font-medium uppercase tracking-wider transition-all duration-300 ${forumSection === 'feed' ? 'bg-white/5 border border-white/10 text-white' : 'text-zinc-500 hover:text-zinc-300'}`}
               >
                 <Clock size={16} />
                 <span>Activity Feed</span>
               </button>
               <button 
                 onClick={() => setForumSection('reviews')} 
-                className={`flex-1 lg:flex-none flex items-center gap-3 px-4 py-3 rounded-xl text-xs sm:text-sm font-bold uppercase tracking-wider transition-all duration-300 ${forumSection === 'reviews' ? 'bg-red-600 text-white shadow-lg shadow-red-600/20' : 'text-zinc-400 hover:text-zinc-200 hover:bg-white/5'}`}
+                className={`flex-1 lg:flex-none flex items-center gap-3 px-4 py-3 rounded-xl text-xs sm:text-sm font-medium uppercase tracking-wider transition-all duration-300 ${forumSection === 'reviews' ? 'bg-white/5 border border-white/10 text-white' : 'text-zinc-500 hover:text-zinc-300'}`}
               >
                 <Star size={16} />
                 <span>Reviews Board</span>
               </button>
               <button 
                 onClick={() => setForumSection('recommendations')} 
-                className={`flex-1 lg:flex-none flex items-center gap-3 px-4 py-3 rounded-xl text-xs sm:text-sm font-bold uppercase tracking-wider transition-all duration-300 ${forumSection === 'recommendations' ? 'bg-red-600 text-white shadow-lg shadow-red-600/20' : 'text-zinc-400 hover:text-zinc-200 hover:bg-white/5'}`}
+                className={`flex-1 lg:flex-none flex items-center gap-3 px-4 py-3 rounded-xl text-xs sm:text-sm font-medium uppercase tracking-wider transition-all duration-300 ${forumSection === 'recommendations' ? 'bg-white/5 border border-white/10 text-white' : 'text-zinc-500 hover:text-zinc-300'}`}
               >
                 <ThumbsUp size={16} />
                 <span>Recommendations</span>
