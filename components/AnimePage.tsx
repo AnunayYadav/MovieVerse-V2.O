@@ -44,6 +44,14 @@ export interface AniListMedia {
   } | null;
 }
 
+export interface AiringScheduleItem {
+  id: number;
+  airingAt: number;
+  episode: number;
+  timeUntilAiring: number;
+  media: AniListMedia;
+}
+
 // Endless categories list from AniList standard genres
 const ANIME_GENRES = [
   "Action", 
@@ -70,6 +78,12 @@ export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick, sear
   const [upcoming, setUpcoming] = useState<AniListMedia[]>([]);
   const [expandedCategory, setExpandedCategory] = useState<{ title: string; items: AniListMedia[] } | null>(null);
   
+  // Streaming Timeline / Airing Schedule States
+  const [airingSchedules, setAiringSchedules] = useState<AiringScheduleItem[]>([]);
+  const [selectedDayIdx, setSelectedDayIdx] = useState(0); // index 0 to 6
+  const [scheduleLoading, setScheduleLoading] = useState(false);
+  const [scheduleError, setScheduleError] = useState<string | null>(null);
+
   // Infinite Scroll Category Rows
   const [genreRows, setGenreRows] = useState<{ genre: string; media: AniListMedia[] }[]>([]);
   const [loadingGenreRows, setLoadingGenreRows] = useState(false);
@@ -251,6 +265,75 @@ export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick, sear
     }
   }, [fetchAniList]);
 
+  const loadAiringSchedule = useCallback(async () => {
+    setScheduleLoading(true);
+    setScheduleError(null);
+    try {
+      const now = new Date();
+      const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const startSec = Math.floor(startOfDay.getTime() / 1000);
+      const endSec = startSec + 7 * 24 * 60 * 60; // 7 days ahead
+
+      const query = `
+        query ($start: Int, $end: Int) {
+          Page(page: 1, perPage: 100) {
+            airingSchedules(airingAt_greater: $start, airingAt_less: $end, sort: TIME_ASC) {
+              id
+              airingAt
+              episode
+              timeUntilAiring
+              media {
+                id
+                title {
+                  romaji
+                  english
+                  native
+                  userPreferred
+                }
+                coverImage {
+                  extraLarge
+                  large
+                  medium
+                  color
+                }
+                bannerImage
+                description
+                status
+                genres
+                averageScore
+                popularity
+                episodes
+                trailer {
+                  id
+                  site
+                }
+              }
+            }
+          }
+        }
+      `;
+
+      const data = await fetchAniList(query, { start: startSec, end: endSec });
+      const schedules = data.Page?.airingSchedules || [];
+      
+      const uniqueSchedules: AiringScheduleItem[] = [];
+      const seenMediaIds = new Set<number>();
+      for (const item of schedules) {
+        if (item.media && !seenMediaIds.has(item.media.id)) {
+          seenMediaIds.add(item.media.id);
+          uniqueSchedules.push(item);
+        }
+      }
+
+      setAiringSchedules(uniqueSchedules);
+    } catch (err: any) {
+      console.error("Error loading AniList airing schedule:", err);
+      setScheduleError(err?.message || "Failed to retrieve airing schedule");
+    } finally {
+      setScheduleLoading(false);
+    }
+  }, [fetchAniList]);
+
   // Load next genre row (infinite scroll function)
   const loadNextGenreRow = useCallback(async () => {
     if (loadingGenreRows || currentGenreIndexRef.current >= ANIME_GENRES.length) return;
@@ -307,10 +390,11 @@ export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick, sear
     }
   }, [fetchAniList, loadingGenreRows]);
 
-  // Load Home Data on Mount
+  // Load Home and Schedule Data on Mount
   useEffect(() => {
     loadPageData();
-  }, [loadPageData]);
+    loadAiringSchedule();
+  }, [loadPageData, loadAiringSchedule]);
 
   // Pre-load first genre row after primary home data succeeds
   useEffect(() => {
@@ -544,6 +628,30 @@ export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick, sear
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, [searchQuery, loading, loadingGenreRows, loadNextGenreRow]);
+
+  // Generate list of next 7 days starting from today
+  const next7Days = React.useMemo(() => {
+    const days = [];
+    const now = new Date();
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() + i);
+      days.push(d);
+    }
+    return days;
+  }, []);
+
+  const selectedDayDate = next7Days[selectedDayIdx];
+
+  // Filter schedules that air on the selected day
+  const filteredSchedules = React.useMemo(() => {
+    if (!selectedDayDate) return [];
+    return airingSchedules.filter(item => {
+      const itemDate = new Date(item.airingAt * 1000);
+      return itemDate.getFullYear() === selectedDayDate.getFullYear() &&
+             itemDate.getMonth() === selectedDayDate.getMonth() &&
+             itemDate.getDate() === selectedDayDate.getDate();
+    });
+  }, [airingSchedules, selectedDayDate]);
 
   // Helper to match AniList anime metadata to correct TMDB season
   const matchAniListToTmdbSeason = (anime: AniListMedia, tmdbSeasons: any[]): number => {
@@ -967,6 +1075,124 @@ export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick, sear
             </div>
           </div>
 
+          {/* Streaming Timeline Section */}
+          <div className="px-4 md:px-12 mb-10 text-left">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">
+              <div className="flex items-center gap-2.5">
+                <span className="w-2.5 h-6 rounded-full bg-red-600 shadow-[0_0_10px_rgba(220,38,38,0.5)]"></span>
+                <h2 className="text-xl md:text-2xl font-black text-white tracking-tight flex items-center gap-2">
+                  <Calendar className="text-red-500" size={20} />
+                  Streaming Timeline
+                </h2>
+              </div>
+              <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest bg-white/5 border border-white/5 px-2.5 py-1 rounded-full">
+                Airing Schedule (Local Time)
+              </span>
+            </div>
+
+            {/* Day Selectors */}
+            <div className="flex items-center gap-2 overflow-x-auto pb-3 mb-6 scrollbar-thin scrollbar-thumb-zinc-800 scrollbar-track-transparent">
+              {next7Days.map((day, idx) => {
+                const isSelected = selectedDayIdx === idx;
+                const isToday = idx === 0;
+                const dayName = day.toLocaleDateString('en-US', { weekday: 'short' });
+                const dateNum = day.getDate();
+                
+                return (
+                  <button
+                    key={idx}
+                    onClick={() => setSelectedDayIdx(idx)}
+                    className={`flex flex-col items-center justify-center min-w-[70px] py-2 px-3.5 rounded-2xl border transition-all duration-300 active:scale-95 shrink-0 ${
+                      isSelected
+                        ? 'bg-red-600 border-red-500 text-white shadow-[0_4px_20px_rgba(239,68,68,0.35)] scale-[1.02]'
+                        : 'bg-zinc-900/60 hover:bg-zinc-800/80 border-white/5 hover:border-white/10 text-zinc-400 hover:text-white'
+                    }`}
+                  >
+                    <span className="text-[10px] uppercase font-bold tracking-wider opacity-85">
+                      {isToday ? "Today" : dayName}
+                    </span>
+                    <span className="text-lg font-black mt-0.5">{dateNum}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Airing Cards List/Grid */}
+            {scheduleLoading ? (
+              <div className="flex flex-col items-center justify-center py-16 gap-3">
+                <Loader2 className="animate-spin text-red-500" size={24} />
+                <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Fetching schedule...</span>
+              </div>
+            ) : scheduleError ? (
+              <div className="flex items-center gap-3 bg-red-950/20 border border-red-500/20 p-4 rounded-2xl text-zinc-400 text-xs">
+                <AlertCircle className="text-red-500 shrink-0" size={16} />
+                <span>{scheduleError}</span>
+              </div>
+            ) : filteredSchedules.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 text-center border border-dashed border-white/5 bg-zinc-950/20 rounded-2xl opacity-60">
+                <Film size={32} className="text-zinc-600 mb-2 animate-pulse" />
+                <h4 className="text-sm font-bold text-zinc-300 mb-0.5">No Airing Scheduled</h4>
+                <p className="text-zinc-500 text-[11px]">No anime episodes tracked by AniList are airing on this day.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                {filteredSchedules.map((item) => {
+                  const airTime = new Date(item.airingAt * 1000).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+                  const title = getAnimeTitle(item.media);
+                  return (
+                    <div
+                      key={item.id}
+                      onClick={() => handleAnimeClick(item.media)}
+                      className="group flex gap-3.5 bg-zinc-900/40 hover:bg-zinc-900/80 border border-white/5 hover:border-red-500/35 p-3 rounded-2xl cursor-pointer hover:shadow-[0_8px_30px_rgba(0,0,0,0.4)] transition-all duration-300 relative overflow-hidden"
+                    >
+                      {/* Left thumbnail */}
+                      <div className="w-20 md:w-24 aspect-[3/4] shrink-0 rounded-xl overflow-hidden bg-zinc-800 relative">
+                        <img
+                          src={item.media.coverImage.large || item.media.coverImage.medium}
+                          alt={title}
+                          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                          loading="lazy"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
+                        <span className="absolute bottom-1 right-1 bg-red-600/90 text-white font-extrabold text-[8px] px-1 py-0.5 rounded tracking-wide">
+                          Ep {item.episode}
+                        </span>
+                      </div>
+
+                      {/* Right info */}
+                      <div className="flex-1 flex flex-col justify-between py-0.5 select-none text-left">
+                        <div>
+                          <h4 className="text-xs md:text-sm font-extrabold text-white line-clamp-2 leading-snug group-hover:text-red-500 transition-colors duration-300">
+                            {title}
+                          </h4>
+                          <div className="flex flex-wrap gap-1 mt-1.5">
+                            {item.media.genres.slice(0, 2).map((g) => (
+                              <span key={g} className="text-[7.5px] font-extrabold uppercase tracking-wider bg-white/5 text-zinc-400 px-1 py-0.5 rounded border border-white/5">
+                                {g}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div className="flex flex-col gap-0.5 mt-2">
+                          <span className="text-[10px] text-zinc-400 font-bold">
+                            Air Time: <strong className="text-white">{airTime}</strong>
+                          </span>
+                          <AiringCountdown airingAt={item.airingAt} />
+                        </div>
+                      </div>
+
+                      {/* Small subtle hovering play icon */}
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-red-600/10 text-red-500 hover:bg-red-600 hover:text-white p-2.5 rounded-full border border-red-500/20 shadow-md">
+                        <Play size={14} fill="currentColor" />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
           <AnimeRow title="Trending Right Now" items={trending} apiKey={apiKey} onAnimeClick={handleAnimeClick} titleLanguage={titleLanguage} onExpand={() => setExpandedCategory({ title: "Trending Right Now", items: trending })} />
           <AnimeRow title="Summer 2026 Season" items={seasonal} apiKey={apiKey} onAnimeClick={handleAnimeClick} titleLanguage={titleLanguage} onExpand={() => setExpandedCategory({ title: "Summer 2026 Season", items: seasonal })} />
           <AnimeRow title="All-Time Popular Favorites" items={popular} apiKey={apiKey} onAnimeClick={handleAnimeClick} titleLanguage={titleLanguage} onExpand={() => setExpandedCategory({ title: "All-Time Popular Favorites", items: popular })} />
@@ -1335,3 +1561,61 @@ export const AnimeRow: React.FC<AnimeRowProps> = ({ title, items, apiKey, onAnim
     </div>
   );
 };
+
+interface AiringCountdownProps {
+  airingAt: number;
+}
+
+export const AiringCountdown: React.FC<AiringCountdownProps> = ({ airingAt }) => {
+  const calculateTimeLeft = useCallback(() => {
+    const diff = airingAt * 1000 - Date.now();
+    if (diff <= 0) return null;
+
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
+    const minutes = Math.floor((diff / 1000 / 60) % 60);
+
+    return { days, hours, minutes };
+  }, [airingAt]);
+
+  const [timeLeft, setTimeLeft] = useState(calculateTimeLeft());
+
+  useEffect(() => {
+    // Initial check
+    setTimeLeft(calculateTimeLeft());
+    
+    const timer = setInterval(() => {
+      setTimeLeft(calculateTimeLeft());
+    }, 60000); // update every minute
+
+    return () => clearInterval(timer);
+  }, [calculateTimeLeft]);
+
+  if (!timeLeft) {
+    const airDate = new Date(airingAt * 1000);
+    const formatOptions: Intl.DateTimeFormatOptions = { hour: 'numeric', minute: '2-digit' };
+    return (
+      <span className="text-zinc-500 font-semibold text-[10px]">
+        Aired at {airDate.toLocaleTimeString([], formatOptions)}
+      </span>
+    );
+  }
+
+  const { days, hours, minutes } = timeLeft;
+  let text = '';
+  if (days > 0) {
+    text = `Airing in ${days}d ${hours}h`;
+  } else if (hours > 0) {
+    text = `Airing in ${hours}h ${minutes}m`;
+  } else {
+    text = `Airing in ${minutes}m`;
+  }
+
+  return (
+    <span className="text-red-500 font-bold text-[10px] animate-pulse flex items-center gap-1">
+      <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-ping inline-block"></span>
+      {text}
+    </span>
+  );
+};
+
