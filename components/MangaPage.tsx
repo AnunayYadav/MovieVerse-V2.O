@@ -534,6 +534,109 @@ export const MangaPage: React.FC<MangaPageProps> = ({
     }
   }, [fetchAniList, getMangaTitle]);
 
+  const fetchMangaRecommendations = useCallback(async (manga: MangaDexManga) => {
+    setRecLoading(true);
+    try {
+      const links = manga.attributes.links || {};
+      const alId = links.al ? parseInt(links.al, 10) : null;
+      const malId = links.mal ? parseInt(links.mal, 10) : null;
+      
+      let query = '';
+      let variables: any = {};
+      
+      if (alId && !isNaN(alId)) {
+        query = `
+          query ($id: Int) {
+            Media(id: $id, type: MANGA) {
+              recommendations(sort: [RATING_DESC, ID], perPage: 12) {
+                nodes {
+                  mediaRecommendation {
+                    id
+                    title {
+                      userPreferred
+                      english
+                      romaji
+                    }
+                    coverImage {
+                      large
+                    }
+                  }
+                }
+              }
+            }
+          }
+        `;
+        variables = { id: alId };
+      } else if (malId && !isNaN(malId)) {
+        query = `
+          query ($idMal: Int) {
+            Media(idMal: $idMal, type: MANGA) {
+              recommendations(sort: [RATING_DESC, ID], perPage: 12) {
+                nodes {
+                  mediaRecommendation {
+                    id
+                    title {
+                      userPreferred
+                      english
+                      romaji
+                    }
+                    coverImage {
+                      large
+                    }
+                  }
+                }
+              }
+            }
+          }
+        `;
+        variables = { idMal: malId };
+      } else {
+        const title = getMangaTitle(manga);
+        query = `
+          query ($search: String) {
+            Media(search: $search, type: MANGA) {
+              recommendations(sort: [RATING_DESC, ID], perPage: 12) {
+                nodes {
+                  mediaRecommendation {
+                    id
+                    title {
+                      userPreferred
+                      english
+                      romaji
+                    }
+                    coverImage {
+                      large
+                    }
+                  }
+                }
+              }
+            }
+          }
+        `;
+        variables = { search: title };
+      }
+
+      const res = await fetchAniList(query, variables);
+      if (res && res.Media && res.Media.recommendations && res.Media.recommendations.nodes) {
+        const nodes = res.Media.recommendations.nodes;
+        const validNodes = nodes
+          .map((n: any) => n.mediaRecommendation)
+          .filter(Boolean);
+        
+        // Translate all recommended AniList items to MangaDexManga format
+        const mapped = validNodes.map((aniMedia: any) => translateAniListToManga(aniMedia));
+        setRecommendations(mapped);
+      } else {
+        setRecommendations([]);
+      }
+    } catch (err) {
+      console.error("Failed to load manga recommendations:", err);
+      setRecommendations([]);
+    } finally {
+      setRecLoading(false);
+    }
+  }, [fetchAniList, getMangaTitle]);
+
   const resolveMangaPill = useCallback(async (manga: MangaDexManga, provider = readingSource) => {
     if (resolvedProvider === provider && mangapillChapters.length > 0) {
       setMangapillError(null);
@@ -621,9 +724,42 @@ export const MangaPage: React.FC<MangaPageProps> = ({
     const fetchMangaRelations = async () => {
       setRelationsLoading(true);
       try {
-        const relData = await fetchMangaDex(`/manga/${selectedMangaId}/relation?includes[]=manga&includes[]=cover_art`);
-        if (isMounted) {
-          setRelations(relData.data || []);
+        const relData = await fetchMangaDex(`/manga/${selectedMangaId}/relation`);
+        const relationsList = relData.data || [];
+        
+        // Extract related manga IDs
+        const relatedIds = relationsList
+          .map((rel: any) => rel.relationships?.find((r: any) => r.type === 'manga')?.id)
+          .filter(Boolean);
+        
+        if (relatedIds.length > 0) {
+          // Fetch full manga details for related items in one batch!
+          const batchRes = await fetchMangaDex(`/manga?limit=100&ids[]=${relatedIds.join('&ids[]=')}&includes[]=cover_art`);
+          const batchMangas = batchRes.data || [];
+          
+          // Re-map the related manga relationships with the full objects containing cover arts!
+          const mappedRelations = relationsList.map((rel: any) => {
+            const relManga = rel.relationships?.find((r: any) => r.type === 'manga');
+            if (relManga) {
+              const fullManga = batchMangas.find((m: any) => m.id === relManga.id);
+              if (fullManga) {
+                // Replace or enrich relManga relationship with cover_art!
+                return {
+                  ...rel,
+                  relationships: rel.relationships.map((r: any) => r.type === 'manga' ? fullManga : r)
+                };
+              }
+            }
+            return rel;
+          });
+          
+          if (isMounted) {
+            setRelations(mappedRelations);
+          }
+        } else {
+          if (isMounted) {
+            setRelations([]);
+          }
         }
       } catch (e) {
         console.error("Failed to fetch manga relations:", e);
@@ -839,27 +975,8 @@ export const MangaPage: React.FC<MangaPageProps> = ({
       setRecommendations([]);
       return;
     }
-    let isMounted = true;
-    const fetchRecommendations = async () => {
-      setRecLoading(true);
-      try {
-        const res = await fetchMangaDex(`/manga/${selectedManga.id}/recommendation?includes[]=cover_art`);
-        if (isMounted) {
-          const list = (res.data || []).slice(0, 20);
-          setRecommendations(list);
-        }
-      } catch (err) {
-        console.error("Failed to load manga recommendations:", err);
-        if (isMounted) {
-          setRecommendations([]);
-        }
-      } finally {
-        if (isMounted) setRecLoading(false);
-      }
-    };
-    fetchRecommendations();
-    return () => { isMounted = false; };
-  }, [selectedManga, fetchMangaDex]);
+    fetchMangaRecommendations(selectedManga);
+  }, [selectedManga, fetchMangaRecommendations]);
 
   // Load characters when selectedManga changes
   useEffect(() => {
