@@ -596,7 +596,7 @@ export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick, sear
         `;
         const data = await fetchAniList(query, { search: searchQuery });
         if (isMounted) {
-          setSearchResults(filterDuplicateAnime(data.Page?.media || []));
+          setSearchResults(data.Page?.media || []);
         }
       } catch (err) {
         console.error("Error executing AniList search:", err);
@@ -747,20 +747,62 @@ export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick, sear
       try {
         const parsed = JSON.parse(cachedMatch);
         if (parsed && parsed.id && parsed.mediaType) {
-          onMovieClick({
-            id: parsed.id,
-            media_type: parsed.mediaType,
-            title: getAnimeTitle(anime),
-            name: getAnimeTitle(anime),
-            overview: anime.description || '',
-            poster_path: null,
-            backdrop_path: parsed.backdropPath,
-            vote_average: anime.averageScore ? anime.averageScore / 10 : 0,
-            vote_count: 100,
-            popularity: anime.popularity,
-            initial_season: parsed.initial_season || 1
-          } as any);
-          return;
+          const hasResolvedSeason = parsed.initial_season !== undefined;
+          
+          if (hasResolvedSeason) {
+            onMovieClick({
+              id: parsed.id,
+              media_type: parsed.mediaType,
+              title: getAnimeTitle(anime),
+              name: getAnimeTitle(anime),
+              overview: anime.description || '',
+              poster_path: null,
+              backdrop_path: parsed.backdropPath || anime.bannerImage || anime.coverImage?.large,
+              vote_average: anime.averageScore ? anime.averageScore / 10 : 0,
+              vote_count: 100,
+              popularity: anime.popularity,
+              initial_season: parsed.initial_season
+            } as any);
+            return;
+          } else {
+            // It has resolved TMDB ID but no season. Resolve the season!
+            let resolvedSeason = 1;
+            if (parsed.mediaType === 'tv') {
+              try {
+                const detailRes = await fetch(`${TMDB_BASE_URL}/tv/${parsed.id}?api_key=${apiKey}`);
+                const detailData = await detailRes.json();
+                if (detailData && detailData.seasons) {
+                  resolvedSeason = matchAniListToTmdbSeason(anime, detailData.seasons);
+                }
+              } catch (e) {
+                console.error("Failed to fetch TV details for season matching:", e);
+              }
+            }
+            
+            const resolvedBackdrop = anime.bannerImage || parsed.backdropPath || anime.coverImage?.large;
+            
+            localStorage.setItem(matchCacheKey, JSON.stringify({
+              id: parsed.id,
+              mediaType: parsed.mediaType,
+              backdropPath: resolvedBackdrop,
+              initial_season: resolvedSeason
+            }));
+
+            onMovieClick({
+              id: parsed.id,
+              media_type: parsed.mediaType,
+              title: getAnimeTitle(anime),
+              name: getAnimeTitle(anime),
+              overview: anime.description || '',
+              poster_path: null,
+              backdrop_path: resolvedBackdrop,
+              vote_average: anime.averageScore ? anime.averageScore / 10 : 0,
+              vote_count: 100,
+              popularity: anime.popularity,
+              initial_season: resolvedSeason
+            } as any);
+            return;
+          }
         }
       } catch (_) {}
     }
@@ -842,16 +884,19 @@ export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick, sear
       const cacheKey = `movieverse_anilist_map_${matchedItem.id}`;
       localStorage.setItem(cacheKey, anime.id.toString());
       
+      const finalBackdrop = anime.bannerImage || matchedItem.backdrop_path || anime.coverImage?.large;
+
       // Save to cache so subsequent clicks don't re-fetch
       localStorage.setItem(matchCacheKey, JSON.stringify({
         id: matchedItem.id,
         mediaType: matchedItem.media_type,
-        backdropPath: matchedItem.backdrop_path,
+        backdropPath: finalBackdrop,
         initial_season: resolvedSeason
       }));
 
       onMovieClick({
         ...matchedItem,
+        backdrop_path: finalBackdrop,
         initial_season: resolvedSeason
       });
     } else {
@@ -1355,7 +1400,7 @@ export const AnimeCard: React.FC<AnimeCardProps> = ({ anime, apiKey, onAnimeClic
         }
         
         if (tmdbId && mediaType) {
-          localStorage.setItem(matchCacheKey, JSON.stringify({ id: tmdbId, mediaType, backdropPath }));
+          localStorage.setItem(matchCacheKey, JSON.stringify({ id: tmdbId, mediaType, backdropPath: anime.bannerImage || backdropPath }));
         }
       }
       

@@ -516,11 +516,14 @@ export const MoviePage: React.FC<MoviePageProps> = ({
     const [animeCharacters, setAnimeCharacters] = useState<any[]>([]);
     const [charactersLoading, setCharactersLoading] = useState(false);
     const [charactersError, setCharactersError] = useState<string | null>(null);
+    const [animeRelations, setAnimeRelations] = useState<any[]>([]);
+    const [matchingRelationId, setMatchingRelationId] = useState<number | null>(null);
 
     useEffect(() => {
         if (!details) {
             setNextAiringEpisode(null);
             setAnimeCharacters([]);
+            setAnimeRelations([]);
             return;
         }
 
@@ -528,6 +531,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
         if (!isAnimeLocal) {
             setNextAiringEpisode(null);
             setAnimeCharacters([]);
+            setAnimeRelations([]);
             return;
         }
 
@@ -564,6 +568,29 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                   }
                 }
               }
+              relations {
+                edges {
+                  relationType
+                  node {
+                    id
+                    title {
+                      userPreferred
+                      english
+                      romaji
+                    }
+                    type
+                    status
+                    format
+                    startDate {
+                      year
+                    }
+                    coverImage {
+                      large
+                    }
+                    bannerImage
+                  }
+                }
+              }
             }
           }
         `;
@@ -591,9 +618,16 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                 } else {
                     setAnimeCharacters([]);
                 }
+
+                if (media.relations?.edges) {
+                    setAnimeRelations(media.relations.edges);
+                } else {
+                    setAnimeRelations([]);
+                }
             } else {
                 setNextAiringEpisode(null);
                 setAnimeCharacters([]);
+                setAnimeRelations([]);
             }
             setCharactersLoading(false);
         })
@@ -601,6 +635,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
             console.error("Error fetching AniList anime details:", err);
             setNextAiringEpisode(null);
             setAnimeCharacters([]);
+            setAnimeRelations([]);
             setCharactersError(err.message || "Failed to load anime characters");
             setCharactersLoading(false);
         });
@@ -1054,6 +1089,193 @@ export const MoviePage: React.FC<MoviePageProps> = ({
     };
 
     const displayData = { ...movie, ...details } as MovieDetails;
+    if (movie.backdrop_path) {
+        displayData.backdrop_path = movie.backdrop_path;
+    }
+    if (movie.title) {
+        displayData.title = movie.title;
+    }
+    if (movie.name) {
+        displayData.name = movie.name;
+    }
+    const sortedRelations = useMemo(() => {
+        if (!animeRelations || animeRelations.length === 0) return [];
+        const animeOnly = animeRelations.filter((edge: any) => edge.node?.type === 'ANIME');
+        return animeOnly.sort((a: any, b: any) => {
+            const yA = a.node?.startDate?.year || 9999;
+            const yB = b.node?.startDate?.year || 9999;
+            return yA - yB;
+        });
+    }, [animeRelations]);
+
+    const RELATION_COLORS: Record<string, string> = {
+        PREQUEL: 'bg-emerald-600/80 text-white border-emerald-500/30',
+        SEQUEL: 'bg-red-600/80 text-white border-red-500/30',
+        PARENT: 'bg-blue-600/80 text-white border-blue-500/30',
+        SIDE_STORY: 'bg-purple-600/80 text-white border-purple-500/30',
+        SPIN_OFF: 'bg-indigo-600/80 text-white border-indigo-500/30',
+        ALTERNATIVE: 'bg-amber-600/80 text-white border-amber-500/30',
+        SUMMARY: 'bg-zinc-600/80 text-white border-zinc-500/30',
+    };
+
+    const getRelationBadgeClass = (rel: string) => {
+        return RELATION_COLORS[rel] || 'bg-zinc-800/80 text-zinc-300 border-white/5';
+    };
+
+    const formatRelationType = (rel: string) => {
+        return rel.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+    };
+
+    const matchLocalSeason = (anime: any, tmdbSeasons: any[]): number => {
+        if (!tmdbSeasons || tmdbSeasons.length === 0) return 1;
+        const activeSeasons = tmdbSeasons.filter(s => s.season_number > 0);
+        if (activeSeasons.length === 0) return 1;
+        if (activeSeasons.length === 1) return activeSeasons[0].season_number;
+
+        const titles = [
+          anime.title.english,
+          anime.title.romaji,
+          anime.title.userPreferred
+        ].filter((t: any): t is string => typeof t === 'string' && t.length > 0);
+
+        let parsedSeasonFromTitle: number | null = null;
+        for (const title of titles) {
+          const t = title.toLowerCase();
+          const match1 = t.match(/\b(?:season|part)\s*(\d+)\b/i);
+          if (match1 && match1[1]) {
+            parsedSeasonFromTitle = parseInt(match1[1], 10);
+            break;
+          }
+          const match2 = t.match(/\b(\d+)(?:st|nd|rd|th)\s*(?:season|part)\b/i);
+          if (match2 && match2[1]) {
+            parsedSeasonFromTitle = parseInt(match2[1], 10);
+            break;
+          }
+          if (/\bseason\s+ii\b/i.test(t) || /\bii\b/i.test(t)) {
+            parsedSeasonFromTitle = 2;
+            break;
+          }
+          if (/\bseason\s+iii\b/i.test(t) || /\biii\b/i.test(t)) {
+            parsedSeasonFromTitle = 3;
+            break;
+          }
+        }
+
+        if (parsedSeasonFromTitle !== null) {
+          const match = activeSeasons.find(s => s.season_number === parsedSeasonFromTitle);
+          if (match) return match.season_number;
+        }
+
+        if (anime.seasonYear) {
+          const matchedByYear = activeSeasons.filter(s => {
+            if (!s.air_date) return false;
+            const tmdbYear = new Date(s.air_date).getFullYear();
+            return tmdbYear === anime.seasonYear;
+          });
+          if (matchedByYear.length > 0) {
+            return matchedByYear[0].season_number;
+          }
+        }
+
+        return 1;
+    };
+
+    const handleRelationClick = async (relationNode: any) => {
+        if (!apiKey) return;
+        const title = relationNode.title.english || relationNode.title.userPreferred || relationNode.title.romaji;
+        if (!title) return;
+        
+        setMatchingRelationId(relationNode.id);
+        const cleanTitle = title.replace(/\s*\(?(Dub|Sub|TV|Movie|uncensored|censored|season\s*\d+|part\s*\d+)\)?\s*$/i, '').trim();
+
+        // 1. Try TV search
+        try {
+            const res = await fetch(`${TMDB_BASE_URL}/search/tv?api_key=${apiKey}&query=${encodeURIComponent(cleanTitle)}`);
+            const data = await res.json();
+            let match = data.results?.find((item: any) => 
+                item.genre_ids?.includes(16) && item.original_language === 'ja'
+            ) || data.results?.find((item: any) => 
+                item.genre_ids?.includes(16)
+            ) || data.results?.[0];
+            
+            if (match) {
+                let resolvedSeason = 1;
+                try {
+                    const detailRes = await fetch(`${TMDB_BASE_URL}/tv/${match.id}?api_key=${apiKey}`);
+                    const detailData = await detailRes.json();
+                    if (detailData && detailData.seasons) {
+                        const mockAnime = {
+                            title: relationNode.title,
+                            seasonYear: relationNode.startDate?.year,
+                            episodes: null
+                        };
+                        resolvedSeason = matchLocalSeason(mockAnime, detailData.seasons);
+                    }
+                } catch (e) {
+                    console.error("TV details fetch failed for relation season matching:", e);
+                }
+
+                const backdropPath = relationNode.bannerImage || match.backdrop_path;
+                
+                const matchCacheKey = `movieverse_anilist_tmdb_match_${relationNode.id}`;
+                localStorage.setItem(matchCacheKey, JSON.stringify({
+                    id: match.id,
+                    mediaType: 'tv',
+                    backdropPath,
+                    initial_season: resolvedSeason
+                }));
+
+                onSwitchMovie?.({
+                    id: match.id,
+                    media_type: 'tv',
+                    title: title,
+                    name: title,
+                    backdrop_path: backdropPath,
+                    initial_season: resolvedSeason
+                } as any);
+                setMatchingRelationId(null);
+                return;
+            }
+        } catch (e) {
+            console.error("TV search failed for relation:", e);
+        }
+
+        // 2. Try Movie search
+        try {
+            const res = await fetch(`${TMDB_BASE_URL}/search/movie?api_key=${apiKey}&query=${encodeURIComponent(cleanTitle)}`);
+            const data = await res.json();
+            let match = data.results?.find((item: any) => 
+                item.genre_ids?.includes(16) && item.original_language === 'ja'
+            ) || data.results?.find((item: any) => 
+                item.genre_ids?.includes(16)
+            ) || data.results?.[0];
+
+            if (match) {
+                const backdropPath = relationNode.bannerImage || match.backdrop_path;
+
+                const matchCacheKey = `movieverse_anilist_tmdb_match_${relationNode.id}`;
+                localStorage.setItem(matchCacheKey, JSON.stringify({
+                    id: match.id,
+                    mediaType: 'movie',
+                    backdropPath
+                }));
+
+                onSwitchMovie?.({
+                    id: match.id,
+                    media_type: 'movie',
+                    title: title,
+                    name: title,
+                    backdrop_path: backdropPath
+                } as any);
+                setMatchingRelationId(null);
+                return;
+            }
+        } catch (e) {
+            console.error("Movie search failed for relation:", e);
+        }
+
+        setMatchingRelationId(null);
+    };
     const isTv = movie.media_type === 'tv' || displayData.first_air_date;
     const isAnime = (displayData.genres?.some(g => g.id === 16) && (displayData as any).original_language === 'ja');
     const title = displayData.title || displayData.name;
@@ -1234,7 +1456,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                          <iframe ref={iframeRef} src={`https://www.youtube.com/embed/${trailer.key}?autoplay=1&mute=1&controls=0&loop=1&playlist=${trailer.key}&showinfo=0&rel=0&iv_load_policy=3&modestbranding=1&playsinline=1&enablejsapi=1&origin=${window.location.origin}`} className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none transition-opacity duration-1000 ease-in-out w-[130%] h-[130%] scale-110 md:w-[115%] md:h-[115%] md:scale-[1.15] object-cover ${videoLoaded ? 'opacity-60' : 'opacity-0'}`} allow="autoplay; encrypted-media; gyroscope; picture-in-picture" title="Background Trailer" loading="lazy" onLoad={() => setTimeout(() => setVideoLoaded(true), 1500)} />
                                     </div>
                                 )}
-                                <img src={displayData.backdrop_path ? `${TMDB_BACKDROP_BASE}${displayData.backdrop_path}` : displayData.poster_path ? `${TMDB_IMAGE_BASE}${displayData.poster_path}` : "https://placehold.co/1200x600"} alt={title} className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-1000 ${trailer && !isTV && videoLoaded ? 'opacity-0' : 'opacity-100'}`} />
+                                <img src={displayData.backdrop_path ? (displayData.backdrop_path.startsWith('http') ? displayData.backdrop_path : `${TMDB_BACKDROP_BASE}${displayData.backdrop_path}`) : displayData.poster_path ? (displayData.poster_path.startsWith('http') ? displayData.poster_path : `${TMDB_IMAGE_BASE}${displayData.poster_path}`) : "https://placehold.co/1200x600"} alt={title} className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-1000 ${trailer && !isTV && videoLoaded ? 'opacity-0' : 'opacity-100'}`} />
                                 <div className="absolute inset-0 bg-black -z-20"></div>
                                 <div className={`absolute -inset-1 bg-gradient-to-t from-[#0a0a0a] via-[#0a0a0a]/50 to-transparent transition-opacity duration-700 ease-in-out pointer-events-none ${videoLoaded ? 'opacity-25 group-hover/hero:opacity-100' : 'opacity-100'}`}></div>
                                  {trailer && videoLoaded && (
@@ -1245,7 +1467,16 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                              {/* Desktop Overlay Content (hidden on mobile below md) */}
                              <div className="hidden md:flex absolute bottom-0 left-0 w-full px-10 pb-12 flex-col gap-6 z-30 pointer-events-none">
                                 <div className="pointer-events-auto w-full">
-                                    {logo ? <img src={`${TMDB_IMAGE_BASE}${logo.file_path}`} alt={title} className={`max-h-24 max-w-[55%] w-auto object-contain object-left drop-shadow-2xl mb-4 origin-bottom-left -ml-1 transition-all duration-700 ease-in-out transform ${videoLoaded ? 'scale-90 opacity-70 group-hover/hero:scale-100 group-hover/hero:opacity-100' : 'scale-100 opacity-100'}`}/> : <h2 className={`text-3xl md:text-5xl font-extrabold text-white leading-tight drop-shadow-lg mb-4 transition-all duration-700 ease-in-out ${videoLoaded ? 'opacity-80 group-hover:opacity-100' : 'opacity-100'}`}>{title}</h2>}
+                                     {logo ? (
+                                         <div className="flex flex-col gap-2.5 mb-4 items-start select-none">
+                                             <img src={`${TMDB_IMAGE_BASE}${logo.file_path}`} alt={title} className={`max-h-24 max-w-[55%] w-auto object-contain object-left drop-shadow-2xl origin-bottom-left -ml-1 transition-all duration-700 ease-in-out transform ${videoLoaded ? 'scale-90 opacity-70 group-hover/hero:scale-100 group-hover/hero:opacity-100' : 'scale-100 opacity-100'}`}/>
+                                             {isAnime && title && title !== displayData.name && (
+                                                 <span className="text-red-500 font-extrabold tracking-wider text-xs md:text-sm uppercase bg-red-500/10 border border-red-500/20 px-3 py-1 rounded-md max-w-max backdrop-blur-md shadow-md animate-in fade-in slide-in-from-left-4 duration-500">{title}</span>
+                                             )}
+                                         </div>
+                                     ) : (
+                                         <h2 className={`text-3xl md:text-5xl font-extrabold text-white leading-tight drop-shadow-lg mb-4 transition-all duration-700 ease-in-out ${videoLoaded ? 'opacity-80 group-hover:opacity-100' : 'opacity-100'}`}>{title}</h2>
+                                     )}
                                      <div className={`flex flex-wrap items-center gap-4 text-white/90 text-sm font-medium transition-all duration-700 ease-in-out origin-bottom ${videoLoaded ? 'opacity-85 group-hover:opacity-100' : 'opacity-100'}`}>
                                         {ratingLabel !== 'NR' && <span className={`px-2 py-0.5 rounded text-xs font-bold shadow-lg ${ratingColor}`}>{ratingLabel}</span>}
                                         <span className="flex items-center gap-2"><Calendar size={14} className={accentText}/> {releaseDate}</span>
@@ -1309,11 +1540,16 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                         {/* Netflix-Style Mobile Details Flow Layout (visible on mobile only, below md) */}
                         <div className="md:hidden w-full px-4 pt-5 pb-1 flex flex-col gap-3.5 select-none text-left animate-in fade-in slide-in-from-bottom-2 duration-500 relative z-30">
                             {/* Logo or Text Title */}
-                            <div className="w-full">
+                            <div className="min-h-[40px] flex flex-col items-start gap-1 justify-end select-none">
                                 {logo ? (
-                                    <img src={`${TMDB_IMAGE_BASE}${logo.file_path}`} alt={title} className="max-h-12 max-w-[70%] object-contain object-left mb-1 drop-shadow-2xl"/>
+                                    <>
+                                        <img src={`${TMDB_IMAGE_BASE}${logo.file_path}`} alt={title} className="max-h-12 max-w-[70%] object-contain object-left mb-1 drop-shadow-2xl" />
+                                        {isAnime && title && title !== displayData.name && (
+                                            <span className="text-red-500 font-extrabold tracking-wider text-[10px] uppercase bg-red-500/10 border border-red-500/20 px-2 py-0.5 rounded backdrop-blur-sm shadow-sm">{title}</span>
+                                        )}
+                                    </>
                                 ) : (
-                                    <h2 className="text-2xl font-black text-white leading-tight drop-shadow-lg mb-1">{title}</h2>
+                                    <h2 className="text-xl font-bold text-white leading-tight drop-shadow-md mb-1">{title}</h2>
                                 )}
                             </div>
 
@@ -2088,6 +2324,77 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                     )}
                                 </div>
                             </div>
+
+                            {/* Anime Relations Timeline */}
+                            {isAnime && sortedRelations.length > 0 && (
+                                <div className="mt-16 pt-10 border-t border-white/10 text-left">
+                                    <div className="flex flex-col gap-8 mb-12">
+                                        <div className="flex items-center gap-3 animate-in fade-in select-none">
+                                            <div className="p-2 rounded-xl bg-red-500/10 text-red-500"><Layers size={24}/></div>
+                                            <div>
+                                                <h3 className="text-2xl font-black text-white tracking-tight">Relations Timeline</h3>
+                                                <p className="text-xs text-gray-500 font-bold uppercase tracking-widest mt-1">Franchise Chronology</p>
+                                            </div>
+                                        </div>
+                                        <div className="relative w-full">
+                                            <div className="absolute top-[calc(45%+14px)] left-0 right-0 h-[2px] bg-white/10 z-0 overflow-hidden" />
+                                            <div className="flex overflow-x-auto gap-8 md:gap-12 pb-12 pt-4 hide-scrollbar relative z-10 px-4 scroll-smooth">
+                                                {sortedRelations.map((edge: any) => {
+                                                    const relNode = edge.node;
+                                                    const relTitle = relNode.title.userPreferred || relNode.title.english || relNode.title.romaji;
+                                                    const relYear = relNode.startDate?.year || 'TBA';
+                                                    const relType = edge.relationType;
+                                                    const relFormat = relNode.format || 'Anime';
+                                                    const isMatching = matchingRelationId === relNode.id;
+
+                                                    return (
+                                                        <div key={relNode.id} className="flex flex-col items-center shrink-0 w-32 md:w-44 group">
+                                                            <div 
+                                                                onClick={() => {
+                                                                    if (!isMatching) handleRelationClick(relNode);
+                                                                }} 
+                                                                className={`relative aspect-[2/3] w-full rounded-2xl overflow-hidden cursor-pointer transition-all duration-500 ease-[cubic-bezier(0.23,1,0.32,1)] mb-8 border-2 border-white/5 group-hover:border-white/20 opacity-80 hover:opacity-100 hover:scale-[1.03] shadow-lg`}
+                                                            >
+                                                                <img 
+                                                                    src={relNode.coverImage?.large || "https://placehold.co/300x450"} 
+                                                                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" 
+                                                                    alt={relTitle}
+                                                                />
+                                                                {isMatching && (
+                                                                    <div className="absolute inset-0 bg-black/60 flex items-center justify-center backdrop-blur-sm z-30">
+                                                                        <Loader2 className="animate-spin text-red-600" size={24} />
+                                                                    </div>
+                                                                )}
+                                                                <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent flex items-end justify-center p-3 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                                                                    <span className="text-[9px] font-black uppercase tracking-widest text-white">View Details</span>
+                                                                </div>
+                                                            </div>
+                                                            
+                                                            {/* Relation Badge */}
+                                                            <div className={`mb-4 px-2 py-0.5 rounded-full text-[9px] font-black border uppercase tracking-wider ${getRelationBadgeClass(relType)} shadow-sm select-none`}>
+                                                                {formatRelationType(relType)}
+                                                            </div>
+
+                                                            <div className="relative mb-6">
+                                                                <div className="w-3 h-3 rounded-full bg-white/20 scale-100 group-hover:bg-white/40 group-hover:scale-110 transition-all duration-500 shadow-xl" />
+                                                            </div>
+
+                                                            <div className="text-center w-full px-2 font-sans select-none">
+                                                                <h4 className="font-bold text-xs md:text-sm leading-tight text-gray-400 group-hover:text-white transition-colors duration-300 line-clamp-2">
+                                                                    {relTitle}
+                                                                </h4>
+                                                                <p className="text-[10px] text-zinc-500 mt-1 font-medium">
+                                                                    {relFormat} • {relYear}
+                                                                </p>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
 
                             {collection && collection.parts && collection.parts.length > 0 && (
                                 <div className="mt-16 pt-10 border-t border-white/10">
