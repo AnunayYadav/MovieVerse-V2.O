@@ -3743,6 +3743,8 @@ export default function App() {
                             activeChapterId={activeMangaChapterId}
                             onChapterSelect={setActiveMangaChapterId}
                             onMovieClick={setSelectedMovie}
+                            searchQuery={searchQuery}
+                            onSearchClear={() => setSearchQuery('')}
                         />
 
                     ) : selectedCategory === "Explore" && !searchQuery ? (
