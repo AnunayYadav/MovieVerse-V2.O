@@ -323,6 +323,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
     if (json.errors) {
       throw new Error(json.errors[0]?.message || 'GraphQL Error');
     }
+    return json.data;
   }, []);
 
   const mapAniListToMangaDex = useCallback(async (aniListMedia: any[], ratings: string) => {
