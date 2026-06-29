@@ -385,78 +385,117 @@ export const AnimeForum: React.FC<AnimeForumProps> = ({
   }, [localPosts, activities]);
 
   // Search AniList users
-  const handleUserSearch = async (val: string) => {
+  const handleUserSearch = (val: string) => {
     setUsersSearchQuery(val);
-    if (!val.trim()) {
+  };
+
+  // Debounced search for users directory lookup
+  useEffect(() => {
+    if (!usersSearchQuery.trim()) {
       setSearchedUsers([]);
+      setUsersLoading(false);
       return;
     }
+
     setUsersLoading(true);
-    try {
-      const q = `
-        query ($search: String) {
-          Page(page: 1, perPage: 24) {
-            users(search: $search) {
-              id
-              name
-              about
-              avatar {
-                large
+    const delayDebounce = setTimeout(async () => {
+      try {
+        const q = `
+          query ($search: String) {
+            Page(page: 1, perPage: 24) {
+              users(search: $search) {
+                id
+                name
+                about
+                avatar {
+                  large
+                }
+                bannerImage
               }
-              bannerImage
             }
           }
-        }
-      `;
-      const data = await fetchAniList(q, { search: val });
-      setSearchedUsers(data.Page?.users || []);
-    } catch (e) {
-      console.error("Failed to search users:", e);
-    } finally {
-      setUsersLoading(false);
-    }
-  };
+        `;
+        const data = await fetchAniList(q, { search: usersSearchQuery });
+        setSearchedUsers(data.Page?.users || []);
+      } catch (e) {
+        console.error("Failed to search users:", e);
+      } finally {
+        setUsersLoading(false);
+      }
+    }, 400); // 400ms debounce
+
+    return () => clearTimeout(delayDebounce);
+  }, [usersSearchQuery, fetchAniList]);
 
   // Automatically search users if global searchQuery is provided
   useEffect(() => {
     if (searchQuery) {
-      handleUserSearch(searchQuery);
+      setUsersSearchQuery(searchQuery);
     }
   }, [searchQuery]);
 
   // Search anime to link to post
-  const handleLinkAnimeSearch = async (val: string) => {
+  const handleLinkAnimeSearch = (val: string) => {
     setPostAnimeSearch(val);
-    if (!val.trim()) {
+  };
+
+  // Debounced search for anime linking
+  useEffect(() => {
+    if (!postAnimeSearch.trim()) {
       setPostAnimeResults([]);
+      setPostAnimeLoading(false);
       return;
     }
+
     setPostAnimeLoading(true);
-    try {
-      const q = `
-        query ($search: String) {
-          Page(page: 1, perPage: 5) {
-            media(search: $search, type: ANIME) {
-              id
-              title {
-                userPreferred
-                english
-              }
-              coverImage {
-                large
+    const delayDebounce = setTimeout(async () => {
+      try {
+        const q = `
+          query ($search: String) {
+            Page(page: 1, perPage: 5) {
+              media(search: $search, type: ANIME) {
+                id
+                title {
+                  userPreferred
+                  english
+                }
+                coverImage {
+                  large
+                }
               }
             }
           }
+        `;
+        const data = await fetchAniList(q, { search: postAnimeSearch });
+        setPostAnimeResults(data.Page?.media || []);
+      } catch (e) {
+        console.error("Failed to search anime for link:", e);
+      } finally {
+        setPostAnimeLoading(false);
+      }
+    }, 400); // 400ms debounce
+
+    return () => clearTimeout(delayDebounce);
+  }, [postAnimeSearch, fetchAniList]);
+
+  // Infinite Scroll Listener to automatically load next page
+  useEffect(() => {
+    const handleScroll = () => {
+      const scrolledToBottom = window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 350;
+      if (scrolledToBottom && !communityLoading) {
+        if (forumSection === 'feed') {
+          setFeedPage(prev => prev + 1);
+        } else if (forumSection === 'reviews') {
+          setReviewsPage(prev => prev + 1);
+        } else if (forumSection === 'recommendations') {
+          setRecommendationsPage(prev => prev + 1);
         }
-      `;
-      const data = await fetchAniList(q, { search: val });
-      setPostAnimeResults(data.Page?.media || []);
-    } catch (e) {
-      console.error("Failed to search anime for link:", e);
-    } finally {
-      setPostAnimeLoading(false);
-    }
-  };
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [communityLoading, forumSection]);
 
   // Create post
   const handleCreatePost = () => {
@@ -1648,15 +1687,11 @@ export const AnimeForum: React.FC<AnimeForumProps> = ({
                     {combinedActivities.map((act) => renderActivityCard(act))}
                   </div>
 
-                  <div className="flex justify-center mt-8">
-                    <button 
-                      onClick={() => setFeedPage(prev => prev + 1)}
-                      disabled={communityLoading}
-                      className="px-6 py-2.5 rounded-full border border-white/10 bg-white/5 text-zinc-300 hover:bg-white/10 font-bold text-xs uppercase tracking-widest active:scale-95 transition-all flex items-center gap-2"
-                    >
-                      {communityLoading ? <Loader2 className="animate-spin text-white" size={14} /> : 'Load More Updates'}
-                    </button>
-                  </div>
+                  {communityLoading && (
+                    <div className="flex justify-center mt-6">
+                      <Loader2 className="animate-spin text-red-500" size={20} />
+                    </div>
+                  )}
                 </>
               )}
             </div>
@@ -1678,15 +1713,11 @@ export const AnimeForum: React.FC<AnimeForumProps> = ({
                     {reviews.map((rev) => renderReviewCard(rev))}
                   </div>
 
-                  <div className="flex justify-center mt-8">
-                    <button 
-                      onClick={() => setReviewsPage(prev => prev + 1)}
-                      disabled={communityLoading}
-                      className="px-6 py-2.5 rounded-full border border-white/10 bg-white/5 text-zinc-300 hover:bg-white/10 font-bold text-xs uppercase tracking-widest active:scale-95 transition-all flex items-center gap-2"
-                    >
-                      {communityLoading ? <Loader2 className="animate-spin text-white" size={14} /> : 'Load More Reviews'}
-                    </button>
-                  </div>
+                  {communityLoading && (
+                    <div className="flex justify-center mt-6">
+                      <Loader2 className="animate-spin text-red-500" size={20} />
+                    </div>
+                  )}
                 </>
               )}
             </div>
@@ -1708,15 +1739,11 @@ export const AnimeForum: React.FC<AnimeForumProps> = ({
                     {recommendations.map((rec) => renderRecommendationCard(rec))}
                   </div>
 
-                  <div className="flex justify-center mt-8">
-                    <button 
-                      onClick={() => setRecommendationsPage(prev => prev + 1)}
-                      disabled={communityLoading}
-                      className="px-6 py-2.5 rounded-full border border-white/10 bg-white/5 text-zinc-300 hover:bg-white/10 font-bold text-xs uppercase tracking-widest active:scale-95 transition-all flex items-center gap-2"
-                    >
-                      {communityLoading ? <Loader2 className="animate-spin text-white" size={14} /> : 'Load More Recommendations'}
-                    </button>
-                  </div>
+                  {communityLoading && (
+                    <div className="flex justify-center mt-6">
+                      <Loader2 className="animate-spin text-red-500" size={20} />
+                    </div>
+                  )}
                 </>
               )}
             </div>
@@ -1741,36 +1768,40 @@ export const AnimeForum: React.FC<AnimeForumProps> = ({
                 </div>
               </div>
 
-              {usersLoading ? (
-                <div className="flex flex-col items-center justify-center py-20 gap-3">
-                  <Loader2 className="animate-spin text-red-500" size={32} />
-                  <p className="text-xs text-zinc-500 font-medium uppercase tracking-wider">Searching directory...</p>
-                </div>
-              ) : searchedUsers.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-20 text-center opacity-60">
-                  <Users size={48} className="text-white/20 mb-4 animate-pulse" />
-                  <h4 className="text-sm font-bold text-white mb-1">No Users Found</h4>
-                  <p className="text-zinc-500 text-xs max-w-sm">Try typing a username in the search box above to lookup members.</p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-5">
-                  {searchedUsers.map((user) => (
-                    <div 
-                      key={user.id} 
-                      onClick={() => { setSelectedUser(user.name); fetchUserProfile(user.name); }}
-                      className="bg-[#0d0d0f]/40 border border-white/5 hover:border-white/10 p-5 rounded-3xl flex flex-col items-center text-center cursor-pointer transition-all hover:scale-102"
-                    >
-                      <img 
-                        src={user.avatar?.large || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}&background=333&color=fff`} 
-                        className="w-16 h-16 rounded-full object-cover border border-white/10 mb-3 shadow-md" 
-                        alt="" 
-                      />
-                      <h4 className="font-semibold text-xs text-zinc-200 truncate w-full">{user.name}</h4>
-                      <p className="text-[9px] text-zinc-500 truncate w-full mt-1.5 uppercase font-medium tracking-wider">AniList Member</p>
-                    </div>
-                  ))}
-                </div>
-              )}
+              <div className="relative min-h-[250px]">
+                {usersLoading && (
+                  <div className="absolute inset-0 z-10 bg-black/45 backdrop-blur-xs flex flex-col items-center justify-center gap-3">
+                    <Loader2 className="animate-spin text-red-500" size={32} />
+                    <p className="text-xs text-zinc-500 font-medium uppercase tracking-wider">Searching directory...</p>
+                  </div>
+                )}
+                
+                {searchedUsers.length === 0 && !usersLoading ? (
+                  <div className="flex flex-col items-center justify-center py-20 text-center opacity-60">
+                    <Users size={48} className="text-white/20 mb-4 animate-pulse" />
+                    <h4 className="text-sm font-bold text-white mb-1">No Users Found</h4>
+                    <p className="text-zinc-500 text-xs max-w-sm">Try typing a username in the search box above to lookup members.</p>
+                  </div>
+                ) : (
+                  <div className={`grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-5 transition-opacity duration-200 ${usersLoading ? 'opacity-40 pointer-events-none' : ''}`}>
+                    {searchedUsers.map((user) => (
+                      <div 
+                        key={user.id} 
+                        onClick={() => { setSelectedUser(user.name); fetchUserProfile(user.name); }}
+                        className="bg-[#0d0d0f]/40 border border-white/5 hover:border-white/10 p-5 rounded-3xl flex flex-col items-center text-center cursor-pointer transition-all hover:scale-102"
+                      >
+                        <img 
+                          src={user.avatar?.large || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}&background=333&color=fff`} 
+                          className="w-16 h-16 rounded-full object-cover border border-white/10 mb-3 shadow-md" 
+                          alt="" 
+                        />
+                        <h4 className="font-semibold text-xs text-zinc-200 truncate w-full">{user.name}</h4>
+                        <p className="text-[9px] text-zinc-500 truncate w-full mt-1.5 uppercase font-medium tracking-wider">AniList Member</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           )}
 

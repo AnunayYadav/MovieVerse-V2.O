@@ -277,9 +277,9 @@ export const MangaPage: React.FC<MangaPageProps> = ({
             }
           }
         `;
-        const res = await fetch('https://graphql.anilist.co', {
+        const res = await fetch('/api/anilist', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
           body: JSON.stringify({ query: q, variables: { search: title } })
         });
         const json = await res.json();
@@ -337,9 +337,9 @@ export const MangaPage: React.FC<MangaPageProps> = ({
               }
             }
           `;
-          const res = await fetch('https://graphql.anilist.co', {
+          const res = await fetch('/api/anilist', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
             body: JSON.stringify({ query: q, variables: { mediaId: aniListMangaId } })
           });
           const json = await res.json();
@@ -374,9 +374,9 @@ export const MangaPage: React.FC<MangaPageProps> = ({
               }
             }
           `;
-          const res = await fetch('https://graphql.anilist.co', {
+          const res = await fetch('/api/anilist', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
             body: JSON.stringify({ query: q, variables: { mediaId: aniListMangaId } })
           });
           const json = await res.json();
@@ -650,7 +650,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
 
   // GraphQL fetch helper for AniList
   const fetchAniList = useCallback(async (query: string, variables: any = {}) => {
-    const url = 'https://graphql.anilist.co';
+    const url = '/api/anilist';
     const response = await window.fetch(url, {
       method: 'POST',
       headers: {

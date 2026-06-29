@@ -668,9 +668,9 @@ export const MoviePage: React.FC<MoviePageProps> = ({
             `;
         }
 
-        fetch('https://graphql.anilist.co', {
+        fetch('/api/anilist', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
             body: JSON.stringify({
                 query,
                 variables
@@ -768,9 +768,9 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                 }
               }
             `;
-            const res = await window.fetch('https://graphql.anilist.co', {
+            const res = await window.fetch('/api/anilist', {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
+              headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
               body: JSON.stringify({ query: q, variables: { mediaId: aniListId } })
             });
             const json = await res.json();
@@ -806,9 +806,9 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                 }
               }
             `;
-            const res = await window.fetch('https://graphql.anilist.co', {
+            const res = await window.fetch('/api/anilist', {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
+              headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
               body: JSON.stringify({ query: q, variables: { mediaId: aniListId } })
             });
             const json = await res.json();
@@ -851,9 +851,9 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                 }
               }
             `;
-            const res = await window.fetch('https://graphql.anilist.co', {
+            const res = await window.fetch('/api/anilist', {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
+              headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
               body: JSON.stringify({ query: q, variables: { mediaId: aniListId } })
             });
             const json = await res.json();

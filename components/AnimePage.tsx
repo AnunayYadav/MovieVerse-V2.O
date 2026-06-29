@@ -97,9 +97,8 @@ export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick, sear
   const [featuredLogoLoading, setFeaturedLogoLoading] = useState(true);
   const [loading, setLoading] = useState(true);
 
-  // GraphQL fetch helper
   const fetchAniList = useCallback(async (query: string, variables: any = {}) => {
-    const url = 'https://graphql.anilist.co';
+    const url = '/api/anilist';
     const response = await window.fetch(url, {
       method: 'POST',
       headers: {
