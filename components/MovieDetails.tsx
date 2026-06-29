@@ -1075,6 +1075,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
         { id: 'media', label: 'Media' },
         ...(isTv ? [{ id: 'seasons', label: 'Seasons' }] : []),
         ...(isAnime ? [{ id: 'characters', label: 'Characters' }] : []),
+        ...(displayData.similar?.results && displayData.similar.results.length > 0 ? [{ id: 'similar', label: 'Similar' }] : []),
     ];
 
     // Fetch Torrents for Anime Only
@@ -1926,6 +1927,25 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                             )}
                                         </div>
                                     )}
+                                    {activeTab === 'similar' && displayData.similar?.results && displayData.similar.results.length > 0 && (
+                                        <div className="space-y-6 animate-in fade-in select-none text-left">
+                                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-6">
+                                                {displayData.similar.results.slice(0, 16).map(sim => {
+                                                    const simWithMediaType = { ...sim, media_type: isTv ? 'tv' as const : 'movie' as const };
+                                                    return (
+                                                        <div key={sim.id} onClick={() => { onClose(); onSwitchMovie(simWithMediaType); }}>
+                                                            <MovieCard 
+                                                                movie={simWithMediaType} 
+                                                                onClick={() => { onClose(); onSwitchMovie(simWithMediaType); }} 
+                                                                isWatched={false} 
+                                                                onToggleWatched={() => {}} 
+                                                            />
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
 
                                 <div className="space-y-6">
@@ -2090,29 +2110,6 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                 })}
                                             </div>
                                         </div>
-                                    </div>
-                                </div>
-                            )}
-                            {displayData.similar?.results && displayData.similar.results.length > 0 && (
-                                <div className="mt-16 pt-10 border-t border-white/5">
-                                    <div className="flex items-center gap-2 mb-6">
-                                        <div className="w-1 h-5 sm:h-6 bg-red-600 rounded-full" />
-                                        <h3 className="text-sm sm:text-base md:text-lg font-extrabold text-white uppercase tracking-wider">More Like This</h3>
-                                    </div>
-                                    <div className="flex overflow-x-auto gap-4 pb-4 hide-scrollbar w-full">
-                                        {displayData.similar.results.slice(0, 16).map(sim => {
-                                            const simWithMediaType = { ...sim, media_type: isTv ? 'tv' as const : 'movie' as const };
-                                            return (
-                                                <div key={sim.id} className="shrink-0 w-44 sm:w-52 md:w-60" onClick={() => { onClose(); onSwitchMovie(simWithMediaType); }}>
-                                                    <MovieCard 
-                                                        movie={simWithMediaType} 
-                                                        onClick={() => { onClose(); onSwitchMovie(simWithMediaType); }} 
-                                                        isWatched={isWatched} 
-                                                        onToggleWatched={() => {}} 
-                                                    />
-                                                </div>
-                                            );
-                                        })}
                                     </div>
                                 </div>
                             )}
