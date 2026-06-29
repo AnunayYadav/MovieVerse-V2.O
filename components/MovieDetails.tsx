@@ -487,7 +487,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                         userPreferred
                       }
                       episodes
-                      episodeDuration
+                      duration
                       streamingEpisodes {
                         title
                         thumbnail
@@ -526,7 +526,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                     name: streamEp ? streamEp.title : `Episode ${i}`,
                     overview: streamEp ? `Watch Episode ${i} on ${streamEp.site || 'AniList'}` : `Episode ${i} of ${mediaData.title.english || mediaData.title.romaji || mediaData.title.userPreferred}`,
                     still_path: streamEp?.thumbnail || null,
-                    runtime: mediaData.episodeDuration || 24,
+                    runtime: mediaData.duration || 24,
                     air_date: null,
                     vote_average: 0
                 });
