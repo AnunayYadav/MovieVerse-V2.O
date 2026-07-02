@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
-import { X, Tv, ChevronLeft, ChevronRight, Check, ListVideo, Sliders, ChevronDown, Info, RefreshCw, Palette, Copy, Play, Pause, Volume2, VolumeX, Maximize, Loader2, AlertTriangle, Settings, Subtitles, ArrowLeft, RotateCcw, RotateCw, SkipForward, MessageSquare } from 'lucide-react';
+import { X, Tv, ChevronLeft, ChevronRight, Check, ListVideo, Sliders, ChevronDown, Info, RefreshCw, Palette, Copy, Play, Pause, Volume2, VolumeX, Maximize, Loader2, AlertTriangle, Settings, Subtitles, ArrowLeft, RotateCcw, RotateCw, SkipForward, MessageSquare, Search } from 'lucide-react';
 import Hls from 'hls.js';
 import { TvFocusButton } from '../tvNavigation';
 import { pause, resume } from '@noriginmedia/norigin-spatial-navigation';
@@ -329,6 +329,9 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   const [isSpeedMenuOpen, setIsSpeedMenuOpen] = useState(false);
   const [isSubtitleMenuOpen, setIsSubtitleMenuOpen] = useState(false);
   const [isBuffering, setIsBuffering] = useState(false);
+  const [isEpisodesOverlayOpen, setIsEpisodesOverlayOpen] = useState(false);
+  const [episodeSearchQuery, setEpisodeSearchQuery] = useState('');
+  const [isAutoplayEnabled, setIsAutoplayEnabled] = useState(true);
 
   // OpenSubtitles states
   const [osApiKey, setOsApiKey] = useState(() => {
@@ -766,7 +769,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   }, [currentSeason, currentEpisode, onEpisodeChange]);
 
   useEffect(() => {
-    if (!hasNextEpisode || (selectedProviderId !== 'anivexa' && selectedProviderId !== 'videasy_adfree')) return;
+    if (!isAutoplayEnabled || !hasNextEpisode || (selectedProviderId !== 'anivexa' && selectedProviderId !== 'videasy_adfree')) return;
     
     if (playerDuration > 0 && playerCurrentTime >= playerDuration - 20 && !showNextCountdown) {
       setShowNextCountdown(true);
@@ -779,7 +782,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
         nextCountdownTimerRef.current = null;
       }
     }
-  }, [playerCurrentTime, playerDuration, hasNextEpisode, showNextCountdown, selectedProviderId]);
+  }, [playerCurrentTime, playerDuration, hasNextEpisode, showNextCountdown, selectedProviderId, isAutoplayEnabled]);
 
   useEffect(() => {
     if (showNextCountdown) {
@@ -1481,18 +1484,10 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
         {selectedProviderId === 'videasy_adfree' || (selectedProviderId === 'anivexa' && isAnime && anilistId) ? (
           <div className="w-full h-full absolute inset-0 bg-zinc-950 z-0 flex items-center justify-center">
             {anivexaLoading && !anivexaStreamUrl && (
-              <div className="absolute inset-0 flex flex-col items-center justify-center gap-5 bg-zinc-950 z-30 animate-in fade-in duration-300">
-                <div className="relative flex items-center justify-center w-24 h-24">
-                  <Loader2 className="absolute animate-spin text-red-500" size={48} />
-                  <Tv className="text-white/80 animate-pulse" size={20} />
-                </div>
-                <div className="space-y-1 text-center">
-                  <span className="block text-[10px] text-white font-extrabold tracking-[0.25em] uppercase">
-                    Resolving Stream
-                  </span>
-                  <span className="block text-[8px] text-zinc-500 font-medium tracking-[0.15em] uppercase">
-                    Decrypting high-quality sources...
-                  </span>
+              <div className="absolute inset-0 flex items-center justify-center bg-black z-30 animate-in fade-in duration-250">
+                <div className="relative flex items-center justify-center w-16 h-16">
+                  <div className="w-12 h-12 border-[3px] border-[#E50914] border-t-transparent rounded-full animate-spin shadow-[0_0_15px_rgba(229,9,20,0.4)]" />
+                  <Tv className="absolute text-white/90 animate-pulse" size={16} />
                 </div>
               </div>
             )}
@@ -1662,8 +1657,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
 
                     <button 
                       onClick={() => {
-                        setActiveTab('episodes');
-                        setIsDrawerOpen(true);
+                        setIsEpisodesOverlayOpen(true);
                       }} 
                       className="p-2 text-white/95 hover:text-white transition-transform active:scale-90" 
                       title="Episodes List"
@@ -1680,6 +1674,18 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                       title="Subtitles & Audio"
                     >
                       <MessageSquare size={24} />
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        const speeds = [0.5, 1.0, 1.25, 1.5, 2.0];
+                        const nextIndex = (speeds.indexOf(playbackSpeed) + 1) % speeds.length;
+                        changePlaybackSpeed(speeds[nextIndex]);
+                      }}
+                      className="px-2.5 py-1 text-[11px] font-light text-white/80 hover:text-white border border-white/10 hover:border-white/20 bg-white/5 hover:bg-white/10 rounded-md transition-all whitespace-nowrap active:scale-95 self-center"
+                      title="Playback Speed"
+                    >
+                      {playbackSpeed === 1.0 ? '1.0x' : `${playbackSpeed}x`}
                     </button>
 
                     <button 
@@ -1704,15 +1710,17 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
             {/* On-screen visual feedback for keyboard shortcuts */}
             {overlayFeedback.visible && (
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-30 animate-in fade-in zoom-in-95 duration-200">
-                <div className="px-5 py-3 rounded-2xl bg-black/80 backdrop-blur-md border border-white/10 flex items-center gap-3 text-white shadow-2xl scale-100 transition-transform">
-                  {overlayFeedback.icon === 'play' && <Play size={20} fill="white" />}
-                  {overlayFeedback.icon === 'pause' && <Pause size={20} fill="white" />}
-                  {overlayFeedback.icon === 'forward' && <ChevronRight size={20} />}
-                  {overlayFeedback.icon === 'rewind' && <ChevronLeft size={20} />}
-                  {overlayFeedback.icon === 'volume-up' && <Volume2 size={20} />}
-                  {overlayFeedback.icon === 'volume-down' && <Volume2 size={20} className="opacity-60" />}
-                  {overlayFeedback.icon === 'volume-mute' && <VolumeX size={20} />}
-                  <span className="text-xs font-black uppercase tracking-wider font-sans">{overlayFeedback.text}</span>
+                <div className="p-5 rounded-full bg-black/70 backdrop-blur-md border border-white/10 flex items-center justify-center text-white shadow-2xl scale-100 transition-transform">
+                  {overlayFeedback.icon === 'play' && <Play size={28} fill="white" className="ml-1" />}
+                  {overlayFeedback.icon === 'pause' && <Pause size={28} fill="white" />}
+                  {overlayFeedback.icon === 'forward' && <RotateCw size={28} />}
+                  {overlayFeedback.icon === 'rewind' && <RotateCcw size={28} />}
+                  {overlayFeedback.icon === 'volume-up' && <Volume2 size={28} />}
+                  {overlayFeedback.icon === 'volume-down' && <Volume2 size={28} className="opacity-60" />}
+                  {overlayFeedback.icon === 'volume-mute' && <VolumeX size={28} />}
+                  {!['play', 'pause', 'forward', 'rewind'].includes(overlayFeedback.icon) && overlayFeedback.text && (
+                    <span className="text-xs font-light tracking-widest ml-2.5 select-none">{overlayFeedback.text}</span>
+                  )}
                 </div>
               </div>
             )}
@@ -1766,7 +1774,184 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
           </button>
         </div>
 
+        {/* Netflix-style Episodes Selector Overlay */}
+        {isEpisodesOverlayOpen && (
+          <div className="absolute inset-0 bg-black/90 backdrop-blur-md z-45 flex flex-col p-8 sm:p-12 md:p-16 select-none overflow-hidden animate-in fade-in duration-300">
+            {/* Header Bar */}
+            <div className="flex items-center justify-between w-full border-b border-white/10 pb-4">
+              <div className="flex items-center gap-4">
+                {/* Season Dropdown Selector */}
+                <div className="relative">
+                  <button
+                    onClick={() => setIsSeasonDropdownOpen(!isSeasonDropdownOpen)}
+                    className="flex items-center gap-2 px-4 py-2 bg-zinc-900 border border-zinc-800 text-white rounded-lg text-xs font-semibold cursor-pointer hover:bg-zinc-800 transition-colors"
+                  >
+                    <span>
+                      {seasons.find(s => s.season_number === currentSeason)?.name || `Season ${currentSeason}`}
+                    </span>
+                    <ChevronDown size={14} className="text-red-500" />
+                  </button>
+
+                  {isSeasonDropdownOpen && (
+                    <div 
+                      className="absolute left-0 mt-2 w-44 bg-zinc-900 border border-zinc-800 rounded-lg shadow-2xl p-1 z-50 max-h-48 overflow-y-auto custom-scrollbar animate-in fade-in duration-150"
+                    >
+                      {seasons.map((s) => {
+                        const isSel = s.season_number === currentSeason;
+                        return (
+                          <button
+                            key={s.id}
+                            onClick={() => {
+                              setCurrentSeason(s.season_number);
+                              setIsSeasonDropdownOpen(false);
+                            }}
+                            className={`w-full text-left px-3 py-2 text-xs font-medium rounded-md transition-colors flex items-center justify-between ${
+                              isSel ? 'bg-red-600 text-white' : 'text-zinc-400 hover:bg-white/5 hover:text-white'
+                            }`}
+                          >
+                            <span>{s.name}</span>
+                            <span className="text-[10px] opacity-60">{s.episode_count} Ep</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {/* Search Bar */}
+                <div className="flex items-center bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-1.5 w-44 sm:w-60 gap-2">
+                  <Search size={14} className="text-zinc-500" />
+                  <input
+                    type="text"
+                    value={episodeSearchQuery}
+                    onChange={(e) => setEpisodeSearchQuery(e.target.value)}
+                    placeholder="Search episodes..."
+                    className="bg-transparent text-xs text-white placeholder-zinc-500 focus:outline-none w-full font-light"
+                  />
+                  {episodeSearchQuery && (
+                    <button onClick={() => setEpisodeSearchQuery('')} className="text-zinc-500 hover:text-white">
+                      <X size={12} />
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Autoplay & Close Actions */}
+              <div className="flex items-center gap-6">
+                <div className="flex items-center gap-2.5 text-xs text-zinc-400 font-light select-none">
+                  <span className="flex items-center gap-1.5">
+                    <SkipForward size={14} /> Autoplay next
+                  </span>
+                  <button 
+                    onClick={() => setIsAutoplayEnabled(!isAutoplayEnabled)}
+                    className={`w-10 h-5.5 rounded-full p-0.5 transition-colors duration-200 cursor-pointer flex items-center ${isAutoplayEnabled ? 'bg-green-600' : 'bg-zinc-700'}`}
+                  >
+                    <div className={`w-4.5 h-4.5 rounded-full bg-white shadow-md transition-transform duration-200 ${isAutoplayEnabled ? 'translate-x-4.5' : 'translate-x-0'}`} />
+                  </button>
+                </div>
+
+                <button 
+                  onClick={() => setIsEpisodesOverlayOpen(false)}
+                  className="p-2 hover:bg-zinc-800 rounded-full transition-colors text-zinc-400 hover:text-white cursor-pointer"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+            </div>
+
+            {/* Episode List Scrollable Area */}
+            <div className="flex-1 overflow-y-auto mt-8 pr-2 space-y-4 custom-scrollbar">
+              {episodesLoading ? (
+                <div className="flex flex-col items-center justify-center py-20 gap-3">
+                  <Loader2 className="animate-spin text-red-500" size={28} />
+                  <span className="text-xs text-zinc-500 uppercase tracking-widest font-light">Loading episodes...</span>
+                </div>
+              ) : (
+                (() => {
+                  const filtered = episodes.filter((ep: any) => 
+                    ep.name?.toLowerCase().includes(episodeSearchQuery.toLowerCase()) || 
+                    String(ep.episode_number).includes(episodeSearchQuery)
+                  );
+
+                  if (filtered.length === 0) {
+                    return (
+                      <div className="text-center py-20 text-zinc-500 text-sm font-light italic">
+                        No episodes match your search query.
+                      </div>
+                    );
+                  }
+
+                  return filtered.map((ep: any) => {
+                    const isCurrent = ep.episode_number === currentEpisode;
+                    const epThumb = ep.still_path 
+                      ? `${TMDB_IMAGE_BASE}${ep.still_path}` 
+                      : "https://placehold.co/320x180";
+
+                    return (
+                      <div
+                        key={ep.id}
+                        onClick={() => {
+                          setCurrentEpisode(ep.episode_number);
+                          if (onEpisodeChange) {
+                            onEpisodeChange(currentSeason, ep.episode_number);
+                          }
+                          setIsEpisodesOverlayOpen(false);
+                        }}
+                        className={`w-full text-left rounded-xl border flex gap-4 transition-all duration-200 cursor-pointer overflow-hidden p-3 group/card ${
+                          isCurrent 
+                            ? 'border-white bg-zinc-900/60 shadow-[0_0_30px_rgba(0,0,0,0.6)] scale-[1.01]' 
+                            : 'border-white/5 bg-zinc-900/20 hover:border-white/20 hover:bg-zinc-900/40'
+                        }`}
+                      >
+                        {/* Left: Thumbnail image */}
+                        <div className="w-36 sm:w-48 aspect-video rounded-lg overflow-hidden shrink-0 bg-black/40 relative shadow-inner">
+                          <img src={epThumb} className="w-full h-full object-cover group-hover/card:scale-105 transition-transform duration-300" alt="" />
+                          <div className={`absolute inset-0 bg-black/20 flex items-center justify-center transition-opacity duration-200 ${
+                            isCurrent ? 'opacity-100' : 'opacity-0 group-hover/card:opacity-100'
+                          }`}>
+                            <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center shadow-lg transform scale-90 group-hover/card:scale-100 transition-all duration-200">
+                              <Play size={16} fill="black" className="text-black ml-0.5" />
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Right: Description & title */}
+                        <div className="min-w-0 flex-1 flex flex-col justify-center select-text">
+                          <div className="flex items-baseline justify-between gap-3">
+                            <h4 className={`text-sm sm:text-base font-medium truncate ${isCurrent ? 'text-red-500' : 'text-white'}`}>
+                              {ep.episode_number}. {ep.name}
+                            </h4>
+                            {ep.runtime && (
+                              <span className="text-[11px] text-zinc-500 font-light shrink-0">
+                                {ep.runtime}m
+                              </span>
+                            )}
+                          </div>
+                          
+                          {/* Expanded detail: overview */}
+                          {isCurrent && ep.overview && (
+                            <p className="text-[11px] sm:text-xs text-zinc-400 font-light mt-2 leading-relaxed line-clamp-3 animate-in fade-in duration-300 select-text">
+                              {ep.overview}
+                            </p>
+                          )}
+                          
+                          {!isCurrent && ep.air_date && (
+                            <span className="text-[10px] text-zinc-500 font-light mt-1">
+                              {new Date(ep.air_date).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  });
+                })()
+              )}
+            </div>
+          </div>
+        )}
+
         <div
+          data-controls
           onClick={(e) => e.stopPropagation()}
           className={`absolute right-0 top-0 h-full z-45 backdrop-blur-xl border-l border-white/10 shadow-[0_0_50px_rgba(0,0,0,0.8)] transition-transform duration-300 ease-out flex flex-col w-72 sm:w-80 ${
             isDrawerOpen ? 'translate-x-0' : 'translate-x-full'
