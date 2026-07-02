@@ -93,21 +93,14 @@ export const PROVIDERS: Provider[] = [
     name: 'VidEasy (HLS Ad-Free)',
     getMovieUrl: () => '',
     getTvUrl: () => '',
-    supportsPostMessage: false
+    supportsPostMessage: true
   },
   {
     id: 'encdec_hexa',
     name: 'EncDec - Hexa (HLS Ad-Free)',
     getMovieUrl: () => '',
     getTvUrl: () => '',
-    supportsPostMessage: false
-  },
-  {
-    id: 'peachify_adfree',
-    name: 'Peachify (HLS Ad-Free)',
-    getMovieUrl: () => '',
-    getTvUrl: () => '',
-    supportsPostMessage: false
+    supportsPostMessage: true
   },
   {
     id: 'cinesrc',
@@ -131,15 +124,6 @@ export const PROVIDERS: Provider[] = [
       `https://vidfast.pro/movie/${tmdbId}?autoPlay=true&controls=false&theme=${color.replace('#', '')}${subtitle && subtitle !== 'None' ? `&sub=${getSubtitleCode(subtitle, 'iso')}` : ''}${progress && progress > 0 ? `&startAt=${Math.floor(progress)}` : ''}`,
     getTvUrl: (tmdbId, season, episode, color, progress, isAnime, anilistId, animeLanguage, language, subtitle) => 
       `https://vidfast.pro/tv/${tmdbId}/${season}/${episode}?autoPlay=true&controls=false&theme=${color.replace('#', '')}&nextButton=true&autoNext=true${subtitle && subtitle !== 'None' ? `&sub=${getSubtitleCode(subtitle, 'iso')}` : ''}${progress && progress > 0 ? `&startAt=${Math.floor(progress)}` : ''}`,
-    supportsPostMessage: true
-  },
-  {
-    id: 'vidcore',
-    name: 'VidCore',
-    getMovieUrl: (tmdbId, color, progress, isAnime, anilistId, animeLanguage, language, subtitle) => 
-      `https://vidcore.net/movie/${tmdbId}?autoPlay=true&controls=false&theme=${color.replace('#', '')}${subtitle && subtitle !== 'None' ? `&sub=${getSubtitleCode(subtitle, 'iso')}` : ''}${progress && progress > 0 ? `&startAt=${Math.floor(progress)}` : ''}`,
-    getTvUrl: (tmdbId, season, episode, color, progress, isAnime, anilistId, animeLanguage, language, subtitle) => 
-      `https://vidcore.net/tv/${tmdbId}/${season}/${episode}?autoPlay=true&controls=false&theme=${color.replace('#', '')}&nextButton=true&autoNext=true${subtitle && subtitle !== 'None' ? `&sub=${getSubtitleCode(subtitle, 'iso')}` : ''}${progress && progress > 0 ? `&startAt=${Math.floor(progress)}` : ''}`,
     supportsPostMessage: true
   },
   {
@@ -189,27 +173,14 @@ export const PROVIDERS: Provider[] = [
     getMovieUrl: (tmdbId, color, progress, isAnime, anilistId, animeLanguage, language, subtitle) => {
       const dub = language ? getAudioCode(language, 'iso') : 'hi';
       const subVal = subtitle && subtitle !== 'None' ? `&sub=${getSubtitleCode(subtitle, 'iso')}` : '';
-      return `https://zxcstream.xyz/player/movie/${tmdbId}?dubLang=${dub}&color=${color.replace('#', '')}&autoplay=true&controls=false${subVal}${progress && progress > 0 ? `&startAt=${Math.floor(progress)}` : ''}`;
+      return `https://zxcstream.xyz/player/movie/${tmdbId}?dubLang=${dub}&color=${color.replace('#', '')}&autoplay=true${subVal}${progress && progress > 0 ? `&startAt=${Math.floor(progress)}` : ''}`;
     },
     getTvUrl: (tmdbId, season, episode, color, progress, isAnime, anilistId, animeLanguage, language, subtitle) => {
       const dub = language ? getAudioCode(language, 'iso') : 'hi';
       const subVal = subtitle && subtitle !== 'None' ? `&sub=${getSubtitleCode(subtitle, 'iso')}` : '';
-      return `https://zxcstream.xyz/player/tv/${tmdbId}/${season}/${episode}?dubLang=${dub}&color=${color.replace('#', '')}&autoplay=true&controls=false${subVal}${progress && progress > 0 ? `&startAt=${Math.floor(progress)}` : ''}`;
+      return `https://zxcstream.xyz/player/tv/${tmdbId}/${season}/${episode}?dubLang=${dub}&color=${color.replace('#', '')}&autoplay=true${subVal}${progress && progress > 0 ? `&startAt=${Math.floor(progress)}` : ''}`;
     },
     supportsPostMessage: true
-  },
-  {
-    id: 'vidlink',
-    name: 'VidLink',
-    getMovieUrl: (tmdbId, color, progress) => {
-      const c = color.replace('#', '');
-      return `https://vidlink.pro/movie/${tmdbId}?primaryColor=${c}&iconColor=${c}&player=default&autoplay=true${progress && progress > 0 ? `&startAt=${Math.floor(progress)}` : ''}`;
-    },
-    getTvUrl: (tmdbId, season, episode, color, progress) => {
-      const c = color.replace('#', '');
-      return `https://vidlink.pro/tv/${tmdbId}/${season}/${episode}?primaryColor=${c}&iconColor=${c}&player=default&nextbutton=true&autoplay=true${progress && progress > 0 ? `&startAt=${Math.floor(progress)}` : ''}`;
-    },
-    supportsPostMessage: false
   },
 ];
 
@@ -323,10 +294,8 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   const [fallbackToNativeVideasy, setFallbackToNativeVideasy] = useState(false);
   const isCineSrcCustom = selectedProviderId === 'cinesrc';
   const isVidFastCustom = selectedProviderId === 'vidfast';
-  const isVidCoreCustom = selectedProviderId === 'vidcore';
-  const isZxcCustom = selectedProviderId === 'zxcstream';
-  const isIframeCustomControls = isCineSrcCustom || isVidFastCustom || isVidCoreCustom || isZxcCustom;
-  const useCustomControls = (selectedProviderId === 'videasy_adfree' || selectedProviderId === 'peachify_adfree' || selectedProviderId.startsWith('encdec') || isIframeCustomControls) && !(selectedProviderId === 'videasy_adfree' && fallbackToNativeVideasy);
+  const isIframeCustomControls = isCineSrcCustom || isVidFastCustom;
+  const useCustomControls = (selectedProviderId === 'videasy_adfree' || selectedProviderId.startsWith('encdec') || isIframeCustomControls) && !(selectedProviderId === 'videasy_adfree' && fallbackToNativeVideasy);
   const isPlayingRef = useRef(false);
   const isSeekingRef = useRef(false);
   const playerDurationRef = useRef(0);
@@ -576,7 +545,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   const changePlaybackSpeed = (speed: number) => {
     if (isCineSrcCustom) {
       sendCineSrcCommand('setPlaybackRate', [speed]);
-    } else if (isVidFastCustom || isVidCoreCustom || isZxcCustom) {
+    } else if (isVidFastCustom) {
       sendPlayerCommand('speed', { speed });
     } else {
       const video = videoRef.current;
@@ -591,9 +560,6 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   const handleQualityChange = (qualityName: string) => {
     const matched = customQualities.find(s => s.quality === qualityName);
     const getProxiedUrl = (url: string) => {
-      if (selectedProviderId === 'peachify_adfree') {
-        return url;
-      }
       if ((selectedProviderId === 'videasy_adfree' || selectedProviderId.startsWith('encdec')) && url && url.startsWith('http')) {
         let ref = '';
         if (selectedProviderId === 'videasy_adfree') {
@@ -625,7 +591,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   useEffect(() => {
     if (isCineSrcCustom) {
       sendCineSrcCommand('setPlaybackRate', [playbackSpeed]);
-    } else if (isVidFastCustom || isVidCoreCustom || isZxcCustom) {
+    } else if (isVidFastCustom) {
       sendPlayerCommand('speed', { speed: playbackSpeed });
     } else {
       const video = videoRef.current;
@@ -633,7 +599,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
         video.playbackRate = playbackSpeed;
       }
     }
-  }, [anivexaStreamUrl, playbackSpeed, isCineSrcCustom, sendCineSrcCommand, isVidFastCustom, isVidCoreCustom, isZxcCustom, sendPlayerCommand]);
+  }, [anivexaStreamUrl, playbackSpeed, isCineSrcCustom, sendCineSrcCommand, isVidFastCustom, sendPlayerCommand]);
 
   // Sync subtitle tracks mode with global subtitleLanguage preference
   useEffect(() => {
@@ -670,7 +636,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
 
   // Fetch streaming sources for videasy_adfree and encdec
   useEffect(() => {
-    if (selectedProviderId !== 'videasy_adfree' && selectedProviderId !== 'peachify_adfree' && !selectedProviderId.startsWith('encdec')) return;
+    if (selectedProviderId !== 'videasy_adfree' && !selectedProviderId.startsWith('encdec')) return;
 
     let isMounted = true;
     const fetchDecryptedStream = async () => {
@@ -703,9 +669,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
         }
 
         let endpoint = '/api/videasy';
-        if (selectedProviderId === 'peachify_adfree') {
-          endpoint = '/api/peachify';
-        } else if (selectedProviderId.startsWith('encdec')) {
+        if (selectedProviderId.startsWith('encdec')) {
           endpoint = '/api/encdec';
           const providerType = selectedProviderId.replace('encdec_', '');
           params.append('provider', providerType);
@@ -754,9 +718,6 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
 
           setSelectedQuality(matchedSource.quality || 'Default');
           const getProxiedUrl = (url: string) => {
-            if (selectedProviderId === 'peachify_adfree') {
-              return url;
-            }
             if ((selectedProviderId === 'videasy_adfree' || selectedProviderId.startsWith('encdec')) && url && url.startsWith('http')) {
               let ref = '';
               if (selectedProviderId === 'videasy_adfree') {
@@ -805,7 +766,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   }, [currentSeason, currentEpisode, onEpisodeChange]);
 
   useEffect(() => {
-    if (!isAutoplayEnabled || !hasNextEpisode || (selectedProviderId !== 'videasy_adfree' && selectedProviderId !== 'peachify_adfree' && !selectedProviderId.startsWith('encdec'))) return;
+    if (!isAutoplayEnabled || !hasNextEpisode || (selectedProviderId !== 'videasy_adfree' && !selectedProviderId.startsWith('encdec'))) return;
     
     if (playerDuration > 0 && playerCurrentTime >= playerDuration - 20 && !showNextCountdown) {
       setShowNextCountdown(true);
@@ -975,7 +936,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
       }
       return;
     }
-    if (isVidFastCustom || isVidCoreCustom || isZxcCustom) {
+    if (isVidFastCustom) {
       const next = !isPlaying;
       sendPlayerCommand(next ? 'play' : 'pause');
       setIsPlaying(next);
@@ -992,7 +953,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     const next = !isPlaying;
     sendPlayerCommand(next ? 'play' : 'pause');
     setIsPlaying(next);
-  }, [isPlaying, sendPlayerCommand, useCustomControls, isCineSrcCustom, sendCineSrcCommand, isVidFastCustom, isVidCoreCustom, isZxcCustom]);
+  }, [isPlaying, sendPlayerCommand, useCustomControls, isCineSrcCustom, sendCineSrcCommand, isVidFastCustom]);
 
   const seekTo = useCallback((time: number) => {
     if (isCineSrcCustom) {
@@ -1000,7 +961,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
       setPlayerCurrentTime(time);
       return;
     }
-    if (isVidFastCustom || isVidCoreCustom || isZxcCustom) {
+    if (isVidFastCustom) {
       sendPlayerCommand('seek', { time: Math.floor(time) });
       setPlayerCurrentTime(time);
       return;
@@ -1013,7 +974,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     }
     sendPlayerCommand('seek', { time: Math.floor(time) });
     setPlayerCurrentTime(time);
-  }, [sendPlayerCommand, useCustomControls, isCineSrcCustom, sendCineSrcCommand, isVidFastCustom, isVidCoreCustom, isZxcCustom]);
+  }, [sendPlayerCommand, useCustomControls, isCineSrcCustom, sendCineSrcCommand, isVidFastCustom]);
 
   const changeVolume = useCallback((level: number) => {
     const clamped = Math.max(0, Math.min(1, level));
@@ -1026,7 +987,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
       }
       return;
     }
-    if (isVidFastCustom || isVidCoreCustom || isZxcCustom) {
+    if (isVidFastCustom) {
       sendPlayerCommand('volume', { level: clamped });
       setPlayerVolume(clamped);
       if (clamped > 0 && playerMuted) {
@@ -1053,7 +1014,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
       sendPlayerCommand('mute', { muted: false });
       setPlayerMuted(false);
     }
-  }, [sendPlayerCommand, playerMuted, useCustomControls, isCineSrcCustom, sendCineSrcCommand, isVidFastCustom, isVidCoreCustom, isZxcCustom]);
+  }, [sendPlayerCommand, playerMuted, useCustomControls, isCineSrcCustom, sendCineSrcCommand, isVidFastCustom]);
 
   const toggleMuteState = useCallback(() => {
     if (isCineSrcCustom) {
@@ -1062,7 +1023,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
       setPlayerMuted(nextMuted);
       return;
     }
-    if (isVidFastCustom || isVidCoreCustom || isZxcCustom) {
+    if (isVidFastCustom) {
       sendPlayerCommand('mute', { muted: !playerMuted });
       setPlayerMuted(!playerMuted);
       return;
@@ -1077,13 +1038,13 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     }
     sendPlayerCommand('mute', { muted: !playerMuted });
     setPlayerMuted(!playerMuted);
-  }, [sendPlayerCommand, playerMuted, useCustomControls, isCineSrcCustom, sendCineSrcCommand, isVidFastCustom, isVidCoreCustom, isZxcCustom]);
+  }, [sendPlayerCommand, playerMuted, useCustomControls, isCineSrcCustom, sendCineSrcCommand, isVidFastCustom]);
 
   const skipForward = useCallback(() => {
     const nextTime = playerDuration > 0 ? Math.min(playerDuration, playerCurrentTime + 10) : playerCurrentTime + 10;
     if (isCineSrcCustom) {
       sendCineSrcCommand('seek', [nextTime]);
-    } else if (isVidFastCustom || isVidCoreCustom || isZxcCustom) {
+    } else if (isVidFastCustom) {
       sendPlayerCommand('seek', { time: Math.floor(nextTime) });
     } else if (useCustomControls) {
       const video = videoRef.current;
@@ -1095,13 +1056,13 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     }
     setPlayerCurrentTime(nextTime);
     showOverlayFeedback('10s >', 'forward');
-  }, [playerDuration, playerCurrentTime, sendPlayerCommand, useCustomControls, isCineSrcCustom, sendCineSrcCommand, isVidFastCustom, isVidCoreCustom, isZxcCustom]);
+  }, [playerDuration, playerCurrentTime, sendPlayerCommand, useCustomControls, isCineSrcCustom, sendCineSrcCommand, isVidFastCustom]);
 
   const skipBackward = useCallback(() => {
     const nextTime = Math.max(0, playerCurrentTime - 10);
     if (isCineSrcCustom) {
       sendCineSrcCommand('seek', [nextTime]);
-    } else if (isVidFastCustom || isVidCoreCustom || isZxcCustom) {
+    } else if (isVidFastCustom) {
       sendPlayerCommand('seek', { time: Math.floor(nextTime) });
     } else if (useCustomControls) {
       const video = videoRef.current;
@@ -1113,7 +1074,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     }
     setPlayerCurrentTime(nextTime);
     showOverlayFeedback('< 10s', 'rewind');
-  }, [playerCurrentTime, sendPlayerCommand, useCustomControls, isCineSrcCustom, sendCineSrcCommand, isVidFastCustom, isVidCoreCustom, isZxcCustom]);
+  }, [playerCurrentTime, sendPlayerCommand, useCustomControls, isCineSrcCustom, sendCineSrcCommand, isVidFastCustom]);
 
   const toggleFullscreen = useCallback(() => {
     if (!containerRef.current) return;
@@ -1568,15 +1529,12 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                     return;
                 }
 
-                // Handle Peachify, VidCore, VidFast & VidLink PLAYER_EVENTs / MEDIA_DATAs
-                if (event.origin === 'https://peachify.pro' || event.origin === 'https://vidcore.net' || event.origin === 'https://vidfast.pro' || event.origin === 'https://vidlink.pro' || parsed.type === 'PLAYER_EVENT' || parsed.type === 'MEDIA_DATA') {
+                // Handle Peachify & VidFast PLAYER_EVENTs / MEDIA_DATAs
+                if (event.origin === 'https://peachify.pro' || event.origin === 'https://vidfast.pro' || parsed.type === 'PLAYER_EVENT' || parsed.type === 'MEDIA_DATA') {
                     const type = parsed.type;
                     const data = parsed.data;
                     if (type === 'MEDIA_DATA') {
                         localStorage.setItem('peachifyProgress', JSON.stringify(data));
-                        if (event.origin === 'https://vidlink.pro') {
-                            localStorage.setItem('vidLinkProgress', JSON.stringify(data));
-                        }
                         return;
                     }
                     if (type === 'PLAYER_EVENT' && data) {
@@ -1855,7 +1813,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
         }
       `}</style>
       <div className="flex-1 relative w-full h-full z-0 overflow-hidden bg-black">
-        {selectedProviderId === 'videasy_adfree' || selectedProviderId === 'peachify_adfree' || selectedProviderId.startsWith('encdec') ? (
+        {selectedProviderId === 'videasy_adfree' || selectedProviderId.startsWith('encdec') ? (
           <div className="w-full h-full absolute inset-0 bg-zinc-950 z-0 flex items-center justify-center">
             {anivexaLoading && !anivexaStreamUrl && (
               <div className="absolute inset-0 flex items-center justify-center bg-black z-30 animate-in fade-in duration-250">
@@ -1869,14 +1827,10 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                   <h4 className="text-white font-extrabold text-sm tracking-wider uppercase">Playback Error</h4>
                   <p className="text-zinc-500 text-xs max-w-xs mx-auto leading-relaxed">{anivexaError}</p>
                 </div>
-                {selectedProviderId === 'videasy_adfree' || selectedProviderId === 'peachify_adfree' ? (
+                {selectedProviderId === 'videasy_adfree' ? (
                   <button
                     onClick={() => {
-                      if (selectedProviderId === 'videasy_adfree') {
-                        setFallbackToNativeVideasy(true);
-                      } else {
-                        setSelectedProviderId('peachify');
-                      }
+                      setFallbackToNativeVideasy(true);
                       setAnivexaError(null);
                     }}
                     className="px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white font-bold text-xs uppercase tracking-wider rounded-xl transition-all border border-red-500/20 backdrop-blur-md active:scale-95 shadow-xl"
