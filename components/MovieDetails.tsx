@@ -1818,7 +1818,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
 
                                                 {isProviderDropdownOpen && (
                                                     <div className="absolute left-0 top-full mt-2 w-52 bg-[#121212] border border-white/10 rounded-lg shadow-xl py-1 z-50 animate-in fade-in slide-in-from-top-1 duration-200">
-                                                        {PROVIDERS.filter(p => isAnime || (p.id !== 'vidnest_animepahe' && p.id !== 'anikai' && p.id !== 'anikoto' && p.id !== 'miruro')).map((prov) => (
+                                                        {PROVIDERS.filter(p => isAnime || (p.id !== 'vidnest_animepahe' && p.id !== 'anikai')).map((prov) => (
                                                             <TvFocusButton
                                                                 key={prov.id}
                                                                 onClick={() => {
@@ -1897,7 +1897,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
 
                                         {isMobileProviderDropdownOpen && (
                                             <div className="absolute left-0 top-full mt-2 w-48 bg-[#121212] border border-white/10 rounded-lg shadow-xl py-1 z-50 animate-in fade-in slide-in-from-top-1 duration-200">
-                                                {PROVIDERS.filter(p => isAnime || (p.id !== 'vidnest_animepahe' && p.id !== 'anikai' && p.id !== 'anikoto' && p.id !== 'miruro')).map((prov) => (
+                                                {PROVIDERS.filter(p => isAnime || (p.id !== 'vidnest_animepahe' && p.id !== 'anikai')).map((prov) => (
                                                     <TvFocusButton
                                                         key={prov.id}
                                                         onClick={() => {
