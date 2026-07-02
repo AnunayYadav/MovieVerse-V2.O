@@ -382,7 +382,11 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
 
           setAnivexaSubtitles(prev => {
             const filteredPrev = prev.filter(s => !s.isOS);
-            return [...filteredPrev, ...osSubs];
+            const combined = [...filteredPrev, ...osSubs];
+            return combined.filter((sub: any, idx: number, self: any[]) => {
+              const label = sub.label || sub.language || sub.lang || '';
+              return self.findIndex(s => (s.label || s.language || s.lang || '') === label) === idx;
+            });
           });
         }
       } catch (err) {
@@ -452,7 +456,12 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
           const m3u8Source = data.sources?.find((s: any) => s.isM3U8 || s.url.includes('.m3u8')) || data.sources?.[0];
           if (m3u8Source?.url) {
             setAnivexaStreamUrl(m3u8Source.url);
-            setAnivexaSubtitles(data.subtitles || []);
+            const rawSubs = data.subtitles || [];
+            const uniqueSubs = rawSubs.filter((sub: any, idx: number, self: any[]) => {
+              const label = sub.label || sub.language || sub.lang || '';
+              return self.findIndex(s => (s.label || s.language || s.lang || '') === label) === idx;
+            });
+            setAnivexaSubtitles(uniqueSubs);
           } else {
             throw new Error("No valid HLS (.m3u8) source found.");
           }
@@ -698,7 +707,11 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
           }
 
           setCustomQualities(sources);
-          setAnivexaSubtitles(subs);
+          const uniqueSubs = subs.filter((sub: any, idx: number, self: any[]) => {
+            const label = sub.label || sub.language || sub.lang || '';
+            return self.findIndex(s => (s.label || s.language || s.lang || '') === label) === idx;
+          });
+          setAnivexaSubtitles(uniqueSubs);
 
           // Select preferred quality or fallback to first
           const preferredQuality = localStorage.getItem('movieverse_preferred_quality') || '1080p';
@@ -1484,6 +1497,17 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
       onTouchStart={resetControlsTimeout}
       className="w-full h-full flex flex-col bg-black relative group/player select-none overflow-hidden"
     >
+      <style>{`
+        video::cue {
+          background: transparent !important;
+          background-color: transparent !important;
+          color: #ffffff !important;
+          text-shadow: 0 0 6px #000000, 0 0 6px #000000, 1px 1px 2px #000000, -1px -1px 2px #000000, 1px -1px 2px #000000, -1px 1px 2px #000000 !important;
+          font-family: inherit;
+          font-weight: bold;
+          font-size: 100%;
+        }
+      `}</style>
       <div className="flex-1 relative w-full h-full z-0 overflow-hidden bg-black">
         {selectedProviderId === 'videasy_adfree' || (selectedProviderId === 'anivexa' && isAnime && anilistId) ? (
           <div className="w-full h-full absolute inset-0 bg-zinc-950 z-0 flex items-center justify-center">
@@ -1860,7 +1884,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                         className={`p-2 transition-transform active:scale-90 ${isSubtitleMenuOpen ? 'text-red-500 hover:text-red-600' : 'text-white/95 hover:text-white'}`}
                         title="Subtitles & Audio"
                       >
-                        <MessageSquare size={24} />
+                        <Subtitles size={24} />
                       </button>
 
                       <div 
@@ -2031,12 +2055,12 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                             <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block mb-2 px-1">Select Quality</span>
                             <div className="grid grid-cols-2 gap-1.5">
                               {customQualities.map((q) => {
-                                const isActive = selectedQuality === q.height;
+                                const isActive = selectedQuality === q.quality;
                                 return (
                                   <button
-                                    key={q.height}
+                                    key={q.quality}
                                     onClick={() => {
-                                      setSelectedQuality(q.height);
+                                      setSelectedQuality(q.quality);
                                       if (q.index !== undefined && hlsRef.current) {
                                         hlsRef.current.currentLevel = q.index;
                                       }
@@ -2048,7 +2072,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                                         : 'bg-white/5 text-zinc-300 border-white/5 hover:border-white/10 hover:bg-white/10'
                                     }`}
                                   >
-                                    {q.height}
+                                    {q.quality}
                                   </button>
                                 );
                               })}
