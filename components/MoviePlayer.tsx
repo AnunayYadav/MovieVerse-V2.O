@@ -89,6 +89,13 @@ const getSubtitleCode = (sub: string, format: 'name' | 'iso') => {
 
 export const PROVIDERS: Provider[] = [
   {
+    id: 'encdec',
+    name: 'EncDec (HLS Ad-Free)',
+    getMovieUrl: () => '',
+    getTvUrl: () => '',
+    supportsPostMessage: false
+  },
+  {
     id: 'cinesrc',
     name: 'CineSrc',
     getMovieUrl: (tmdbId) => `https://cinesrc.st/embed/movie/${tmdbId}`,
@@ -292,7 +299,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
 
   // Custom controls derived values & refs
   const currentProvider = PROVIDERS.find(p => p.id === selectedProviderId);
-  const useCustomControls = selectedProviderId === 'anivexa' || selectedProviderId === 'videasy_adfree';
+  const useCustomControls = selectedProviderId === 'anivexa' || selectedProviderId === 'videasy_adfree' || selectedProviderId === 'encdec';
   const isPlayingRef = useRef(false);
   const isSeekingRef = useRef(false);
   const playerDurationRef = useRef(0);
@@ -621,7 +628,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   const handleQualityChange = (qualityName: string) => {
     const matched = customQualities.find(s => s.quality === qualityName);
     const getProxiedUrl = (url: string) => {
-      if (selectedProviderId === 'videasy_adfree' && url && url.startsWith('http')) {
+      if ((selectedProviderId === 'videasy_adfree' || selectedProviderId === 'encdec') && url && url.startsWith('http')) {
         return `/api/m3u8-proxy?url=${encodeURIComponent(url)}`;
       }
       return url;
@@ -674,12 +681,12 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     };
   }, [subtitleLanguage, anivexaSubtitles, anivexaStreamUrl]);
 
-  // Fetch streaming sources for videasy_adfree
+  // Fetch streaming sources for videasy_adfree and encdec
   useEffect(() => {
-    if (selectedProviderId !== 'videasy_adfree') return;
+    if (selectedProviderId !== 'videasy_adfree' && selectedProviderId !== 'encdec') return;
 
     let isMounted = true;
-    const fetchVideasyStream = async () => {
+    const fetchDecryptedStream = async () => {
       setAnivexaLoading(true);
       setAnivexaStreamUrl('');
       setAnivexaSubtitles([]);
@@ -696,7 +703,8 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
           title: cleanTitle
         });
 
-        const res = await window.fetch(`/api/videasy?${params.toString()}`);
+        const endpoint = selectedProviderId === 'encdec' ? '/api/encdec' : '/api/videasy';
+        const res = await window.fetch(`${endpoint}?${params.toString()}`);
         if (!res.ok) {
           const errData = await res.json().catch(() => ({}));
           throw new Error(errData.error || "Failed to resolve decrypted stream sources.");
@@ -728,7 +736,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
 
           setSelectedQuality(matchedSource.quality);
           const getProxiedUrl = (url: string) => {
-            if (selectedProviderId === 'videasy_adfree' && url && url.startsWith('http')) {
+            if ((selectedProviderId === 'videasy_adfree' || selectedProviderId === 'encdec') && url && url.startsWith('http')) {
               return `/api/m3u8-proxy?url=${encodeURIComponent(url)}`;
             }
             return url;
@@ -738,17 +746,21 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
           throw new Error(payload.error || "Decryption failed.");
         }
       } catch (err: any) {
-        console.error("Videasy Decryptor Error:", err);
+        console.error("Decryptor Error:", err);
         if (isMounted) {
           setAnivexaError(err.message || "Failed to resolve decrypted HLS stream.");
         }
       } finally {
-        if (isMounted) setAnivexaLoading(false);
+        if (isMounted) {
+          setAnivexaLoading(false);
+        }
       }
     };
 
-    fetchVideasyStream();
-    return () => { isMounted = false; };
+    fetchDecryptedStream();
+    return () => {
+      isMounted = false;
+    };
   }, [selectedProviderId, tmdbId, mediaType, currentSeason, currentEpisode, title]);
 
   // Check next episode countdown logic
@@ -765,7 +777,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   }, [currentSeason, currentEpisode, onEpisodeChange]);
 
   useEffect(() => {
-    if (!isAutoplayEnabled || !hasNextEpisode || (selectedProviderId !== 'anivexa' && selectedProviderId !== 'videasy_adfree')) return;
+    if (!isAutoplayEnabled || !hasNextEpisode || (selectedProviderId !== 'anivexa' && selectedProviderId !== 'videasy_adfree' && selectedProviderId !== 'encdec')) return;
     
     if (playerDuration > 0 && playerCurrentTime >= playerDuration - 20 && !showNextCountdown) {
       setShowNextCountdown(true);
@@ -1525,7 +1537,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
         }
       `}</style>
       <div className="flex-1 relative w-full h-full z-0 overflow-hidden bg-black">
-        {selectedProviderId === 'videasy_adfree' || (selectedProviderId === 'anivexa' && isAnime && anilistId) ? (
+        {selectedProviderId === 'videasy_adfree' || selectedProviderId === 'encdec' || (selectedProviderId === 'anivexa' && isAnime && anilistId) ? (
           <div className="w-full h-full absolute inset-0 bg-zinc-950 z-0 flex items-center justify-center">
             {anivexaLoading && !anivexaStreamUrl && (
               <div className="absolute inset-0 flex items-center justify-center bg-black z-30 animate-in fade-in duration-250">

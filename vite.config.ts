@@ -44,6 +44,7 @@ export default defineConfig(({ mode }) => {
                 '/api/nyaa': './api/nyaa.ts',
                 '/api/tmdb': './api/tmdb.ts',
                 '/api/videasy': './api/videasy.ts',
+                '/api/encdec': './api/encdec.ts',
               };
               
               let matchedPath = pathname || '';
