@@ -103,6 +103,13 @@ export const PROVIDERS: Provider[] = [
     supportsPostMessage: false
   },
   {
+    id: 'peachify_adfree',
+    name: 'Peachify (HLS Ad-Free)',
+    getMovieUrl: () => '',
+    getTvUrl: () => '',
+    supportsPostMessage: false
+  },
+  {
     id: 'cinesrc',
     name: 'CineSrc',
     getMovieUrl: (tmdbId, color, progress) => {
@@ -319,7 +326,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   const isVidCoreCustom = selectedProviderId === 'vidcore';
   const isZxcCustom = selectedProviderId === 'zxcstream';
   const isIframeCustomControls = isCineSrcCustom || isVidFastCustom || isVidCoreCustom || isZxcCustom;
-  const useCustomControls = (selectedProviderId === 'videasy_adfree' || selectedProviderId.startsWith('encdec') || isIframeCustomControls) && !(selectedProviderId === 'videasy_adfree' && fallbackToNativeVideasy);
+  const useCustomControls = (selectedProviderId === 'videasy_adfree' || selectedProviderId === 'peachify_adfree' || selectedProviderId.startsWith('encdec') || isIframeCustomControls) && !(selectedProviderId === 'videasy_adfree' && fallbackToNativeVideasy);
   const isPlayingRef = useRef(false);
   const isSeekingRef = useRef(false);
   const playerDurationRef = useRef(0);
@@ -584,6 +591,9 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   const handleQualityChange = (qualityName: string) => {
     const matched = customQualities.find(s => s.quality === qualityName);
     const getProxiedUrl = (url: string) => {
+      if (selectedProviderId === 'peachify_adfree') {
+        return url;
+      }
       if ((selectedProviderId === 'videasy_adfree' || selectedProviderId.startsWith('encdec')) && url && url.startsWith('http')) {
         let ref = '';
         if (selectedProviderId === 'videasy_adfree') {
@@ -660,7 +670,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
 
   // Fetch streaming sources for videasy_adfree and encdec
   useEffect(() => {
-    if (selectedProviderId !== 'videasy_adfree' && !selectedProviderId.startsWith('encdec')) return;
+    if (selectedProviderId !== 'videasy_adfree' && selectedProviderId !== 'peachify_adfree' && !selectedProviderId.startsWith('encdec')) return;
 
     let isMounted = true;
     const fetchDecryptedStream = async () => {
@@ -693,7 +703,9 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
         }
 
         let endpoint = '/api/videasy';
-        if (selectedProviderId.startsWith('encdec')) {
+        if (selectedProviderId === 'peachify_adfree') {
+          endpoint = '/api/peachify';
+        } else if (selectedProviderId.startsWith('encdec')) {
           endpoint = '/api/encdec';
           const providerType = selectedProviderId.replace('encdec_', '');
           params.append('provider', providerType);
@@ -742,6 +754,9 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
 
           setSelectedQuality(matchedSource.quality || 'Default');
           const getProxiedUrl = (url: string) => {
+            if (selectedProviderId === 'peachify_adfree') {
+              return url;
+            }
             if ((selectedProviderId === 'videasy_adfree' || selectedProviderId.startsWith('encdec')) && url && url.startsWith('http')) {
               let ref = '';
               if (selectedProviderId === 'videasy_adfree') {
@@ -790,7 +805,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   }, [currentSeason, currentEpisode, onEpisodeChange]);
 
   useEffect(() => {
-    if (!isAutoplayEnabled || !hasNextEpisode || (selectedProviderId !== 'videasy_adfree' && !selectedProviderId.startsWith('encdec'))) return;
+    if (!isAutoplayEnabled || !hasNextEpisode || (selectedProviderId !== 'videasy_adfree' && selectedProviderId !== 'peachify_adfree' && !selectedProviderId.startsWith('encdec'))) return;
     
     if (playerDuration > 0 && playerCurrentTime >= playerDuration - 20 && !showNextCountdown) {
       setShowNextCountdown(true);
@@ -1840,7 +1855,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
         }
       `}</style>
       <div className="flex-1 relative w-full h-full z-0 overflow-hidden bg-black">
-        {selectedProviderId === 'videasy_adfree' || selectedProviderId.startsWith('encdec') ? (
+        {selectedProviderId === 'videasy_adfree' || selectedProviderId === 'peachify_adfree' || selectedProviderId.startsWith('encdec') ? (
           <div className="w-full h-full absolute inset-0 bg-zinc-950 z-0 flex items-center justify-center">
             {anivexaLoading && !anivexaStreamUrl && (
               <div className="absolute inset-0 flex items-center justify-center bg-black z-30 animate-in fade-in duration-250">
@@ -1854,10 +1869,14 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                   <h4 className="text-white font-extrabold text-sm tracking-wider uppercase">Playback Error</h4>
                   <p className="text-zinc-500 text-xs max-w-xs mx-auto leading-relaxed">{anivexaError}</p>
                 </div>
-                {selectedProviderId === 'videasy_adfree' ? (
+                {selectedProviderId === 'videasy_adfree' || selectedProviderId === 'peachify_adfree' ? (
                   <button
                     onClick={() => {
-                      setFallbackToNativeVideasy(true);
+                      if (selectedProviderId === 'videasy_adfree') {
+                        setFallbackToNativeVideasy(true);
+                      } else {
+                        setSelectedProviderId('peachify');
+                      }
                       setAnivexaError(null);
                     }}
                     className="px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white font-bold text-xs uppercase tracking-wider rounded-xl transition-all border border-red-500/20 backdrop-blur-md active:scale-95 shadow-xl"
