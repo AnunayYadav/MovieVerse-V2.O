@@ -329,6 +329,91 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   const [isSpeedMenuOpen, setIsSpeedMenuOpen] = useState(false);
   const [isSubtitleMenuOpen, setIsSubtitleMenuOpen] = useState(false);
 
+  // OpenSubtitles states
+  const [osApiKey, setOsApiKey] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('movieverse_os_api_key') || '';
+    }
+    return '';
+  });
+  const [osUsername, setOsUsername] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('movieverse_os_username') || '';
+    }
+    return '';
+  });
+  const [osPassword, setOsPassword] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('movieverse_os_password') || '';
+    }
+    return '';
+  });
+  const [isOsSettingsOpen, setIsOsSettingsOpen] = useState(false);
+
+  // Fetch OpenSubtitles subtitles
+  useEffect(() => {
+    if (!tmdbId || !useCustomControls) return;
+
+    let isMounted = true;
+    const fetchOpenSubtitles = async () => {
+      const searchHeaders: Record<string, string> = {};
+      if (osApiKey) searchHeaders['x-opensubtitles-key'] = osApiKey;
+      if (osUsername) searchHeaders['x-opensubtitles-username'] = osUsername;
+      if (osPassword) searchHeaders['x-opensubtitles-password'] = osPassword;
+
+      try {
+        const params = new URLSearchParams({
+          action: 'search',
+          tmdbId: String(tmdbId),
+          mediaType: mediaType,
+          languages: 'en,es,hi,fr,pt,ru'
+        });
+        if (mediaType === 'tv') {
+          params.append('seasonId', String(currentSeason));
+          params.append('episodeId', String(currentEpisode));
+        }
+
+        const res = await window.fetch(`/api/opensubtitles?${params.toString()}`, { headers: searchHeaders });
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          console.warn("OpenSubtitles Search Error:", errData.error || "Failed to fetch");
+          return;
+        }
+
+        const payload = await res.json();
+        if (!isMounted) return;
+
+        if (payload.data && payload.data.length > 0) {
+          const osSubs = payload.data.map((item: any) => {
+            const file = item.attributes.files?.[0];
+            if (!file) return null;
+            
+            const release = item.attributes.release || '';
+            const cleanRelease = release ? ` - ${release.split(/[.\s_-]/).slice(0, 3).join('.')}` : '';
+            const langName = item.attributes.language || 'unknown';
+            
+            return {
+              url: `/api/opensubtitles?action=download&fileId=${file.file_id}`,
+              language: `${langName.toUpperCase()}${cleanRelease}`,
+              lang: langName,
+              isOS: true
+            };
+          }).filter(Boolean);
+
+          setAnivexaSubtitles(prev => {
+            const filteredPrev = prev.filter(s => !s.isOS);
+            return [...filteredPrev, ...osSubs];
+          });
+        }
+      } catch (err) {
+        console.warn("OpenSubtitles Fetch Error:", err);
+      }
+    };
+
+    fetchOpenSubtitles();
+    return () => { isMounted = false; };
+  }, [tmdbId, mediaType, currentSeason, currentEpisode, osApiKey, osUsername, osPassword, useCustomControls]);
+
   const feedbackTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const nextCountdownTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -1470,7 +1555,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                   </button>
 
                   {/* Subtitles Selector */}
-                  {anivexaSubtitles.length > 0 && (
+                  {useCustomControls && (
                     <div className="relative">
                       <button 
                         onClick={() => {
@@ -1485,8 +1570,21 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                       </button>
                       
                       {isSubtitleMenuOpen && (
-                        <div className="absolute bottom-11 right-0 mb-1 bg-zinc-950/95 backdrop-blur-md border border-white/10 rounded-xl p-1.5 z-35 shadow-2xl flex flex-col gap-1 w-36 max-h-48 overflow-y-auto custom-scrollbar">
-                          <div className="text-[9px] text-zinc-500 font-extrabold uppercase tracking-wider px-2 py-1">Subtitles</div>
+                        <div className="absolute bottom-11 right-0 mb-1 bg-zinc-950/95 backdrop-blur-md border border-white/10 rounded-xl p-1.5 z-35 shadow-2xl flex flex-col gap-1 w-48 max-h-64 overflow-y-auto custom-scrollbar">
+                          <div className="text-[9px] text-zinc-500 font-extrabold uppercase tracking-wider px-2 py-1 flex items-center justify-between">
+                            <span>Subtitles</span>
+                            <button 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setIsOsSettingsOpen(true);
+                                setIsSubtitleMenuOpen(false);
+                              }}
+                              className="text-zinc-500 hover:text-white transition-colors"
+                              title="OpenSubtitles Settings"
+                            >
+                              <Settings size={10} />
+                            </button>
+                          </div>
                           <button
                             onClick={() => {
                               setSubtitleLanguage('None');
@@ -1500,7 +1598,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                             <span>Off</span>
                             {subtitleLanguage === 'None' && <Check size={10} />}
                           </button>
-                          {Array.from(new Set(anivexaSubtitles.map(s => s.language || s.lang))).map((lang: any) => {
+                          {anivexaSubtitles.length > 0 && Array.from(new Set(anivexaSubtitles.map(s => s.language || s.lang))).map((lang: any) => {
                             const isSel = subtitleLanguage.toLowerCase() === lang.toLowerCase();
                             return (
                               <button
@@ -1514,11 +1612,16 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                                   isSel ? 'bg-red-600 text-white' : 'text-zinc-400 hover:bg-white/5 hover:text-white'
                                 }`}
                               >
-                                <span className="truncate">{lang}</span>
+                                <span className="truncate text-left">{lang}</span>
                                 {isSel && <Check size={10} />}
                               </button>
                             );
                           })}
+                          {anivexaSubtitles.length === 0 && (
+                            <div className="text-[10px] text-zinc-600 px-2 py-3 text-center italic">
+                              No subtitles. Click gear to set up OpenSubtitles.
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
@@ -2046,6 +2149,72 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
           </div>
         </div>
       </div>
+
+      {/* OpenSubtitles Settings Modal */}
+      {isOsSettingsOpen && (
+        <div className="absolute inset-0 flex items-center justify-center bg-black/80 backdrop-blur-md z-50 p-4">
+          <div className="bg-[#121214] border border-white/10 p-6 rounded-2xl max-w-sm w-full space-y-4 shadow-2xl relative">
+            <button 
+              onClick={() => setIsOsSettingsOpen(false)}
+              className="absolute top-4 right-4 text-zinc-400 hover:text-white transition-colors"
+            >
+              <X size={18} />
+            </button>
+            <div className="space-y-1">
+              <h3 className="text-white font-extrabold text-xs tracking-wider uppercase">OpenSubtitles Settings</h3>
+              <p className="text-zinc-500 text-[10px] leading-relaxed">
+                Enter your OpenSubtitles.com API Key and credentials to enable search and auto-transcoding.
+              </p>
+            </div>
+            <div className="space-y-3 text-left">
+              <div className="space-y-1">
+                <label className="text-[9px] text-zinc-400 font-bold uppercase tracking-wider block">API Key</label>
+                <input 
+                  type="password" 
+                  value={osApiKey}
+                  onChange={(e) => setOsApiKey(e.target.value)}
+                  placeholder="Paste your Api-Key" 
+                  className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-xs text-white placeholder-zinc-600 focus:outline-none focus:border-red-500 transition-colors"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[9px] text-zinc-400 font-bold uppercase tracking-wider block">Username</label>
+                <input 
+                  type="text" 
+                  value={osUsername}
+                  onChange={(e) => setOsUsername(e.target.value)}
+                  placeholder="OpenSubtitles Username" 
+                  className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-xs text-white placeholder-zinc-600 focus:outline-none focus:border-red-500 transition-colors"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[9px] text-zinc-400 font-bold uppercase tracking-wider block">Password</label>
+                <input 
+                  type="password" 
+                  value={osPassword}
+                  onChange={(e) => setOsPassword(e.target.value)}
+                  placeholder="OpenSubtitles Password" 
+                  className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-xs text-white placeholder-zinc-600 focus:outline-none focus:border-red-500 transition-colors"
+                />
+              </div>
+            </div>
+            <div className="flex gap-2 pt-2">
+              <button 
+                onClick={() => {
+                  localStorage.setItem('movieverse_os_api_key', osApiKey);
+                  localStorage.setItem('movieverse_os_username', osUsername);
+                  localStorage.setItem('movieverse_os_password', osPassword);
+                  setIsOsSettingsOpen(false);
+                  showOverlayFeedback("Settings Saved", "check");
+                }}
+                className="flex-1 py-2.5 bg-red-600 hover:bg-red-700 text-white font-extrabold text-[10px] uppercase tracking-widest rounded-xl transition-all active:scale-95 shadow-xl"
+              >
+                Save Credentials
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
