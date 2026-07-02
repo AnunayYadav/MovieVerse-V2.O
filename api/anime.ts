@@ -304,17 +304,71 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   // 3. Route to Miruro Pipe HLS Stream resolver
   if (provider === 'miruro') {
-    if (!anilistId) {
-      return res.status(400).json({ success: false, error: "Missing anilistId parameter." });
-    }
     const epNum = episode ? parseInt(String(episode), 10) : 1;
     const category = lang === 'dub' ? 'dub' : 'sub';
 
     try {
+      let cleanTitle = '';
+      if (title) {
+        cleanTitle = String(title)
+          .replace(/\s*\(?(Dub|Sub|TV|Movie|uncensored|censored|season\s*\d+|part\s*\d+)\)?\s*$/i, '')
+          .trim();
+      }
+
+      if (!cleanTitle && tmdbId) {
+        const apiKey = process.env.VITE_TMDB_API_KEY || 'fe42b660a036f4d6a2bfeb4d0f523ce9';
+        const typeStr = mediaType === 'tv' ? 'tv' : 'movie';
+        const tmdbRes = await fetch(`https://api.themoviedb.org/3/${typeStr}/${tmdbId}?api_key=${apiKey}`);
+        if (tmdbRes.ok) {
+          const tmdbData = await tmdbRes.json() as any;
+          cleanTitle = typeStr === 'movie'
+            ? (tmdbData.title || tmdbData.original_title)
+            : (tmdbData.name || tmdbData.original_name);
+        }
+      }
+
+      let targetAlId = anilistId ? String(anilistId).trim() : '';
+
+      // If anilistId is missing, resolve it by searching AniList by title
+      if (!targetAlId && cleanTitle) {
+        try {
+          const query = `
+            query ($search: String) {
+              Media (search: $search, type: ANIME) {
+                id
+              }
+            }
+          `;
+          const aniListRes = await fetch('https://graphql.anilist.co', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+            },
+            body: JSON.stringify({
+              query,
+              variables: { search: cleanTitle }
+            })
+          });
+          if (aniListRes.ok) {
+            const aniListData = await aniListRes.json() as any;
+            if (aniListData?.data?.Media?.id) {
+              targetAlId = String(aniListData.data.Media.id);
+            }
+          }
+        } catch (err) {
+          console.error("Failed to resolve AniList ID by title:", err);
+        }
+      }
+
+      if (!targetAlId) {
+        return res.status(400).json({ success: false, error: "Missing anilistId parameter and could not resolve it from title." });
+      }
+
       const epPayload = {
         path: "episodes",
         method: "GET",
-        query: { anilistId: Number(anilistId) },
+        query: { anilistId: Number(targetAlId) },
         body: null,
         version: "0.1.0"
       };
@@ -362,7 +416,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           episodeId: encEpId,
           provider: matchedProvider,
           category: category,
-          anilistId: Number(anilistId)
+          anilistId: Number(targetAlId)
         },
         body: null,
         version: "0.1.0"
