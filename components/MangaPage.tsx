@@ -489,7 +489,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
 
   // Premium Reader settings states
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-  const [pageSize, setPageSize] = useState<'normal' | 'wide' | 'full'>('normal');
+  const [pageSize, setPageSize] = useState<'normal' | 'wide' | 'full'>('full');
   const [readerBg, setReaderBg] = useState<'black' | 'gray' | 'darker'>('black');
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [isBookmarked, setIsBookmarked] = useState(false);
@@ -3273,7 +3273,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
 
       return (
         <div 
-          className={`${barClass} bg-[#101014]/95 border border-white/5 hover:border-white/10 rounded-2xl px-4 py-2.5 flex items-center justify-between gap-4 font-sans text-xs text-zinc-300 shadow-2xl backdrop-blur-md transition-all active:scale-[0.99] select-none`}
+          className={`${barClass} bg-zinc-950/65 border border-white/10 rounded-2xl px-4 py-2.5 flex items-center justify-between gap-4 font-sans text-xs text-zinc-300 shadow-[0_8px_32px_0_rgba(0,0,0,0.5)] backdrop-blur-md transition-all active:scale-[0.99] select-none`}
         >
           {/* Left section: Manga Title & Back button */}
           <div className="flex items-center gap-2">
@@ -3468,29 +3468,41 @@ export const MangaPage: React.FC<MangaPageProps> = ({
         </div>
 
         {/* Slide-out Settings Drawer (Desktop + Mobile Overlay) */}
-        {isReaderSettingsOpen && (
-          <div className="fixed inset-0 z-[140] bg-black/60 backdrop-blur-xs animate-in fade-in duration-200">
-            {/* Click outside to close */}
-            <div className="absolute inset-0" onClick={() => setIsReaderSettingsOpen(false)} />
-            <div className="absolute right-0 top-0 bottom-0 w-80 bg-[#0c0c0e]/98 border-l border-white/5 flex flex-col animate-in slide-in-from-right duration-300 shadow-2xl">
-              <div className="p-4 border-b border-white/5 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Settings size={15} className="text-red-500" />
-                  <span className="text-xs font-bold uppercase tracking-wider text-white">Settings & Info</span>
-                </div>
-                <button
-                  onClick={() => setIsReaderSettingsOpen(false)}
-                  className="p-1 rounded-full hover:bg-white/10 text-zinc-400 hover:text-white transition-colors"
-                >
-                  <X size={18} />
-                </button>
+        <div 
+          className="fixed inset-0 bg-black/65 backdrop-blur-sm transition-all duration-300 ease-in-out"
+          style={{ 
+            zIndex: 140, 
+            opacity: isReaderSettingsOpen ? 1 : 0, 
+            visibility: isReaderSettingsOpen ? 'visible' : 'hidden',
+            pointerEvents: isReaderSettingsOpen ? 'auto' : 'none'
+          }}
+        >
+          {/* Click outside to close */}
+          <div className="absolute inset-0" onClick={() => setIsReaderSettingsOpen(false)} />
+          <div 
+            className="absolute right-0 top-0 bottom-0 w-80 border-l border-white/10 flex flex-col shadow-2xl transition-transform duration-300 ease-out"
+            style={{ 
+              backgroundColor: '#0c0c0e',
+              transform: isReaderSettingsOpen ? 'translateX(0)' : 'translateX(100%)'
+            }}
+          >
+            <div className="p-4 border-b border-white/5 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Settings size={15} className="text-red-500" />
+                <span className="text-xs font-bold uppercase tracking-wider text-white">Settings & Info</span>
               </div>
-              <div className="flex-1 overflow-y-auto">
-                {SidebarContent()}
-              </div>
+              <button
+                onClick={() => setIsReaderSettingsOpen(false)}
+                className="p-1 rounded-full hover:bg-white/10 text-zinc-400 hover:text-white transition-colors"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto">
+              {SidebarContent()}
             </div>
           </div>
-        )}
+        </div>
       </div>
     );
   }
