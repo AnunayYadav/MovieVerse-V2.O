@@ -317,6 +317,10 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   const [anivexaSubtitles, setAnivexaSubtitles] = useState<any[]>([]);
   const [anivexaLoading, setAnivexaLoading] = useState(false);
   const [anivexaError, setAnivexaError] = useState<string | null>(null);
+  const [anivexaProvider, setAnivexaProvider] = useState<string>('gogoanime');
+  const [anivexaSubProvider, setAnivexaSubProvider] = useState<string>('reanime');
+  const [anivexaAudio, setAnivexaAudio] = useState<'sub' | 'dub'>('sub');
+  const [anivexaRawPayload, setAnivexaRawPayload] = useState<any>(null);
 
   // Custom player improved options states
   const [customQualities, setCustomQualities] = useState<any[]>([]);
@@ -412,12 +416,25 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
       setAnivexaLoading(true);
       setAnivexaError(null);
       try {
-        const res = await window.fetch(`/api/anime?action=episodes&anilistId=${anilistId}`);
+        const res = await window.fetch(`/api/anime/episodes/${anilistId}`);
         if (!res.ok) throw new Error("Failed to load episode list.");
         const data = await res.json();
         
         if (isMounted) {
-          setAnivexaEpisodes(data.episodes || []);
+          setAnivexaRawPayload(data);
+          
+          // Find first provider with episodes, prioritizing reanime or anikoto
+          const order = ['reanime', 'anikoto', 'allmanga', 'animegg', 'anineko', 'anidbapp', 'animepahe'];
+          const activeProv = order.find(p => data[p]?.episodes?.sub?.length > 0 || data[p]?.episodes?.dub?.length > 0) || 'reanime';
+          
+          setAnivexaSubProvider(activeProv);
+          
+          const hasDub = data[activeProv]?.episodes?.dub?.length > 0;
+          const subOrDub = hasDub && animeLanguage.toLowerCase() === 'dub' ? 'dub' : 'sub';
+          setAnivexaAudio(subOrDub);
+          
+          const eps = data[activeProv]?.episodes?.[subOrDub] || [];
+          setAnivexaEpisodes(eps);
         }
       } catch (err: any) {
         console.error("Anime fetch episodes error:", err);
@@ -431,7 +448,15 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
 
     fetchEpisodes();
     return () => { isMounted = false; };
-  }, [isAnime, anilistId, selectedProviderId]);
+  }, [isAnime, anilistId, selectedProviderId, animeLanguage]);
+
+  // Synchronize dynamic episodes state when selected provider or language switches
+  useEffect(() => {
+    if (!anivexaRawPayload) return;
+    const providerData = anivexaRawPayload[anivexaSubProvider];
+    const eps = providerData?.episodes?.[anivexaAudio] || [];
+    setAnivexaEpisodes(eps);
+  }, [anivexaRawPayload, anivexaSubProvider, anivexaAudio]);
 
   // Fetch watch URL when currentEpisode or language changes
   useEffect(() => {
@@ -443,17 +468,23 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
       setAnivexaStreamUrl('');
       setAnivexaError(null);
       try {
-        const epMatch = anivexaEpisodes.find((e: any) => e.number === currentEpisode);
+        let epMatch = anivexaEpisodes.find((e: any) => e.number === currentEpisode);
+        if (!epMatch && (mediaType === 'movie' || anivexaEpisodes.length === 1)) {
+          epMatch = anivexaEpisodes[0];
+        }
         if (!epMatch) {
           throw new Error(`Episode ${currentEpisode} is not available.`);
         }
 
-        const watchRes = await window.fetch(`/api/anime?action=watch&episodeId=${encodeURIComponent(epMatch.id)}`);
+        // epMatch.id is the path format like "watch/provider/id/subOrDub/provider-ep"
+        const watchRes = await window.fetch(`/api/anime/${epMatch.id}`);
         if (!watchRes.ok) throw new Error("Failed to resolve streaming link.");
         const data = await watchRes.json();
 
         if (isMounted) {
-          const m3u8Source = data.sources?.find((s: any) => s.isM3U8 || s.url.includes('.m3u8')) || data.sources?.[0];
+          const sources = data.sources || [];
+          const m3u8Source = sources.find((s: any) => s.isM3U8 || s.url?.includes('.m3u8')) || sources[0];
+          
           if (m3u8Source?.url) {
             setAnivexaStreamUrl(m3u8Source.url);
             const rawSubs = data.subtitles || [];
@@ -462,8 +493,16 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
               return self.findIndex(s => (s.label || s.language || s.lang || '') === label) === idx;
             });
             setAnivexaSubtitles(uniqueSubs);
+          } else if (data.url) {
+            setAnivexaStreamUrl(data.url);
+            const rawSubs = data.subtitles || [];
+            const uniqueSubs = rawSubs.filter((sub: any, idx: number, self: any[]) => {
+              const label = sub.label || sub.language || sub.lang || '';
+              return self.findIndex(s => (s.label || s.language || s.lang || '') === label) === idx;
+            });
+            setAnivexaSubtitles(uniqueSubs);
           } else {
-            throw new Error("No valid HLS (.m3u8) source found.");
+            throw new Error("No valid stream source found.");
           }
         }
       } catch (err: any) {
@@ -478,7 +517,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
 
     fetchWatchUrl();
     return () => { isMounted = false; };
-  }, [isAnime, anilistId, selectedProviderId, anivexaEpisodes, currentEpisode, animeLanguage]);
+  }, [isAnime, anilistId, selectedProviderId, anivexaEpisodes, currentEpisode, animeLanguage, anivexaSubProvider, anivexaAudio, mediaType]);
 
   // Bind video element events to state
   useEffect(() => {
@@ -1719,48 +1758,80 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                       >
                         {/* Header Bar */}
                         <div className="flex items-center justify-between w-full border-b border-white/10 pb-2.5 gap-2">
-                          <div className="flex items-center gap-2">
-                            {/* Season Dropdown Selector */}
-                            <div className="relative">
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setIsSeasonDropdownOpen(!isSeasonDropdownOpen);
-                                }}
-                                className="flex items-center gap-1 px-2 py-1 bg-zinc-900 border border-zinc-800 text-white rounded-lg text-[10px] font-semibold cursor-pointer hover:bg-zinc-800 transition-colors"
-                              >
-                                <span>
-                                  {seasons.find(s => s.season_number === currentSeason)?.name || `S${currentSeason}`}
-                                </span>
-                                <ChevronDown size={10} className="text-red-500" />
-                              </button>
-
-                              {isSeasonDropdownOpen && (
-                                <div 
-                                  className="absolute left-0 mt-1.5 w-32 bg-zinc-900 border border-zinc-800 rounded-lg shadow-2xl p-1 z-[70] max-h-36 overflow-y-auto custom-scrollbar animate-in fade-in duration-100"
+                          <div className="flex items-center gap-2 flex-wrap">
+                            {selectedProviderId !== 'anivexa' ? (
+                              /* Season Dropdown Selector */
+                              <div className="relative">
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setIsSeasonDropdownOpen(!isSeasonDropdownOpen);
+                                  }}
+                                  className="flex items-center gap-1 px-2 py-1 bg-zinc-900 border border-zinc-800 text-white rounded-lg text-[10px] font-semibold cursor-pointer hover:bg-zinc-800 transition-colors"
                                 >
-                                  {seasons.map((s) => {
-                                    const isSel = s.season_number === currentSeason;
-                                    return (
-                                      <button
-                                        key={s.id}
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          setCurrentSeason(s.season_number);
-                                          setIsSeasonDropdownOpen(false);
-                                        }}
-                                        className={`w-full text-left px-2 py-1.5 text-[10px] font-medium rounded-md transition-colors flex items-center justify-between ${
-                                          isSel ? 'bg-red-600 text-white' : 'text-zinc-400 hover:bg-white/5 hover:text-white'
-                                        }`}
-                                      >
-                                        <span>{s.name}</span>
-                                        <span className="text-[9px] opacity-60">{s.episode_count} Ep</span>
-                                      </button>
-                                    );
-                                  })}
+                                  <span>
+                                    {seasons.find(s => s.season_number === currentSeason)?.name || `S${currentSeason}`}
+                                  </span>
+                                  <ChevronDown size={10} className="text-red-500" />
+                                </button>
+
+                                {isSeasonDropdownOpen && (
+                                  <div 
+                                    className="absolute left-0 mt-1.5 w-32 bg-zinc-900 border border-zinc-800 rounded-lg shadow-2xl p-1 z-[70] max-h-36 overflow-y-auto custom-scrollbar animate-in fade-in duration-100"
+                                  >
+                                    {seasons.map((s) => {
+                                      const isSel = s.season_number === currentSeason;
+                                      return (
+                                        <button
+                                          key={s.id}
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setCurrentSeason(s.season_number);
+                                            setIsSeasonDropdownOpen(false);
+                                          }}
+                                          className={`w-full text-left px-2 py-1.5 text-[10px] font-medium rounded-md transition-colors flex items-center justify-between ${
+                                            isSel ? 'bg-red-600 text-white' : 'text-zinc-400 hover:bg-white/5 hover:text-white'
+                                          }`}
+                                        >
+                                          <span>{s.name}</span>
+                                          <span className="text-[9px] opacity-60">{s.episode_count} Ep</span>
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+                                )}
+                              </div>
+                            ) : (
+                              <>
+                                {/* Anivexa Provider Selector */}
+                                <div className="relative">
+                                  <select
+                                    value={anivexaSubProvider}
+                                    onChange={(e) => setAnivexaSubProvider(e.target.value)}
+                                    className="bg-zinc-900 border border-zinc-800 text-white rounded-lg text-[10px] font-semibold p-1 focus:outline-none cursor-pointer"
+                                  >
+                                    <option value="reanime">Reanime</option>
+                                    <option value="anikoto">AniKoto</option>
+                                    <option value="allmanga">AllManga</option>
+                                    <option value="animegg">AnimeGG</option>
+                                    <option value="anineko">AniNeko</option>
+                                    <option value="anidbapp">AniDB</option>
+                                    <option value="animepahe">AnimePahe</option>
+                                  </select>
                                 </div>
-                              )}
-                            </div>
+                                {/* Anivexa Language Selector */}
+                                <div className="relative">
+                                  <select
+                                    value={anivexaAudio}
+                                    onChange={(e) => setAnivexaAudio(e.target.value as 'sub' | 'dub')}
+                                    className="bg-zinc-900 border border-zinc-800 text-white rounded-lg text-[10px] font-semibold p-1 focus:outline-none cursor-pointer"
+                                  >
+                                    <option value="sub">Sub</option>
+                                    <option value="dub">Dub</option>
+                                  </select>
+                                </div>
+                              </>
+                            )}
 
                             {/* Search Bar */}
                             <div className="flex items-center bg-zinc-900 border border-zinc-800 rounded-lg px-2 py-1 gap-1.5 w-32 sm:w-44">
@@ -1801,10 +1872,12 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                             </div>
                           ) : (
                             (() => {
-                              const filtered = episodes.filter((ep: any) => 
-                                ep.name?.toLowerCase().includes(episodeSearchQuery.toLowerCase()) || 
-                                String(ep.episode_number).includes(episodeSearchQuery)
-                              );
+                              const filtered = episodes.filter((ep: any) => {
+                                const epTitle = selectedProviderId === 'anivexa' ? ep.title : ep.name;
+                                const epNum = selectedProviderId === 'anivexa' ? ep.number : ep.episode_number;
+                                return epTitle?.toLowerCase().includes(episodeSearchQuery.toLowerCase()) || 
+                                       String(epNum).includes(episodeSearchQuery);
+                              });
 
                               if (filtered.length === 0) {
                                 return (
@@ -1815,18 +1888,18 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                               }
 
                               return filtered.map((ep: any) => {
-                                const isCurrent = ep.episode_number === currentEpisode;
-                                const epThumb = ep.still_path 
-                                  ? `${TMDB_IMAGE_BASE}${ep.still_path}` 
-                                  : "https://placehold.co/320x180";
+                                const isCurrent = (selectedProviderId === 'anivexa' ? ep.number : ep.episode_number) === currentEpisode;
+                                const epThumb = selectedProviderId === 'anivexa'
+                                  ? (ep.image || "https://placehold.co/320x180")
+                                  : (ep.still_path ? `${TMDB_IMAGE_BASE}${ep.still_path}` : "https://placehold.co/320x180");
 
                                 return (
                                   <div
                                     key={ep.id}
                                     onClick={() => {
-                                      setCurrentEpisode(ep.episode_number);
+                                      setCurrentEpisode(selectedProviderId === 'anivexa' ? ep.number : ep.episode_number);
                                       if (onEpisodeChange) {
-                                        onEpisodeChange(currentSeason, ep.episode_number);
+                                        onEpisodeChange(currentSeason, selectedProviderId === 'anivexa' ? ep.number : ep.episode_number);
                                       }
                                       closeAllMenus();
                                     }}
@@ -1852,7 +1925,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                                     <div className="min-w-0 flex-1 flex flex-col justify-center select-text">
                                       <div className="flex items-baseline justify-between gap-2">
                                         <h4 className={`text-xs font-medium truncate ${isCurrent ? 'text-red-500' : 'text-white'}`}>
-                                          {ep.episode_number}. {ep.name}
+                                          {selectedProviderId === 'anivexa' ? `${ep.number}. ${ep.title}` : `${ep.episode_number}. ${ep.name}`}
                                         </h4>
                                         {ep.runtime && (
                                           <span className="text-[9px] text-zinc-500 font-light shrink-0">
@@ -2194,7 +2267,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
               <Tv size={12} />
               Sources
             </button>
-            {mediaType === 'tv' && (
+            {(mediaType === 'tv' || selectedProviderId === 'anivexa') && (
               <button
                 onClick={() => setActiveTab('episodes')}
                 className={`flex-1 py-2 text-[10px] font-black tracking-wider uppercase rounded-lg transition-all flex items-center justify-center gap-1.5 ${
@@ -2317,11 +2390,12 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
               </div>
             )}
 
-            {activeTab === 'episodes' && mediaType === 'tv' && (
+            {activeTab === 'episodes' && (mediaType === 'tv' || selectedProviderId === 'anivexa') && (
               <div className="space-y-4 text-left">
-                {/* Season Dropdown Selector */}
-                <div className="relative">
-                  <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block mb-1.5 px-1">Active Season</span>
+                {selectedProviderId !== 'anivexa' ? (
+                  /* Season Dropdown Selector */
+                  <div className="relative">
+                    <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block mb-1.5 px-1">Active Season</span>
                   <button
                     onClick={() => setIsSeasonDropdownOpen(!isSeasonDropdownOpen)}
                     className="flex items-center justify-between w-full bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 px-3.5 py-2.5 rounded-xl text-white text-xs font-bold transition-all active:scale-[0.98]"
@@ -2358,6 +2432,38 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                     </div>
                   )}
                 </div>
+                ) : (
+                  /* Anivexa Provider & Language Selector */
+                  <div className="flex gap-2 bg-white/5 p-2.5 rounded-xl border border-white/10">
+                    <div className="flex-1 flex flex-col gap-1">
+                      <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block mb-1">Source Provider</span>
+                      <select
+                        value={anivexaSubProvider}
+                        onChange={(e) => setAnivexaSubProvider(e.target.value)}
+                        className="bg-zinc-900 border border-zinc-800 text-xs text-white rounded-lg p-2 focus:outline-none cursor-pointer w-full"
+                      >
+                        <option value="reanime">Reanime (Stable)</option>
+                        <option value="anikoto">AniKoto (Stable)</option>
+                        <option value="allmanga">AllManga (Sub/Dub)</option>
+                        <option value="animegg">AnimeGG</option>
+                        <option value="anineko">AniNeko</option>
+                        <option value="anidbapp">AniDB App</option>
+                        <option value="animepahe">AnimePahe (Unstable)</option>
+                      </select>
+                    </div>
+                    <div className="flex flex-col gap-1 w-24">
+                      <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block mb-1">Language</span>
+                      <select
+                        value={anivexaAudio}
+                        onChange={(e) => setAnivexaAudio(e.target.value as 'sub' | 'dub')}
+                        className="bg-zinc-900 border border-zinc-800 text-xs text-white rounded-lg p-2 focus:outline-none cursor-pointer w-full"
+                      >
+                        <option value="sub">Sub</option>
+                        <option value="dub">Dub</option>
+                      </select>
+                    </div>
+                  </div>
+                )}
 
                 {/* Episodes List */}
                 <div className="space-y-2 mt-4">
@@ -2372,17 +2478,17 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                   ) : (
                     <div className="space-y-2 max-h-[60vh] overflow-y-auto pr-1 custom-scrollbar">
                       {episodes.map((ep) => {
-                        const isCurrent = ep.episode_number === currentEpisode;
-                        const epThumb = ep.still_path 
-                          ? `${TMDB_IMAGE_BASE}${ep.still_path}` 
-                          : "https://placehold.co/320x180";
+                        const isCurrent = (selectedProviderId === 'anivexa' ? ep.number : ep.episode_number) === currentEpisode;
+                        const epThumb = selectedProviderId === 'anivexa'
+                          ? (ep.image || "https://placehold.co/320x180")
+                          : (ep.still_path ? `${TMDB_IMAGE_BASE}${ep.still_path}` : "https://placehold.co/320x180");
                         return (
                           <button
                             key={ep.id}
                             onClick={() => {
-                              setCurrentEpisode(ep.episode_number);
+                              setCurrentEpisode(selectedProviderId === 'anivexa' ? ep.number : ep.episode_number);
                               if (onEpisodeChange) {
-                                onEpisodeChange(currentSeason, ep.episode_number);
+                                onEpisodeChange(currentSeason, selectedProviderId === 'anivexa' ? ep.number : ep.episode_number);
                               }
                               setIsDrawerOpen(false);
                             }}
@@ -2400,7 +2506,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                             </div>
                             <div className="min-w-0 flex-1 flex flex-col justify-center">
                               <h4 className={`text-[11px] font-bold truncate ${isCurrent ? 'text-red-500' : 'text-white'}`}>
-                                {ep.episode_number}. {ep.name}
+                                {selectedProviderId === 'anivexa' ? `${ep.number}. ${ep.title}` : `${ep.episode_number}. ${ep.name}`}
                               </h4>
                               {ep.air_date && (
                                 <span className="text-[9px] text-zinc-500 font-medium mt-0.5">
