@@ -328,6 +328,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   const [isQualityMenuOpen, setIsQualityMenuOpen] = useState(false);
   const [isSpeedMenuOpen, setIsSpeedMenuOpen] = useState(false);
   const [isSubtitleMenuOpen, setIsSubtitleMenuOpen] = useState(false);
+  const [isBuffering, setIsBuffering] = useState(false);
 
   // OpenSubtitles states
   const [osApiKey, setOsApiKey] = useState(() => {
@@ -509,12 +510,20 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
       setPlayerVolume(video.volume);
       setPlayerMuted(video.muted);
     };
+    const onWaiting = () => setIsBuffering(true);
+    const onPlayingEvent = () => setIsBuffering(false);
+    const onSeeked = () => setIsBuffering(false);
+    const onSeeking = () => setIsBuffering(true);
 
     video.addEventListener('play', onPlay);
     video.addEventListener('pause', onPause);
     video.addEventListener('timeupdate', onTimeUpdate);
     video.addEventListener('durationchange', onDurationChange);
     video.addEventListener('volumechange', onVolumeChange);
+    video.addEventListener('waiting', onWaiting);
+    video.addEventListener('playing', onPlayingEvent);
+    video.addEventListener('seeked', onSeeked);
+    video.addEventListener('seeking', onSeeking);
 
     return () => {
       video.removeEventListener('play', onPlay);
@@ -522,8 +531,12 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
       video.removeEventListener('timeupdate', onTimeUpdate);
       video.removeEventListener('durationchange', onDurationChange);
       video.removeEventListener('volumechange', onVolumeChange);
+      video.removeEventListener('waiting', onWaiting);
+      video.removeEventListener('playing', onPlayingEvent);
+      video.removeEventListener('seeked', onSeeked);
+      video.removeEventListener('seeking', onSeeking);
     };
-  }, [selectedProviderId, isSeeking]);
+  }, [selectedProviderId, isSeeking, anivexaStreamUrl, useCustomControls]);
 
   // Hls.js player initialization and lifecycle management
   useEffect(() => {
@@ -1422,6 +1435,18 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     return () => { if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current); };
   }, []);
 
+  const getActiveEpisodeTitle = () => {
+    if (mediaType !== 'tv' && !isAnime) return '';
+    if (isAnime && anivexaEpisodes) {
+      const ep = anivexaEpisodes.find((e: any) => e.number === currentEpisode);
+      return ep ? ep.title : '';
+    }
+    if (episodes) {
+      const ep = episodes.find((e: any) => e.episode_number === currentEpisode);
+      return ep ? ep.name : '';
+    }
+    return '';
+  };
 
   return (
     <div 
@@ -1432,9 +1457,19 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
         {selectedProviderId === 'videasy_adfree' || (selectedProviderId === 'anivexa' && isAnime && anilistId) ? (
           <div className="w-full h-full absolute inset-0 bg-zinc-950 z-0 flex items-center justify-center">
             {anivexaLoading && !anivexaStreamUrl && (
-              <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-zinc-950/90 backdrop-blur-xl z-30">
-                <Loader2 className="animate-spin text-red-500" size={36} />
-                <span className="text-[10px] text-zinc-400 font-bold tracking-[0.2em] uppercase">Resolving Ad-Free Stream</span>
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-5 bg-zinc-950 z-30 animate-in fade-in duration-300">
+                <div className="relative flex items-center justify-center w-24 h-24">
+                  <Loader2 className="absolute animate-spin text-red-500" size={48} />
+                  <Tv className="text-white/80 animate-pulse" size={20} />
+                </div>
+                <div className="space-y-1 text-center">
+                  <span className="block text-[10px] text-white font-extrabold tracking-[0.25em] uppercase">
+                    Resolving Stream
+                  </span>
+                  <span className="block text-[8px] text-zinc-500 font-medium tracking-[0.15em] uppercase">
+                    Decrypting high-quality sources...
+                  </span>
+                </div>
               </div>
             )}
             {anivexaError && (
@@ -1503,10 +1538,20 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
             style={{ cursor: showControls ? 'default' : 'none' }}
           >
             {/* Center play button when paused */}
-            {!isPlaying && playerDuration > 0 && (
+            {!isPlaying && playerDuration > 0 && !isBuffering && (
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20">
                 <div className="w-20 h-20 rounded-full bg-black/60 backdrop-blur-md flex items-center justify-center border border-white/20 shadow-2xl animate-pulse">
                   <Play size={36} className="text-white ml-1" fill="white" />
+                </div>
+              </div>
+            )}
+
+            {/* Buffering Indicator */}
+            {isBuffering && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/20 backdrop-blur-[1px] z-20 pointer-events-none">
+                <div className="p-5 bg-black/60 rounded-3xl border border-white/10 flex flex-col items-center justify-center gap-3 shadow-2xl backdrop-blur-md animate-in fade-in zoom-in-95 duration-200">
+                  <Loader2 className="animate-spin text-red-500" size={32} />
+                  <span className="text-[9px] text-zinc-400 font-extrabold tracking-[0.2em] uppercase">Buffering</span>
                 </div>
               </div>
             )}
@@ -1777,28 +1822,57 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
           </div>
         )}
 
-        {/* Top-Right Player Action Controls */}
+        {/* Premium Top Bar Overlay */}
         <div 
-          className="absolute top-4 right-4 z-50 flex items-center gap-2"
+          className={`absolute top-0 left-0 right-0 z-50 w-full bg-gradient-to-b from-black/95 via-black/40 to-transparent pt-6 pb-16 px-6 flex items-center justify-between pointer-events-none transition-all duration-300 ease-out ${
+            useCustomControls 
+              ? (showControls || isDrawerOpen ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4') 
+              : 'opacity-100 translate-y-0'
+          }`}
           onClick={(e) => e.stopPropagation()}
         >
-          <TvFocusButton
-            onClick={() => setIsDrawerOpen(!isDrawerOpen)}
-            className="p-2.5 bg-black/60 hover:bg-black/80 text-white/85 hover:text-white rounded-full transition-all border border-white/10 active:scale-95 flex items-center justify-center shadow-lg backdrop-blur-md"
-            title={isDrawerOpen ? "Close Settings" : "Player Settings"}
-          >
-            <Sliders size={20} />
-          </TvFocusButton>
-          {!isWatchParty && (
-            <TvFocusButton 
-              id="tv-player-close-btn" 
-              onClick={onClose} 
+          {/* Left: Metadata */}
+          <div className="flex flex-col gap-1 pointer-events-auto">
+            <h2 className="text-white font-black text-sm sm:text-base tracking-wide uppercase drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
+              {title}
+            </h2>
+            {(mediaType === 'tv' || isAnime) && (
+              <span className="text-[10px] sm:text-xs text-zinc-300 font-bold tracking-wider uppercase drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] flex items-center gap-1.5">
+                <span style={{ color: `#${activeColor.replace('#', '')}` }}>
+                  S{currentSeason} • E{currentEpisode}
+                </span>
+                {getActiveEpisodeTitle() && (
+                  <>
+                    <span className="text-zinc-500">•</span>
+                    <span className="text-zinc-400 capitalize normal-case font-medium">
+                      {getActiveEpisodeTitle()}
+                    </span>
+                  </>
+                )}
+              </span>
+            )}
+          </div>
+
+          {/* Right: Actions */}
+          <div className="flex items-center gap-2.5 pointer-events-auto">
+            <TvFocusButton
+              onClick={() => setIsDrawerOpen(!isDrawerOpen)}
               className="p-2.5 bg-black/60 hover:bg-black/80 text-white/85 hover:text-white rounded-full transition-all border border-white/10 active:scale-95 flex items-center justify-center shadow-lg backdrop-blur-md"
-              title="Close Player"
+              title={isDrawerOpen ? "Close Settings" : "Player Settings"}
             >
-              <X size={20} />
+              <Sliders size={20} />
             </TvFocusButton>
-          )}
+            {!isWatchParty && (
+              <TvFocusButton 
+                id="tv-player-close-btn" 
+                onClick={onClose} 
+                className="p-2.5 bg-black/60 hover:bg-black/80 text-white/85 hover:text-white rounded-full transition-all border border-white/10 active:scale-95 flex items-center justify-center shadow-lg backdrop-blur-md"
+                title="Close Player"
+              >
+                <X size={20} />
+              </TvFocusButton>
+            )}
+          </div>
         </div>
 
         <div
