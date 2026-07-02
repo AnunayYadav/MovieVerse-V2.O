@@ -740,7 +740,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const queryParams: any = {
-    title: encodeURIComponent(cleanTitle),
+    title: cleanTitle,
     mediaType: String(mediaType),
     year: cleanYear ? String(cleanYear) : '',
     episodeId: episodeNum,

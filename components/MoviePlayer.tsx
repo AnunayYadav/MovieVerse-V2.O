@@ -594,7 +594,29 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     const matched = customQualities.find(s => s.quality === qualityName);
     const getProxiedUrl = (url: string) => {
       if ((selectedProviderId === 'videasy_adfree' || selectedProviderId.startsWith('encdec')) && url && url.startsWith('http')) {
-        return `/api/m3u8-proxy?url=${encodeURIComponent(url)}`;
+        let ref = '';
+        if (selectedProviderId === 'videasy_adfree' || selectedProviderId === 'encdec_videasy') {
+          ref = 'https://player.videasy.to/';
+        } else if (selectedProviderId === 'encdec_vidfast') {
+          ref = 'https://vidfast.pro/';
+        } else if (selectedProviderId === 'encdec_vidcore') {
+          ref = 'https://vidcore.net/';
+        } else if (selectedProviderId === 'encdec_lordflix') {
+          ref = 'https://lordflix.org/';
+        } else if (selectedProviderId === 'encdec_vidsync') {
+          ref = 'https://vidsync.xyz/';
+        } else if (selectedProviderId === 'encdec_hexa') {
+          ref = 'https://hexa.su/';
+        } else if (selectedProviderId === 'encdec_animekai') {
+          try {
+            const u = new URL(url);
+            ref = u.origin + '/';
+          } catch(e) {
+            ref = 'https://animekai.to/';
+          }
+        }
+        const refererParam = ref ? `&referer=${encodeURIComponent(ref)}` : '';
+        return `/api/m3u8-proxy?url=${encodeURIComponent(url)}${refererParam}`;
       }
       return url;
     };
@@ -731,14 +753,36 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
 
           // Select preferred quality or fallback to first
           const preferredQuality = localStorage.getItem('movieverse_preferred_quality') || '1080p';
-          let matchedSource = sources.find((s: any) => s.quality.toLowerCase() === preferredQuality.toLowerCase())
-                              || sources.find((s: any) => s.quality.toLowerCase().includes('1080'))
+          let matchedSource = sources.find((s: any) => s.quality && s.quality.toLowerCase() === preferredQuality.toLowerCase())
+                              || sources.find((s: any) => s.quality && s.quality.toLowerCase().includes('1080'))
                               || sources[0];
 
-          setSelectedQuality(matchedSource.quality);
+          setSelectedQuality(matchedSource.quality || 'Default');
           const getProxiedUrl = (url: string) => {
             if ((selectedProviderId === 'videasy_adfree' || selectedProviderId.startsWith('encdec')) && url && url.startsWith('http')) {
-              return `/api/m3u8-proxy?url=${encodeURIComponent(url)}`;
+              let ref = '';
+              if (selectedProviderId === 'videasy_adfree' || selectedProviderId === 'encdec_videasy') {
+                ref = 'https://player.videasy.to/';
+              } else if (selectedProviderId === 'encdec_vidfast') {
+                ref = 'https://vidfast.pro/';
+              } else if (selectedProviderId === 'encdec_vidcore') {
+                ref = 'https://vidcore.net/';
+              } else if (selectedProviderId === 'encdec_lordflix') {
+                ref = 'https://lordflix.org/';
+              } else if (selectedProviderId === 'encdec_vidsync') {
+                ref = 'https://vidsync.xyz/';
+              } else if (selectedProviderId === 'encdec_hexa') {
+                ref = 'https://hexa.su/';
+              } else if (selectedProviderId === 'encdec_animekai') {
+                try {
+                  const u = new URL(url);
+                  ref = u.origin + '/';
+                } catch(e) {
+                  ref = 'https://animekai.to/';
+                }
+              }
+              const refererParam = ref ? `&referer=${encodeURIComponent(ref)}` : '';
+              return `/api/m3u8-proxy?url=${encodeURIComponent(url)}${refererParam}`;
             }
             return url;
           };
