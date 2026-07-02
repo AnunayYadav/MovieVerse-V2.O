@@ -329,7 +329,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   const isCineSrcCustom = selectedProviderId === 'cinesrc';
   const isVidFastCustom = selectedProviderId === 'vidfast';
   const isIframeCustomControls = isCineSrcCustom || isVidFastCustom;
-  const useCustomControls = (selectedProviderId === 'videasy_adfree' || selectedProviderId.startsWith('encdec') || selectedProviderId === 'miruro' || isIframeCustomControls) && !(selectedProviderId === 'videasy_adfree' && fallbackToNativeVideasy) && !fallbackToIframe;
+  const useCustomControls = (selectedProviderId === 'videasy_adfree' || selectedProviderId.startsWith('encdec') || selectedProviderId === 'miruro' || selectedProviderId === 'anikai' || isIframeCustomControls) && !(selectedProviderId === 'videasy_adfree' && fallbackToNativeVideasy) && !fallbackToIframe;
   const isPlayingRef = useRef(false);
   const isSeekingRef = useRef(false);
   const playerDurationRef = useRef(0);
@@ -594,7 +594,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   const handleQualityChange = (qualityName: string) => {
     const matched = customQualities.find(s => s.quality === qualityName);
     const getProxiedUrl = (url: string) => {
-      if ((selectedProviderId === 'videasy_adfree' || selectedProviderId.startsWith('encdec') || selectedProviderId === 'miruro') && url && url.startsWith('http')) {
+      if ((selectedProviderId === 'videasy_adfree' || selectedProviderId.startsWith('encdec') || selectedProviderId === 'miruro' || selectedProviderId === 'anikai') && url && url.startsWith('http')) {
         let ref = '';
         if (selectedProviderId === 'videasy_adfree') {
           ref = 'https://player.videasy.to/';
@@ -602,6 +602,8 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
           ref = 'https://hexa.su/';
         } else if (selectedProviderId === 'miruro') {
           ref = 'https://www.miruro.tv/';
+        } else if (selectedProviderId === 'anikai') {
+          ref = 'https://www3.anikai.cc/';
         }
         const refererParam = ref ? `&referer=${encodeURIComponent(ref)}` : '';
         return `/api/m3u8-proxy?url=${encodeURIComponent(url)}${refererParam}`;
@@ -673,7 +675,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
 
   // Fetch streaming sources for videasy_adfree, encdec, and miruro
   useEffect(() => {
-    if (selectedProviderId !== 'videasy_adfree' && !selectedProviderId.startsWith('encdec') && selectedProviderId !== 'miruro') return;
+    if (selectedProviderId !== 'videasy_adfree' && !selectedProviderId.startsWith('encdec') && selectedProviderId !== 'miruro' && selectedProviderId !== 'anikai') return;
 
     let isMounted = true;
     const fetchDecryptedStream = async () => {
@@ -713,6 +715,11 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
         } else if (selectedProviderId === 'miruro') {
           endpoint = '/api/anime';
           params.append('provider', 'miruro');
+          params.append('lang', animeLanguage);
+          params.append('episode', String(currentEpisode));
+        } else if (selectedProviderId === 'anikai') {
+          endpoint = '/api/anime';
+          params.append('provider', 'anikai');
           params.append('lang', animeLanguage);
           params.append('episode', String(currentEpisode));
         }
@@ -766,7 +773,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
 
           setSelectedQuality(matchedSource.quality || matchedSource.label || 'Default');
           const getProxiedUrl = (url: string) => {
-            if ((selectedProviderId === 'videasy_adfree' || selectedProviderId.startsWith('encdec') || selectedProviderId === 'miruro') && url && url.startsWith('http')) {
+            if ((selectedProviderId === 'videasy_adfree' || selectedProviderId.startsWith('encdec') || selectedProviderId === 'miruro' || selectedProviderId === 'anikai') && url && url.startsWith('http')) {
               let ref = '';
               if (selectedProviderId === 'videasy_adfree') {
                 ref = 'https://player.videasy.to/';
@@ -774,6 +781,8 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                 ref = 'https://hexa.su/';
               } else if (selectedProviderId === 'miruro') {
                 ref = 'https://www.miruro.tv/';
+              } else if (selectedProviderId === 'anikai') {
+                ref = 'https://www3.anikai.cc/';
               }
               const refererParam = ref ? `&referer=${encodeURIComponent(ref)}` : '';
               return `/api/m3u8-proxy?url=${encodeURIComponent(url)}${refererParam}`;
