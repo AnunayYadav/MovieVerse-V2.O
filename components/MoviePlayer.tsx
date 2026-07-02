@@ -333,38 +333,14 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   const [episodeSearchQuery, setEpisodeSearchQuery] = useState('');
   const [isAutoplayEnabled, setIsAutoplayEnabled] = useState(true);
 
-  // OpenSubtitles states
-  const [osApiKey, setOsApiKey] = useState(() => {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('movieverse_os_api_key') || '';
-    }
-    return '';
-  });
-  const [osUsername, setOsUsername] = useState(() => {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('movieverse_os_username') || '';
-    }
-    return '';
-  });
-  const [osPassword, setOsPassword] = useState(() => {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('movieverse_os_password') || '';
-    }
-    return '';
-  });
-  const [isOsSettingsOpen, setIsOsSettingsOpen] = useState(false);
+  // OpenSubtitles settings states removed (using environment variables directly)
 
-  // Fetch OpenSubtitles subtitles
+  // Fetch OpenSubtitles subtitles directly using server-side env keys
   useEffect(() => {
     if (!tmdbId || !useCustomControls) return;
 
     let isMounted = true;
     const fetchOpenSubtitles = async () => {
-      const searchHeaders: Record<string, string> = {};
-      if (osApiKey) searchHeaders['x-opensubtitles-key'] = osApiKey;
-      if (osUsername) searchHeaders['x-opensubtitles-username'] = osUsername;
-      if (osPassword) searchHeaders['x-opensubtitles-password'] = osPassword;
-
       try {
         const params = new URLSearchParams({
           action: 'search',
@@ -377,7 +353,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
           params.append('episodeId', String(currentEpisode));
         }
 
-        const res = await window.fetch(`/api/opensubtitles?${params.toString()}`, { headers: searchHeaders });
+        const res = await window.fetch(`/api/opensubtitles?${params.toString()}`);
         if (!res.ok) {
           const errData = await res.json().catch(() => ({}));
           console.warn("OpenSubtitles Search Error:", errData.error || "Failed to fetch");
@@ -416,7 +392,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
 
     fetchOpenSubtitles();
     return () => { isMounted = false; };
-  }, [tmdbId, mediaType, currentSeason, currentEpisode, osApiKey, osUsername, osPassword, useCustomControls]);
+  }, [tmdbId, mediaType, currentSeason, currentEpisode, useCustomControls]);
 
   const feedbackTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const nextCountdownTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -921,6 +897,13 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
       }
     }
   };
+
+  const closeAllMenus = useCallback(() => {
+    setIsEpisodesOverlayOpen(false);
+    setIsSubtitleMenuOpen(false);
+    setIsSpeedMenuOpen(false);
+    setIsQualityMenuOpen(false);
+  }, []);
 
   // --- Custom Controls PostMessage Helpers ---
   const sendPlayerCommand = useCallback((command: string, params?: Record<string, any>) => {
@@ -1678,10 +1661,9 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                       <button 
                         onClick={(e) => {
                           e.stopPropagation();
-                          setIsEpisodesOverlayOpen(!isEpisodesOverlayOpen);
-                          setIsSubtitleMenuOpen(false);
-                          setIsQualityMenuOpen(false);
-                          setIsSpeedMenuOpen(false);
+                          const next = !isEpisodesOverlayOpen;
+                          closeAllMenus();
+                          setIsEpisodesOverlayOpen(next);
                         }} 
                         className={`p-2 transition-transform active:scale-90 ${isEpisodesOverlayOpen ? 'text-red-500 hover:text-red-600' : 'text-white/95 hover:text-white'}`}
                         title="Episodes List"
@@ -1689,185 +1671,187 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                         <ListVideo size={24} />
                       </button>
 
-                      {isEpisodesOverlayOpen && (
-                        <div 
-                          data-controls
-                          className="absolute bottom-12 right-0 bg-[#0c0c0e]/98 border border-white/10 rounded-2xl p-4 shadow-2xl z-55 flex flex-col gap-3 w-80 sm:w-[400px] max-h-[380px] overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-150 text-left"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          {/* Header Bar */}
-                          <div className="flex items-center justify-between w-full border-b border-white/10 pb-2.5 gap-2">
-                            <div className="flex items-center gap-2">
-                              {/* Season Dropdown Selector */}
-                              <div className="relative">
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setIsSeasonDropdownOpen(!isSeasonDropdownOpen);
-                                  }}
-                                  className="flex items-center gap-1 px-2 py-1 bg-zinc-900 border border-zinc-800 text-white rounded-lg text-[10px] font-semibold cursor-pointer hover:bg-zinc-800 transition-colors"
+                      <div 
+                        data-controls
+                        className={`absolute bottom-12 right-0 bg-[#0c0c0e] border border-white/10 rounded-2xl p-4 shadow-2xl z-[60] flex flex-col gap-3 w-80 sm:w-[400px] max-h-[380px] overflow-hidden transition-all duration-200 ease-out origin-bottom-right ${
+                          isEpisodesOverlayOpen 
+                            ? 'opacity-100 translate-y-0 scale-100 pointer-events-auto' 
+                            : 'opacity-0 translate-y-4 scale-95 pointer-events-none'
+                        } text-left`}
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {/* Header Bar */}
+                        <div className="flex items-center justify-between w-full border-b border-white/10 pb-2.5 gap-2">
+                          <div className="flex items-center gap-2">
+                            {/* Season Dropdown Selector */}
+                            <div className="relative">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setIsSeasonDropdownOpen(!isSeasonDropdownOpen);
+                                }}
+                                className="flex items-center gap-1 px-2 py-1 bg-zinc-900 border border-zinc-800 text-white rounded-lg text-[10px] font-semibold cursor-pointer hover:bg-zinc-800 transition-colors"
+                              >
+                                <span>
+                                  {seasons.find(s => s.season_number === currentSeason)?.name || `S${currentSeason}`}
+                                </span>
+                                <ChevronDown size={10} className="text-red-500" />
+                              </button>
+
+                              {isSeasonDropdownOpen && (
+                                <div 
+                                  className="absolute left-0 mt-1.5 w-32 bg-zinc-900 border border-zinc-800 rounded-lg shadow-2xl p-1 z-55 max-h-36 overflow-y-auto custom-scrollbar animate-in fade-in duration-100"
                                 >
-                                  <span>
-                                    {seasons.find(s => s.season_number === currentSeason)?.name || `S${currentSeason}`}
-                                  </span>
-                                  <ChevronDown size={10} className="text-red-500" />
-                                </button>
-
-                                {isSeasonDropdownOpen && (
-                                  <div 
-                                    className="absolute left-0 mt-1.5 w-32 bg-zinc-900 border border-zinc-800 rounded-lg shadow-2xl p-1 z-55 max-h-36 overflow-y-auto custom-scrollbar animate-in fade-in duration-100"
-                                  >
-                                    {seasons.map((s) => {
-                                      const isSel = s.season_number === currentSeason;
-                                      return (
-                                        <button
-                                          key={s.id}
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            setCurrentSeason(s.season_number);
-                                            setIsSeasonDropdownOpen(false);
-                                          }}
-                                          className={`w-full text-left px-2 py-1.5 text-[10px] font-medium rounded-md transition-colors flex items-center justify-between ${
-                                            isSel ? 'bg-red-600 text-white' : 'text-zinc-400 hover:bg-white/5 hover:text-white'
-                                          }`}
-                                        >
-                                          <span>{s.name}</span>
-                                          <span className="text-[9px] opacity-60">{s.episode_count} Ep</span>
-                                        </button>
-                                      );
-                                    })}
-                                  </div>
-                                )}
-                              </div>
-
-                              {/* Search Bar */}
-                              <div className="flex items-center bg-zinc-900 border border-zinc-800 rounded-lg px-2 py-1 gap-1.5 w-32 sm:w-44">
-                                <Search size={12} className="text-zinc-500" />
-                                <input
-                                  type="text"
-                                  value={episodeSearchQuery}
-                                  onChange={(e) => setEpisodeSearchQuery(e.target.value)}
-                                  placeholder="Search..."
-                                  className="bg-transparent text-[10px] text-white placeholder-zinc-500 focus:outline-none w-full font-light"
-                                />
-                                {episodeSearchQuery && (
-                                  <button onClick={() => setEpisodeSearchQuery('')} className="text-zinc-500 hover:text-white">
-                                    <X size={10} />
-                                  </button>
-                                )}
-                              </div>
+                                  {seasons.map((s) => {
+                                    const isSel = s.season_number === currentSeason;
+                                    return (
+                                      <button
+                                        key={s.id}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setCurrentSeason(s.season_number);
+                                          setIsSeasonDropdownOpen(false);
+                                        }}
+                                        className={`w-full text-left px-2 py-1.5 text-[10px] font-medium rounded-md transition-colors flex items-center justify-between ${
+                                          isSel ? 'bg-red-600 text-white' : 'text-zinc-400 hover:bg-white/5 hover:text-white'
+                                        }`}
+                                      >
+                                        <span>{s.name}</span>
+                                        <span className="text-[9px] opacity-60">{s.episode_count} Ep</span>
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              )}
                             </div>
 
-                            {/* Autoplay toggle */}
-                            <div className="flex items-center gap-1.5 text-[9px] text-zinc-400 font-light select-none shrink-0">
-                              <span>Autoplay</span>
-                              <button 
-                                onClick={() => setIsAutoplayEnabled(!isAutoplayEnabled)}
-                                className={`w-8 h-4.5 rounded-full p-0.5 transition-colors duration-200 cursor-pointer flex items-center ${isAutoplayEnabled ? 'bg-green-600' : 'bg-zinc-700'}`}
-                              >
-                                <div className={`w-3.5 h-3.5 rounded-full bg-white shadow-md transition-transform duration-200 ${isAutoplayEnabled ? 'translate-x-3.5' : 'translate-x-0'}`} />
-                              </button>
+                            {/* Search Bar */}
+                            <div className="flex items-center bg-zinc-900 border border-zinc-800 rounded-lg px-2 py-1 gap-1.5 w-32 sm:w-44">
+                              <Search size={12} className="text-zinc-500" />
+                              <input
+                                type="text"
+                                value={episodeSearchQuery}
+                                onChange={(e) => setEpisodeSearchQuery(e.target.value)}
+                                placeholder="Search..."
+                                className="bg-transparent text-[10px] text-white placeholder-zinc-500 focus:outline-none w-full font-light"
+                              />
+                              {episodeSearchQuery && (
+                                <button onClick={() => setEpisodeSearchQuery('')} className="text-zinc-500 hover:text-white">
+                                  <X size={10} />
+                                </button>
+                              )}
                             </div>
                           </div>
 
-                          {/* Episode List Scrollable Area */}
-                          <div className="flex-1 overflow-y-auto pr-1 space-y-2 custom-scrollbar max-h-[300px]">
-                            {episodesLoading ? (
-                              <div className="flex flex-col items-center justify-center py-10 gap-2">
-                                <Loader2 className="animate-spin text-red-500" size={20} />
-                                <span className="text-[9px] text-zinc-500 uppercase tracking-widest font-light">Loading...</span>
-                              </div>
-                            ) : (
-                              (() => {
-                                const filtered = episodes.filter((ep: any) => 
-                                  ep.name?.toLowerCase().includes(episodeSearchQuery.toLowerCase()) || 
-                                  String(ep.episode_number).includes(episodeSearchQuery)
+                          {/* Autoplay toggle */}
+                          <div className="flex items-center gap-1.5 text-[9px] text-zinc-400 font-light select-none shrink-0">
+                            <span>Autoplay</span>
+                            <button 
+                              onClick={() => setIsAutoplayEnabled(!isAutoplayEnabled)}
+                              className={`w-8 h-4.5 rounded-full p-0.5 transition-colors duration-200 cursor-pointer flex items-center ${isAutoplayEnabled ? 'bg-green-600' : 'bg-zinc-700'}`}
+                            >
+                              <div className={`w-3.5 h-3.5 rounded-full bg-white shadow-md transition-transform duration-200 ${isAutoplayEnabled ? 'translate-x-3.5' : 'translate-x-0'}`} />
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Episode List Scrollable Area */}
+                        <div className="flex-1 overflow-y-auto pr-1 space-y-2 custom-scrollbar max-h-[300px]">
+                          {episodesLoading ? (
+                            <div className="flex flex-col items-center justify-center py-10 gap-2">
+                              <Loader2 className="animate-spin text-red-500" size={20} />
+                              <span className="text-[9px] text-zinc-500 uppercase tracking-widest font-light">Loading...</span>
+                            </div>
+                          ) : (
+                            (() => {
+                              const filtered = episodes.filter((ep: any) => 
+                                ep.name?.toLowerCase().includes(episodeSearchQuery.toLowerCase()) || 
+                                String(ep.episode_number).includes(episodeSearchQuery)
+                              );
+
+                              if (filtered.length === 0) {
+                                return (
+                                  <div className="text-center py-10 text-zinc-500 text-[11px] font-light italic">
+                                    No episodes found.
+                                  </div>
                                 );
+                              }
 
-                                if (filtered.length === 0) {
-                                  return (
-                                    <div className="text-center py-10 text-zinc-500 text-[11px] font-light italic">
-                                      No episodes found.
-                                    </div>
-                                  );
-                                }
+                              return filtered.map((ep: any) => {
+                                const isCurrent = ep.episode_number === currentEpisode;
+                                const epThumb = ep.still_path 
+                                  ? `${TMDB_IMAGE_BASE}${ep.still_path}` 
+                                  : "https://placehold.co/320x180";
 
-                                return filtered.map((ep: any) => {
-                                  const isCurrent = ep.episode_number === currentEpisode;
-                                  const epThumb = ep.still_path 
-                                    ? `${TMDB_IMAGE_BASE}${ep.still_path}` 
-                                    : "https://placehold.co/320x180";
-
-                                  return (
-                                    <div
-                                      key={ep.id}
-                                      onClick={() => {
-                                        setCurrentEpisode(ep.episode_number);
-                                        if (onEpisodeChange) {
-                                          onEpisodeChange(currentSeason, ep.episode_number);
-                                        }
-                                        setIsEpisodesOverlayOpen(false);
-                                      }}
-                                      className={`w-full text-left rounded-xl border flex gap-3 transition-all duration-200 cursor-pointer overflow-hidden p-2 group/card ${
-                                        isCurrent 
-                                          ? 'border-white bg-zinc-900/60 shadow-md scale-[1.01]' 
-                                          : 'border-white/5 bg-zinc-900/20 hover:border-white/20 hover:bg-zinc-900/40'
-                                      }`}
-                                    >
-                                      {/* Left: Thumbnail */}
-                                      <div className="w-24 aspect-video rounded-md overflow-hidden shrink-0 bg-black/40 relative shadow-inner">
-                                        <img src={epThumb} className="w-full h-full object-cover group-hover/card:scale-105 transition-transform duration-300" alt="" />
-                                        <div className={`absolute inset-0 bg-black/20 flex items-center justify-center transition-opacity duration-200 ${
-                                          isCurrent ? 'opacity-100' : 'opacity-0 group-hover/card:opacity-100'
-                                        }`}>
-                                          <div className="w-7 h-7 rounded-full bg-white flex items-center justify-center shadow-lg transform scale-90 group-hover/card:scale-100 transition-all duration-200">
-                                            <Play size={10} fill="black" className="text-black ml-0.5" />
-                                          </div>
+                                return (
+                                  <div
+                                    key={ep.id}
+                                    onClick={() => {
+                                      setCurrentEpisode(ep.episode_number);
+                                      if (onEpisodeChange) {
+                                        onEpisodeChange(currentSeason, ep.episode_number);
+                                      }
+                                      closeAllMenus();
+                                    }}
+                                    className={`w-full text-left rounded-xl border flex gap-3 transition-all duration-200 cursor-pointer overflow-hidden p-2 group/card ${
+                                      isCurrent 
+                                        ? 'border-white bg-zinc-900/60 shadow-md scale-[1.01]' 
+                                        : 'border-white/5 bg-zinc-900/20 hover:border-white/20 hover:bg-zinc-900/40'
+                                    }`}
+                                  >
+                                    {/* Left: Thumbnail */}
+                                    <div className="w-24 aspect-video rounded-md overflow-hidden shrink-0 bg-black/40 relative shadow-inner">
+                                      <img src={epThumb} className="w-full h-full object-cover group-hover/card:scale-105 transition-transform duration-300" alt="" />
+                                      <div className={`absolute inset-0 bg-black/20 flex items-center justify-center transition-opacity duration-200 ${
+                                        isCurrent ? 'opacity-100' : 'opacity-0 group-hover/card:opacity-100'
+                                      }`}>
+                                        <div className="w-7 h-7 rounded-full bg-white flex items-center justify-center shadow-lg transform scale-90 group-hover/card:scale-100 transition-all duration-200">
+                                          <Play size={10} fill="black" className="text-black ml-0.5" />
                                         </div>
                                       </div>
+                                    </div>
 
-                                      {/* Right: details */}
-                                      <div className="min-w-0 flex-1 flex flex-col justify-center select-text">
-                                        <div className="flex items-baseline justify-between gap-2">
-                                          <h4 className={`text-xs font-medium truncate ${isCurrent ? 'text-red-500' : 'text-white'}`}>
-                                            {ep.episode_number}. {ep.name}
-                                          </h4>
-                                          {ep.runtime && (
-                                            <span className="text-[9px] text-zinc-500 font-light shrink-0">
-                                              {ep.runtime}m
-                                            </span>
-                                          )}
-                                        </div>
-                                        
-                                        {isCurrent && ep.overview && (
-                                          <p className="text-[10px] text-zinc-400 font-light mt-1 leading-normal line-clamp-2 select-text">
-                                            {ep.overview}
-                                          </p>
-                                        )}
-                                        
-                                        {!isCurrent && ep.air_date && (
-                                          <span className="text-[9px] text-zinc-500 font-light mt-0.5">
-                                            {new Date(ep.air_date).toLocaleDateString('en-US', { day: 'numeric', month: 'short' })}
+                                    {/* Right: details */}
+                                    <div className="min-w-0 flex-1 flex flex-col justify-center select-text">
+                                      <div className="flex items-baseline justify-between gap-2">
+                                        <h4 className={`text-xs font-medium truncate ${isCurrent ? 'text-red-500' : 'text-white'}`}>
+                                          {ep.episode_number}. {ep.name}
+                                        </h4>
+                                        {ep.runtime && (
+                                          <span className="text-[9px] text-zinc-500 font-light shrink-0">
+                                            {ep.runtime}m
                                           </span>
                                         )}
                                       </div>
+                                      
+                                      {isCurrent && ep.overview && (
+                                        <p className="text-[10px] text-zinc-400 font-light mt-1 leading-normal line-clamp-2 select-text">
+                                          {ep.overview}
+                                        </p>
+                                      )}
+                                      
+                                      {!isCurrent && ep.air_date && (
+                                        <span className="text-[9px] text-zinc-500 font-light mt-0.5">
+                                          {new Date(ep.air_date).toLocaleDateString('en-US', { day: 'numeric', month: 'short' })}
+                                        </span>
+                                      )}
                                     </div>
-                                  );
-                                });
-                              })()
-                            )}
-                          </div>
+                                  </div>
+                                );
+                              });
+                            })()
+                          )}
                         </div>
-                      )}
+                      </div>
                     </div>
 
                     <div className="relative flex items-center justify-center">
                       <button 
                         onClick={(e) => {
                           e.stopPropagation();
-                          setIsSubtitleMenuOpen(!isSubtitleMenuOpen);
-                          setIsQualityMenuOpen(false);
-                          setIsSpeedMenuOpen(false);
+                          const next = !isSubtitleMenuOpen;
+                          closeAllMenus();
+                          setIsSubtitleMenuOpen(next);
                         }} 
                         className={`p-2 transition-transform active:scale-90 ${isSubtitleMenuOpen ? 'text-red-500 hover:text-red-600' : 'text-white/95 hover:text-white'}`}
                         title="Subtitles & Audio"
@@ -1875,82 +1859,75 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                         <MessageSquare size={24} />
                       </button>
 
-                      {isSubtitleMenuOpen && (
-                        <div 
-                          data-controls
-                          className="absolute bottom-12 right-0 bg-[#0c0c0e]/98 border border-white/10 rounded-2xl p-4 shadow-2xl z-55 flex flex-col gap-2 min-w-[220px] max-h-[300px] overflow-y-auto custom-scrollbar animate-in fade-in slide-in-from-bottom-2 duration-150 text-left"
-                        >
-                          <div className="flex items-center justify-between border-b border-white/5 pb-2 mb-1">
-                            <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">Subtitles</span>
-                            <button 
-                              onClick={() => {
-                                setIsSubtitleMenuOpen(false);
-                                setIsOsSettingsOpen(true);
-                              }}
-                              className="text-[10px] font-bold text-red-500 hover:text-red-600 uppercase tracking-wider flex items-center gap-1"
-                            >
-                              <Settings size={10} /> Configure OS
-                            </button>
-                          </div>
-
-                          <button
-                            onClick={() => {
-                              setSubtitleLanguage('None');
-                              localStorage.setItem('movieverse_preferred_subtitle_language', 'None');
-                              setIsSubtitleMenuOpen(false);
-                            }}
-                            className={`w-full text-left py-2 px-3 rounded-lg text-xs font-semibold transition-all border flex items-center justify-between ${
-                              subtitleLanguage === 'None'
-                                ? 'bg-red-600/10 text-red-500 border-red-500/20'
-                                : 'bg-white/5 text-zinc-300 border-white/5 hover:border-white/10 hover:bg-white/10'
-                            }`}
-                          >
-                            <span>None</span>
-                            {subtitleLanguage === 'None' && <Check size={12} />}
-                          </button>
-
-                          {/* Render available custom video subtitle tracks */}
-                          {anivexaSubtitles && anivexaSubtitles.length > 0 && (
-                            anivexaSubtitles.map((sub, idx) => {
-                              const label = sub.label || sub.language || sub.lang || `Track ${idx + 1}`;
-                              const isActive = subtitleLanguage === label;
-                              return (
-                                <button
-                                  key={idx}
-                                  onClick={() => {
-                                    setSubtitleLanguage(label);
-                                    localStorage.setItem('movieverse_preferred_subtitle_language', label);
-                                    if (videoRef.current) {
-                                      const tracks = videoRef.current.textTracks;
-                                      for (let i = 0; i < tracks.length; i++) {
-                                        tracks[i].mode = i === idx ? 'showing' : 'disabled';
-                                      }
-                                    }
-                                    setIsSubtitleMenuOpen(false);
-                                  }}
-                                  className={`w-full text-left py-2 px-3 rounded-lg text-xs font-semibold transition-all border flex items-center justify-between ${
-                                    isActive
-                                      ? 'bg-red-600/10 text-red-500 border-red-500/20'
-                                      : 'bg-white/5 text-zinc-300 border-white/5 hover:border-white/10 hover:bg-white/10'
-                                  }`}
-                                >
-                                  <span>{label}</span>
-                                  {isActive && <Check size={12} />}
-                                </button>
-                              );
-                            })
-                          )}
+                      <div 
+                        data-controls
+                        className={`absolute bottom-12 right-0 bg-[#0c0c0e] border border-white/10 rounded-2xl p-4 shadow-2xl z-[60] flex flex-col gap-2 min-w-[220px] max-h-[300px] overflow-y-auto custom-scrollbar transition-all duration-200 ease-out origin-bottom-right ${
+                          isSubtitleMenuOpen 
+                            ? 'opacity-100 translate-y-0 scale-100 pointer-events-auto' 
+                            : 'opacity-0 translate-y-4 scale-95 pointer-events-none'
+                        } text-left`}
+                      >
+                        <div className="flex items-center justify-between border-b border-white/5 pb-2 mb-1">
+                          <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">Subtitles</span>
                         </div>
-                      )}
+
+                        <button
+                          onClick={() => {
+                            setSubtitleLanguage('None');
+                            localStorage.setItem('movieverse_preferred_subtitle_language', 'None');
+                            closeAllMenus();
+                          }}
+                          className={`w-full text-left py-2 px-3 rounded-lg text-xs font-semibold transition-all border flex items-center justify-between ${
+                            subtitleLanguage === 'None'
+                              ? 'bg-red-600/10 text-red-500 border-red-500/20'
+                              : 'bg-white/5 text-zinc-300 border-white/5 hover:border-white/10 hover:bg-white/10'
+                          }`}
+                        >
+                          <span>None</span>
+                          {subtitleLanguage === 'None' && <Check size={12} />}
+                        </button>
+
+                        {/* Render available custom video subtitle tracks */}
+                        {anivexaSubtitles && anivexaSubtitles.length > 0 && (
+                          anivexaSubtitles.map((sub, idx) => {
+                            const label = sub.label || sub.language || sub.lang || `Track ${idx + 1}`;
+                            const isActive = subtitleLanguage === label;
+                            return (
+                              <button
+                                key={idx}
+                                onClick={() => {
+                                  setSubtitleLanguage(label);
+                                  localStorage.setItem('movieverse_preferred_subtitle_language', label);
+                                  if (videoRef.current) {
+                                    const tracks = videoRef.current.textTracks;
+                                    for (let i = 0; i < tracks.length; i++) {
+                                      tracks[i].mode = i === idx ? 'showing' : 'disabled';
+                                    }
+                                  }
+                                  closeAllMenus();
+                                }}
+                                className={`w-full text-left py-2 px-3 rounded-lg text-xs font-semibold transition-all border flex items-center justify-between ${
+                                  isActive
+                                    ? 'bg-red-600/10 text-red-500 border-red-500/20'
+                                    : 'bg-white/5 text-zinc-300 border-white/5 hover:border-white/10 hover:bg-white/10'
+                                }`}
+                              >
+                                <span>{label}</span>
+                                {isActive && <Check size={12} />}
+                              </button>
+                            );
+                          })
+                        )}
+                      </div>
                     </div>
 
                     <div className="relative flex items-center justify-center">
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          setIsSpeedMenuOpen(!isSpeedMenuOpen);
-                          setIsSubtitleMenuOpen(false);
-                          setIsQualityMenuOpen(false);
+                          const next = !isSpeedMenuOpen;
+                          closeAllMenus();
+                          setIsSpeedMenuOpen(next);
                         }}
                         className={`px-2.5 py-1 text-[11px] font-light border rounded-md transition-all whitespace-nowrap active:scale-95 self-center ${
                           isSpeedMenuOpen 
@@ -1962,40 +1939,42 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                         {playbackSpeed === 1.0 ? '1.0x' : `${playbackSpeed}x`}
                       </button>
 
-                      {isSpeedMenuOpen && (
-                        <div 
-                          data-controls
-                          className="absolute bottom-12 left-1/2 -translate-x-1/2 bg-[#0c0c0e]/95 border border-white/10 rounded-xl p-1 shadow-2xl z-50 flex flex-col gap-0.5 min-w-[70px] animate-in fade-in slide-in-from-bottom-2 duration-150"
-                        >
-                          {[0.5, 1.0, 1.25, 1.5, 2.0].map((speed) => {
-                            const isActive = playbackSpeed === speed;
-                            return (
-                              <button
-                                key={speed}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  changePlaybackSpeed(speed);
-                                  setIsSpeedMenuOpen(false);
-                                }}
-                                className={`w-full text-center py-1.5 px-3 rounded-lg text-[10px] font-semibold transition-colors ${
-                                  isActive ? 'bg-red-600 text-white' : 'text-zinc-400 hover:bg-white/5 hover:text-white'
-                                }`}
-                              >
-                                {speed === 1.0 ? '1.0x' : `${speed}x`}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      )}
+                      <div 
+                        data-controls
+                        className={`absolute bottom-12 left-1/2 -translate-x-1/2 bg-[#0c0c0e] border border-white/10 rounded-xl p-1 shadow-2xl z-[60] flex flex-col gap-0.5 min-w-[70px] transition-all duration-200 ease-out origin-bottom ${
+                          isSpeedMenuOpen 
+                            ? 'opacity-100 translate-y-0 scale-100 pointer-events-auto' 
+                            : 'opacity-0 translate-y-4 scale-95 pointer-events-none'
+                        }`}
+                      >
+                        {[0.5, 1.0, 1.25, 1.5, 2.0].map((speed) => {
+                          const isActive = playbackSpeed === speed;
+                          return (
+                            <button
+                              key={speed}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                changePlaybackSpeed(speed);
+                                closeAllMenus();
+                              }}
+                              className={`w-full text-center py-1.5 px-3 rounded-lg text-[10px] font-semibold transition-colors ${
+                                isActive ? 'bg-red-600 text-white' : 'text-zinc-400 hover:bg-white/5 hover:text-white'
+                              }`}
+                            >
+                              {speed === 1.0 ? '1.0x' : `${speed}x`}
+                            </button>
+                          );
+                        })}
+                      </div>
                     </div>
 
                     <div className="relative flex items-center justify-center">
                       <button 
                         onClick={(e) => {
                           e.stopPropagation();
-                          setIsQualityMenuOpen(!isQualityMenuOpen);
-                          setIsSubtitleMenuOpen(false);
-                          setIsSpeedMenuOpen(false);
+                          const next = !isQualityMenuOpen;
+                          closeAllMenus();
+                          setIsQualityMenuOpen(next);
                         }} 
                         className={`p-2 transition-transform active:scale-90 ${isQualityMenuOpen ? 'text-red-500 hover:text-red-600' : 'text-white/95 hover:text-white'}`}
                         title="Providers & Quality"
@@ -2003,74 +1982,76 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                         <Sliders size={24} />
                       </button>
 
-                      {isQualityMenuOpen && (
-                        <div 
-                          data-controls
-                          className="absolute bottom-12 right-0 bg-[#0c0c0e]/98 border border-white/10 rounded-2xl p-4 shadow-2xl z-55 flex flex-col gap-3 min-w-[240px] max-h-[350px] overflow-y-auto custom-scrollbar animate-in fade-in slide-in-from-bottom-2 duration-150 text-left"
-                        >
-                          <div>
-                            <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block mb-2 px-1">Select Source Provider</span>
-                            <div className="space-y-1">
-                              {PROVIDERS.filter(p => (!isWatchParty || p.supportsPostMessage) && (isAnime || p.id !== 'vidnest_animepahe')).map((prov) => {
-                                const isActive = selectedProviderId === prov.id;
+                      <div 
+                        data-controls
+                        className={`absolute bottom-12 right-0 bg-[#0c0c0e] border border-white/10 rounded-2xl p-4 shadow-2xl z-[60] flex flex-col gap-3 min-w-[240px] max-h-[350px] overflow-y-auto custom-scrollbar transition-all duration-200 ease-out origin-bottom-right ${
+                          isQualityMenuOpen 
+                            ? 'opacity-100 translate-y-0 scale-100 pointer-events-auto' 
+                            : 'opacity-0 translate-y-4 scale-95 pointer-events-none'
+                        } text-left`}
+                      >
+                        <div>
+                          <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block mb-2 px-1">Select Source Provider</span>
+                          <div className="space-y-1">
+                            {PROVIDERS.filter(p => (!isWatchParty || p.supportsPostMessage) && (isAnime || p.id !== 'vidnest_animepahe')).map((prov) => {
+                              const isActive = selectedProviderId === prov.id;
+                              return (
+                                <button
+                                  key={prov.id}
+                                  onClick={() => {
+                                    setSelectedProviderId(prov.id);
+                                    if (onProviderChange) {
+                                      onProviderChange(prov.id);
+                                    }
+                                    if (typeof window !== 'undefined') {
+                                      localStorage.setItem('movieverse_preferred_provider', prov.id);
+                                    }
+                                    closeAllMenus();
+                                  }}
+                                  className={`w-full py-2 px-3 rounded-lg text-xs font-semibold transition-all border flex items-center justify-between ${
+                                    isActive 
+                                      ? 'bg-red-600/10 text-red-500 border-red-500/20 font-bold' 
+                                      : 'bg-white/5 text-zinc-300 border-white/5 hover:border-white/10 hover:bg-white/10'
+                                  }`}
+                                >
+                                  <span>{prov.name}</span>
+                                  {isActive && <Check size={12} />}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        {customQualities.length > 0 && (
+                          <div className="border-t border-white/5 pt-2.5">
+                            <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block mb-2 px-1">Select Quality</span>
+                            <div className="grid grid-cols-2 gap-1.5">
+                              {customQualities.map((q) => {
+                                const isActive = selectedQuality === q.height;
                                 return (
                                   <button
-                                    key={prov.id}
+                                    key={q.height}
                                     onClick={() => {
-                                      setSelectedProviderId(prov.id);
-                                      if (onProviderChange) {
-                                        onProviderChange(prov.id);
+                                      setSelectedQuality(q.height);
+                                      if (q.index !== undefined && hlsRef.current) {
+                                        hlsRef.current.currentLevel = q.index;
                                       }
-                                      if (typeof window !== 'undefined') {
-                                        localStorage.setItem('movieverse_preferred_provider', prov.id);
-                                      }
-                                      setIsQualityMenuOpen(false);
+                                      closeAllMenus();
                                     }}
-                                    className={`w-full py-2 px-3 rounded-lg text-xs font-semibold transition-all border flex items-center justify-between ${
+                                    className={`py-1.5 px-2 rounded-lg text-xs font-semibold text-center transition-all border ${
                                       isActive 
-                                        ? 'bg-red-600/10 text-red-500 border-red-500/20 font-bold' 
+                                        ? 'bg-red-600/10 text-red-500 border-red-500/20' 
                                         : 'bg-white/5 text-zinc-300 border-white/5 hover:border-white/10 hover:bg-white/10'
                                     }`}
                                   >
-                                    <span>{prov.name}</span>
-                                    {isActive && <Check size={12} />}
+                                    {q.height}
                                   </button>
                                 );
                               })}
                             </div>
                           </div>
-
-                          {customQualities.length > 0 && (
-                            <div className="border-t border-white/5 pt-2.5">
-                              <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block mb-2 px-1">Select Quality</span>
-                              <div className="grid grid-cols-2 gap-1.5">
-                                {customQualities.map((q) => {
-                                  const isActive = selectedQuality === q.height;
-                                  return (
-                                    <button
-                                      key={q.height}
-                                      onClick={() => {
-                                        setSelectedQuality(q.height);
-                                        if (q.index !== undefined && hlsRef.current) {
-                                          hlsRef.current.currentLevel = q.index;
-                                        }
-                                        setIsQualityMenuOpen(false);
-                                      }}
-                                      className={`py-1.5 px-2 rounded-lg text-xs font-semibold text-center transition-all border ${
-                                        isActive 
-                                          ? 'bg-red-600/10 text-red-500 border-red-500/20' 
-                                          : 'bg-white/5 text-zinc-300 border-white/5 hover:border-white/10 hover:bg-white/10'
-                                      }`}
-                                    >
-                                      {q.height}
-                                    </button>
-                                  );
-                                })}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      )}
+                        )}
+                      </div>
                     </div>
 
                     <button onClick={toggleFullscreen} className="p-2 text-white/95 hover:text-white transition-transform active:scale-90" title="Fullscreen">
@@ -2251,16 +2232,6 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
               <div className="space-y-4">
                 <div className="flex items-center justify-between px-1 mb-2">
                   <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block">Subtitle Selection</span>
-                  <button 
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setActiveTab('settings');
-                    }}
-                    className="text-zinc-500 hover:text-white transition-colors flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider"
-                    title="OpenSubtitles Credentials"
-                  >
-                    <Settings size={12} /> Configure OS
-                  </button>
                 </div>
                 
                 <button
@@ -2303,7 +2274,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                   })
                 ) : (
                   <div className="text-[11px] text-zinc-500 text-center py-6 italic border border-white/5 rounded-xl bg-white/[0.01]">
-                    No subtitles loaded. Use the Settings tab to configure your OpenSubtitles credentials.
+                    No subtitles loaded.
                   </div>
                 )}
               </div>
@@ -2582,71 +2553,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
         </div>
       </div>
 
-      {/* OpenSubtitles Settings Modal */}
-      {isOsSettingsOpen && (
-        <div className="absolute inset-0 flex items-center justify-center bg-black/80 backdrop-blur-md z-50 p-4">
-          <div className="bg-[#121214] border border-white/10 p-6 rounded-2xl max-w-sm w-full space-y-4 shadow-2xl relative">
-            <button 
-              onClick={() => setIsOsSettingsOpen(false)}
-              className="absolute top-4 right-4 text-zinc-400 hover:text-white transition-colors"
-            >
-              <X size={18} />
-            </button>
-            <div className="space-y-1">
-              <h3 className="text-white font-extrabold text-xs tracking-wider uppercase">OpenSubtitles Settings</h3>
-              <p className="text-zinc-500 text-[10px] leading-relaxed">
-                Enter your OpenSubtitles.com API Key and credentials to enable search and auto-transcoding.
-              </p>
-            </div>
-            <div className="space-y-3 text-left">
-              <div className="space-y-1">
-                <label className="text-[9px] text-zinc-400 font-bold uppercase tracking-wider block">API Key</label>
-                <input 
-                  type="password" 
-                  value={osApiKey}
-                  onChange={(e) => setOsApiKey(e.target.value)}
-                  placeholder="Paste your Api-Key" 
-                  className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-xs text-white placeholder-zinc-600 focus:outline-none focus:border-red-500 transition-colors"
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-[9px] text-zinc-400 font-bold uppercase tracking-wider block">Username</label>
-                <input 
-                  type="text" 
-                  value={osUsername}
-                  onChange={(e) => setOsUsername(e.target.value)}
-                  placeholder="OpenSubtitles Username" 
-                  className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-xs text-white placeholder-zinc-600 focus:outline-none focus:border-red-500 transition-colors"
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-[9px] text-zinc-400 font-bold uppercase tracking-wider block">Password</label>
-                <input 
-                  type="password" 
-                  value={osPassword}
-                  onChange={(e) => setOsPassword(e.target.value)}
-                  placeholder="OpenSubtitles Password" 
-                  className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-xs text-white placeholder-zinc-600 focus:outline-none focus:border-red-500 transition-colors"
-                />
-              </div>
-            </div>
-            <div className="flex gap-2 pt-2">
-              <button 
-                onClick={() => {
-                  localStorage.setItem('movieverse_os_api_key', osApiKey);
-                  localStorage.setItem('movieverse_os_username', osUsername);
-                  localStorage.setItem('movieverse_os_password', osPassword);
-                  setIsOsSettingsOpen(false);
-                  showOverlayFeedback("Settings Saved", "check");
-                }}
-                className="flex-1 py-2.5 bg-red-600 hover:bg-red-700 text-white font-extrabold text-[10px] uppercase tracking-widest rounded-xl transition-all active:scale-95 shadow-xl"
-              >
-                Save Credentials
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+
     </div>
   );
 };
