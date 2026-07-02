@@ -28,8 +28,8 @@ interface MoviePlayerProps {
 export interface Provider {
   id: string;
   name: string;
-  getMovieUrl: (tmdbId: number, color: string, progress?: number, isAnime?: boolean, anilistId?: number | null, animeLanguage?: string, language?: string, subtitle?: string) => string;
-  getTvUrl: (tmdbId: number, season: number, episode: number, color: string, progress?: number, isAnime?: boolean, anilistId?: number | null, animeLanguage?: string, language?: string, subtitle?: string) => string;
+  getMovieUrl: (tmdbId: number, color: string, progress?: number, isAnime?: boolean, anilistId?: number | null, animeLanguage?: string, language?: string, subtitle?: string, serverId?: string) => string;
+  getTvUrl: (tmdbId: number, season: number, episode: number, color: string, progress?: number, isAnime?: boolean, anilistId?: number | null, animeLanguage?: string, language?: string, subtitle?: string, serverId?: string) => string;
   supportsPostMessage: boolean;
 }
 
@@ -105,15 +105,17 @@ export const PROVIDERS: Provider[] = [
   {
     id: 'cinesrc',
     name: 'CineSrc',
-    getMovieUrl: (tmdbId, color, progress) => {
+    getMovieUrl: (tmdbId, color, progress, isAnime, anilistId, animeLanguage, language, subtitle, serverId) => {
       const hexColor = color ? `%23${color.replace('#', '')}` : '%23EF4444';
       const startAt = progress && progress > 0 ? `&t=${Math.floor(progress)}&continueprompt=false` : '';
-      return `https://cinesrc.st/embed/movie/${tmdbId}?autoplay=true&controls=false&color=${hexColor}&back=close${startAt}`;
+      const serverParam = serverId ? `&lastserver=${serverId}&prioritize=true` : '';
+      return `https://cinesrc.st/embed/movie/${tmdbId}?autoplay=true&controls=false&color=${hexColor}&back=close${startAt}${serverParam}`;
     },
-    getTvUrl: (tmdbId, season, episode, color, progress) => {
+    getTvUrl: (tmdbId, season, episode, color, progress, isAnime, anilistId, animeLanguage, language, subtitle, serverId) => {
       const hexColor = color ? `%23${color.replace('#', '')}` : '%23EF4444';
       const startAt = progress && progress > 0 ? `&t=${Math.floor(progress)}&continueprompt=false` : '';
-      return `https://cinesrc.st/embed/tv/${tmdbId}?s=${season}&e=${episode}&autoplay=true&controls=false&color=${hexColor}&back=close${startAt}`;
+      const serverParam = serverId ? `&lastserver=${serverId}&prioritize=true` : '';
+      return `https://cinesrc.st/embed/tv/${tmdbId}?s=${season}&e=${episode}&autoplay=true&controls=false&color=${hexColor}&back=close${startAt}${serverParam}`;
     },
     supportsPostMessage: true
   },
@@ -298,6 +300,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   const playerDurationRef = useRef(0);
   const lastFetchedKeyRef = useRef('');
   const lastFallbackToNativeVideasyRef = useRef(false);
+  const lastTapRef = useRef<{ time: number; x: number } | null>(null);
 
   const [anilistId, setAnilistId] = useState<number | null>(null);
   const [anilistLoading, setAnilistLoading] = useState(false);
@@ -323,6 +326,12 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   // EncDec server states
   const [encDecServers, setEncDecServers] = useState<string[]>([]);
   const [selectedEncDecServer, setSelectedEncDecServer] = useState<string>('');
+  const [selectedCineSrcServer, setSelectedCineSrcServer] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('movieverse_cinesrc_server') || 'pro';
+    }
+    return 'pro';
+  });
 
   // Anivexa states
   const [anivexaEpisodes, setAnivexaEpisodes] = useState<any[] | null>(null);
@@ -533,11 +542,8 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   // --- Custom Player Advanced Functions & Effects ---
 
   const showOverlayFeedback = (text: string, icon: string = '') => {
-    setOverlayFeedback({ text, icon, visible: true });
-    if (feedbackTimeoutRef.current) clearTimeout(feedbackTimeoutRef.current);
-    feedbackTimeoutRef.current = setTimeout(() => {
-      setOverlayFeedback(prev => ({ ...prev, visible: false }));
-    }, 800);
+    // Disabled visual overlay feedback per user request
+    return;
   };
 
   const changePlaybackSpeed = (speed: number) => {
@@ -1106,6 +1112,35 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     window.addEventListener('mouseup', onUp);
   }, [seekTo]);
 
+  const handleOverlayClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    if ((e.target as HTMLElement).closest('[data-controls]')) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const clickRatio = x / rect.width;
+
+    const now = Date.now();
+    const isDoubleTap = lastTapRef.current && 
+                        (now - lastTapRef.current.time < 300) && 
+                        (Math.abs(x - lastTapRef.current.x) < 40);
+
+    if (isDoubleTap) {
+      if (clickRatio < 0.35) {
+        skipBackward();
+      } else if (clickRatio > 0.65) {
+        skipForward();
+      }
+      lastTapRef.current = null;
+    } else {
+      lastTapRef.current = { time: now, x };
+      setShowControls(prev => !prev);
+    }
+    resetControlsTimeout();
+  }, [skipForward, skipBackward, resetControlsTimeout]);
+
   const sendPlayState = useCallback((state: 'play' | 'pause') => {
     if (!iframeRef.current || !iframeRef.current.contentWindow) return;
     
@@ -1271,8 +1306,8 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
           : `https://player.videasy.net/movie/${tmdbId}?overlay=false&color=${activeColor.replace('#', '')}&autoplay=true${startProgress && startProgress > 0 ? `&progress=${Math.floor(startProgress)}` : ''}`;
       } else {
         newUrl = isTvShow
-          ? provider.getTvUrl(tmdbId, currentSeason, currentEpisode, activeColor, startProgress, isAnime, anilistId, animeLanguage, audioLanguage, subtitleLanguage)
-          : provider.getMovieUrl(tmdbId, activeColor, startProgress, isAnime, anilistId, animeLanguage, audioLanguage, subtitleLanguage);
+          ? provider.getTvUrl(tmdbId, currentSeason, currentEpisode, activeColor, startProgress, isAnime, anilistId, animeLanguage, audioLanguage, subtitleLanguage, selectedCineSrcServer)
+          : provider.getMovieUrl(tmdbId, activeColor, startProgress, isAnime, anilistId, animeLanguage, audioLanguage, subtitleLanguage, selectedCineSrcServer);
       }
 
       if (selectedProviderId === 'cinesrc') {
@@ -1280,7 +1315,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
       }
       setEmbedUrl(newUrl);
     }
-  }, [tmdbId, mediaType, isAnime, currentSeason, currentEpisode, activeColor, selectedProviderId, forceProgress, isWatchParty, anilistId, animeLanguage, audioLanguage, subtitleLanguage, fallbackToNativeVideasy]);
+  }, [tmdbId, mediaType, isAnime, currentSeason, currentEpisode, activeColor, selectedProviderId, forceProgress, isWatchParty, anilistId, animeLanguage, audioLanguage, subtitleLanguage, fallbackToNativeVideasy, selectedCineSrcServer]);
 
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
@@ -1377,6 +1412,14 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                                 setCurrentEpisode(Number(data.episode));
                                 if (onEpisodeChange) {
                                     onEpisodeChange(Number(data.season), Number(data.episode));
+                                }
+                            }
+                            break;
+                        case 'cinesrc:sourceused':
+                            if (data.sourceId) {
+                                setSelectedCineSrcServer(data.sourceId);
+                                if (typeof window !== 'undefined') {
+                                    localStorage.setItem('movieverse_cinesrc_server', data.sourceId);
                                 }
                             }
                             break;
@@ -1752,11 +1795,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
               if (isDrawerOpen || isEpisodesOverlayOpen || isSubtitleMenuOpen || isSpeedMenuOpen || isQualityMenuOpen) return;
               if (isPlayingRef.current) setShowControls(false);
             }}
-            onClick={(e) => {
-              if ((e.target as HTMLElement).closest('[data-controls]')) return;
-              togglePlayback();
-              resetControlsTimeout();
-            }}
+            onClick={handleOverlayClick}
             style={{ 
               cursor: showControls ? 'default' : 'none',
               zIndex: isEpisodesOverlayOpen ? 55 : 10
@@ -2250,6 +2289,40 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                           </div>
                         )}
 
+                        {selectedProviderId === 'cinesrc' && (
+                          <div className="border-t border-white/5 pt-2.5">
+                            <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block mb-2 px-1">Select Source Server</span>
+                            <div className="grid grid-cols-2 gap-1.5">
+                              {[
+                                { id: 'pro', name: 'Server Pro' },
+                                { id: 'multi', name: 'Server Multi' },
+                                { id: 'cinesrc', name: 'Server CineSrc' },
+                                { id: 'vlux', name: 'Server Vlux' },
+                                { id: 'zxc', name: 'Server Zxc' }
+                              ].map((srv) => {
+                                const isActive = selectedCineSrcServer === srv.id;
+                                return (
+                                  <button
+                                    key={srv.id}
+                                    onClick={() => {
+                                      setSelectedCineSrcServer(srv.id);
+                                      localStorage.setItem('movieverse_cinesrc_server', srv.id);
+                                      closeAllMenus();
+                                    }}
+                                    className={`py-1.5 px-2 rounded-lg text-[11px] font-semibold text-center transition-all border ${
+                                      isActive 
+                                        ? 'bg-red-600/10 text-red-500 border-red-500/20' 
+                                        : 'bg-white/5 text-zinc-300 border-white/5 hover:border-white/10 hover:bg-white/10'
+                                    }`}
+                                  >
+                                    {srv.name}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+
                         {customQualities.length > 0 && (
                           <div className="border-t border-white/5 pt-2.5">
                             <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block mb-2 px-1">Select Quality</span>
@@ -2474,6 +2547,40 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                             }`}
                           >
                             {srv}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {selectedProviderId === 'cinesrc' && (
+                  <div className="border-t border-white/5 pt-4 mt-2">
+                    <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block mb-2 px-1">Select Source Server</span>
+                    <div className="grid grid-cols-2 gap-2">
+                      {[
+                        { id: 'pro', name: 'Server Pro' },
+                        { id: 'multi', name: 'Server Multi' },
+                        { id: 'cinesrc', name: 'Server CineSrc' },
+                        { id: 'vlux', name: 'Server Vlux' },
+                        { id: 'zxc', name: 'Server Zxc' }
+                      ].map((srv) => {
+                        const isActive = selectedCineSrcServer === srv.id;
+                        return (
+                          <button
+                            key={srv.id}
+                            onClick={() => {
+                              setSelectedCineSrcServer(srv.id);
+                              localStorage.setItem('movieverse_cinesrc_server', srv.id);
+                              setIsDrawerOpen(false);
+                            }}
+                            className={`py-2 px-3 rounded-xl text-xs font-bold transition-all border text-center active:scale-[0.98] ${
+                              isActive 
+                                ? 'bg-red-600/20 text-red-500 border-red-500/30 font-extrabold shadow-[0_0_15px_rgba(239,68,68,0.15)]' 
+                                : 'bg-white/5 text-zinc-300 border-white/5 hover:border-white/10 hover:bg-white/10'
+                            }`}
+                          >
+                            {srv.name}
                           </button>
                         );
                       })}
