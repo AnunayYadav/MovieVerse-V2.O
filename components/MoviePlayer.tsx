@@ -107,11 +107,11 @@ export const PROVIDERS: Provider[] = [
     name: 'Anikai',
     getMovieUrl: (tmdbId, color, progress, isAnime, anilistId, animeLanguage, language) => {
       const subdub = animeLanguage === 'dub' || (language && language !== 'Japanese') ? 'dub' : 'sub';
-      return `/api/anikai?tmdbId=${tmdbId}&mediaType=movie&anilistId=${anilistId || ''}&lang=${subdub}${progress && progress > 0 ? `&progress=${Math.floor(progress)}` : ''}`;
+      return `/api/anime?provider=anikai&tmdbId=${tmdbId}&mediaType=movie&anilistId=${anilistId || ''}&lang=${subdub}${progress && progress > 0 ? `&progress=${Math.floor(progress)}` : ''}`;
     },
     getTvUrl: (tmdbId, season, episode, color, progress, isAnime, anilistId, animeLanguage, language) => {
       const subdub = animeLanguage === 'dub' || (language && language !== 'Japanese') ? 'dub' : 'sub';
-      return `/api/anikai?tmdbId=${tmdbId}&mediaType=tv&season=${season}&episode=${episode}&anilistId=${anilistId || ''}&lang=${subdub}${progress && progress > 0 ? `&progress=${Math.floor(progress)}` : ''}`;
+      return `/api/anime?provider=anikai&tmdbId=${tmdbId}&mediaType=tv&season=${season}&episode=${episode}&anilistId=${anilistId || ''}&lang=${subdub}${progress && progress > 0 ? `&progress=${Math.floor(progress)}` : ''}`;
     },
     supportsPostMessage: false
   },
@@ -120,11 +120,11 @@ export const PROVIDERS: Provider[] = [
     name: 'Anikoto',
     getMovieUrl: (tmdbId, color, progress, isAnime, anilistId, animeLanguage, language) => {
       const subdub = animeLanguage === 'dub' || (language && language !== 'Japanese') ? 'dub' : 'sub';
-      return `/api/anikoto?tmdbId=${tmdbId}&mediaType=movie&anilistId=${anilistId || ''}&lang=${subdub}${progress && progress > 0 ? `&progress=${Math.floor(progress)}` : ''}`;
+      return `/api/anime?provider=anikoto&tmdbId=${tmdbId}&mediaType=movie&anilistId=${anilistId || ''}&lang=${subdub}${progress && progress > 0 ? `&progress=${Math.floor(progress)}` : ''}`;
     },
     getTvUrl: (tmdbId, season, episode, color, progress, isAnime, anilistId, animeLanguage, language) => {
       const subdub = animeLanguage === 'dub' || (language && language !== 'Japanese') ? 'dub' : 'sub';
-      return `/api/anikoto?tmdbId=${tmdbId}&mediaType=tv&season=${season}&episode=${episode}&anilistId=${anilistId || ''}&lang=${subdub}${progress && progress > 0 ? `&progress=${Math.floor(progress)}` : ''}`;
+      return `/api/anime?provider=anikoto&tmdbId=${tmdbId}&mediaType=tv&season=${season}&episode=${episode}&anilistId=${anilistId || ''}&lang=${subdub}${progress && progress > 0 ? `&progress=${Math.floor(progress)}` : ''}`;
     },
     supportsPostMessage: false
   },
@@ -709,7 +709,8 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
           const providerType = selectedProviderId.replace('encdec_', '');
           params.append('provider', providerType);
         } else if (selectedProviderId === 'miruro') {
-          endpoint = '/api/miruro';
+          endpoint = '/api/anime';
+          params.append('provider', 'miruro');
           params.append('lang', animeLanguage);
           params.append('episode', String(currentEpisode));
         }
