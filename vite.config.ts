@@ -47,7 +47,9 @@ export default defineConfig(({ mode }) => {
               };
               
               let matchedPath = pathname || '';
+              let animePath = '';
               if (matchedPath.startsWith('/api/anime/')) {
+                animePath = matchedPath.replace(/^\/api\/anime/, '');
                 matchedPath = '/api/anime';
               }
               
@@ -89,7 +91,10 @@ export default defineConfig(({ mode }) => {
                 
                 // Build mock VercelRequest
                 const mockReq: any = Object.create(req);
-                mockReq.query = parsedUrl.query;
+                mockReq.query = { ...parsedUrl.query };
+                if (animePath) {
+                  mockReq.query.path = animePath;
+                }
                 mockReq.method = req.method;
                 
                 await handler(mockReq, mockRes);

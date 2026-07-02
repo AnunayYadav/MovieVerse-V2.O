@@ -15,8 +15,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     const host = req.headers["host"] ?? "localhost";
-    // Strip '/api/anime' from the URL so the worker matches local paths like /episodes/:id
-    const cleanUrlPath = req.url?.replace(/^\/api\/anime/, '') || '/';
+    // Support path parameter from Vercel rewrites (req.query.path) or fallback to stripping prefix from req.url
+    const pathParam = req.query.path as string | undefined;
+    let cleanUrlPath = pathParam || req.url?.replace(/^\/api\/anime/, '') || '/';
+    if (cleanUrlPath && !cleanUrlPath.startsWith('/')) {
+      cleanUrlPath = '/' + cleanUrlPath;
+    }
     const url = `https://${host}${cleanUrlPath}`;
 
     const chunks: any[] = [];
