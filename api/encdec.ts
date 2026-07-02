@@ -1,5 +1,140 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
+// Function to resolve Vidfast or Vidcore streams using enc-dec.app API
+async function resolveVidfastOrVidcore(
+  domain: string,
+  type: 'movie' | 'tv',
+  tmdbId: string,
+  season: string,
+  episode: string,
+  isVidcore: boolean,
+  requestedServer?: string
+) {
+  const baseUrl = type === 'movie'
+    ? `https://${domain}/movie/${tmdbId}/`
+    : `https://${domain}/tv/${tmdbId}/${season}/${episode}/`;
+
+  const pageRes = await fetch(baseUrl, {
+    headers: {
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36",
+      "Referer": `https://${domain}/`
+    }
+  });
+
+  if (!pageRes.ok) {
+    throw new Error(`Failed to load page from ${domain}: HTTP ${pageRes.status}`);
+  }
+
+  const html = await pageRes.text();
+  const match = html.match(/\\"en\\":\\"(.*?)\\"/);
+  if (!match) {
+    throw new Error(`Could not find encrypted payload on ${domain} page`);
+  }
+
+  const encryptedText = match[1];
+  const encEndpoint = isVidcore ? 'enc-vidcore' : 'enc-vidfast';
+
+  const encRes = await fetch(`https://enc-dec.app/api/${encEndpoint}?text=${encodeURIComponent(encryptedText)}`);
+  if (!encRes.ok) {
+    throw new Error(`EncDec enc endpoint failed: HTTP ${encRes.status}`);
+  }
+
+  const encJson = await encRes.json();
+  if (encJson.status !== 200 || !encJson.result) {
+    throw new Error(`EncDec enc failed: ${encJson.error || 'unknown'}`);
+  }
+
+  const { servers, stream, token } = encJson.result;
+
+  // Fetch servers list
+  const serversRes = await fetch(servers, {
+    method: 'POST',
+    headers: {
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36",
+      "Referer": `https://${domain}/`,
+      "X-Requested-With": "XMLHttpRequest",
+      "X-CSRF-Token": token
+    }
+  });
+
+  if (!serversRes.ok) {
+    throw new Error(`Failed to fetch server list: HTTP ${serversRes.status}`);
+  }
+
+  const serversEncrypted = await serversRes.text();
+  const decEndpoint = isVidcore ? 'dec-vidcore' : 'dec-vidfast';
+
+  const decRes = await fetch(`https://enc-dec.app/api/${decEndpoint}`, {
+    method: 'POST',
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ text: serversEncrypted })
+  });
+
+  if (!decRes.ok) {
+    throw new Error(`Failed to decrypt server list: HTTP ${decRes.status}`);
+  }
+
+  const decJson = await decRes.json();
+  if (decJson.status !== 200 || !decJson.result) {
+    throw new Error(`Server list decryption failed: ${decJson.error || 'unknown'}`);
+  }
+
+  const serversList = decJson.result; // [{ name: "Server Name", data: "..." }]
+  if (!serversList || serversList.length === 0) {
+    throw new Error("No servers available for this stream");
+  }
+
+  const availableServers = serversList.map((s: any) => s.name);
+
+  // Match requested server or fallback to the first
+  const selectedServerObj = serversList.find((s: any) => s.name.toLowerCase() === requestedServer?.toLowerCase()) || serversList[0];
+  if (!selectedServerObj) {
+    throw new Error("Target server not found in available list");
+  }
+
+  const finalStreamUrl = `${stream}/${selectedServerObj.data}`;
+  const streamRes = await fetch(finalStreamUrl, {
+    method: 'POST',
+    headers: {
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36",
+      "Referer": `https://${domain}/`,
+      "X-Requested-With": "XMLHttpRequest",
+      "X-CSRF-Token": token
+    }
+  });
+
+  if (!streamRes.ok) {
+    throw new Error(`Failed to fetch stream data: HTTP ${streamRes.status}`);
+  }
+
+  const streamEncrypted = await streamRes.text();
+  const finalDecRes = await fetch(`https://enc-dec.app/api/${decEndpoint}`, {
+    method: 'POST',
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ text: streamEncrypted })
+  });
+
+  if (!finalDecRes.ok) {
+    throw new Error(`Failed to decrypt stream data: HTTP ${finalDecRes.status}`);
+  }
+
+  const finalDecJson = await finalDecRes.json();
+  if (finalDecJson.status !== 200 || !finalDecJson.result) {
+    throw new Error(`Stream decryption failed: ${finalDecJson.error || 'unknown'}`);
+  }
+
+  return {
+    success: true,
+    provider: selectedServerObj.name,
+    availableServers,
+    data: finalDecJson.result // Contains sources, subtitles, etc.
+  };
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Access-Control-Allow-Credentials', 'true');
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -10,7 +145,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(200).end();
   }
 
-  let { tmdbId, mediaType, seasonId, episodeId, title, year, server } = req.query;
+  let { tmdbId, mediaType, seasonId, episodeId, title, year, server, provider } = req.query;
 
   if (!tmdbId || typeof tmdbId !== 'string') {
     return res.status(400).json({ error: 'tmdbId parameter is required' });
@@ -21,7 +156,34 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const seasonNum = seasonId ? String(seasonId) : '1';
   const episodeNum = episodeId ? String(episodeId) : '1';
+  const providerStr = typeof provider === 'string' ? provider.toLowerCase() : 'videasy';
+  const serverStr = typeof server === 'string' ? server : undefined;
 
+  // Resolve Vidfast or Vidcore
+  if (providerStr === 'vidfast' || providerStr === 'vidcore') {
+    try {
+      const isVidcore = providerStr === 'vidcore';
+      const domain = isVidcore ? 'vidcore.net' : 'vidfast.pro';
+      const result = await resolveVidfastOrVidcore(
+        domain,
+        mediaType,
+        tmdbId,
+        seasonNum,
+        episodeNum,
+        isVidcore,
+        serverStr
+      );
+      return res.status(200).json(result);
+    } catch (error: any) {
+      console.error(`${providerStr} extraction error:`, error);
+      return res.status(502).json({
+        success: false,
+        error: `EncDec extraction for ${providerStr} failed: ${error.message || error}`
+      });
+    }
+  }
+
+  // Fallback / default to Videasy
   // TMDB details lookup for title and year if missing
   const apiKey = process.env.VITE_TMDB_API_KEY || 'fe42b660a036f4d6a2bfeb4d0f523ce9';
   if (!title || !year) {
@@ -42,11 +204,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
   }
 
-  if (!title) {
+  const cleanTitle = title ? (typeof title === 'string' ? title : Array.isArray(title) ? title[0] : '') : '';
+  if (!cleanTitle) {
     return res.status(400).json({ error: 'title parameter is required or could not be resolved from TMDB' });
   }
 
-  // All EncDec API servers
+  // All EncDec API servers for Videasy
   const allProviders = [
     { name: 'Yoru', endpoint: 'cdn', isMovieOnly: true },
     { name: 'Cypher', endpoint: 'downloader2', isMovieOnly: false },
@@ -66,14 +229,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   // If a specific server is requested, filter to that one
   let targetProviders = providers;
-  if (server && typeof server === 'string') {
-    const matched = providers.find(p => p.name.toLowerCase() === server.toLowerCase());
+  if (serverStr) {
+    const matched = providers.find(p => p.name.toLowerCase() === serverStr.toLowerCase());
     if (matched) {
       targetProviders = [matched];
     }
   }
-
-  const cleanTitle = title ? (typeof title === 'string' ? title : Array.isArray(title) ? title[0] : '') : '';
 
   const queryParams: any = {
     title: encodeURIComponent(cleanTitle),

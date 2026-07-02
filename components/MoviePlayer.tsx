@@ -89,8 +89,22 @@ const getSubtitleCode = (sub: string, format: 'name' | 'iso') => {
 
 export const PROVIDERS: Provider[] = [
   {
-    id: 'encdec',
-    name: 'EncDec (HLS Ad-Free)',
+    id: 'encdec_videasy',
+    name: 'EncDec - VidEasy (HLS Ad-Free)',
+    getMovieUrl: () => '',
+    getTvUrl: () => '',
+    supportsPostMessage: false
+  },
+  {
+    id: 'encdec_vidfast',
+    name: 'EncDec - VidFast (HLS Ad-Free)',
+    getMovieUrl: () => '',
+    getTvUrl: () => '',
+    supportsPostMessage: false
+  },
+  {
+    id: 'encdec_vidcore',
+    name: 'EncDec - VidCore (HLS Ad-Free)',
     getMovieUrl: () => '',
     getTvUrl: () => '',
     supportsPostMessage: false
@@ -299,7 +313,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
 
   // Custom controls derived values & refs
   const currentProvider = PROVIDERS.find(p => p.id === selectedProviderId);
-  const useCustomControls = selectedProviderId === 'anivexa' || selectedProviderId === 'videasy_adfree' || selectedProviderId === 'encdec';
+  const useCustomControls = selectedProviderId === 'anivexa' || selectedProviderId === 'videasy_adfree' || selectedProviderId.startsWith('encdec');
   const isPlayingRef = useRef(false);
   const isSeekingRef = useRef(false);
   const playerDurationRef = useRef(0);
@@ -633,7 +647,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   const handleQualityChange = (qualityName: string) => {
     const matched = customQualities.find(s => s.quality === qualityName);
     const getProxiedUrl = (url: string) => {
-      if ((selectedProviderId === 'videasy_adfree' || selectedProviderId === 'encdec') && url && url.startsWith('http')) {
+      if ((selectedProviderId === 'videasy_adfree' || selectedProviderId.startsWith('encdec')) && url && url.startsWith('http')) {
         return `/api/m3u8-proxy?url=${encodeURIComponent(url)}`;
       }
       return url;
@@ -695,7 +709,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
 
   // Fetch streaming sources for videasy_adfree and encdec
   useEffect(() => {
-    if (selectedProviderId !== 'videasy_adfree' && selectedProviderId !== 'encdec') return;
+    if (selectedProviderId !== 'videasy_adfree' && !selectedProviderId.startsWith('encdec')) return;
 
     let isMounted = true;
     const fetchDecryptedStream = async () => {
@@ -719,11 +733,17 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
           title: cleanTitle
         });
 
-        if (selectedProviderId === 'encdec' && selectedEncDecServer) {
+        if (selectedProviderId.startsWith('encdec') && selectedEncDecServer) {
           params.append('server', selectedEncDecServer);
         }
 
-        const endpoint = selectedProviderId === 'encdec' ? '/api/encdec' : '/api/videasy';
+        let endpoint = '/api/videasy';
+        if (selectedProviderId.startsWith('encdec')) {
+          endpoint = '/api/encdec';
+          const providerType = selectedProviderId.replace('encdec_', '');
+          params.append('provider', providerType);
+        }
+
         const res = await window.fetch(`${endpoint}?${params.toString()}`);
         if (!res.ok) {
           const errData = await res.json().catch(() => ({}));
@@ -741,7 +761,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
             throw new Error("No video streaming sources returned from decryptor.");
           }
 
-          if (selectedProviderId === 'encdec') {
+          if (selectedProviderId.startsWith('encdec')) {
             if (payload.availableServers) {
               setEncDecServers(payload.availableServers);
             }
@@ -767,7 +787,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
 
           setSelectedQuality(matchedSource.quality);
           const getProxiedUrl = (url: string) => {
-            if ((selectedProviderId === 'videasy_adfree' || selectedProviderId === 'encdec') && url && url.startsWith('http')) {
+            if ((selectedProviderId === 'videasy_adfree' || selectedProviderId.startsWith('encdec')) && url && url.startsWith('http')) {
               return `/api/m3u8-proxy?url=${encodeURIComponent(url)}`;
             }
             return url;
@@ -808,7 +828,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   }, [currentSeason, currentEpisode, onEpisodeChange]);
 
   useEffect(() => {
-    if (!isAutoplayEnabled || !hasNextEpisode || (selectedProviderId !== 'anivexa' && selectedProviderId !== 'videasy_adfree' && selectedProviderId !== 'encdec')) return;
+    if (!isAutoplayEnabled || !hasNextEpisode || (selectedProviderId !== 'anivexa' && selectedProviderId !== 'videasy_adfree' && !selectedProviderId.startsWith('encdec'))) return;
     
     if (playerDuration > 0 && playerCurrentTime >= playerDuration - 20 && !showNextCountdown) {
       setShowNextCountdown(true);
@@ -1568,7 +1588,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
         }
       `}</style>
       <div className="flex-1 relative w-full h-full z-0 overflow-hidden bg-black">
-        {selectedProviderId === 'videasy_adfree' || selectedProviderId === 'encdec' || (selectedProviderId === 'anivexa' && isAnime && anilistId) ? (
+        {selectedProviderId === 'videasy_adfree' || selectedProviderId.startsWith('encdec') || (selectedProviderId === 'anivexa' && isAnime && anilistId) ? (
           <div className="w-full h-full absolute inset-0 bg-zinc-950 z-0 flex items-center justify-center">
             {anivexaLoading && !anivexaStreamUrl && (
               <div className="absolute inset-0 flex items-center justify-center bg-black z-30 animate-in fade-in duration-250">
@@ -2109,7 +2129,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                           </div>
                         </div>
 
-                        {selectedProviderId === 'encdec' && encDecServers.length > 0 && (
+                        {selectedProviderId.startsWith('encdec') && encDecServers.length > 0 && (
                           <div className="border-t border-white/5 pt-2.5">
                             <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block mb-2 px-1">Select Source Server</span>
                             <div className="grid grid-cols-2 gap-1.5">
@@ -2340,7 +2360,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                   );
                 })}
                 
-                {selectedProviderId === 'encdec' && encDecServers.length > 0 && (
+                {selectedProviderId.startsWith('encdec') && encDecServers.length > 0 && (
                   <div className="border-t border-white/5 pt-4 mt-2">
                     <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block mb-2 px-1">Select Source Server</span>
                     <div className="grid grid-cols-2 gap-2">
