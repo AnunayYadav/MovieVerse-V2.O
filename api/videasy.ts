@@ -181,7 +181,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(200).end();
   }
 
-  let { tmdbId, mediaType, seasonId, episodeId, title, year } = req.query;
+  let { tmdbId, mediaType, seasonId, episodeId, title, year, server } = req.query;
 
   if (!tmdbId || typeof tmdbId !== 'string') {
     return res.status(400).json({ error: 'tmdbId parameter is required' });
@@ -217,11 +217,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(400).json({ error: 'title parameter is required or could not be resolved from TMDB' });
   }
 
-  const providers = [
+  let providers = [
     { name: 'Hydrogen', endpoint: 'cdn' },
     { name: 'Lithium', endpoint: 'downloader2' },
     { name: 'Oxygen', endpoint: 'mb-flix' }
   ];
+
+  if (server && typeof server === 'string') {
+    const matched = providers.find(p => p.name.toLowerCase() === server.toLowerCase());
+    if (matched) {
+      providers = [matched, ...providers.filter(p => p.name.toLowerCase() !== server.toLowerCase())];
+    }
+  }
 
   const queryParams = {
     title: String(title),
@@ -242,7 +249,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     try {
       const fetchRes = await fetch(url, {
         headers: {
-          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36",
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, y/Gecko) Chrome/134.0.0.0 Safari/537.36",
           "Referer": "https://www.vidking.net/",
           "Origin": "https://www.vidking.net"
         }
@@ -276,6 +283,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(200).json({
       success: true,
       provider: successfulProvider,
+      availableServers: ['Hydrogen', 'Lithium', 'Oxygen'],
       data: successData
     });
   } else {

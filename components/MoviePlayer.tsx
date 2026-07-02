@@ -664,7 +664,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
           params.append('anilistId', String(anilistId));
         }
 
-        if (selectedProviderId.startsWith('encdec') && selectedEncDecServer) {
+        if (selectedEncDecServer) {
           params.append('server', selectedEncDecServer);
         }
 
@@ -692,7 +692,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
             throw new Error("No video streaming sources returned from decryptor.");
           }
 
-          if (selectedProviderId.startsWith('encdec')) {
+          if (selectedProviderId.startsWith('encdec') || selectedProviderId === 'videasy_adfree') {
             if (payload.availableServers) {
               setEncDecServers(payload.availableServers);
             }
@@ -2296,7 +2296,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                           </div>
                         </div>
 
-                        {selectedProviderId.startsWith('encdec') && encDecServers.length > 0 && (
+                        {(selectedProviderId.startsWith('encdec') || selectedProviderId === 'videasy_adfree') && encDecServers.length > 0 && (
                           <div className="border-t border-white/5 pt-2.5">
                             <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block mb-2 px-1">Select Source Server</span>
                             <div className="grid grid-cols-2 gap-1.5">
@@ -2561,7 +2561,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                   );
                 })}
                 
-                {selectedProviderId.startsWith('encdec') && encDecServers.length > 0 && (
+                {(selectedProviderId.startsWith('encdec') || selectedProviderId === 'videasy_adfree') && encDecServers.length > 0 && (
                   <div className="border-t border-white/5 pt-4 mt-2">
                     <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block mb-2 px-1">Select Source Server</span>
                     <div className="grid grid-cols-2 gap-2">
