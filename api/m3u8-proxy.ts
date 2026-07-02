@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
 // Function to resolve relative paths and rewrite URIs inside .m3u8 files
-function rewriteM3U8(manifestText: string, playlistUrl: string, proxyBaseUrl: string, referer: string): string {
+function rewriteM3U8(manifestText: string, playlistUrl: string, proxyBaseUrl: string): string {
   const lines = manifestText.split('\n');
   const rewrittenLines = lines.map(line => {
     const trimmed = line.trim();
@@ -11,21 +11,13 @@ function rewriteM3U8(manifestText: string, playlistUrl: string, proxyBaseUrl: st
     if (trimmed.startsWith('#')) {
       return line.replace(/URI="([^"]+)"/g, (match, uri) => {
         const absoluteUri = new URL(uri, playlistUrl).toString();
-        let proxied = `${proxyBaseUrl}?url=${encodeURIComponent(absoluteUri)}`;
-        if (referer) {
-          proxied += `&referer=${encodeURIComponent(referer)}`;
-        }
-        return `URI="${proxied}"`;
+        return `URI="${proxyBaseUrl}?url=${encodeURIComponent(absoluteUri)}"`;
       });
     }
 
     // It's a segment or child playlist URL
     const absoluteUri = new URL(trimmed, playlistUrl).toString();
-    let proxied = `${proxyBaseUrl}?url=${encodeURIComponent(absoluteUri)}`;
-    if (referer) {
-      proxied += `&referer=${encodeURIComponent(referer)}`;
-    }
-    return proxied;
+    return `${proxyBaseUrl}?url=${encodeURIComponent(absoluteUri)}`;
   });
 
   return rewrittenLines.join('\n');
@@ -42,26 +34,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   let targetUrl = '';
-  let refererParam = '';
-
   if (req.url) {
     const urlObj = new URL(req.url, 'http://localhost');
     const urlParam = urlObj.searchParams.get('url');
-    const refParam = urlObj.searchParams.get('referer');
     if (urlParam) {
       targetUrl = urlParam;
     } else {
       const indexOfUrl = req.url.indexOf('url=');
       if (indexOfUrl !== -1) {
-        targetUrl = decodeURIComponent(req.url.slice(indexOfUrl + 4).split('&')[0]);
-      }
-    }
-    if (refParam) {
-      refererParam = refParam;
-    } else {
-      const indexOfRef = req.url.indexOf('referer=');
-      if (indexOfRef !== -1) {
-        refererParam = decodeURIComponent(req.url.slice(indexOfRef + 8).split('&')[0]);
+        targetUrl = decodeURIComponent(req.url.slice(indexOfUrl + 4));
       }
     }
   }
@@ -71,23 +52,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const headers: Record<string, string> = {
-      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36"
+    // Standard headers that mimic the player origin to bypass Cloudflare
+    const headers = {
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36",
+      "Referer": "https://www.vidking.net/",
+      "Origin": "https://www.vidking.net"
     };
-
-    if (refererParam) {
-      headers["Referer"] = refererParam;
-      try {
-        const originUrl = new URL(refererParam);
-        headers["Origin"] = originUrl.origin;
-      } catch {}
-    } else {
-      // Fallback headers that mimic the player origin to bypass Cloudflare
-      if (!targetUrl.includes('.workers.dev') && (targetUrl.includes('vidking') || targetUrl.includes('videasy') || targetUrl.includes('flixcloud'))) {
-        headers["Referer"] = "https://www.vidking.net/";
-        headers["Origin"] = "https://www.vidking.net";
-      }
-    }
 
     const response = await fetch(targetUrl, { headers });
     if (!response.ok) {
@@ -107,7 +77,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const protocol = req.headers['x-forwarded-proto'] || 'http';
       const proxyBaseUrl = `${protocol}://${host}/api/m3u8-proxy`;
 
-      const rewrittenManifest = rewriteM3U8(manifestText, finalPlaylistUrl, proxyBaseUrl, refererParam);
+      const rewrittenManifest = rewriteM3U8(manifestText, finalPlaylistUrl, proxyBaseUrl);
 
       res.setHeader('Content-Type', 'application/vnd.apple.mpegurl; charset=utf-8');
       res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
