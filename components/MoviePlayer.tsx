@@ -1365,7 +1365,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                   <track
                     key={idx}
                     kind="subtitles"
-                    src={sub.url}
+                    src={sub.url && sub.url.startsWith('http') ? `/api/subtitles?url=${encodeURIComponent(sub.url)}` : sub.url}
                     srcLang={sub.lang || sub.language}
                     label={sub.language || sub.lang}
                   />
