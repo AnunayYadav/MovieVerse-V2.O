@@ -105,9 +105,17 @@ export const PROVIDERS: Provider[] = [
   {
     id: 'cinesrc',
     name: 'CineSrc',
-    getMovieUrl: (tmdbId) => `https://cinesrc.st/embed/movie/${tmdbId}`,
-    getTvUrl: (tmdbId, season, episode) => `https://cinesrc.st/embed/tv/${tmdbId}?s=${season}&e=${episode}`,
-    supportsPostMessage: false
+    getMovieUrl: (tmdbId, color, progress) => {
+      const hexColor = color ? `%23${color.replace('#', '')}` : '%23EF4444';
+      const startAt = progress && progress > 0 ? `&t=${Math.floor(progress)}&continueprompt=false` : '';
+      return `https://cinesrc.st/embed/movie/${tmdbId}?autoplay=true&controls=false&color=${hexColor}&back=close${startAt}`;
+    },
+    getTvUrl: (tmdbId, season, episode, color, progress) => {
+      const hexColor = color ? `%23${color.replace('#', '')}` : '%23EF4444';
+      const startAt = progress && progress > 0 ? `&t=${Math.floor(progress)}&continueprompt=false` : '';
+      return `https://cinesrc.st/embed/tv/${tmdbId}?s=${season}&e=${episode}&autoplay=true&controls=false&color=${hexColor}&back=close${startAt}`;
+    },
+    supportsPostMessage: true
   },
   {
     id: 'vidfast',
@@ -258,6 +266,21 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     }
   }, [providerId, isWatchParty]);
 
+  // --- Custom Controls PostMessage Helpers ---
+  const sendPlayerCommand = useCallback((command: string, params?: Record<string, any>) => {
+    if (!iframeRef.current?.contentWindow) return;
+    iframeRef.current.contentWindow.postMessage({ command, ...params }, '*');
+  }, []);
+
+  const sendCineSrcCommand = useCallback((command: string, args: any[] = []) => {
+    if (!iframeRef.current?.contentWindow) return;
+    iframeRef.current.contentWindow.postMessage({
+      type: 'cinesrc:command',
+      command,
+      args
+    }, 'https://cinesrc.st');
+  }, []);
+
   const isTV = typeof window !== 'undefined' && (
     /Android TV|GoogleTV|AFT|Tizen|Web0S|SmartTV/i.test(navigator.userAgent) || 
     navigator.userAgent.includes("MovieVerseTV") ||
@@ -268,7 +291,8 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   // Custom controls derived values & refs
   const currentProvider = PROVIDERS.find(p => p.id === selectedProviderId);
   const [fallbackToNativeVideasy, setFallbackToNativeVideasy] = useState(false);
-  const useCustomControls = (selectedProviderId === 'videasy_adfree' || selectedProviderId.startsWith('encdec')) && !(selectedProviderId === 'videasy_adfree' && fallbackToNativeVideasy);
+  const isCineSrcCustom = selectedProviderId === 'cinesrc';
+  const useCustomControls = (selectedProviderId === 'videasy_adfree' || selectedProviderId.startsWith('encdec') || isCineSrcCustom) && !(selectedProviderId === 'videasy_adfree' && fallbackToNativeVideasy);
   const isPlayingRef = useRef(false);
   const isSeekingRef = useRef(false);
   const playerDurationRef = useRef(0);
@@ -517,9 +541,13 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   };
 
   const changePlaybackSpeed = (speed: number) => {
-    const video = videoRef.current;
-    if (video) {
-      video.playbackRate = speed;
+    if (isCineSrcCustom) {
+      sendCineSrcCommand('setPlaybackRate', [speed]);
+    } else {
+      const video = videoRef.current;
+      if (video) {
+        video.playbackRate = speed;
+      }
     }
     setPlaybackSpeed(speed);
     showOverlayFeedback(`${speed}x Speed`);
@@ -557,11 +585,15 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
 
   // Sync playback speed whenever stream URL resolves or speed state updates
   useEffect(() => {
-    const video = videoRef.current;
-    if (video) {
-      video.playbackRate = playbackSpeed;
+    if (isCineSrcCustom) {
+      sendCineSrcCommand('setPlaybackRate', [playbackSpeed]);
+    } else {
+      const video = videoRef.current;
+      if (video) {
+        video.playbackRate = playbackSpeed;
+      }
     }
-  }, [anivexaStreamUrl, playbackSpeed]);
+  }, [anivexaStreamUrl, playbackSpeed, isCineSrcCustom, sendCineSrcCommand]);
 
   // Sync subtitle tracks mode with global subtitleLanguage preference
   useEffect(() => {
@@ -888,13 +920,15 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     setIsQualityMenuOpen(false);
   }, []);
 
-  // --- Custom Controls PostMessage Helpers ---
-  const sendPlayerCommand = useCallback((command: string, params?: Record<string, any>) => {
-    if (!iframeRef.current?.contentWindow) return;
-    iframeRef.current.contentWindow.postMessage({ command, ...params }, '*');
-  }, []);
-
   const togglePlayback = useCallback(() => {
+    if (isCineSrcCustom) {
+      if (isPlaying) {
+        sendCineSrcCommand('pause');
+      } else {
+        sendCineSrcCommand('play');
+      }
+      return;
+    }
     if (useCustomControls) {
       const video = videoRef.current;
       if (video) {
@@ -906,9 +940,14 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     const next = !isPlaying;
     sendPlayerCommand(next ? 'play' : 'pause');
     setIsPlaying(next);
-  }, [isPlaying, sendPlayerCommand, useCustomControls]);
+  }, [isPlaying, sendPlayerCommand, useCustomControls, isCineSrcCustom, sendCineSrcCommand]);
 
   const seekTo = useCallback((time: number) => {
+    if (isCineSrcCustom) {
+      sendCineSrcCommand('seek', [time]);
+      setPlayerCurrentTime(time);
+      return;
+    }
     if (useCustomControls) {
       const video = videoRef.current;
       if (video) video.currentTime = time;
@@ -917,10 +956,19 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     }
     sendPlayerCommand('seek', { time: Math.floor(time) });
     setPlayerCurrentTime(time);
-  }, [sendPlayerCommand, useCustomControls]);
+  }, [sendPlayerCommand, useCustomControls, isCineSrcCustom, sendCineSrcCommand]);
 
   const changeVolume = useCallback((level: number) => {
     const clamped = Math.max(0, Math.min(1, level));
+    if (isCineSrcCustom) {
+      sendCineSrcCommand('setVolume', [clamped]);
+      setPlayerVolume(clamped);
+      if (clamped > 0 && playerMuted) {
+        sendCineSrcCommand('setMuted', [false]);
+        setPlayerMuted(false);
+      }
+      return;
+    }
     if (useCustomControls) {
       const video = videoRef.current;
       if (video) {
@@ -939,9 +987,15 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
       sendPlayerCommand('mute', { muted: false });
       setPlayerMuted(false);
     }
-  }, [sendPlayerCommand, playerMuted, useCustomControls]);
+  }, [sendPlayerCommand, playerMuted, useCustomControls, isCineSrcCustom, sendCineSrcCommand]);
 
   const toggleMuteState = useCallback(() => {
+    if (isCineSrcCustom) {
+      const nextMuted = !playerMuted;
+      sendCineSrcCommand('setMuted', [nextMuted]);
+      setPlayerMuted(nextMuted);
+      return;
+    }
     if (useCustomControls) {
       const video = videoRef.current;
       if (video) {
@@ -952,10 +1006,14 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     }
     sendPlayerCommand('mute', { muted: !playerMuted });
     setPlayerMuted(!playerMuted);
-  }, [sendPlayerCommand, playerMuted, useCustomControls]);
+  }, [sendPlayerCommand, playerMuted, useCustomControls, isCineSrcCustom, sendCineSrcCommand]);
 
   const skipForward = useCallback(() => {
-    if (useCustomControls) {
+    if (isCineSrcCustom) {
+      const nextTime = Math.min(playerDuration, playerCurrentTime + 10);
+      sendCineSrcCommand('seek', [nextTime]);
+      setPlayerCurrentTime(nextTime);
+    } else if (useCustomControls) {
       const video = videoRef.current;
       if (video) {
         video.currentTime = Math.min(playerDuration, video.currentTime + 10);
@@ -964,10 +1022,14 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
       sendPlayerCommand('seek', { time: Math.min(playerDuration, playerCurrentTime + 10) });
     }
     showOverlayFeedback('10s >', 'forward');
-  }, [playerDuration, playerCurrentTime, sendPlayerCommand, useCustomControls]);
+  }, [playerDuration, playerCurrentTime, sendPlayerCommand, useCustomControls, isCineSrcCustom, sendCineSrcCommand]);
 
   const skipBackward = useCallback(() => {
-    if (useCustomControls) {
+    if (isCineSrcCustom) {
+      const nextTime = Math.max(0, playerCurrentTime - 10);
+      sendCineSrcCommand('seek', [nextTime]);
+      setPlayerCurrentTime(nextTime);
+    } else if (useCustomControls) {
       const video = videoRef.current;
       if (video) {
         video.currentTime = Math.max(0, video.currentTime - 10);
@@ -976,7 +1038,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
       sendPlayerCommand('seek', { time: Math.max(0, playerCurrentTime - 10) });
     }
     showOverlayFeedback('< 10s', 'rewind');
-  }, [playerCurrentTime, sendPlayerCommand, useCustomControls]);
+  }, [playerCurrentTime, sendPlayerCommand, useCustomControls, isCineSrcCustom, sendCineSrcCommand]);
 
   const toggleFullscreen = useCallback(() => {
     if (!containerRef.current) return;
@@ -1054,6 +1116,15 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
       const win = iframeRef.current.contentWindow;
       const cmd = state === 'pause' ? 'pause' : 'play';
       
+      if (selectedProviderId === 'cinesrc') {
+        win.postMessage({
+          type: 'cinesrc:command',
+          command: cmd,
+          args: []
+        }, 'https://cinesrc.st');
+        return;
+      }
+      
       // Send multiple formats of play/pause commands to ensure wide compatibility
       win.postMessage(JSON.stringify({ type: cmd }), '*');
       win.postMessage({ type: cmd }, '*');
@@ -1079,8 +1150,10 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     if (useCustomControls) {
       setIsPlaying(true);
       setShowControls(true);
-      setTimeout(() => sendPlayerCommand('getStatus'), 500);
-      setTimeout(() => sendPlayerCommand('getStatus'), 1500);
+      if (selectedProviderId !== 'cinesrc') {
+        setTimeout(() => sendPlayerCommand('getStatus'), 500);
+        setTimeout(() => sendPlayerCommand('getStatus'), 1500);
+      }
     }
   };
 
@@ -1202,6 +1275,9 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
           : provider.getMovieUrl(tmdbId, activeColor, startProgress, isAnime, anilistId, animeLanguage, audioLanguage, subtitleLanguage);
       }
 
+      if (selectedProviderId === 'cinesrc') {
+        setIsBuffering(true);
+      }
       setEmbedUrl(newUrl);
     }
   }, [tmdbId, mediaType, isAnime, currentSeason, currentEpisode, activeColor, selectedProviderId, forceProgress, isWatchParty, anilistId, animeLanguage, audioLanguage, subtitleLanguage, fallbackToNativeVideasy]);
@@ -1221,6 +1297,99 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
             }
 
             if (parsed) {
+                // Handle CineSrc postMessage events
+                if (event.origin === 'https://cinesrc.st') {
+                    const { type, ...data } = parsed;
+                    switch (type) {
+                        case 'cinesrc:ready':
+                            sendCineSrcCommand('setVolume', [playerVolume]);
+                            sendCineSrcCommand('setMuted', [playerMuted]);
+                            sendCineSrcCommand('setPlaybackRate', [playbackSpeed]);
+                            setIsBuffering(false);
+                            break;
+                        case 'cinesrc:play':
+                            setIsPlaying(true);
+                            setIsBuffering(false);
+                            break;
+                        case 'cinesrc:pause':
+                            setIsPlaying(false);
+                            break;
+                        case 'cinesrc:timeupdate':
+                            if (!isSeekingRef.current) {
+                                const time = Number(data.currentTime);
+                                const dur = Number(data.duration);
+                                if (!isNaN(time)) {
+                                    setPlayerCurrentTime(time);
+                                    currentProgressRef.current = time;
+                                }
+                                if (!isNaN(dur) && dur > 0) {
+                                    setPlayerDuration(dur);
+                                }
+                            }
+                            if (onProgress && data.currentTime !== undefined) {
+                                const timeNum = Number(data.currentTime);
+                                const durationNum = data.duration !== undefined ? Number(data.duration) : 0;
+                                onProgress({
+                                    currentTime: timeNum,
+                                    duration: durationNum,
+                                    event: 'time',
+                                    season: currentSeason,
+                                    episode: currentEpisode
+                                });
+                            }
+                            break;
+                        case 'cinesrc:seeking':
+                            setIsBuffering(true);
+                            break;
+                        case 'cinesrc:seeked':
+                            setIsBuffering(false);
+                            break;
+                        case 'cinesrc:ended':
+                            setIsPlaying(false);
+                            if (onProgress) {
+                                onProgress({
+                                    currentTime: playerDuration,
+                                    duration: playerDuration,
+                                    event: 'complete',
+                                    season: currentSeason,
+                                    episode: currentEpisode
+                                });
+                            }
+                            if (isAutoplayEnabled && hasNextEpisode) {
+                                playNextEpisode();
+                            }
+                            break;
+                        case 'cinesrc:volumechange':
+                            if (data.volume !== undefined) setPlayerVolume(Number(data.volume));
+                            if (data.muted !== undefined) setPlayerMuted(data.muted);
+                            break;
+                        case 'cinesrc:ratechange':
+                            if (data.playbackRate !== undefined) setPlaybackSpeed(Number(data.playbackRate));
+                            break;
+                        case 'cinesrc:loadedmetadata':
+                            if (data.duration !== undefined && Number(data.duration) > 0) {
+                                setPlayerDuration(Number(data.duration));
+                            }
+                            break;
+                        case 'cinesrc:nextepisode':
+                            if (data.season && data.episode) {
+                                setCurrentSeason(Number(data.season));
+                                setCurrentEpisode(Number(data.episode));
+                                if (onEpisodeChange) {
+                                    onEpisodeChange(Number(data.season), Number(data.episode));
+                                }
+                            }
+                            break;
+                        case 'cinesrc:close':
+                            onClose();
+                            break;
+                        case 'cinesrc:error':
+                            console.error("CineSrc error:", data.error);
+                            break;
+                    }
+                    return;
+                }
+
                 // Handle Peachify, VidCore & VidLink PLAYER_EVENTs / MEDIA_DATAs
                 if (event.origin === 'https://peachify.pro' || event.origin === 'https://vidcore.net' || event.origin === 'https://vidlink.pro' || parsed.type === 'PLAYER_EVENT' || parsed.type === 'MEDIA_DATA') {
                     const type = parsed.type;
