@@ -103,6 +103,19 @@ export const PROVIDERS: Provider[] = [
     supportsPostMessage: true
   },
   {
+    id: 'anikai',
+    name: 'Anikai',
+    getMovieUrl: (tmdbId, color, progress, isAnime, anilistId, animeLanguage, language) => {
+      const subdub = animeLanguage === 'dub' || (language && language !== 'Japanese') ? 'dub' : 'sub';
+      return `/api/anikai?tmdbId=${tmdbId}&mediaType=movie&anilistId=${anilistId || ''}&lang=${subdub}${progress && progress > 0 ? `&progress=${Math.floor(progress)}` : ''}`;
+    },
+    getTvUrl: (tmdbId, season, episode, color, progress, isAnime, anilistId, animeLanguage, language) => {
+      const subdub = animeLanguage === 'dub' || (language && language !== 'Japanese') ? 'dub' : 'sub';
+      return `/api/anikai?tmdbId=${tmdbId}&mediaType=tv&season=${season}&episode=${episode}&anilistId=${anilistId || ''}&lang=${subdub}${progress && progress > 0 ? `&progress=${Math.floor(progress)}` : ''}`;
+    },
+    supportsPostMessage: false
+  },
+  {
     id: 'cinesrc',
     name: 'CineSrc',
     getMovieUrl: (tmdbId, color, progress) => {
@@ -217,7 +230,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   const [selectedProviderId, setSelectedProviderId] = useState(() => {
     if (typeof window !== 'undefined') {
       let preferred = localStorage.getItem('movieverse_preferred_provider') || (isAnime ? 'vidnest' : 'peachify');
-      if (!isAnime && preferred === 'vidnest_animepahe') {
+      if (!isAnime && (preferred === 'vidnest_animepahe' || preferred === 'anikai')) {
         preferred = 'videasy_adfree';
       }
       if (preferred === 'encdec_animekai') {
@@ -2390,7 +2403,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                         <div>
                           <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block mb-2 px-1">Select Source Provider</span>
                           <div className="space-y-1">
-                            {PROVIDERS.filter(p => (!isWatchParty || p.supportsPostMessage) && (isAnime || p.id !== 'vidnest_animepahe')).map((prov) => {
+                             {PROVIDERS.filter(p => (!isWatchParty || p.supportsPostMessage) && (isAnime || (p.id !== 'vidnest_animepahe' && p.id !== 'anikai'))).map((prov) => {
                               const isActive = selectedProviderId === prov.id;
                               return (
                                 <button
@@ -2623,7 +2636,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
             {activeTab === 'sources' && (
               <div className="space-y-2">
                 <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block mb-2 px-1">Select Source Provider</span>
-                {PROVIDERS.filter(p => (!isWatchParty || p.supportsPostMessage) && (isAnime || p.id !== 'vidnest_animepahe')).map((prov) => {
+                {PROVIDERS.filter(p => (!isWatchParty || p.supportsPostMessage) && (isAnime || (p.id !== 'vidnest_animepahe' && p.id !== 'anikai'))).map((prov) => {
                   const isActive = selectedProviderId === prov.id;
                   return (
                     <button
