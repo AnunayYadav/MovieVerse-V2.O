@@ -1024,10 +1024,28 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   const resetControlsTimeout = useCallback(() => {
     setShowControls(true);
     if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
+    if (isDrawerOpen || isEpisodesOverlayOpen) return;
     controlsTimeoutRef.current = setTimeout(() => {
       if (isPlayingRef.current) setShowControls(false);
     }, 3000);
-  }, []);
+  }, [isDrawerOpen, isEpisodesOverlayOpen]);
+
+  // Keep controls open when overlay or drawer is active
+  useEffect(() => {
+    if (isDrawerOpen || isEpisodesOverlayOpen) {
+      resetControlsTimeout();
+    }
+  }, [isDrawerOpen, isEpisodesOverlayOpen, resetControlsTimeout]);
+
+  // Close playback speed menu on clicking outside
+  useEffect(() => {
+    if (!isSpeedMenuOpen) return;
+    const handleCloseMenus = () => {
+      setIsSpeedMenuOpen(false);
+    };
+    window.addEventListener('click', handleCloseMenus);
+    return () => window.removeEventListener('click', handleCloseMenus);
+  }, [isSpeedMenuOpen]);
 
   const handleProgressBarMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -1478,6 +1496,8 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   return (
     <div 
       ref={containerRef}
+      onMouseMove={resetControlsTimeout}
+      onTouchStart={resetControlsTimeout}
       className="w-full h-full flex flex-col bg-black relative group/player select-none overflow-hidden"
     >
       <div className="flex-1 relative w-full h-full z-0 overflow-hidden bg-black">
@@ -1545,7 +1565,9 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
         {/* Custom Controls Overlay for PostMessage providers */}
         {useCustomControls && (
           <div
-            className="absolute inset-0 z-10 flex flex-col justify-end select-none"
+            className={`absolute inset-0 flex flex-col justify-end select-none transition-all duration-300 ${
+              isEpisodesOverlayOpen ? 'pointer-events-none' : ''
+            }`}
             onMouseMove={resetControlsTimeout}
             onTouchStart={resetControlsTimeout}
             onMouseLeave={() => { if (isPlayingRef.current) setShowControls(false); }}
@@ -1554,7 +1576,10 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
               togglePlayback();
               resetControlsTimeout();
             }}
-            style={{ cursor: showControls ? 'default' : 'none' }}
+            style={{ 
+              cursor: showControls ? 'default' : 'none',
+              zIndex: isEpisodesOverlayOpen ? 55 : 10
+            }}
           >
             {/* Center play button when paused */}
             {!isPlaying && playerDuration > 0 && !isBuffering && (
@@ -1578,7 +1603,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
             {/* Bottom gradient + controls */}
             <div
               data-controls
-              className={`relative z-20 transition-all duration-300 ease-out ${
+              className={`relative z-20 pointer-events-auto transition-all duration-300 ease-out ${
                 showControls ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 pointer-events-none'
               }`}
               onClick={(e) => e.stopPropagation()}
@@ -1657,9 +1682,10 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
 
                     <button 
                       onClick={() => {
-                        setIsEpisodesOverlayOpen(true);
+                        setIsEpisodesOverlayOpen(!isEpisodesOverlayOpen);
+                        if (isDrawerOpen) setIsDrawerOpen(false);
                       }} 
-                      className="p-2 text-white/95 hover:text-white transition-transform active:scale-90" 
+                      className={`p-2 transition-transform active:scale-90 ${isEpisodesOverlayOpen ? 'text-red-500 hover:text-red-600' : 'text-white/95 hover:text-white'}`}
                       title="Episodes List"
                     >
                       <ListVideo size={24} />
@@ -1667,33 +1693,74 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
 
                     <button 
                       onClick={() => {
-                        setActiveTab('subtitles');
-                        setIsDrawerOpen(true);
+                        if (isEpisodesOverlayOpen) setIsEpisodesOverlayOpen(false);
+                        if (isDrawerOpen && activeTab === 'subtitles') {
+                          setIsDrawerOpen(false);
+                        } else {
+                          setActiveTab('subtitles');
+                          setIsDrawerOpen(true);
+                        }
                       }} 
-                      className="p-2 text-white/95 hover:text-white transition-transform active:scale-90" 
+                      className={`p-2 transition-transform active:scale-90 ${isDrawerOpen && activeTab === 'subtitles' ? 'text-red-500 hover:text-red-600' : 'text-white/95 hover:text-white'}`}
                       title="Subtitles & Audio"
                     >
                       <MessageSquare size={24} />
                     </button>
 
-                    <button
-                      onClick={() => {
-                        const speeds = [0.5, 1.0, 1.25, 1.5, 2.0];
-                        const nextIndex = (speeds.indexOf(playbackSpeed) + 1) % speeds.length;
-                        changePlaybackSpeed(speeds[nextIndex]);
-                      }}
-                      className="px-2.5 py-1 text-[11px] font-light text-white/80 hover:text-white border border-white/10 hover:border-white/20 bg-white/5 hover:bg-white/10 rounded-md transition-all whitespace-nowrap active:scale-95 self-center"
-                      title="Playback Speed"
-                    >
-                      {playbackSpeed === 1.0 ? '1.0x' : `${playbackSpeed}x`}
-                    </button>
+                    <div className="relative flex items-center justify-center">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setIsSpeedMenuOpen(!isSpeedMenuOpen);
+                        }}
+                        className={`px-2.5 py-1 text-[11px] font-light border rounded-md transition-all whitespace-nowrap active:scale-95 self-center ${
+                          isSpeedMenuOpen 
+                            ? 'text-red-500 border-red-500/30 bg-red-600/10' 
+                            : 'text-white/80 hover:text-white border-white/10 hover:border-white/20 bg-white/5 hover:bg-white/10'
+                        }`}
+                        title="Playback Speed"
+                      >
+                        {playbackSpeed === 1.0 ? '1.0x' : `${playbackSpeed}x`}
+                      </button>
+
+                      {isSpeedMenuOpen && (
+                        <div 
+                          data-controls
+                          className="absolute bottom-12 left-1/2 -translate-x-1/2 bg-[#0c0c0e]/95 border border-white/10 rounded-xl p-1 shadow-2xl z-50 flex flex-col gap-0.5 min-w-[70px] animate-in fade-in slide-in-from-bottom-2 duration-150"
+                        >
+                          {[0.5, 1.0, 1.25, 1.5, 2.0].map((speed) => {
+                            const isActive = playbackSpeed === speed;
+                            return (
+                              <button
+                                key={speed}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  changePlaybackSpeed(speed);
+                                  setIsSpeedMenuOpen(false);
+                                }}
+                                className={`w-full text-center py-1.5 px-3 rounded-lg text-[10px] font-semibold transition-colors ${
+                                  isActive ? 'bg-red-600 text-white' : 'text-zinc-400 hover:bg-white/5 hover:text-white'
+                                }`}
+                              >
+                                {speed === 1.0 ? '1.0x' : `${speed}x`}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
 
                     <button 
                       onClick={() => {
-                        setActiveTab('sources');
-                        setIsDrawerOpen(true);
+                        if (isEpisodesOverlayOpen) setIsEpisodesOverlayOpen(false);
+                        if (isDrawerOpen && activeTab === 'sources') {
+                          setIsDrawerOpen(false);
+                        } else {
+                          setActiveTab('sources');
+                          setIsDrawerOpen(true);
+                        }
                       }} 
-                      className="p-2 text-white/95 hover:text-white transition-transform active:scale-90" 
+                      className={`p-2 transition-transform active:scale-90 ${isDrawerOpen && activeTab === 'sources' ? 'text-red-500 hover:text-red-600' : 'text-white/95 hover:text-white'}`}
                       title="Providers & Quality"
                     >
                       <Sliders size={24} />
@@ -1776,8 +1843,14 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
 
         {/* Netflix-style Episodes Selector Overlay */}
         {isEpisodesOverlayOpen && (
-          <div className="absolute inset-0 bg-black/95 backdrop-blur-md z-50 flex flex-col items-center p-8 sm:p-12 md:p-16 select-none overflow-hidden animate-in fade-in duration-300">
-            <div className="w-full max-w-4xl h-full flex flex-col">
+          <div 
+            onClick={() => setIsEpisodesOverlayOpen(false)}
+            className="absolute inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 sm:p-6 select-none overflow-hidden animate-in fade-in duration-200"
+          >
+            <div 
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-2xl max-h-[70vh] bg-[#0c0c0e]/98 border border-white/10 rounded-2xl flex flex-col p-5 shadow-2xl animate-in zoom-in-95 duration-200"
+            >
               {/* Header Bar */}
               <div className="flex items-center justify-between w-full border-b border-white/10 pb-4">
               <div className="flex items-center gap-4">
@@ -1850,13 +1923,6 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                     <div className={`w-4.5 h-4.5 rounded-full bg-white shadow-md transition-transform duration-200 ${isAutoplayEnabled ? 'translate-x-4.5' : 'translate-x-0'}`} />
                   </button>
                 </div>
-
-                <button 
-                  onClick={() => setIsEpisodesOverlayOpen(false)}
-                  className="p-2 hover:bg-zinc-800 rounded-full transition-colors text-zinc-400 hover:text-white cursor-pointer"
-                >
-                  <X size={20} />
-                </button>
               </div>
             </div>
 
@@ -1963,12 +2029,6 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
           {/* Header */}
           <div className="p-5 pb-3 border-b border-white/5 flex items-center justify-between">
             <h3 className="font-black text-white text-xs tracking-wider uppercase">Player Panel</h3>
-            <button 
-              onClick={() => setIsDrawerOpen(false)}
-              className="text-zinc-500 hover:text-white p-1 rounded-lg transition-colors"
-            >
-              <X size={16} />
-            </button>
           </div>
 
           {/* Navigation Tabs */}
