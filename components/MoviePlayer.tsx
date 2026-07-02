@@ -116,6 +116,26 @@ export const PROVIDERS: Provider[] = [
     supportsPostMessage: false
   },
   {
+    id: 'anikoto',
+    name: 'Anikoto',
+    getMovieUrl: (tmdbId, color, progress, isAnime, anilistId, animeLanguage, language) => {
+      const subdub = animeLanguage === 'dub' || (language && language !== 'Japanese') ? 'dub' : 'sub';
+      return `/api/anikoto?tmdbId=${tmdbId}&mediaType=movie&anilistId=${anilistId || ''}&lang=${subdub}${progress && progress > 0 ? `&progress=${Math.floor(progress)}` : ''}`;
+    },
+    getTvUrl: (tmdbId, season, episode, color, progress, isAnime, anilistId, animeLanguage, language) => {
+      const subdub = animeLanguage === 'dub' || (language && language !== 'Japanese') ? 'dub' : 'sub';
+      return `/api/anikoto?tmdbId=${tmdbId}&mediaType=tv&season=${season}&episode=${episode}&anilistId=${anilistId || ''}&lang=${subdub}${progress && progress > 0 ? `&progress=${Math.floor(progress)}` : ''}`;
+    },
+    supportsPostMessage: false
+  },
+  {
+    id: 'miruro',
+    name: 'Miruro (HLS Ad-Free)',
+    getMovieUrl: () => '',
+    getTvUrl: () => '',
+    supportsPostMessage: true
+  },
+  {
     id: 'cinesrc',
     name: 'CineSrc',
     getMovieUrl: (tmdbId, color, progress) => {
@@ -230,7 +250,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   const [selectedProviderId, setSelectedProviderId] = useState(() => {
     if (typeof window !== 'undefined') {
       let preferred = localStorage.getItem('movieverse_preferred_provider') || (isAnime ? 'vidnest' : 'peachify');
-      if (!isAnime && (preferred === 'vidnest_animepahe' || preferred === 'anikai')) {
+      if (!isAnime && (preferred === 'vidnest_animepahe' || preferred === 'anikai' || preferred === 'anikoto' || preferred === 'miruro')) {
         preferred = 'videasy_adfree';
       }
       if (preferred === 'encdec_animekai') {
@@ -308,7 +328,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   const isCineSrcCustom = selectedProviderId === 'cinesrc';
   const isVidFastCustom = selectedProviderId === 'vidfast';
   const isIframeCustomControls = isCineSrcCustom || isVidFastCustom;
-  const useCustomControls = (selectedProviderId === 'videasy_adfree' || selectedProviderId.startsWith('encdec') || isIframeCustomControls) && !(selectedProviderId === 'videasy_adfree' && fallbackToNativeVideasy);
+  const useCustomControls = (selectedProviderId === 'videasy_adfree' || selectedProviderId.startsWith('encdec') || selectedProviderId === 'miruro' || isIframeCustomControls) && !(selectedProviderId === 'videasy_adfree' && fallbackToNativeVideasy);
   const isPlayingRef = useRef(false);
   const isSeekingRef = useRef(false);
   const playerDurationRef = useRef(0);
@@ -573,12 +593,14 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   const handleQualityChange = (qualityName: string) => {
     const matched = customQualities.find(s => s.quality === qualityName);
     const getProxiedUrl = (url: string) => {
-      if ((selectedProviderId === 'videasy_adfree' || selectedProviderId.startsWith('encdec')) && url && url.startsWith('http')) {
+      if ((selectedProviderId === 'videasy_adfree' || selectedProviderId.startsWith('encdec') || selectedProviderId === 'miruro') && url && url.startsWith('http')) {
         let ref = '';
         if (selectedProviderId === 'videasy_adfree') {
           ref = 'https://player.videasy.to/';
         } else if (selectedProviderId === 'encdec_hexa') {
           ref = 'https://hexa.su/';
+        } else if (selectedProviderId === 'miruro') {
+          ref = 'https://www.miruro.tv/';
         }
         const refererParam = ref ? `&referer=${encodeURIComponent(ref)}` : '';
         return `/api/m3u8-proxy?url=${encodeURIComponent(url)}${refererParam}`;
@@ -647,13 +669,13 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     setFallbackToNativeVideasy(false);
   }, [selectedProviderId, tmdbId, currentSeason, currentEpisode]);
 
-  // Fetch streaming sources for videasy_adfree and encdec
+  // Fetch streaming sources for videasy_adfree, encdec, and miruro
   useEffect(() => {
-    if (selectedProviderId !== 'videasy_adfree' && !selectedProviderId.startsWith('encdec')) return;
+    if (selectedProviderId !== 'videasy_adfree' && !selectedProviderId.startsWith('encdec') && selectedProviderId !== 'miruro') return;
 
     let isMounted = true;
     const fetchDecryptedStream = async () => {
-      const fetchKey = `${selectedProviderId}-${tmdbId}-${mediaType}-${currentSeason}-${currentEpisode}-${selectedEncDecServer}`;
+      const fetchKey = `${selectedProviderId}-${tmdbId}-${mediaType}-${currentSeason}-${currentEpisode}-${selectedEncDecServer}-${animeLanguage}`;
       if (lastFetchedKeyRef.current === fetchKey) return;
       lastFetchedKeyRef.current = fetchKey;
 
@@ -686,6 +708,10 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
           endpoint = '/api/encdec';
           const providerType = selectedProviderId.replace('encdec_', '');
           params.append('provider', providerType);
+        } else if (selectedProviderId === 'miruro') {
+          endpoint = '/api/miruro';
+          params.append('lang', animeLanguage);
+          params.append('episode', String(currentEpisode));
         }
 
         const res = await window.fetch(`${endpoint}?${params.toString()}`);
@@ -710,7 +736,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
               setEncDecServers(payload.availableServers);
             }
             if (payload.provider) {
-              const nextFetchKey = `${selectedProviderId}-${tmdbId}-${mediaType}-${currentSeason}-${currentEpisode}-${payload.provider}`;
+              const nextFetchKey = `${selectedProviderId}-${tmdbId}-${mediaType}-${currentSeason}-${currentEpisode}-${payload.provider}-${animeLanguage}`;
               lastFetchedKeyRef.current = nextFetchKey;
               setSelectedEncDecServer(payload.provider);
             }
@@ -726,24 +752,26 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
           // Select preferred quality or fallback to first
           const preferredQuality = localStorage.getItem('movieverse_preferred_quality') || '1080p';
           let matchedSource = sources.find((s: any) => s.quality && s.quality.toLowerCase() === preferredQuality.toLowerCase())
-                              || sources.find((s: any) => s.quality && s.quality.toLowerCase().includes('1080'))
+                              || sources.find((s: any) => (s.quality || s.label || '').toLowerCase().includes('1080'))
                               || sources[0];
 
-          setSelectedQuality(matchedSource.quality || 'Default');
+          setSelectedQuality(matchedSource.quality || matchedSource.label || 'Default');
           const getProxiedUrl = (url: string) => {
-            if ((selectedProviderId === 'videasy_adfree' || selectedProviderId.startsWith('encdec')) && url && url.startsWith('http')) {
+            if ((selectedProviderId === 'videasy_adfree' || selectedProviderId.startsWith('encdec') || selectedProviderId === 'miruro') && url && url.startsWith('http')) {
               let ref = '';
               if (selectedProviderId === 'videasy_adfree') {
                 ref = 'https://player.videasy.to/';
               } else if (selectedProviderId === 'encdec_hexa') {
                 ref = 'https://hexa.su/';
+              } else if (selectedProviderId === 'miruro') {
+                ref = 'https://www.miruro.tv/';
               }
               const refererParam = ref ? `&referer=${encodeURIComponent(ref)}` : '';
               return `/api/m3u8-proxy?url=${encodeURIComponent(url)}${refererParam}`;
             }
             return url;
           };
-          setAnivexaStreamUrl(getProxiedUrl(matchedSource.url));
+          setAnivexaStreamUrl(getProxiedUrl(matchedSource.url || matchedSource.file));
         } else {
           throw new Error(payload.error || "Decryption failed.");
         }
@@ -763,7 +791,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     return () => {
       isMounted = false;
     };
-  }, [selectedProviderId, tmdbId, mediaType, currentSeason, currentEpisode, title, selectedEncDecServer]);
+  }, [selectedProviderId, tmdbId, mediaType, currentSeason, currentEpisode, title, selectedEncDecServer, animeLanguage]);
 
   // Check next episode countdown logic
   const hasNextEpisode = mediaType === 'tv' && episodes.some(ep => ep.episode_number === currentEpisode + 1);
@@ -779,7 +807,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   }, [currentSeason, currentEpisode, onEpisodeChange]);
 
   useEffect(() => {
-    if (!isAutoplayEnabled || !hasNextEpisode || (selectedProviderId !== 'videasy_adfree' && !selectedProviderId.startsWith('encdec'))) return;
+    if (!isAutoplayEnabled || !hasNextEpisode || (selectedProviderId !== 'videasy_adfree' && !selectedProviderId.startsWith('encdec') && selectedProviderId !== 'miruro')) return;
     
     if (playerDuration > 0 && playerCurrentTime >= playerDuration - 20 && !showNextCountdown) {
       setShowNextCountdown(true);
@@ -1826,7 +1854,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
         }
       `}</style>
       <div className="flex-1 relative w-full h-full z-0 overflow-hidden bg-black">
-        {selectedProviderId === 'videasy_adfree' || selectedProviderId.startsWith('encdec') ? (
+        {selectedProviderId === 'videasy_adfree' || selectedProviderId.startsWith('encdec') || selectedProviderId === 'miruro' ? (
           <div className="w-full h-full absolute inset-0 bg-zinc-950 z-0 flex items-center justify-center">
             {anivexaLoading && !anivexaStreamUrl && (
               <div className="absolute inset-0 flex items-center justify-center bg-black z-30 animate-in fade-in duration-250">
@@ -2403,7 +2431,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                         <div>
                           <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block mb-2 px-1">Select Source Provider</span>
                           <div className="space-y-1">
-                             {PROVIDERS.filter(p => (!isWatchParty || p.supportsPostMessage) && (isAnime || (p.id !== 'vidnest_animepahe' && p.id !== 'anikai'))).map((prov) => {
+                             {PROVIDERS.filter(p => (!isWatchParty || p.supportsPostMessage) && (isAnime || (p.id !== 'vidnest_animepahe' && p.id !== 'anikai' && p.id !== 'anikoto' && p.id !== 'miruro'))).map((prov) => {
                               const isActive = selectedProviderId === prov.id;
                               return (
                                 <button
@@ -2636,7 +2664,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
             {activeTab === 'sources' && (
               <div className="space-y-2">
                 <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block mb-2 px-1">Select Source Provider</span>
-                {PROVIDERS.filter(p => (!isWatchParty || p.supportsPostMessage) && (isAnime || (p.id !== 'vidnest_animepahe' && p.id !== 'anikai'))).map((prov) => {
+                {PROVIDERS.filter(p => (!isWatchParty || p.supportsPostMessage) && (isAnime || (p.id !== 'vidnest_animepahe' && p.id !== 'anikai' && p.id !== 'anikoto' && p.id !== 'miruro'))).map((prov) => {
                   const isActive = selectedProviderId === prov.id;
                   return (
                     <button
