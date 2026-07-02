@@ -52,11 +52,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
+    let referer = "https://www.vidking.net/";
+    let origin = "https://www.vidking.net";
+
+    if (targetUrl.includes('videasy') || targetUrl.includes('easy') || targetUrl.includes('player.videasy')) {
+      referer = "https://player.videasy.to/";
+      origin = "https://player.videasy.to";
+    }
+
     // Standard headers that mimic the player origin to bypass Cloudflare
     const headers = {
       "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36",
-      "Referer": "https://www.vidking.net/",
-      "Origin": "https://www.vidking.net"
+      "Referer": referer,
+      "Origin": origin
     };
 
     const response = await fetch(targetUrl, { headers });

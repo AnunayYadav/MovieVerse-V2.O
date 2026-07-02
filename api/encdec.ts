@@ -73,8 +73,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
   }
 
+  const cleanTitle = title ? (typeof title === 'string' ? title : Array.isArray(title) ? title[0] : '') : '';
+
   const queryParams: any = {
-    title: String(title),
+    title: encodeURIComponent(cleanTitle),
     mediaType: String(mediaType),
     year: year ? String(year) : '',
     episodeId: episodeNum,
@@ -93,9 +95,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     try {
       const fetchRes = await fetch(url, {
         headers: {
-          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36",
-          "Referer": "https://player.videasy.to/",
-          "Origin": "https://player.videasy.to"
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36",
+          "Referer": "https://www.vidking.net/",
+          "Origin": "https://www.vidking.net"
         }
       });
 
