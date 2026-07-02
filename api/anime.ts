@@ -461,28 +461,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
       });
     } catch (e: any) {
-      console.warn("Miruro failed, trying fallback to Anikoto/Anikai:", e.message);
-      try {
-        const fallbackUrl = await resolveAnikoto(cleanTitle, episode, lang);
-        return res.status(200).json({
-          success: true,
-          data: {
-            iframeUrl: fallbackUrl
-          }
-        });
-      } catch (e2: any) {
-        try {
-          const fallbackUrl = await resolveAnikai(cleanTitle, episode, lang);
-          return res.status(200).json({
-            success: true,
-            data: {
-              iframeUrl: fallbackUrl
-            }
-          });
-        } catch (e3: any) {
-          return res.status(500).json({ success: false, error: `Miruro and fallback scrapers failed: ${e3.message}` });
-        }
-      }
+      console.error("Miruro resolution error:", e);
+      return res.status(500).json({ success: false, error: `Miruro resolution failed: ${e.message}` });
     }
   }
 
