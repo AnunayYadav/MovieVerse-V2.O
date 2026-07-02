@@ -100,24 +100,64 @@ async function resolveAnikai(cleanTitle: string, episode: any, lang: any) {
     throw new Error(`No match found on Anikai.`);
   }
 
-  const detailRes = await fetch(`${ANIKAI_BASE}/watch/${bestMatch.id}`, { headers: { 'User-Agent': USER_AGENT } });
+  // Fetch watch details page of the best match for the specific episode to get direct video URLs
+  const watchUrl = `${ANIKAI_BASE}/watch/${bestMatch.id}/ep-${epNum}`;
+  const detailRes = await fetch(watchUrl, { headers: { 'User-Agent': USER_AGENT } });
   if (!detailRes.ok) {
-    throw new Error(`Failed to load watch page on Anikai: ${bestMatch.id}`);
+    throw new Error(`Failed to load watch page on Anikai: ${watchUrl}`);
   }
 
   const detailHtml = await detailRes.text();
   const $$ = cheerio.load(detailHtml);
-  const matchedAlId = $$('#watch-page').attr('data-al-id') || '';
-  const matchedMalId = $$('#watch-page').attr('data-mal-id') || '';
+  
+  const targetTab = subdub === 'dub' ? 'tab_2' : 'tab_1';
+  let matchedVideoUrl = '';
 
-  const idToUse = matchedAlId || matchedMalId;
-  const typeToUse = matchedAlId ? 'ani' : 'mal';
+  // 1. Try finding HD-1 or HD-2 on the target tab
+  $$('.server-video').each((_, el) => {
+    const tab = $$(el).attr('data-tab');
+    const video = $$(el).attr('data-video');
+    const text = $$(el).text().trim();
+    if (tab === targetTab && video && (text.includes('HD-1') || text.includes('HD-2'))) {
+      matchedVideoUrl = video;
+      return false; // Break
+    }
+  });
 
-  if (!idToUse) {
-    throw new Error("Could not extract AniList or MAL ID from Anikai.");
+  // 2. Try finding any server on the target tab
+  if (!matchedVideoUrl) {
+    $$('.server-video').each((_, el) => {
+      const tab = $$(el).attr('data-tab');
+      const video = $$(el).attr('data-video');
+      if (tab === targetTab && video) {
+        matchedVideoUrl = video;
+        return false;
+      }
+    });
   }
 
-  return `${EMBED_BASE}/stream/${typeToUse}/${idToUse}/${epNum}/${subdub}`;
+  // 3. Fallback to any tab with HD-1/HD-2
+  if (!matchedVideoUrl) {
+    $$('.server-video').each((_, el) => {
+      const video = $$(el).attr('data-video');
+      const text = $$(el).text().trim();
+      if (video && (text.includes('HD-1') || text.includes('HD-2'))) {
+        matchedVideoUrl = video;
+        return false;
+      }
+    });
+  }
+
+  // 4. Final fallback: first available server
+  if (!matchedVideoUrl) {
+    matchedVideoUrl = $$('.server-video').first().attr('data-video') || '';
+  }
+
+  if (!matchedVideoUrl) {
+    throw new Error("Could not extract video stream URL from Anikai.");
+  }
+
+  return matchedVideoUrl;
 }
 
 async function resolveAnikoto(cleanTitle: string, episode: any, lang: any) {

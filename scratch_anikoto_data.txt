@@ -1,0 +1,341 @@
+﻿Fetching Anikoto watch page...
+Elements with attributes starts with data-:
+<a>: [Object: null prototype] {
+  id: 'random-anime',
+  href: '/random',
+  class: 'main-menu',
+  'data-toggle': 'tooltip',
+  title: 'Watch a random anime'
+} Text: Random
+<a>: [Object: null prototype] {
+  href: '/watch2gether',
+  class: 'main-menu',
+  'data-toggle': 'tooltip',
+  title: 'Watch anime together',
+  style: 'font-size: 1.1rem; font-weight: 600'
+} Text: Watch2gether
+<div>: [Object: null prototype] {
+  class: 'settings-options switch',
+  'data-switch': 'title_lang',
+  'data-persist': 'true'
+} Text: EN JP
+<span>: [Object: null prototype] { 'data-value': 'en', class: 'active' } Text: EN
+<span>: [Object: null prototype] { 'data-value': 'jp' } Text: JP
+<div>: [Object: null prototype] {
+  id: 'watch-main',
+  class: 'layout-page-watchtv watch-wrap',
+  itemscope: '',
+  itemtype: 'https://schema.org/WebPage',
+  'data-id': '8691',
+  'data-url': 'https://anikototv.to/watch/that-time-i-got-reincarnated-as-a-slime-season-4-0u851',
+  'data-ep-name': '',
+  'data-ep-type': ''
+} Text: Add skip time        Intro begin    Intro end       Outro begin    Outro end       Contribute       
+<div>: [Object: null prototype] {
+  class: 'ctrl expand',
+  'data-default': '0',
+  'data-off': '<i class="fa-solid fa-expand"></i> Expand',
+  'data-on': '<i class="fa-solid fa-compress"></i> Collapse'
+} Text: 
+<div>: [Object: null prototype] {
+  class: 'ctrl check auto-play',
+  'data-name': 'auto_play',
+  'data-persist': 'true',
+  'data-default': '0',
+  'data-off': '<i class="fa-solid fa-square"></i> Auto Play',
+  'data-on': '<i class="fa-solid fa-check"></i> Auto Play'
+} Text: 
+<div>: [Object: null prototype] {
+  class: 'ctrl check auto-next',
+  'data-name': 'auto_next',
+  'data-persist': 'true',
+  'data-default': '1',
+  'data-off': '<i class="fa-solid fa-square"></i> Auto Next',
+  'data-on': '<i class="fa-solid fa-check"></i> Auto Next'
+} Text: 
+<div>: [Object: null prototype] {
+  class: 'ctrl check auto-skip text-warning',
+  'data-toggle': 'tooltip',
+  title: 'The skip time is contributed by the community so it may not available in all episodes and may be wrong sometimes. Please help us improve it if possible. Note: This feature currently only works with Vidstream and Mycloud server.',
+  'data-name': 'auto_skip_intro',
+  'data-persist': 'true',
+  'data-default': '0',
+  'data-off': '<i class="fa-solid fa-square"></i> Auto Skip',
+  'data-on': '<i class="fa-solid fa-check"></i> Auto Skip'
+} Text: 
+<div>: [Object: null prototype] {
+  class: 'ctrl skiptime dropdown',
+  'data-toggle': 'tooltip',
+  title: 'Please help us by contributing time to skip the intro, outro. HOW TO: Click to an input field, then seek the video to the correct position, the time will automatic filled to the field, then submit the form. HOW IT WORKS: The system will automatic skip the video from [BEGIN] to [END].',
+  style: 'display: none'
+} Text: Add skip time        Intro begin    Intro end       Outro begin    Outro end       Contribute
+<div>: [Object: null prototype] {
+  'data-toggle': 'dropdown',
+  'data-placeholder': 'false'
+} Text: Add skip time
+<div>: [Object: null prototype] { class: 'ctrl light', 'data-default': '1' } Text: Light
+<div>: [Object: null prototype] {
+  class: 'ctrl forward prev',
+  'data-toggle': 'tooltip',
+  'data-html': 'true',
+  title: '- Press B or click to skip backward an episode.<br/>- Press J to skip backward x seconds (change the x in your account settings).',
+  style: 'display: none'
+} Text: Prev
+<div>: [Object: null prototype] {
+  class: 'ctrl forward next',
+  'data-toggle': 'tooltip',
+  'data-html': 'true',
+  title: '- Press N or click to skip forward an episode.<br/>- Press L to skip forward x seconds (change the x in your account settings).',
+  style: 'display: none'
+} Text: Next
+<div>: [Object: null prototype] {
+  class: 'ctrl report',
+  'data-toggle': 'modal',
+  'data-target': '#w-report',
+  style: 'visibility: visible;'
+} Text: Report
+<div>: [Object: null prototype] {
+  class: 'ctrl dropdown favourite',
+  'data-id': '8691',
+  'data-fetch': 'true'
+} Text: 
+<div>: [Object: null prototype] {
+  'data-toggle': 'dropdown',
+  'data-placeholder': 'false',
+  'data-add': '<i class="fa-solid fa-bookmark"></i> Add to list',
+  'data-edit': '<i class="fa-solid fa-pen-to-square"></i> Edit watch list'
+} Text: 
+<div>: [Object: null prototype] {
+  class: 'ctrl watch2gether-create',
+  id: 'w2g-create',
+  'data-anime-id': '8691',
+  title: 'Watch Together'
+} Text: Watch Together
+<button>: [Object: null prototype] {
+  type: 'button',
+  class: 'close',
+  'data-dismiss': 'alert',
+  'aria-label': 'Close'
+} Text: ├ù
+<span>: [Object: null prototype] {
+  class: 'count-down',
+  'data-target': '1783087200',
+  'data-reached': "It's coming",
+  'data-format': 'human'
+} Text: 
+<h1>: [Object: null prototype] {
+  itemprop: 'name',
+  class: 'title d-title',
+  'data-jp': 'Tensei shitara Slime Datta Ken 4th Season'
+} Text: That Time I Got Reincarnated as a Slime Season 4
+<div>: [Object: null prototype] {
+  class: 'rating',
+  id: 'w-rating',
+  itemprop: 'aggregateRating',
+  itemscope: '',
+  itemtype: 'https://schema.org/AggregateRating',
+  'data-rated': 'You have rated: %s',
+  'data-id': '8691',
+  'data-score': '9.63'
+} Text: 9.63   9.63 /10   477542 reviews           What do you think about this anime?
+<div>: [Object: null prototype] { class: 'poster', 'data-tip': '7457' } Text: 
+<div>: [Object: null prototype] {
+  class: 'name d-title',
+  'data-jp': 'Ore dake Level Up na Ken Season 2: Arise from the Shadow'
+} Text: Solo Leveling Season 2: Arise from the Shadow
+<div>: [Object: null prototype] { class: 'poster', 'data-tip': '1642' } Text: 
+<div>: [Object: null prototype] {
+  class: 'name d-title',
+  'data-jp': 'One Piece'
+} Text: One Piece
+<div>: [Object: null prototype] { class: 'poster', 'data-tip': '7498' } Text: 
+<div>: [Object: null prototype] {
+  class: 'name d-title',
+  'data-jp': 'Sakamoto Days'
+} Text: Sakamoto Days
+<div>: [Object: null prototype] { class: 'poster', 'data-tip': '1498' } Text: 
+<div>: [Object: null prototype] {
+  class: 'name d-title',
+  'data-jp': 'Naruto: Shippuuden'
+} Text: Naruto: Shippuden
+<div>: [Object: null prototype] { class: 'poster', 'data-tip': '6224' } Text: 
+<div>: [Object: null prototype] {
+  class: 'name d-title',
+  'data-jp': 'Ore dake Level Up na Ken'
+} Text: Solo Leveling
+<div>: [Object: null prototype] { class: 'poster', 'data-tip': '1057' } Text: 
+<div>: [Object: null prototype] { class: 'name d-title', 'data-jp': 'Bleach' } Text: Bleach
+<div>: [Object: null prototype] { class: 'poster', 'data-tip': '6633' } Text: 
+<div>: [Object: null prototype] {
+  class: 'name d-title',
+  'data-jp': 'Blue Lock vs. U-20 Japan'
+} Text: Blue Lock Season 2
+<div>: [Object: null prototype] { class: 'poster', 'data-tip': '6631' } Text: 
+<div>: [Object: null prototype] {
+  class: 'name d-title',
+  'data-jp': 'Shangri-La Frontier: Kusoge Hunter, Kamige ni Idoman to su 2nd Season'
+} Text: Shangri-La Frontier Season 2
+<div>: [Object: null prototype] { class: 'poster', 'data-tip': '4' } Text: 
+<div>: [Object: null prototype] {
+  class: 'name d-title',
+  'data-jp': 'Dandadan'
+} Text: Dandadan
+<div>: [Object: null prototype] { class: 'poster', 'data-tip': '8737' } Text: 
+<div>: [Object: null prototype] {
+  class: 'name d-title',
+  'data-jp': 'Tsue to Tsurugi no Wistoria Season 2'
+} Text: Wistoria: Wand and Sword Season 2
+<div>: [Object: null prototype] {
+  class: 'sharethis-inline-share-buttons',
+  'data-url': 'https://anikototv.to/watch/that-time-i-got-reincarnated-as-a-slime-season-4-0u851'
+} Text: 
+<section>: [Object: null prototype] {
+  id: 'comments',
+  class: 'block_area block_area-comment',
+  'data-comment-min': '3',
+  'data-comment-max': '3000'
+} Text: Comments
+<div>: [Object: null prototype] {
+  id: 'cm-reactions',
+  class: 'cm-reactions',
+  'data-scope': 'anime',
+  'data-manga-id': '8691',
+  'aria-label': 'Reactions'
+} Text: 
+<div>: [Object: null prototype] { class: 'poster', 'data-tip': '367' } Text: 
+<div>: [Object: null prototype] {
+  class: 'name d-title',
+  'data-jp': 'InuYasha Movie 2: Kagami no Naka no Mugenjo'
+} Text: InuYasha the Movie 2: The Castle Beyond the Looking Glass
+<div>: [Object: null prototype] { class: 'poster', 'data-tip': '541' } Text: 
+<div>: [Object: null prototype] {
+  class: 'name d-title',
+  'data-jp': 'InuYasha Movie 4: Guren no Houraijima'
+} Text: InuYasha the Movie 4: Fire on the Mystic Island
+<div>: [Object: null prototype] { class: 'poster', 'data-tip': '675' } Text: 
+<div>: [Object: null prototype] {
+  class: 'name d-title',
+  'data-jp': 'InuYasha Movie 1: Toki wo Koeru Omoi'
+} Text: InuYasha the Movie: Affections Touching Across Time
+<div>: [Object: null prototype] { class: 'poster', 'data-tip': '972' } Text: 
+<div>: [Object: null prototype] {
+  class: 'name d-title',
+  'data-jp': 'InuYasha'
+} Text: InuYasha
+<div>: [Object: null prototype] { class: 'poster', 'data-tip': '1047' } Text: 
+<div>: [Object: null prototype] {
+  class: 'name d-title',
+  'data-jp': 'InuYasha Movie 3: Tenka Hadou no Ken'
+} Text: InuYasha the Movie 3: Swords of an Honorable Ruler
+<div>: [Object: null prototype] { class: 'poster', 'data-tip': '6052' } Text: 
+<div>: [Object: null prototype] {
+  class: 'name d-title',
+  'data-jp': 'Tensei shitara Slime Datta Ken 3rd Season'
+} Text: That Time I Got Reincarnated as a Slime Season 3
+<div>: [Object: null prototype] { class: 'poster', 'data-tip': '1161' } Text: 
+<div>: [Object: null prototype] {
+  class: 'name d-title',
+  'data-jp': 'Tensei shitara Slime Datta Ken'
+} Text: That Time I Got Reincarnated as a Slime
+<div>: [Object: null prototype] { class: 'poster', 'data-tip': '1311' } Text: 
+<div>: [Object: null prototype] {
+  class: 'name d-title',
+  'data-jp': 'InuYasha: Kanketsu-hen'
+} Text: InuYasha: The Final Act
+<div>: [Object: null prototype] { class: 'poster', 'data-tip': '7508' } Text: 
+<div>: [Object: null prototype] {
+  class: 'name d-title',
+  'data-jp': 'Sentai Red Isekai de Boukensha ni Naru'
+} Text: The Red Ranger Becomes an Adventurer in Another World
+<div>: [Object: null prototype] { class: 'poster', 'data-tip': '69' } Text: 
+<div>: [Object: null prototype] {
+  class: 'name d-title',
+  'data-jp': 'Fullmetal Alchemist: Brotherhood'
+} Text: Fullmetal Alchemist: Brotherhood
+<div>: [Object: null prototype] { class: 'poster', 'data-tip': '467' } Text: 
+<div>: [Object: null prototype] {
+  class: 'name d-title',
+  'data-jp': 'Dragon Ball Kai (2014)'
+} Text: Dragon Ball Z Kai: The Final Chapters
+<div>: [Object: null prototype] { class: 'poster', 'data-tip': '90' } Text: 
+<div>: [Object: null prototype] {
+  class: 'name d-title',
+  'data-jp': 'Tensei shitara Slime Datta Ken OVA'
+} Text: That Time I Got Reincarnated as a Slime OAD
+<button>: [Object: null prototype] {
+  type: 'button',
+  class: 'close',
+  'data-dismiss': 'modal',
+  'aria-label': 'Close'
+} Text: ├ù
+<button>: [Object: null prototype] {
+  type: 'button',
+  class: 'btn btn-secondary',
+  'data-dismiss': 'modal'
+} Text: Close
+<button>: [Object: null prototype] {
+  type: 'button',
+  class: 'close',
+  'data-dismiss': 'modal',
+  'aria-label': 'Close'
+} Text: ├ù
+<div>: [Object: null prototype] {
+  'data-content': 'login',
+  class: 'modal-content login'
+} Text: Login ├ù   Welcome back!             Remember me    Forgot password      Login      Google     Don't 
+<button>: [Object: null prototype] {
+  type: 'button',
+  class: 'close',
+  'data-dismiss': 'modal'
+} Text: ├ù
+<form>: [Object: null prototype] {
+  method: 'post',
+  'accept-charset': 'utf-8',
+  class: 'ajax-login',
+  id: 'ajax-login',
+  'data-broadcast': 'user:updated',
+  action: '/auth/ajax/login'
+} Text: Remember me    Forgot password      Login
+<a>: [Object: null prototype] {
+  href: '#',
+  class: 'btn clear',
+  'data-content-switch': 'forgot'
+} Text: Forgot password
+<a>: [Object: null prototype] {
+  href: '#',
+  'data-content-switch': 'register'
+} Text: Register
+<div>: [Object: null prototype] {
+  'data-content': 'register',
+  class: 'modal-content register',
+  style: 'display: none'
+} Text: Register ├ù   Create an account to use full range of functions..                      Register     Al
+<button>: [Object: null prototype] {
+  type: 'button',
+  class: 'close',
+  'data-dismiss': 'modal'
+} Text: ├ù
+<form>: [Object: null prototype] {
+  method: 'post',
+  'accept-charset': 'utf-8',
+  id: 'register-form',
+  class: 'ajax-register',
+  'data-broadcast': 'user:updated',
+  action: '/auth/ajax/register'
+} Text: Register
+<a>: [Object: null prototype] { href: '#', 'data-content-switch': 'login' } Text: Sign in
+<div>: [Object: null prototype] {
+  'data-content': 'forgot',
+  class: 'modal-content forgot',
+  style: 'display: none;'
+} Text: Forgot password ├ù   We will send an email to your box, just follow that link to set your new passwor
+<button>: [Object: null prototype] {
+  type: 'button',
+  class: 'close',
+  'data-dismiss': 'modal'
+} Text: ├ù
+<a>: [Object: null prototype] {
+  href: '#',
+  class: 'btn clear',
+  'data-content-switch': 'login'
+} Text: Back to sign in

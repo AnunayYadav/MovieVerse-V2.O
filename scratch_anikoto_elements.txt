@@ -1,0 +1,91 @@
+﻿Fetching Anikoto watch page...
+Analyzing Anikoto watch page classes...
+<i> Class: "fa-solid fa-backward-step" ID: "" Attributes: [Object: null prototype] { class: 'fa-solid fa-backward-step' } 
+<i> Class: "fa-solid fa-forward-step" ID: "" Attributes: [Object: null prototype] { class: 'fa-solid fa-forward-step' } 
+<div> Class: "ctrl report" ID: "" Attributes: [Object: null prototype] {
+  class: 'ctrl report',
+  'data-toggle': 'modal',
+  'data-target': '#w-report',
+  style: 'visibility: visible;'
+} Text: Report
+<div> Class: "" ID: "w-servers" Attributes: [Object: null prototype] { id: 'w-servers' } 
+<div> Class: "alert next-episode" ID: "" Attributes: [Object: null prototype] { class: 'alert next-episode' } Text: ├ù The next episode is predicted to arrive on 2026/
+<div> Class: "" ID: "w-episodes" Attributes: [Object: null prototype] { id: 'w-episodes' } 
+<div> Class: "modal fade" ID: "w-report" Attributes: [Object: null prototype] {
+  class: 'modal fade',
+  id: 'w-report',
+  tabindex: '-1',
+  role: 'dialog',
+  'aria-modal': 'true',
+  'aria-hidden': 'true'
+} Text: Report an issue ├ù                 That Time I Got 
+<form> Class: "" ID: "w-report-form" Attributes: [Object: null prototype] {
+  id: 'w-report-form',
+  action: '/ajax/episode/report',
+  method: 'POST'
+} Text: That Time I Got Reincarnated as a Slime Season 4 E
+<input> Class: "" ID: "report-episode-id" Attributes: [Object: null prototype] {
+  type: 'hidden',
+  id: 'report-episode-id',
+  value: '',
+  tabindex: '-1',
+  'aria-hidden': 'true'
+} 
+<input> Class: "" ID: "report-server-id" Attributes: [Object: null prototype] {
+  type: 'hidden',
+  id: 'report-server-id',
+  value: '',
+  tabindex: '-1',
+  'aria-hidden': 'true'
+} 
+<input> Class: "" ID: "w-report-ep-num" Attributes: [Object: null prototype] {
+  type: 'hidden',
+  name: 'episode_id',
+  id: 'w-report-ep-num',
+  value: ''
+} 
+<input> Class: "" ID: "w-report-server-label" Attributes: [Object: null prototype] {
+  type: 'hidden',
+  name: 'server_name',
+  id: 'w-report-server-label',
+  value: ''
+} 
+<div> Class: "episode" ID: "" Attributes: [Object: null prototype] { class: 'episode' } Text: Episode
+<span> Class: "" ID: "report-episode" Attributes: [Object: null prototype] { id: 'report-episode' } 
+<input> Class: "custom-control-input" ID: "rep-video-broken" Attributes: [Object: null prototype] {
+  type: 'checkbox',
+  name: 'issue[]',
+  value: 'video_broken',
+  class: 'custom-control-input',
+  id: 'rep-video-broken'
+} 
+<input> Class: "custom-control-input" ID: "rep-audio-sync" Attributes: [Object: null prototype] {
+  type: 'checkbox',
+  name: 'issue[]',
+  value: 'audio_sync',
+  class: 'custom-control-input',
+  id: 'rep-audio-sync'
+} 
+<input> Class: "custom-control-input" ID: "rep-sub-sync" Attributes: [Object: null prototype] {
+  type: 'checkbox',
+  name: 'issue[]',
+  value: 'sub_sync',
+  class: 'custom-control-input',
+  id: 'rep-sub-sync'
+} 
+<input> Class: "custom-control-input" ID: "rep-skiptime" Attributes: [Object: null prototype] {
+  type: 'checkbox',
+  name: 'issue[]',
+  value: 'skiptime',
+  class: 'custom-control-input',
+  id: 'rep-skiptime'
+} 
+<div> Class: "w-report-result" ID: "" Attributes: [Object: null prototype] {
+  class: 'w-report-result',
+  role: 'status',
+  style: 'display:none;margin-top:12px;'
+} 
+<button> Class: "btn btn-light w-report-submit" ID: "" Attributes: [Object: null prototype] {
+  type: 'submit',
+  class: 'btn btn-light w-report-submit'
+} Text: Submit

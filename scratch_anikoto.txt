@@ -1,0 +1,80 @@
+﻿Fetching Anikoto watch page...
+All script tags on Anikoto watch page:
+
+--- Script #0 (src: inline) ---
+{"@context": "https://schema.org", "@type": "WebSite", "url": "https://anikototv.to/", "potentialAction": { "@type": "SearchAction", "target": "https://anikototv.to/filter?keyword={keyword}", "query-input": "required name=keyword"}}
+
+--- Script #1 (src: https://www.googletagmanager.com/gtag/js?id=G-48L6Q7NLDW) ---
+
+
+--- Script #2 (src: inline) ---
+ window.dataLayer = window.dataLayer || []; function gtag(){dataLayer.push(arguments);} gtag('js', new Date()); gtag('config', 'G-48L6Q7NLDW'); 
+
+--- Script #3 (src: https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3120792425169290) ---
+
+
+--- Script #4 (src: inline) ---
+ /* <![CDATA[ */ var app_vars = {"base_url":"https:\/\/anikototv.to\/","current_url":"https:\/\/anikototv.to\/","language":"en_US","copy":"Copy","copied":"Copied!","user_id":null,"home_shortening_register":"no","enable_captcha":"yes","captcha_type":"recaptcha","reCAPTCHA_site_key":"6LeHxV0qAAAAAKUiMDuR7g-AL5_sF7rz8hg8u52i","invisible_reCAPTCHA_site_key":"","hcaptcha_checkbox_site_key":"","solvemedia_challenge_key":"","captcha_short_anonymous":"0","captcha_shortlink":"yes","captcha_signin":"no","captcha_signup":"yes","captcha_forgot_password":"no","captcha_contact":"no","counter_value":0,"counter_start":"DOMContentLoaded","get_link":"Get Link","getting_link":"Getting link...","skip_ad":"Skip Ad","force_disable_adblock":"0","please_disable_adblock":"Please disable Adblock to proceed to the destination page.","cookie_notification_bar":true,"cookie_message":"This website uses cookies to ensure you get the best experience on our website. <a href='https:\/\/anikototv.to\/pages\/privacy' target='_blank'><b>Learn more<\/b><\/a>","cookie_button":"Got it!","disqus":"animixplay-fqsqfvdf4u"}; /* ]]> */ 
+
+--- Script #5 (src: inline) ---
+ const now = new Date(); const cachebuster = now.toISOString().slice(0, 13).replace(/[-T:]/g, ""); const script = document.createElement("script"); script.type = "text/javascript"; script.src = `https://nekostream.site/065e62ec90168c435ef226daedc8a572.js?h=${cachebuster}`; document.head.appendChild(script); 
+
+--- Script #6 (src: inline) ---
+ window.__cfg = "bMb5x0yIRgH29Id2/FoyKMh5w98rTeONb4XlRuOZGwo4FrB1SFPVr455NAglCToG++Na1AhcUBjLzMD3eds65hqp/hJQlbPUsNV8tQ2KwvOseC552cEeiTNVmbaylQ=="; 
+
+--- Script #7 (src: https://www.google.com/recaptcha/api.js) ---
+
+
+--- Script #8 (src: https://cdnjs.cloudflare.com/ajax/libs/jquery/1.12.4/jquery.min.js) ---
+
+
+--- Script #9 (src: https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.6.1/js/bootstrap.bundle.min.js) ---
+
+
+--- Script #10 (src: https://cdnjs.cloudflare.com/ajax/libs/tooltipster/4.0.0/js/tooltipster.bundle.min.js) ---
+
+
+--- Script #11 (src: https://cdnjs.cloudflare.com/ajax/libs/Swiper/5.4.4/js/swiper.min.js) ---
+
+
+--- Script #12 (src: https://cdnjs.cloudflare.com/ajax/libs/babel-core/5.6.15/browser-polyfill.min.js) ---
+
+
+--- Script #13 (src: https://anikototv.to/anikoto/js/main.js?v=1.111) ---
+
+
+--- Script #14 (src: https://anikototv.to/anikoto/js/notifications-bell.js?v=1.0) ---
+
+
+--- Script #15 (src: https://platform-api.sharethis.com/js/sharethis.js#property=65f332dafa10560019e9ebb0&product=inline-share-buttons) ---
+
+
+--- Script #16 (src: inline) ---
+ const mangaId = 8691; const localStorageKey = 'manga_' + mangaId; function isUserLoggedIn() { try { var folders = JSON.parse(localStorage.getItem('user.folders') || '[]'); return Array.isArray(folders) && folders.length > 0; } catch (e) { return false; } } if (!localStorage.getItem(localStorageKey)) { fetch('https://anikototv.to/anime/getinfo/8691') .then(response => response.json()) .then(data => { if (data.status === true) { localStorage.setItem(localStorageKey, 'viewed'); } else {} }) .catch(error => console.error('Error:', error)); } 
+
+--- Script #17 (src: inline) ---
+ document.addEventListener("DOMContentLoaded", function () { var btn = document.getElementById("w2g-create"); if (!btn) return; btn.addEventListener("click", function () { if (isUserLoggedIn()) { window.location.href = app_vars.base_url + "/watch2gether/create/that-time-i-got-reincarnated-as-a-slime-season-4-0u851"; } else { if (window.jQuery && window.jQuery("#sign").length) { window.jQuery("#sign").modal("show"); } } }); }); document.addEventListener("DOMContentLoaded", function() { $.ajax({ url: app_vars.base_url + "api/watch-order/8691", type: "GET", dataType: "json", success: function(e) { 200 === e.status && e.result && (console.log(e), e.result.trim().length > 2 && (document.getElementById("watch-order").innerHTML = e.result, order())) }, error: function(e, s, r) { console.error("An error occurred:", r) } }) }); function order() { $(".flexserieslist").click(function() { var e = $(this).data("related"); for (var s in $(".serieslabelitem").text(""), $(".flexserieslist").css("color", ""), $(".flexserieslist").css("opacity", "0.3"), $(this).find(".serieslabelitem").text("SELECTED"), $(this).find(".serieslabelitem").addClass("dot"), $(this).find(".serieslabelitem").css("color", "rgb(149 182 208)"), $(this).css("opacity", "1.0"), $(this).css("color", "rgba(255, 255, 255, 0.05)"), e) e.hasOwnProperty(s) && ($("[data-id='" + s + "'] .serieslabelitem").text(e[s]), $("[data-id='" + s + "']").css("opacity", "1.0"), $("[data-id='" + s + "'] .serieslabelitem").addClass("dot")), "Pa
+
+--- Script #18 (src: inline) ---
+ var loadedDownloadData = null; function openDownloadModal(a) { var o = a.getAttribute("download-data"); if (loadedDownloadData === o) $("#downloadModal").modal("show"); else { $("#downloadModalBody").html('<div class="spinner-border" role="status"><span class="sr-only">Loading...</span></div>'); try { var d = atob(o), l = JSON.parse(d), n = ""; l.forEach(function(a) { n += `<a class="btn ml-1 mt-1 guest btn-primary" href="${a.url}" target="_blank">${a.name}</a>` }), $("#downloadModalBody").html(n), $("#downloadModal").modal("show"), loadedDownloadData = o } catch (t) { $("#downloadModalBody").html("<p>Failed to get download links.</p>") } } } 
+
+--- Script #19 (src: https://anikototv.to/anikoto/js/mapper.js?v=1780003801_1bcedbb6) ---
+
+
+--- Script #20 (src: https://cdn.jsdelivr.net/npm/emoji-picker-element@1.21.3/index.js) ---
+
+
+--- Script #21 (src: https://anikototv.to/anikoto/js/comment.js?v=2.8) ---
+
+
+--- Script #22 (src: inline) ---
+ (function() { var DAILY_LIMIT = 5; var LS_KEY = 'w_report_daily'; function todayKey() { var d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); } function readQuota() { try { var raw = localStorage.getItem(LS_KEY); if (!raw) { return { date: todayKey(), count: 0 }; } var obj = JSON.parse(raw); if (!obj || obj.date !== todayKey()) { return { date: todayKey(), count: 0 }; } return { date: obj.date, count: parseInt(obj.count, 10) || 0 }; } catch (e) { return { date: todayKey(), count: 0 }; } } function writeQuota(q) { try { localStorage.setItem(LS_KEY, JSON.stringify(q)); } catch (e) {} } function quotaRemaining() { return Math.max(0, DAILY_LIMIT - readQuota().count); } function getReportContextFromDom() { var epNum = ''; var pathM = window.location.pathname.match(/\/ep-([^/?#]+)/i); if (pathM && pathM[1]) { epNum = decodeURIComponent(pathM[1]); } var activeEp = document.querySelector('#w-episodes a.active'); if (activeEp) { var n = activeEp.getAttribute('data-num') || activeEp.getAttribute('data-slug'); if (n !== null && String(n).trim() !== '') { epNum = String(n).trim(); } } if (!epNum) { var tipB = document.querySelector('#w-servers .tip b'); if (tipB) { var tm = (tipB.textContent || '').match(/(\d+(?:\.\d+)?)/); if (tm) { epNum = tm[1]; } } } var srvEl = document.querySelector('#w-servers li.active'); var srvName = srvEl ? (srvEl.textContent || '').replace(/\s+/g, ' ').trim() : ''; return { 
+
+--- Script #23 (src: inline) ---
+ (function() { var DESKTOP_BREAKPOINT = 992; var LIMIT_DESKTOP = 10; var LIMIT_MOBILE = 2; var STYLE_TAG_ID = 'rel-collapse-style'; var TOGGLE_CLASS = 'rel-collapse-toggle'; var APPLIED_FLAG = 'data-rel-collapse-bound'; function ensureStyleTag() { if (document.getElementById(STYLE_TAG_ID)) { return; } var style = document.createElement('style'); style.id = STYLE_TAG_ID; style.textContent = '' + '.rel-collapse-hidden{display:none !important;}' + '.rel-collapse-toggle{display:inline-flex;align-items:center;justify-content:center;' + 'gap:6px;width:100%;margin-top:10px;padding:8px 12px;border:1px solid rgba(255,255,255,0.12);' + 'background:rgba(255,255,255,0.04);color:#cfd6df;border-radius:6px;font-size:13px;' + 'cursor:pointer;transition:background .15s ease,border-color .15s ease;}' + '.rel-collapse-toggle:hover{background:rgba(255,255,255,0.08);border-color:rgba(255,255,255,0.2);color:#fff;}' + '.rel-collapse-toggle .rel-collapse-caret{display:inline-block;transition:transform .2s ease;}' + '.rel-collapse-toggle.is-open .rel-collapse-caret{transform:rotate(180deg);}'; document.head.appendChild(style); } function currentLimit() { return (window.innerWidth >= DESKTOP_BREAKPOINT) ? LIMIT_DESKTOP : LIMIT_MOBILE; } function bindCollapse(section) { if (!section || section.getAttribute(APPLIED_FLAG) === '1') { return; } var list = section.querySelector('.scaff'); if (!list) { return; } var items = Array.prototype.slice.call(list.querySelectorAll(':scope > .item, .item')); if (!item
+
+--- Script #24 (src: inline) ---
+document.addEventListener("DOMContentLoaded",function(){let e=0,t=null,n=null;window.watchlog=function(e,i){t=e,n=i;let l=function e(){let t=document.querySelector(".episodes a.active");if(!t)return null;let n=t.closest("li"),i=n?.nextElementSibling,l=i?.querySelector("a")||null;return l}();l&&(window.__nextEpisodeEl=l)},window.addEventListener("message",function(i){if(!i.origin)return;let l=i.data;if("string"==typeof l)try{l=JSON.parse(l)}catch(r){return}if(t&&n){if("watching-log"===l.type){let o=Number(l.currentTime).toFixed(2),u=Number(l.duration).toFixed(2);if(o>0&&o!==e){e=o;let a=Math.floor(Date.now()/1e3)%60;if(a%10==0){let s=localStorage.getItem("user.playing"),c=s?JSON.parse(s):{};c[t]=[n,o,u],localStorage.setItem("user.playing",JSON.stringify(c))}}}if("complete"===l.event){let f=Number(localStorage.getItem("auto_next"));if(1!==f)return;let d=window.__nextEpisodeEl;d&&d.click()}}})});
+
+--- Script #25 (src: inline) ---
+!function(){"use strict";var e="anikoto_check_server_ts",t=XMLHttpRequest.prototype.open,r=XMLHttpRequest.prototype.send;XMLHttpRequest.prototype.open=function(e,r){return this.__anikotoInspectUrl=r,t.apply(this,arguments)},XMLHttpRequest.prototype.send=function(){var t,n=this;return(t=n.__anikotoInspectUrl)&&-1!==String(t).indexOf("ajax/server/list")&&n.addEventListener("load",function(){var t;t=n,t&&200===t.status&&function e(t){try{n="string"==typeof t?JSON.parse(t):t}catch(r){return!1}if(!n||200!==n.status||"string"!=typeof n.result)return!1;var n,a=n.result;if(-1!==a.indexOf("data-ep-id")||-1!==a.indexOf("data-link-id"))return!1;var i=document.createElement("div");i.innerHTML=a;var s=i.querySelector(".servers");return!s||0===s.querySelectorAll("li[data-ep-id], li[data-link-id]").length}(t.responseText)&&function e(){var t=document.querySelector('.episodes a.active[enabled="1"], .episodes a.active, .detail-seasons a.active, a.active[enabled="1"][data-timestamp]');if(!t)return!1;var r=parseInt(t.getAttribute("data-timestamp"),10);if(!r||isNaN(r))return!1;var n=Math.floor(Date.now()/1e3)-r;return n>=0&&n<=1800}()&&!function t(){if(!function t(){try{var r=parseInt(localStorage.getItem(e),10);if(!r||isNaN(r))return!1;return Date.now()-r<12e4}catch(n){return!1}}()){!function t(){try{localStorage.setItem(e,String(Date.now()))}catch(r){}}();var r,n=new XMLHttpRequest;n.open("GET",("/"!==(r="undefined"!=typeof app_vars&&app_vars.base_url?app_vars.base_url:"/").charAt(r.length-1)&
