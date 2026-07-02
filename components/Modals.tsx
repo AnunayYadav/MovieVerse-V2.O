@@ -512,6 +512,12 @@ export const PersonPage: React.FC<PersonPageProps> = ({ personId, onClose, apiKe
     }, [personId, apiKey]);
 
     useEffect(() => {
+        if (details?.name) {
+            document.title = `${details.name} - MovieVerse AI`;
+        }
+    }, [details]);
+
+    useEffect(() => {
         if (!details?.name) {
             setVoicedCharacters([]);
             return;
@@ -1381,6 +1387,12 @@ export const CharacterPage: React.FC<CharacterPageProps> = ({
         setIsClosing(true);
         setTimeout(onClose, 350);
     };
+
+    useEffect(() => {
+        if (details?.name?.full) {
+            document.title = `${details.name.full} - Character Profile - MovieVerse AI`;
+        }
+    }, [details]);
 
     useEffect(() => {
         if (!characterId) return;

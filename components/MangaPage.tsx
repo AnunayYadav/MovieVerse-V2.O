@@ -608,7 +608,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
     return res.json();
   }, []);
 
-  const handleMangaSelect = useCallback(async (id: string | null) => {
+  const handleMangaSelect = useCallback(async (id: string | null, optionalTitle?: string) => {
     if (!id) {
       onMangaSelect(null);
       return;
@@ -623,7 +623,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
       try {
         const allItems = [...trending, ...popular, ...topRated, ...characterModalMediaManga];
         const item = allItems.find((x: any) => x.id === id) as any;
-        const title = item?.attributes?.title?.en || item?.attributes?.title?.['ja-ro'] || "";
+        const title = optionalTitle || item?.attributes?.title?.en || item?.attributes?.title?.['ja-ro'] || "";
         
         console.log(`[AniList-to-MangaDex] Resolving MangaDex ID for AniList ID ${aniId} ("${title}")...`);
         
@@ -1690,6 +1690,18 @@ export const MangaPage: React.FC<MangaPageProps> = ({
     fetchSelectedChapterDetails();
     return () => { isMounted = false; };
   }, [activeChapterId, readingSource, mangapillChapters, fetchMangaDex]);
+
+  // Update document title for Manga details & reader
+  useEffect(() => {
+    if (selectedManga) {
+      const title = getMangaTitle(selectedManga);
+      if (activeChapter) {
+        document.title = `Chapter ${activeChapter.attributes.chapter || 'Oneshot'} - ${title} - MovieVerse AI`;
+      } else {
+        document.title = `${title} - MovieVerse AI`;
+      }
+    }
+  }, [selectedManga, activeChapter, getMangaTitle]);
 
   // Load recommendations when selectedManga changes
   useEffect(() => {
@@ -4308,7 +4320,8 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                           key={node.id} 
                           onClick={() => {
                             if (node.mediaRecommendation?.id) {
-                              window.location.hash = `#manga-${node.mediaRecommendation.id}`;
+                              const recTitle = node.mediaRecommendation.title?.english || node.mediaRecommendation.title?.userPreferred || "";
+                              handleMangaSelect(`anilist-${node.mediaRecommendation.id}`, recTitle);
                             }
                           }}
                           className="cursor-pointer group/rec"

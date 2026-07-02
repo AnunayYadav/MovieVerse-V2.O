@@ -1646,6 +1646,79 @@ export default function App() {
     }, [selectedCategory, selectedMovie, selectedPersonId, activeWatchPartyRoom, activeKeyword, tmdbCollectionId, activeCountry, currentCollection, isWatching, watchSeason, watchEpisode, showDetailsCast, showDetailsCrew, activeDetailsTab, selectedMangaId, activeMangaChapterId]);
 
 
+    // Dedicated effect to dynamically update document.title based on the active route/state
+    useEffect(() => {
+        if (authChecking || !isAuthenticated) return;
+
+        let pageTitle = 'MovieVerse AI';
+        if (activeWatchPartyRoom) {
+            pageTitle = `Watch Party - MovieVerse AI`;
+        } else if (selectedPersonId) {
+            pageTitle = `Person Details - MovieVerse AI`;
+        } else if (selectedMovie) {
+            const name = selectedMovie.title || selectedMovie.name || 'Movie';
+            if (isWatching) {
+                const type = selectedMovie.media_type === 'tv' || (!selectedMovie.release_date && selectedMovie.first_air_date) ? 'tv' : 'movie';
+                if (type === 'tv') {
+                    pageTitle = `Watching ${name} S${watchSeason}E${watchEpisode} - MovieVerse AI`;
+                } else {
+                    pageTitle = `Watching ${name} - MovieVerse AI`;
+                }
+            } else if (showDetailsCast) {
+                pageTitle = `Cast of ${name} - MovieVerse AI`;
+            } else if (showDetailsCrew) {
+                pageTitle = `Crew of ${name} - MovieVerse AI`;
+            } else if (activeDetailsTab !== 'overview') {
+                pageTitle = `${activeDetailsTab.charAt(0).toUpperCase() + activeDetailsTab.slice(1)} - ${name} - MovieVerse AI`;
+            } else {
+                pageTitle = `${name} - MovieVerse AI`;
+            }
+        } else if (selectedCategory === 'Explore') {
+            pageTitle = 'Explore - MovieVerse AI';
+        } else if (selectedCategory === 'LiveTV') {
+            pageTitle = 'Live TV - MovieVerse AI';
+        } else if (selectedCategory === 'Awards') {
+            pageTitle = 'Awards - MovieVerse AI';
+        } else if (selectedCategory === 'Anime') {
+            pageTitle = 'Anime - MovieVerse AI';
+        } else if (selectedCategory === 'AnimeCommunity') {
+            pageTitle = 'Anime Forum - MovieVerse AI';
+        } else if (selectedCategory === 'Family') {
+            pageTitle = 'Family - MovieVerse AI';
+        } else if (selectedCategory === 'TV Shows') {
+            pageTitle = 'TV Shows - MovieVerse AI';
+        } else if (selectedCategory === 'Coming') {
+            pageTitle = 'Coming Soon - MovieVerse AI';
+        } else if (selectedCategory === 'Categories') {
+            pageTitle = 'Categories - MovieVerse AI';
+        } else if (selectedCategory === 'Franchise') {
+            pageTitle = 'Franchises - MovieVerse AI';
+        } else if (selectedCategory === 'Watchlist') {
+            pageTitle = 'Watchlist - MovieVerse AI';
+        } else if (selectedCategory === 'Favorites') {
+            pageTitle = 'Favorites - MovieVerse AI';
+        } else if (selectedCategory === 'History') {
+            pageTitle = 'History - MovieVerse AI';
+        } else if (selectedCategory === 'Deep Dive' && activeKeyword) {
+            pageTitle = `Deep Dive: ${activeKeyword.name} - MovieVerse AI`;
+        } else if (selectedCategory === 'Deep Dive' && tmdbCollectionId) {
+            pageTitle = `Collection - MovieVerse AI`;
+        } else if (selectedCategory === 'Countries' && activeCountry) {
+            pageTitle = `Country: ${activeCountry.name} - MovieVerse AI`;
+        } else if (selectedCategory === 'Manga') {
+            pageTitle = 'Manga - MovieVerse AI';
+        } else if (selectedCategory === 'Collection' && currentCollection) {
+            pageTitle = `Collection: ${currentCollection} - MovieVerse AI`;
+        } else if (searchQuery) {
+            pageTitle = `Search: "${searchQuery}" - MovieVerse AI`;
+        } else if (selectedCategory === 'All') {
+            pageTitle = 'Home - MovieVerse AI';
+        }
+
+        document.title = pageTitle;
+    }, [authChecking, isAuthenticated, selectedCategory, selectedMovie, selectedPersonId, activeWatchPartyRoom, activeKeyword, tmdbCollectionId, activeCountry, currentCollection, isWatching, watchSeason, watchEpisode, showDetailsCast, showDetailsCrew, activeDetailsTab, selectedMangaId, activeMangaChapterId, searchQuery]);
+
+
     // Load recommendations based on watch history
     useEffect(() => {
         const fetchRecommendations = async () => {
