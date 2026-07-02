@@ -469,11 +469,12 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
       setAnivexaError(null);
       try {
         let epMatch = anivexaEpisodes.find((e: any) => e.number === currentEpisode);
-        if (!epMatch && (mediaType === 'movie' || anivexaEpisodes.length === 1)) {
+        if (!epMatch) {
+          // Fallback to first episode if the exact episode number is not found
           epMatch = anivexaEpisodes[0];
         }
         if (!epMatch) {
-          throw new Error(`Episode ${currentEpisode} is not available.`);
+          throw new Error(`No episodes are available for this provider.`);
         }
 
         // epMatch.id is the path format like "watch/provider/id/subOrDub/provider-ep"
@@ -482,12 +483,40 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
         const data = await watchRes.json();
 
         if (isMounted) {
-          const sources = data.sources || [];
-          const m3u8Source = sources.find((s: any) => s.isM3U8 || s.url?.includes('.m3u8')) || sources[0];
-          
+          let streamsList: any[] = [];
+          let subtitlesList: any[] = [];
+
+          // 1. Check AniKoto format (e.g. data.ssub.streams or data.sdub.streams)
+          if (data.ssub?.streams) {
+            streamsList = data.ssub.streams;
+            subtitlesList = data.ssub.subtitles || [];
+          } else if (data.sdub?.streams) {
+            streamsList = data.sdub.streams;
+            subtitlesList = data.sdub.subtitles || [];
+          } 
+          // 2. Check Reanime / AnimeGG format (e.g. data.streams)
+          else if (Array.isArray(data.streams)) {
+            streamsList = data.streams;
+            subtitlesList = data.subtitles || [];
+          } 
+          // 3. Check AllManga format (e.g. data.sources)
+          else if (Array.isArray(data.sources)) {
+            streamsList = data.sources;
+            subtitlesList = data.subtitles || [];
+          }
+
+          // Resolve the best direct streaming URL
+          const resolvedSources = streamsList.map((s: any) => ({
+            url: s.extractedUrl || s.url,
+            isM3U8: s.type === 'hls' || s.url?.includes('.m3u8') || s.extractedUrl?.includes('.m3u8'),
+            quality: s.quality || s.name || s.server || 'Auto'
+          }));
+
+          const m3u8Source = resolvedSources.find((s: any) => s.isM3U8) || resolvedSources[0];
+
           if (m3u8Source?.url) {
             setAnivexaStreamUrl(m3u8Source.url);
-            const rawSubs = data.subtitles || [];
+            const rawSubs = subtitlesList || [];
             const uniqueSubs = rawSubs.filter((sub: any, idx: number, self: any[]) => {
               const label = sub.label || sub.language || sub.lang || '';
               return self.findIndex(s => (s.label || s.language || s.lang || '') === label) === idx;
@@ -502,7 +531,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
             });
             setAnivexaSubtitles(uniqueSubs);
           } else {
-            throw new Error("No valid stream source found.");
+            throw new Error("No playable streaming source found for this episode.");
           }
         }
       } catch (err: any) {
