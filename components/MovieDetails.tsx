@@ -798,8 +798,12 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                         title {
                           userPreferred
                           english
+                          romaji
+                          native
                         }
                         coverImage { large }
+                        bannerImage
+                        startDate { year }
                       }
                     }
                   }
@@ -1474,6 +1478,26 @@ export const MoviePage: React.FC<MoviePageProps> = ({
         if (!apiKey) return;
         const title = relationNode.title.english || relationNode.title.userPreferred || relationNode.title.romaji;
         if (!title) return;
+
+        // Check local cache first to allow instant switching
+        const matchCacheKey = `movieverse_anilist_tmdb_match_${relationNode.id}`;
+        const cachedMatch = localStorage.getItem(matchCacheKey);
+        if (cachedMatch) {
+            try {
+                const parsed = JSON.parse(cachedMatch);
+                if (parsed && parsed.id && parsed.mediaType) {
+                    onSwitchMovie?.({
+                        id: parsed.id,
+                        media_type: parsed.mediaType,
+                        title: title,
+                        name: title,
+                        backdrop_path: parsed.backdropPath,
+                        initial_season: parsed.initial_season
+                    } as any);
+                    return;
+                }
+            } catch (_) {}
+        }
         
         setMatchingRelationId(relationNode.id);
         const cleanTitle = title.replace(/\s*\(?(Dub|Sub|TV|Movie|uncensored|censored|season\s*\d+|part\s*\d+)\)?\s*$/i, '').trim();
@@ -2466,29 +2490,33 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                 <div className="space-y-4 pt-4 border-t border-white/5">
                                                     <h4 className="font-semibold text-xs sm:text-sm text-zinc-300 uppercase tracking-wider">Fans Also Recommended</h4>
                                                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4">
-                                                        {socialRecommendations.map((node) => (
-                                                            <div 
-                                                                key={node.id} 
-                                                                onClick={() => {
-                                                                    if (node.mediaRecommendation?.id) {
-                                                                        onSwitchMovie({
-                                                                            id: node.mediaRecommendation.id,
-                                                                            title: node.mediaRecommendation.title.userPreferred,
-                                                                            media_type: 'tv'
-                                                                        } as any);
-                                                                    }
-                                                                }}
-                                                                className="cursor-pointer group/rec"
-                                                            >
-                                                                <div className="aspect-[2/3] w-full rounded-xl overflow-hidden border border-white/5 group-hover/rec:border-white/20 transition-all mb-1 shadow">
-                                                                    <img src={node.mediaRecommendation?.coverImage?.large} className="w-full h-full object-cover group-hover/rec:scale-102 transition-transform animate-none" alt="" />
+                                                        {socialRecommendations.map((node) => {
+                                                            const isMatching = matchingRelationId === node.mediaRecommendation?.id;
+                                                            return (
+                                                                <div 
+                                                                    key={node.id} 
+                                                                    onClick={() => {
+                                                                        if (node.mediaRecommendation?.id && !isMatching) {
+                                                                            handleRelationClick(node.mediaRecommendation);
+                                                                        }
+                                                                    }}
+                                                                    className="cursor-pointer group/rec"
+                                                                >
+                                                                    <div className="relative aspect-[2/3] w-full rounded-xl overflow-hidden border border-white/5 group-hover/rec:border-white/20 transition-all mb-1 shadow">
+                                                                        <img src={node.mediaRecommendation?.coverImage?.large} className="w-full h-full object-cover group-hover/rec:scale-102 transition-transform animate-none" alt="" />
+                                                                        {isMatching && (
+                                                                            <div className="absolute inset-0 bg-black/60 flex items-center justify-center backdrop-blur-sm z-30">
+                                                                                <Loader2 className="animate-spin text-red-600" size={20} />
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                    <h5 className="font-medium text-[10px] text-gray-400 group-hover/rec:text-white transition-colors line-clamp-2 leading-tight">
+                                                                        {node.mediaRecommendation?.title?.english || node.mediaRecommendation?.title?.userPreferred}
+                                                                    </h5>
+                                                                    <span className="text-[8px] text-zinc-600 font-bold">★ {node.rating} rating</span>
                                                                 </div>
-                                                                <h5 className="font-medium text-[10px] text-gray-400 group-hover/rec:text-white transition-colors line-clamp-2 leading-tight">
-                                                                    {node.mediaRecommendation?.title?.english || node.mediaRecommendation?.title?.userPreferred}
-                                                                </h5>
-                                                                <span className="text-[8px] text-zinc-600 font-bold">★ {node.rating} rating</span>
-                                                            </div>
-                                                        ))}
+                                                            );
+                                                        })}
                                                     </div>
                                                 </div>
                                             )}
