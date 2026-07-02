@@ -409,7 +409,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   // Bind video element events to state
   useEffect(() => {
     const video = videoRef.current;
-    if (!video || selectedProviderId !== 'anivexa') return;
+    if (!video || !useCustomControls) return;
 
     const onPlay = () => setIsPlaying(true);
     const onPause = () => setIsPlaying(false);
@@ -442,7 +442,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
 
   // Hls.js player initialization and lifecycle management
   useEffect(() => {
-    if (selectedProviderId !== 'anivexa' || !anivexaStreamUrl) return;
+    if (!useCustomControls || !anivexaStreamUrl) return;
 
     const video = videoRef.current;
     if (!video) return;
@@ -813,7 +813,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   }, []);
 
   const togglePlayback = useCallback(() => {
-    if (selectedProviderId === 'anivexa') {
+    if (useCustomControls) {
       const video = videoRef.current;
       if (video) {
         if (video.paused) video.play().catch(() => {});
@@ -824,10 +824,10 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     const next = !isPlaying;
     sendPlayerCommand(next ? 'play' : 'pause');
     setIsPlaying(next);
-  }, [isPlaying, sendPlayerCommand, selectedProviderId]);
+  }, [isPlaying, sendPlayerCommand, useCustomControls]);
 
   const seekTo = useCallback((time: number) => {
-    if (selectedProviderId === 'anivexa') {
+    if (useCustomControls) {
       const video = videoRef.current;
       if (video) video.currentTime = time;
       setPlayerCurrentTime(time);
@@ -835,11 +835,11 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     }
     sendPlayerCommand('seek', { time: Math.floor(time) });
     setPlayerCurrentTime(time);
-  }, [sendPlayerCommand, selectedProviderId]);
+  }, [sendPlayerCommand, useCustomControls]);
 
   const changeVolume = useCallback((level: number) => {
     const clamped = Math.max(0, Math.min(1, level));
-    if (selectedProviderId === 'anivexa') {
+    if (useCustomControls) {
       const video = videoRef.current;
       if (video) {
         video.volume = clamped;
@@ -857,10 +857,10 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
       sendPlayerCommand('mute', { muted: false });
       setPlayerMuted(false);
     }
-  }, [sendPlayerCommand, playerMuted, selectedProviderId]);
+  }, [sendPlayerCommand, playerMuted, useCustomControls]);
 
   const toggleMuteState = useCallback(() => {
-    if (selectedProviderId === 'anivexa') {
+    if (useCustomControls) {
       const video = videoRef.current;
       if (video) {
         video.muted = !video.muted;
@@ -870,7 +870,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     }
     sendPlayerCommand('mute', { muted: !playerMuted });
     setPlayerMuted(!playerMuted);
-  }, [sendPlayerCommand, playerMuted, selectedProviderId]);
+  }, [sendPlayerCommand, playerMuted, useCustomControls]);
 
   const toggleFullscreen = useCallback(() => {
     if (!containerRef.current) return;
@@ -1235,12 +1235,12 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
 
   // Poll player status for custom controls
   useEffect(() => {
-    if (!useCustomControls || selectedProviderId === 'anivexa') return;
+    if (useCustomControls) return;
     const interval = setInterval(() => {
       if (!isSeekingRef.current) sendPlayerCommand('getStatus');
     }, 1000);
     return () => clearInterval(interval);
-  }, [useCustomControls, sendPlayerCommand, selectedProviderId]);
+  }, [useCustomControls, sendPlayerCommand]);
 
   // Universal keyboard shortcuts
   useEffect(() => {
