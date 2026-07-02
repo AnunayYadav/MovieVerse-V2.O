@@ -278,49 +278,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
     try {
       const embedUrl = await resolveAnikai(cleanTitle, episode, lang);
-      
-      // Parse direct HLS stream from vivibebe if available
-      try {
-        const parsedUrl = new URL(embedUrl);
-        if (parsedUrl.hostname.includes('vivibebe.site')) {
-          const videoId = parsedUrl.pathname.replace(/^\//, '');
-          const subUrl = parsedUrl.searchParams.get('sub');
-          const m3u8Url = `https://vivibebe.site/public/stream/${videoId}/master.m3u8`;
-
-          return res.status(200).json({
-            success: true,
-            data: {
-              sources: [
-                {
-                  url: m3u8Url,
-                  quality: 'Auto',
-                  isM3U8: true
-                }
-              ],
-              subtitles: subUrl ? [
-                {
-                  url: subUrl,
-                  language: 'English',
-                  lang: 'en'
-                }
-              ] : []
-            }
-          });
-        }
-      } catch (err) {
-        console.warn("Failed to parse direct HLS link from Anikai embed:", err);
-      }
-
-      // Fallback: return as iframeUrl JSON if direct HLS parsing was not possible
-      return res.status(200).json({
-        success: true,
-        data: {
-          iframeUrl: embedUrl
-        }
-      });
+      res.writeHead(302, { Location: embedUrl });
+      return res.end();
     } catch (e: any) {
-      console.error("Anikai extraction error:", e);
-      return res.status(502).json({ success: false, error: `Anikai extraction error: ${e.message}` });
+      console.error("Anikai redirect error:", e);
+      return res.status(502).send(`Anikai extraction error: ${e.message}`);
     }
   }
 
