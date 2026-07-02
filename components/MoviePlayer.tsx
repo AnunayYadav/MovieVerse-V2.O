@@ -89,36 +89,8 @@ const getSubtitleCode = (sub: string, format: 'name' | 'iso') => {
 
 export const PROVIDERS: Provider[] = [
   {
-    id: 'encdec_videasy',
-    name: 'EncDec - VidEasy (HLS Ad-Free)',
-    getMovieUrl: () => '',
-    getTvUrl: () => '',
-    supportsPostMessage: false
-  },
-  {
-    id: 'encdec_vidfast',
-    name: 'EncDec - VidFast (HLS Ad-Free)',
-    getMovieUrl: () => '',
-    getTvUrl: () => '',
-    supportsPostMessage: false
-  },
-  {
-    id: 'encdec_vidcore',
-    name: 'EncDec - VidCore (HLS Ad-Free)',
-    getMovieUrl: () => '',
-    getTvUrl: () => '',
-    supportsPostMessage: false
-  },
-  {
-    id: 'encdec_lordflix',
-    name: 'EncDec - LordFlix (HLS Ad-Free)',
-    getMovieUrl: () => '',
-    getTvUrl: () => '',
-    supportsPostMessage: false
-  },
-  {
-    id: 'encdec_vidsync',
-    name: 'EncDec - VidSync (HLS Ad-Free)',
+    id: 'videasy_adfree',
+    name: 'VidEasy (HLS Ad-Free)',
     getMovieUrl: () => '',
     getTvUrl: () => '',
     supportsPostMessage: false
@@ -131,13 +103,6 @@ export const PROVIDERS: Provider[] = [
     supportsPostMessage: false
   },
   {
-    id: 'cinesrc',
-    name: 'CineSrc',
-    getMovieUrl: (tmdbId) => `https://cinesrc.st/embed/movie/${tmdbId}`,
-    getTvUrl: (tmdbId, season, episode) => `https://cinesrc.st/embed/tv/${tmdbId}?s=${season}&e=${episode}`,
-    supportsPostMessage: false
-  },
-  {
     id: 'encdec_animekai',
     name: 'EncDec - AnimeKai (HLS Ad-Free)',
     getMovieUrl: () => '',
@@ -145,19 +110,10 @@ export const PROVIDERS: Provider[] = [
     supportsPostMessage: false
   },
   {
-    id: 'videasy',
-    name: 'VidEasy',
-    getMovieUrl: (tmdbId, color, progress) => 
-      `https://player.videasy.net/movie/${tmdbId}?overlay=false&color=${color.replace('#', '')}&autoplay=true${progress && progress > 0 ? `&progress=${Math.floor(progress)}` : ''}`,
-    getTvUrl: (tmdbId, season, episode, color, progress) => 
-      `https://player.videasy.net/tv/${tmdbId}/${season}/${episode}?nextEpisode=true&autoplayNextEpisode=true&episodeSelector=true&overlay=false&color=${color.replace('#', '')}&autoplay=true${progress && progress > 0 ? `&progress=${Math.floor(progress)}` : ''}`,
-    supportsPostMessage: false
-  },
-  {
-    id: 'videasy_adfree',
-    name: 'VidEasy (HLS Ad-Free)',
-    getMovieUrl: () => '',
-    getTvUrl: () => '',
+    id: 'cinesrc',
+    name: 'CineSrc',
+    getMovieUrl: (tmdbId) => `https://cinesrc.st/embed/movie/${tmdbId}`,
+    getTvUrl: (tmdbId, season, episode) => `https://cinesrc.st/embed/tv/${tmdbId}?s=${season}&e=${episode}`,
     supportsPostMessage: false
   },
   {
@@ -217,28 +173,6 @@ export const PROVIDERS: Provider[] = [
       const subVal = subtitle === 'None' ? '' : (subtitle || 'English');
       return `https://peachify.pro/embed/tv/${tmdbId}/${season}/${episode}?accent=${color.replace('#', '')}&dub=${dubVal}&sub=${subVal}&quality=1080&autoNext=30&showNextBtn=true&autoPlay=true${progress && progress > 0 ? `&startAt=${Math.floor(progress)}` : ''}`;
     },
-    supportsPostMessage: false
-  },
-  {
-    id: 'vidify',
-    name: 'Vidify',
-    getMovieUrl: (tmdbId, color, progress) => {
-      const c = color.replace('#', '');
-      return `https://player.vidify.top/embed/movie/${tmdbId}?primarycolor=${c}&secondarycolor=${c}&iconcolor=${c}&fontcolor=${c}&font=Roboto&fontsize=18&opacity=0.85&autoplay=true&poster=true&chromecast=true&servericon=true&setting=true&pip=true${progress && progress > 0 ? `&startAt=${Math.floor(progress)}` : ''}`;
-    },
-    getTvUrl: (tmdbId, season, episode, color, progress) => {
-      const c = color.replace('#', '');
-      return `https://player.vidify.top/embed/tv/${tmdbId}/${season}/${episode}?primarycolor=${c}&secondarycolor=${c}&iconcolor=${c}&fontcolor=${c}&font=Roboto&fontsize=18&opacity=0.85&autoplay=true&poster=true&chromecast=true&servericon=true&setting=true&pip=true${progress && progress > 0 ? `&startAt=${Math.floor(progress)}` : ''}`;
-    },
-    supportsPostMessage: false
-  },
-  {
-    id: 'vidgod',
-    name: 'VidGod',
-    getMovieUrl: (tmdbId, color, progress) => 
-      `https://vidgod.net/movie/${tmdbId}${progress && progress > 0 ? `?startAt=${Math.floor(progress)}&t=${Math.floor(progress)}` : ''}`,
-    getTvUrl: (tmdbId, season, episode, color, progress) => 
-      `https://vidgod.net/tv/${tmdbId}/${season}/${episode}${progress && progress > 0 ? `?startAt=${Math.floor(progress)}&t=${Math.floor(progress)}` : ''}`,
     supportsPostMessage: false
   },
   {
@@ -334,11 +268,13 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
 
   // Custom controls derived values & refs
   const currentProvider = PROVIDERS.find(p => p.id === selectedProviderId);
-  const useCustomControls = selectedProviderId === 'videasy_adfree' || selectedProviderId.startsWith('encdec');
+  const [fallbackToNativeVideasy, setFallbackToNativeVideasy] = useState(false);
+  const useCustomControls = (selectedProviderId === 'videasy_adfree' || selectedProviderId.startsWith('encdec')) && !(selectedProviderId === 'videasy_adfree' && fallbackToNativeVideasy);
   const isPlayingRef = useRef(false);
   const isSeekingRef = useRef(false);
   const playerDurationRef = useRef(0);
   const lastFetchedKeyRef = useRef('');
+  const lastFallbackToNativeVideasyRef = useRef(false);
 
   const [anilistId, setAnilistId] = useState<number | null>(null);
   const [anilistLoading, setAnilistLoading] = useState(false);
@@ -595,16 +531,8 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     const getProxiedUrl = (url: string) => {
       if ((selectedProviderId === 'videasy_adfree' || selectedProviderId.startsWith('encdec')) && url && url.startsWith('http')) {
         let ref = '';
-        if (selectedProviderId === 'videasy_adfree' || selectedProviderId === 'encdec_videasy') {
+        if (selectedProviderId === 'videasy_adfree') {
           ref = 'https://player.videasy.to/';
-        } else if (selectedProviderId === 'encdec_vidfast') {
-          ref = 'https://vidfast.pro/';
-        } else if (selectedProviderId === 'encdec_vidcore') {
-          ref = 'https://vidcore.net/';
-        } else if (selectedProviderId === 'encdec_lordflix') {
-          ref = 'https://lordflix.org/';
-        } else if (selectedProviderId === 'encdec_vidsync') {
-          ref = 'https://vidsync.xyz/';
         } else if (selectedProviderId === 'encdec_hexa') {
           ref = 'https://hexa.su/';
         } else if (selectedProviderId === 'encdec_animekai') {
@@ -673,6 +601,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     setSelectedEncDecServer('');
     setEncDecServers([]);
     lastFetchedKeyRef.current = '';
+    setFallbackToNativeVideasy(false);
   }, [selectedProviderId, tmdbId, currentSeason, currentEpisode]);
 
   // Fetch streaming sources for videasy_adfree and encdec
@@ -761,16 +690,8 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
           const getProxiedUrl = (url: string) => {
             if ((selectedProviderId === 'videasy_adfree' || selectedProviderId.startsWith('encdec')) && url && url.startsWith('http')) {
               let ref = '';
-              if (selectedProviderId === 'videasy_adfree' || selectedProviderId === 'encdec_videasy') {
+              if (selectedProviderId === 'videasy_adfree') {
                 ref = 'https://player.videasy.to/';
-              } else if (selectedProviderId === 'encdec_vidfast') {
-                ref = 'https://vidfast.pro/';
-              } else if (selectedProviderId === 'encdec_vidcore') {
-                ref = 'https://vidcore.net/';
-              } else if (selectedProviderId === 'encdec_lordflix') {
-                ref = 'https://lordflix.org/';
-              } else if (selectedProviderId === 'encdec_vidsync') {
-                ref = 'https://vidsync.xyz/';
               } else if (selectedProviderId === 'encdec_hexa') {
                 ref = 'https://hexa.su/';
               } else if (selectedProviderId === 'encdec_animekai') {
@@ -1277,15 +1198,28 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
       }
     }
 
+    const lastFallbackToNativeVideasy = lastFallbackToNativeVideasyRef.current;
+    if (lastFallbackToNativeVideasy !== fallbackToNativeVideasy) {
+      shouldUpdateUrl = true;
+      lastFallbackToNativeVideasyRef.current = fallbackToNativeVideasy;
+    }
+
     if (shouldUpdateUrl) {
       const startProgress = currentProgressRef.current;
-      const newUrl = isTvShow
-        ? provider.getTvUrl(tmdbId, currentSeason, currentEpisode, activeColor, startProgress, isAnime, anilistId, animeLanguage, audioLanguage, subtitleLanguage)
-        : provider.getMovieUrl(tmdbId, activeColor, startProgress, isAnime, anilistId, animeLanguage, audioLanguage, subtitleLanguage);
+      let newUrl = '';
+      if (selectedProviderId === 'videasy_adfree' && fallbackToNativeVideasy) {
+        newUrl = isTvShow
+          ? `https://player.videasy.net/tv/${tmdbId}/${currentSeason}/${currentEpisode}?nextEpisode=true&autoplayNextEpisode=true&episodeSelector=true&overlay=false&color=${activeColor.replace('#', '')}&autoplay=true${startProgress && startProgress > 0 ? `&progress=${Math.floor(startProgress)}` : ''}`
+          : `https://player.videasy.net/movie/${tmdbId}?overlay=false&color=${activeColor.replace('#', '')}&autoplay=true${startProgress && startProgress > 0 ? `&progress=${Math.floor(startProgress)}` : ''}`;
+      } else {
+        newUrl = isTvShow
+          ? provider.getTvUrl(tmdbId, currentSeason, currentEpisode, activeColor, startProgress, isAnime, anilistId, animeLanguage, audioLanguage, subtitleLanguage)
+          : provider.getMovieUrl(tmdbId, activeColor, startProgress, isAnime, anilistId, animeLanguage, audioLanguage, subtitleLanguage);
+      }
 
       setEmbedUrl(newUrl);
     }
-  }, [tmdbId, mediaType, isAnime, currentSeason, currentEpisode, activeColor, selectedProviderId, forceProgress, isWatchParty, anilistId, animeLanguage, audioLanguage, subtitleLanguage]);
+  }, [tmdbId, mediaType, isAnime, currentSeason, currentEpisode, activeColor, selectedProviderId, forceProgress, isWatchParty, anilistId, animeLanguage, audioLanguage, subtitleLanguage, fallbackToNativeVideasy]);
 
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
@@ -1596,15 +1530,27 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                   <h4 className="text-white font-extrabold text-sm tracking-wider uppercase">Playback Error</h4>
                   <p className="text-zinc-500 text-xs max-w-xs mx-auto leading-relaxed">{anivexaError}</p>
                 </div>
-                <button
-                  onClick={() => {
-                    const isEncdecAnime = selectedProviderId === 'encdec_animekai';
-                    setSelectedProviderId(isEncdecAnime ? 'vidnest' : 'videasy');
-                  }}
-                  className="px-5 py-2.5 bg-white/10 hover:bg-white/15 text-white font-bold text-xs uppercase tracking-wider rounded-xl transition-all border border-white/10 backdrop-blur-md active:scale-95 shadow-xl"
-                >
-                  Switch to Embed Player
-                </button>
+                {selectedProviderId === 'videasy_adfree' ? (
+                  <button
+                    onClick={() => {
+                      setFallbackToNativeVideasy(true);
+                      setAnivexaError(null);
+                    }}
+                    className="px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white font-bold text-xs uppercase tracking-wider rounded-xl transition-all border border-red-500/20 backdrop-blur-md active:scale-95 shadow-xl"
+                  >
+                    Switch to Native Embed Player
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => {
+                      const isEncdecAnime = selectedProviderId === 'encdec_animekai';
+                      setSelectedProviderId(isEncdecAnime ? 'vidnest' : 'cinesrc');
+                    }}
+                    className="px-5 py-2.5 bg-white/10 hover:bg-white/15 text-white font-bold text-xs uppercase tracking-wider rounded-xl transition-all border border-white/10 backdrop-blur-md active:scale-95 shadow-xl"
+                  >
+                    Switch to Embed Player
+                  </button>
+                )}
               </div>
             )}
             {anivexaStreamUrl && (
