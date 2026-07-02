@@ -2,6 +2,177 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import crypto from 'crypto';
 
 // ----------------------------------------------------
+// 0. AnimeKai Scraper & Hoster Resolver
+// ----------------------------------------------------
+async function resolveHosterEmbed(embed: string) {
+  const referer = embed.split('/e/')[0] + '/';
+  const mediaUrl = embed.replace('/e/', '/media/');
+
+  const userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36";
+  const mediaRes = await fetch(mediaUrl, {
+    headers: {
+      "User-Agent": userAgent,
+      "Referer": referer
+    }
+  });
+
+  if (!mediaRes.ok) {
+    throw new Error(`Failed to fetch media data from hoster: HTTP ${mediaRes.status}`);
+  }
+
+  const mediaJson = await mediaRes.json();
+  const encrypted = mediaJson.result;
+
+  const decRes = await fetch("https://enc-dec.app/api/dec-mega", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      text: encrypted,
+      agent: userAgent
+    })
+  });
+
+  if (!decRes.ok) {
+    throw new Error(`Failed to decrypt hoster media: HTTP ${decRes.status}`);
+  }
+
+  const decJson = await decRes.json();
+  if (decJson.status !== 200 || !decJson.result) {
+    throw new Error(`Hoster decryption failed: ${decJson.error || 'unknown'}`);
+  }
+
+  return decJson.result; // Returns sources with stream URLs
+}
+
+async function resolveAnimekai(
+  title: string,
+  year: string,
+  season: string,
+  episode: string,
+  anilistId?: string,
+  requestedServer?: string
+) {
+  let entry: any = null;
+
+  // 1. Try finding by Anilist ID
+  if (anilistId) {
+    try {
+      const findRes = await fetch(`https://enc-dec.app/db/kai/find?anilist_id=${anilistId}`);
+      if (findRes.ok) {
+        const findJson = await findRes.json();
+        if (Array.isArray(findJson) && findJson.length > 0) {
+          entry = findJson[0];
+        }
+      }
+    } catch (e) {
+      console.warn("Failed to find AnimeKai by Anilist ID:", e);
+    }
+  }
+
+  // 2. Fallback to searching by title
+  if (!entry) {
+    const searchUrl = `https://enc-dec.app/db/kai/search?query=${encodeURIComponent(title)}${year ? `&year=${year}` : ''}`;
+    const searchRes = await fetch(searchUrl);
+    if (!searchRes.ok) {
+      throw new Error(`AnimeKai search failed: HTTP ${searchRes.status}`);
+    }
+    const searchJson = await searchRes.json();
+    if (Array.isArray(searchJson) && searchJson.length > 0) {
+      entry = searchJson[0];
+    }
+  }
+
+  if (!entry) {
+    throw new Error("No matching anime found in AnimeKai database");
+  }
+
+  const episodes = entry.episodes;
+  if (!episodes) {
+    throw new Error("No episodes found in AnimeKai database entry");
+  }
+
+  // Seasons in anime are usually 1, or relative episode numbers
+  const ep = episodes[season]?.[episode] || episodes['1']?.[episode];
+  if (!ep || !ep.sources) {
+    throw new Error(`Episode ${episode} (Season ${season}) not found in AnimeKai entry`);
+  }
+
+  // Construct available servers list
+  const availableServers: string[] = [];
+  const serverMap: { [key: string]: { type: string, server: string } } = {};
+
+  for (const type of Object.keys(ep.sources)) {
+    const serversForType = ep.sources[type];
+    for (const serverName of Object.keys(serversForType)) {
+      const serverLabel = `${type.toUpperCase()} - ${serverName.toUpperCase()}`;
+      availableServers.push(serverLabel);
+      serverMap[serverLabel.toLowerCase()] = { type, server: serverName };
+    }
+  }
+
+  if (availableServers.length === 0) {
+    throw new Error("No streaming servers available for this episode");
+  }
+
+  // Select requested server or fallback to the first
+  const selectedLabel = requestedServer && serverMap[requestedServer.toLowerCase()] 
+    ? requestedServer 
+    : availableServers[0];
+
+  const { type, server } = serverMap[selectedLabel.toLowerCase()];
+  const ajaxPath = ep.sources[type][server];
+  const megaup = entry.info?.mirrors?.megaup?.[0] || 'https://animekai.to';
+  const ajaxUrl = `${megaup}${ajaxPath}`;
+
+  // Fetch encrypted ajax content
+  const ajaxRes = await fetch(ajaxUrl, {
+    headers: {
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36",
+      "Referer": "https://animekai.to/"
+    }
+  });
+
+  if (!ajaxRes.ok) {
+    throw new Error(`Failed to load Ajax links view: HTTP ${ajaxRes.status}`);
+  }
+
+  const ajaxData = await ajaxRes.json();
+  const encryptedText = ajaxData.result;
+
+  // Decrypt Ajax view content via enc-dec.app
+  const decKaiRes = await fetch("https://enc-dec.app/api/dec-kai", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ text: encryptedText })
+  });
+
+  if (!decKaiRes.ok) {
+    throw new Error(`Failed to decrypt AnimeKai link view: HTTP ${decKaiRes.status}`);
+  }
+
+  const decKaiJson = await decKaiRes.json();
+  if (decKaiJson.status !== 200 || !decKaiJson.result || !decKaiJson.result.url) {
+    throw new Error(`AnimeKai decryption failed: ${decKaiJson.error || 'unknown'}`);
+  }
+
+  const embedUrl = decKaiJson.result.url;
+
+  // Decrypt hoster embed stream URL
+  const hosterStream = await resolveHosterEmbed(embedUrl);
+
+  return {
+    success: true,
+    provider: selectedLabel,
+    availableServers,
+    data: hosterStream
+  };
+}
+
+// ----------------------------------------------------
 // 1. Vidfast / Vidcore Scraper
 // ----------------------------------------------------
 async function resolveVidfastOrVidcore(
@@ -416,7 +587,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(200).end();
   }
 
-  let { tmdbId, mediaType, seasonId, episodeId, title, year, server, provider } = req.query;
+  let { tmdbId, mediaType, seasonId, episodeId, title, year, server, provider, anilistId } = req.query;
 
   if (!tmdbId || typeof tmdbId !== 'string') {
     return res.status(400).json({ error: 'tmdbId parameter is required' });
@@ -429,6 +600,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const episodeNum = episodeId ? String(episodeId) : '1';
   const providerStr = typeof provider === 'string' ? provider.toLowerCase() : 'videasy';
   const serverStr = typeof server === 'string' ? server : undefined;
+  const anilistIdStr = typeof anilistId === 'string' ? anilistId : undefined;
 
   // TMDB details lookup for title, year and IMDB ID if missing
   const apiKey = process.env.VITE_TMDB_API_KEY || 'fe42b660a036f4d6a2bfeb4d0f523ce9';
@@ -468,6 +640,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   // Route to the appropriate scraper
   try {
+    if (providerStr === 'animekai') {
+      const result = await resolveAnimekai(
+        cleanTitle,
+        cleanYear,
+        seasonNum,
+        episodeNum,
+        anilistIdStr,
+        serverStr
+      );
+      return res.status(200).json(result);
+    }
+
     if (providerStr === 'vidfast' || providerStr === 'vidcore') {
       const isVidcore = providerStr === 'vidcore';
       const domain = isVidcore ? 'vidcore.net' : 'vidfast.pro';

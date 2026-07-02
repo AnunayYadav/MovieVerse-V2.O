@@ -52,21 +52,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    let referer = "https://www.vidking.net/";
-    let origin = "https://www.vidking.net";
+    const customReferer = req.query.referer;
+    let referer = typeof customReferer === 'string' ? customReferer : "https://www.vidking.net/";
+    let origin = referer.endsWith('/') ? referer.slice(0, -1) : referer;
 
-    if (targetUrl.includes('videasy') || targetUrl.includes('easy') || targetUrl.includes('player.videasy')) {
-      referer = "https://player.videasy.to/";
-      origin = "https://player.videasy.to";
-    } else if (targetUrl.includes('lordflix')) {
-      referer = "https://lordflix.org/";
-      origin = "https://lordflix.org";
-    } else if (targetUrl.includes('vidsync')) {
-      referer = "https://vidsync.xyz/";
-      origin = "https://vidsync.xyz";
-    } else if (targetUrl.includes('hexa')) {
-      referer = "https://hexa.su/";
-      origin = "https://hexa.su";
+    if (!customReferer) {
+      if (targetUrl.includes('videasy') || targetUrl.includes('easy') || targetUrl.includes('player.videasy')) {
+        referer = "https://player.videasy.to/";
+        origin = "https://player.videasy.to";
+      } else if (targetUrl.includes('lordflix')) {
+        referer = "https://lordflix.org/";
+        origin = "https://lordflix.org";
+      } else if (targetUrl.includes('vidsync')) {
+        referer = "https://vidsync.xyz/";
+        origin = "https://vidsync.xyz";
+      } else if (targetUrl.includes('hexa')) {
+        referer = "https://hexa.su/";
+        origin = "https://hexa.su";
+      }
     }
 
     // Standard headers that mimic the player origin to bypass Cloudflare

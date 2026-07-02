@@ -138,8 +138,8 @@ export const PROVIDERS: Provider[] = [
     supportsPostMessage: false
   },
   {
-    id: 'anivexa',
-    name: 'Anivexa (HLS Ad-Free)',
+    id: 'encdec_animekai',
+    name: 'EncDec - AnimeKai (HLS Ad-Free)',
     getMovieUrl: () => '',
     getTvUrl: () => '',
     supportsPostMessage: false
@@ -303,7 +303,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
 
   const [selectedProviderId, setSelectedProviderId] = useState(() => {
     if (typeof window !== 'undefined') {
-      const preferred = localStorage.getItem('movieverse_preferred_provider') || (isAnime ? 'anivexa' : 'peachify');
+      const preferred = localStorage.getItem('movieverse_preferred_provider') || (isAnime ? 'encdec_animekai' : 'peachify');
       if (isWatchParty) {
         const prov = PROVIDERS.find(p => p.id === preferred);
         if (!prov || !prov.supportsPostMessage) {
@@ -312,7 +312,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
       }
       return preferred;
     }
-    return isWatchParty ? 'vidfast' : (isAnime ? 'anivexa' : 'peachify');
+    return isWatchParty ? 'vidfast' : (isAnime ? 'encdec_animekai' : 'peachify');
   });
 
   useEffect(() => {
@@ -334,7 +334,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
 
   // Custom controls derived values & refs
   const currentProvider = PROVIDERS.find(p => p.id === selectedProviderId);
-  const useCustomControls = selectedProviderId === 'anivexa' || selectedProviderId === 'videasy_adfree' || selectedProviderId.startsWith('encdec');
+  const useCustomControls = selectedProviderId === 'videasy_adfree' || selectedProviderId.startsWith('encdec');
   const isPlayingRef = useRef(false);
   const isSeekingRef = useRef(false);
   const playerDurationRef = useRef(0);
@@ -457,82 +457,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<Hls | null>(null);
 
-  // Fetch episodes list from local AniList Meta provider
-  useEffect(() => {
-    if (!isAnime || !anilistId || selectedProviderId !== 'anivexa') return;
-
-    let isMounted = true;
-    const fetchEpisodes = async () => {
-      setAnivexaLoading(true);
-      setAnivexaError(null);
-      try {
-        const res = await window.fetch(`/api/anime?action=episodes&anilistId=${anilistId}`);
-        if (!res.ok) throw new Error("Failed to load episode list.");
-        const data = await res.json();
-        
-        if (isMounted) {
-          setAnivexaEpisodes(data.episodes || []);
-        }
-      } catch (err: any) {
-        console.error("Anime fetch episodes error:", err);
-        if (isMounted) {
-          setAnivexaError(err.message || "Failed to load episodes.");
-        }
-      } finally {
-        if (isMounted) setAnivexaLoading(false);
-      }
-    };
-
-    fetchEpisodes();
-    return () => { isMounted = false; };
-  }, [isAnime, anilistId, selectedProviderId]);
-
-  // Fetch watch URL when currentEpisode or language changes
-  useEffect(() => {
-    if (!isAnime || !anilistId || selectedProviderId !== 'anivexa' || !anivexaEpisodes) return;
-
-    let isMounted = true;
-    const fetchWatchUrl = async () => {
-      setAnivexaLoading(true);
-      setAnivexaStreamUrl('');
-      setAnivexaError(null);
-      try {
-        const epMatch = anivexaEpisodes.find((e: any) => e.number === currentEpisode);
-        if (!epMatch) {
-          throw new Error(`Episode ${currentEpisode} is not available.`);
-        }
-
-        const watchRes = await window.fetch(`/api/anime?action=watch&episodeId=${encodeURIComponent(epMatch.id)}`);
-        if (!watchRes.ok) throw new Error("Failed to resolve streaming link.");
-        const data = await watchRes.json();
-
-        if (isMounted) {
-          const m3u8Source = data.sources?.find((s: any) => s.isM3U8 || s.url.includes('.m3u8')) || data.sources?.[0];
-          if (m3u8Source?.url) {
-            setAnivexaStreamUrl(m3u8Source.url);
-            const rawSubs = data.subtitles || [];
-            const uniqueSubs = rawSubs.filter((sub: any, idx: number, self: any[]) => {
-              const label = sub.label || sub.language || sub.lang || '';
-              return self.findIndex(s => (s.label || s.language || s.lang || '') === label) === idx;
-            });
-            setAnivexaSubtitles(uniqueSubs);
-          } else {
-            throw new Error("No valid HLS (.m3u8) source found.");
-          }
-        }
-      } catch (err: any) {
-        console.error("Anime fetch watch error:", err);
-        if (isMounted) {
-          setAnivexaError(err.message || "Failed to resolve stream link.");
-        }
-      } finally {
-        if (isMounted) setAnivexaLoading(false);
-      }
-    };
-
-    fetchWatchUrl();
-    return () => { isMounted = false; };
-  }, [isAnime, anilistId, selectedProviderId, anivexaEpisodes, currentEpisode, animeLanguage]);
+  // Removed old anivexa local meta fetching hooks. We now use AnimeKai from EncDec via api/encdec.ts.
 
   // Bind video element events to state
   useEffect(() => {
@@ -754,6 +679,10 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
           title: cleanTitle
         });
 
+        if (anilistId) {
+          params.append('anilistId', String(anilistId));
+        }
+
         if (selectedProviderId.startsWith('encdec') && selectedEncDecServer) {
           params.append('server', selectedEncDecServer);
         }
@@ -849,7 +778,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   }, [currentSeason, currentEpisode, onEpisodeChange]);
 
   useEffect(() => {
-    if (!isAutoplayEnabled || !hasNextEpisode || (selectedProviderId !== 'anivexa' && selectedProviderId !== 'videasy_adfree' && !selectedProviderId.startsWith('encdec'))) return;
+    if (!isAutoplayEnabled || !hasNextEpisode || (selectedProviderId !== 'videasy_adfree' && !selectedProviderId.startsWith('encdec'))) return;
     
     if (playerDuration > 0 && playerCurrentTime >= playerDuration - 20 && !showNextCountdown) {
       setShowNextCountdown(true);
@@ -1609,7 +1538,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
         }
       `}</style>
       <div className="flex-1 relative w-full h-full z-0 overflow-hidden bg-black">
-        {selectedProviderId === 'videasy_adfree' || selectedProviderId.startsWith('encdec') || (selectedProviderId === 'anivexa' && isAnime && anilistId) ? (
+        {selectedProviderId === 'videasy_adfree' || selectedProviderId.startsWith('encdec') ? (
           <div className="w-full h-full absolute inset-0 bg-zinc-950 z-0 flex items-center justify-center">
             {anivexaLoading && !anivexaStreamUrl && (
               <div className="absolute inset-0 flex items-center justify-center bg-black z-30 animate-in fade-in duration-250">
@@ -1625,7 +1554,8 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                 </div>
                 <button
                   onClick={() => {
-                    setSelectedProviderId(selectedProviderId === 'anivexa' ? 'vidnest' : 'videasy');
+                    const isEncdecAnime = selectedProviderId === 'encdec_animekai';
+                    setSelectedProviderId(isEncdecAnime ? 'vidnest' : 'videasy');
                   }}
                   className="px-5 py-2.5 bg-white/10 hover:bg-white/15 text-white font-bold text-xs uppercase tracking-wider rounded-xl transition-all border border-white/10 backdrop-blur-md active:scale-95 shadow-xl"
                 >
