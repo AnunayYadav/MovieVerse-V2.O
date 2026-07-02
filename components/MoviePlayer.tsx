@@ -1567,7 +1567,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
 
             {/* Buffering Indicator */}
             {isBuffering && (
-              <div className="absolute inset-0 flex items-center justify-center bg-black/10 z-25 pointer-events-none">
+              <div className="absolute inset-0 flex items-center justify-center bg-black/10 z-30 pointer-events-none">
                 <div className="flex flex-col items-center justify-center w-36 h-36 bg-[#0c0c0e]/95 border border-white/10 rounded-2xl shadow-2xl gap-4 animate-in fade-in zoom-in-95 duration-250">
                   <div className="w-10 h-10 border-[3px] border-[#E50914] border-t-transparent rounded-full animate-spin" />
                   <span className="text-[10px] text-zinc-400 font-light tracking-[0.2em] uppercase select-none">Buffering</span>
@@ -1727,7 +1727,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
 
             {/* TV-friendly auto-next episode countdown card */}
             {showNextCountdown && (
-              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-35 animate-in fade-in zoom-in-95 duration-300">
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-40 animate-in fade-in zoom-in-95 duration-300">
                 <div className="p-6 rounded-2xl bg-zinc-950/95 backdrop-blur-xl border border-white/10 shadow-[0_0_50px_rgba(0,0,0,0.8)] text-center w-72 max-w-sm">
                   <div className="text-[10px] text-zinc-500 font-extrabold uppercase tracking-[0.2em] mb-2">Up Next</div>
                   <h4 className="text-white text-sm font-black tracking-wide truncate mb-1">
@@ -1776,9 +1776,10 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
 
         {/* Netflix-style Episodes Selector Overlay */}
         {isEpisodesOverlayOpen && (
-          <div className="absolute inset-0 bg-black/90 backdrop-blur-md z-45 flex flex-col p-8 sm:p-12 md:p-16 select-none overflow-hidden animate-in fade-in duration-300">
-            {/* Header Bar */}
-            <div className="flex items-center justify-between w-full border-b border-white/10 pb-4">
+          <div className="absolute inset-0 bg-black/95 backdrop-blur-md z-50 flex flex-col items-center p-8 sm:p-12 md:p-16 select-none overflow-hidden animate-in fade-in duration-300">
+            <div className="w-full max-w-4xl h-full flex flex-col">
+              {/* Header Bar */}
+              <div className="flex items-center justify-between w-full border-b border-white/10 pb-4">
               <div className="flex items-center gap-4">
                 {/* Season Dropdown Selector */}
                 <div className="relative">
@@ -1948,12 +1949,13 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
               )}
             </div>
           </div>
-        )}
+        </div>
+      )}
 
         <div
           data-controls
           onClick={(e) => e.stopPropagation()}
-          className={`absolute right-0 top-0 h-full z-45 backdrop-blur-xl border-l border-white/10 shadow-[0_0_50px_rgba(0,0,0,0.8)] transition-transform duration-300 ease-out flex flex-col w-72 sm:w-80 ${
+          className={`absolute right-0 top-0 h-full z-50 backdrop-blur-xl border-l border-white/10 shadow-[0_0_50px_rgba(0,0,0,0.8)] transition-transform duration-300 ease-out flex flex-col w-72 sm:w-80 ${
             isDrawerOpen ? 'translate-x-0' : 'translate-x-full'
           }`}
           style={{ backgroundColor: 'rgba(9, 9, 11, 0.97)' }}
