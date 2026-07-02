@@ -10,12 +10,12 @@ const ANIKAI_BASE = 'https://www3.anikai.cc';
 const ANIKOTO_BASE = 'https://anikototv.to';
 const ANIKOTO_API_BASE = 'https://anikotoapi.site';
 const EMBED_BASE = 'https://megaplay.buzz';
-const MIRURO_PIPE_URL = 'https://www.miruro.bz/api/secure/pipe';
+const MIRURO_PIPE_URL = 'https://www.miruro.ru/api/secure/pipe';
 
 const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 const MIRURO_HEADERS = {
   'User-Agent': USER_AGENT,
-  'Referer': 'https://www.miruro.bz/'
+  'Referer': 'https://www.miruro.ru/'
 };
 
 function extractAnikotoId(href: string | undefined): string | null {
@@ -407,7 +407,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(404).json({ success: false, error: `Episode ${epNum} (${category}) not found on Miruro.` });
       }
 
-      const encEpId = Buffer.from(matchedEpisodeId).toString('base64url');
+      const encEpId = matchedEpisodeId;
       const srcPayload = {
         path: "sources",
         method: "GET",
@@ -434,16 +434,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         throw new Error("Invalid sources data from Miruro pipe.");
       }
 
-      const rawSources = srcData.sources || [];
-      const rawSubtitles = srcData.subtitles || [];
+      const rawStreams = srcData.streams || [];
+      const directStreams = rawStreams.filter((s: any) => s.type === 'hls' || s.type === 'mp4');
 
-      const sources = rawSources.map((s: any) => ({
+      const sources = directStreams.map((s: any) => ({
         file: s.url,
-        label: s.quality || 'Auto',
-        type: s.isM3U8 ? 'hls' : 'mp4'
+        label: `${s.server} (${s.type.toUpperCase()})`,
+        type: s.type === 'hls' ? 'hls' : 'mp4'
       }));
 
-      const subtitles = rawSubtitles.map((sub: any) => ({
+      const subtitles = (srcData.subtitles || []).map((sub: any) => ({
         file: sub.url,
         label: sub.lang || sub.label || 'English',
         kind: 'captions'
