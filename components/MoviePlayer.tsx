@@ -1039,38 +1039,38 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   }, [sendPlayerCommand, playerMuted, useCustomControls, isCineSrcCustom, sendCineSrcCommand, isVidFastCustom, isVidCoreCustom]);
 
   const skipForward = useCallback(() => {
+    const nextTime = playerDuration > 0 ? Math.min(playerDuration, playerCurrentTime + 10) : playerCurrentTime + 10;
     if (isCineSrcCustom) {
-      const nextTime = Math.min(playerDuration, playerCurrentTime + 10);
       sendCineSrcCommand('seek', [nextTime]);
-      setPlayerCurrentTime(nextTime);
     } else if (isVidFastCustom || isVidCoreCustom) {
-      sendPlayerCommand('seek', { time: Math.min(playerDuration, playerCurrentTime + 10) });
+      sendPlayerCommand('seek', { time: Math.floor(nextTime) });
     } else if (useCustomControls) {
       const video = videoRef.current;
       if (video) {
-        video.currentTime = Math.min(playerDuration, video.currentTime + 10);
+        video.currentTime = nextTime;
       }
     } else {
-      sendPlayerCommand('seek', { time: Math.min(playerDuration, playerCurrentTime + 10) });
+      sendPlayerCommand('seek', { time: Math.floor(nextTime) });
     }
+    setPlayerCurrentTime(nextTime);
     showOverlayFeedback('10s >', 'forward');
   }, [playerDuration, playerCurrentTime, sendPlayerCommand, useCustomControls, isCineSrcCustom, sendCineSrcCommand, isVidFastCustom, isVidCoreCustom]);
 
   const skipBackward = useCallback(() => {
+    const nextTime = Math.max(0, playerCurrentTime - 10);
     if (isCineSrcCustom) {
-      const nextTime = Math.max(0, playerCurrentTime - 10);
       sendCineSrcCommand('seek', [nextTime]);
-      setPlayerCurrentTime(nextTime);
     } else if (isVidFastCustom || isVidCoreCustom) {
-      sendPlayerCommand('seek', { time: Math.max(0, playerCurrentTime - 10) });
+      sendPlayerCommand('seek', { time: Math.floor(nextTime) });
     } else if (useCustomControls) {
       const video = videoRef.current;
       if (video) {
-        video.currentTime = Math.max(0, video.currentTime - 10);
+        video.currentTime = nextTime;
       }
     } else {
-      sendPlayerCommand('seek', { time: Math.max(0, playerCurrentTime - 10) });
+      sendPlayerCommand('seek', { time: Math.floor(nextTime) });
     }
+    setPlayerCurrentTime(nextTime);
     showOverlayFeedback('< 10s', 'rewind');
   }, [playerCurrentTime, sendPlayerCommand, useCustomControls, isCineSrcCustom, sendCineSrcCommand, isVidFastCustom, isVidCoreCustom]);
 
@@ -1825,9 +1825,15 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
             {/* Center play button when paused */}
             {!isPlaying && playerDuration > 0 && !isBuffering && (
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20">
-                <div className="w-20 h-20 rounded-full bg-black/60 backdrop-blur-md flex items-center justify-center border border-white/20 shadow-2xl animate-pulse">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    togglePlayback();
+                  }}
+                  className="w-20 h-20 rounded-full bg-black/60 hover:bg-black/80 backdrop-blur-md flex items-center justify-center border border-white/20 shadow-2xl animate-pulse active:scale-95 transition-all pointer-events-auto cursor-pointer"
+                >
                   <Play size={36} className="text-white ml-1" fill="white" />
-                </div>
+                </button>
               </div>
             )}
 
