@@ -39,6 +39,163 @@ function decodePipeResponse(encodedStr: string): any {
   return JSON.parse(decompressed.toString('utf-8'));
 }
 
+function findBestMatch(searchItems: { id: string; name: string }[], cleanTitle: string) {
+  if (searchItems.length === 0) return null;
+  const target = cleanTitle.toLowerCase();
+  const exact = searchItems.find(item => item.name.toLowerCase() === target);
+  if (exact) return exact;
+
+  let bestItem = searchItems[0];
+  let bestScore = 0;
+  const targetWords = target.split(/\s+/).filter(w => w.length > 2);
+
+  for (const item of searchItems) {
+    const itemLower = item.name.toLowerCase();
+    let score = 0;
+    for (const word of targetWords) {
+      if (itemLower.includes(word)) {
+        score += 1;
+      }
+    }
+    if (itemLower.startsWith(target) || target.startsWith(itemLower)) {
+      score += 2;
+    }
+    if (score > bestScore) {
+      bestScore = score;
+      bestItem = item;
+    }
+  }
+  return bestItem;
+}
+
+async function resolveAnikai(cleanTitle: string, episode: any, lang: any) {
+  const epNum = episode ? parseInt(String(episode), 10) : 1;
+  const subdub = lang === 'dub' ? 'dub' : 'sub';
+
+  const searchUrl = `${ANIKAI_BASE}/browser?keyword=${encodeURIComponent(cleanTitle)}`;
+  const searchRes = await fetch(searchUrl, { headers: { 'User-Agent': USER_AGENT } });
+  if (!searchRes.ok) {
+    throw new Error(`Search failed: HTTP ${searchRes.status}`);
+  }
+
+  const searchHtml = await searchRes.text();
+  const $ = cheerio.load(searchHtml);
+  const searchItems: { id: string; name: string }[] = [];
+
+  $('.aitem-wrapper.regular .aitem').each((_, el) => {
+    const href = $(el).attr('href') || $(el).find('a.poster').attr('href');
+    if (href) {
+      const id = href.replace('/watch/', '').split('#')[0].trim();
+      const name = $(el).find('a.title').text().trim() || $(el).find('h6.title').text().trim();
+      searchItems.push({ id, name });
+    }
+  });
+
+  if (searchItems.length === 0) {
+    throw new Error(`No search results on Anikai.`);
+  }
+
+  const bestMatch = findBestMatch(searchItems, cleanTitle);
+  if (!bestMatch) {
+    throw new Error(`No match found on Anikai.`);
+  }
+
+  const detailRes = await fetch(`${ANIKAI_BASE}/watch/${bestMatch.id}`, { headers: { 'User-Agent': USER_AGENT } });
+  if (!detailRes.ok) {
+    throw new Error(`Failed to load watch page on Anikai: ${bestMatch.id}`);
+  }
+
+  const detailHtml = await detailRes.text();
+  const $$ = cheerio.load(detailHtml);
+  const matchedAlId = $$('#watch-page').attr('data-al-id') || '';
+  const matchedMalId = $$('#watch-page').attr('data-mal-id') || '';
+
+  const idToUse = matchedAlId || matchedMalId;
+  const typeToUse = matchedAlId ? 'ani' : 'mal';
+
+  if (!idToUse) {
+    throw new Error("Could not extract AniList or MAL ID from Anikai.");
+  }
+
+  return `${EMBED_BASE}/stream/${typeToUse}/${idToUse}/${epNum}/${subdub}`;
+}
+
+async function resolveAnikoto(cleanTitle: string, episode: any, lang: any) {
+  const epNum = episode ? parseInt(String(episode), 10) : 1;
+  const subdub = lang === 'dub' ? 'dub' : 'sub';
+
+  const searchUrl = `${ANIKOTO_BASE}/filter?keyword=${encodeURIComponent(cleanTitle)}`;
+  const searchRes = await fetch(searchUrl, { headers: { 'User-Agent': USER_AGENT } });
+  if (!searchRes.ok) {
+    throw new Error(`Search failed: HTTP ${searchRes.status}`);
+  }
+
+  const searchHtml = await searchRes.text();
+  const $ = cheerio.load(searchHtml);
+  const searchItems: { id: string; name: string }[] = [];
+
+  $('#list-items .item').each((_, el) => {
+    const posterLink = $(el).find('.ani.poster a, a.poster').first();
+    const href = posterLink.attr('href') || $(el).find('a').first().attr('href');
+    const id = extractAnikotoId(href);
+    const name = $(el).find('.name.d-title').text().trim();
+    if (id && name) {
+      searchItems.push({ id, name });
+    }
+  });
+
+  if (searchItems.length === 0) {
+    throw new Error(`No search results on Anikoto.`);
+  }
+
+  const bestMatch = findBestMatch(searchItems, cleanTitle);
+  if (!bestMatch) {
+    throw new Error(`No match found on Anikoto.`);
+  }
+
+  const watchRes = await fetch(`${ANIKOTO_BASE}/watch/${bestMatch.id}`, { headers: { 'User-Agent': USER_AGENT } });
+  if (!watchRes.ok) {
+    throw new Error(`Failed to load watch page on Anikoto: ${bestMatch.id}`);
+  }
+
+  const watchHtml = await watchRes.text();
+  const $$ = cheerio.load(watchHtml);
+  const animeId = $$('#watch-main').attr('data-id') || null;
+
+  if (!animeId) {
+    throw new Error("Could not extract Anime ID from watch page on Anikoto.");
+  }
+
+  const apiRes = await fetch(`${ANIKOTO_API_BASE}/series/${animeId}`, {
+    headers: { 'Accept': 'application/json', 'User-Agent': USER_AGENT }
+  });
+
+  if (!apiRes.ok) {
+    throw new Error(`Failed to fetch series data from Anikoto API`);
+  }
+
+  const apiData = await apiRes.json() as any;
+  if (!apiData.ok || !apiData.data || !apiData.data.episodes) {
+    throw new Error('Invalid JSON API response from Anikoto');
+  }
+
+  const episodesList = apiData.data.episodes || [];
+  const matchedEp = episodesList.find((ep: any) => ep.number === epNum);
+
+  if (!matchedEp) {
+    throw new Error(`Episode ${epNum} not found on Anikoto.`);
+  }
+
+  const embedUrls = matchedEp.embed_url || {};
+  const embedUrl = subdub === 'dub' ? (embedUrls.dub || embedUrls.sub) : (embedUrls.sub || embedUrls.dub);
+
+  if (!embedUrl) {
+    throw new Error("No streaming embed URL available for this episode.");
+  }
+
+  return embedUrl;
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Set CORS headers
   res.setHeader('Access-Control-Allow-Credentials', 'true');
@@ -52,253 +209,55 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const { provider, action, tmdbId, mediaType, episode, anilistId, title, lang, episodeId } = req.query;
 
+  // Resolve clean title if missing or provided
+  let cleanTitle = '';
+  if (title) {
+    cleanTitle = String(title)
+      .replace(/\s*\(?(Dub|Sub|TV|Movie|uncensored|censored|season\s*\d+|part\s*\d+)\)?\s*$/i, '')
+      .trim();
+  }
+
+  if (!cleanTitle && tmdbId) {
+    try {
+      const apiKey = process.env.VITE_TMDB_API_KEY || 'fe42b660a036f4d6a2bfeb4d0f523ce9';
+      const typeStr = mediaType === 'tv' ? 'tv' : 'movie';
+      const tmdbRes = await fetch(`https://api.themoviedb.org/3/${typeStr}/${tmdbId}?api_key=${apiKey}`);
+      if (tmdbRes.ok) {
+        const tmdbData = await tmdbRes.json() as any;
+        cleanTitle = typeStr === 'movie'
+          ? (tmdbData.title || tmdbData.original_title)
+          : (tmdbData.name || tmdbData.original_name);
+      }
+    } catch {}
+  }
+
   // 1. Route to Anikai Scraper
   if (provider === 'anikai') {
-    if (!anilistId && !title) {
-      return res.status(400).send("Missing title or anilistId parameter.");
+    if (!cleanTitle) {
+      return res.status(400).send("Could not resolve anime title.");
     }
-    const epNum = episode ? parseInt(String(episode), 10) : 1;
-    const subdub = lang === 'dub' ? 'dub' : 'sub';
-    const typeStr = mediaType === 'tv' ? 'tv' : 'movie';
-
     try {
-      let cleanTitle = '';
-      if (title) {
-        cleanTitle = String(title)
-          .replace(/\s*\(?(Dub|Sub|TV|Movie|uncensored|censored|season\s*\d+|part\s*\d+)\)?\s*$/i, '')
-          .trim();
-      }
-
-      if (!cleanTitle && tmdbId) {
-        const apiKey = process.env.VITE_TMDB_API_KEY || 'fe42b660a036f4d6a2bfeb4d0f523ce9';
-        const tmdbRes = await fetch(`https://api.themoviedb.org/3/${typeStr}/${tmdbId}?api_key=${apiKey}`);
-        if (tmdbRes.ok) {
-          const tmdbData = await tmdbRes.json() as any;
-          cleanTitle = typeStr === 'movie'
-            ? (tmdbData.title || tmdbData.original_title)
-            : (tmdbData.name || tmdbData.original_name);
-        }
-      }
-
-      if (!cleanTitle) {
-        return res.status(400).send("Could not resolve anime title.");
-      }
-
-      const searchUrl = `${ANIKAI_BASE}/browser?keyword=${encodeURIComponent(cleanTitle)}`;
-      const searchRes = await fetch(searchUrl, { headers: { 'User-Agent': USER_AGENT } });
-      if (!searchRes.ok) {
-        throw new Error(`Search failed: HTTP ${searchRes.status}`);
-      }
-
-      const searchHtml = await searchRes.text();
-      const $ = cheerio.load(searchHtml);
-      const searchItems: { id: string; name: string }[] = [];
-
-      $('.aitem-wrapper.regular .aitem').each((_, el) => {
-        const href = $(el).attr('href') || $(el).find('a.poster').attr('href');
-        if (href) {
-          const id = href.replace('/watch/', '').split('#')[0].trim();
-          const name = $(el).find('a.title').text().trim() || $(el).find('h6.title').text().trim();
-          searchItems.push({ id, name });
-        }
-      });
-
-      if (searchItems.length === 0) {
-        return res.status(404).send(`No search results for "${cleanTitle}" on Anikai.`);
-      }
-
-      let matchedId = '';
-      let matchedAlId = '';
-      let matchedMalId = '';
-
-      if (anilistId) {
-        const targetAlId = String(anilistId).trim();
-        for (const item of searchItems) {
-          try {
-            const detailRes = await fetch(`${ANIKAI_BASE}/watch/${item.id}`, { headers: { 'User-Agent': USER_AGENT } });
-            if (detailRes.ok) {
-              const detailHtml = await detailRes.text();
-              const $$ = cheerio.load(detailHtml);
-              const alId = $$('#watch-page').attr('data-al-id');
-              const malId = $$('#watch-page').attr('data-mal-id');
-              if (alId === targetAlId) {
-                matchedId = item.id;
-                matchedAlId = alId || '';
-                matchedMalId = malId || '';
-                break;
-              }
-            }
-          } catch {}
-        }
-      }
-
-      if (!matchedId) {
-        matchedId = searchItems[0].id;
-        try {
-          const detailRes = await fetch(`${ANIKAI_BASE}/watch/${matchedId}`, { headers: { 'User-Agent': USER_AGENT } });
-          if (detailRes.ok) {
-            const detailHtml = await detailRes.text();
-            const $$ = cheerio.load(detailHtml);
-            matchedAlId = $$('#watch-page').attr('data-al-id') || '';
-            matchedMalId = $$('#watch-page').attr('data-mal-id') || '';
-          }
-        } catch {}
-      }
-
-      if (!matchedId) {
-        return res.status(404).send(`No matching anime found for "${cleanTitle}" on Anikai.`);
-      }
-
-      const idToUse = matchedAlId || matchedMalId;
-      const typeToUse = matchedAlId ? 'ani' : 'mal';
-
-      if (!idToUse) {
-        return res.status(502).send("Could not extract AniList or MAL ID for this anime.");
-      }
-
-      const embedUrl = `${EMBED_BASE}/stream/${typeToUse}/${idToUse}/${epNum}/${subdub}`;
+      const embedUrl = await resolveAnikai(cleanTitle, episode, lang);
       res.writeHead(302, { Location: embedUrl });
       return res.end();
     } catch (e: any) {
       console.error("Anikai redirect error:", e);
-      return res.status(500).send(`Anikai extraction error: ${e.message}`);
+      return res.status(502).send(`Anikai extraction error: ${e.message}`);
     }
   }
 
   // 2. Route to Anikoto Scraper
   if (provider === 'anikoto') {
-    if (!anilistId && !title) {
-      return res.status(400).send("Missing title or anilistId parameter.");
+    if (!cleanTitle) {
+      return res.status(400).send("Could not resolve anime title.");
     }
-    const epNum = episode ? parseInt(String(episode), 10) : 1;
-    const subdub = lang === 'dub' ? 'dub' : 'sub';
-    const typeStr = mediaType === 'tv' ? 'tv' : 'movie';
-
     try {
-      let cleanTitle = '';
-      if (title) {
-        cleanTitle = String(title)
-          .replace(/\s*\(?(Dub|Sub|TV|Movie|uncensored|censored|season\s*\d+|part\s*\d+)\)?\s*$/i, '')
-          .trim();
-      }
-
-      if (!cleanTitle && tmdbId) {
-        const apiKey = process.env.VITE_TMDB_API_KEY || 'fe42b660a036f4d6a2bfeb4d0f523ce9';
-        const tmdbRes = await fetch(`https://api.themoviedb.org/3/${typeStr}/${tmdbId}?api_key=${apiKey}`);
-        if (tmdbRes.ok) {
-          const tmdbData = await tmdbRes.json() as any;
-          cleanTitle = typeStr === 'movie'
-            ? (tmdbData.title || tmdbData.original_title)
-            : (tmdbData.name || tmdbData.original_name);
-        }
-      }
-
-      if (!cleanTitle) {
-        return res.status(400).send("Could not resolve anime title.");
-      }
-
-      const searchUrl = `${ANIKOTO_BASE}/filter?keyword=${encodeURIComponent(cleanTitle)}`;
-      const searchRes = await fetch(searchUrl, { headers: { 'User-Agent': USER_AGENT } });
-      if (!searchRes.ok) {
-        throw new Error(`Search failed: HTTP ${searchRes.status}`);
-      }
-
-      const searchHtml = await searchRes.text();
-      const $ = cheerio.load(searchHtml);
-      const searchItems: { id: string; name: string }[] = [];
-
-      $('#list-items .item').each((_, el) => {
-        const posterLink = $(el).find('.ani.poster a, a.poster').first();
-        const href = posterLink.attr('href') || $(el).find('a').first().attr('href');
-        const id = extractAnikotoId(href);
-        const name = $(el).find('.name.d-title').text().trim();
-        if (id && name) {
-          searchItems.push({ id, name });
-        }
-      });
-
-      if (searchItems.length === 0) {
-        return res.status(404).send(`No search results for "${cleanTitle}" on Anikoto.`);
-      }
-
-      let matchedAnimeId = '';
-      const targetAlId = anilistId ? String(anilistId).trim() : '';
-
-      for (const item of searchItems) {
-        try {
-          const watchRes = await fetch(`${ANIKOTO_BASE}/watch/${item.id}`, { headers: { 'User-Agent': USER_AGENT } });
-          if (watchRes.ok) {
-            const watchHtml = await watchRes.text();
-            const $$ = cheerio.load(watchHtml);
-            const animeId = $$('#watch-main').attr('data-id') || null;
-            if (animeId) {
-              if (targetAlId) {
-                const apiRes = await fetch(`${ANIKOTO_API_BASE}/series/${animeId}`, {
-                  headers: { 'Accept': 'application/json', 'User-Agent': USER_AGENT }
-                });
-                if (apiRes.ok) {
-                  const apiData = await apiRes.json() as any;
-                  const aniId = apiData?.data?.anime?.ani_id;
-                  if (String(aniId) === targetAlId) {
-                    matchedAnimeId = animeId;
-                    break;
-                  }
-                }
-              } else {
-                matchedAnimeId = animeId;
-                break;
-              }
-            }
-          }
-        } catch {}
-      }
-
-      if (!matchedAnimeId && searchItems.length > 0) {
-        const firstItem = searchItems[0];
-        const watchRes = await fetch(`${ANIKOTO_BASE}/watch/${firstItem.id}`, { headers: { 'User-Agent': USER_AGENT } });
-        if (watchRes.ok) {
-          const watchHtml = await watchRes.text();
-          const $$ = cheerio.load(watchHtml);
-          matchedAnimeId = $$('#watch-main').attr('data-id') || '';
-        }
-      }
-
-      if (!matchedAnimeId) {
-        return res.status(404).send(`No matching anime found for "${cleanTitle}" on Anikoto.`);
-      }
-
-      const apiRes = await fetch(`${ANIKOTO_API_BASE}/series/${matchedAnimeId}`, {
-        headers: { 'Accept': 'application/json', 'User-Agent': USER_AGENT }
-      });
-
-      if (!apiRes.ok) {
-        throw new Error(`Failed to fetch series data: HTTP ${apiRes.status}`);
-      }
-
-      const apiData = await apiRes.json() as any;
-      if (!apiData.ok || !apiData.data || !apiData.data.episodes) {
-        throw new Error('Invalid JSON API response from Anikoto');
-      }
-
-      const episodesList = apiData.data.episodes || [];
-      const matchedEp = episodesList.find((ep: any) => ep.number === epNum);
-
-      if (!matchedEp) {
-        return res.status(404).send(`Episode ${epNum} not found on Anikoto.`);
-      }
-
-      const embedUrls = matchedEp.embed_url || {};
-      const embedUrl = subdub === 'dub' ? (embedUrls.dub || embedUrls.sub) : (embedUrls.sub || embedUrls.dub);
-
-      if (!embedUrl) {
-        return res.status(502).send("No streaming embed URL available for this episode.");
-      }
-
+      const embedUrl = await resolveAnikoto(cleanTitle, episode, lang);
       res.writeHead(302, { Location: embedUrl });
       return res.end();
     } catch (e: any) {
       console.error("Anikoto redirect error:", e);
-      return res.status(500).send(`Anikoto extraction error: ${e.message}`);
+      return res.status(502).send(`Anikoto extraction error: ${e.message}`);
     }
   }
 
@@ -458,8 +417,28 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
       });
     } catch (e: any) {
-      console.error("Miruro resolution error:", e);
-      return res.status(500).json({ success: false, error: e.message });
+      console.warn("Miruro failed, trying fallback to Anikoto/Anikai:", e.message);
+      try {
+        const fallbackUrl = await resolveAnikoto(cleanTitle, episode, lang);
+        return res.status(200).json({
+          success: true,
+          data: {
+            iframeUrl: fallbackUrl
+          }
+        });
+      } catch (e2: any) {
+        try {
+          const fallbackUrl = await resolveAnikai(cleanTitle, episode, lang);
+          return res.status(200).json({
+            success: true,
+            data: {
+              iframeUrl: fallbackUrl
+            }
+          });
+        } catch (e3: any) {
+          return res.status(500).json({ success: false, error: `Miruro and fallback scrapers failed: ${e3.message}` });
+        }
+      }
     }
   }
 

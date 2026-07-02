@@ -325,10 +325,11 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   // Custom controls derived values & refs
   const currentProvider = PROVIDERS.find(p => p.id === selectedProviderId);
   const [fallbackToNativeVideasy, setFallbackToNativeVideasy] = useState(false);
+  const [fallbackToIframe, setFallbackToIframe] = useState(false);
   const isCineSrcCustom = selectedProviderId === 'cinesrc';
   const isVidFastCustom = selectedProviderId === 'vidfast';
   const isIframeCustomControls = isCineSrcCustom || isVidFastCustom;
-  const useCustomControls = (selectedProviderId === 'videasy_adfree' || selectedProviderId.startsWith('encdec') || selectedProviderId === 'miruro' || isIframeCustomControls) && !(selectedProviderId === 'videasy_adfree' && fallbackToNativeVideasy);
+  const useCustomControls = (selectedProviderId === 'videasy_adfree' || selectedProviderId.startsWith('encdec') || selectedProviderId === 'miruro' || isIframeCustomControls) && !(selectedProviderId === 'videasy_adfree' && fallbackToNativeVideasy) && !fallbackToIframe;
   const isPlayingRef = useRef(false);
   const isSeekingRef = useRef(false);
   const playerDurationRef = useRef(0);
@@ -667,6 +668,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     setEncDecServers([]);
     lastFetchedKeyRef.current = '';
     setFallbackToNativeVideasy(false);
+    setFallbackToIframe(false);
   }, [selectedProviderId, tmdbId, currentSeason, currentEpisode]);
 
   // Fetch streaming sources for videasy_adfree, encdec, and miruro
@@ -725,6 +727,12 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
         if (!isMounted) return;
 
         if (payload.success && payload.data) {
+          if (payload.data.iframeUrl) {
+            setFallbackToIframe(true);
+            setEmbedUrl(payload.data.iframeUrl);
+            setAnivexaLoading(false);
+            return;
+          }
           const sources = payload.data.sources || [];
           const subs = payload.data.subtitles || [];
 
