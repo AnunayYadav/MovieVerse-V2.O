@@ -801,7 +801,11 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
       } catch (err: any) {
         console.error("Videasy Decryptor Error:", err);
         if (isMounted) {
-          setAnivexaError(err.message || "Failed to resolve decrypted HLS stream.");
+          let friendlyMsg = err.message || "Failed to resolve decrypted HLS stream.";
+          if (friendlyMsg.includes("failed") || friendlyMsg.includes("404") || friendlyMsg.includes("decrypt") || friendlyMsg.includes("no video")) {
+            friendlyMsg = "This title is not currently available on the ad-free player. Please click the button below to switch to the embed player or try another source.";
+          }
+          setAnivexaError(friendlyMsg);
         }
       } finally {
         if (isMounted) setAnivexaLoading(false);
