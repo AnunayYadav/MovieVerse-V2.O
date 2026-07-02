@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 // @ts-ignore
-import worker from './anivexa/index.js';
+import worker from '../lib/anivexa/index.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // CORS Configuration
