@@ -10,7 +10,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(200).end();
   }
 
-  let { tmdbId, mediaType, seasonId, episodeId, title, year } = req.query;
+  let { tmdbId, mediaType, seasonId, episodeId, title, year, server } = req.query;
 
   if (!tmdbId || typeof tmdbId !== 'string') {
     return res.status(400).json({ error: 'tmdbId parameter is required' });
@@ -46,16 +46,34 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(400).json({ error: 'title parameter is required or could not be resolved from TMDB' });
   }
 
-  // Use the servers from videasy.to
-  const providers = [
-    { name: 'Yoru', endpoint: 'cdn' },
-    { name: 'Cypher', endpoint: 'downloader2' },
-    { name: 'Neon', endpoint: 'mb-flix' },
-    { name: 'Sage', endpoint: '1movies' },
-    { name: 'Breach', endpoint: 'm4uhd' }
+  // All EncDec API servers
+  const allProviders = [
+    { name: 'Yoru', endpoint: 'cdn', isMovieOnly: true },
+    { name: 'Cypher', endpoint: 'downloader2', isMovieOnly: false },
+    { name: 'Neon', endpoint: 'mb-flix', isMovieOnly: false },
+    { name: 'Sage', endpoint: '1movies', isMovieOnly: false },
+    { name: 'Breach', endpoint: 'm4uhd', isMovieOnly: false },
+    { name: 'Vyse', endpoint: 'hdmovie', isMovieOnly: false },
+    { name: 'Fade', endpoint: 'hdmovie', isMovieOnly: false, extraParams: { quality: 'Hindi' } },
+    { name: 'Killjoy', endpoint: 'meine', isMovieOnly: false, extraParams: { language: 'german' } },
+    { name: 'Omen', endpoint: 'lamovie', isMovieOnly: false },
+    { name: 'Raze', endpoint: 'superflix', isMovieOnly: false }
   ];
 
-  const queryParams = {
+  // Filter based on movie/tv type
+  const providers = allProviders.filter(p => !p.isMovieOnly || mediaType === 'movie');
+  const availableServers = providers.map(p => p.name);
+
+  // If a specific server is requested, filter to that one
+  let targetProviders = providers;
+  if (server && typeof server === 'string') {
+    const matched = providers.find(p => p.name.toLowerCase() === server.toLowerCase());
+    if (matched) {
+      targetProviders = [matched];
+    }
+  }
+
+  const queryParams: any = {
     title: String(title),
     mediaType: String(mediaType),
     year: year ? String(year) : '',
@@ -64,12 +82,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     tmdbId: String(tmdbId)
   };
 
-  const queryString = new URLSearchParams(queryParams).toString();
   let successData: any = null;
   let successfulProvider = '';
   const errors: string[] = [];
 
-  for (const provider of providers) {
+  for (const provider of targetProviders) {
+    const combinedParams = { ...queryParams, ...(provider.extraParams || {}) };
+    const queryString = new URLSearchParams(combinedParams).toString();
     const url = `https://api.videasy.to/${provider.endpoint}/sources-with-title?${queryString}`;
     try {
       const fetchRes = await fetch(url, {
@@ -127,11 +146,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(200).json({
       success: true,
       provider: successfulProvider,
+      availableServers,
       data: successData
     });
   } else {
     return res.status(502).json({
       success: false,
+      availableServers,
       error: `All EncDec providers failed — ${errors.join('; ')}`
     });
   }

@@ -303,6 +303,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   const isPlayingRef = useRef(false);
   const isSeekingRef = useRef(false);
   const playerDurationRef = useRef(0);
+  const lastFetchedKeyRef = useRef('');
 
   const [anilistId, setAnilistId] = useState<number | null>(null);
   const [anilistLoading, setAnilistLoading] = useState(false);
@@ -324,6 +325,10 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     }
     return 'English';
   });
+
+  // EncDec server states
+  const [encDecServers, setEncDecServers] = useState<string[]>([]);
+  const [selectedEncDecServer, setSelectedEncDecServer] = useState<string>('');
 
   // Anivexa states
   const [anivexaEpisodes, setAnivexaEpisodes] = useState<any[] | null>(null);
@@ -681,12 +686,23 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     };
   }, [subtitleLanguage, anivexaSubtitles, anivexaStreamUrl]);
 
+  // Reset EncDec server states when provider or movie/episode changes
+  useEffect(() => {
+    setSelectedEncDecServer('');
+    setEncDecServers([]);
+    lastFetchedKeyRef.current = '';
+  }, [selectedProviderId, tmdbId, currentSeason, currentEpisode]);
+
   // Fetch streaming sources for videasy_adfree and encdec
   useEffect(() => {
     if (selectedProviderId !== 'videasy_adfree' && selectedProviderId !== 'encdec') return;
 
     let isMounted = true;
     const fetchDecryptedStream = async () => {
+      const fetchKey = `${selectedProviderId}-${tmdbId}-${mediaType}-${currentSeason}-${currentEpisode}-${selectedEncDecServer}`;
+      if (lastFetchedKeyRef.current === fetchKey) return;
+      lastFetchedKeyRef.current = fetchKey;
+
       setAnivexaLoading(true);
       setAnivexaStreamUrl('');
       setAnivexaSubtitles([]);
@@ -702,6 +718,10 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
           episodeId: String(currentEpisode),
           title: cleanTitle
         });
+
+        if (selectedProviderId === 'encdec' && selectedEncDecServer) {
+          params.append('server', selectedEncDecServer);
+        }
 
         const endpoint = selectedProviderId === 'encdec' ? '/api/encdec' : '/api/videasy';
         const res = await window.fetch(`${endpoint}?${params.toString()}`);
@@ -719,6 +739,17 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
 
           if (sources.length === 0) {
             throw new Error("No video streaming sources returned from decryptor.");
+          }
+
+          if (selectedProviderId === 'encdec') {
+            if (payload.availableServers) {
+              setEncDecServers(payload.availableServers);
+            }
+            if (payload.provider) {
+              const nextFetchKey = `${selectedProviderId}-${tmdbId}-${mediaType}-${currentSeason}-${currentEpisode}-${payload.provider}`;
+              lastFetchedKeyRef.current = nextFetchKey;
+              setSelectedEncDecServer(payload.provider);
+            }
           }
 
           setCustomQualities(sources);
@@ -761,7 +792,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     return () => {
       isMounted = false;
     };
-  }, [selectedProviderId, tmdbId, mediaType, currentSeason, currentEpisode, title]);
+  }, [selectedProviderId, tmdbId, mediaType, currentSeason, currentEpisode, title, selectedEncDecServer]);
 
   // Check next episode countdown logic
   const hasNextEpisode = mediaType === 'tv' && episodes.some(ep => ep.episode_number === currentEpisode + 1);
@@ -2078,6 +2109,33 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                           </div>
                         </div>
 
+                        {selectedProviderId === 'encdec' && encDecServers.length > 0 && (
+                          <div className="border-t border-white/5 pt-2.5">
+                            <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block mb-2 px-1">Select Source Server</span>
+                            <div className="grid grid-cols-2 gap-1.5">
+                              {encDecServers.map((srv) => {
+                                const isActive = selectedEncDecServer === srv;
+                                return (
+                                  <button
+                                    key={srv}
+                                    onClick={() => {
+                                      setSelectedEncDecServer(srv);
+                                      closeAllMenus();
+                                    }}
+                                    className={`py-1.5 px-2 rounded-lg text-[11px] font-semibold text-center transition-all border ${
+                                      isActive 
+                                        ? 'bg-red-600/10 text-red-500 border-red-500/20' 
+                                        : 'bg-white/5 text-zinc-300 border-white/5 hover:border-white/10 hover:bg-white/10'
+                                    }`}
+                                  >
+                                    {srv}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+
                         {customQualities.length > 0 && (
                           <div className="border-t border-white/5 pt-2.5">
                             <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block mb-2 px-1">Select Quality</span>
@@ -2281,6 +2339,33 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                     </button>
                   );
                 })}
+                
+                {selectedProviderId === 'encdec' && encDecServers.length > 0 && (
+                  <div className="border-t border-white/5 pt-4 mt-2">
+                    <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block mb-2 px-1">Select Source Server</span>
+                    <div className="grid grid-cols-2 gap-2">
+                      {encDecServers.map((srv) => {
+                        const isActive = selectedEncDecServer === srv;
+                        return (
+                          <button
+                            key={srv}
+                            onClick={() => {
+                              setSelectedEncDecServer(srv);
+                              setIsDrawerOpen(false);
+                            }}
+                            className={`py-2 px-3 rounded-xl text-xs font-bold transition-all border text-center active:scale-[0.98] ${
+                              isActive 
+                                ? 'bg-red-600/20 text-red-500 border-red-500/30 font-extrabold shadow-[0_0_15px_rgba(239,68,68,0.15)]' 
+                                : 'bg-white/5 text-zinc-300 border-white/5 hover:border-white/10 hover:bg-white/10'
+                            }`}
+                          >
+                            {srv}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
