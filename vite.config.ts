@@ -46,7 +46,12 @@ export default defineConfig(({ mode }) => {
                 '/api/videasy': './api/videasy.ts',
               };
               
-              const modulePath = apiRoutes[pathname || ''];
+              let matchedPath = pathname || '';
+              if (matchedPath.startsWith('/api/anime/')) {
+                matchedPath = '/api/anime';
+              }
+              
+              const modulePath = apiRoutes[matchedPath];
               if (!modulePath) {
                 return next();
               }
