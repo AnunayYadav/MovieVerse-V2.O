@@ -1495,17 +1495,26 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
       ref={containerRef}
       onMouseMove={resetControlsTimeout}
       onTouchStart={resetControlsTimeout}
-      className="w-full h-full flex flex-col bg-black relative group/player select-none overflow-hidden"
+      className={`w-full h-full flex flex-col bg-black relative group/player select-none overflow-hidden ${
+        showControls ? 'controls-visible' : ''
+      }`}
     >
       <style>{`
         video::cue {
           background: transparent !important;
           background-color: transparent !important;
           color: #ffffff !important;
-          text-shadow: 0 0 6px #000000, 0 0 6px #000000, 1px 1px 2px #000000, -1px -1px 2px #000000, 1px -1px 2px #000000, -1px 1px 2px #000000 !important;
-          font-family: inherit;
-          font-weight: bold;
-          font-size: 100%;
+          text-shadow: 0px 0px 4px rgba(0, 0, 0, 0.9), 0px 0px 4px rgba(0, 0, 0, 0.9), 1px 1px 2px rgba(0, 0, 0, 0.8), -1px -1px 2px rgba(0, 0, 0, 0.8) !important;
+          font-family: "Helvetica Neue", Helvetica, Arial, sans-serif !important;
+          font-weight: 500 !important;
+          font-size: 1.18em !important;
+        }
+        video::-webkit-media-text-track-container {
+          transform: translateY(-40px) !important;
+          transition: transform 0.22s cubic-bezier(0.4, 0, 0.2, 1) !important;
+        }
+        .controls-visible video::-webkit-media-text-track-container {
+          transform: translateY(-100px) !important;
         }
       `}</style>
       <div className="flex-1 relative w-full h-full z-0 overflow-hidden bg-black">
