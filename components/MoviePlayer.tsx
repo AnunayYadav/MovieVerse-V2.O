@@ -103,13 +103,6 @@ export const PROVIDERS: Provider[] = [
     supportsPostMessage: false
   },
   {
-    id: 'encdec_animekai',
-    name: 'EncDec - AnimeKai (HLS Ad-Free)',
-    getMovieUrl: () => '',
-    getTvUrl: () => '',
-    supportsPostMessage: false
-  },
-  {
     id: 'cinesrc',
     name: 'CineSrc',
     getMovieUrl: (tmdbId) => `https://cinesrc.st/embed/movie/${tmdbId}`,
@@ -237,7 +230,13 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
 
   const [selectedProviderId, setSelectedProviderId] = useState(() => {
     if (typeof window !== 'undefined') {
-      const preferred = localStorage.getItem('movieverse_preferred_provider') || (isAnime ? 'encdec_animekai' : 'peachify');
+      let preferred = localStorage.getItem('movieverse_preferred_provider') || (isAnime ? 'vidnest' : 'peachify');
+      if (!isAnime && preferred === 'vidnest_animepahe') {
+        preferred = 'videasy_adfree';
+      }
+      if (preferred === 'encdec_animekai') {
+        preferred = isAnime ? 'vidnest' : 'videasy_adfree';
+      }
       if (isWatchParty) {
         const prov = PROVIDERS.find(p => p.id === preferred);
         if (!prov || !prov.supportsPostMessage) {
@@ -246,7 +245,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
       }
       return preferred;
     }
-    return isWatchParty ? 'vidfast' : (isAnime ? 'encdec_animekai' : 'peachify');
+    return isWatchParty ? 'vidfast' : (isAnime ? 'vidnest' : 'peachify');
   });
 
   useEffect(() => {
@@ -535,13 +534,6 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
           ref = 'https://player.videasy.to/';
         } else if (selectedProviderId === 'encdec_hexa') {
           ref = 'https://hexa.su/';
-        } else if (selectedProviderId === 'encdec_animekai') {
-          try {
-            const u = new URL(url);
-            ref = u.origin + '/';
-          } catch(e) {
-            ref = 'https://animekai.to/';
-          }
         }
         const refererParam = ref ? `&referer=${encodeURIComponent(ref)}` : '';
         return `/api/m3u8-proxy?url=${encodeURIComponent(url)}${refererParam}`;
@@ -694,13 +686,6 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                 ref = 'https://player.videasy.to/';
               } else if (selectedProviderId === 'encdec_hexa') {
                 ref = 'https://hexa.su/';
-              } else if (selectedProviderId === 'encdec_animekai') {
-                try {
-                  const u = new URL(url);
-                  ref = u.origin + '/';
-                } catch(e) {
-                  ref = 'https://animekai.to/';
-                }
               }
               const refererParam = ref ? `&referer=${encodeURIComponent(ref)}` : '';
               return `/api/m3u8-proxy?url=${encodeURIComponent(url)}${refererParam}`;
@@ -1543,8 +1528,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                 ) : (
                   <button
                     onClick={() => {
-                      const isEncdecAnime = selectedProviderId === 'encdec_animekai';
-                      setSelectedProviderId(isEncdecAnime ? 'vidnest' : 'cinesrc');
+                      setSelectedProviderId(isAnime ? 'vidnest' : 'cinesrc');
                     }}
                     className="px-5 py-2.5 bg-white/10 hover:bg-white/15 text-white font-bold text-xs uppercase tracking-wider rounded-xl transition-all border border-white/10 backdrop-blur-md active:scale-95 shadow-xl"
                   >
