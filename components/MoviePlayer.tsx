@@ -601,7 +601,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
         } else if (selectedProviderId === 'encdec_hexa') {
           ref = 'https://hexa.su/';
         } else if (selectedProviderId === 'miruro') {
-          ref = 'https://www.miruro.tv/';
+          ref = 'https://www.miruro.bz/';
         }
         const refererParam = ref ? `&referer=${encodeURIComponent(ref)}` : '';
         return `/api/m3u8-proxy?url=${encodeURIComponent(url)}${refererParam}`;
@@ -773,7 +773,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
               } else if (selectedProviderId === 'encdec_hexa') {
                 ref = 'https://hexa.su/';
               } else if (selectedProviderId === 'miruro') {
-                ref = 'https://www.miruro.tv/';
+                ref = 'https://www.miruro.bz/';
               }
               const refererParam = ref ? `&referer=${encodeURIComponent(ref)}` : '';
               return `/api/m3u8-proxy?url=${encodeURIComponent(url)}${refererParam}`;

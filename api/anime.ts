@@ -10,12 +10,12 @@ const ANIKAI_BASE = 'https://www3.anikai.cc';
 const ANIKOTO_BASE = 'https://anikototv.to';
 const ANIKOTO_API_BASE = 'https://anikotoapi.site';
 const EMBED_BASE = 'https://megaplay.buzz';
-const MIRURO_PIPE_URL = 'https://www.miruro.tv/api/secure/pipe';
+const MIRURO_PIPE_URL = 'https://www.miruro.bz/api/secure/pipe';
 
 const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 const MIRURO_HEADERS = {
   'User-Agent': USER_AGENT,
-  'Referer': 'https://www.miruro.tv/'
+  'Referer': 'https://www.miruro.bz/'
 };
 
 function extractAnikotoId(href: string | undefined): string | null {
