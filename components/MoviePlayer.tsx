@@ -89,6 +89,13 @@ const getSubtitleCode = (sub: string, format: 'name' | 'iso') => {
 
 export const PROVIDERS: Provider[] = [
   {
+    id: 'cinesrc',
+    name: 'CineSrc',
+    getMovieUrl: (tmdbId) => `https://cinesrc.st/embed/movie/${tmdbId}`,
+    getTvUrl: (tmdbId, season, episode) => `https://cinesrc.st/embed/tv/${tmdbId}?s=${season}&e=${episode}`,
+    supportsPostMessage: false
+  },
+  {
     id: 'anivexa',
     name: 'Anivexa (HLS Ad-Free)',
     getMovieUrl: () => '',
