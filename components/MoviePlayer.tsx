@@ -509,13 +509,18 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
           const resolvedSources = streamsList.map((s: any) => ({
             url: s.extractedUrl || s.url,
             isM3U8: s.type === 'hls' || s.url?.includes('.m3u8') || s.extractedUrl?.includes('.m3u8'),
-            quality: s.quality || s.name || s.server || 'Auto'
+            quality: s.quality || s.name || s.server || 'Auto',
+            referer: s.referer || s.headers?.Referer || s.headers?.referer || ''
           }));
 
           const m3u8Source = resolvedSources.find((s: any) => s.isM3U8) || resolvedSources[0];
 
           if (m3u8Source?.url) {
-            setAnivexaStreamUrl(m3u8Source.url);
+            let proxiedUrl = `/api/m3u8-proxy?url=${encodeURIComponent(m3u8Source.url)}`;
+            if (m3u8Source.referer) {
+              proxiedUrl += `&referer=${encodeURIComponent(m3u8Source.referer)}`;
+            }
+            setAnivexaStreamUrl(proxiedUrl);
             const rawSubs = subtitlesList || [];
             const uniqueSubs = rawSubs.filter((sub: any, idx: number, self: any[]) => {
               const label = sub.label || sub.language || sub.lang || '';
@@ -523,7 +528,12 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
             });
             setAnivexaSubtitles(uniqueSubs);
           } else if (data.url) {
-            setAnivexaStreamUrl(data.url);
+            let proxiedUrl = `/api/m3u8-proxy?url=${encodeURIComponent(data.url)}`;
+            const ref = data.referer || data.headers?.Referer || data.headers?.referer || '';
+            if (ref) {
+              proxiedUrl += `&referer=${encodeURIComponent(ref)}`;
+            }
+            setAnivexaStreamUrl(proxiedUrl);
             const rawSubs = data.subtitles || [];
             const uniqueSubs = rawSubs.filter((sub: any, idx: number, self: any[]) => {
               const label = sub.label || sub.language || sub.lang || '';
