@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
-import { X, Tv, ChevronLeft, ChevronRight, Check, ListVideo, Sliders, ChevronDown, Info, RefreshCw, Palette, Copy, Play, Pause, Volume2, VolumeX, Maximize, Loader2, AlertTriangle, Settings, Subtitles } from 'lucide-react';
+import { X, Tv, ChevronLeft, ChevronRight, Check, ListVideo, Sliders, ChevronDown, Info, RefreshCw, Palette, Copy, Play, Pause, Volume2, VolumeX, Maximize, Loader2, AlertTriangle, Settings, Subtitles, ArrowLeft, RotateCcw, RotateCw, SkipForward, MessageSquare } from 'lucide-react';
 import Hls from 'hls.js';
 import { TvFocusButton } from '../tvNavigation';
 import { pause, resume } from '@noriginmedia/norigin-spatial-navigation';
@@ -229,7 +229,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [embedUrl, setEmbedUrl] = useState('');
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<'sources' | 'episodes' | 'settings'>('sources');
+  const [activeTab, setActiveTab] = useState<'sources' | 'episodes' | 'settings' | 'subtitles'>('sources');
 
   const [currentSeason, setCurrentSeason] = useState(initialSeason);
   const [currentEpisode, setCurrentEpisode] = useState(initialEpisode);
@@ -985,6 +985,30 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     setPlayerMuted(!playerMuted);
   }, [sendPlayerCommand, playerMuted, useCustomControls]);
 
+  const skipForward = useCallback(() => {
+    if (useCustomControls) {
+      const video = videoRef.current;
+      if (video) {
+        video.currentTime = Math.min(playerDuration, video.currentTime + 10);
+      }
+    } else {
+      sendPlayerCommand('seek', { time: Math.min(playerDuration, playerCurrentTime + 10) });
+    }
+    showOverlayFeedback('10s >', 'forward');
+  }, [playerDuration, playerCurrentTime, sendPlayerCommand, useCustomControls]);
+
+  const skipBackward = useCallback(() => {
+    if (useCustomControls) {
+      const video = videoRef.current;
+      if (video) {
+        video.currentTime = Math.max(0, video.currentTime - 10);
+      }
+    } else {
+      sendPlayerCommand('seek', { time: Math.max(0, playerCurrentTime - 10) });
+    }
+    showOverlayFeedback('< 10s', 'rewind');
+  }, [playerCurrentTime, sendPlayerCommand, useCustomControls]);
+
   const toggleFullscreen = useCallback(() => {
     if (!containerRef.current) return;
     if (document.fullscreenElement) {
@@ -1548,10 +1572,10 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
 
             {/* Buffering Indicator */}
             {isBuffering && (
-              <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/20 backdrop-blur-[1px] z-20 pointer-events-none">
-                <div className="p-5 bg-black/60 rounded-3xl border border-white/10 flex flex-col items-center justify-center gap-3 shadow-2xl backdrop-blur-md animate-in fade-in zoom-in-95 duration-200">
-                  <Loader2 className="animate-spin text-red-500" size={32} />
-                  <span className="text-[9px] text-zinc-400 font-extrabold tracking-[0.2em] uppercase">Buffering</span>
+              <div className="absolute inset-0 flex items-center justify-center bg-black/10 z-25 pointer-events-none">
+                <div className="flex flex-col items-center justify-center w-36 h-36 bg-[#0c0c0e]/95 border border-white/10 rounded-2xl shadow-2xl gap-4 animate-in fade-in zoom-in-95 duration-250">
+                  <div className="w-10 h-10 border-[3px] border-[#E50914] border-t-transparent rounded-full animate-spin" />
+                  <span className="text-[10px] text-zinc-400 font-light tracking-[0.2em] uppercase select-none">Buffering</span>
                 </div>
               </div>
             )}
@@ -1564,213 +1588,115 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
               }`}
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="bg-gradient-to-t from-black/95 via-black/60 to-transparent pt-16 pb-4 px-4 sm:px-6">
-                {/* Progress bar */}
-                <div
-                  ref={progressBarRef}
-                  className="group/progress w-full h-1.5 bg-white/20 rounded-full cursor-pointer relative mb-3 hover:h-2.5 transition-all duration-150"
-                  onMouseDown={handleProgressBarMouseDown}
-                >
+              <div className="bg-gradient-to-t from-black/95 via-black/60 to-transparent pt-20 pb-6 px-6 sm:px-8">
+                {/* Netflix-style Timeline + Remaining Time Row */}
+                <div className="flex items-center w-full mb-4">
                   <div
-                    className="absolute inset-y-0 left-0 rounded-full transition-[width] duration-75"
-                    style={{
-                      width: playerDuration > 0 ? `${(playerCurrentTime / playerDuration) * 100}%` : '0%',
-                      backgroundColor: `#${activeColor.replace('#', '')}`
-                    }}
-                  />
-                  <div
-                    className="absolute top-1/2 -translate-y-1/2 w-4 h-4 rounded-full shadow-lg opacity-0 group-hover/progress:opacity-100 transition-opacity pointer-events-none border-2 border-white"
-                    style={{
-                      left: playerDuration > 0 ? `calc(${(playerCurrentTime / playerDuration) * 100}% - 8px)` : '-8px',
-                      backgroundColor: `#${activeColor.replace('#', '')}`
-                    }}
-                  />
+                    ref={progressBarRef}
+                    className="group/progress flex-1 h-1 bg-white/30 rounded-full cursor-pointer relative hover:h-1.5 transition-all duration-150"
+                    onMouseDown={handleProgressBarMouseDown}
+                  >
+                    <div
+                      className="absolute inset-y-0 left-0 rounded-full transition-[width] duration-75 bg-[#E50914]"
+                      style={{
+                        width: playerDuration > 0 ? `${(playerCurrentTime / playerDuration) * 100}%` : '0%'
+                      }}
+                    />
+                    <div
+                      className="absolute top-1/2 -translate-y-1/2 w-3.5 h-3.5 rounded-full shadow-lg transition-transform pointer-events-none bg-[#E50914]"
+                      style={{
+                        left: playerDuration > 0 ? `calc(${(playerCurrentTime / playerDuration) * 100}% - 7px)` : '-7px'
+                      }}
+                    />
+                  </div>
+                  <span className="text-white text-xs font-light tracking-wide select-none tabular-nums whitespace-nowrap ml-4 self-center opacity-85">
+                    -{formatTime(playerDuration - playerCurrentTime)}
+                  </span>
                 </div>
 
                 {/* Controls row */}
-                <div className="flex items-center gap-2 sm:gap-3">
-                  <button onClick={togglePlayback} className="p-2 text-white hover:bg-white/10 rounded-lg transition-all active:scale-90" title={isPlaying ? 'Pause (Space)' : 'Play (Space)'}>
-                    {isPlaying ? <Pause size={22} fill="white" /> : <Play size={22} fill="white" className="ml-0.5" />}
-                  </button>
-
-                  <span className="text-white/80 text-[11px] sm:text-xs font-mono tabular-nums whitespace-nowrap">
-                    {formatTime(playerCurrentTime)}<span className="text-white/30 mx-1">/</span>{formatTime(playerDuration)}
-                  </span>
-
-                  <div className="flex-1" />
-
-                  {/* Volume (desktop) */}
-                  <div className="hidden sm:flex items-center gap-1 group/vol">
-                    <button onClick={toggleMuteState} className="p-2 text-white/80 hover:text-white hover:bg-white/10 rounded-lg transition-all" title={playerMuted ? 'Unmute (M)' : 'Mute (M)'}>
-                      {playerMuted || playerVolume === 0 ? <VolumeX size={18} /> : <Volume2 size={18} />}
+                <div className="flex items-center justify-between w-full">
+                  {/* Left Side: Playback & Volume */}
+                  <div className="flex items-center gap-1 sm:gap-2">
+                    <button onClick={togglePlayback} className="p-2 text-white/95 hover:text-white transition-transform active:scale-90" title={isPlaying ? 'Pause (Space)' : 'Play (Space)'}>
+                      {isPlaying ? <Pause size={24} /> : <Play size={24} className="ml-0.5" />}
                     </button>
-                    <div className="w-0 group-hover/vol:w-20 overflow-hidden transition-all duration-300">
-                      <input type="range" min="0" max="1" step="0.05" value={playerMuted ? 0 : playerVolume} onChange={(e) => changeVolume(parseFloat(e.target.value))} className="w-20 h-1 cursor-pointer appearance-none bg-white/30 rounded-full outline-none" style={{ accentColor: `#${activeColor.replace('#', '')}` }} />
+
+                    <button onClick={skipBackward} className="p-2 text-white/95 hover:text-white transition-transform active:scale-90" title="Back 10s">
+                      <RotateCcw size={24} />
+                    </button>
+
+                    <button onClick={skipForward} className="p-2 text-white/95 hover:text-white transition-transform active:scale-90" title="Forward 10s">
+                      <RotateCw size={24} />
+                    </button>
+
+                    <div className="flex items-center gap-1 group/vol">
+                      <button onClick={toggleMuteState} className="p-2 text-white/95 hover:text-white transition-all" title="Mute/Unmute">
+                        {playerMuted || playerVolume === 0 ? <VolumeX size={24} /> : <Volume2 size={24} />}
+                      </button>
+                      <div className="w-0 group-hover/vol:w-20 overflow-hidden transition-all duration-300">
+                        <input type="range" min="0" max="1" step="0.05" value={playerMuted ? 0 : playerVolume} onChange={(e) => changeVolume(parseFloat(e.target.value))} className="w-20 h-1 cursor-pointer appearance-none bg-white/30 rounded-full outline-none" style={{ accentColor: '#E50914' }} />
+                      </div>
                     </div>
                   </div>
 
-                  {/* Mute (mobile) */}
-                  <button onClick={toggleMuteState} className="sm:hidden p-2 text-white/80 hover:text-white hover:bg-white/10 rounded-lg transition-all" title={playerMuted ? 'Unmute' : 'Mute'}>
-                    {playerMuted || playerVolume === 0 ? <VolumeX size={18} /> : <Volume2 size={18} />}
-                  </button>
-
-                  {/* Subtitles Selector */}
-                  {useCustomControls && (
-                    <div className="relative">
-                      <button 
-                        onClick={() => {
-                          setIsSubtitleMenuOpen(!isSubtitleMenuOpen);
-                          setIsQualityMenuOpen(false);
-                          setIsSpeedMenuOpen(false);
-                        }}
-                        className={`p-2 rounded-lg transition-all hover:bg-white/10 ${isSubtitleMenuOpen ? 'text-red-500 bg-white/5' : 'text-white/80 hover:text-white'}`}
-                        title="Subtitles"
-                      >
-                        <Subtitles size={18} />
-                      </button>
-                      
-                      {isSubtitleMenuOpen && (
-                        <div className="absolute bottom-11 right-0 mb-1 bg-zinc-950/95 backdrop-blur-md border border-white/10 rounded-xl p-1.5 z-35 shadow-2xl flex flex-col gap-1 w-48 max-h-64 overflow-y-auto custom-scrollbar">
-                          <div className="text-[9px] text-zinc-500 font-extrabold uppercase tracking-wider px-2 py-1 flex items-center justify-between">
-                            <span>Subtitles</span>
-                            <button 
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setIsOsSettingsOpen(true);
-                                setIsSubtitleMenuOpen(false);
-                              }}
-                              className="text-zinc-500 hover:text-white transition-colors"
-                              title="OpenSubtitles Settings"
-                            >
-                              <Settings size={10} />
-                            </button>
-                          </div>
-                          <button
-                            onClick={() => {
-                              setSubtitleLanguage('None');
-                              localStorage.setItem('movieverse_preferred_subtitle_language', 'None');
-                              setIsSubtitleMenuOpen(false);
-                            }}
-                            className={`w-full text-left px-2 py-1.5 text-[11px] font-bold rounded-lg transition-colors flex items-center justify-between ${
-                              subtitleLanguage === 'None' ? 'bg-red-600 text-white' : 'text-zinc-400 hover:bg-white/5 hover:text-white'
-                            }`}
-                          >
-                            <span>Off</span>
-                            {subtitleLanguage === 'None' && <Check size={10} />}
-                          </button>
-                          {anivexaSubtitles.length > 0 && Array.from(new Set(anivexaSubtitles.map(s => s.language || s.lang))).map((lang: any) => {
-                            const isSel = subtitleLanguage.toLowerCase() === lang.toLowerCase();
-                            return (
-                              <button
-                                key={lang}
-                                onClick={() => {
-                                  setSubtitleLanguage(lang);
-                                  localStorage.setItem('movieverse_preferred_subtitle_language', lang);
-                                  setIsSubtitleMenuOpen(false);
-                                }}
-                                className={`w-full text-left px-2 py-1.5 text-[11px] font-bold rounded-lg transition-colors flex items-center justify-between ${
-                                  isSel ? 'bg-red-600 text-white' : 'text-zinc-400 hover:bg-white/5 hover:text-white'
-                                }`}
-                              >
-                                <span className="truncate text-left">{lang}</span>
-                                {isSel && <Check size={10} />}
-                              </button>
-                            );
-                          })}
-                          {anivexaSubtitles.length === 0 && (
-                            <div className="text-[10px] text-zinc-600 px-2 py-3 text-center italic">
-                              No subtitles. Click gear to set up OpenSubtitles.
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Quality Selector */}
-                  {customQualities.length > 0 && (
-                    <div className="relative">
-                      <button 
-                        onClick={() => {
-                          setIsQualityMenuOpen(!isQualityMenuOpen);
-                          setIsSubtitleMenuOpen(false);
-                          setIsSpeedMenuOpen(false);
-                        }}
-                        className={`p-2 rounded-lg transition-all hover:bg-white/10 text-xs font-black tracking-wider ${isQualityMenuOpen ? 'text-red-500 bg-white/5' : 'text-white/80 hover:text-white'}`}
-                        title="Quality"
-                      >
-                        {selectedQuality}
-                      </button>
-                      
-                      {isQualityMenuOpen && (
-                        <div className="absolute bottom-11 right-0 mb-1 bg-zinc-950/95 backdrop-blur-md border border-white/10 rounded-xl p-1.5 z-35 shadow-2xl flex flex-col gap-1 w-28">
-                          <div className="text-[9px] text-zinc-500 font-extrabold uppercase tracking-wider px-2 py-1">Resolution</div>
-                          {customQualities.map((q: any) => {
-                            const isSel = selectedQuality === q.quality;
-                            return (
-                              <button
-                                key={q.quality}
-                                onClick={() => {
-                                  handleQualityChange(q.quality);
-                                  setIsQualityMenuOpen(false);
-                                }}
-                                className={`w-full text-left px-2 py-1.5 text-[11px] font-bold rounded-lg transition-colors flex items-center justify-between ${
-                                  isSel ? 'bg-red-600 text-white' : 'text-zinc-400 hover:bg-white/5 hover:text-white'
-                                }`}
-                              >
-                                <span>{q.quality}</span>
-                                {isSel && <Check size={10} />}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Speed Selector */}
-                  <div className="relative">
-                    <button 
-                      onClick={() => {
-                        setIsSpeedMenuOpen(!isSpeedMenuOpen);
-                        setIsSubtitleMenuOpen(false);
-                        setIsQualityMenuOpen(false);
-                      }}
-                      className={`p-2 rounded-lg transition-all hover:bg-white/10 text-xs font-black tracking-wider ${isSpeedMenuOpen ? 'text-red-500 bg-white/5' : 'text-white/80 hover:text-white'}`}
-                      title="Playback Speed"
-                    >
-                      {playbackSpeed === 1.0 ? 'Normal' : `${playbackSpeed}x`}
-                    </button>
-                    
-                    {isSpeedMenuOpen && (
-                      <div className="absolute bottom-11 right-0 mb-1 bg-zinc-950/95 backdrop-blur-md border border-white/10 rounded-xl p-1.5 z-35 shadow-2xl flex flex-col gap-1 w-24">
-                        <div className="text-[9px] text-zinc-500 font-extrabold uppercase tracking-wider px-2 py-1">Speed</div>
-                        {[0.5, 1.0, 1.25, 1.5, 2.0].map((speed) => {
-                          const isSel = playbackSpeed === speed;
-                          return (
-                            <button
-                              key={speed}
-                              onClick={() => {
-                                changePlaybackSpeed(speed);
-                                setIsSpeedMenuOpen(false);
-                              }}
-                              className={`w-full text-left px-2 py-1.5 text-[11px] font-bold rounded-lg transition-colors flex items-center justify-between ${
-                                isSel ? 'bg-red-600 text-white' : 'text-zinc-400 hover:bg-white/5 hover:text-white'
-                              }`}
-                            >
-                              <span>{speed === 1.0 ? 'Normal' : `${speed}x`}</span>
-                              {isSel && <Check size={10} />}
-                            </button>
-                          );
-                        })}
-                      </div>
+                  {/* Center: Metadata (Title & Episode Info) */}
+                  <div className="flex flex-col items-center text-center max-w-md sm:max-w-xl truncate mx-4 select-none">
+                    <span className="text-white text-sm sm:text-base font-light tracking-wide block truncate">
+                      {title}
+                    </span>
+                    {(mediaType === 'tv' || isAnime) && (
+                      <span className="text-[11px] text-zinc-400 font-light mt-0.5 block truncate">
+                        S{currentSeason}:E{currentEpisode} {getActiveEpisodeTitle()}
+                      </span>
                     )}
                   </div>
 
-                  {/* Fullscreen */}
-                  <button onClick={toggleFullscreen} className="p-2 text-white/80 hover:text-white hover:bg-white/10 rounded-lg transition-all" title="Fullscreen (F)">
-                    <Maximize size={18} />
-                  </button>
+                  {/* Right Side: Navigation & Screen options */}
+                  <div className="flex items-center gap-1.5 sm:gap-2">
+                    {hasNextEpisode && (
+                      <button onClick={playNextEpisode} className="p-2 text-white/95 hover:text-white transition-transform active:scale-90" title="Next Episode">
+                        <SkipForward size={24} />
+                      </button>
+                    )}
+
+                    <button 
+                      onClick={() => {
+                        setActiveTab('episodes');
+                        setIsDrawerOpen(true);
+                      }} 
+                      className="p-2 text-white/95 hover:text-white transition-transform active:scale-90" 
+                      title="Episodes List"
+                    >
+                      <ListVideo size={24} />
+                    </button>
+
+                    <button 
+                      onClick={() => {
+                        setActiveTab('subtitles');
+                        setIsDrawerOpen(true);
+                      }} 
+                      className="p-2 text-white/95 hover:text-white transition-transform active:scale-90" 
+                      title="Subtitles & Audio"
+                    >
+                      <MessageSquare size={24} />
+                    </button>
+
+                    <button 
+                      onClick={() => {
+                        setActiveTab('sources');
+                        setIsDrawerOpen(true);
+                      }} 
+                      className="p-2 text-white/95 hover:text-white transition-transform active:scale-90" 
+                      title="Providers & Quality"
+                    >
+                      <Sliders size={24} />
+                    </button>
+
+                    <button onClick={toggleFullscreen} className="p-2 text-white/95 hover:text-white transition-transform active:scale-90" title="Fullscreen">
+                      <Maximize size={24} />
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1824,55 +1750,20 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
 
         {/* Premium Top Bar Overlay */}
         <div 
-          className={`absolute top-0 left-0 right-0 z-50 w-full bg-gradient-to-b from-black/95 via-black/40 to-transparent pt-6 pb-16 px-6 flex items-center justify-between pointer-events-none transition-all duration-300 ease-out ${
+          className={`absolute top-0 left-0 right-0 z-50 w-full bg-gradient-to-b from-black/90 via-black/35 to-transparent pt-8 pb-20 px-8 flex items-center transition-all duration-300 ease-out ${
             useCustomControls 
-              ? (showControls || isDrawerOpen ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4') 
+              ? (showControls || isDrawerOpen ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4 pointer-events-none') 
               : 'opacity-100 translate-y-0'
           }`}
           onClick={(e) => e.stopPropagation()}
         >
-          {/* Left: Metadata */}
-          <div className="flex flex-col gap-1 pointer-events-auto">
-            <h2 className="text-white font-black text-sm sm:text-base tracking-wide uppercase drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
-              {title}
-            </h2>
-            {(mediaType === 'tv' || isAnime) && (
-              <span className="text-[10px] sm:text-xs text-zinc-300 font-bold tracking-wider uppercase drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] flex items-center gap-1.5">
-                <span style={{ color: `#${activeColor.replace('#', '')}` }}>
-                  S{currentSeason} • E{currentEpisode}
-                </span>
-                {getActiveEpisodeTitle() && (
-                  <>
-                    <span className="text-zinc-500">•</span>
-                    <span className="text-zinc-400 capitalize normal-case font-medium">
-                      {getActiveEpisodeTitle()}
-                    </span>
-                  </>
-                )}
-              </span>
-            )}
-          </div>
-
-          {/* Right: Actions */}
-          <div className="flex items-center gap-2.5 pointer-events-auto">
-            <TvFocusButton
-              onClick={() => setIsDrawerOpen(!isDrawerOpen)}
-              className="p-2.5 bg-black/60 hover:bg-black/80 text-white/85 hover:text-white rounded-full transition-all border border-white/10 active:scale-95 flex items-center justify-center shadow-lg backdrop-blur-md"
-              title={isDrawerOpen ? "Close Settings" : "Player Settings"}
-            >
-              <Sliders size={20} />
-            </TvFocusButton>
-            {!isWatchParty && (
-              <TvFocusButton 
-                id="tv-player-close-btn" 
-                onClick={onClose} 
-                className="p-2.5 bg-black/60 hover:bg-black/80 text-white/85 hover:text-white rounded-full transition-all border border-white/10 active:scale-95 flex items-center justify-center shadow-lg backdrop-blur-md"
-                title="Close Player"
-              >
-                <X size={20} />
-              </TvFocusButton>
-            )}
-          </div>
+          <button 
+            onClick={onClose}
+            className="pointer-events-auto flex items-center justify-center p-2 text-white/80 hover:text-white transition-all active:scale-90 hover:scale-110"
+            title="Back to Details"
+          >
+            <ArrowLeft size={30} strokeWidth={1.5} />
+          </button>
         </div>
 
         <div
@@ -1920,6 +1811,17 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
               </button>
             )}
             <button
+              onClick={() => setActiveTab('subtitles')}
+              className={`flex-1 py-2 text-[10px] font-black tracking-wider uppercase rounded-lg transition-all flex items-center justify-center gap-1.5 ${
+                activeTab === 'subtitles'
+                  ? 'text-white bg-white/10'
+                  : 'text-zinc-500 hover:text-zinc-300 hover:bg-white/[0.02]'
+              }`}
+            >
+              <MessageSquare size={12} />
+              Subtitles
+            </button>
+            <button
               onClick={() => setActiveTab('settings')}
               className={`flex-1 py-2 text-[10px] font-black tracking-wider uppercase rounded-lg transition-all flex items-center justify-center gap-1.5 ${
                 activeTab === 'settings'
@@ -1963,6 +1865,68 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                     </button>
                   );
                 })}
+              </div>
+            )}
+
+            {activeTab === 'subtitles' && (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between px-1 mb-2">
+                  <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block">Subtitle Selection</span>
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setActiveTab('settings');
+                    }}
+                    className="text-zinc-500 hover:text-white transition-colors flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider"
+                    title="OpenSubtitles Credentials"
+                  >
+                    <Settings size={12} /> Configure OS
+                  </button>
+                </div>
+                
+                <button
+                  onClick={() => {
+                    setSubtitleLanguage('None');
+                    localStorage.setItem('movieverse_preferred_subtitle_language', 'None');
+                    setIsDrawerOpen(false);
+                  }}
+                  className={`w-full py-3 px-4 rounded-xl text-xs font-bold transition-all border flex items-center justify-between active:scale-[0.98] ${
+                    subtitleLanguage === 'None' 
+                      ? 'bg-red-600/20 text-red-500 border-red-500/30 font-extrabold' 
+                      : 'bg-white/5 text-zinc-300 border-white/5 hover:border-white/10 hover:bg-white/10'
+                  }`}
+                >
+                  <span>Off</span>
+                  {subtitleLanguage === 'None' && <Check size={12} />}
+                </button>
+                
+                {anivexaSubtitles.length > 0 ? (
+                  Array.from(new Set(anivexaSubtitles.map(s => s.language || s.lang))).map((lang: any) => {
+                    const isSel = subtitleLanguage.toLowerCase() === lang.toLowerCase();
+                    return (
+                      <button
+                        key={lang}
+                        onClick={() => {
+                          setSubtitleLanguage(lang);
+                          localStorage.setItem('movieverse_preferred_subtitle_language', lang);
+                          setIsDrawerOpen(false);
+                        }}
+                        className={`w-full py-3 px-4 rounded-xl text-xs font-bold transition-all border flex items-center justify-between active:scale-[0.98] ${
+                          isSel 
+                            ? 'bg-red-600/20 text-red-500 border-red-500/30 font-extrabold' 
+                            : 'bg-white/5 text-zinc-300 border-white/5 hover:border-white/10 hover:bg-white/10'
+                        }`}
+                      >
+                        <span className="truncate">{lang}</span>
+                        {isSel && <Check size={12} />}
+                      </button>
+                    );
+                  })
+                ) : (
+                  <div className="text-[11px] text-zinc-500 text-center py-6 italic border border-white/5 rounded-xl bg-white/[0.01]">
+                    No subtitles loaded. Use the Settings tab to configure your OpenSubtitles credentials.
+                  </div>
+                )}
               </div>
             )}
 
