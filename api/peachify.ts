@@ -1,5 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import crypto from 'crypto';
+import https from 'https';
+import { URL } from 'url';
 
 // --- Cryptographic Helper Functions ---
 
@@ -38,6 +40,72 @@ async function dD(e: string, t: string) {
     console.error("AES-GCM decryption failed:", err.message);
     return null;
   }
+}
+
+// --- Browser TLS Spoofing Helper ---
+
+function fetchWithBrowserTls(urlStr: string): Promise<any> {
+  return new Promise((resolve, reject) => {
+    try {
+      const urlObj = new URL(urlStr);
+      const ciphers = [
+        'TLS_AES_128_GCM_SHA256',
+        'TLS_AES_256_GCM_SHA384',
+        'TLS_CHACHA20_POLY1305_SHA256',
+        'ECDHE-ECDSA-AES128-GCM-SHA256',
+        'ECDHE-RSA-AES128-GCM-SHA256',
+        'ECDHE-ECDSA-AES256-GCM-SHA384',
+        'ECDHE-RSA-AES256-GCM-SHA384',
+        'ECDHE-ECDSA-CHACHA20-POLY1305',
+        'ECDHE-RSA-CHACHA20-POLY1305'
+      ].join(':');
+
+      const options = {
+        hostname: urlObj.hostname,
+        port: 443,
+        path: urlObj.pathname + urlObj.search,
+        method: 'GET',
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Referer': 'https://peachify.pro/',
+          'Origin': 'https://peachify.pro',
+          'Accept': 'application/json, text/plain, */*',
+          'Accept-Language': 'en-US,en;q=0.9',
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
+        },
+        ciphers,
+        honorCipherOrder: true,
+        minVersion: 'TLSv1.3' as any
+      };
+
+      const req = https.request(options, (res) => {
+        let data = '';
+        res.on('data', (chunk) => {
+          data += chunk;
+        });
+        res.on('end', () => {
+          if (res.statusCode && res.statusCode >= 200 && res.statusCode < 300) {
+            try {
+              resolve(JSON.parse(data));
+            } catch (e: any) {
+              reject(new Error(`Failed to parse response JSON: ${e.message}`));
+            }
+          } else {
+            reject(new Error(`HTTP ${res.statusCode}: ${data.substring(0, 150)}`));
+          }
+        });
+      });
+
+      req.on('error', (e) => {
+        reject(e);
+      });
+
+      req.end();
+    } catch (e) {
+      reject(e);
+    }
+  });
 }
 
 // --- Peachify Stream Scraper Config & Handler ---
@@ -83,20 +151,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     try {
-      const fetchRes = await fetch(url, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-          'Referer': 'https://peachify.pro/',
-          'Origin': 'https://peachify.pro'
-        }
-      });
-
-      if (!fetchRes.ok) {
-        errors.push(`${server.name}: HTTP ${fetchRes.status}`);
-        continue;
-      }
-
-      const o = await fetchRes.json();
+      const o = await fetchWithBrowserTls(url);
       if (!o) {
         errors.push(`${server.name}: Empty response`);
         continue;
