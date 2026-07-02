@@ -612,15 +612,24 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
 
   const handleQualityChange = (qualityName: string) => {
     const matched = customQualities.find(s => s.quality === qualityName);
-    if (matched && matched.url !== anivexaStreamUrl) {
-      const video = videoRef.current;
-      if (video) {
-        currentProgressRef.current = video.currentTime;
+    const getProxiedUrl = (url: string) => {
+      if (selectedProviderId === 'videasy_adfree' && url && url.startsWith('http')) {
+        return `/api/m3u8-proxy?url=${encodeURIComponent(url)}`;
       }
-      setSelectedQuality(qualityName);
-      setAnivexaStreamUrl(matched.url);
-      localStorage.setItem('movieverse_preferred_quality', qualityName);
-      showOverlayFeedback(qualityName);
+      return url;
+    };
+    if (matched) {
+      const proxiedUrl = getProxiedUrl(matched.url);
+      if (proxiedUrl !== anivexaStreamUrl) {
+        const video = videoRef.current;
+        if (video) {
+          currentProgressRef.current = video.currentTime;
+        }
+        setSelectedQuality(qualityName);
+        setAnivexaStreamUrl(proxiedUrl);
+        localStorage.setItem('movieverse_preferred_quality', qualityName);
+        showOverlayFeedback(qualityName);
+      }
     }
   };
 
@@ -706,7 +715,13 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                               || sources[0];
 
           setSelectedQuality(matchedSource.quality);
-          setAnivexaStreamUrl(matchedSource.url);
+          const getProxiedUrl = (url: string) => {
+            if (selectedProviderId === 'videasy_adfree' && url && url.startsWith('http')) {
+              return `/api/m3u8-proxy?url=${encodeURIComponent(url)}`;
+            }
+            return url;
+          };
+          setAnivexaStreamUrl(getProxiedUrl(matchedSource.url));
         } else {
           throw new Error(payload.error || "Decryption failed.");
         }
