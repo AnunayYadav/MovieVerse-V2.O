@@ -58,6 +58,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (targetUrl.includes('videasy') || targetUrl.includes('easy') || targetUrl.includes('player.videasy')) {
       referer = "https://player.videasy.to/";
       origin = "https://player.videasy.to";
+    } else if (targetUrl.includes('lordflix')) {
+      referer = "https://lordflix.org/";
+      origin = "https://lordflix.org";
+    } else if (targetUrl.includes('vidsync')) {
+      referer = "https://vidsync.xyz/";
+      origin = "https://vidsync.xyz";
+    } else if (targetUrl.includes('hexa')) {
+      referer = "https://hexa.su/";
+      origin = "https://hexa.su";
     }
 
     // Standard headers that mimic the player origin to bypass Cloudflare

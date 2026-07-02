@@ -1,6 +1,9 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import crypto from 'crypto';
 
-// Function to resolve Vidfast or Vidcore streams using enc-dec.app API
+// ----------------------------------------------------
+// 1. Vidfast / Vidcore Scraper
+// ----------------------------------------------------
 async function resolveVidfastOrVidcore(
   domain: string,
   type: 'movie' | 'tv',
@@ -135,6 +138,274 @@ async function resolveVidfastOrVidcore(
   };
 }
 
+// ----------------------------------------------------
+// 2. Lordflix Scraper
+// ----------------------------------------------------
+async function resolveLordflix(
+  type: 'movie' | 'tv',
+  tmdbId: string,
+  imdbId: string,
+  title: string,
+  year: string,
+  season: string,
+  episode: string,
+  requestedServer?: string
+) {
+  // Fetch servers list
+  const serversRes = await fetch("https://snowhouse.lordflix.club/servers", {
+    headers: {
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36",
+      "Referer": "https://lordflix.org/",
+      "Origin": "https://lordflix.org"
+    }
+  });
+
+  if (!serversRes.ok) {
+    throw new Error(`Failed to fetch Lordflix servers: HTTP ${serversRes.status}`);
+  }
+
+  const serversData = await serversRes.json();
+  const serversList = serversData.servers || [];
+  if (serversList.length === 0) {
+    throw new Error("No servers available for Lordflix");
+  }
+
+  const availableServers = serversList.map((s: any) => s.name);
+  const selectedServer = serversList.find((s: any) => s.name.toLowerCase() === requestedServer?.toLowerCase()) || serversList[0];
+  const serverName = selectedServer.name;
+
+  const lfType = type === 'movie' ? 'movie' : 'series';
+  const queryParams: any = {
+    title,
+    type: lfType,
+    year,
+    imdb: imdbId,
+    tmdb: tmdbId,
+    server: serverName
+  };
+  if (type === 'tv') {
+    queryParams.season = season;
+    queryParams.episode = episode;
+  }
+
+  const queryString = new URLSearchParams(queryParams).toString();
+  const url = `https://snowhouse.lordflix.club/?${queryString}`;
+
+  // Encrypt with enc-dec.app API
+  const encRes = await fetch(`https://enc-dec.app/api/enc-lordflix?url=${encodeURIComponent(url)}`);
+  if (!encRes.ok) {
+    throw new Error(`Lordflix encryption request failed: HTTP ${encRes.status}`);
+  }
+
+  const encJson = await encRes.json();
+  if (encJson.status !== 200 || !encJson.result) {
+    throw new Error(`Lordflix encryption failed: ${encJson.error || 'unknown'}`);
+  }
+
+  const { url: encUrl, sign } = encJson.result;
+
+  // Fetch encrypted payload from lordflix
+  const payloadRes = await fetch(encUrl, {
+    headers: {
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36",
+      "Referer": "https://lordflix.org/",
+      "Origin": "https://lordflix.org"
+    }
+  });
+
+  if (!payloadRes.ok) {
+    throw new Error(`Failed to fetch Lordflix encrypted data: HTTP ${payloadRes.status}`);
+  }
+
+  const encryptedText = await payloadRes.text();
+
+  // Decrypt using enc-dec.app API
+  const decRes = await fetch("https://enc-dec.app/api/dec-lordflix", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ text: encryptedText, sign })
+  });
+
+  if (!decRes.ok) {
+    throw new Error(`Failed to decrypt Lordflix stream: HTTP ${decRes.status}`);
+  }
+
+  const decJson = await decRes.json();
+  if (decJson.status !== 200 || !decJson.result) {
+    throw new Error(`Lordflix decryption failed: ${decJson.error || 'unknown'}`);
+  }
+
+  return {
+    success: true,
+    provider: serverName,
+    availableServers,
+    data: decJson.result // Contains stream sources, subtitles, etc.
+  };
+}
+
+// ----------------------------------------------------
+// 3. Vidsync Scraper
+// ----------------------------------------------------
+async function resolveVidsync(
+  type: 'movie' | 'tv',
+  tmdbId: string,
+  title: string,
+  year: string,
+  season: string,
+  episode: string,
+  requestedServer?: string
+) {
+  // 1. Fetch cf turnstile token from enc-dec.app
+  const encRes = await fetch("https://enc-dec.app/api/enc-vidsync");
+  if (!encRes.ok) {
+    throw new Error(`Failed to fetch Vidsync turnstile token: HTTP ${encRes.status}`);
+  }
+
+  const encJson = await encRes.json();
+  if (encJson.status !== 200 || !encJson.result) {
+    throw new Error(`Vidsync encryption failed: ${encJson.error || 'unknown'}`);
+  }
+
+  const token = encJson.result.token;
+  const availableServers = ["cinevault", "cinedub", "cinebox", "cineflix", "cinevip", "cinecloud", "cine4k"];
+  const serverName = availableServers.includes(requestedServer || '') ? (requestedServer || '') : "cinevault";
+
+  // Build query string
+  const queryParams: any = {
+    title,
+    type,
+    releaseYear: year,
+    mediaId: tmdbId,
+    serverName
+  };
+  if (type === 'tv') {
+    queryParams.season = season;
+    queryParams.episode = episode;
+  }
+
+  const queryString = new URLSearchParams(queryParams).toString();
+  const url = `https://vidsync.xyz/api/stream/fetch?${queryString}`;
+
+  // Fetch encrypted payload from vidsync
+  const streamRes = await fetch(url, {
+    headers: {
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36",
+      "Referer": "https://vidsync.xyz/",
+      "Origin": "https://vidsync.xyz",
+      "X-Requested-With": "XMLHttpRequest",
+      "X-Cf-Turnstile": token
+    }
+  });
+
+  if (!streamRes.ok) {
+    throw new Error(`Failed to fetch Vidsync stream payload: HTTP ${streamRes.status}`);
+  }
+
+  const encryptedText = await streamRes.text();
+
+  // Decrypt using enc-dec.app API
+  const decRes = await fetch("https://enc-dec.app/api/dec-vidsync", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ text: encryptedText, id: tmdbId })
+  });
+
+  if (!decRes.ok) {
+    throw new Error(`Failed to decrypt Vidsync stream: HTTP ${decRes.status}`);
+  }
+
+  const decJson = await decRes.json();
+  if (decJson.status !== 200 || !decJson.result) {
+    throw new Error(`Vidsync decryption failed: ${decJson.error || 'unknown'}`);
+  }
+
+  return {
+    success: true,
+    provider: serverName,
+    availableServers,
+    data: decJson.result
+  };
+}
+
+// ----------------------------------------------------
+// 4. Hexa Scraper
+// ----------------------------------------------------
+async function resolveHexa(
+  type: 'movie' | 'tv',
+  tmdbId: string,
+  season: string,
+  episode: string
+) {
+  // Generate a random 32-byte key hex string
+  const key = crypto.randomBytes(32).toString('hex');
+
+  // Fetch cap token
+  const encRes = await fetch("https://enc-dec.app/api/enc-hexa");
+  if (!encRes.ok) {
+    throw new Error(`Failed to fetch Hexa challenge token: HTTP ${encRes.status}`);
+  }
+
+  const encJson = await encRes.json();
+  if (encJson.status !== 200 || !encJson.result) {
+    throw new Error(`Hexa token request failed: ${encJson.error || 'unknown'}`);
+  }
+
+  const token = encJson.result.token;
+  const url = type === 'movie'
+    ? `https://theemoviedb.hexa.su/api/tmdb/movie/${tmdbId}/images`
+    : `https://theemoviedb.hexa.su/api/tmdb/tv/${tmdbId}/season/${season}/episode/${episode}/images`;
+
+  // Fetch encrypted payload from Hexa
+  const payloadRes = await fetch(url, {
+    headers: {
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36",
+      "Referer": "https://hexa.su/",
+      "Accept": "text/plain",
+      "X-Fingerprint-Lite": "e9136c41504646444",
+      "X-Api-Key": key,
+      "X-Cap-Token": token
+    }
+  });
+
+  if (!payloadRes.ok) {
+    throw new Error(`Failed to load Hexa payload: HTTP ${payloadRes.status}`);
+  }
+
+  const encryptedText = await payloadRes.text();
+
+  // Decrypt using enc-dec.app API
+  const decRes = await fetch("https://enc-dec.app/api/dec-hexa", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ text: encryptedText, key })
+  });
+
+  if (!decRes.ok) {
+    throw new Error(`Failed to decrypt Hexa stream: HTTP ${decRes.status}`);
+  }
+
+  const decJson = await decRes.json();
+  if (decJson.status !== 200 || !decJson.result) {
+    throw new Error(`Hexa decryption failed: ${decJson.error || 'unknown'}`);
+  }
+
+  return {
+    success: true,
+    provider: 'Hexa Auto',
+    availableServers: ['Hexa Auto'],
+    data: decJson.result
+  };
+}
+
+// ----------------------------------------------------
+// Main Handler
+// ----------------------------------------------------
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Access-Control-Allow-Credentials', 'true');
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -159,9 +430,45 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const providerStr = typeof provider === 'string' ? provider.toLowerCase() : 'videasy';
   const serverStr = typeof server === 'string' ? server : undefined;
 
-  // Resolve Vidfast or Vidcore
-  if (providerStr === 'vidfast' || providerStr === 'vidcore') {
-    try {
+  // TMDB details lookup for title, year and IMDB ID if missing
+  const apiKey = process.env.VITE_TMDB_API_KEY || 'fe42b660a036f4d6a2bfeb4d0f523ce9';
+  let cleanTitle = typeof title === 'string' ? title : Array.isArray(title) ? title[0] : '';
+  let cleanYear = typeof year === 'string' ? year : Array.isArray(year) ? year[0] : '';
+  let imdbId = '';
+
+  try {
+    const tmdbRes = await fetch(`https://api.themoviedb.org/3/${mediaType}/${tmdbId}?api_key=${apiKey}`);
+    if (tmdbRes.ok) {
+      const tmdbData = await tmdbRes.json() as any;
+      if (mediaType === 'movie') {
+        cleanTitle = cleanTitle || tmdbData.title || tmdbData.original_title;
+        cleanYear = cleanYear || (tmdbData.release_date ? tmdbData.release_date.split('-')[0] : '');
+        imdbId = tmdbData.imdb_id || '';
+      } else {
+        cleanTitle = cleanTitle || tmdbData.name || tmdbData.original_name;
+        cleanYear = cleanYear || (tmdbData.first_air_date ? tmdbData.first_air_date.split('-')[0] : '');
+      }
+    }
+    
+    // For series, get IMDB ID from external_ids endpoint
+    if (mediaType === 'tv') {
+      const extRes = await fetch(`https://api.themoviedb.org/3/tv/${tmdbId}/external_ids?api_key=${apiKey}`);
+      if (extRes.ok) {
+        const extData = await extRes.json() as any;
+        imdbId = extData.imdb_id || '';
+      }
+    }
+  } catch (e) {
+    console.warn("Failed to fetch metadata from TMDB:", e);
+  }
+
+  if (!cleanTitle) {
+    return res.status(400).json({ error: 'title parameter is required or could not be resolved from TMDB' });
+  }
+
+  // Route to the appropriate scraper
+  try {
+    if (providerStr === 'vidfast' || providerStr === 'vidcore') {
       const isVidcore = providerStr === 'vidcore';
       const domain = isVidcore ? 'vidcore.net' : 'vidfast.pro';
       const result = await resolveVidfastOrVidcore(
@@ -174,41 +481,53 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         serverStr
       );
       return res.status(200).json(result);
-    } catch (error: any) {
-      console.error(`${providerStr} extraction error:`, error);
-      return res.status(502).json({
-        success: false,
-        error: `EncDec extraction for ${providerStr} failed: ${error.message || error}`
-      });
     }
+
+    if (providerStr === 'lordflix') {
+      const result = await resolveLordflix(
+        mediaType,
+        tmdbId,
+        imdbId,
+        cleanTitle,
+        cleanYear,
+        seasonNum,
+        episodeNum,
+        serverStr
+      );
+      return res.status(200).json(result);
+    }
+
+    if (providerStr === 'vidsync') {
+      const result = await resolveVidsync(
+        mediaType,
+        tmdbId,
+        cleanTitle,
+        cleanYear,
+        seasonNum,
+        episodeNum,
+        serverStr
+      );
+      return res.status(200).json(result);
+    }
+
+    if (providerStr === 'hexa') {
+      const result = await resolveHexa(
+        mediaType,
+        tmdbId,
+        seasonNum,
+        episodeNum
+      );
+      return res.status(200).json(result);
+    }
+  } catch (error: any) {
+    console.error(`${providerStr} extraction error:`, error);
+    return res.status(502).json({
+      success: false,
+      error: `EncDec extraction for ${providerStr} failed: ${error.message || error}`
+    });
   }
 
   // Fallback / default to Videasy
-  // TMDB details lookup for title and year if missing
-  const apiKey = process.env.VITE_TMDB_API_KEY || 'fe42b660a036f4d6a2bfeb4d0f523ce9';
-  if (!title || !year) {
-    try {
-      const tmdbRes = await fetch(`https://api.themoviedb.org/3/${mediaType}/${tmdbId}?api_key=${apiKey}`);
-      if (tmdbRes.ok) {
-        const tmdbData = await tmdbRes.json() as any;
-        if (mediaType === 'movie') {
-          title = title || tmdbData.title || tmdbData.original_title;
-          year = year || (tmdbData.release_date ? tmdbData.release_date.split('-')[0] : '');
-        } else {
-          title = title || tmdbData.name || tmdbData.original_name;
-          year = year || (tmdbData.first_air_date ? tmdbData.first_air_date.split('-')[0] : '');
-        }
-      }
-    } catch (e) {
-      console.warn("Failed to fetch metadata from TMDB:", e);
-    }
-  }
-
-  const cleanTitle = title ? (typeof title === 'string' ? title : Array.isArray(title) ? title[0] : '') : '';
-  if (!cleanTitle) {
-    return res.status(400).json({ error: 'title parameter is required or could not be resolved from TMDB' });
-  }
-
   // All EncDec API servers for Videasy
   const allProviders = [
     { name: 'Yoru', endpoint: 'cdn', isMovieOnly: true },
@@ -239,7 +558,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const queryParams: any = {
     title: encodeURIComponent(cleanTitle),
     mediaType: String(mediaType),
-    year: year ? String(year) : '',
+    year: cleanYear ? String(cleanYear) : '',
     episodeId: episodeNum,
     seasonId: seasonNum,
     tmdbId: String(tmdbId)

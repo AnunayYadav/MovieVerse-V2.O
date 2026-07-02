@@ -110,6 +110,27 @@ export const PROVIDERS: Provider[] = [
     supportsPostMessage: false
   },
   {
+    id: 'encdec_lordflix',
+    name: 'EncDec - LordFlix (HLS Ad-Free)',
+    getMovieUrl: () => '',
+    getTvUrl: () => '',
+    supportsPostMessage: false
+  },
+  {
+    id: 'encdec_vidsync',
+    name: 'EncDec - VidSync (HLS Ad-Free)',
+    getMovieUrl: () => '',
+    getTvUrl: () => '',
+    supportsPostMessage: false
+  },
+  {
+    id: 'encdec_hexa',
+    name: 'EncDec - Hexa (HLS Ad-Free)',
+    getMovieUrl: () => '',
+    getTvUrl: () => '',
+    supportsPostMessage: false
+  },
+  {
     id: 'cinesrc',
     name: 'CineSrc',
     getMovieUrl: (tmdbId) => `https://cinesrc.st/embed/movie/${tmdbId}`,
