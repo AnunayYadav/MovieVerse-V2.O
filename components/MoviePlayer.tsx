@@ -121,18 +121,18 @@ export const PROVIDERS: Provider[] = [
     id: 'vidfast',
     name: 'VidFast',
     getMovieUrl: (tmdbId, color, progress, isAnime, anilistId, animeLanguage, language, subtitle) => 
-      `https://vidfast.pro/movie/${tmdbId}?autoPlay=true&theme=${color.replace('#', '')}${subtitle && subtitle !== 'None' ? `&sub=${getSubtitleCode(subtitle, 'iso')}` : ''}${progress && progress > 0 ? `&startAt=${Math.floor(progress)}` : ''}`,
+      `https://vidfast.pro/movie/${tmdbId}?autoPlay=true&controls=false&theme=${color.replace('#', '')}${subtitle && subtitle !== 'None' ? `&sub=${getSubtitleCode(subtitle, 'iso')}` : ''}${progress && progress > 0 ? `&startAt=${Math.floor(progress)}` : ''}`,
     getTvUrl: (tmdbId, season, episode, color, progress, isAnime, anilistId, animeLanguage, language, subtitle) => 
-      `https://vidfast.pro/tv/${tmdbId}/${season}/${episode}?autoPlay=true&theme=${color.replace('#', '')}&nextButton=true&autoNext=true${subtitle && subtitle !== 'None' ? `&sub=${getSubtitleCode(subtitle, 'iso')}` : ''}${progress && progress > 0 ? `&startAt=${Math.floor(progress)}` : ''}`,
+      `https://vidfast.pro/tv/${tmdbId}/${season}/${episode}?autoPlay=true&controls=false&theme=${color.replace('#', '')}&nextButton=true&autoNext=true${subtitle && subtitle !== 'None' ? `&sub=${getSubtitleCode(subtitle, 'iso')}` : ''}${progress && progress > 0 ? `&startAt=${Math.floor(progress)}` : ''}`,
     supportsPostMessage: true
   },
   {
     id: 'vidcore',
     name: 'VidCore',
     getMovieUrl: (tmdbId, color, progress, isAnime, anilistId, animeLanguage, language, subtitle) => 
-      `https://vidcore.net/movie/${tmdbId}?autoPlay=true&theme=${color.replace('#', '')}${subtitle && subtitle !== 'None' ? `&sub=${getSubtitleCode(subtitle, 'iso')}` : ''}${progress && progress > 0 ? `&startAt=${Math.floor(progress)}` : ''}`,
+      `https://vidcore.net/movie/${tmdbId}?autoPlay=true&controls=false&theme=${color.replace('#', '')}${subtitle && subtitle !== 'None' ? `&sub=${getSubtitleCode(subtitle, 'iso')}` : ''}${progress && progress > 0 ? `&startAt=${Math.floor(progress)}` : ''}`,
     getTvUrl: (tmdbId, season, episode, color, progress, isAnime, anilistId, animeLanguage, language, subtitle) => 
-      `https://vidcore.net/tv/${tmdbId}/${season}/${episode}?autoPlay=true&theme=${color.replace('#', '')}&nextButton=true&autoNext=true${subtitle && subtitle !== 'None' ? `&sub=${getSubtitleCode(subtitle, 'iso')}` : ''}${progress && progress > 0 ? `&startAt=${Math.floor(progress)}` : ''}`,
+      `https://vidcore.net/tv/${tmdbId}/${season}/${episode}?autoPlay=true&controls=false&theme=${color.replace('#', '')}&nextButton=true&autoNext=true${subtitle && subtitle !== 'None' ? `&sub=${getSubtitleCode(subtitle, 'iso')}` : ''}${progress && progress > 0 ? `&startAt=${Math.floor(progress)}` : ''}`,
     supportsPostMessage: true
   },
   {
@@ -292,7 +292,10 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   const currentProvider = PROVIDERS.find(p => p.id === selectedProviderId);
   const [fallbackToNativeVideasy, setFallbackToNativeVideasy] = useState(false);
   const isCineSrcCustom = selectedProviderId === 'cinesrc';
-  const useCustomControls = (selectedProviderId === 'videasy_adfree' || selectedProviderId.startsWith('encdec') || isCineSrcCustom) && !(selectedProviderId === 'videasy_adfree' && fallbackToNativeVideasy);
+  const isVidFastCustom = selectedProviderId === 'vidfast';
+  const isVidCoreCustom = selectedProviderId === 'vidcore';
+  const isIframeCustomControls = isCineSrcCustom || isVidFastCustom || isVidCoreCustom;
+  const useCustomControls = (selectedProviderId === 'videasy_adfree' || selectedProviderId.startsWith('encdec') || isIframeCustomControls) && !(selectedProviderId === 'videasy_adfree' && fallbackToNativeVideasy);
   const isPlayingRef = useRef(false);
   const isSeekingRef = useRef(false);
   const playerDurationRef = useRef(0);
@@ -541,6 +544,8 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   const changePlaybackSpeed = (speed: number) => {
     if (isCineSrcCustom) {
       sendCineSrcCommand('setPlaybackRate', [speed]);
+    } else if (isVidFastCustom || isVidCoreCustom) {
+      sendPlayerCommand('speed', { speed });
     } else {
       const video = videoRef.current;
       if (video) {
@@ -585,13 +590,15 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   useEffect(() => {
     if (isCineSrcCustom) {
       sendCineSrcCommand('setPlaybackRate', [playbackSpeed]);
+    } else if (isVidFastCustom || isVidCoreCustom) {
+      sendPlayerCommand('speed', { speed: playbackSpeed });
     } else {
       const video = videoRef.current;
       if (video) {
         video.playbackRate = playbackSpeed;
       }
     }
-  }, [anivexaStreamUrl, playbackSpeed, isCineSrcCustom, sendCineSrcCommand]);
+  }, [anivexaStreamUrl, playbackSpeed, isCineSrcCustom, sendCineSrcCommand, isVidFastCustom, isVidCoreCustom, sendPlayerCommand]);
 
   // Sync subtitle tracks mode with global subtitleLanguage preference
   useEffect(() => {
@@ -927,6 +934,12 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
       }
       return;
     }
+    if (isVidFastCustom || isVidCoreCustom) {
+      const next = !isPlaying;
+      sendPlayerCommand(next ? 'play' : 'pause');
+      setIsPlaying(next);
+      return;
+    }
     if (useCustomControls) {
       const video = videoRef.current;
       if (video) {
@@ -938,11 +951,16 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     const next = !isPlaying;
     sendPlayerCommand(next ? 'play' : 'pause');
     setIsPlaying(next);
-  }, [isPlaying, sendPlayerCommand, useCustomControls, isCineSrcCustom, sendCineSrcCommand]);
+  }, [isPlaying, sendPlayerCommand, useCustomControls, isCineSrcCustom, sendCineSrcCommand, isVidFastCustom, isVidCoreCustom]);
 
   const seekTo = useCallback((time: number) => {
     if (isCineSrcCustom) {
       sendCineSrcCommand('seek', [time]);
+      setPlayerCurrentTime(time);
+      return;
+    }
+    if (isVidFastCustom || isVidCoreCustom) {
+      sendPlayerCommand('seek', { time: Math.floor(time) });
       setPlayerCurrentTime(time);
       return;
     }
@@ -954,7 +972,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     }
     sendPlayerCommand('seek', { time: Math.floor(time) });
     setPlayerCurrentTime(time);
-  }, [sendPlayerCommand, useCustomControls, isCineSrcCustom, sendCineSrcCommand]);
+  }, [sendPlayerCommand, useCustomControls, isCineSrcCustom, sendCineSrcCommand, isVidFastCustom, isVidCoreCustom]);
 
   const changeVolume = useCallback((level: number) => {
     const clamped = Math.max(0, Math.min(1, level));
@@ -963,6 +981,15 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
       setPlayerVolume(clamped);
       if (clamped > 0 && playerMuted) {
         sendCineSrcCommand('setMuted', [false]);
+        setPlayerMuted(false);
+      }
+      return;
+    }
+    if (isVidFastCustom || isVidCoreCustom) {
+      sendPlayerCommand('volume', { level: clamped });
+      setPlayerVolume(clamped);
+      if (clamped > 0 && playerMuted) {
+        sendPlayerCommand('mute', { muted: false });
         setPlayerMuted(false);
       }
       return;
@@ -985,13 +1012,18 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
       sendPlayerCommand('mute', { muted: false });
       setPlayerMuted(false);
     }
-  }, [sendPlayerCommand, playerMuted, useCustomControls, isCineSrcCustom, sendCineSrcCommand]);
+  }, [sendPlayerCommand, playerMuted, useCustomControls, isCineSrcCustom, sendCineSrcCommand, isVidFastCustom, isVidCoreCustom]);
 
   const toggleMuteState = useCallback(() => {
     if (isCineSrcCustom) {
       const nextMuted = !playerMuted;
       sendCineSrcCommand('setMuted', [nextMuted]);
       setPlayerMuted(nextMuted);
+      return;
+    }
+    if (isVidFastCustom || isVidCoreCustom) {
+      sendPlayerCommand('mute', { muted: !playerMuted });
+      setPlayerMuted(!playerMuted);
       return;
     }
     if (useCustomControls) {
@@ -1004,13 +1036,15 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     }
     sendPlayerCommand('mute', { muted: !playerMuted });
     setPlayerMuted(!playerMuted);
-  }, [sendPlayerCommand, playerMuted, useCustomControls, isCineSrcCustom, sendCineSrcCommand]);
+  }, [sendPlayerCommand, playerMuted, useCustomControls, isCineSrcCustom, sendCineSrcCommand, isVidFastCustom, isVidCoreCustom]);
 
   const skipForward = useCallback(() => {
     if (isCineSrcCustom) {
       const nextTime = Math.min(playerDuration, playerCurrentTime + 10);
       sendCineSrcCommand('seek', [nextTime]);
       setPlayerCurrentTime(nextTime);
+    } else if (isVidFastCustom || isVidCoreCustom) {
+      sendPlayerCommand('seek', { time: Math.min(playerDuration, playerCurrentTime + 10) });
     } else if (useCustomControls) {
       const video = videoRef.current;
       if (video) {
@@ -1020,13 +1054,15 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
       sendPlayerCommand('seek', { time: Math.min(playerDuration, playerCurrentTime + 10) });
     }
     showOverlayFeedback('10s >', 'forward');
-  }, [playerDuration, playerCurrentTime, sendPlayerCommand, useCustomControls, isCineSrcCustom, sendCineSrcCommand]);
+  }, [playerDuration, playerCurrentTime, sendPlayerCommand, useCustomControls, isCineSrcCustom, sendCineSrcCommand, isVidFastCustom, isVidCoreCustom]);
 
   const skipBackward = useCallback(() => {
     if (isCineSrcCustom) {
       const nextTime = Math.max(0, playerCurrentTime - 10);
       sendCineSrcCommand('seek', [nextTime]);
       setPlayerCurrentTime(nextTime);
+    } else if (isVidFastCustom || isVidCoreCustom) {
+      sendPlayerCommand('seek', { time: Math.max(0, playerCurrentTime - 10) });
     } else if (useCustomControls) {
       const video = videoRef.current;
       if (video) {
@@ -1036,7 +1072,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
       sendPlayerCommand('seek', { time: Math.max(0, playerCurrentTime - 10) });
     }
     showOverlayFeedback('< 10s', 'rewind');
-  }, [playerCurrentTime, sendPlayerCommand, useCustomControls, isCineSrcCustom, sendCineSrcCommand]);
+  }, [playerCurrentTime, sendPlayerCommand, useCustomControls, isCineSrcCustom, sendCineSrcCommand, isVidFastCustom, isVidCoreCustom]);
 
   const toggleFullscreen = useCallback(() => {
     if (!containerRef.current) return;
@@ -1302,7 +1338,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
           : provider.getMovieUrl(tmdbId, activeColor, startProgress, isAnime, anilistId, animeLanguage, audioLanguage, subtitleLanguage);
       }
 
-      if (selectedProviderId === 'cinesrc') {
+      if (isIframeCustomControls) {
         setIsBuffering(true);
       }
       setEmbedUrl(newUrl);
@@ -1417,8 +1453,8 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                     return;
                 }
 
-                // Handle Peachify, VidCore & VidLink PLAYER_EVENTs / MEDIA_DATAs
-                if (event.origin === 'https://peachify.pro' || event.origin === 'https://vidcore.net' || event.origin === 'https://vidlink.pro' || parsed.type === 'PLAYER_EVENT' || parsed.type === 'MEDIA_DATA') {
+                // Handle Peachify, VidCore, VidFast & VidLink PLAYER_EVENTs / MEDIA_DATAs
+                if (event.origin === 'https://peachify.pro' || event.origin === 'https://vidcore.net' || event.origin === 'https://vidfast.pro' || event.origin === 'https://vidlink.pro' || parsed.type === 'PLAYER_EVENT' || parsed.type === 'MEDIA_DATA') {
                     const type = parsed.type;
                     const data = parsed.data;
                     if (type === 'MEDIA_DATA') {
@@ -1437,6 +1473,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                         if (duration !== undefined && Number(duration) > 0) setPlayerDuration(Number(duration));
                         if (data.volume !== undefined) setPlayerVolume(Number(data.volume));
                         if (data.muted !== undefined) setPlayerMuted(data.muted);
+                        setIsBuffering(false);
 
                         if (currentTime !== undefined && currentTime !== null) {
                             const timeNum = Number(currentTime);
