@@ -1568,7 +1568,13 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                         const { event: playerEvent, currentTime, duration, season, episode, playing } = data;
 
                         // Sync custom controls state from player events
-                        if (playing !== undefined) setIsPlaying(playing);
+                        if (playing !== undefined) {
+                            setIsPlaying(playing);
+                        } else if (playerEvent === 'play' || playerEvent === 'playing' || playerEvent === 'seeked') {
+                            setIsPlaying(true);
+                        } else if (playerEvent === 'pause' || playerEvent === 'ended' || playerEvent === 'complete') {
+                            setIsPlaying(false);
+                        }
                         if (currentTime !== undefined && !isSeekingRef.current) setPlayerCurrentTime(Number(currentTime));
                         if (duration !== undefined && Number(duration) > 0) setPlayerDuration(Number(duration));
                         if (data.volume !== undefined) setPlayerVolume(Number(data.volume));
