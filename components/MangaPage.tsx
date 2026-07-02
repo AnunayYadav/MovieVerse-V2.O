@@ -1670,7 +1670,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
             title: ch.title || '',
             chapter: ch.chapterNumber?.toString() || ch.chapter || ch.title?.match(/Chapter\s+([\d.]+)/i)?.[1] || '',
             pages: 0,
-            publishAt: ch.released || ''
+            publishAt: ch.releaseDate || ch.released || ch.releasedDate || ch.date || ''
           }
         } as any);
       }
@@ -2411,7 +2411,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
           chapter: ch.chapterNumber?.toString() || ch.chapter || ch.title?.match(/Chapter\s+([\d.]+)/i)?.[1] || '',
           title: ch.title || '',
           pages: 0,
-          publishAt: ch.released || ''
+          publishAt: ch.releaseDate || ch.released || ch.releasedDate || ch.date || ''
         }
       };
     });
@@ -2441,8 +2441,10 @@ export const MangaPage: React.FC<MangaPageProps> = ({
   }, [chapters, mappedMangapillChapters, readingSource, chapterFilter, chapterSort]);
 
   const formatChapterDate = (dateStr: string) => {
+    if (!dateStr) return 'Recent';
     try {
       const date = new Date(dateStr);
+      if (isNaN(date.getTime())) return 'Recent';
       const now = new Date();
       const diffMs = now.getTime() - date.getTime();
       const diffMins = Math.floor(diffMs / 60000);
