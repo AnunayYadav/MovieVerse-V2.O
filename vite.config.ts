@@ -43,6 +43,7 @@ export default defineConfig(({ mode }) => {
                 '/api/mangadex': './api/mangadex.ts',
                 '/api/nyaa': './api/nyaa.ts',
                 '/api/tmdb': './api/tmdb.ts',
+                '/api/videasy': './api/videasy.ts',
               };
               
               const modulePath = apiRoutes[pathname || ''];

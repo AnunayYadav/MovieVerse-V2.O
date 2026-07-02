@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
-import { X, Tv, ChevronLeft, ChevronRight, Check, ListVideo, Sliders, ChevronDown, Info, RefreshCw, Palette, Copy, Play, Pause, Volume2, VolumeX, Maximize, Loader2, AlertTriangle } from 'lucide-react';
+import { X, Tv, ChevronLeft, ChevronRight, Check, ListVideo, Sliders, ChevronDown, Info, RefreshCw, Palette, Copy, Play, Pause, Volume2, VolumeX, Maximize, Loader2, AlertTriangle, Settings, Subtitles } from 'lucide-react';
 import Hls from 'hls.js';
 import { TvFocusButton } from '../tvNavigation';
 import { pause, resume } from '@noriginmedia/norigin-spatial-navigation';
@@ -102,6 +102,13 @@ export const PROVIDERS: Provider[] = [
       `https://player.videasy.net/movie/${tmdbId}?overlay=false&color=${color.replace('#', '')}&autoplay=true${progress && progress > 0 ? `&progress=${Math.floor(progress)}` : ''}`,
     getTvUrl: (tmdbId, season, episode, color, progress) => 
       `https://player.videasy.net/tv/${tmdbId}/${season}/${episode}?nextEpisode=true&autoplayNextEpisode=true&episodeSelector=true&overlay=false&color=${color.replace('#', '')}&autoplay=true${progress && progress > 0 ? `&progress=${Math.floor(progress)}` : ''}`,
+    supportsPostMessage: false
+  },
+  {
+    id: 'videasy_adfree',
+    name: 'VidEasy (HLS Ad-Free)',
+    getMovieUrl: () => '',
+    getTvUrl: () => '',
     supportsPostMessage: false
   },
   {
@@ -278,7 +285,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
 
   // Custom controls derived values & refs
   const currentProvider = PROVIDERS.find(p => p.id === selectedProviderId);
-  const useCustomControls = currentProvider?.supportsPostMessage === true || selectedProviderId === 'anivexa';
+  const useCustomControls = selectedProviderId === 'anivexa' || selectedProviderId === 'videasy_adfree';
   const isPlayingRef = useRef(false);
   const isSeekingRef = useRef(false);
   const playerDurationRef = useRef(0);
@@ -311,6 +318,19 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   const [anivexaLoading, setAnivexaLoading] = useState(false);
   const [anivexaError, setAnivexaError] = useState<string | null>(null);
 
+  // Custom player improved options states
+  const [customQualities, setCustomQualities] = useState<any[]>([]);
+  const [selectedQuality, setSelectedQuality] = useState<string>('1080p');
+  const [playbackSpeed, setPlaybackSpeed] = useState<number>(1.0);
+  const [overlayFeedback, setOverlayFeedback] = useState<{ text: string; icon: string; visible: boolean }>({ text: '', icon: '', visible: false });
+  const [showNextCountdown, setShowNextCountdown] = useState(false);
+  const [nextCountdownTime, setNextCountdownTime] = useState(15);
+  const [isQualityMenuOpen, setIsQualityMenuOpen] = useState(false);
+  const [isSpeedMenuOpen, setIsSpeedMenuOpen] = useState(false);
+  const [isSubtitleMenuOpen, setIsSubtitleMenuOpen] = useState(false);
+
+  const feedbackTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const nextCountdownTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<Hls | null>(null);
 
@@ -485,6 +505,194 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
       }
     };
   }, [selectedProviderId, anivexaStreamUrl, playState]);
+
+  // --- Custom Player Advanced Functions & Effects ---
+
+  const showOverlayFeedback = (text: string, icon: string = '') => {
+    setOverlayFeedback({ text, icon, visible: true });
+    if (feedbackTimeoutRef.current) clearTimeout(feedbackTimeoutRef.current);
+    feedbackTimeoutRef.current = setTimeout(() => {
+      setOverlayFeedback(prev => ({ ...prev, visible: false }));
+    }, 800);
+  };
+
+  const changePlaybackSpeed = (speed: number) => {
+    const video = videoRef.current;
+    if (video) {
+      video.playbackRate = speed;
+    }
+    setPlaybackSpeed(speed);
+    showOverlayFeedback(`${speed}x Speed`);
+  };
+
+  const handleQualityChange = (qualityName: string) => {
+    const matched = customQualities.find(s => s.quality === qualityName);
+    if (matched && matched.url !== anivexaStreamUrl) {
+      const video = videoRef.current;
+      if (video) {
+        currentProgressRef.current = video.currentTime;
+      }
+      setSelectedQuality(qualityName);
+      setAnivexaStreamUrl(matched.url);
+      localStorage.setItem('movieverse_preferred_quality', qualityName);
+      showOverlayFeedback(qualityName);
+    }
+  };
+
+  // Sync playback speed whenever stream URL resolves or speed state updates
+  useEffect(() => {
+    const video = videoRef.current;
+    if (video) {
+      video.playbackRate = playbackSpeed;
+    }
+  }, [anivexaStreamUrl, playbackSpeed]);
+
+  // Sync subtitle tracks mode with global subtitleLanguage preference
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    const syncTracks = () => {
+      const textTracks = video.textTracks;
+      for (let i = 0; i < textTracks.length; i++) {
+        const track = textTracks[i];
+        const isMatch = subtitleLanguage !== 'None' && (
+          track.label.toLowerCase() === subtitleLanguage.toLowerCase() ||
+          track.language.toLowerCase() === getSubtitleCode(subtitleLanguage, 'iso').toLowerCase()
+        );
+        track.mode = isMatch ? 'showing' : 'hidden';
+      }
+    };
+
+    // Run immediately and bind to addtrack event in case tracks load late
+    syncTracks();
+    video.textTracks.addEventListener('addtrack', syncTracks);
+    return () => {
+      video.textTracks.removeEventListener('addtrack', syncTracks);
+    };
+  }, [subtitleLanguage, anivexaSubtitles, anivexaStreamUrl]);
+
+  // Fetch streaming sources for videasy_adfree
+  useEffect(() => {
+    if (selectedProviderId !== 'videasy_adfree') return;
+
+    let isMounted = true;
+    const fetchVideasyStream = async () => {
+      setAnivexaLoading(true);
+      setAnivexaStreamUrl('');
+      setAnivexaSubtitles([]);
+      setCustomQualities([]);
+      setAnivexaError(null);
+
+      try {
+        const cleanTitle = title || '';
+        const params = new URLSearchParams({
+          tmdbId: String(tmdbId),
+          mediaType: mediaType,
+          seasonId: String(currentSeason),
+          episodeId: String(currentEpisode),
+          title: cleanTitle
+        });
+
+        const res = await window.fetch(`/api/videasy?${params.toString()}`);
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.error || "Failed to resolve decrypted stream sources.");
+        }
+
+        const payload = await res.json();
+        if (!isMounted) return;
+
+        if (payload.success && payload.data) {
+          const sources = payload.data.sources || [];
+          const subs = payload.data.subtitles || [];
+
+          if (sources.length === 0) {
+            throw new Error("No video streaming sources returned from decryptor.");
+          }
+
+          setCustomQualities(sources);
+          setAnivexaSubtitles(subs);
+
+          // Select preferred quality or fallback to first
+          const preferredQuality = localStorage.getItem('movieverse_preferred_quality') || '1080p';
+          let matchedSource = sources.find((s: any) => s.quality.toLowerCase() === preferredQuality.toLowerCase())
+                              || sources.find((s: any) => s.quality.toLowerCase().includes('1080'))
+                              || sources[0];
+
+          setSelectedQuality(matchedSource.quality);
+          setAnivexaStreamUrl(matchedSource.url);
+        } else {
+          throw new Error(payload.error || "Decryption failed.");
+        }
+      } catch (err: any) {
+        console.error("Videasy Decryptor Error:", err);
+        if (isMounted) {
+          setAnivexaError(err.message || "Failed to resolve decrypted HLS stream.");
+        }
+      } finally {
+        if (isMounted) setAnivexaLoading(false);
+      }
+    };
+
+    fetchVideasyStream();
+    return () => { isMounted = false; };
+  }, [selectedProviderId, tmdbId, mediaType, currentSeason, currentEpisode, title]);
+
+  // Check next episode countdown logic
+  const hasNextEpisode = mediaType === 'tv' && episodes.some(ep => ep.episode_number === currentEpisode + 1);
+
+  const playNextEpisode = useCallback(() => {
+    const nextEp = currentEpisode + 1;
+    setCurrentEpisode(nextEp);
+    if (onEpisodeChange) {
+      onEpisodeChange(currentSeason, nextEp);
+    }
+    setShowNextCountdown(false);
+    showOverlayFeedback(`S${currentSeason} E${nextEp}`, 'forward');
+  }, [currentSeason, currentEpisode, onEpisodeChange]);
+
+  useEffect(() => {
+    if (!hasNextEpisode || (selectedProviderId !== 'anivexa' && selectedProviderId !== 'videasy_adfree')) return;
+    
+    if (playerDuration > 0 && playerCurrentTime >= playerDuration - 20 && !showNextCountdown) {
+      setShowNextCountdown(true);
+      setNextCountdownTime(15);
+    }
+    if (playerDuration > 0 && playerCurrentTime < playerDuration - 20 && showNextCountdown) {
+      setShowNextCountdown(false);
+      if (nextCountdownTimerRef.current) {
+        clearInterval(nextCountdownTimerRef.current);
+        nextCountdownTimerRef.current = null;
+      }
+    }
+  }, [playerCurrentTime, playerDuration, hasNextEpisode, showNextCountdown, selectedProviderId]);
+
+  useEffect(() => {
+    if (showNextCountdown) {
+      if (nextCountdownTimerRef.current) clearInterval(nextCountdownTimerRef.current);
+      nextCountdownTimerRef.current = setInterval(() => {
+        setNextCountdownTime(prev => {
+          if (prev <= 1) {
+            clearInterval(nextCountdownTimerRef.current!);
+            nextCountdownTimerRef.current = null;
+            setShowNextCountdown(false);
+            playNextEpisode();
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    } else {
+      if (nextCountdownTimerRef.current) {
+        clearInterval(nextCountdownTimerRef.current);
+        nextCountdownTimerRef.current = null;
+      }
+    }
+    return () => {
+      if (nextCountdownTimerRef.current) clearInterval(nextCountdownTimerRef.current);
+    };
+  }, [showNextCountdown, playNextEpisode]);
 
   useEffect(() => {
     if (!isAnime || !title) {
@@ -1062,28 +1270,37 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
           case ' ':
             e.preventDefault();
             togglePlayback();
+            showOverlayFeedback(!isPlaying ? 'Play' : 'Pause', !isPlaying ? 'play' : 'pause');
             break;
           case 'ArrowLeft':
             e.preventDefault();
             seekTo(Math.max(0, playerCurrentTime - 10));
+            showOverlayFeedback('-10s', 'rewind');
             break;
           case 'ArrowRight':
             e.preventDefault();
             seekTo(Math.min(playerDuration, playerCurrentTime + 10));
+            showOverlayFeedback('+10s', 'forward');
             break;
           case 'ArrowUp':
             e.preventDefault();
-            changeVolume(playerVolume + 0.1);
+            const newVolUp = Math.min(1, playerVolume + 0.1);
+            changeVolume(newVolUp);
+            showOverlayFeedback(`Volume ${Math.round(newVolUp * 100)}%`, 'volume-up');
             break;
           case 'ArrowDown':
             e.preventDefault();
-            changeVolume(playerVolume - 0.1);
+            const newVolDown = Math.max(0, playerVolume - 0.1);
+            changeVolume(newVolDown);
+            showOverlayFeedback(`Volume ${Math.round(newVolDown * 100)}%`, 'volume-down');
             break;
           case 'm': case 'M':
             toggleMuteState();
+            showOverlayFeedback(!playerMuted ? 'Muted' : 'Unmuted', !playerMuted ? 'volume-mute' : 'volume-up');
             break;
           case 'f': case 'F':
             toggleFullscreen();
+            showOverlayFeedback(!isFullscreen ? 'Fullscreen' : 'Exit Fullscreen');
             break;
         }
         resetControlsTimeout();
@@ -1091,7 +1308,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [useCustomControls, isDrawerOpen, onClose, togglePlayback, seekTo, changeVolume, toggleMuteState, toggleFullscreen, resetControlsTimeout, playerCurrentTime, playerDuration, playerVolume]);
+  }, [useCustomControls, isDrawerOpen, onClose, togglePlayback, seekTo, changeVolume, toggleMuteState, toggleFullscreen, resetControlsTimeout, playerCurrentTime, playerDuration, playerVolume, isPlaying, playerMuted, isFullscreen]);
 
   // Fullscreen change listener
   useEffect(() => {
@@ -1112,7 +1329,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
       className="w-full h-full flex flex-col bg-black relative group/player select-none overflow-hidden"
     >
       <div className="flex-1 relative w-full h-full z-0 overflow-hidden bg-black">
-        {selectedProviderId === 'anivexa' && isAnime && anilistId ? (
+        {selectedProviderId === 'videasy_adfree' || (selectedProviderId === 'anivexa' && isAnime && anilistId) ? (
           <div className="w-full h-full absolute inset-0 bg-zinc-950 z-0 flex items-center justify-center">
             {anivexaLoading && !anivexaStreamUrl && (
               <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-zinc-950/90 backdrop-blur-xl z-30">
@@ -1129,7 +1346,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                 </div>
                 <button
                   onClick={() => {
-                    setSelectedProviderId('vidnest');
+                    setSelectedProviderId(selectedProviderId === 'anivexa' ? 'vidnest' : 'videasy');
                   }}
                   className="px-5 py-2.5 bg-white/10 hover:bg-white/15 text-white font-bold text-xs uppercase tracking-wider rounded-xl transition-all border border-white/10 backdrop-blur-md active:scale-95 shadow-xl"
                 >
@@ -1143,7 +1360,17 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                 className="w-full h-full object-contain"
                 playsInline
                 crossOrigin="anonymous"
-              />
+              >
+                {anivexaSubtitles.map((sub, idx) => (
+                  <track
+                    key={idx}
+                    kind="subtitles"
+                    src={sub.url}
+                    srcLang={sub.lang || sub.language}
+                    label={sub.language || sub.lang}
+                  />
+                ))}
+              </video>
             )}
           </div>
         ) : (
@@ -1242,6 +1469,141 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                     {playerMuted || playerVolume === 0 ? <VolumeX size={18} /> : <Volume2 size={18} />}
                   </button>
 
+                  {/* Subtitles Selector */}
+                  {anivexaSubtitles.length > 0 && (
+                    <div className="relative">
+                      <button 
+                        onClick={() => {
+                          setIsSubtitleMenuOpen(!isSubtitleMenuOpen);
+                          setIsQualityMenuOpen(false);
+                          setIsSpeedMenuOpen(false);
+                        }}
+                        className={`p-2 rounded-lg transition-all hover:bg-white/10 ${isSubtitleMenuOpen ? 'text-red-500 bg-white/5' : 'text-white/80 hover:text-white'}`}
+                        title="Subtitles"
+                      >
+                        <Subtitles size={18} />
+                      </button>
+                      
+                      {isSubtitleMenuOpen && (
+                        <div className="absolute bottom-11 right-0 mb-1 bg-zinc-950/95 backdrop-blur-md border border-white/10 rounded-xl p-1.5 z-35 shadow-2xl flex flex-col gap-1 w-36 max-h-48 overflow-y-auto custom-scrollbar">
+                          <div className="text-[9px] text-zinc-500 font-extrabold uppercase tracking-wider px-2 py-1">Subtitles</div>
+                          <button
+                            onClick={() => {
+                              setSubtitleLanguage('None');
+                              localStorage.setItem('movieverse_preferred_subtitle_language', 'None');
+                              setIsSubtitleMenuOpen(false);
+                            }}
+                            className={`w-full text-left px-2 py-1.5 text-[11px] font-bold rounded-lg transition-colors flex items-center justify-between ${
+                              subtitleLanguage === 'None' ? 'bg-red-600 text-white' : 'text-zinc-400 hover:bg-white/5 hover:text-white'
+                            }`}
+                          >
+                            <span>Off</span>
+                            {subtitleLanguage === 'None' && <Check size={10} />}
+                          </button>
+                          {Array.from(new Set(anivexaSubtitles.map(s => s.language || s.lang))).map((lang: any) => {
+                            const isSel = subtitleLanguage.toLowerCase() === lang.toLowerCase();
+                            return (
+                              <button
+                                key={lang}
+                                onClick={() => {
+                                  setSubtitleLanguage(lang);
+                                  localStorage.setItem('movieverse_preferred_subtitle_language', lang);
+                                  setIsSubtitleMenuOpen(false);
+                                }}
+                                className={`w-full text-left px-2 py-1.5 text-[11px] font-bold rounded-lg transition-colors flex items-center justify-between ${
+                                  isSel ? 'bg-red-600 text-white' : 'text-zinc-400 hover:bg-white/5 hover:text-white'
+                                }`}
+                              >
+                                <span className="truncate">{lang}</span>
+                                {isSel && <Check size={10} />}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Quality Selector */}
+                  {customQualities.length > 0 && (
+                    <div className="relative">
+                      <button 
+                        onClick={() => {
+                          setIsQualityMenuOpen(!isQualityMenuOpen);
+                          setIsSubtitleMenuOpen(false);
+                          setIsSpeedMenuOpen(false);
+                        }}
+                        className={`p-2 rounded-lg transition-all hover:bg-white/10 text-xs font-black tracking-wider ${isQualityMenuOpen ? 'text-red-500 bg-white/5' : 'text-white/80 hover:text-white'}`}
+                        title="Quality"
+                      >
+                        {selectedQuality}
+                      </button>
+                      
+                      {isQualityMenuOpen && (
+                        <div className="absolute bottom-11 right-0 mb-1 bg-zinc-950/95 backdrop-blur-md border border-white/10 rounded-xl p-1.5 z-35 shadow-2xl flex flex-col gap-1 w-28">
+                          <div className="text-[9px] text-zinc-500 font-extrabold uppercase tracking-wider px-2 py-1">Resolution</div>
+                          {customQualities.map((q: any) => {
+                            const isSel = selectedQuality === q.quality;
+                            return (
+                              <button
+                                key={q.quality}
+                                onClick={() => {
+                                  handleQualityChange(q.quality);
+                                  setIsQualityMenuOpen(false);
+                                }}
+                                className={`w-full text-left px-2 py-1.5 text-[11px] font-bold rounded-lg transition-colors flex items-center justify-between ${
+                                  isSel ? 'bg-red-600 text-white' : 'text-zinc-400 hover:bg-white/5 hover:text-white'
+                                }`}
+                              >
+                                <span>{q.quality}</span>
+                                {isSel && <Check size={10} />}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Speed Selector */}
+                  <div className="relative">
+                    <button 
+                      onClick={() => {
+                        setIsSpeedMenuOpen(!isSpeedMenuOpen);
+                        setIsSubtitleMenuOpen(false);
+                        setIsQualityMenuOpen(false);
+                      }}
+                      className={`p-2 rounded-lg transition-all hover:bg-white/10 text-xs font-black tracking-wider ${isSpeedMenuOpen ? 'text-red-500 bg-white/5' : 'text-white/80 hover:text-white'}`}
+                      title="Playback Speed"
+                    >
+                      {playbackSpeed === 1.0 ? 'Normal' : `${playbackSpeed}x`}
+                    </button>
+                    
+                    {isSpeedMenuOpen && (
+                      <div className="absolute bottom-11 right-0 mb-1 bg-zinc-950/95 backdrop-blur-md border border-white/10 rounded-xl p-1.5 z-35 shadow-2xl flex flex-col gap-1 w-24">
+                        <div className="text-[9px] text-zinc-500 font-extrabold uppercase tracking-wider px-2 py-1">Speed</div>
+                        {[0.5, 1.0, 1.25, 1.5, 2.0].map((speed) => {
+                          const isSel = playbackSpeed === speed;
+                          return (
+                            <button
+                              key={speed}
+                              onClick={() => {
+                                changePlaybackSpeed(speed);
+                                setIsSpeedMenuOpen(false);
+                              }}
+                              className={`w-full text-left px-2 py-1.5 text-[11px] font-bold rounded-lg transition-colors flex items-center justify-between ${
+                                isSel ? 'bg-red-600 text-white' : 'text-zinc-400 hover:bg-white/5 hover:text-white'
+                              }`}
+                            >
+                              <span>{speed === 1.0 ? 'Normal' : `${speed}x`}</span>
+                              {isSel && <Check size={10} />}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+
                   {/* Fullscreen */}
                   <button onClick={toggleFullscreen} className="p-2 text-white/80 hover:text-white hover:bg-white/10 rounded-lg transition-all" title="Fullscreen (F)">
                     <Maximize size={18} />
@@ -1249,6 +1611,51 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                 </div>
               </div>
             </div>
+
+            {/* On-screen visual feedback for keyboard shortcuts */}
+            {overlayFeedback.visible && (
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-30 animate-in fade-in zoom-in-95 duration-200">
+                <div className="px-5 py-3 rounded-2xl bg-black/80 backdrop-blur-md border border-white/10 flex items-center gap-3 text-white shadow-2xl scale-100 transition-transform">
+                  {overlayFeedback.icon === 'play' && <Play size={20} fill="white" />}
+                  {overlayFeedback.icon === 'pause' && <Pause size={20} fill="white" />}
+                  {overlayFeedback.icon === 'forward' && <ChevronRight size={20} />}
+                  {overlayFeedback.icon === 'rewind' && <ChevronLeft size={20} />}
+                  {overlayFeedback.icon === 'volume-up' && <Volume2 size={20} />}
+                  {overlayFeedback.icon === 'volume-down' && <Volume2 size={20} className="opacity-60" />}
+                  {overlayFeedback.icon === 'volume-mute' && <VolumeX size={20} />}
+                  <span className="text-xs font-black uppercase tracking-wider font-sans">{overlayFeedback.text}</span>
+                </div>
+              </div>
+            )}
+
+            {/* TV-friendly auto-next episode countdown card */}
+            {showNextCountdown && (
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-35 animate-in fade-in zoom-in-95 duration-300">
+                <div className="p-6 rounded-2xl bg-zinc-950/95 backdrop-blur-xl border border-white/10 shadow-[0_0_50px_rgba(0,0,0,0.8)] text-center w-72 max-w-sm">
+                  <div className="text-[10px] text-zinc-500 font-extrabold uppercase tracking-[0.2em] mb-2">Up Next</div>
+                  <h4 className="text-white text-sm font-black tracking-wide truncate mb-1">
+                    Episode {currentEpisode + 1}
+                  </h4>
+                  <p className="text-zinc-400 text-xs mb-5">
+                    Starting in <span className="text-red-500 font-extrabold">{nextCountdownTime}</span> seconds...
+                  </p>
+                  <div className="flex gap-2.5 justify-center">
+                    <button
+                      onClick={playNextEpisode}
+                      className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-extrabold text-[10px] uppercase tracking-wider rounded-xl transition-all shadow-lg active:scale-95 flex items-center gap-1.5"
+                    >
+                      <Play size={12} fill="white" /> Play Now
+                    </button>
+                    <button
+                      onClick={() => setShowNextCountdown(false)}
+                      className="px-4 py-2 bg-white/10 hover:bg-white/15 text-white font-bold text-[10px] uppercase tracking-wider rounded-xl transition-all active:scale-95"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
