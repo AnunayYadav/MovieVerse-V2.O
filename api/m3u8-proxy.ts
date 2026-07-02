@@ -1,8 +1,9 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
 // Function to resolve relative paths and rewrite URIs inside .m3u8 files
-function rewriteM3U8(manifestText: string, playlistUrl: string, proxyBaseUrl: string): string {
+function rewriteM3U8(manifestText: string, playlistUrl: string, proxyBaseUrl: string, customReferer?: string): string {
   const lines = manifestText.split('\n');
+  const refererParam = customReferer ? `&referer=${encodeURIComponent(customReferer)}` : '';
   const rewrittenLines = lines.map(line => {
     const trimmed = line.trim();
     if (!trimmed) return line;
@@ -11,13 +12,13 @@ function rewriteM3U8(manifestText: string, playlistUrl: string, proxyBaseUrl: st
     if (trimmed.startsWith('#')) {
       return line.replace(/URI="([^"]+)"/g, (match, uri) => {
         const absoluteUri = new URL(uri, playlistUrl).toString();
-        return `URI="${proxyBaseUrl}?url=${encodeURIComponent(absoluteUri)}"`;
+        return `URI="${proxyBaseUrl}?url=${encodeURIComponent(absoluteUri)}${refererParam}"`;
       });
     }
 
     // It's a segment or child playlist URL
     const absoluteUri = new URL(trimmed, playlistUrl).toString();
-    return `${proxyBaseUrl}?url=${encodeURIComponent(absoluteUri)}`;
+    return `${proxyBaseUrl}?url=${encodeURIComponent(absoluteUri)}${refererParam}`;
   });
 
   return rewrittenLines.join('\n');
@@ -79,7 +80,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       "Origin": origin
     };
 
-    const response = await fetch(targetUrl, { headers });
+    // Manual redirect following to preserve Referer/Origin headers
+    let response = await fetch(targetUrl, { headers, redirect: 'manual' });
+    let redirectCount = 0;
+    const maxRedirects = 5;
+
+    while (response.status >= 300 && response.status < 400 && redirectCount < maxRedirects) {
+      const location = response.headers.get('location');
+      if (!location) break;
+      const nextUrl = new URL(location, targetUrl).toString();
+      response = await fetch(nextUrl, { headers, redirect: 'manual' });
+      targetUrl = nextUrl;
+      redirectCount++;
+    }
+
     if (!response.ok) {
       const errorText = await response.text().catch(() => '');
       return res.status(response.status).send(`Failed to fetch streaming resource from upstream: ${response.statusText}. Details: ${errorText}`);
@@ -97,7 +111,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const protocol = req.headers['x-forwarded-proto'] || 'http';
       const proxyBaseUrl = `${protocol}://${host}/api/m3u8-proxy`;
 
-      const rewrittenManifest = rewriteM3U8(manifestText, finalPlaylistUrl, proxyBaseUrl);
+      const rewrittenManifest = rewriteM3U8(
+        manifestText, 
+        finalPlaylistUrl, 
+        proxyBaseUrl, 
+        typeof customReferer === 'string' ? customReferer : undefined
+      );
 
       res.setHeader('Content-Type', 'application/vnd.apple.mpegurl; charset=utf-8');
       res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');

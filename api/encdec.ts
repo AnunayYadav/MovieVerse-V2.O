@@ -122,53 +122,79 @@ async function resolveAnimekai(
     : availableServers[0];
 
   const { type, server } = serverMap[selectedLabel.toLowerCase()];
-  const ajaxPath = ep.sources[type][server];
-  const megaup = entry.info?.mirrors?.megaup?.[0] || 'https://animekai.to';
-  const ajaxUrl = `${megaup}${ajaxPath}`;
+  const ajaxPath = ep.sources[type][server]; // media/kJCpIDyoWS2JcOLyFL5L7BvpCQ
 
-  // Fetch encrypted ajax content
-  const ajaxRes = await fetch(ajaxUrl, {
-    headers: {
-      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36",
-      "Referer": "https://animekai.to/"
-    }
-  });
-
-  if (!ajaxRes.ok) {
-    throw new Error(`Failed to load Ajax links view: HTTP ${ajaxRes.status}`);
+  // Try all megaup and rapidshare mirrors from the database
+  const megaupMirrors = entry.info?.mirrors?.megaup || [];
+  const rapidshareMirrors = entry.info?.mirrors?.rapidshare || [];
+  const mirrors = [...megaupMirrors, ...rapidshareMirrors];
+  if (mirrors.length === 0) {
+    mirrors.push(
+      'https://megaup.nl/',
+      'https://megaup.live/',
+      'https://rapidshare.work/',
+      'https://rapidshare.cc/'
+    );
   }
 
-  const ajaxData = await ajaxRes.json();
-  const encryptedText = ajaxData.result;
+  let successText = '';
+  const userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36";
 
-  // Decrypt Ajax view content via enc-dec.app
-  const decKaiRes = await fetch("https://enc-dec.app/api/dec-kai", {
+  for (const mirror of mirrors) {
+    const finalUrl = `${mirror}${ajaxPath}`;
+    const embedCode = ajaxPath.replace('media/', '');
+    const referer = `${mirror}e/${embedCode}`;
+
+    try {
+      const mediaRes = await fetch(finalUrl, {
+        headers: {
+          "User-Agent": userAgent,
+          "Referer": referer
+        }
+      });
+
+      if (mediaRes.ok) {
+        const mediaJson = await mediaRes.json();
+        if (mediaJson && mediaJson.result) {
+          successText = mediaJson.result;
+          break;
+        }
+      }
+    } catch (e) {
+      console.warn(`AnimeKai mirror ${mirror} fetch failed:`, e);
+    }
+  }
+
+  if (!successText) {
+    throw new Error("All AnimeKai mirrors failed to resolve the media content (HTTP 522/403/404)");
+  }
+
+  // Decrypt using dec-mega
+  const decRes = await fetch("https://enc-dec.app/api/dec-mega", {
     method: "POST",
     headers: {
       "Content-Type": "application/json"
     },
-    body: JSON.stringify({ text: encryptedText })
+    body: JSON.stringify({
+      text: successText,
+      agent: userAgent
+    })
   });
 
-  if (!decKaiRes.ok) {
-    throw new Error(`Failed to decrypt AnimeKai link view: HTTP ${decKaiRes.status}`);
+  if (!decRes.ok) {
+    throw new Error(`Failed to decrypt AnimeKai hoster media: HTTP ${decRes.status}`);
   }
 
-  const decKaiJson = await decKaiRes.json();
-  if (decKaiJson.status !== 200 || !decKaiJson.result || !decKaiJson.result.url) {
-    throw new Error(`AnimeKai decryption failed: ${decKaiJson.error || 'unknown'}`);
+  const decJson = await decRes.json();
+  if (decJson.status !== 200 || !decJson.result) {
+    throw new Error(`AnimeKai hoster decryption failed: ${decJson.error || 'unknown'}`);
   }
-
-  const embedUrl = decKaiJson.result.url;
-
-  // Decrypt hoster embed stream URL
-  const hosterStream = await resolveHosterEmbed(embedUrl);
 
   return {
     success: true,
     provider: selectedLabel,
     availableServers,
-    data: hosterStream
+    data: decJson.result
   };
 }
 
