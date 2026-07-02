@@ -1222,6 +1222,8 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   const lastProviderRef = useRef<string | null>(null);
   const lastAnimeLanguageRef = useRef<string>(animeLanguage);
   const lastAnilistIdRef = useRef<number | null>(anilistId);
+  const lastCineSrcServerRef = useRef<string>(selectedCineSrcServer);
+  const lastSubtitleLanguageRef = useRef<string>(subtitleLanguage);
 
   useEffect(() => {
     const isTvShow = mediaType === 'tv' || (isAnime && mediaType !== 'movie');
@@ -1240,6 +1242,8 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
       lastProviderRef.current = selectedProviderId;
       lastAnimeLanguageRef.current = animeLanguage;
       lastAnilistIdRef.current = anilistId;
+      lastCineSrcServerRef.current = selectedCineSrcServer;
+      lastSubtitleLanguageRef.current = subtitleLanguage;
       currentProgressRef.current = forceProgress || 0;
     } else if (lastProviderRef.current !== selectedProviderId) {
       // Only provider changed -> reload at the current playback position
@@ -1251,6 +1255,12 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     } else if (lastAnilistIdRef.current !== anilistId) {
       shouldUpdateUrl = true;
       lastAnilistIdRef.current = anilistId;
+    } else if (lastCineSrcServerRef.current !== selectedCineSrcServer) {
+      shouldUpdateUrl = true;
+      lastCineSrcServerRef.current = selectedCineSrcServer;
+    } else if (lastSubtitleLanguageRef.current !== subtitleLanguage) {
+      shouldUpdateUrl = true;
+      lastSubtitleLanguageRef.current = subtitleLanguage;
     } else if (forceProgress !== undefined) {
       // External seek/sync (like Watch Party seek)
       const diff = Math.abs(forceProgress - currentProgressRef.current);
@@ -2128,22 +2138,15 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                         </button>
 
                         {/* Render available custom video subtitle tracks */}
-                        {anivexaSubtitles && anivexaSubtitles.length > 0 && (
-                          anivexaSubtitles.map((sub, idx) => {
-                            const label = sub.label || sub.language || sub.lang || `Track ${idx + 1}`;
-                            const isActive = subtitleLanguage === label;
+                        {selectedProviderId === 'cinesrc' ? (
+                          ['English', 'Hindi', 'Spanish', 'French', 'German', 'Portuguese', 'Russian'].map((lang) => {
+                            const isActive = subtitleLanguage.toLowerCase() === lang.toLowerCase();
                             return (
                               <button
-                                key={idx}
+                                key={lang}
                                 onClick={() => {
-                                  setSubtitleLanguage(label);
-                                  localStorage.setItem('movieverse_preferred_subtitle_language', label);
-                                  if (videoRef.current) {
-                                    const tracks = videoRef.current.textTracks;
-                                    for (let i = 0; i < tracks.length; i++) {
-                                      tracks[i].mode = i === idx ? 'showing' : 'disabled';
-                                    }
-                                  }
+                                  setSubtitleLanguage(lang);
+                                  localStorage.setItem('movieverse_preferred_subtitle_language', lang);
                                   closeAllMenus();
                                 }}
                                 className={`w-full text-left py-2 px-3 rounded-lg text-xs font-semibold transition-all border flex items-center justify-between ${
@@ -2152,11 +2155,42 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                                     : 'bg-white/5 text-zinc-300 border-white/5 hover:border-white/10 hover:bg-white/10'
                                 }`}
                               >
-                                <span>{label}</span>
+                                <span>{lang}</span>
                                 {isActive && <Check size={12} />}
                               </button>
                             );
                           })
+                        ) : (
+                          anivexaSubtitles && anivexaSubtitles.length > 0 && (
+                            anivexaSubtitles.map((sub, idx) => {
+                              const label = sub.label || sub.language || sub.lang || `Track ${idx + 1}`;
+                              const isActive = subtitleLanguage === label;
+                              return (
+                                <button
+                                  key={idx}
+                                  onClick={() => {
+                                    setSubtitleLanguage(label);
+                                    localStorage.setItem('movieverse_preferred_subtitle_language', label);
+                                    if (videoRef.current) {
+                                      const tracks = videoRef.current.textTracks;
+                                      for (let i = 0; i < tracks.length; i++) {
+                                        tracks[i].mode = i === idx ? 'showing' : 'disabled';
+                                      }
+                                    }
+                                    closeAllMenus();
+                                  }}
+                                  className={`w-full text-left py-2 px-3 rounded-lg text-xs font-semibold transition-all border flex items-center justify-between ${
+                                    isActive
+                                      ? 'bg-red-600/10 text-red-500 border-red-500/20'
+                                      : 'bg-white/5 text-zinc-300 border-white/5 hover:border-white/10 hover:bg-white/10'
+                                  }`}
+                                >
+                                  <span>{label}</span>
+                                  {isActive && <Check size={12} />}
+                                </button>
+                              );
+                            })
+                          )
                         )}
                       </div>
                     </div>
@@ -2612,7 +2646,29 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                   {subtitleLanguage === 'None' && <Check size={12} />}
                 </button>
                 
-                {anivexaSubtitles && anivexaSubtitles.length > 0 ? (
+                {selectedProviderId === 'cinesrc' ? (
+                  ['English', 'Hindi', 'Spanish', 'French', 'German', 'Portuguese', 'Russian'].map((lang) => {
+                    const isSel = subtitleLanguage.toLowerCase() === lang.toLowerCase();
+                    return (
+                      <button
+                        key={lang}
+                        onClick={() => {
+                          setSubtitleLanguage(lang);
+                          localStorage.setItem('movieverse_preferred_subtitle_language', lang);
+                          setIsDrawerOpen(false);
+                        }}
+                        className={`w-full py-3 px-4 rounded-xl text-xs font-bold transition-all border flex items-center justify-between active:scale-[0.98] ${
+                          isSel 
+                            ? 'bg-red-600/20 text-red-500 border-red-500/30 font-extrabold' 
+                            : 'bg-white/5 text-zinc-300 border-white/5 hover:border-white/10 hover:bg-white/10'
+                        }`}
+                      >
+                        <span className="truncate">{lang}</span>
+                        {isSel && <Check size={12} />}
+                      </button>
+                    );
+                  })
+                ) : anivexaSubtitles && anivexaSubtitles.length > 0 ? (
                   Array.from(new Set(anivexaSubtitles.map(s => s.language || s.lang || s.label || 'Unknown'))).map((lang: any) => {
                     const isSel = subtitleLanguage.toLowerCase() === (lang || '').toLowerCase();
                     return (
