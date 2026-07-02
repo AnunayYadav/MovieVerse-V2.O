@@ -182,14 +182,14 @@ export const PROVIDERS: Provider[] = [
     getMovieUrl: (tmdbId, color, progress, isAnime, anilistId, animeLanguage, language, subtitle) => {
       const dub = language ? getAudioCode(language, 'iso') : 'hi';
       const subVal = subtitle && subtitle !== 'None' ? `&sub=${getSubtitleCode(subtitle, 'iso')}` : '';
-      return `https://zxcstream.xyz/player/movie/${tmdbId}?dubLang=${dub}&color=${color.replace('#', '')}&autoplay=true${subVal}${progress && progress > 0 ? `&startAt=${Math.floor(progress)}` : ''}`;
+      return `https://zxcstream.xyz/player/movie/${tmdbId}?dubLang=${dub}&color=${color.replace('#', '')}&autoplay=true&controls=false${subVal}${progress && progress > 0 ? `&startAt=${Math.floor(progress)}` : ''}`;
     },
     getTvUrl: (tmdbId, season, episode, color, progress, isAnime, anilistId, animeLanguage, language, subtitle) => {
       const dub = language ? getAudioCode(language, 'iso') : 'hi';
       const subVal = subtitle && subtitle !== 'None' ? `&sub=${getSubtitleCode(subtitle, 'iso')}` : '';
-      return `https://zxcstream.xyz/player/tv/${tmdbId}/${season}/${episode}?dubLang=${dub}&color=${color.replace('#', '')}&autoplay=true${subVal}${progress && progress > 0 ? `&startAt=${Math.floor(progress)}` : ''}`;
+      return `https://zxcstream.xyz/player/tv/${tmdbId}/${season}/${episode}?dubLang=${dub}&color=${color.replace('#', '')}&autoplay=true&controls=false${subVal}${progress && progress > 0 ? `&startAt=${Math.floor(progress)}` : ''}`;
     },
-    supportsPostMessage: false
+    supportsPostMessage: true
   },
   {
     id: 'vidlink',
@@ -294,7 +294,8 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   const isCineSrcCustom = selectedProviderId === 'cinesrc';
   const isVidFastCustom = selectedProviderId === 'vidfast';
   const isVidCoreCustom = selectedProviderId === 'vidcore';
-  const isIframeCustomControls = isCineSrcCustom || isVidFastCustom || isVidCoreCustom;
+  const isZxcCustom = selectedProviderId === 'zxcstream';
+  const isIframeCustomControls = isCineSrcCustom || isVidFastCustom || isVidCoreCustom || isZxcCustom;
   const useCustomControls = (selectedProviderId === 'videasy_adfree' || selectedProviderId.startsWith('encdec') || isIframeCustomControls) && !(selectedProviderId === 'videasy_adfree' && fallbackToNativeVideasy);
   const isPlayingRef = useRef(false);
   const isSeekingRef = useRef(false);
@@ -544,7 +545,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   const changePlaybackSpeed = (speed: number) => {
     if (isCineSrcCustom) {
       sendCineSrcCommand('setPlaybackRate', [speed]);
-    } else if (isVidFastCustom || isVidCoreCustom) {
+    } else if (isVidFastCustom || isVidCoreCustom || isZxcCustom) {
       sendPlayerCommand('speed', { speed });
     } else {
       const video = videoRef.current;
@@ -590,7 +591,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   useEffect(() => {
     if (isCineSrcCustom) {
       sendCineSrcCommand('setPlaybackRate', [playbackSpeed]);
-    } else if (isVidFastCustom || isVidCoreCustom) {
+    } else if (isVidFastCustom || isVidCoreCustom || isZxcCustom) {
       sendPlayerCommand('speed', { speed: playbackSpeed });
     } else {
       const video = videoRef.current;
@@ -598,7 +599,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
         video.playbackRate = playbackSpeed;
       }
     }
-  }, [anivexaStreamUrl, playbackSpeed, isCineSrcCustom, sendCineSrcCommand, isVidFastCustom, isVidCoreCustom, sendPlayerCommand]);
+  }, [anivexaStreamUrl, playbackSpeed, isCineSrcCustom, sendCineSrcCommand, isVidFastCustom, isVidCoreCustom, isZxcCustom, sendPlayerCommand]);
 
   // Sync subtitle tracks mode with global subtitleLanguage preference
   useEffect(() => {
@@ -934,7 +935,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
       }
       return;
     }
-    if (isVidFastCustom || isVidCoreCustom) {
+    if (isVidFastCustom || isVidCoreCustom || isZxcCustom) {
       const next = !isPlaying;
       sendPlayerCommand(next ? 'play' : 'pause');
       setIsPlaying(next);
@@ -951,7 +952,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     const next = !isPlaying;
     sendPlayerCommand(next ? 'play' : 'pause');
     setIsPlaying(next);
-  }, [isPlaying, sendPlayerCommand, useCustomControls, isCineSrcCustom, sendCineSrcCommand, isVidFastCustom, isVidCoreCustom]);
+  }, [isPlaying, sendPlayerCommand, useCustomControls, isCineSrcCustom, sendCineSrcCommand, isVidFastCustom, isVidCoreCustom, isZxcCustom]);
 
   const seekTo = useCallback((time: number) => {
     if (isCineSrcCustom) {
@@ -959,7 +960,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
       setPlayerCurrentTime(time);
       return;
     }
-    if (isVidFastCustom || isVidCoreCustom) {
+    if (isVidFastCustom || isVidCoreCustom || isZxcCustom) {
       sendPlayerCommand('seek', { time: Math.floor(time) });
       setPlayerCurrentTime(time);
       return;
@@ -972,7 +973,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     }
     sendPlayerCommand('seek', { time: Math.floor(time) });
     setPlayerCurrentTime(time);
-  }, [sendPlayerCommand, useCustomControls, isCineSrcCustom, sendCineSrcCommand, isVidFastCustom, isVidCoreCustom]);
+  }, [sendPlayerCommand, useCustomControls, isCineSrcCustom, sendCineSrcCommand, isVidFastCustom, isVidCoreCustom, isZxcCustom]);
 
   const changeVolume = useCallback((level: number) => {
     const clamped = Math.max(0, Math.min(1, level));
@@ -985,7 +986,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
       }
       return;
     }
-    if (isVidFastCustom || isVidCoreCustom) {
+    if (isVidFastCustom || isVidCoreCustom || isZxcCustom) {
       sendPlayerCommand('volume', { level: clamped });
       setPlayerVolume(clamped);
       if (clamped > 0 && playerMuted) {
@@ -1012,7 +1013,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
       sendPlayerCommand('mute', { muted: false });
       setPlayerMuted(false);
     }
-  }, [sendPlayerCommand, playerMuted, useCustomControls, isCineSrcCustom, sendCineSrcCommand, isVidFastCustom, isVidCoreCustom]);
+  }, [sendPlayerCommand, playerMuted, useCustomControls, isCineSrcCustom, sendCineSrcCommand, isVidFastCustom, isVidCoreCustom, isZxcCustom]);
 
   const toggleMuteState = useCallback(() => {
     if (isCineSrcCustom) {
@@ -1021,7 +1022,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
       setPlayerMuted(nextMuted);
       return;
     }
-    if (isVidFastCustom || isVidCoreCustom) {
+    if (isVidFastCustom || isVidCoreCustom || isZxcCustom) {
       sendPlayerCommand('mute', { muted: !playerMuted });
       setPlayerMuted(!playerMuted);
       return;
@@ -1036,13 +1037,13 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     }
     sendPlayerCommand('mute', { muted: !playerMuted });
     setPlayerMuted(!playerMuted);
-  }, [sendPlayerCommand, playerMuted, useCustomControls, isCineSrcCustom, sendCineSrcCommand, isVidFastCustom, isVidCoreCustom]);
+  }, [sendPlayerCommand, playerMuted, useCustomControls, isCineSrcCustom, sendCineSrcCommand, isVidFastCustom, isVidCoreCustom, isZxcCustom]);
 
   const skipForward = useCallback(() => {
     const nextTime = playerDuration > 0 ? Math.min(playerDuration, playerCurrentTime + 10) : playerCurrentTime + 10;
     if (isCineSrcCustom) {
       sendCineSrcCommand('seek', [nextTime]);
-    } else if (isVidFastCustom || isVidCoreCustom) {
+    } else if (isVidFastCustom || isVidCoreCustom || isZxcCustom) {
       sendPlayerCommand('seek', { time: Math.floor(nextTime) });
     } else if (useCustomControls) {
       const video = videoRef.current;
@@ -1054,13 +1055,13 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     }
     setPlayerCurrentTime(nextTime);
     showOverlayFeedback('10s >', 'forward');
-  }, [playerDuration, playerCurrentTime, sendPlayerCommand, useCustomControls, isCineSrcCustom, sendCineSrcCommand, isVidFastCustom, isVidCoreCustom]);
+  }, [playerDuration, playerCurrentTime, sendPlayerCommand, useCustomControls, isCineSrcCustom, sendCineSrcCommand, isVidFastCustom, isVidCoreCustom, isZxcCustom]);
 
   const skipBackward = useCallback(() => {
     const nextTime = Math.max(0, playerCurrentTime - 10);
     if (isCineSrcCustom) {
       sendCineSrcCommand('seek', [nextTime]);
-    } else if (isVidFastCustom || isVidCoreCustom) {
+    } else if (isVidFastCustom || isVidCoreCustom || isZxcCustom) {
       sendPlayerCommand('seek', { time: Math.floor(nextTime) });
     } else if (useCustomControls) {
       const video = videoRef.current;
@@ -1072,7 +1073,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     }
     setPlayerCurrentTime(nextTime);
     showOverlayFeedback('< 10s', 'rewind');
-  }, [playerCurrentTime, sendPlayerCommand, useCustomControls, isCineSrcCustom, sendCineSrcCommand, isVidFastCustom, isVidCoreCustom]);
+  }, [playerCurrentTime, sendPlayerCommand, useCustomControls, isCineSrcCustom, sendCineSrcCommand, isVidFastCustom, isVidCoreCustom, isZxcCustom]);
 
   const toggleFullscreen = useCallback(() => {
     if (!containerRef.current) return;
@@ -1446,8 +1447,62 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                         case 'cinesrc:close':
                             onClose();
                             break;
-                        case 'cinesrc:error':
-                            console.error("CineSrc error:", data.error);
+                    }
+                    return;
+                }
+
+                // Handle ZXCStream events
+                if (event.origin === 'https://zxcstream.xyz' || parsed.type?.startsWith('VIDEO_')) {
+                    const type = parsed.type;
+                    const payload = parsed.payload || {};
+                    switch (type) {
+                        case 'VIDEO_PLAY':
+                            setIsPlaying(true);
+                            setIsBuffering(false);
+                            break;
+                        case 'VIDEO_PAUSE':
+                            setIsPlaying(false);
+                            break;
+                        case 'VIDEO_PROGRESS':
+                        case 'VIDEO_NINETY_PERCENT':
+                            if (!isSeekingRef.current) {
+                                const time = Number(payload.currentTime);
+                                const dur = Number(payload.duration);
+                                if (!isNaN(time)) {
+                                    setPlayerCurrentTime(time);
+                                    currentProgressRef.current = time;
+                                }
+                                if (!isNaN(dur) && dur > 0) {
+                                    setPlayerDuration(dur);
+                                }
+                            }
+                            if (onProgress && payload.currentTime !== undefined) {
+                                const timeNum = Number(payload.currentTime);
+                                const durationNum = payload.duration !== undefined ? Number(payload.duration) : 0;
+                                onProgress({
+                                    currentTime: timeNum,
+                                    duration: durationNum,
+                                    event: 'time',
+                                    season: currentSeason,
+                                    episode: currentEpisode
+                                });
+                            }
+                            setIsBuffering(false);
+                            break;
+                        case 'VIDEO_ENDED':
+                            setIsPlaying(false);
+                            if (onProgress) {
+                                onProgress({
+                                    currentTime: playerDuration,
+                                    duration: playerDuration,
+                                    event: 'complete',
+                                    season: currentSeason,
+                                    episode: currentEpisode
+                                });
+                            }
+                            if (isAutoplayEnabled && hasNextEpisode) {
+                                playNextEpisode();
+                            }
                             break;
                     }
                     return;
