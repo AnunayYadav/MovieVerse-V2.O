@@ -29,9 +29,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const response = await fetch(targetUrl);
+    const response = await fetch(targetUrl, {
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36",
+        "Referer": "https://www.vidking.net/",
+        "Origin": "https://www.vidking.net"
+      }
+    });
     if (!response.ok) {
-      return res.status(response.status).send(`Failed to fetch subtitle from upstream: ${response.statusText}`);
+      const errorText = await response.text().catch(() => '');
+      return res.status(response.status).send(`Failed to fetch subtitle from upstream: ${response.statusText}. Details: ${errorText}`);
     }
 
     const text = await response.text();
