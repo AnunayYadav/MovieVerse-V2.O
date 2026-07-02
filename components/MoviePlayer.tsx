@@ -1007,18 +1007,19 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   const resetControlsTimeout = useCallback(() => {
     setShowControls(true);
     if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
-    if (isDrawerOpen || isEpisodesOverlayOpen) return;
+    if (isDrawerOpen || isEpisodesOverlayOpen || isSubtitleMenuOpen || isSpeedMenuOpen || isQualityMenuOpen) return;
     controlsTimeoutRef.current = setTimeout(() => {
       if (isPlayingRef.current) setShowControls(false);
     }, 3000);
-  }, [isDrawerOpen, isEpisodesOverlayOpen]);
+  }, [isDrawerOpen, isEpisodesOverlayOpen, isSubtitleMenuOpen, isSpeedMenuOpen, isQualityMenuOpen]);
 
   // Keep controls open when overlay or drawer is active
   useEffect(() => {
-    if (isDrawerOpen || isEpisodesOverlayOpen) {
-      resetControlsTimeout();
+    if (isDrawerOpen || isEpisodesOverlayOpen || isSubtitleMenuOpen || isSpeedMenuOpen || isQualityMenuOpen) {
+      setShowControls(true);
+      if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
     }
-  }, [isDrawerOpen, isEpisodesOverlayOpen, resetControlsTimeout]);
+  }, [isDrawerOpen, isEpisodesOverlayOpen, isSubtitleMenuOpen, isSpeedMenuOpen, isQualityMenuOpen]);
 
   // Close playback speed menu on clicking outside
   useEffect(() => {
@@ -1550,7 +1551,10 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
             }`}
             onMouseMove={resetControlsTimeout}
             onTouchStart={resetControlsTimeout}
-            onMouseLeave={() => { if (isPlayingRef.current) setShowControls(false); }}
+            onMouseLeave={() => {
+              if (isDrawerOpen || isEpisodesOverlayOpen || isSubtitleMenuOpen || isSpeedMenuOpen || isQualityMenuOpen) return;
+              if (isPlayingRef.current) setShowControls(false);
+            }}
             onClick={(e) => {
               if ((e.target as HTMLElement).closest('[data-controls]')) return;
               togglePlayback();
@@ -1700,7 +1704,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
 
                               {isSeasonDropdownOpen && (
                                 <div 
-                                  className="absolute left-0 mt-1.5 w-32 bg-zinc-900 border border-zinc-800 rounded-lg shadow-2xl p-1 z-55 max-h-36 overflow-y-auto custom-scrollbar animate-in fade-in duration-100"
+                                  className="absolute left-0 mt-1.5 w-32 bg-zinc-900 border border-zinc-800 rounded-lg shadow-2xl p-1 z-[70] max-h-36 overflow-y-auto custom-scrollbar animate-in fade-in duration-100"
                                 >
                                   {seasons.map((s) => {
                                     const isSel = s.season_number === currentSeason;
@@ -1929,10 +1933,10 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                           closeAllMenus();
                           setIsSpeedMenuOpen(next);
                         }}
-                        className={`px-2.5 py-1 text-[11px] font-light border rounded-md transition-all whitespace-nowrap active:scale-95 self-center ${
+                        className={`px-3 py-1.5 text-xs font-extrabold border rounded-xl transition-all whitespace-nowrap active:scale-90 self-center flex items-center justify-center h-10 min-w-[44px] ${
                           isSpeedMenuOpen 
-                            ? 'text-red-500 border-red-500/30 bg-red-600/10' 
-                            : 'text-white/80 hover:text-white border-white/10 hover:border-white/20 bg-white/5 hover:bg-white/10'
+                            ? 'text-red-500 border-red-500/30 bg-red-600/10 shadow-[0_0_15px_rgba(239,68,68,0.15)]' 
+                            : 'text-white/90 hover:text-white border-white/10 hover:border-white/25 bg-white/5 hover:bg-white/10'
                         }`}
                         title="Playback Speed"
                       >
