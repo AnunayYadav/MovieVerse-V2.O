@@ -315,14 +315,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
 
       if (!cleanTitle && tmdbId) {
-        const apiKey = process.env.VITE_TMDB_API_KEY || 'fe42b660a036f4d6a2bfeb4d0f523ce9';
-        const typeStr = mediaType === 'tv' ? 'tv' : 'movie';
-        const tmdbRes = await fetch(`https://api.themoviedb.org/3/${typeStr}/${tmdbId}?api_key=${apiKey}`);
-        if (tmdbRes.ok) {
-          const tmdbData = await tmdbRes.json() as any;
-          cleanTitle = typeStr === 'movie'
-            ? (tmdbData.title || tmdbData.original_title)
-            : (tmdbData.name || tmdbData.original_name);
+        try {
+          const apiKey = process.env.VITE_TMDB_API_KEY || 'fe42b660a036f4d6a2bfeb4d0f523ce9';
+          const typeStr = mediaType === 'tv' ? 'tv' : 'movie';
+          const tmdbRes = await fetch(`https://api.themoviedb.org/3/${typeStr}/${tmdbId}?api_key=${apiKey}`);
+          if (tmdbRes.ok) {
+            const tmdbData = await tmdbRes.json() as any;
+            cleanTitle = typeStr === 'movie'
+              ? (tmdbData.title || tmdbData.original_title)
+              : (tmdbData.name || tmdbData.original_name);
+          }
+        } catch (err) {
+          console.warn("Failed to fetch TMDB info in Miruro block:", err);
         }
       }
 
