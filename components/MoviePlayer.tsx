@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
-import { X, Tv, ChevronLeft, ChevronRight, Check, ListVideo, Sliders, ChevronDown, Info, RefreshCw, Palette, Copy, Play, Pause, Volume2, VolumeX, Maximize, Loader2, AlertTriangle, Settings, Subtitles, ArrowLeft, RotateCcw, RotateCw, SkipForward, MessageSquare, Search } from 'lucide-react';
+import { X, Tv, ChevronLeft, ChevronRight, Check, ListVideo, Sliders, ChevronDown, Info, RefreshCw, Palette, Copy, Play, Pause, Volume2, VolumeX, Maximize, Loader2, AlertTriangle, Settings, Subtitles, ArrowLeft, RotateCcw, RotateCw, SkipForward, MessageSquare, Search, Languages } from 'lucide-react';
 import Hls from 'hls.js';
 import { TvFocusButton } from '../tvNavigation';
 import { pause, resume } from '@noriginmedia/norigin-spatial-navigation';
@@ -269,7 +269,30 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   // --- Custom Controls PostMessage Helpers ---
   const sendPlayerCommand = useCallback((command: string, params?: Record<string, any>) => {
     if (!iframeRef.current?.contentWindow) return;
-    iframeRef.current.contentWindow.postMessage({ command, ...params }, '*');
+    try {
+      const win = iframeRef.current.contentWindow;
+      const data = { command, ...params };
+      
+      // Standard objects and stringified commands
+      win.postMessage(data, '*');
+      win.postMessage(JSON.stringify(data), '*');
+      
+      // Alternative formats using 'type'
+      const typeData = { type: command, ...params };
+      win.postMessage(typeData, '*');
+      win.postMessage(JSON.stringify(typeData), '*');
+
+      // ZXC-specific control command events
+      if (command === 'play') {
+        win.postMessage({ type: 'VIDEO_PLAY' }, '*');
+        win.postMessage(JSON.stringify({ type: 'VIDEO_PLAY' }), '*');
+      } else if (command === 'pause') {
+        win.postMessage({ type: 'VIDEO_PAUSE' }, '*');
+        win.postMessage(JSON.stringify({ type: 'VIDEO_PAUSE' }), '*');
+      }
+    } catch (e) {
+      console.warn("Failed to send postMessage command to player iframe", e);
+    }
   }, []);
 
   const sendCineSrcCommand = useCallback((command: string, args: any[] = []) => {
@@ -346,6 +369,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   const [isQualityMenuOpen, setIsQualityMenuOpen] = useState(false);
   const [isSpeedMenuOpen, setIsSpeedMenuOpen] = useState(false);
   const [isSubtitleMenuOpen, setIsSubtitleMenuOpen] = useState(false);
+  const [isLanguageMenuOpen, setIsLanguageMenuOpen] = useState(false);
   const [isBuffering, setIsBuffering] = useState(false);
   const [isEpisodesOverlayOpen, setIsEpisodesOverlayOpen] = useState(false);
   const [episodeSearchQuery, setEpisodeSearchQuery] = useState('');
@@ -924,6 +948,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     setIsSubtitleMenuOpen(false);
     setIsSpeedMenuOpen(false);
     setIsQualityMenuOpen(false);
+    setIsLanguageMenuOpen(false);
   }, []);
 
   const togglePlayback = useCallback(() => {
@@ -1087,19 +1112,19 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   const resetControlsTimeout = useCallback(() => {
     setShowControls(true);
     if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
-    if (isDrawerOpen || isEpisodesOverlayOpen || isSubtitleMenuOpen || isSpeedMenuOpen || isQualityMenuOpen) return;
+    if (isDrawerOpen || isEpisodesOverlayOpen || isSubtitleMenuOpen || isSpeedMenuOpen || isQualityMenuOpen || isLanguageMenuOpen) return;
     controlsTimeoutRef.current = setTimeout(() => {
       if (isPlayingRef.current) setShowControls(false);
     }, 3000);
-  }, [isDrawerOpen, isEpisodesOverlayOpen, isSubtitleMenuOpen, isSpeedMenuOpen, isQualityMenuOpen]);
+  }, [isDrawerOpen, isEpisodesOverlayOpen, isSubtitleMenuOpen, isSpeedMenuOpen, isQualityMenuOpen, isLanguageMenuOpen]);
 
   // Keep controls open when overlay or drawer is active
   useEffect(() => {
-    if (isDrawerOpen || isEpisodesOverlayOpen || isSubtitleMenuOpen || isSpeedMenuOpen || isQualityMenuOpen) {
+    if (isDrawerOpen || isEpisodesOverlayOpen || isSubtitleMenuOpen || isSpeedMenuOpen || isQualityMenuOpen || isLanguageMenuOpen) {
       setShowControls(true);
       if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
     }
-  }, [isDrawerOpen, isEpisodesOverlayOpen, isSubtitleMenuOpen, isSpeedMenuOpen, isQualityMenuOpen]);
+  }, [isDrawerOpen, isEpisodesOverlayOpen, isSubtitleMenuOpen, isSpeedMenuOpen, isQualityMenuOpen, isLanguageMenuOpen]);
 
   // Close playback speed menu on clicking outside
   useEffect(() => {
@@ -1110,6 +1135,16 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     window.addEventListener('click', handleCloseMenus);
     return () => window.removeEventListener('click', handleCloseMenus);
   }, [isSpeedMenuOpen]);
+
+  // Close language menu on clicking outside
+  useEffect(() => {
+    if (!isLanguageMenuOpen) return;
+    const handleCloseMenus = () => {
+      setIsLanguageMenuOpen(false);
+    };
+    window.addEventListener('click', handleCloseMenus);
+    return () => window.removeEventListener('click', handleCloseMenus);
+  }, [isLanguageMenuOpen]);
 
   const handleProgressBarMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -1251,6 +1286,8 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   const lastProviderRef = useRef<string | null>(null);
   const lastAnimeLanguageRef = useRef<string>(animeLanguage);
   const lastAnilistIdRef = useRef<number | null>(anilistId);
+  const lastAudioLanguageRef = useRef<string>(audioLanguage);
+  const lastSubtitleLanguageRef = useRef<string>(subtitleLanguage);
 
   useEffect(() => {
     const isTvShow = mediaType === 'tv' || (isAnime && mediaType !== 'movie');
@@ -1269,6 +1306,8 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
       lastProviderRef.current = selectedProviderId;
       lastAnimeLanguageRef.current = animeLanguage;
       lastAnilistIdRef.current = anilistId;
+      lastAudioLanguageRef.current = audioLanguage;
+      lastSubtitleLanguageRef.current = subtitleLanguage;
       currentProgressRef.current = forceProgress || 0;
     } else if (lastProviderRef.current !== selectedProviderId) {
       // Only provider changed -> reload at the current playback position
@@ -1280,6 +1319,12 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     } else if (lastAnilistIdRef.current !== anilistId) {
       shouldUpdateUrl = true;
       lastAnilistIdRef.current = anilistId;
+    } else if (lastAudioLanguageRef.current !== audioLanguage) {
+      shouldUpdateUrl = true;
+      lastAudioLanguageRef.current = audioLanguage;
+    } else if (lastSubtitleLanguageRef.current !== subtitleLanguage) {
+      shouldUpdateUrl = true;
+      lastSubtitleLanguageRef.current = subtitleLanguage;
     } else if (forceProgress !== undefined) {
       // External seek/sync (like Watch Party seek)
       const diff = Math.abs(forceProgress - currentProgressRef.current);
@@ -2240,6 +2285,57 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                             );
                           })
                         )}
+                      </div>
+                    </div>
+
+                    {/* Audio Language Selector */}
+                    <div className="relative flex items-center justify-center">
+                      <button 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const next = !isLanguageMenuOpen;
+                          closeAllMenus();
+                          setIsLanguageMenuOpen(next);
+                        }} 
+                        className={`p-2 transition-transform active:scale-90 ${isLanguageMenuOpen ? 'text-red-500 hover:text-red-600' : 'text-white/95 hover:text-white'}`}
+                        title="Audio Language"
+                      >
+                        <Languages size={24} />
+                      </button>
+
+                      <div 
+                        data-controls
+                        className={`absolute bottom-12 right-0 bg-[#0c0c0e] border border-white/10 rounded-2xl p-4 shadow-2xl z-[60] flex flex-col gap-2 min-w-[180px] max-h-[300px] overflow-y-auto custom-scrollbar transition-all duration-200 ease-out origin-bottom-right ${
+                          isLanguageMenuOpen 
+                            ? 'opacity-100 translate-y-0 scale-100 pointer-events-auto' 
+                            : 'opacity-0 translate-y-4 scale-95 pointer-events-none'
+                        } text-left`}
+                      >
+                        <div className="flex items-center justify-between border-b border-white/5 pb-2 mb-1">
+                          <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">Audio Language</span>
+                        </div>
+
+                        {['English', 'Hindi', 'Spanish', 'Japanese', 'French', 'German', 'Portuguese', 'Russian'].map(lang => {
+                          const isActive = audioLanguage.toLowerCase() === lang.toLowerCase();
+                          return (
+                            <button
+                              key={lang}
+                              onClick={() => {
+                                setAudioLanguage(lang);
+                                localStorage.setItem('movieverse_preferred_audio_language', lang);
+                                closeAllMenus();
+                              }}
+                              className={`w-full text-left py-2 px-3 rounded-lg text-xs font-semibold transition-all border flex items-center justify-between ${
+                                isActive
+                                  ? 'bg-red-600/10 text-red-500 border-red-500/20'
+                                  : 'bg-white/5 text-zinc-300 border-white/5 hover:border-white/10 hover:bg-white/10'
+                              }`}
+                            >
+                              <span>{lang}</span>
+                              {isActive && <Check size={12} />}
+                            </button>
+                          );
+                        })}
                       </div>
                     </div>
 
