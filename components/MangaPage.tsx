@@ -482,10 +482,12 @@ export const MangaPage: React.FC<MangaPageProps> = ({
   const [activeChapter, setActiveChapter] = useState<MangaDexChapter | null>(null);
   const [pages, setPages] = useState<string[]>([]);
   const [pagesLoading, setPagesLoading] = useState(false);
-  const [readerMode, setReaderMode] = useState<'single' | 'strip'>('strip');
+  const [readerMode, setReaderMode] = useState<'single' | 'strip' | 'double'>('strip');
   const [activePageIdx, setActivePageIdx] = useState(0);
   const [isDataSaver, setIsDataSaver] = useState(false);
   const [chapterServerData, setChapterServerData] = useState<any | null>(null);
+  const [isFlipping, setIsFlipping] = useState(false);
+  const [flipDirection, setFlipDirection] = useState<'next' | 'prev' | null>(null);
 
   // Premium Reader settings states
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -2169,6 +2171,36 @@ export const MangaPage: React.FC<MangaPageProps> = ({
     setVisiblePagesCount(5);
   }, [pages]);
 
+  const handleNextPage = useCallback(() => {
+    if (readerMode === 'double') {
+      if (activePageIdx >= pages.length - 1) return;
+      setFlipDirection('next');
+      setIsFlipping(true);
+      setActivePageIdx(p => {
+        if (p === 0) return 1;
+        return Math.min(pages.length - 1, p + 2);
+      });
+      setTimeout(() => setIsFlipping(false), 600);
+    } else {
+      setActivePageIdx(p => Math.min(pages.length - 1, p + 1));
+    }
+  }, [readerMode, activePageIdx, pages.length]);
+
+  const handlePrevPage = useCallback(() => {
+    if (readerMode === 'double') {
+      if (activePageIdx === 0) return;
+      setFlipDirection('prev');
+      setIsFlipping(true);
+      setActivePageIdx(p => {
+        if (p === 1) return 0;
+        return Math.max(0, p - 2);
+      });
+      setTimeout(() => setIsFlipping(false), 600);
+    } else {
+      setActivePageIdx(p => Math.max(0, p - 1));
+    }
+  }, [readerMode, activePageIdx]);
+
   // Keyboard navigation & scrolling
   useEffect(() => {
     if (!activeChapter) return;
@@ -2184,13 +2216,13 @@ export const MangaPage: React.FC<MangaPageProps> = ({
           e.preventDefault();
           readerScrollContainerRef.current.scrollBy({ top: -window.innerHeight * 0.4, behavior: 'smooth' });
         }
-      } else if (readerMode === 'single') {
+      } else if (readerMode === 'single' || readerMode === 'double') {
         if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
           e.preventDefault();
-          setActivePageIdx(p => Math.min(pages.length - 1, p + 1));
+          handleNextPage();
         } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
           e.preventDefault();
-          setActivePageIdx(p => Math.max(0, p - 1));
+          handlePrevPage();
         }
       }
 
@@ -2206,7 +2238,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
     };
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
-  }, [activeChapter, readerMode, pages.length]);
+  }, [activeChapter, readerMode, pages.length, handleNextPage, handlePrevPage]);
 
   // Track scroll position in strip mode & lazy load next batches of pages
   useEffect(() => {
@@ -3074,13 +3106,13 @@ export const MangaPage: React.FC<MangaPageProps> = ({
             </div>
           </div>
 
-          {/* Page selector (if single mode) */}
-          {readerMode === 'single' && pages.length > 0 && (
+          {/* Page selector (if single or double mode) */}
+          {(readerMode === 'single' || readerMode === 'double') && pages.length > 0 && (
             <div className="space-y-2">
               <span className="text-[10px] font-medium text-zinc-400 tracking-wide">Select Page</span>
               <div className="flex items-center gap-2">
                 <button
-                  onClick={() => setActivePageIdx(p => Math.max(0, p - 1))}
+                  onClick={handlePrevPage}
                   disabled={activePageIdx === 0}
                   className="p-2 rounded-lg bg-white/5 hover:bg-zinc-800 disabled:opacity-20 text-white transition-all active:scale-95 shrink-0"
                 >
@@ -3093,11 +3125,28 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                     onChange={(e) => setActivePageIdx(parseInt(e.target.value, 10))}
                     className="w-full bg-white/5 text-xs text-white hover:bg-zinc-900 focus:border-red-600 rounded-lg px-2.5 py-2 focus:outline-none transition-all font-normal cursor-pointer appearance-none"
                   >
-                    {pages.map((_, i) => (
-                      <option key={i} value={i}>
-                        Page {i + 1} / {pages.length}
-                      </option>
-                    ))}
+                    {readerMode === 'double' ? (
+                      <>
+                        <option value={0}>Page 1 (Cover)</option>
+                        {(() => {
+                          const options = [];
+                          for (let i = 1; i < pages.length; i += 2) {
+                            options.push(
+                              <option key={i} value={i}>
+                                Pages {i + 1} - {Math.min(pages.length, i + 2)}
+                              </option>
+                            );
+                          }
+                          return options;
+                        })()}
+                      </>
+                    ) : (
+                      pages.map((_, i) => (
+                        <option key={i} value={i}>
+                          Page {i + 1} / {pages.length}
+                        </option>
+                      ))
+                    )}
                   </select>
                   <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-zinc-400">
                     <ChevronDown size={14} />
@@ -3105,8 +3154,12 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                 </div>
 
                 <button
-                  onClick={() => setActivePageIdx(p => Math.min(pages.length - 1, p + 1))}
-                  disabled={activePageIdx === pages.length - 1}
+                  onClick={handleNextPage}
+                  disabled={
+                    readerMode === 'double'
+                      ? activePageIdx >= pages.length - 1
+                      : activePageIdx === pages.length - 1
+                  }
                   className="p-2 rounded-lg bg-white/5 hover:bg-zinc-800 disabled:opacity-20 text-white transition-all active:scale-95 shrink-0"
                 >
                   <ChevronRight size={16} />
@@ -3121,8 +3174,8 @@ export const MangaPage: React.FC<MangaPageProps> = ({
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Reading Progress</span>
             <span className="text-xs font-black text-red-500">
-              {readerMode === 'single'
-                ? `${Math.round(((activePageIdx + 1) / (pages.length || 1)) * 100)}%`
+              {readerMode !== 'strip'
+                ? `${Math.round(((readerMode === 'double' ? Math.min(pages.length, activePageIdx + 2) : activePageIdx + 1) / (pages.length || 1)) * 100)}%`
                 : `${scrollPercent}%`
               }
             </span>
@@ -3133,8 +3186,8 @@ export const MangaPage: React.FC<MangaPageProps> = ({
             <div 
               className="bg-red-600 h-full rounded-full transition-all duration-300"
               style={{ 
-                width: `${readerMode === 'single' 
-                  ? ((activePageIdx + 1) / (pages.length || 1)) * 100 
+                width: `${readerMode !== 'strip' 
+                  ? ((readerMode === 'double' ? Math.min(pages.length, activePageIdx + 2) : activePageIdx + 1) / (pages.length || 1)) * 100 
                   : scrollPercent}%` 
               }}
             />
@@ -3149,7 +3202,11 @@ export const MangaPage: React.FC<MangaPageProps> = ({
               <div className="flex justify-between text-[10px] text-zinc-400">
                 <span>Active Page:</span>
                 <span className="text-white font-bold">
-                  {readerMode === 'single' ? `${activePageIdx + 1} / ${pages.length}` : `All ${pages.length} Loaded`}
+                  {readerMode === 'single'
+                    ? `${activePageIdx + 1} / ${pages.length}`
+                    : readerMode === 'double'
+                    ? `${activePageIdx + 1}${activePageIdx + 1 < pages.length ? ` - ${activePageIdx + 2}` : ''} / ${pages.length}`
+                    : `All ${pages.length} Loaded`}
                 </span>
               </div>
             )}
@@ -3203,6 +3260,17 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                   className={`px-2.5 py-1 rounded-md text-[10px] font-normal transition-all ${readerMode === 'single' ? 'bg-red-600 text-white' : 'text-zinc-500 hover:text-white'}`}
                 >
                   Single
+                </button>
+                <button
+                  onClick={() => {
+                    setReaderMode('double');
+                    if (activePageIdx > 0 && activePageIdx % 2 === 0) {
+                      setActivePageIdx(activePageIdx - 1);
+                    }
+                  }}
+                  className={`px-2.5 py-1 rounded-md text-[10px] font-normal transition-all ${readerMode === 'double' ? 'bg-red-600 text-white' : 'text-zinc-500 hover:text-white'}`}
+                >
+                  Book
                 </button>
               </div>
             </div>
@@ -3429,13 +3497,13 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                   </div>
                 ))}
               </div>
-            ) : (
+            ) : readerMode === 'single' ? (
               /* Single Page Mode (Slideshow) */
               <div className="flex-1 w-full flex flex-col justify-center items-center py-2 h-full">
                 <div className={`w-full ${getPageWidthClass()} flex items-center justify-between gap-2 sm:gap-6 h-full`}>
                   
                   <button
-                    onClick={() => setActivePageIdx(p => Math.max(0, p - 1))}
+                    onClick={handlePrevPage}
                     disabled={activePageIdx === 0}
                     className="p-2 sm:p-3 rounded-full bg-zinc-900/80 hover:bg-zinc-800 text-white disabled:opacity-10 disabled:pointer-events-none transition-all active:scale-90 shadow-lg border border-white/5 shrink-0"
                   >
@@ -3469,11 +3537,251 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                   </div>
 
                   <button
-                    onClick={() => setActivePageIdx(p => Math.min(pages.length - 1, p + 1))}
+                    onClick={handleNextPage}
                     disabled={activePageIdx === pages.length - 1}
                     className="p-2 sm:p-3 rounded-full bg-zinc-900/80 hover:bg-zinc-800 text-white disabled:opacity-10 disabled:pointer-events-none transition-all active:scale-90 shadow-lg border border-white/5"
                   >
                     <ChevronRight size={20} />
+                  </button>
+                </div>
+              </div>
+            ) : (
+              /* Double Page Mode (Book style) */
+              <div className="flex-1 w-full flex flex-col justify-center items-center py-4 h-full relative" style={{ perspective: '1500px' }}>
+                <style dangerouslySetInnerHTML={{ __html: `
+                  .manga-book-container {
+                    display: flex;
+                    position: relative;
+                    width: 100%;
+                    max-width: 1000px;
+                    aspect-ratio: 4 / 3;
+                    max-h: 75vh;
+                    box-shadow: 0 30px 70px rgba(0, 0, 0, 0.85);
+                    border-radius: 12px;
+                    background: #111;
+                    padding: 8px;
+                    border: 4px solid #27272a;
+                  }
+                  .manga-book-page {
+                    flex: 1;
+                    height: 100%;
+                    background: #09090b;
+                    position: relative;
+                    overflow: hidden;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.95);
+                    transition: transform 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94), opacity 0.5s ease;
+                  }
+                  .manga-book-page-left {
+                    border-top-left-radius: 6px;
+                    border-bottom-left-radius: 6px;
+                    border-right: 1px solid rgba(255, 255, 255, 0.05);
+                    transform-origin: right center;
+                  }
+                  .manga-book-page-right {
+                    border-top-right-radius: 6px;
+                    border-bottom-right-radius: 6px;
+                    border-left: 1px solid rgba(255, 255, 255, 0.05);
+                    transform-origin: left center;
+                  }
+                  .manga-book-spine {
+                    position: absolute;
+                    left: 50%;
+                    top: 8px;
+                    bottom: 8px;
+                    width: 16px;
+                    transform: translateX(-50%);
+                    z-index: 40;
+                    background: linear-gradient(90deg, 
+                      rgba(0,0,0,0.5) 0%, 
+                      rgba(0,0,0,0.85) 45%, 
+                      rgba(0,0,0,0.95) 50%, 
+                      rgba(0,0,0,0.85) 55%, 
+                      rgba(0,0,0,0.5) 100%
+                    );
+                    box-shadow: 0 0 10px rgba(0,0,0,0.5);
+                    pointer-events: none;
+                  }
+                  .manga-page-img {
+                    max-width: 100%;
+                    max-height: 100%;
+                    object-fit: contain;
+                    pointer-events: none;
+                  }
+                  /* 3D Paper fold transitions */
+                  .flip-next-right {
+                    transform: rotateY(-15deg) translateX(-10px) scale(0.98);
+                    opacity: 0.85;
+                  }
+                  .flip-next-left {
+                    transform: rotateY(15deg) translateX(10px) scale(0.98);
+                    opacity: 0.85;
+                  }
+                  .flip-prev-right {
+                    transform: rotateY(-15deg) translateX(-10px) scale(0.98);
+                    opacity: 0.85;
+                  }
+                  .flip-prev-left {
+                    transform: rotateY(15deg) translateX(10px) scale(0.98);
+                    opacity: 0.85;
+                  }
+                  /* Crease shadow effect overlay */
+                  .manga-page-gradient-left {
+                    position: absolute;
+                    inset: 0;
+                    background: linear-gradient(90deg, rgba(0,0,0,0) 80%, rgba(0,0,0,0.3) 100%);
+                    pointer-events: none;
+                    z-index: 10;
+                  }
+                  .manga-page-gradient-right {
+                    position: absolute;
+                    inset: 0;
+                    background: linear-gradient(-90deg, rgba(0,0,0,0) 80%, rgba(0,0,0,0.3) 100%);
+                    pointer-events: none;
+                    z-index: 10;
+                  }
+                  /* Swipe lighting flare simulating page movement */
+                  .sweep-shadow {
+                    position: absolute;
+                    top: 0;
+                    bottom: 0;
+                    width: 50%;
+                    z-index: 50;
+                    background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.03) 40%, rgba(0,0,0,0.4) 50%, rgba(0,0,0,0.65) 60%, rgba(0,0,0,0) 100%);
+                    pointer-events: none;
+                    transform: translateX(100%);
+                  }
+                  .sweep-shadow-active-next {
+                    animation: sweepAnimationNext 0.6s ease-in-out forwards;
+                  }
+                  .sweep-shadow-active-prev {
+                    animation: sweepAnimationPrev 0.6s ease-in-out forwards;
+                  }
+                  @keyframes sweepAnimationNext {
+                    0% { transform: translateX(100%); }
+                    100% { transform: translateX(-100%); }
+                  }
+                  @keyframes sweepAnimationPrev {
+                    0% { transform: translateX(-100%); }
+                    100% { transform: translateX(100%); }
+                  }
+                ` }} />
+
+                <div className="w-full max-w-5xl flex items-center justify-between gap-4 h-full">
+                  {/* Left Nav Button */}
+                  <button
+                    onClick={handlePrevPage}
+                    disabled={activePageIdx === 0}
+                    className="p-3.5 rounded-full bg-zinc-900/95 hover:bg-zinc-800 text-white disabled:opacity-5 disabled:pointer-events-none transition-all active:scale-90 shadow-2xl border border-white/10 shrink-0 z-50 hover:scale-105"
+                  >
+                    <ChevronLeft size={22} />
+                  </button>
+
+                  {/* 3D Book Frame */}
+                  <div className="flex-1 flex justify-center items-center relative py-2">
+                    <div className="manga-book-container">
+                      {/* Sweep Shadow Effect */}
+                      {isFlipping && (
+                        <div 
+                          className={`sweep-shadow ${
+                            flipDirection === 'next' 
+                              ? 'sweep-shadow-active-next' 
+                              : 'sweep-shadow-active-prev'
+                          }`} 
+                        />
+                      )}
+
+                      {/* Middle Spine crease */}
+                      <div className="manga-book-spine" />
+
+                      {/* Left Page (higher index, i.e., activePageIdx + 1 for manga RTL) */}
+                      {activePageIdx === 0 ? (
+                        /* Leather inside cover for page 0 spread */
+                        <div className="manga-book-page manga-book-page-left bg-zinc-950/95 shadow-inner">
+                          <div className="flex flex-col items-center gap-3 select-none opacity-40">
+                            <BookOpen size={48} className="text-zinc-600" />
+                            <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">MovieVerse Book Mode</span>
+                          </div>
+                        </div>
+                      ) : (
+                        <div 
+                          className={`manga-book-page manga-book-page-left ${
+                            isFlipping && flipDirection === 'next' ? 'flip-next-left' : isFlipping && flipDirection === 'prev' ? 'flip-prev-left' : ''
+                          }`}
+                        >
+                          <div className="manga-page-gradient-left" />
+                          {activePageIdx + 1 < pages.length ? (
+                            <img
+                              src={pages[activePageIdx + 1]}
+                              alt={`Page ${activePageIdx + 2}`}
+                              referrerPolicy="no-referrer"
+                              className="manga-page-img"
+                              onError={(e) => {
+                                if (readingSource !== 'mangadex') return;
+                                const target = e.currentTarget;
+                                if (!target.src.includes('uploads.mangadex.org')) {
+                                  try {
+                                    const parsedUrl = new URL(target.src);
+                                    target.src = `https://uploads.mangadex.org${parsedUrl.pathname}`;
+                                  } catch (err) {
+                                    console.error('Failed to resolve fallback URL:', err);
+                                  }
+                                }
+                              }}
+                            />
+                          ) : (
+                            <div className="flex flex-col items-center gap-2 select-none opacity-20">
+                              <BookOpen size={36} className="text-zinc-700" />
+                              <span className="text-[10px] font-semibold text-zinc-600 tracking-wider">End of Chapter</span>
+                            </div>
+                          )}
+                          <div className="absolute bottom-4 left-4 bg-black/80 backdrop-blur-md px-2 py-0.5 rounded text-[10px] text-zinc-400 font-semibold border border-white/5 shadow-md">
+                            {activePageIdx + 2} / {pages.length}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Right Page (lower index, activePageIdx) */}
+                      <div 
+                        className={`manga-book-page manga-book-page-right ${
+                          isFlipping && flipDirection === 'next' ? 'flip-next-right' : isFlipping && flipDirection === 'prev' ? 'flip-prev-right' : ''
+                        }`}
+                      >
+                        <div className="manga-page-gradient-right" />
+                        <img
+                          src={pages[activePageIdx]}
+                          alt={`Page ${activePageIdx + 1}`}
+                          referrerPolicy="no-referrer"
+                          className="manga-page-img"
+                          onError={(e) => {
+                            if (readingSource !== 'mangadex') return;
+                            const target = e.currentTarget;
+                            if (!target.src.includes('uploads.mangadex.org')) {
+                              try {
+                                const parsedUrl = new URL(target.src);
+                                target.src = `https://uploads.mangadex.org${parsedUrl.pathname}`;
+                              } catch (err) {
+                                console.error('Failed to resolve fallback URL:', err);
+                              }
+                            }
+                          }}
+                        />
+                        <div className="absolute bottom-4 right-4 bg-black/80 backdrop-blur-md px-2 py-0.5 rounded text-[10px] text-zinc-400 font-semibold border border-white/5 shadow-md">
+                          {activePageIdx + 1} / {pages.length}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Right Nav Button */}
+                  <button
+                    onClick={handleNextPage}
+                    disabled={activePageIdx >= pages.length - 1}
+                    className="p-3.5 rounded-full bg-zinc-900/95 hover:bg-zinc-800 text-white disabled:opacity-5 disabled:pointer-events-none transition-all active:scale-90 shadow-2xl border border-white/10 shrink-0 z-50 hover:scale-105"
+                  >
+                    <ChevronRight size={22} />
                   </button>
                 </div>
               </div>
