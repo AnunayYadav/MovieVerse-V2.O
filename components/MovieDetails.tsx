@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, Suspense, useRef, useMemo } from 'react';
+import React, { useState, useEffect, Suspense, useRef, useMemo, useCallback } from 'react';
 import { X, Info, Calendar, Clock, Star, Play, Bookmark, Heart, Share2, Clapperboard, Sparkles, Loader2, Tag, MessageCircle, Globe, Facebook, Instagram, Twitter, Film, PlayCircle, Eye, Volume2, VolumeX, Users, ArrowLeft, Lightbulb, DollarSign, Trophy, Tv, Check, Mic2, Video, PenTool, ChevronRight, ChevronDown, Search, Monitor, Plus, Layers, Shield, Building2, Languages, Headphones, Activity, Target, TrendingUp, Cast, AlertCircle, Pause, Download, PieChart as PieChartIcon, Send } from 'lucide-react';
 import { Movie, MovieDetails, Season, UserProfile, Keyword, Review, CastMember, CrewMember, CollectionDetails, Genre } from '../types';
 import { TMDB_BASE_URL, TMDB_IMAGE_BASE, TMDB_BACKDROP_BASE, formatCurrency, ImageLightbox, PersonCard, MovieCard, tvFetch } from '../components/Shared';
@@ -585,6 +585,17 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                           medium
                         }
                       }
+                      voiceActors(language: JAPANESE) {
+                        id
+                        name {
+                          userPreferred
+                          full
+                        }
+                        image {
+                          large
+                          medium
+                        }
+                      }
                     }
                   }
                   relations {
@@ -628,6 +639,17 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                     edges {
                       role
                       node {
+                        id
+                        name {
+                          userPreferred
+                          full
+                        }
+                        image {
+                          large
+                          medium
+                        }
+                      }
+                      voiceActors(language: JAPANESE) {
                         id
                         name {
                           userPreferred
@@ -717,6 +739,25 @@ export const MoviePage: React.FC<MoviePageProps> = ({
             setCharactersLoading(false);
         });
     }, [details]);
+
+    const handleVoiceActorClick = useCallback(async (e: React.MouseEvent, vaName: string) => {
+        e.stopPropagation();
+        if (!apiKey) return;
+        try {
+            const res = await fetch(`${TMDB_BASE_URL}/search/person?api_key=${apiKey}&query=${encodeURIComponent(vaName)}`);
+            if (res.ok) {
+                const searchData = await res.json();
+                const person = searchData.results?.[0];
+                if (person) {
+                    onPersonClick(person.id);
+                } else {
+                    console.warn(`No TMDB person found for voice actor: ${vaName}`);
+                }
+            }
+        } catch (err) {
+            console.error("Failed to search voice actor on TMDB:", err);
+        }
+    }, [apiKey, onPersonClick]);
 
     const toggleReviewExpand = (reviewId: string) => {
         setExpandedReviews(prev => ({
@@ -2071,6 +2112,8 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                         const charName = charNode.name.userPreferred || charNode.name.full;
                                                         const charImage = charNode.image.large || `https://ui-avatars.com/api/?name=${encodeURIComponent(charName)}&background=333&color=fff`;
                                                         const charRole = edge.role === 'MAIN' ? 'Main' : 'Supporting';
+                                                        const voiceActor = edge.voiceActors?.[0];
+                                                        const vaName = voiceActor?.name?.userPreferred || voiceActor?.name?.full;
                                                         
                                                         return (
                                                             <div
@@ -2093,10 +2136,18 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                                     </span>
                                                                 </div>
 
-                                                                <div className="absolute inset-0 p-3 flex flex-col justify-end text-left select-none pointer-events-none">
-                                                                    <h4 className="text-xs font-semibold text-white line-clamp-2 leading-tight group-hover:text-red-500 transition-colors duration-300">
+                                                                <div className="absolute inset-0 p-3 flex flex-col justify-end text-left select-none">
+                                                                    <h4 className="text-xs font-semibold text-white line-clamp-1 leading-tight group-hover:text-red-500 transition-colors duration-300 pointer-events-none">
                                                                         {charName}
                                                                     </h4>
+                                                                    {vaName && (
+                                                                        <span 
+                                                                            onClick={(e) => handleVoiceActorClick(e, vaName)}
+                                                                            className="text-[9px] text-zinc-400 hover:text-red-400 mt-1 cursor-pointer transition-colors line-clamp-1 font-medium relative z-20 pointer-events-auto"
+                                                                        >
+                                                                            VA: {vaName}
+                                                                        </span>
+                                                                    )}
                                                                 </div>
                                                             </div>
                                                         );

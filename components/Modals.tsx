@@ -551,23 +551,36 @@ export const PersonPage: React.FC<PersonPageProps> = ({ personId, onClose, apiKe
                 }
             }
         `;
-        fetch('https://graphql.anilist.co', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ query, variables: { search: details.name } })
-        })
-        .then(res => res.json())
-        .then(json => {
-            const edges = json?.data?.Staff?.characters?.edges || [];
+
+        const fetchStaff = async (searchName: string): Promise<any[]> => {
+            try {
+                const res = await fetch('https://graphql.anilist.co', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ query, variables: { search: searchName } })
+                });
+                const json = await res.json();
+                return json?.data?.Staff?.characters?.edges || [];
+            } catch (err) {
+                console.warn(`Failed AniList search for name ${searchName}:`, err);
+                return [];
+            }
+        };
+
+        const run = async () => {
+            let edges = await fetchStaff(details.name);
+            if (edges.length === 0 && details.also_known_as && details.also_known_as.length > 0) {
+                for (const altName of details.also_known_as) {
+                    if (altName.trim().length < 2) continue;
+                    edges = await fetchStaff(altName);
+                    if (edges.length > 0) break;
+                }
+            }
             setVoicedCharacters(edges);
             setVaLoading(false);
-        })
-        .catch(err => {
-            console.error("Error fetching voiced characters from AniList:", err);
-            setVoicedCharacters([]);
-            setVaLoading(false);
-        });
-    }, [details?.name]);
+        };
+        run();
+    }, [details?.name, details?.also_known_as]);
 
     const mergedCredits = useMemo(() => {
         if (!details?.combined_credits) return [];
