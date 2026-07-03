@@ -1451,6 +1451,11 @@ export default function App() {
         }
     }, [selectedMangaId]);
 
+    const selectedCategoryRef = useRef("All");
+    useEffect(() => {
+        selectedCategoryRef.current = selectedCategory;
+    }, [selectedCategory]);
+
     const isSyncingPath = useRef(false);
     const urlPushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const lastPushedPathRef = useRef<string>(window.location.pathname);
@@ -1474,7 +1479,7 @@ export default function App() {
         setActiveMangaChapterId(null);
 
 
-        let category = "All";
+        let category = selectedCategoryRef.current || "All";
         let movieToSelect: Movie | null = null;
         let watchPartyRoomId: string | null = null;
         let keywordToSelect: Keyword | null = null;
