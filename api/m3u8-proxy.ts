@@ -80,19 +80,48 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       "Origin": origin
     };
 
-    // Manual redirect following to preserve Referer/Origin headers
-    let response = await fetch(targetUrl, { headers, redirect: 'manual' });
-    let redirectCount = 0;
-    const maxRedirects = 5;
+    const fetchWithRedirects = async (target: string, requestHeaders: Record<string, string>) => {
+      let resp = await fetch(target, { headers: requestHeaders, redirect: 'manual' });
+      let redirectCount = 0;
+      const maxRedirects = 5;
+      let currentUrl = target;
+      while (resp.status >= 300 && resp.status < 400 && redirectCount < maxRedirects) {
+        const location = resp.headers.get('location');
+        if (!location) break;
+        currentUrl = new URL(location, currentUrl).toString();
+        resp = await fetch(currentUrl, { headers: requestHeaders, redirect: 'manual' });
+        redirectCount++;
+      }
+      return { response: resp, finalUrl: currentUrl };
+    };
 
-    while (response.status >= 300 && response.status < 400 && redirectCount < maxRedirects) {
-      const location = response.headers.get('location');
-      if (!location) break;
-      const nextUrl = new URL(location, targetUrl).toString();
-      response = await fetch(nextUrl, { headers, redirect: 'manual' });
-      targetUrl = nextUrl;
-      redirectCount++;
+    let { response, finalUrl } = await fetchWithRedirects(targetUrl, headers);
+
+    if (response.status === 403 || response.status === 401) {
+      // Retry with alt referer
+      const altHeaders = {
+        "User-Agent": headers["User-Agent"],
+        "Referer": "https://www.vidking.net/",
+        "Origin": "https://www.vidking.net"
+      };
+      const retryResult = await fetchWithRedirects(targetUrl, altHeaders);
+      if (retryResult.response.ok) {
+        response = retryResult.response;
+        finalUrl = retryResult.finalUrl;
+      } else {
+        // Try with no referer/origin
+        const cleanHeaders = {
+          "User-Agent": headers["User-Agent"]
+        };
+        const cleanResult = await fetchWithRedirects(targetUrl, cleanHeaders);
+        if (cleanResult.response.ok) {
+          response = cleanResult.response;
+          finalUrl = cleanResult.finalUrl;
+        }
+      }
     }
+
+    targetUrl = finalUrl;
 
     if (!response.ok) {
       const errorText = await response.text().catch(() => '');

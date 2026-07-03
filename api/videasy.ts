@@ -246,14 +246,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     ];
   }
 
-  const baseQueryParams = {
+  const baseQueryParams: Record<string, string> = {
     title: String(title),
     mediaType: String(mediaType),
     year: year ? String(year) : '',
-    episodeId: episodeNum,
-    seasonId: seasonNum,
     tmdbId: String(tmdbId)
   };
+
+  if (mediaType === 'tv') {
+    baseQueryParams.episodeId = episodeNum;
+    baseQueryParams.seasonId = seasonNum;
+  }
 
   let successData: any = null;
   let successfulProvider = '';
