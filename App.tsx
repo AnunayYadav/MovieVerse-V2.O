@@ -3525,7 +3525,7 @@ export default function App() {
                             <input
                                 type="text"
                                 placeholder={selectedCategory === "Categories" ? "Search categories..." : "Search... (Press /)"}
-                                className="w-full bg-white/5 border border-white/10 rounded-xl py-2.5 pl-10 pr-4 text-sm focus:outline-none focus:border-white/30"
+                                className={`w-full bg-[#1a1a1a] border border-white/10 rounded-xl py-2.5 pl-10 pr-4 text-sm focus:outline-none transition-all ${isAiSearchActive ? (loading ? "ai-search-glow-loading" : "ai-search-glow") : "focus:border-white/30"}`}
                                 value={searchInput}
                                 onChange={(e) => setSearchInput(e.target.value)}
                                 onKeyDown={(e) => e.key === 'Enter' && handleSearchSubmit(searchInput)}
@@ -3693,7 +3693,7 @@ export default function App() {
                                     ref={searchInputRef}
                                     type="text"
                                     placeholder={selectedCategory === "Categories" ? (window.innerWidth < 640 ? "Search..." : "Search categories...") : (window.innerWidth < 640 ? "Search..." : "Search... (Press /)")}
-                                    className={`w-full bg-[#1a1a1a] border border-white/5 rounded-full py-1.5 md:py-2 pl-8 md:pl-10 pr-9 md:pr-11 text-xs md:text-sm focus:outline-none transition-all text-white placeholder-gray-500 ${isAiSearchActive ? "ai-search-glow" : (loading && searchQuery ? "border-opacity-50" : "focus:border-white/20")}`}
+                                    className={`w-full bg-[#1a1a1a] border border-white/5 rounded-full py-1.5 md:py-2 pl-8 md:pl-10 pr-9 md:pr-11 text-xs md:text-sm focus:outline-none transition-all text-white placeholder-gray-500 ${isAiSearchActive ? (loading ? "ai-search-glow-loading" : "ai-search-glow") : (loading && searchQuery ? "border-opacity-50" : "focus:border-white/20")}`}
                                     value={searchInput}
                                     onChange={(e) => setSearchInput(e.target.value)}
                                     onFocus={() => setShowSuggestions(true)}

@@ -147,6 +147,30 @@
         box-shadow: 0 0 15px rgba(168, 85, 247, 0.6), 0 0 30px rgba(236, 72, 153, 0.4), 0 0 10px rgba(59, 130, 246, 0.3);
       }
     }
+
+    @property --gradient-angle {
+      syntax: '<angle>';
+      initial-value: 0deg;
+      inherits: false;
+    }
+
+    .ai-search-glow-loading {
+      border-color: transparent !important;
+      box-shadow: 0 0 15px rgba(168, 85, 247, 0.6), 0 0 30px rgba(236, 72, 153, 0.4) !important;
+      background: linear-gradient(#1a1a1a, #1a1a1a) padding-box,
+                  conic-gradient(from var(--gradient-angle), #a855f7, #ec4899, #3b82f6, #a855f7) border-box !important;
+      border: 1.5px solid transparent !important;
+      animation: ai-glow-rotate 1.5s linear infinite !important;
+    }
+
+    @keyframes ai-glow-rotate {
+      0% {
+        --gradient-angle: 0deg;
+      }
+      100% {
+        --gradient-angle: 360deg;
+      }
+    }
   </style>
   <script type="importmap">
 {
