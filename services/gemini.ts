@@ -2,6 +2,13 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { AIAnalysisResult } from "../types";
 
+const getApiKey = () => {
+  if (typeof window !== 'undefined') {
+    return ((import.meta as any).env || {}).VITE_GEMINI_API_KEY || (window as any).VITE_GEMINI_API_KEY;
+  }
+  return process.env.VITE_GEMINI_API_KEY || process.env.API_KEY;
+};
+
 const cleanJson = (text: string): string => {
   if (!text) return "{}";
   // Handles ```json, ```JSON, or just ``` blocks
@@ -16,7 +23,7 @@ export const generateMovieAnalysis = async (
 ): Promise<AIAnalysisResult> => {
   try {
       // Always use the object constructor for GoogleGenAI with process.env.API_KEY
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+      const ai = new GoogleGenAI({ apiKey: getApiKey() });
       
       const prompt = `
           My Movie Data:
@@ -68,7 +75,7 @@ export const generateMovieAnalysis = async (
 
 export const generateSmartRecommendations = async (query: string): Promise<{ movies: string[], reason: string }> => {
   try {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+      const ai = new GoogleGenAI({ apiKey: getApiKey() });
       const prompt = `
         Act as a premium media recommendation engine. The user searched for: "${query}".
         
@@ -110,7 +117,7 @@ export const generateSmartRecommendations = async (query: string): Promise<{ mov
 
 export const getSimilarMoviesAI = async (title: string, year: string): Promise<string[]> => {
     try {
-        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+        const ai = new GoogleGenAI({ apiKey: getApiKey() });
         const prompt = `Recommend 5 movies similar to "${title}" (${year}). Focus on genre, director style, and tone. Return a list of strings.`;
         
         const response = await ai.models.generateContent({
@@ -137,7 +144,7 @@ export const getSimilarMoviesAI = async (title: string, year: string): Promise<s
 
 export const getSearchSuggestions = async (query: string): Promise<string[]> => {
   try {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+      const ai = new GoogleGenAI({ apiKey: getApiKey() });
       const prompt = `
         The user is typing in a media search bar: "${query}".
         Suggest 5 concise, relevant auto-complete options.
