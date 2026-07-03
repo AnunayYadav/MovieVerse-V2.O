@@ -181,7 +181,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(200).end();
   }
 
-  let { tmdbId, mediaType, seasonId, episodeId, title, year } = req.query;
+  let { tmdbId, mediaType, seasonId, episodeId, title, year, server } = req.query;
 
   if (!tmdbId || typeof tmdbId !== 'string') {
     return res.status(400).json({ error: 'tmdbId parameter is required' });
@@ -217,13 +217,36 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(400).json({ error: 'title parameter is required or could not be resolved from TMDB' });
   }
 
-  const providers = [
-    { name: 'Hydrogen', endpoint: 'cdn' },
-    { name: 'Lithium', endpoint: 'downloader2' },
-    { name: 'Oxygen', endpoint: 'mb-flix' }
-  ];
+  const serverStr = typeof server === 'string' ? server.toLowerCase() : '';
 
-  const queryParams = {
+  let providers: { name: string; endpoint: string; queryParams?: Record<string, string> }[] = [];
+
+  if (serverStr.includes('hydrogen') || serverStr.includes('cdn')) {
+    providers = [{ name: 'Hydrogen', endpoint: 'cdn' }];
+  } else if (serverStr.includes('lithium') || serverStr.includes('downloader2')) {
+    providers = [{ name: 'Lithium', endpoint: 'downloader2' }];
+  } else if (serverStr.includes('oxygen') || serverStr.includes('mb-flix')) {
+    providers = [{ name: 'Oxygen', endpoint: 'mb-flix' }];
+  } else if (serverStr.includes('vyse')) {
+    providers = [{ name: 'Vyse (English)', endpoint: 'hdmovie' }];
+  } else if (serverStr.includes('fade') || serverStr.includes('hindi')) {
+    providers = [{ name: 'Fade (Hindi)', endpoint: 'hdmovie' }];
+  } else if (serverStr.includes('omen') || serverStr.includes('spanish')) {
+    providers = [{ name: 'Omen (Spanish)', endpoint: 'lamovie' }];
+  } else if (serverStr.includes('raze') || serverStr.includes('portuguese')) {
+    providers = [{ name: 'Raze (Portuguese)', endpoint: 'superflix' }];
+  } else if (serverStr.includes('killjoy') || serverStr.includes('german')) {
+    providers = [{ name: 'Killjoy (German)', endpoint: 'meine', queryParams: { language: 'german' } }];
+  } else {
+    // Default loop/fallback order
+    providers = [
+      { name: 'Hydrogen', endpoint: 'cdn' },
+      { name: 'Lithium', endpoint: 'downloader2' },
+      { name: 'Oxygen', endpoint: 'mb-flix' }
+    ];
+  }
+
+  const baseQueryParams = {
     title: String(title),
     mediaType: String(mediaType),
     year: year ? String(year) : '',
@@ -232,13 +255,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     tmdbId: String(tmdbId)
   };
 
-  const queryString = new URLSearchParams(queryParams).toString();
   let successData: any = null;
   let successfulProvider = '';
   const errors: string[] = [];
 
   for (const provider of providers) {
+    const mergedParams = { ...baseQueryParams, ...(provider.queryParams || {}) };
+    const queryString = new URLSearchParams(mergedParams).toString();
     const url = `https://api.videasy.to/${provider.endpoint}/sources-with-title?${queryString}`;
+
     try {
       const fetchRes = await fetch(url, {
         headers: {
@@ -259,8 +284,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         continue;
       }
 
-      const decrypted = await decryptCipher(cipherHex, Number(tmdbId));
+      let decrypted = await decryptCipher(cipherHex, Number(tmdbId));
       if (decrypted && decrypted.sources && decrypted.sources.length > 0) {
+        // Filter decrypted sources by language
+        if (serverStr.includes('fade') || serverStr.includes('hindi')) {
+          const filtered = decrypted.sources.filter((s: any) => {
+            const qualityStr = (s.quality || s.label || '').toLowerCase();
+            return qualityStr.includes('hindi');
+          });
+          if (filtered.length > 0) {
+            decrypted.sources = filtered;
+          }
+        } else if (serverStr.includes('vyse') || serverStr.includes('hydrogen') || serverStr.includes('lithium') || serverStr.includes('oxygen')) {
+          const filtered = decrypted.sources.filter((s: any) => {
+            const qualityStr = (s.quality || s.label || '').toLowerCase();
+            return !qualityStr.includes('hindi') && !qualityStr.includes('spanish') && !qualityStr.includes('portuguese') && !qualityStr.includes('german');
+          });
+          if (filtered.length > 0) {
+            decrypted.sources = filtered;
+          }
+        }
+
         successData = decrypted;
         successfulProvider = provider.name;
         break; // Success!

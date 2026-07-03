@@ -436,6 +436,28 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   const [isAutoplayEnabled, setIsAutoplayEnabled] = useState(true);
   const [detectedAudioLanguages, setDetectedAudioLanguages] = useState<string[]>([]);
   const [hlsManifestLoaded, setHlsManifestLoaded] = useState(false);
+  const [selectedVideasyServer, setSelectedVideasyServer] = useState('Hydrogen');
+
+  // Synchronize VidEasy server based on selected audio language
+  useEffect(() => {
+    if (selectedProviderId === 'videasy_adfree') {
+      const langLower = audioLanguage.toLowerCase();
+      if (langLower === 'hindi') {
+        setSelectedVideasyServer('Fade (Hindi)');
+      } else if (langLower === 'spanish') {
+        setSelectedVideasyServer('Omen (Spanish)');
+      } else if (langLower === 'portuguese') {
+        setSelectedVideasyServer('Raze (Portuguese)');
+      } else if (langLower === 'german') {
+        setSelectedVideasyServer('Killjoy (German)');
+      } else if (langLower === 'english') {
+        const foreignDubs = ['Fade (Hindi)', 'Omen (Spanish)', 'Raze (Portuguese)', 'Killjoy (German)'];
+        if (foreignDubs.includes(selectedVideasyServer)) {
+          setSelectedVideasyServer('Hydrogen');
+        }
+      }
+    }
+  }, [audioLanguage, selectedProviderId]);
 
   // OpenSubtitles settings states removed (using environment variables directly)
 
@@ -796,7 +818,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
 
     let isMounted = true;
     const fetchDecryptedStream = async () => {
-      const fetchKey = `${selectedProviderId}-${tmdbId}-${mediaType}-${currentSeason}-${currentEpisode}-${selectedEncDecServer}-${animeLanguage}`;
+      const fetchKey = `${selectedProviderId}-${tmdbId}-${mediaType}-${currentSeason}-${currentEpisode}-${selectedEncDecServer}-${selectedVideasyServer}-${animeLanguage}`;
       if (lastFetchedKeyRef.current === fetchKey) return;
       lastFetchedKeyRef.current = fetchKey;
 
@@ -824,6 +846,10 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
 
         if (selectedProviderId.startsWith('encdec') && selectedEncDecServer) {
           params.append('server', selectedEncDecServer);
+        }
+
+        if (selectedProviderId === 'videasy_adfree') {
+          params.append('server', selectedVideasyServer);
         }
 
         let endpoint = '/api/videasy';
@@ -914,7 +940,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     return () => {
       isMounted = false;
     };
-  }, [selectedProviderId, tmdbId, mediaType, currentSeason, currentEpisode, title, selectedEncDecServer, animeLanguage]);
+  }, [selectedProviderId, tmdbId, mediaType, currentSeason, currentEpisode, title, selectedEncDecServer, selectedVideasyServer, animeLanguage]);
 
   // Check next episode countdown logic
   const hasNextEpisode = mediaType === 'tv' && episodes.some(ep => ep.episode_number === currentEpisode + 1);
@@ -2614,6 +2640,54 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                                     key={srv}
                                     onClick={() => {
                                       setSelectedEncDecServer(srv);
+                                      closeAllMenus();
+                                    }}
+                                    className={`py-1.5 px-2 rounded-lg text-[11px] font-semibold text-center transition-all border ${
+                                      isActive 
+                                        ? 'bg-red-600/10 text-red-500 border-red-500/20' 
+                                        : 'bg-white/5 text-zinc-300 border-white/5 hover:border-white/10 hover:bg-white/10'
+                                    }`}
+                                  >
+                                    {srv}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+
+                        {selectedProviderId === 'videasy_adfree' && (
+                          <div className="border-t border-white/5 pt-2.5">
+                            <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block mb-2 px-1">
+                              Select Source Server
+                            </span>
+                            <div className="grid grid-cols-2 gap-1.5 max-h-[140px] overflow-y-auto custom-scrollbar pr-1">
+                              {['Hydrogen', 'Lithium', 'Oxygen', 'Vyse (English)', 'Fade (Hindi)', 'Omen (Spanish)', 'Raze (Portuguese)', 'Killjoy (German)'].map((srv) => {
+                                const isActive = selectedVideasyServer === srv;
+                                return (
+                                  <button
+                                    key={srv}
+                                    onClick={() => {
+                                      setSelectedVideasyServer(srv);
+                                      
+                                      // Sync audio language state
+                                      if (srv === 'Fade (Hindi)') {
+                                        setAudioLanguage('Hindi');
+                                        localStorage.setItem('movieverse_preferred_audio_language', 'Hindi');
+                                      } else if (srv === 'Omen (Spanish)') {
+                                        setAudioLanguage('Spanish');
+                                        localStorage.setItem('movieverse_preferred_audio_language', 'Spanish');
+                                      } else if (srv === 'Raze (Portuguese)') {
+                                        setAudioLanguage('Portuguese');
+                                        localStorage.setItem('movieverse_preferred_audio_language', 'Portuguese');
+                                      } else if (srv === 'Killjoy (German)') {
+                                        setAudioLanguage('German');
+                                        localStorage.setItem('movieverse_preferred_audio_language', 'German');
+                                      } else if (srv === 'Vyse (English)' || srv === 'Hydrogen' || srv === 'Lithium' || srv === 'Oxygen') {
+                                        setAudioLanguage('English');
+                                        localStorage.setItem('movieverse_preferred_audio_language', 'English');
+                                      }
+                                      
                                       closeAllMenus();
                                     }}
                                     className={`py-1.5 px-2 rounded-lg text-[11px] font-semibold text-center transition-all border ${
