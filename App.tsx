@@ -1123,6 +1123,7 @@ export default function App() {
     const [franchiseList, setFranchiseList] = useState<any[]>([]);
     const [searchQuery, setSearchQuery] = useState("");
     const [isAiSearchActive, setIsAiSearchActive] = useState(false);
+    const [searchInput, setSearchInput] = useState("");
     const [searchSuggestions, setSearchSuggestions] = useState<string[]>([]);
     const [showSuggestions, setShowSuggestions] = useState(false);
     const [searchHistory, setSearchHistory] = useState<string[]>([]);
@@ -1895,6 +1896,7 @@ export default function App() {
 
     const resetFilters = () => {
         setSearchQuery("");
+        setSearchInput("");
         setFranchiseSearchQuery("");
         setActiveFranchiseCategory("All");
         setCurrentCollection(null);
@@ -2389,7 +2391,7 @@ export default function App() {
         }
     };
 
-    const fetchMovies = useCallback(async (pageNum: number = 1, isLoadMore = false) => {
+    const fetchMovies = useCallback(async (pageNum: number = 1, isLoadMore = false, overrideQuery?: string) => {
         if (!apiKey) return;
         if (selectedCategory === "Manga") return;
         setFetchError(false);
@@ -2421,10 +2423,13 @@ export default function App() {
                     params.append("certification.lte", maturityRating);
                 }
             }
-            if (searchQuery) {
+            
+            const activeQuery = overrideQuery !== undefined ? overrideQuery : searchQuery;
+
+            if (activeQuery) {
                 if (isAiSearchActive) {
                     try {
-                        const aiRes = await fetch(`/api/ai-search?query=${encodeURIComponent(searchQuery)}&category=${selectedCategory}`);
+                        const aiRes = await fetch(`/api/ai-search?query=${encodeURIComponent(activeQuery)}&category=${selectedCategory}`);
                         if (!aiRes.ok) throw new Error("AI search failed");
                         const aiData = await aiRes.json();
                         const titles = aiData.results || [];
@@ -2463,7 +2468,7 @@ export default function App() {
                 endpoint = selectedCategory === "People" ? "/search/person" : "/search/multi";
                 params.delete("certification_country");
                 params.delete("certification.lte");
-                params.set("query", searchQuery);
+                params.set("query", activeQuery);
             }
             else if (tmdbCollectionId) {
                 const res = await fetchWithRetry(`${TMDB_BASE_URL}/collection/${tmdbCollectionId}?api_key=${apiKey}`, controller.signal);
@@ -2677,11 +2682,21 @@ export default function App() {
         }
     }, [apiKey, searchQuery, selectedCategory, sortOption, appRegion, currentCollection, filterPeriod, selectedLanguage, selectedRegion, userProfile, maturityRating, sortMovies, tmdbCollectionId, activeKeyword, activeCountry, comingFilter, franchiseSearchQuery, dynamicFranchiseIds, isAiSearchActive]);
 
+    // Debounce searchInput to searchQuery for standard search
+    useEffect(() => {
+        if (isAiSearchActive) return;
+        const timeout = setTimeout(() => {
+            setSearchQuery(searchInput);
+        }, searchInput ? 800 : 300);
+        return () => clearTimeout(timeout);
+    }, [searchInput, isAiSearchActive]);
+
     useEffect(() => {
         if (selectedCategory === "Categories") return;
+        if (isAiSearchActive) return;
         const timeout = setTimeout(() => fetchMovies(1, false), searchQuery ? 800 : 300);
         return () => clearTimeout(timeout);
-    }, [fetchMovies, searchQuery, selectedCategory]);
+    }, [fetchMovies, searchQuery, selectedCategory, isAiSearchActive]);
     useEffect(() => {
         if (selectedCategory === "Categories") {
             setShowSuggestions(false);
@@ -2721,9 +2736,14 @@ export default function App() {
             setActiveMangaChapterId(null);
         }
         setSearchQuery(query);
+        setSearchInput(query);
         addToSearchHistory(query);
         setShowSuggestions(false);
         setIsSidebarOpen(false);
+
+        if (isAiSearchActive) {
+            fetchMovies(1, false, query);
+        }
     };
 
     const observer = useRef<IntersectionObserver | null>(null);
@@ -3506,9 +3526,9 @@ export default function App() {
                                 type="text"
                                 placeholder={selectedCategory === "Categories" ? "Search categories..." : "Search... (Press /)"}
                                 className="w-full bg-white/5 border border-white/10 rounded-xl py-2.5 pl-10 pr-4 text-sm focus:outline-none focus:border-white/30"
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                onKeyDown={(e) => e.key === 'Enter' && handleSearchSubmit(searchQuery)}
+                                value={searchInput}
+                                onChange={(e) => setSearchInput(e.target.value)}
+                                onKeyDown={(e) => e.key === 'Enter' && handleSearchSubmit(searchInput)}
                             />
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={16} />
                         </div>
@@ -3674,12 +3694,12 @@ export default function App() {
                                     type="text"
                                     placeholder={selectedCategory === "Categories" ? (window.innerWidth < 640 ? "Search..." : "Search categories...") : (window.innerWidth < 640 ? "Search..." : "Search... (Press /)")}
                                     className={`w-full bg-[#1a1a1a] border border-white/5 rounded-full py-1.5 md:py-2 pl-8 md:pl-10 pr-9 md:pr-11 text-xs md:text-sm focus:outline-none transition-all text-white placeholder-gray-500 ${isAiSearchActive ? "ai-search-glow" : (loading && searchQuery ? "border-opacity-50" : "focus:border-white/20")}`}
-                                    value={searchQuery}
-                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    value={searchInput}
+                                    onChange={(e) => setSearchInput(e.target.value)}
                                     onFocus={() => setShowSuggestions(true)}
                                     onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
-                                    onKeyDown={(e) => { if (e.key === 'Enter') handleSearchSubmit(searchQuery); }}
-                                    onSubmit={() => handleSearchSubmit(searchQuery)}
+                                    onKeyDown={(e) => { if (e.key === 'Enter') handleSearchSubmit(searchInput); }}
+                                    onSubmit={() => handleSearchSubmit(searchInput)}
                                 />
                                 <Search className={`absolute left-2.5 md:left-3 top-1/2 -translate-y-1/2 text-gray-500 transition-colors ${loading && searchQuery ? "text-white animate-pulse" : "group-focus-within:text-white"}`} size={14} />
                                 <button
