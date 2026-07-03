@@ -1434,6 +1434,23 @@ export default function App() {
         window.scrollTo({ top: 0, behavior: 'instant' });
     }, [selectedCategory]);
 
+    const selectedMovieRef = useRef<Movie | null>(null);
+    const movieDetailsStartIdxRef = useRef<number | null>(null);
+    const mangaDetailsStartIdxRef = useRef<number | null>(null);
+
+    useEffect(() => {
+        selectedMovieRef.current = selectedMovie;
+        if (!selectedMovie) {
+            movieDetailsStartIdxRef.current = null;
+        }
+    }, [selectedMovie]);
+
+    useEffect(() => {
+        if (!selectedMangaId) {
+            mangaDetailsStartIdxRef.current = null;
+        }
+    }, [selectedMangaId]);
+
     const isSyncingPath = useRef(false);
     const urlPushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const lastPushedPathRef = useRef<string>(window.location.pathname);
@@ -1527,15 +1544,22 @@ export default function App() {
             const movieIdStr = parts[2];
             const movieId = parseInt(movieIdStr, 10);
             if (!isNaN(movieId)) {
-                try {
-                    const type = isTv ? 'tv' : 'movie';
-                    const res = await fetch(`${TMDB_BASE_URL}/${type}/${movieId}?api_key=${apiKey}`);
-                    const data = await res.json();
-                    if (data && data.id) {
-                        movieToSelect = { ...data, media_type: type };
+                const currentMovie = selectedMovieRef.current;
+                const currentMovieType = currentMovie ? (currentMovie.media_type === 'tv' || (!currentMovie.release_date && currentMovie.first_air_date) ? 'tv' : 'movie') : null;
+                const targetType = isTv ? 'tv' : 'movie';
+                if (currentMovie && currentMovie.id === movieId && currentMovieType === targetType) {
+                    movieToSelect = currentMovie;
+                } else {
+                    try {
+                        const type = isTv ? 'tv' : 'movie';
+                        const res = await fetch(`${TMDB_BASE_URL}/${type}/${movieId}?api_key=${apiKey}`);
+                        const data = await res.json();
+                        if (data && data.id) {
+                            movieToSelect = { ...data, media_type: type };
+                        }
+                    } catch (e) {
+                        console.error("Failed to fetch movie details from path", e);
                     }
-                } catch (e) {
-                    console.error("Failed to fetch movie details from path", e);
                 }
             }
 
@@ -1733,10 +1757,23 @@ export default function App() {
                 newPath = `/custom-collection/${currentCollection}`;
             }
 
-            if (window.location.pathname !== newPath && lastPushedPathRef.current !== newPath) {
+            const isPushing = window.location.pathname !== newPath && lastPushedPathRef.current !== newPath;
+            if (isPushing) {
                 lastPushedPathRef.current = newPath;
                 const newIdx = (window.history.state?.idx || 0) + 1;
                 history.pushState({ idx: newIdx }, '', newPath);
+            }
+
+            const finalIdx = window.history.state?.idx || 0;
+            if (selectedMovie) {
+                if (movieDetailsStartIdxRef.current === null) {
+                    movieDetailsStartIdxRef.current = finalIdx;
+                }
+            }
+            if (selectedCategory === 'Manga' && selectedMangaId) {
+                if (mangaDetailsStartIdxRef.current === null) {
+                    mangaDetailsStartIdxRef.current = finalIdx;
+                }
             }
         }, 0);
 
@@ -3660,7 +3697,8 @@ export default function App() {
         { id: "TV Shows", icon: Tv, label: "TV Shows", action: () => { resetFilters(); setSelectedCategory("TV Shows"); } },
         { id: "Coming", icon: CalendarDays, label: "Coming Soon", action: () => { resetFilters(); setSelectedCategory("Coming"); } },
         { id: "Categories", icon: Clapperboard, label: "Categories", action: () => { resetFilters(); setSelectedCategory("Categories"); } },
-        { id: "WatchParty", icon: Users, label: "Watch Party", action: () => { resetFilters(); setSelectedCategory("WatchParty"); } }
+        { id: "WatchParty", icon: Users, label: "Watch Party", action: () => { resetFilters(); setSelectedCategory("WatchParty"); } },
+        { id: "LiveTV", icon: Radio, label: "Live TV", action: () => { resetFilters(); setSelectedCategory("LiveTV"); } }
     ];
 
     if (authChecking) return <div className="fixed inset-0 bg-black flex items-center justify-center"><LogoLoader /></div>;
@@ -3838,18 +3876,12 @@ export default function App() {
                                     <BookOpen size={15} className="transition-all duration-300 group-hover:scale-110" />
                                     <span>Manga</span>
                                 </TvFocusButton>
-                                <TvFocusButton onClick={() => { resetFilters(); setSelectedCategory("LiveTV"); }} className={`group flex items-center gap-2 px-5 py-2 rounded-full text-xs font-semibold tracking-wide transition-all duration-300 ${selectedCategory === "LiveTV" ? "bg-white/10 text-white" : "text-zinc-400 hover:text-white hover:bg-white/5"}`}>
-                                    <Radio size={15} className="transition-all duration-300 group-hover:scale-110 group-hover:animate-pulse" />
-                                    <span>Live TV</span>
-                                </TvFocusButton>
-
                                 <div
                                     className="relative flex items-center h-full"
                                     onMouseEnter={handleBrowseEnter}
                                     onMouseLeave={handleBrowseLeave}
-                                    style={{ contentVisibility: 'auto' }}
                                 >
-                                    <TvFocusButton onClick={() => setIsBrowseOpen(!isBrowseOpen)} className={`flex items-center gap-2 px-5 py-2 rounded-full text-xs font-semibold tracking-wide transition-all duration-300 ${isBrowseOpen || ["Categories", "Awards", "AnimeCommunity", "Franchise", "Family", "TV Shows", "Coming"].includes(selectedCategory)
+                                    <TvFocusButton onClick={() => setIsBrowseOpen(!isBrowseOpen)} className={`flex items-center gap-2 px-5 py-2 rounded-full text-xs font-semibold tracking-wide transition-all duration-300 ${isBrowseOpen || ["Categories", "Awards", "AnimeCommunity", "Franchise", "Family", "TV Shows", "Coming", "LiveTV", "WatchParty", "Multiverse"].includes(selectedCategory)
                                             ? "bg-white/10 text-white shadow-[0_4px_20px_rgba(0,0,0,0.3)] border border-white/10"
                                             : "text-zinc-400 hover:text-white hover:bg-white/5 border border-transparent"
                                         }`}>
@@ -4113,6 +4145,23 @@ export default function App() {
                             searchQuery={searchQuery}
                             onSearchClear={() => setSearchQuery('')}
                             isAiSearchActive={isAiSearchActive}
+                            onCloseDetails={() => {
+                                const startIdx = mangaDetailsStartIdxRef.current;
+                                const currentIdx = window.history.state?.idx;
+                                const canGoBack = window.history.state && typeof currentIdx === 'number' && currentIdx > 0;
+                                if (canGoBack && typeof startIdx === 'number') {
+                                    const steps = currentIdx - (startIdx - 1);
+                                    if (steps > 0) {
+                                        window.history.go(-steps);
+                                        return;
+                                    }
+                                }
+                                if (canGoBack) {
+                                    window.history.back();
+                                } else {
+                                    setSelectedMangaId(null);
+                                }
+                            }}
                         />
 
                     ) : selectedCategory === "Categories" ? (
@@ -4710,7 +4759,16 @@ export default function App() {
                     key={selectedMovie.id}
                     movie={watched.find(m => m.id === selectedMovie.id) || selectedMovie}
                     onClose={() => {
-                        const canGoBack = window.history.state && typeof window.history.state.idx === 'number' && window.history.state.idx > 0;
+                        const startIdx = movieDetailsStartIdxRef.current;
+                        const currentIdx = window.history.state?.idx;
+                        const canGoBack = window.history.state && typeof currentIdx === 'number' && currentIdx > 0;
+                        if (canGoBack && typeof startIdx === 'number') {
+                            const steps = currentIdx - (startIdx - 1);
+                            if (steps > 0) {
+                                window.history.go(-steps);
+                                return;
+                            }
+                        }
                         if (canGoBack) {
                             window.history.back();
                         } else {

@@ -57,6 +57,7 @@ interface MangaPageProps {
   searchQuery?: string;
   onSearchClear?: () => void;
   isAiSearchActive?: boolean;
+  onCloseDetails?: () => void;
 }
 
 const MANGA_GENRES = [
@@ -166,7 +167,8 @@ export const MangaPage: React.FC<MangaPageProps> = ({
   onChapterSelect,
   searchQuery: parentSearchQuery,
   onSearchClear,
-  isAiSearchActive
+  isAiSearchActive,
+  onCloseDetails
 }) => {
   const [trending, setTrending] = useState<MangaDexManga[]>([]);
   const [latest, setLatest] = useState<MangaDexManga[]>([]);
@@ -560,10 +562,14 @@ export const MangaPage: React.FC<MangaPageProps> = ({
   const handleCloseDetails = useCallback(() => {
     setIsDetailsExiting(true);
     setTimeout(() => {
-      onMangaSelect(null);
+      if (onCloseDetails) {
+        onCloseDetails();
+      } else {
+        onMangaSelect(null);
+      }
       setIsDetailsExiting(false);
     }, 300);
-  }, [onMangaSelect]);
+  }, [onMangaSelect, onCloseDetails]);
 
   const handleCloseReader = useCallback(() => {
     setIsReaderExiting(true);
