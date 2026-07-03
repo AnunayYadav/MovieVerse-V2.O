@@ -624,24 +624,16 @@ export const MangaPage: React.FC<MangaPageProps> = ({
       onMangaSelect(id);
       
       try {
-        const allItems = [...trending, ...popular, ...topRated, ...characterModalMediaManga, ...recommendations];
+        const allItems = [...trending, ...popular, ...topRated, ...characterModalMediaManga];
         const item = allItems.find((x: any) => x.id === id) as any;
         const title = optionalTitle || item?.attributes?.title?.en || item?.attributes?.title?.['ja-ro'] || "";
         
         console.log(`[AniList-to-MangaDex] Resolving MangaDex ID for AniList ID ${aniId} ("${title}")...`);
         
-        // 1. Try resolving using MangaDex's external mapping for AniList
-        const externalRes = await fetchMangaDex(`/manga?includes[]=cover_art&externalIds[al][]=${aniId}`);
-        let searchList = externalRes.data || [];
-        let match = searchList[0];
+        const searchRes = await fetchMangaDex(`/manga?title=${encodeURIComponent(title)}&limit=10&includes[]=cover_art`);
+        const searchList = searchRes.data || [];
         
-        // 2. If not found by external ID, fallback to title search
-        if (!match && title) {
-          console.log(`[AniList-to-MangaDex] No match by external ID, falling back to title search for "${title}"`);
-          const searchRes = await fetchMangaDex(`/manga?title=${encodeURIComponent(title)}&limit=10&includes[]=cover_art`);
-          searchList = searchRes.data || [];
-          match = searchList.find((m: any) => m.attributes?.links?.al === String(aniId)) || searchList[0];
-        }
+        const match = searchList.find((m: any) => m.attributes?.links?.al === String(aniId)) || searchList[0];
         
         if (match) {
           console.log(`[AniList-to-MangaDex] Resolved to MangaDex ID: ${match.id}`);
@@ -2677,7 +2669,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                         <div
                           key={manga.id}
                           onClick={() => {
-                            handleMangaSelect(manga.id, title);
+                            handleMangaSelect(manga.id);
                             setSelectedCharacterId(null);
                           }}
                           className="group relative shrink-0 aspect-[2/3] rounded-xl overflow-hidden cursor-pointer bg-zinc-900 border border-white/5 hover:border-red-500/50 hover:scale-[1.02] transition-all duration-300 shadow-lg"
@@ -2842,7 +2834,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                         <div
                           key={manga.id}
                           onClick={() => {
-                            handleMangaSelect(manga.id, title);
+                            handleMangaSelect(manga.id);
                             setSelectedStaffId(null);
                           }}
                           className="group relative shrink-0 aspect-[2/3] rounded-xl overflow-hidden cursor-pointer bg-zinc-900 border border-white/5 hover:border-red-500/50 hover:scale-[1.02] transition-all duration-300 shadow-lg"
@@ -2946,7 +2938,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                       <div
                         key={manga.id}
                         onClick={() => {
-                          handleMangaSelect(manga.id, title);
+                          handleMangaSelect(manga.id);
                           setSelectedStudioId(null);
                         }}
                         className="group relative shrink-0 aspect-[2/3] rounded-xl overflow-hidden cursor-pointer bg-zinc-900 border border-white/5 hover:border-red-500/50 hover:scale-[1.02] transition-all duration-300 shadow-lg"
@@ -4370,7 +4362,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                   {recommendations.map((recManga) => (
                     <div
                       key={recManga.id}
-                      onClick={() => handleMangaSelect(recManga.id, getMangaTitle(recManga))}
+                      onClick={() => handleMangaSelect(recManga.id)}
                       className="group relative shrink-0 aspect-[2/3] rounded-xl overflow-hidden cursor-pointer bg-zinc-900 border border-white/5 hover:border-red-500/50 hover:shadow-[0_0_20px_rgba(239,68,68,0.25)] hover:scale-[1.03] transition-all duration-500"
                     >
                       <img
@@ -4724,7 +4716,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
 
             <div className="flex flex-row items-center gap-3 w-full sm:w-auto mt-2">
               <TvFocusButton
-                onClick={() => handleMangaSelect(trending[heroIndex].id, getMangaTitle(trending[heroIndex]))}
+                onClick={() => handleMangaSelect(trending[heroIndex].id)}
                 className="flex-1 sm:flex-none px-6 py-2.5 text-sm sm:text-base rounded-md font-bold flex items-center justify-center gap-2.5 transition-all hover:scale-[1.02] active:scale-95 shadow-md bg-white text-black hover:bg-white/90"
               >
                 <BookOpen size={18} /> Read Now
