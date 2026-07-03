@@ -1543,15 +1543,39 @@ export const MoviePage: React.FC<MoviePageProps> = ({
         setMatchingRelationId(relationNode.id);
         const cleanTitle = title.replace(/\s*\(?(Dub|Sub|TV|Movie|uncensored|censored|season\s*\d+|part\s*\d+)\)?\s*$/i, '').trim();
 
+        const isTitleMatch = (tmdbName: string, originalName: string): boolean => {
+            if (!tmdbName) return false;
+            const clean = (s: string) => s.toLowerCase().replace(/[^\w\s]/g, '').trim();
+            const tmdbClean = clean(tmdbName);
+            const origClean = originalName ? clean(originalName) : '';
+            
+            const titles = [
+                relationNode.title.english,
+                relationNode.title.userPreferred,
+                relationNode.title.romaji
+            ].filter((t): t is string => typeof t === 'string' && t.length > 0).map(clean);
+
+            for (const tClean of titles) {
+                if (tClean.includes(tmdbClean) || tmdbClean.includes(tClean)) return true;
+                if (origClean && (tClean.includes(origClean) || origClean.includes(tClean))) return true;
+            }
+            return false;
+        };
+
         // 1. Try TV search
         try {
             const res = await fetch(`${TMDB_BASE_URL}/search/tv?api_key=${apiKey}&query=${encodeURIComponent(cleanTitle)}`);
             const data = await res.json();
             let match = data.results?.find((item: any) => 
-                item.genre_ids?.includes(16) && item.original_language === 'ja'
+                item.genre_ids?.includes(16) && 
+                item.original_language === 'ja' &&
+                isTitleMatch(item.name || item.original_name, item.original_name)
             ) || data.results?.find((item: any) => 
-                item.genre_ids?.includes(16)
-            ) || data.results?.[0];
+                item.genre_ids?.includes(16) &&
+                isTitleMatch(item.name || item.original_name, item.original_name)
+            ) || data.results?.find((item: any) =>
+                isTitleMatch(item.name || item.original_name || item.title || item.original_title, item.original_name)
+            );
             
             if (match) {
                 let resolvedSeason = 1;
@@ -1600,10 +1624,15 @@ export const MoviePage: React.FC<MoviePageProps> = ({
             const res = await fetch(`${TMDB_BASE_URL}/search/movie?api_key=${apiKey}&query=${encodeURIComponent(cleanTitle)}`);
             const data = await res.json();
             let match = data.results?.find((item: any) => 
-                item.genre_ids?.includes(16) && item.original_language === 'ja'
+                item.genre_ids?.includes(16) && 
+                item.original_language === 'ja' &&
+                isTitleMatch(item.title || item.original_title, item.original_title)
             ) || data.results?.find((item: any) => 
-                item.genre_ids?.includes(16)
-            ) || data.results?.[0];
+                item.genre_ids?.includes(16) &&
+                isTitleMatch(item.title || item.original_title, item.original_title)
+              ) || data.results?.find((item: any) =>
+                isTitleMatch(item.name || item.original_name || item.title || item.original_title, item.original_name)
+            );
 
             if (match) {
                 const backdropPath = relationNode.bannerImage || match.backdrop_path;

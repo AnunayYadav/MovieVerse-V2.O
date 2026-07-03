@@ -851,6 +851,26 @@ export const AnimeForum: React.FC<AnimeForumProps> = ({
       }
     }
 
+    const isTitleMatch = (tmdbName: string, originalName: string): boolean => {
+      if (!tmdbName) return false;
+      const clean = (s: string) => s.toLowerCase().replace(/[^\w\s]/g, '').trim();
+      const tmdbClean = clean(tmdbName);
+      const origClean = originalName ? clean(originalName) : '';
+      
+      const titles = [
+        mockMedia.title.english,
+        mockMedia.title.romaji,
+        mockMedia.title.userPreferred,
+        mockMedia.title.native
+      ].filter((t): t is string => typeof t === 'string' && t.length > 0).map(clean);
+
+      for (const tClean of titles) {
+        if (tClean.includes(tmdbClean) || tmdbClean.includes(tClean)) return true;
+        if (origClean && (tClean.includes(origClean) || origClean.includes(tClean))) return true;
+      }
+      return false;
+    };
+
     let matchedItem: any = null;
     let resolvedSeason = 1;
 
@@ -866,10 +886,15 @@ export const AnimeForum: React.FC<AnimeForumProps> = ({
         const data = await res.json();
         if (data && data.results && data.results.length > 0) {
           matchedItem = data.results.find((m: any) => 
-            m.genre_ids?.includes(16) && m.original_language === 'ja'
+            m.genre_ids?.includes(16) && 
+            m.original_language === 'ja' &&
+            isTitleMatch(m.name || m.original_name, m.original_name)
           ) || data.results.find((m: any) => 
-            m.genre_ids?.includes(16)
-          ) || data.results[0];
+            m.genre_ids?.includes(16) &&
+            isTitleMatch(m.name || m.original_name, m.original_name)
+          ) || data.results.find((m: any) =>
+            isTitleMatch(m.name || m.original_name || m.title || m.original_title, m.original_name)
+          );
           if (matchedItem) {
             matchedItem.media_type = 'tv';
             break;
@@ -882,10 +907,15 @@ export const AnimeForum: React.FC<AnimeForumProps> = ({
         const data = await res.json();
         if (data && data.results && data.results.length > 0) {
           matchedItem = data.results.find((m: any) => 
-            m.genre_ids?.includes(16) && m.original_language === 'ja'
+            m.genre_ids?.includes(16) && 
+            m.original_language === 'ja' &&
+            isTitleMatch(m.title || m.original_title, m.original_title)
           ) || data.results.find((m: any) => 
-            m.genre_ids?.includes(16)
-          ) || data.results[0];
+            m.genre_ids?.includes(16) &&
+            isTitleMatch(m.title || m.original_title, m.original_title)
+          ) || data.results.find((m: any) =>
+            isTitleMatch(m.name || m.original_name || m.title || m.original_title, m.original_name)
+          );
           if (matchedItem) {
             matchedItem.media_type = 'movie';
             break;

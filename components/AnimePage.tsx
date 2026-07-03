@@ -522,6 +522,21 @@ export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick, sear
           featured.title.romaji,
           featured.title.userPreferred
         ].filter((t): t is string => typeof t === 'string' && t.length > 0);
+
+        const isTitleMatch = (tmdbName: string, originalName: string): boolean => {
+          if (!tmdbName) return false;
+          const clean = (s: string) => s.toLowerCase().replace(/[^\w\s]/g, '').trim();
+          const tmdbClean = clean(tmdbName);
+          const origClean = originalName ? clean(originalName) : '';
+          
+          const titles = titlesToTry.map(clean);
+
+          for (const tClean of titles) {
+            if (tClean.includes(tmdbClean) || tmdbClean.includes(tClean)) return true;
+            if (origClean && (tClean.includes(origClean) || origClean.includes(tClean))) return true;
+          }
+          return false;
+        };
         
         for (const searchTitle of titlesToTry) {
           const cleanTitle = searchTitle.replace(/\s*\(?(Dub|Sub|TV|Movie|uncensored|censored|season\s*\d+|part\s*\d+)\)?\s*$/i, '').trim();
@@ -530,10 +545,15 @@ export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick, sear
             const data = await res.json();
             if (data && data.results && data.results.length > 0) {
               const match = data.results.find((item: any) => 
-                item.genre_ids?.includes(16) && item.original_language === 'ja'
+                item.genre_ids?.includes(16) && 
+                item.original_language === 'ja' &&
+                isTitleMatch(item.name || item.original_name, item.original_name)
               ) || data.results.find((item: any) => 
-                item.genre_ids?.includes(16)
-              ) || data.results[0];
+                item.genre_ids?.includes(16) &&
+                isTitleMatch(item.name || item.original_name, item.original_name)
+              ) || data.results.find((item: any) =>
+                isTitleMatch(item.name || item.original_name || item.title || item.original_title, item.original_name)
+              );
               
               if (match) {
                 tmdbId = match.id;
@@ -548,10 +568,15 @@ export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick, sear
             const data = await res.json();
             if (data && data.results && data.results.length > 0) {
               const match = data.results.find((item: any) => 
-                item.genre_ids?.includes(16) && item.original_language === 'ja'
+                item.genre_ids?.includes(16) && 
+                item.original_language === 'ja' &&
+                isTitleMatch(item.title || item.original_title, item.original_title)
               ) || data.results.find((item: any) => 
-                item.genre_ids?.includes(16)
-              ) || data.results[0];
+                item.genre_ids?.includes(16) &&
+                isTitleMatch(item.title || item.original_title, item.original_title)
+              ) || data.results.find((item: any) =>
+                isTitleMatch(item.name || item.original_name || item.title || item.original_title, item.original_name)
+              );
               
               if (match) {
                 tmdbId = match.id;
@@ -957,6 +982,21 @@ export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick, sear
     const displayName = getAnimeTitle(anime);
     setMatchingStatus({ isActive: true, title: displayName, error: null });
 
+    const isTitleMatch = (tmdbName: string, originalName: string): boolean => {
+      if (!tmdbName) return false;
+      const clean = (s: string) => s.toLowerCase().replace(/[^\w\s]/g, '').trim();
+      const tmdbClean = clean(tmdbName);
+      const origClean = originalName ? clean(originalName) : '';
+      
+      const titles = titlesToTry.map(clean);
+
+      for (const tClean of titles) {
+        if (tClean.includes(tmdbClean) || tmdbClean.includes(tClean)) return true;
+        if (origClean && (tClean.includes(origClean) || origClean.includes(tClean))) return true;
+      }
+      return false;
+    };
+
     let matchedItem: any = null;
 
     for (const title of titlesToTry) {
@@ -969,10 +1009,15 @@ export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick, sear
         
         if (data && data.results && data.results.length > 0) {
           const match = data.results.find((item: any) => 
-            item.genre_ids?.includes(16) && item.original_language === 'ja'
+            item.genre_ids?.includes(16) && 
+            item.original_language === 'ja' &&
+            isTitleMatch(item.name || item.original_name, item.original_name)
           ) || data.results.find((item: any) => 
-            item.genre_ids?.includes(16)
-          ) || data.results[0];
+            item.genre_ids?.includes(16) &&
+            isTitleMatch(item.name || item.original_name, item.original_name)
+          ) || data.results.find((item: any) =>
+            isTitleMatch(item.name || item.original_name || item.title || item.original_title, item.original_name)
+          );
 
           if (match) {
             matchedItem = { ...match, media_type: 'tv', title: match.name || match.original_name };
@@ -990,10 +1035,15 @@ export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick, sear
         
         if (data && data.results && data.results.length > 0) {
           const match = data.results.find((item: any) => 
-            item.genre_ids?.includes(16) && item.original_language === 'ja'
+            item.genre_ids?.includes(16) && 
+            item.original_language === 'ja' &&
+            isTitleMatch(item.title || item.original_title, item.original_title)
           ) || data.results.find((item: any) => 
-            item.genre_ids?.includes(16)
-          ) || data.results[0];
+            item.genre_ids?.includes(16) &&
+            isTitleMatch(item.title || item.original_title, item.original_title)
+          ) || data.results.find((item: any) =>
+            isTitleMatch(item.name || item.original_name || item.title || item.original_title, item.original_name)
+          );
 
           if (match) {
             matchedItem = { ...match, media_type: 'movie', title: match.title || match.original_title };
@@ -1540,13 +1590,27 @@ export const AnimeCard: React.FC<AnimeCardProps> = ({ anime, apiKey, onAnimeClic
         } catch (_) {}
       }
       
-      // Search TMDB to map ID if not cached
       if (!tmdbId && apiKey) {
         const titlesToTry = [
           anime.title.english,
           anime.title.romaji,
           anime.title.userPreferred
         ].filter((t): t is string => typeof t === 'string' && t.length > 0);
+
+        const isTitleMatch = (tmdbName: string, originalName: string): boolean => {
+          if (!tmdbName) return false;
+          const clean = (s: string) => s.toLowerCase().replace(/[^\w\s]/g, '').trim();
+          const tmdbClean = clean(tmdbName);
+          const origClean = originalName ? clean(originalName) : '';
+          
+          const titles = titlesToTry.map(clean);
+
+          for (const tClean of titles) {
+            if (tClean.includes(tmdbClean) || tmdbClean.includes(tClean)) return true;
+            if (origClean && (tClean.includes(origClean) || origClean.includes(tClean))) return true;
+          }
+          return false;
+        };
         
         for (const searchTitle of titlesToTry) {
           const cleanTitle = searchTitle.replace(/\s*\(?(Dub|Sub|TV|Movie|uncensored|censored|season\s*\d+|part\s*\d+)\)?\s*$/i, '').trim();
@@ -1557,10 +1621,15 @@ export const AnimeCard: React.FC<AnimeCardProps> = ({ anime, apiKey, onAnimeClic
             const data = await res.json();
             if (data && data.results && data.results.length > 0) {
               const match = data.results.find((item: any) => 
-                item.genre_ids?.includes(16) && item.original_language === 'ja'
+                item.genre_ids?.includes(16) && 
+                item.original_language === 'ja' &&
+                isTitleMatch(item.name || item.original_name, item.original_name)
               ) || data.results.find((item: any) => 
-                item.genre_ids?.includes(16)
-              ) || data.results[0];
+                item.genre_ids?.includes(16) &&
+                isTitleMatch(item.name || item.original_name, item.original_name)
+              ) || data.results.find((item: any) =>
+                isTitleMatch(item.name || item.original_name || item.title || item.original_title, item.original_name)
+              );
               
               if (match) {
                 tmdbId = match.id;
@@ -1579,10 +1648,15 @@ export const AnimeCard: React.FC<AnimeCardProps> = ({ anime, apiKey, onAnimeClic
             const data = await res.json();
             if (data && data.results && data.results.length > 0) {
               const match = data.results.find((item: any) => 
-                item.genre_ids?.includes(16) && item.original_language === 'ja'
+                item.genre_ids?.includes(16) && 
+                item.original_language === 'ja' &&
+                isTitleMatch(item.title || item.original_title, item.original_title)
               ) || data.results.find((item: any) => 
-                item.genre_ids?.includes(16)
-              ) || data.results[0];
+                item.genre_ids?.includes(16) &&
+                isTitleMatch(item.title || item.original_title, item.original_title)
+              ) || data.results.find((item: any) =>
+                isTitleMatch(item.name || item.original_name || item.title || item.original_title, item.original_name)
+              );
               
               if (match) {
                 tmdbId = match.id;
@@ -1867,13 +1941,27 @@ export const AiringCard: React.FC<AiringCardProps> = ({ item, apiKey, onAnimeCli
           backdropPath = parsed.backdropPath;
         } catch (_) {}
       }
-      
-      if (!tmdbId && apiKey) {
+       if (!tmdbId && apiKey) {
         const titlesToTry = [
           item.media.title.english,
           item.media.title.romaji,
           item.media.title.userPreferred
         ].filter((t): t is string => typeof t === 'string' && t.length > 0);
+
+        const isTitleMatch = (tmdbName: string, originalName: string): boolean => {
+          if (!tmdbName) return false;
+          const clean = (s: string) => s.toLowerCase().replace(/[^\w\s]/g, '').trim();
+          const tmdbClean = clean(tmdbName);
+          const origClean = originalName ? clean(originalName) : '';
+          
+          const titles = titlesToTry.map(clean);
+
+          for (const tClean of titles) {
+            if (tClean.includes(tmdbClean) || tmdbClean.includes(tClean)) return true;
+            if (origClean && (tClean.includes(origClean) || origClean.includes(tClean))) return true;
+          }
+          return false;
+        };
         
         for (const searchTitle of titlesToTry) {
           const cleanTitle = searchTitle.replace(/\s*\(?(Dub|Sub|TV|Movie|uncensored|censored|season\s*\d+|part\s*\d+)\)?\s*$/i, '').trim();
@@ -1883,10 +1971,15 @@ export const AiringCard: React.FC<AiringCardProps> = ({ item, apiKey, onAnimeCli
             const data = await res.json();
             if (data && data.results && data.results.length > 0) {
               const match = data.results.find((m: any) => 
-                m.genre_ids?.includes(16) && m.original_language === 'ja'
+                m.genre_ids?.includes(16) && 
+                m.original_language === 'ja' &&
+                isTitleMatch(m.name || m.original_name, m.original_name)
               ) || data.results.find((m: any) => 
-                m.genre_ids?.includes(16)
-              ) || data.results[0];
+                m.genre_ids?.includes(16) &&
+                isTitleMatch(m.name || m.original_name, m.original_name)
+              ) || data.results.find((m: any) =>
+                isTitleMatch(m.name || m.original_name || m.title || m.original_title, m.original_name)
+              );
               
               if (match) {
                 tmdbId = match.id;
@@ -1902,10 +1995,15 @@ export const AiringCard: React.FC<AiringCardProps> = ({ item, apiKey, onAnimeCli
             const data = await res.json();
             if (data && data.results && data.results.length > 0) {
               const match = data.results.find((m: any) => 
-                m.genre_ids?.includes(16) && m.original_language === 'ja'
+                m.genre_ids?.includes(16) && 
+                m.original_language === 'ja' &&
+                isTitleMatch(m.title || m.original_title, m.original_title)
               ) || data.results.find((m: any) => 
-                m.genre_ids?.includes(16)
-              ) || data.results[0];
+                m.genre_ids?.includes(16) &&
+                isTitleMatch(m.title || m.original_title, m.original_title)
+              ) || data.results.find((m: any) =>
+                isTitleMatch(m.name || m.original_name || m.title || m.original_title, m.original_name)
+              );
               
               if (match) {
                 tmdbId = match.id;
