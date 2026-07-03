@@ -15,6 +15,9 @@ interface ExplorePageProps {
     appRegion?: string;
     searchQuery?: string;
     setSearchQuery?: (q: string) => void;
+    initialOtt?: number | null;
+    initialProvider?: any | null;
+    onClose?: () => void;
 }
 
 const REGION_NAMES: Record<string, string> = {
@@ -249,7 +252,7 @@ const TrendingMovieItem = ({ movie, idx, onMovieClick }: { movie: Movie, idx: nu
     );
 };
 
-export const ExplorePage: React.FC<ExplorePageProps> = ({ apiKey, onMovieClick, userProfile, appRegion = "US", searchQuery, setSearchQuery }) => {
+export const ExplorePage: React.FC<ExplorePageProps> = ({ apiKey, onMovieClick, userProfile, appRegion = "US", searchQuery, setSearchQuery, initialOtt = null, initialProvider = null, onClose }) => {
     const [exploreRegion, setExploreRegion] = useState("Global");
     const [isRegionDropdownOpen, setIsRegionDropdownOpen] = useState(false);
     const [topMovies, setTopMovies] = useState<Movie[]>([]);
@@ -258,8 +261,8 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ apiKey, onMovieClick, 
     const [ottPage, setOttPage] = useState(1);
     const [hasMoreOtt, setHasMoreOtt] = useState(true);
     const [loadingMore, setLoadingMore] = useState(false);
-    const [platforms, setPlatforms] = useState<any[]>([]);
-    const [activeOtt, setActiveOtt] = useState<number | null>(null);
+    const [platforms, setPlatforms] = useState<any[]>(initialProvider ? [initialProvider] : []);
+    const [activeOtt, setActiveOtt] = useState<number | null>(initialOtt);
     const [expandedCategory, setExpandedCategory] = useState<{ title: string; items: Movie[]; endpoint?: string } | null>(null);
     const [loading, setLoading] = useState(true);
     const [loadingPlatforms, setLoadingPlatforms] = useState(true);
@@ -760,7 +763,7 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ apiKey, onMovieClick, 
                 {/* Brand Header: Transparent Absolute overlay for clean merge with Hero Banner */}
                 <div className="absolute top-0 left-0 w-full z-50 p-4 md:p-6 flex items-center justify-between bg-gradient-to-b from-black/90 via-black/30 to-transparent">
                     <div className="flex items-center gap-4 md:gap-6">
-                        <TvFocusButton onClick={() => setActiveOtt(null)} className="p-2 hover:bg-white/10 rounded-full transition-all active:scale-95 text-white">
+                        <TvFocusButton onClick={() => { if (onClose) { onClose(); } else { setActiveOtt(null); } }} className="p-2 hover:bg-white/10 rounded-full transition-all active:scale-95 text-white">
                             <ArrowLeft size={20}/>
                         </TvFocusButton>
                         <div className="flex items-center gap-3">

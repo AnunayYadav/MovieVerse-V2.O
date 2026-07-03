@@ -877,6 +877,51 @@ const ContinueWatchingCard = ({
     );
 };
 
+// Sub-components for Trending ranked rows (1, 2, 3, 4 style)
+const TrendingMovieItem = ({ movie, idx, onMovieClick }: { movie: Movie, idx: number, onMovieClick: (m: Movie) => void, key?: any }) => {
+    const { ref } = useTvFocus({
+        onEnterPress: () => onMovieClick(movie)
+    });
+    return (
+        <div 
+            ref={ref}
+            key={movie.id} 
+            className="relative shrink-0 w-[140px] md:w-[200px] flex items-end group cursor-pointer focus:outline-none select-none" 
+            onClick={() => onMovieClick(movie)}
+        >
+            <div className="absolute -bottom-6 left-0 z-0 text-[120px] md:text-[180px] font-black leading-none select-none pointer-events-none transition-all duration-700 transform group-hover:scale-105 opacity-70 group-hover:opacity-95"
+                style={{ color: '#000', WebkitTextStroke: '1.5px rgba(255,255,255,0.3)', transform: 'translateX(-25%)', fontFamily: 'Inter, sans-serif' }}>
+                {idx + 1}
+            </div>
+            <div className="relative z-10 w-[80%] ml-auto aspect-[2/3] rounded-lg overflow-hidden bg-zinc-900 shadow-xl transition-all duration-500 group-hover:-translate-y-2 border border-white/5 group-hover:border-white/10">
+                <img src={movie.poster_path ? `${TMDB_IMAGE_BASE}${movie.poster_path}` : "https://placehold.co/300x450"} className="w-full h-full object-cover" alt={movie.title} loading="lazy" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+            </div>
+        </div>
+    );
+};
+
+const RankingRow = ({ title, items, icon: Icon, onMovieClick }: { title: string, items: Movie[], icon: any, onMovieClick: (m: Movie) => void }) => (
+    <div className="mb-10 px-4 md:px-12 animate-in fade-in duration-500">
+        <div className="flex items-center gap-2 mb-4">
+            <Icon size={18} className="text-red-600 shrink-0" />
+            <h3 className="text-lg font-bold text-white tracking-tight select-none">
+                {title}
+            </h3>
+        </div>
+        <div className="flex gap-4 md:gap-8 overflow-x-auto pb-6 pt-2 px-2 hide-scrollbar scroll-smooth">
+            {items.map((movie, idx) => (
+                <TrendingMovieItem 
+                    key={movie.id}
+                    movie={movie}
+                    idx={idx}
+                    onMovieClick={onMovieClick}
+                />
+            ))}
+        </div>
+    </div>
+);
+
 // Sub-component for Continue Watching row with visual progress
 const ContinueWatchingRow = ({
     watchedMovies,
@@ -1174,6 +1219,12 @@ export default function App() {
 
     const [selectedPersonId, setSelectedPersonId] = useState<number | null>(null);
     const [selectedCharacterId, setSelectedCharacterId] = useState<number | null>(null);
+    const [topMovies, setTopMovies] = useState<Movie[]>([]);
+    const [topShows, setTopShows] = useState<Movie[]>([]);
+    const [ottPlatforms, setOttPlatforms] = useState<any[]>([]);
+    const [loadingPlatforms, setLoadingPlatforms] = useState(false);
+    const [activeOtt, setActiveOtt] = useState<number | null>(null);
+    const [activeProvider, setActiveProvider] = useState<any | null>(null);
     const [selectedMangaId, setSelectedMangaId] = useState<string | null>(null);
     const [activeMangaChapterId, setActiveMangaChapterId] = useState<string | null>(null);
 
@@ -1401,12 +1452,11 @@ export default function App() {
 
         if (path === '/' || path === '') {
             category = "All";
-        } else if (path === '/explore') {
-            category = "Explore";
-        } else if (path === '/live-tv') {
-            category = "LiveTV";
-        } else if (path === '/browse/manga') {
+        } else if (path === '/anime' || path === '/explore') {
+            category = "Anime";
+        } else if (path === '/manga' || path === '/browse/manga') {
             category = "Manga";
+        } else if (path === '/live-tv') {
         } else if (path.startsWith('/manga/')) {
             category = "Manga";
             const mangaId = parts[2];
@@ -1610,14 +1660,12 @@ export default function App() {
                 } else {
                     newPath = `/${type}/${selectedMovie.id}`;
                 }
-            } else if (selectedCategory === 'Explore') {
-                newPath = '/explore';
             } else if (selectedCategory === 'LiveTV') {
                 newPath = '/live-tv';
             } else if (selectedCategory === 'Awards') {
                 newPath = '/browse/awards';
             } else if (selectedCategory === 'Anime') {
-                newPath = '/browse/anime';
+                newPath = '/anime';
             } else if (selectedCategory === 'AnimeCommunity') {
                 newPath = '/browse/anime-forum';
             } else if (selectedCategory === 'Family') {
@@ -1650,7 +1698,7 @@ export default function App() {
                         newPath = `/manga/${selectedMangaId}`;
                     }
                 } else {
-                    newPath = '/browse/manga';
+                    newPath = '/manga';
                 }
 
             } else if (selectedCategory === 'Collection' && currentCollection) {
@@ -1763,6 +1811,105 @@ export default function App() {
         fetchRecommendations();
     }, [watched, apiKey, isAuthenticated]);
 
+    // Load top movies and shows for homepage ranking
+    useEffect(() => {
+        const fetchRankings = async () => {
+            if (apiKey && isAuthenticated) {
+                try {
+                    const [moviesRes, showsRes] = await Promise.all([
+                        fetch(`${TMDB_BASE_URL}/trending/movie/day?api_key=${apiKey}`).then(r => r.json()),
+                        fetch(`${TMDB_BASE_URL}/trending/tv/day?api_key=${apiKey}`).then(r => r.json())
+                    ]);
+                    setTopMovies(moviesRes.results?.slice(0, 10) || []);
+                    setTopShows(showsRes.results?.slice(0, 10).map((s: any) => ({ ...s, media_type: 'tv', title: s.name })) || []);
+                } catch (e) {
+                    console.error("Failed to load rankings: ", e);
+                }
+            }
+        };
+        fetchRankings();
+    }, [apiKey, isAuthenticated]);
+
+    // Fetch popular OTT platforms for the homepage
+    useEffect(() => {
+        const fetchPlatforms = async () => {
+            if (!apiKey || !isAuthenticated) return;
+            setLoadingPlatforms(true);
+            try {
+                const reg = appRegion || 'US';
+                const res = await fetch(`${TMDB_BASE_URL}/watch/providers/movie?api_key=${apiKey}&watch_region=${reg}`);
+                if (!res.ok) throw new Error(`Status ${res.status}`);
+                const data = await res.json();
+                const results = data.results || [];
+
+                const seenNames = new Set<string>();
+                const combinedProviders: any[] = [];
+
+                for (const provider of results) {
+                    const providerId = provider.provider_id;
+                    const providerName = provider.provider_name;
+                    if (!providerName || !providerId) continue;
+
+                    const lowerName = providerName.toLowerCase();
+                    // Skip sub-channels, add-ons, and stores to keep it premium
+                    if (
+                        lowerName.includes('channel') || 
+                        lowerName.includes('on prime') || 
+                        lowerName.includes('on apple') || 
+                        lowerName.includes('add-on') || 
+                        lowerName.includes('addon') ||
+                        lowerName.includes('via') ||
+                        lowerName.includes('subscription') ||
+                        lowerName.includes('store') ||
+                        lowerName.includes('freevee')
+                    ) {
+                        continue;
+                    }
+
+                    // Normalize names to group duplicates
+                    let normName = lowerName
+                        .replace('plus', '')
+                        .replace('+', '')
+                        .replace('amazon video', 'prime video')
+                        .replace('amazon prime video', 'prime video')
+                        .trim()
+                        .replace(/\s+/g, '');
+
+                    if (seenNames.has(normName)) {
+                        continue;
+                    }
+
+                    seenNames.add(normName);
+
+                    combinedProviders.push({
+                        provider_id: providerId,
+                        provider_name: providerName,
+                        normName: normName,
+                        logo_path: provider.logo_path ? `https://image.tmdb.org/t/p/original${provider.logo_path}` : "",
+                        regions: [reg]
+                    });
+                }
+
+                // Sort so popular platforms are displayed first
+                combinedProviders.sort((a: any, b: any) => {
+                    const aPri = [8, 337, 119, 384, 350, 15].indexOf(a.provider_id);
+                    const bPri = [8, 337, 119, 384, 350, 15].indexOf(b.provider_id);
+                    if (aPri !== -1 && bPri !== -1) return aPri - bPri;
+                    if (aPri !== -1) return -1;
+                    if (bPri !== -1) return 1;
+                    return 0;
+                });
+
+                setOttPlatforms(combinedProviders);
+            } catch (e) {
+                console.error("Failed to load platforms:", e);
+            } finally {
+                setLoadingPlatforms(false);
+            }
+        };
+        fetchPlatforms();
+    }, [apiKey, appRegion, isAuthenticated]);
+
     const isCategoriesLoading = useRef(false);
     const isCategoryRowsLoading = useRef(false);
 
@@ -1845,9 +1992,9 @@ export default function App() {
     const accentBg = "bg-red-600";
     const accentBgLow = "bg-red-600/20";
 
-    const showStickyHeader = !["Categories", "Franchise", "Explore", "LiveTV", "Multiverse", "Anime", "Manga"].includes(selectedCategory);
+    const showStickyHeader = !["Categories", "Franchise", "LiveTV", "Multiverse", "Anime", "Manga"].includes(selectedCategory);
     const hasHeroBanner = !!(
-        (!searchQuery && featuredMovie && !["People", "Coming", "Collections", "Categories", "Franchise", "Explore", "LiveTV", "Multiverse", "Anime", "Manga"].includes(selectedCategory)) ||
+        (!searchQuery && featuredMovie && !["People", "Coming", "Collections", "Categories", "Franchise", "LiveTV", "Multiverse", "Anime", "Manga"].includes(selectedCategory)) ||
         (selectedCategory === "Franchise" && franchiseList.length > 0)
     );
 
@@ -1888,7 +2035,7 @@ export default function App() {
                     case 'h': resetToHome(); break;
                     case 's': setIsSettingsOpen(true); break;
                     case 'w': resetFilters(); setSelectedCategory("Watchlist"); break;
-                    case 'e': resetFilters(); setSelectedCategory("Explore"); break;
+                    case 'e': resetFilters(); setSelectedCategory("Anime"); break;
                     case 't': resetFilters(); setSelectedCategory("LiveTV"); break;
                     case 'm': resetFilters(); setSelectedCategory("Multiverse"); break;
                 }
@@ -2417,7 +2564,7 @@ export default function App() {
 
     const fetchMovies = useCallback(async (pageNum: number = 1, isLoadMore = false, overrideQuery?: string) => {
         if (!apiKey) return;
-        if (selectedCategory === "Manga") return;
+        if (selectedCategory === "Manga" || selectedCategory === "Anime" || selectedCategory === "AnimeCommunity") return;
         setFetchError(false);
         if (["Watchlist", "Favorites", "History"].includes(selectedCategory)) {
             const list = selectedCategory === "Watchlist" ? watchlistRef.current : selectedCategory === "Favorites" ? favoritesRef.current : watchedRef.current;
@@ -2425,7 +2572,7 @@ export default function App() {
             setFeaturedMovie(selectedCategory === "Watchlist" ? list[0] : null);
             setHasMore(false); return;
         }
-        if (["LiveTV", "Categories", "Collections", "Countries", "Explore", "Multiverse"].includes(selectedCategory) && !activeCountry) return;
+        if (["LiveTV", "Categories", "Collections", "Countries", "Multiverse"].includes(selectedCategory) && !activeCountry) return;
         if (abortControllerRef.current) abortControllerRef.current.abort();
         const controller = new AbortController();
         abortControllerRef.current = controller;
@@ -2691,7 +2838,7 @@ export default function App() {
                 });
             } else {
                 setMovies(finalResults);
-                const hasHero = !["People", "Coming", "Collections", "Categories", "Franchise", "Explore"].includes(selectedCategory) && !searchQuery;
+                const hasHero = !["People", "Coming", "Collections", "Categories", "Franchise", "Anime", "AnimeCommunity", "Manga"].includes(selectedCategory) && !searchQuery;
                 if (hasHero && finalResults.length > 0) {
                     setFeaturedMovie(finalResults.find((m: Movie) => m.backdrop_path) || finalResults[0]);
                 } else setFeaturedMovie(null);
@@ -3369,7 +3516,7 @@ export default function App() {
 
     useEffect(() => {
         const isHomepage = selectedCategory === 'All' && !searchQuery && !currentCollection && !activeCountry && !activeKeyword && !tmdbCollectionId;
-        const isDynamicCategory = !searchQuery && !["People", "Coming", "Collections", "Categories", "Franchise", "Explore", "Watchlist", "Favorites", "History"].includes(selectedCategory) && !tmdbCollectionId;
+        const isDynamicCategory = !searchQuery && !["People", "Coming", "Collections", "Categories", "Franchise", "Anime", "AnimeCommunity", "Manga", "Watchlist", "Favorites", "History"].includes(selectedCategory) && !tmdbCollectionId;
 
         if (!isHomepage && !isDynamicCategory) return;
 
@@ -3478,9 +3625,7 @@ export default function App() {
         { id: "Trending", icon: TrendingUp, label: "Trending", action: resetToHome },
         { id: "Multiverse", icon: Sparkles, label: "Multiverse", action: () => { resetFilters(); setSelectedCategory("Multiverse"); } },
         { id: "Awards", icon: Award, label: "Awards", action: () => { resetFilters(); setSelectedCategory("Awards"); } },
-        { id: "Anime", icon: Ghost, label: "Anime", action: () => { resetFilters(); setSelectedCategory("Anime"); } },
         { id: "AnimeCommunity", icon: MessageSquare, label: "Anime Forum", action: () => { resetFilters(); setSelectedCategory("AnimeCommunity"); } },
-        { id: "Manga", icon: BookOpen, label: "Manga", action: () => { resetFilters(); setSelectedMangaId(null); setActiveMangaChapterId(null); setSelectedCategory("Manga"); } },
 
         { id: "Franchise", icon: Layers, label: "Franchises", action: () => { resetFilters(); setSelectedCategory("Franchise"); } },
         { id: "Family", icon: Baby, label: "Family", action: () => { resetFilters(); setSelectedCategory("Family"); } },
@@ -3563,8 +3708,11 @@ export default function App() {
                                 <button onClick={resetToHome} className={getSidebarItemClass(selectedCategory === "All" && !searchQuery)}>
                                     <Home size={18} /> Home <span className="ml-auto text-[8px] opacity-40 hidden lg:inline">Alt+H</span>
                                 </button>
-                                <button onClick={() => { resetFilters(); setSelectedCategory("Explore"); }} className={getSidebarItemClass(selectedCategory === "Explore")}>
-                                    <Compass size={18} /> Explore <span className="ml-auto text-[8px] opacity-40 hidden lg:inline">Alt+E</span>
+                                <button onClick={() => { resetFilters(); setSelectedCategory("Anime"); }} className={getSidebarItemClass(selectedCategory === "Anime")}>
+                                    <Ghost size={18} /> Anime
+                                </button>
+                                <button onClick={() => { resetFilters(); setSelectedMangaId(null); setActiveMangaChapterId(null); setSelectedCategory("Manga"); }} className={getSidebarItemClass(selectedCategory === "Manga")}>
+                                    <BookOpen size={18} /> Manga
                                 </button>
                                 <button onClick={() => { resetFilters(); setSelectedCategory("Multiverse"); }} className={getSidebarItemClass(selectedCategory === "Multiverse")}>
                                     <Sparkles size={18} /> Multiverse <span className="ml-auto text-[8px] opacity-40 hidden lg:inline">Alt+M</span>
@@ -3654,9 +3802,13 @@ export default function App() {
                                     <Home size={15} className="transition-all duration-300 group-hover:scale-110 group-hover:-translate-y-0.5" />
                                     <span>Home</span>
                                 </TvFocusButton>
-                                <TvFocusButton onClick={() => { resetFilters(); setSelectedCategory("Explore"); }} className={`group flex items-center gap-2 px-5 py-2 rounded-full text-xs font-semibold tracking-wide transition-all duration-300 ${selectedCategory === "Explore" ? "bg-white/10 text-white" : "text-zinc-400 hover:text-white hover:bg-white/5"}`}>
-                                    <Compass size={15} className="transition-all duration-500 group-hover:rotate-90 group-hover:scale-110" />
-                                    <span>Explore</span>
+                                <TvFocusButton onClick={() => { resetFilters(); setSelectedCategory("Anime"); }} className={`group flex items-center gap-2 px-5 py-2 rounded-full text-xs font-semibold tracking-wide transition-all duration-300 ${selectedCategory === "Anime" ? "bg-white/10 text-white" : "text-zinc-400 hover:text-white hover:bg-white/5"}`}>
+                                    <Ghost size={15} className="transition-all duration-300 group-hover:scale-110 group-hover:-translate-y-0.5" />
+                                    <span>Anime</span>
+                                </TvFocusButton>
+                                <TvFocusButton onClick={() => { resetFilters(); setSelectedMangaId(null); setActiveMangaChapterId(null); setSelectedCategory("Manga"); }} className={`group flex items-center gap-2 px-5 py-2 rounded-full text-xs font-semibold tracking-wide transition-all duration-300 ${selectedCategory === "Manga" ? "bg-white/10 text-white" : "text-zinc-400 hover:text-white hover:bg-white/5"}`}>
+                                    <BookOpen size={15} className="transition-all duration-300 group-hover:scale-110" />
+                                    <span>Manga</span>
                                 </TvFocusButton>
                                 <TvFocusButton onClick={() => { resetFilters(); setSelectedCategory("LiveTV"); }} className={`group flex items-center gap-2 px-5 py-2 rounded-full text-xs font-semibold tracking-wide transition-all duration-300 ${selectedCategory === "LiveTV" ? "bg-white/10 text-white" : "text-zinc-400 hover:text-white hover:bg-white/5"}`}>
                                     <Radio size={15} className="transition-all duration-300 group-hover:scale-110 group-hover:animate-pulse" />
@@ -3667,8 +3819,9 @@ export default function App() {
                                     className="relative flex items-center h-full"
                                     onMouseEnter={handleBrowseEnter}
                                     onMouseLeave={handleBrowseLeave}
+                                    style={{ contentVisibility: 'auto' }}
                                 >
-                                    <TvFocusButton onClick={() => setIsBrowseOpen(!isBrowseOpen)} className={`flex items-center gap-2 px-5 py-2 rounded-full text-xs font-semibold tracking-wide transition-all duration-300 ${isBrowseOpen || ["Categories", "Awards", "Anime", "AnimeCommunity", "Manga", "Franchise", "Family", "TV Shows", "Coming"].includes(selectedCategory)
+                                    <TvFocusButton onClick={() => setIsBrowseOpen(!isBrowseOpen)} className={`flex items-center gap-2 px-5 py-2 rounded-full text-xs font-semibold tracking-wide transition-all duration-300 ${isBrowseOpen || ["Categories", "Awards", "AnimeCommunity", "Franchise", "Family", "TV Shows", "Coming"].includes(selectedCategory)
                                             ? "bg-white/10 text-white shadow-[0_4px_20px_rgba(0,0,0,0.3)] border border-white/10"
                                             : "text-zinc-400 hover:text-white hover:bg-white/5 border border-transparent"
                                         }`}>
@@ -3934,14 +4087,6 @@ export default function App() {
                             isAiSearchActive={isAiSearchActive}
                         />
 
-                    ) : selectedCategory === "Explore" && !searchQuery ? (
-                        <ExplorePage
-                            apiKey={apiKey}
-                            onMovieClick={setSelectedMovie}
-                            userProfile={userProfile}
-                            searchQuery={searchQuery}
-                            setSearchQuery={setSearchQuery}
-                        />
                     ) : selectedCategory === "Categories" ? (
                         <div className="animate-in fade-in slide-in-from-bottom-4 min-h-screen pb-16 pt-2 select-none">
                             <div className="px-4 md:px-12 max-w-7xl mx-auto">
@@ -4217,7 +4362,7 @@ export default function App() {
                         <>
                             {selectedCategory !== "Coming" && selectedCategory !== "Genres" && selectedCategory !== "Franchise" && (
                                 <>
-                                    {!searchQuery && featuredMovie && !["People", "Coming", "Collections", "Genres", "Franchise", "Explore"].includes(selectedCategory) && (
+                                    {!searchQuery && featuredMovie && !["People", "Coming", "Collections", "Genres", "Franchise", "Anime", "AnimeCommunity", "Manga"].includes(selectedCategory) && (
                                         <div className="relative w-full h-[70vh] md:h-[80vh] overflow-hidden group">
                                             <div className="absolute inset-0">
                                                 <img
@@ -4343,19 +4488,69 @@ export default function App() {
 
                                         {!searchQuery && selectedCategory === "All" && !currentCollection && !activeCountry && !activeKeyword && !tmdbCollectionId ? (
                                             <div className="space-y-4 animate-in fade-in duration-700 -mx-4 md:-mx-12">
-                                                {activeCategories.slice(0, 2).map(cat => (
-                                                    <MovieRow
-                                                        key={cat.id}
-                                                        title={cat.title}
-                                                        endpoint={cat.endpoint}
-                                                        mediaType={cat.mediaType}
-                                                        apiKey={apiKey}
-                                                        onMovieClick={setSelectedMovie}
-                                                        sortOption={sortOption}
-                                                        selectedLanguage={selectedLanguage}
-                                                        onExpand={() => setExpandedCategory({ title: cat.title, items: [], endpoint: cat.endpoint, mediaType: cat.mediaType })}
-                                                    />
-                                                ))}
+                                                {topMovies.length > 0 && (
+                                                    <RankingRow title="Today's Top 10 Movies" items={topMovies} icon={TrendingUp} onMovieClick={setSelectedMovie} />
+                                                )}
+                                                {topShows.length > 0 && (
+                                                    <RankingRow title="Global Trending TV Series" items={topShows} icon={Tv} onMovieClick={setSelectedMovie} />
+                                                )}
+
+                                                {/* OTT Platforms Hub Row */}
+                                                {ottPlatforms.length > 0 && (
+                                                    <div className="mb-10 px-4 md:px-12">
+                                                        <div className="flex items-center gap-2 mb-4">
+                                                            <Sparkles size={16} className="text-red-500" />
+                                                            <h3 className="text-lg font-bold text-white tracking-tight select-none">
+                                                                Your Platforms
+                                                            </h3>
+                                                        </div>
+                                                        {loadingPlatforms ? (
+                                                            <div className="flex gap-4 overflow-x-auto pb-4 hide-scrollbar">
+                                                                {[...Array(6)].map((_, i) => (
+                                                                    <div key={i} className="shrink-0 w-20 h-20 bg-white/5 rounded-2xl animate-pulse border border-white/5"></div>
+                                                                ))}
+                                                            </div>
+                                                        ) : (
+                                                            <div className="flex gap-4 overflow-x-auto pb-4 hide-scrollbar scroll-smooth">
+                                                                {ottPlatforms.map(platform => {
+                                                                    const { ref } = useTvFocus({
+                                                                        onEnterPress: () => {
+                                                                            setActiveOtt(platform.provider_id);
+                                                                            setActiveProvider(platform);
+                                                                        }
+                                                                    });
+                                                                    return (
+                                                                        <div
+                                                                            ref={ref}
+                                                                            key={platform.provider_id}
+                                                                            onClick={() => {
+                                                                                setActiveOtt(platform.provider_id);
+                                                                                setActiveProvider(platform);
+                                                                            }}
+                                                                            className="shrink-0 w-20 h-20 rounded-2xl overflow-hidden cursor-pointer bg-zinc-900 border border-white/5 hover:border-red-500/50 hover:scale-105 active:scale-95 transition-all duration-300 shadow-lg relative group focus:outline-none"
+                                                                        >
+                                                                            {platform.logo_path ? (
+                                                                                <img
+                                                                                    src={platform.logo_path}
+                                                                                    alt={platform.provider_name}
+                                                                                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                                                                                />
+                                                                            ) : (
+                                                                                <div className="w-full h-full flex items-center justify-center text-center p-2 text-[10px] font-bold text-white uppercase bg-zinc-800">
+                                                                                    {platform.provider_name}
+                                                                                </div>
+                                                                            )}
+                                                                            <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center text-center p-1 text-[9px] font-bold text-white transition-opacity duration-300">
+                                                                                {platform.provider_name}
+                                                                            </div>
+                                                                        </div>
+                                                                    );
+                                                                })}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                )}
+
                                                 <ContinueWatchingRow 
                                                     watchedMovies={watched} 
                                                     onMovieClick={setSelectedMovie} 
@@ -4425,7 +4620,7 @@ export default function App() {
                                             </div>
                                         ) : (
                                             <div className="space-y-8">
-                                                {!searchQuery && !["People", "Coming", "Collections", "Genres", "Franchise", "Explore", "Watchlist", "Favorites", "History"].includes(selectedCategory) && !tmdbCollectionId ? (
+                                                {!searchQuery && !["People", "Coming", "Collections", "Genres", "Franchise", "Anime", "AnimeCommunity", "Manga", "Watchlist", "Favorites", "History"].includes(selectedCategory) && !tmdbCollectionId ? (
                                                     <div className="space-y-4 animate-in fade-in duration-700 -mx-4 md:-mx-12">
                                                         {activeCategoryRows.map(cat => (
                                                             <MovieRow
@@ -4599,6 +4794,17 @@ export default function App() {
                     }}
                 />
             )}
+            {activeOtt && activeProvider && (
+                <ExplorePage
+                    apiKey={apiKey}
+                    onMovieClick={setSelectedMovie}
+                    userProfile={userProfile}
+                    appRegion={appRegion}
+                    initialOtt={activeOtt}
+                    initialProvider={activeProvider}
+                    onClose={() => { setActiveOtt(null); setActiveProvider(null); }}
+                />
+            )}
             <ComparisonModal isOpen={isComparisonOpen} onClose={() => setIsComparisonOpen(false)} baseMovie={comparisonBaseMovie} apiKey={apiKey} />
             <ExpandedCategoryModal
                 isOpen={expandedCategory !== null}
@@ -4704,9 +4910,10 @@ export default function App() {
                     <div className="h-16 flex items-center justify-around px-2">
                         {[
                             { id: 'Home', label: 'Home', icon: Home, action: () => { setIsBrowseOpen(false); resetToHome(); }, activeCondition: selectedCategory === "All" && !searchQuery },
-                            { id: 'Explore', label: 'Explore', icon: Compass, action: () => { setIsBrowseOpen(false); resetFilters(); setSelectedCategory("Explore"); }, activeCondition: selectedCategory === "Explore" },
+                            { id: 'Anime', label: 'Anime', icon: Ghost, action: () => { setIsBrowseOpen(false); resetFilters(); setSelectedCategory("Anime"); }, activeCondition: selectedCategory === "Anime" },
+                            { id: 'Manga', label: 'Manga', icon: BookOpen, action: () => { setIsBrowseOpen(false); resetFilters(); setSelectedMangaId(null); setActiveMangaChapterId(null); setSelectedCategory("Manga"); }, activeCondition: selectedCategory === "Manga" },
                             { id: 'LiveTV', label: 'Live TV', icon: Radio, action: () => { setIsBrowseOpen(false); resetFilters(); setSelectedCategory("LiveTV"); }, activeCondition: selectedCategory === "LiveTV" },
-                            { id: 'Browse', label: 'Browse', icon: LayoutGrid, action: () => setIsBrowseOpen(!isBrowseOpen), activeCondition: isBrowseOpen || ["Categories", "Awards", "Anime", "AnimeCommunity", "Manga", "Franchise", "Family", "TV Shows", "Coming"].includes(selectedCategory) }
+                            { id: 'Browse', label: 'Browse', icon: LayoutGrid, action: () => setIsBrowseOpen(!isBrowseOpen), activeCondition: isBrowseOpen || ["Categories", "Awards", "AnimeCommunity", "Franchise", "Family", "TV Shows", "Coming"].includes(selectedCategory) }
                         ].map((tab) => {
                             const Icon = tab.icon;
                             const isActive = tab.activeCondition;
