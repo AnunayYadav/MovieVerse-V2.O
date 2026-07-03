@@ -1,8 +1,0 @@
-blank_issues_enabled: false
-contact_links:
-    - name: CinePro Documentation
-      url: https://docs.cinepro.cc
-      about: Comprehensive documentation for using and contributing to CinePro. (might be out of date, check the README for the latest docs!)
-    - name: CinePro Issue Tracker
-      url: https://github.com/cinepro-org/core/issues
-      about: For technical issues, bugs, and feature requests related to CinePro.

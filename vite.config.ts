@@ -45,7 +45,6 @@ export default defineConfig(({ mode }) => {
                 '/api/tmdb': './api/tmdb.ts',
                 '/api/videasy': './api/videasy.ts',
                 '/api/encdec': './api/encdec.ts',
-                '/api/cinepro': './api/cinepro.ts',
               };
               
               let matchedPath = pathname || '';
