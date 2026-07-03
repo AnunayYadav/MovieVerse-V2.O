@@ -1456,6 +1456,9 @@ export default function App() {
         selectedCategoryRef.current = selectedCategory;
     }, [selectedCategory]);
 
+    const [isNavigatingBack, setIsNavigatingBack] = useState(false);
+    const currentHistoryIdxRef = useRef(window.history.state?.idx || 0);
+
     const isSyncingPath = useRef(false);
     const urlPushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const lastPushedPathRef = useRef<string>(window.location.pathname);
@@ -1463,6 +1466,12 @@ export default function App() {
     const syncStateFromPath = useCallback(async () => {
         if (isSyncingPath.current) return;
         isSyncingPath.current = true;
+
+        const prevIdx = currentHistoryIdxRef.current;
+        const newIdx = window.history.state?.idx || 0;
+        const isBack = newIdx < prevIdx;
+        setIsNavigatingBack(isBack);
+        currentHistoryIdxRef.current = newIdx;
 
         const path = window.location.pathname || '/';
         const parts = path.split('/');
@@ -1767,6 +1776,8 @@ export default function App() {
                 lastPushedPathRef.current = newPath;
                 const newIdx = (window.history.state?.idx || 0) + 1;
                 history.pushState({ idx: newIdx }, '', newPath);
+                currentHistoryIdxRef.current = newIdx;
+                setIsNavigatingBack(false);
             }
 
             const finalIdx = window.history.state?.idx || 0;
@@ -2066,7 +2077,7 @@ export default function App() {
     const hasHeroBanner = !!(
         (!searchQuery && featuredMovie && !["People", "Coming", "Collections", "Categories", "Franchise", "LiveTV", "Multiverse", "Anime", "Manga"].includes(selectedCategory)) ||
         (selectedCategory === "Franchise" && franchiseList.length > 0) ||
-        (!searchQuery && ["Anime", "Manga"].includes(selectedCategory))
+        (!searchQuery && (selectedCategory === "Anime" || (selectedCategory === "Manga" && !selectedMangaId)))
     );
 
     const matchingCollections = searchQuery
@@ -2146,6 +2157,7 @@ export default function App() {
         setActiveKeyword(null);
         setActiveCountry(null);
         setIsSidebarOpen(false);
+        setIsNavigatingBack(false);
     };
 
     const resetToHome = () => {
@@ -4124,6 +4136,7 @@ export default function App() {
                             onSearchClear={() => setSearchQuery('')}
                             initialTab="catalog"
                             isAiSearchActive={isAiSearchActive}
+                            disableEntryAnimation={isNavigatingBack}
                         />
                     ) : selectedCategory === "AnimeCommunity" ? (
                         <AnimePage
@@ -4139,6 +4152,7 @@ export default function App() {
                             onSearchClear={() => setSearchQuery('')}
                             initialTab="community"
                             isAiSearchActive={isAiSearchActive}
+                            disableEntryAnimation={isNavigatingBack}
                         />
                     ) : selectedCategory === "Manga" ? (
                         <MangaPage
@@ -4168,6 +4182,7 @@ export default function App() {
                                     setSelectedMangaId(null);
                                 }
                             }}
+                            disableEntryAnimation={isNavigatingBack}
                         />
 
                     ) : selectedCategory === "Categories" ? (

@@ -58,6 +58,7 @@ interface MangaPageProps {
   onSearchClear?: () => void;
   isAiSearchActive?: boolean;
   onCloseDetails?: () => void;
+  disableEntryAnimation?: boolean;
 }
 
 const MANGA_GENRES = [
@@ -168,7 +169,8 @@ export const MangaPage: React.FC<MangaPageProps> = ({
   searchQuery: parentSearchQuery,
   onSearchClear,
   isAiSearchActive,
-  onCloseDetails
+  onCloseDetails,
+  disableEntryAnimation
 }) => {
   const [trending, setTrending] = useState<MangaDexManga[]>([]);
   const [latest, setLatest] = useState<MangaDexManga[]>([]);
@@ -4675,7 +4677,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
   }
 
   return (
-    <div className="min-h-screen bg-[#030303] text-white pb-16 relative">
+    <div className={`min-h-screen bg-[#030303] text-white pb-16 relative ${disableEntryAnimation ? 'disable-animations' : ''}`}>
 
       {/* 1. Spotlight Hero Banner */}
       {!searchQuery && trending[heroIndex] && (

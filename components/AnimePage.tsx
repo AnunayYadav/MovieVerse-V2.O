@@ -15,6 +15,7 @@ interface AnimePageProps {
   onSearchClear?: () => void;
   initialTab?: 'catalog' | 'community';
   isAiSearchActive?: boolean;
+  disableEntryAnimation?: boolean;
 }
 
 export interface AniListMedia {
@@ -73,7 +74,7 @@ const ANIME_GENRES = [
   "Psychological"
 ];
 
-export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick, searchQuery: parentSearchQuery, onSearchClear, initialTab = 'catalog', isAiSearchActive }) => {
+export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick, searchQuery: parentSearchQuery, onSearchClear, initialTab = 'catalog', isAiSearchActive, disableEntryAnimation }) => {
   const [trending, setTrending] = useState<AniListMedia[]>([]);
   const [popular, setPopular] = useState<AniListMedia[]>([]);
   const [topRated, setTopRated] = useState<AniListMedia[]>([]);
@@ -1053,7 +1054,7 @@ export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick, sear
   };
 
   return (
-    <div className="min-h-screen bg-[#030303] text-white pb-16 relative">
+    <div className={`min-h-screen bg-[#030303] text-white pb-16 relative ${disableEntryAnimation ? 'disable-animations' : ''}`}>
       
       {/* 1. Hero Spotlight Carousel */}
       {!searchQuery && (featured || activeTab === 'community') && (
