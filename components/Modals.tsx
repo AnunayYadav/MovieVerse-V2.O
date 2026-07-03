@@ -1395,6 +1395,7 @@ export const CharacterPage: React.FC<CharacterPageProps> = ({
     const [error, setError] = useState<string | null>(null);
     const [isClosing, setIsClosing] = useState(false);
     const [voiceActors, setVoiceActors] = useState<any[]>([]);
+    const [matchingAnimeId, setMatchingAnimeId] = useState<number | null>(null);
 
     const handleClose = () => {
         setIsClosing(true);
@@ -1458,6 +1459,10 @@ export const CharacterPage: React.FC<CharacterPageProps> = ({
                                     large
                                 }
                                 type
+                                startDate {
+                                    year
+                                }
+                                bannerImage
                             }
                         }
                     }
@@ -1500,21 +1505,171 @@ export const CharacterPage: React.FC<CharacterPageProps> = ({
         });
     }, [characterId]);
 
-    const handleAnimeClick = async (title: string) => {
-        try {
-            const res = await fetch(`${TMDB_BASE_URL}/search/multi?api_key=${apiKey}&query=${encodeURIComponent(title)}`);
-            if (!res.ok) throw new Error("Search failed");
-            const data = await res.json();
-            const movie = data.results?.find((item: any) => item.media_type === 'movie' || item.media_type === 'tv');
-            if (movie) {
-                handleClose();
-                onMovieClick(movie);
-            } else {
-                console.warn("No matching TMDB movie/show found for", title);
-            }
-        } catch (err) {
-            console.error("Error matching AniList to TMDB:", err);
+    const handleAnimeClick = async (mediaNode: any) => {
+        if (!mediaNode || !apiKey) return;
+        const mediaId = mediaNode.id;
+        const title = mediaNode.title?.english || mediaNode.title?.userPreferred || mediaNode.title?.romaji;
+        if (!title) return;
+
+        // Check local cache first to allow instant switching
+        const matchCacheKey = `movieverse_anilist_tmdb_match_${mediaId}`;
+        const cachedMatch = localStorage.getItem(matchCacheKey);
+        if (cachedMatch) {
+            try {
+                const parsed = JSON.parse(cachedMatch);
+                if (parsed && parsed.id && parsed.mediaType) {
+                    handleClose();
+                    onMovieClick({
+                        id: parsed.id,
+                        media_type: parsed.mediaType,
+                        title: title,
+                        name: title,
+                        backdrop_path: parsed.backdropPath,
+                        initial_season: parsed.initial_season
+                    } as any);
+                    return;
+                }
+            } catch (_) {}
         }
+
+        setMatchingAnimeId(mediaId);
+        const cleanTitle = title.replace(/\s*\(?(Dub|Sub|TV|Movie|uncensored|censored|season\s*\d+|part\s*\d+)\)?\s*$/i, '').trim();
+
+        // 1. Try TV search
+        try {
+            const res = await fetch(`${TMDB_BASE_URL}/search/tv?api_key=${apiKey}&query=${encodeURIComponent(cleanTitle)}`);
+            const data = await res.json();
+            let match = data.results?.find((item: any) => 
+                item.genre_ids?.includes(16) && item.original_language === 'ja'
+            ) || data.results?.find((item: any) => 
+                item.genre_ids?.includes(16)
+            ) || data.results?.[0];
+
+            if (match) {
+                let resolvedSeason = 1;
+                try {
+                    const detailRes = await fetch(`${TMDB_BASE_URL}/tv/${match.id}?api_key=${apiKey}`);
+                    const detailData = await detailRes.json();
+                    if (detailData && detailData.seasons) {
+                        const mockAnime = {
+                            title: mediaNode.title,
+                            seasonYear: mediaNode.startDate?.year,
+                            episodes: null
+                        };
+                        
+                        const tmdbSeasons = detailData.seasons;
+                        const activeSeasons = tmdbSeasons.filter((s: any) => s.season_number > 0);
+                        if (activeSeasons.length > 1) {
+                            const titles = [
+                                mockAnime.title.english,
+                                mockAnime.title.romaji,
+                                mockAnime.title.userPreferred
+                            ].filter((t): t is string => typeof t === 'string' && t.length > 0);
+
+                            let parsedSeasonFromTitle: number | null = null;
+                            for (const tVal of titles) {
+                                const t = tVal.toLowerCase();
+                                const match1 = t.match(/\b(?:season|part)\s*(\d+)\b/i);
+                                if (match1 && match1[1]) {
+                                    parsedSeasonFromTitle = parseInt(match1[1], 10);
+                                    break;
+                                }
+                                const match2 = t.match(/\b(\d+)(?:st|nd|rd|th)\s*(?:season|part)\b/i);
+                                if (match2 && match2[1]) {
+                                    parsedSeasonFromTitle = parseInt(match2[1], 10);
+                                    break;
+                                }
+                                if (/\bseason\s+ii\b/i.test(t) || /\bii\b/i.test(t)) {
+                                    parsedSeasonFromTitle = 2;
+                                    break;
+                                }
+                                if (/\bseason\s+iii\b/i.test(t) || /\biii\b/i.test(t)) {
+                                    parsedSeasonFromTitle = 3;
+                                    break;
+                                }
+                            }
+
+                            if (parsedSeasonFromTitle !== null) {
+                                const sMatch = activeSeasons.find((s: any) => s.season_number === parsedSeasonFromTitle);
+                                if (sMatch) resolvedSeason = sMatch.season_number;
+                            } else if (mockAnime.seasonYear) {
+                                const matchedByYear = activeSeasons.filter((s: any) => {
+                                    if (!s.air_date) return false;
+                                    const tmdbYear = new Date(s.air_date).getFullYear();
+                                    return tmdbYear === mockAnime.seasonYear;
+                                });
+                                if (matchedByYear.length > 0) {
+                                    resolvedSeason = matchedByYear[0].season_number;
+                                }
+                            }
+                        } else if (activeSeasons.length === 1) {
+                            resolvedSeason = activeSeasons[0].season_number;
+                        }
+                    }
+                } catch (e) {
+                    console.error("TV details fetch failed for character media season matching:", e);
+                }
+
+                const backdropPath = mediaNode.bannerImage || match.backdrop_path;
+
+                localStorage.setItem(matchCacheKey, JSON.stringify({
+                    id: match.id,
+                    mediaType: 'tv',
+                    backdropPath,
+                    initial_season: resolvedSeason
+                }));
+
+                handleClose();
+                onMovieClick({
+                    id: match.id,
+                    media_type: 'tv',
+                    title: title,
+                    name: title,
+                    backdrop_path: backdropPath,
+                    initial_season: resolvedSeason
+                } as any);
+                setMatchingAnimeId(null);
+                return;
+            }
+        } catch (e) {
+            console.error("TV search failed for character media:", e);
+        }
+
+        // 2. Try Movie search
+        try {
+            const res = await fetch(`${TMDB_BASE_URL}/search/movie?api_key=${apiKey}&query=${encodeURIComponent(cleanTitle)}`);
+            const data = await res.json();
+            let match = data.results?.find((item: any) => 
+                item.genre_ids?.includes(16) && item.original_language === 'ja'
+            ) || data.results?.find((item: any) => 
+                item.genre_ids?.includes(16)
+            ) || data.results?.[0];
+
+            if (match) {
+                const backdropPath = mediaNode.bannerImage || match.backdrop_path;
+
+                localStorage.setItem(matchCacheKey, JSON.stringify({
+                    id: match.id,
+                    mediaType: 'movie',
+                    backdropPath
+                }));
+
+                handleClose();
+                onMovieClick({
+                    id: match.id,
+                    media_type: 'movie',
+                    title: title,
+                    name: title,
+                    backdrop_path: backdropPath
+                } as any);
+                setMatchingAnimeId(null);
+                return;
+            }
+        } catch (e) {
+            console.error("Movie search failed for character media:", e);
+        }
+
+        setMatchingAnimeId(null);
     };
 
     const handleVoiceActorClick = async (name: string) => {
@@ -1656,13 +1811,21 @@ export const CharacterPage: React.FC<CharacterPageProps> = ({
                                         {details.media.edges.map((edge: any) => {
                                             const mediaNode = edge.node;
                                             const mediaTitle = mediaNode.title?.userPreferred || mediaNode.title?.english || mediaNode.title?.romaji;
+                                            const isMatching = matchingAnimeId === mediaNode.id;
                                             return (
                                                 <div 
                                                     key={mediaNode.id} 
-                                                    onClick={() => handleAnimeClick(mediaTitle)}
+                                                    onClick={() => {
+                                                        if (!isMatching) handleAnimeClick(mediaNode);
+                                                    }}
                                                     className="group relative aspect-[2/3] rounded-xl overflow-hidden cursor-pointer bg-zinc-900 border border-white/5 hover:border-red-500/50 hover:scale-[1.02] transition-all duration-300 shadow-lg"
                                                 >
                                                     <img src={mediaNode.coverImage?.large} alt={mediaTitle} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" loading="lazy" />
+                                                    {isMatching && (
+                                                        <div className="absolute inset-0 bg-black/60 flex items-center justify-center backdrop-blur-sm z-30">
+                                                            <Loader2 className="animate-spin text-red-600" size={20} />
+                                                        </div>
+                                                    )}
                                                     <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/45 to-transparent pointer-events-none" />
                                                     <div className="absolute inset-0 p-3 flex flex-col justify-end text-left pointer-events-none">
                                                         <h5 className="text-[10px] font-bold text-white line-clamp-2 leading-tight group-hover:text-red-500 transition-colors">{mediaTitle}</h5>
