@@ -16,9 +16,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(400).json({ error: 'Query parameter is required' });
   }
 
-  const apiKey = process.env.VITE_GEMINI_API_KEY;
+  const apiKey = process.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY || process.env.API_KEY;
   if (!apiKey) {
-    return res.status(500).json({ error: 'VITE_GEMINI_API_KEY environment variable is not configured' });
+    return res.status(500).json({ error: 'Gemini API key is not configured' });
   }
 
   const cat = typeof category === 'string' ? category.toLowerCase() : 'all';
@@ -103,7 +103,7 @@ Example format: ["Inception", "Interstellar", "Stranger Things"]`;
     const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
     
     // Clean JSON response
-    const cleanedText = text.replace(/```json/g, '').replace(/```/g, '').trim();
+    const cleanedText = text.replace(/```(json)?/gi, '').replace(/```/g, '').trim();
     const titles = JSON.parse(cleanedText);
 
     if (!Array.isArray(titles)) {

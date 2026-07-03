@@ -14,6 +14,7 @@ interface AnimePageProps {
   searchQuery?: string;
   onSearchClear?: () => void;
   initialTab?: 'catalog' | 'community';
+  isAiSearchActive?: boolean;
 }
 
 export interface AniListMedia {
@@ -72,7 +73,7 @@ const ANIME_GENRES = [
   "Psychological"
 ];
 
-export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick, searchQuery: parentSearchQuery, onSearchClear, initialTab = 'catalog' }) => {
+export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick, searchQuery: parentSearchQuery, onSearchClear, initialTab = 'catalog', isAiSearchActive }) => {
   const [trending, setTrending] = useState<AniListMedia[]>([]);
   const [popular, setPopular] = useState<AniListMedia[]>([]);
   const [topRated, setTopRated] = useState<AniListMedia[]>([]);
@@ -632,48 +633,110 @@ export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick, sear
     const performSearch = async () => {
       setSearchLoading(true);
       try {
-        const query = `
-          query ($search: String ${!includeNsfw ? ', $isAdult: Boolean' : ''}) {
-            Page(page: 1, perPage: 40) {
-              media(type: ANIME, ${!includeNsfw ? 'isAdult: $isAdult,' : ''} search: $search) {
-                id
-                title {
-                  romaji
-                  english
-                  native
-                  userPreferred
+        if (isAiSearchActive) {
+          const aiRes = await fetch(`/api/ai-search?query=${encodeURIComponent(searchQuery)}&category=anime`);
+          if (!aiRes.ok) throw new Error("AI search failed");
+          const aiData = await aiRes.json();
+          const titles = aiData.results || [];
+
+          const promises = titles.map(async (t: string) => {
+            const singleQuery = `
+              query ($search: String ${!includeNsfw ? ', $isAdult: Boolean' : ''}) {
+                Page(page: 1, perPage: 1) {
+                  media(type: ANIME, ${!includeNsfw ? 'isAdult: $isAdult,' : ''} search: $search) {
+                    id
+                    title {
+                      romaji
+                      english
+                      native
+                      userPreferred
+                    }
+                    coverImage {
+                      extraLarge
+                      large
+                      medium
+                      color
+                    }
+                    bannerImage
+                    description
+                    season
+                    seasonYear
+                    status
+                    episodes
+                    duration
+                    averageScore
+                    popularity
+                    genres
+                    trailer {
+                      id
+                      site
+                    }
+                  }
                 }
-                coverImage {
-                  extraLarge
-                  large
-                  medium
-                  color
-                }
-                bannerImage
-                description
-                season
-                seasonYear
-                status
-                episodes
-                duration
-                averageScore
-                popularity
-                genres
-                trailer {
+              }
+            `;
+            try {
+              const variables: any = { search: t };
+              if (!includeNsfw) {
+                variables.isAdult = false;
+              }
+              const data = await fetchAniList(singleQuery, variables);
+              return data.Page?.media?.[0];
+            } catch (err) {
+              console.error(`AniList fetch failed for title ${t}:`, err);
+              return null;
+            }
+          });
+
+          const results = await Promise.all(promises);
+          const validResults = results.filter((m: any) => m !== null && m !== undefined);
+          if (isMounted) {
+            setSearchResults(validResults);
+          }
+        } else {
+          const query = `
+            query ($search: String ${!includeNsfw ? ', $isAdult: Boolean' : ''}) {
+              Page(page: 1, perPage: 40) {
+                media(type: ANIME, ${!includeNsfw ? 'isAdult: $isAdult,' : ''} search: $search) {
                   id
-                  site
+                  title {
+                    romaji
+                    english
+                    native
+                    userPreferred
+                  }
+                  coverImage {
+                    extraLarge
+                    large
+                    medium
+                    color
+                  }
+                  bannerImage
+                  description
+                  season
+                  seasonYear
+                  status
+                  episodes
+                  duration
+                  averageScore
+                  popularity
+                  genres
+                  trailer {
+                    id
+                    site
+                  }
                 }
               }
             }
+          `;
+          const variables: any = { search: searchQuery };
+          if (!includeNsfw) {
+            variables.isAdult = false;
           }
-        `;
-        const variables: any = { search: searchQuery };
-        if (!includeNsfw) {
-          variables.isAdult = false;
-        }
-        const data = await fetchAniList(query, variables);
-        if (isMounted) {
-          setSearchResults(data.Page?.media || []);
+          const data = await fetchAniList(query, variables);
+          if (isMounted) {
+            setSearchResults(data.Page?.media || []);
+          }
         }
       } catch (err) {
         console.error("Error executing AniList search:", err);
@@ -687,7 +750,7 @@ export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick, sear
     return () => {
       isMounted = false;
     };
-  }, [searchQuery, fetchAniList, includeNsfw]);
+  }, [searchQuery, isAiSearchActive, fetchAniList, includeNsfw]);
 
   // Hook up window scroll event listener for category lazy load
   useEffect(() => {

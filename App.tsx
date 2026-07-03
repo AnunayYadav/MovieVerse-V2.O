@@ -3880,6 +3880,7 @@ export default function App() {
                             searchQuery={searchQuery}
                             onSearchClear={() => setSearchQuery('')}
                             initialTab="catalog"
+                            isAiSearchActive={isAiSearchActive}
                         />
                     ) : selectedCategory === "AnimeCommunity" ? (
                         <AnimePage
@@ -3894,6 +3895,7 @@ export default function App() {
                             searchQuery={searchQuery}
                             onSearchClear={() => setSearchQuery('')}
                             initialTab="community"
+                            isAiSearchActive={isAiSearchActive}
                         />
                     ) : selectedCategory === "Manga" ? (
                         <MangaPage
