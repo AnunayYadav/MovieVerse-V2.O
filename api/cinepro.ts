@@ -47,23 +47,10 @@ function getServerInstance() {
   });
 
   const registry = server.getRegistry();
-  registry.register(new MovieDownloader02() as any);
-  registry.register(new AnyEmbed() as any);
-  registry.register(new CineSuProvider() as any);
-  registry.register(new Fmovies4U() as any);
+  // Only register active, working providers to keep resolution times under 2 seconds and prevent timeouts
   registry.register(new FsharetvProvider() as any);
   registry.register(new IcefyProvider() as any);
-  registry.register(new PeachifyProvider() as any);
-  registry.register(new PoprProvider() as any);
-  registry.register(new StreamMafiaProvider() as any);
-  registry.register(new TulnexProvider() as any);
   registry.register(new VidApiProvider() as any);
-  registry.register(new VideasyProvider() as any);
-  registry.register(new VidNestProvider() as any);
-  registry.register(new VidRockProvider() as any);
-  registry.register(new VidSrcProvider() as any);
-  registry.register(new VidZeeProvider() as any);
-  registry.register(new VixSrcProvider() as any);
 
   serverInstance = server;
   return server;
