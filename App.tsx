@@ -922,6 +922,34 @@ const RankingRow = ({ title, items, icon: Icon, onMovieClick }: { title: string,
     </div>
 );
 
+const OttPlatformItem = ({ platform, onClick }: { platform: any, onClick: () => void, key?: any }) => {
+    const { ref } = useTvFocus({
+        onEnterPress: onClick
+    });
+    return (
+        <div
+            ref={ref}
+            onClick={onClick}
+            className="shrink-0 w-20 h-20 rounded-2xl overflow-hidden cursor-pointer bg-zinc-900 border border-white/5 hover:border-red-500/50 hover:scale-105 active:scale-95 transition-all duration-300 shadow-lg relative group focus:outline-none"
+        >
+            {platform.logo_path ? (
+                <img
+                    src={platform.logo_path}
+                    alt={platform.provider_name}
+                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                />
+            ) : (
+                <div className="w-full h-full flex items-center justify-center text-center p-2 text-[10px] font-bold text-white uppercase bg-zinc-800">
+                    {platform.provider_name}
+                </div>
+            )}
+            <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center text-center p-1 text-[9px] font-bold text-white transition-opacity duration-300">
+                {platform.provider_name}
+            </div>
+        </div>
+    );
+};
+
 // Sub-component for Continue Watching row with visual progress
 const ContinueWatchingRow = ({
     watchedMovies,
@@ -1523,7 +1551,7 @@ export default function App() {
                 showCast = true;
             } else if (action === 'crew') {
                 showCrew = true;
-            } else if (['reviews', 'media', 'seasons'].includes(action)) {
+            } else if (['reviews', 'media', 'seasons', 'social', 'characters', 'similar'].includes(action)) {
                 detailsTab = action;
             }
         } else if (path.startsWith('/watch-party/')) {
@@ -4512,40 +4540,16 @@ export default function App() {
                                                             </div>
                                                         ) : (
                                                             <div className="flex gap-4 overflow-x-auto pb-4 hide-scrollbar scroll-smooth">
-                                                                {ottPlatforms.map(platform => {
-                                                                    const { ref } = useTvFocus({
-                                                                        onEnterPress: () => {
+                                                                {ottPlatforms.map(platform => (
+                                                                    <OttPlatformItem
+                                                                        key={platform.provider_id}
+                                                                        platform={platform}
+                                                                        onClick={() => {
                                                                             setActiveOtt(platform.provider_id);
                                                                             setActiveProvider(platform);
-                                                                        }
-                                                                    });
-                                                                    return (
-                                                                        <div
-                                                                            ref={ref}
-                                                                            key={platform.provider_id}
-                                                                            onClick={() => {
-                                                                                setActiveOtt(platform.provider_id);
-                                                                                setActiveProvider(platform);
-                                                                            }}
-                                                                            className="shrink-0 w-20 h-20 rounded-2xl overflow-hidden cursor-pointer bg-zinc-900 border border-white/5 hover:border-red-500/50 hover:scale-105 active:scale-95 transition-all duration-300 shadow-lg relative group focus:outline-none"
-                                                                        >
-                                                                            {platform.logo_path ? (
-                                                                                <img
-                                                                                    src={platform.logo_path}
-                                                                                    alt={platform.provider_name}
-                                                                                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                                                                                />
-                                                                            ) : (
-                                                                                <div className="w-full h-full flex items-center justify-center text-center p-2 text-[10px] font-bold text-white uppercase bg-zinc-800">
-                                                                                    {platform.provider_name}
-                                                                                </div>
-                                                                            )}
-                                                                            <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center text-center p-1 text-[9px] font-bold text-white transition-opacity duration-300">
-                                                                                {platform.provider_name}
-                                                                            </div>
-                                                                        </div>
-                                                                    );
-                                                                })}
+                                                                        }}
+                                                                    />
+                                                                ))}
                                                             </div>
                                                         )}
                                                     </div>
@@ -4718,8 +4722,8 @@ export default function App() {
                         }
                     }}
                     apiKey={apiKey}
-                    onPersonClick={setSelectedPersonId}
-                    onCharacterClick={setSelectedCharacterId}
+                    onPersonClick={(id) => { setSelectedMovie(null); setSelectedPersonId(id); }}
+                    onCharacterClick={(id) => { setSelectedMovie(null); setSelectedCharacterId(id); }}
                     onToggleWatchlist={(m) => toggleList(watchlist, setWatchlist, 'movieverse_watchlist', m)}
                     isWatchlisted={watchlist.some(m => m.id === selectedMovie.id)}
                     onToggleFavorite={(m) => toggleList(favorites, setFavorites, 'movieverse_favorites', m)}
@@ -4769,7 +4773,7 @@ export default function App() {
                 }}
                 apiKey={apiKey} 
                 onMovieClick={(m) => { setSelectedPersonId(null); setSelectedMovie(m); }} 
-                onCharacterClick={setSelectedCharacterId}
+                onCharacterClick={(id) => { setSelectedPersonId(null); setSelectedCharacterId(id); }}
             />
             {selectedCharacterId && (
                 <CharacterPage

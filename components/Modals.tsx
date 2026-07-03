@@ -857,7 +857,6 @@ export const PersonPage: React.FC<PersonPageProps> = ({ personId, onClose, apiKe
                                            title="Anime Characters Voiced" 
                                            characters={voicedCharacters} 
                                            onCharacterClick={(charId) => {
-                                               handleClose();
                                                onCharacterClick?.(charId);
                                            }} 
                                        />
@@ -1619,7 +1618,6 @@ export const CharacterPage: React.FC<CharacterPageProps> = ({
                     initial_season: resolvedSeason
                 }));
 
-                handleClose();
                 onMovieClick({
                     id: match.id,
                     media_type: 'tv',
@@ -1654,7 +1652,6 @@ export const CharacterPage: React.FC<CharacterPageProps> = ({
                     backdropPath
                 }));
 
-                handleClose();
                 onMovieClick({
                     id: match.id,
                     media_type: 'movie',
@@ -1680,7 +1677,6 @@ export const CharacterPage: React.FC<CharacterPageProps> = ({
             const person = data.results?.find((item: any) => item.known_for_department === 'Acting');
             const targetPerson = person || data.results?.[0];
             if (targetPerson) {
-                handleClose();
                 onPersonClick?.(targetPerson.id);
             } else {
                 console.warn("No matching TMDB person found for", name);
