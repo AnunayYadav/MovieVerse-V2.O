@@ -2751,13 +2751,13 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                 {displayData.similar.results.slice(0, 16).map(sim => {
                                                     const simWithMediaType = { ...sim, media_type: isTv ? 'tv' as const : 'movie' as const };
                                                     return (
-                                                        <div key={sim.id} onClick={() => { onClose(); onSwitchMovie(simWithMediaType); }}>
+                                                        <div key={sim.id} onClick={() => { onSwitchMovie(simWithMediaType); }}>
                                                             <MovieCard 
                                                                 movie={simWithMediaType} 
-                                                                onClick={() => { onClose(); onSwitchMovie(simWithMediaType); }} 
+                                                                onClick={() => { onSwitchMovie(simWithMediaType); }} 
                                                                 isWatched={false} 
                                                                 onToggleWatched={() => {}} 
-                                                            />
+                                                             />
                                                         </div>
                                                     );
                                                 })}
@@ -2897,7 +2897,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                     {displayData.keywords?.keywords && displayData.keywords.keywords.length > 0 && (
                                         <div className="flex flex-wrap gap-2 pt-2">
                                             {displayData.keywords.keywords.slice(0, 8).map(k => (
-                                                <span key={k.id} onClick={() => { onClose(); onKeywordClick(k); }} className="text-[10px] bg-white/5 hover:bg-white/10 border border-white/5 px-3 py-1.5 rounded-full text-gray-400 hover:text-white cursor-pointer transition-colors">#{k.name}</span>
+                                                <span key={k.id} onClick={() => { onKeywordClick(k); }} className="text-[10px] bg-white/5 hover:bg-white/10 border border-white/5 px-3 py-1.5 rounded-full text-gray-400 hover:text-white cursor-pointer transition-colors">#{k.name}</span>
                                             ))}
                                         </div>
                                     )}
@@ -2921,7 +2921,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                     const partYear = part.release_date?.split('-')[0] || 'TBA';
                                                     return (
                                                         <div key={part.id} ref={isCurrent ? activeTimelineItemRef : null} className="flex flex-col items-center shrink-0 w-32 md:w-44 group">
-                                                            <div onClick={() => { if(!isCurrent) { onClose(); onSwitchMovie(part); } }} className={`relative aspect-[2/3] w-full rounded-2xl overflow-hidden cursor-pointer transition-all duration-500 ease-[cubic-bezier(0.23,1,0.32,1)] mb-8 border-2 ${isCurrent ? 'border-red-500 shadow-[0_0_30px_rgba(239,68,68,0.4)] scale-105 z-20' : 'border-white/5 group-hover:border-white/20 opacity-80 hover:opacity-100'}`}><img src={part.poster_path ? `${TMDB_IMAGE_BASE}${part.poster_path}` : "https://placehold.co/300x450"} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" alt={part.title}/>{isCurrent && <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex items-end justify-center p-3"><span className="text-[10px] font-black uppercase tracking-widest text-white shadow-lg">Viewing Now</span></div>}</div>
+                                                            <div onClick={() => { if(!isCurrent) { onSwitchMovie(part); } }} className={`relative aspect-[2/3] w-full rounded-2xl overflow-hidden cursor-pointer transition-all duration-500 ease-[cubic-bezier(0.23,1,0.32,1)] mb-8 border-2 ${isCurrent ? 'border-red-500 shadow-[0_0_30px_rgba(239,68,68,0.4)] scale-105 z-20' : 'border-white/5 group-hover:border-white/20 opacity-80 hover:opacity-100'}`}><img src={part.poster_path ? `${TMDB_IMAGE_BASE}${part.poster_path}` : "https://placehold.co/300x450"} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" alt={part.title}/>{isCurrent && <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex items-end justify-center p-3"><span className="text-[10px] font-black uppercase tracking-widest text-white shadow-lg">Viewing Now</span></div>}</div>
                                                             <div className={`mb-4 px-3 py-1 rounded-full text-[11px] font-black shadow-lg transition-all duration-500 ${isCurrent ? `${accentBg} text-white` : 'bg-white/5 text-gray-400 group-hover:text-white'}`}>{partYear}</div>
                                                             <div className="relative mb-6"><div className={`w-3 h-3 rounded-full transition-all duration-500 shadow-xl ${isCurrent ? `${accentBg} scale-150 ring-4 ring-white/10` : 'bg-white/20 scale-100 group-hover:bg-white/40'}`} />{isCurrent && <div className={`absolute inset-0 w-3 h-3 rounded-full animate-ping ${accentBg} opacity-75`}></div>}</div>
                                                             <div className="text-center w-full px-2"><h4 className={`font-bold text-xs md:text-sm leading-tight transition-colors duration-300 line-clamp-2 ${isCurrent ? 'text-white' : 'text-gray-500 group-hover:text-gray-300'}`}>{part.title}</h4></div>

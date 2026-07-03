@@ -1234,8 +1234,8 @@ export default function App() {
     useEffect(() => {
         if (isSyncingPath.current) return;
 
-        // Both closed — clear the history stack
-        if (!selectedMovie && !selectedPersonId) {
+        // All closed — clear the history stack
+        if (!selectedMovie && !selectedPersonId && !selectedCharacterId) {
             if (modalHistory.length > 0) {
                 setModalHistory([]);
             }
@@ -1244,13 +1244,13 @@ export default function App() {
 
         const currentTop = modalHistory[modalHistory.length - 1];
 
-        // Movie opened — push or trim to it
-        if (selectedMovie && (!currentTop || currentTop.type !== 'movie' || currentTop.data.id !== selectedMovie.id)) {
-            const idx = modalHistory.findIndex(x => x.type === 'movie' && x.data.id === selectedMovie.id);
+        // Character opened — push or trim to it
+        if (selectedCharacterId && (!currentTop || currentTop.type !== 'character' || currentTop.data !== selectedCharacterId)) {
+            const idx = modalHistory.findIndex(x => x.type === 'character' && x.data === selectedCharacterId);
             if (idx >= 0) {
                 setModalHistory(modalHistory.slice(0, idx + 1));
             } else {
-                setModalHistory(prev => [...prev, { type: 'movie', data: selectedMovie }]);
+                setModalHistory(prev => [...prev, { type: 'character', data: selectedCharacterId }]);
             }
             return;
         }
@@ -1265,7 +1265,18 @@ export default function App() {
             }
             return;
         }
-    }, [selectedMovie, selectedPersonId]);
+
+        // Movie opened — push or trim to it
+        if (selectedMovie && (!currentTop || currentTop.type !== 'movie' || currentTop.data.id !== selectedMovie.id)) {
+            const idx = modalHistory.findIndex(x => x.type === 'movie' && x.data.id === selectedMovie.id);
+            if (idx >= 0) {
+                setModalHistory(modalHistory.slice(0, idx + 1));
+            } else {
+                setModalHistory(prev => [...prev, { type: 'movie', data: selectedMovie }]);
+            }
+            return;
+        }
+    }, [selectedMovie, selectedPersonId, selectedCharacterId]);
 
     // Homepage sections states
     const [activeCategories, setActiveCategories] = useState<any[]>(() => PREDEFINED_CATEGORIES.slice(0, 3));
@@ -1375,6 +1386,7 @@ export default function App() {
         let countryToSelect: { code: string, name: string } | null = null;
         let customCollectionKey: string | null = null;
         let personIdToSelect: number | null = null;
+        let characterIdToSelect: number | null = null;
         let mangaIdToSelect: string | null = null;
         let mangaChapterIdToSelect: string | null = null;
 
@@ -1420,6 +1432,12 @@ export default function App() {
             if (sub === 'watchlist') category = "Watchlist";
             else if (sub === 'favorites') category = "Favorites";
             else if (sub === 'history') category = "History";
+        } else if (path.startsWith('/character/')) {
+            const characterIdStr = parts[2];
+            const characterId = parseInt(characterIdStr, 10);
+            if (!isNaN(characterId)) {
+                characterIdToSelect = characterId;
+            }
         } else if (path.startsWith('/person/')) {
             const personIdStr = parts[2];
             const personId = parseInt(personIdStr, 10);
@@ -1517,12 +1535,15 @@ export default function App() {
         setSelectedPersonId(personIdToSelect);
         setSelectedMangaId(mangaIdToSelect);
         setActiveMangaChapterId(mangaChapterIdToSelect);
+        setSelectedCharacterId(characterIdToSelect);
 
 
         if (movieToSelect) {
             setModalHistory([{ type: 'movie', data: movieToSelect }]);
         } else if (personIdToSelect) {
             setModalHistory([{ type: 'person', data: personIdToSelect }]);
+        } else if (characterIdToSelect) {
+            setModalHistory([{ type: 'character', data: characterIdToSelect }]);
         } else {
             setModalHistory([]);
         }
@@ -1568,6 +1589,8 @@ export default function App() {
             let newPath = '/';
             if (activeWatchPartyRoom) {
                 newPath = `/watch-party/${activeWatchPartyRoom}`;
+            } else if (selectedCharacterId) {
+                newPath = `/character/${selectedCharacterId}`;
             } else if (selectedPersonId) {
                 newPath = `/person/${selectedPersonId}`;
             } else if (selectedMovie) {
@@ -1636,7 +1659,8 @@ export default function App() {
 
             if (window.location.pathname !== newPath && lastPushedPathRef.current !== newPath) {
                 lastPushedPathRef.current = newPath;
-                history.pushState(null, '', newPath);
+                const newIdx = (window.history.state?.idx || 0) + 1;
+                history.pushState({ idx: newIdx }, '', newPath);
             }
         }, 0);
 
@@ -1645,7 +1669,7 @@ export default function App() {
                 clearTimeout(urlPushTimerRef.current);
             }
         };
-    }, [selectedCategory, selectedMovie, selectedPersonId, activeWatchPartyRoom, activeKeyword, tmdbCollectionId, activeCountry, currentCollection, isWatching, watchSeason, watchEpisode, showDetailsCast, showDetailsCrew, activeDetailsTab, selectedMangaId, activeMangaChapterId]);
+    }, [selectedCategory, selectedMovie, selectedPersonId, selectedCharacterId, activeWatchPartyRoom, activeKeyword, tmdbCollectionId, activeCountry, currentCollection, isWatching, watchSeason, watchEpisode, showDetailsCast, showDetailsCrew, activeDetailsTab, selectedMangaId, activeMangaChapterId]);
 
 
     // Dedicated effect to dynamically update document.title based on the active route/state
@@ -4487,11 +4511,16 @@ export default function App() {
                     key={selectedMovie.id}
                     movie={watched.find(m => m.id === selectedMovie.id) || selectedMovie}
                     onClose={() => {
-                        setSelectedMovie(null);
-                        setActiveDetailsTab("overview");
-                        setShowDetailsCast(false);
-                        setShowDetailsCrew(false);
-                        setIsWatching(false);
+                        const canGoBack = window.history.state && typeof window.history.state.idx === 'number' && window.history.state.idx > 0;
+                        if (canGoBack) {
+                            window.history.back();
+                        } else {
+                            setSelectedMovie(null);
+                            setActiveDetailsTab("overview");
+                            setShowDetailsCast(false);
+                            setShowDetailsCrew(false);
+                            setIsWatching(false);
+                        }
                     }}
                     apiKey={apiKey}
                     onPersonClick={setSelectedPersonId}
@@ -4535,7 +4564,14 @@ export default function App() {
             <PersonPage 
                 key={selectedPersonId || 0} 
                 personId={selectedPersonId || 0} 
-                onClose={() => setSelectedPersonId(null)} 
+                onClose={() => {
+                    const canGoBack = window.history.state && typeof window.history.state.idx === 'number' && window.history.state.idx > 0;
+                    if (canGoBack) {
+                        window.history.back();
+                    } else {
+                        setSelectedPersonId(null);
+                    }
+                }}
                 apiKey={apiKey} 
                 onMovieClick={(m) => { setSelectedPersonId(null); setSelectedMovie(m); }} 
                 onCharacterClick={setSelectedCharacterId}
@@ -4544,13 +4580,23 @@ export default function App() {
                 <CharacterPage
                     key={selectedCharacterId}
                     characterId={selectedCharacterId}
-                    onClose={() => setSelectedCharacterId(null)}
+                    onClose={() => {
+                        const canGoBack = window.history.state && typeof window.history.state.idx === 'number' && window.history.state.idx > 0;
+                        if (canGoBack) {
+                            window.history.back();
+                        } else {
+                            setSelectedCharacterId(null);
+                        }
+                    }}
                     apiKey={apiKey}
                     onMovieClick={(m) => {
                         setSelectedCharacterId(null);
                         setSelectedMovie(m);
                     }}
-                    onPersonClick={setSelectedPersonId}
+                    onPersonClick={(id) => {
+                        setSelectedCharacterId(null);
+                        setSelectedPersonId(id);
+                    }}
                 />
             )}
             <ComparisonModal isOpen={isComparisonOpen} onClose={() => setIsComparisonOpen(false)} baseMovie={comparisonBaseMovie} apiKey={apiKey} />
