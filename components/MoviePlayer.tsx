@@ -322,6 +322,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   const isSeekingRef = useRef(false);
   const playerDurationRef = useRef(0);
   const lastFetchedKeyRef = useRef('');
+  const allCineproSourcesRef = useRef<any[]>([]);
   const lastFallbackToNativeVideasyRef = useRef(false);
   const lastTapRef = useRef<{ time: number; x: number } | null>(null);
 
@@ -655,6 +656,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     lastFetchedKeyRef.current = '';
     setFallbackToNativeVideasy(false);
     setFallbackToIframe(false);
+    allCineproSourcesRef.current = [];
   }, [selectedProviderId, tmdbId, currentSeason, currentEpisode]);
 
   // Fetch streaming sources for videasy_adfree, encdec, and cinepro_core
@@ -674,112 +676,138 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
       setAnivexaError(null);
 
       try {
-        const cleanTitle = title || '';
-        const params = new URLSearchParams({
-          tmdbId: String(tmdbId),
-          mediaType: mediaType,
-          seasonId: String(currentSeason),
-          episodeId: String(currentEpisode),
-          title: cleanTitle
-        });
+        let sources: any[] = [];
+        let subs: any[] = [];
 
-        if (anilistId) {
-          params.append('anilistId', String(anilistId));
-        }
-
-        if (selectedProviderId.startsWith('encdec') && selectedEncDecServer) {
-          params.append('server', selectedEncDecServer);
-        }
-
-        let endpoint = '/api/videasy';
-        if (selectedProviderId.startsWith('encdec')) {
-          endpoint = '/api/encdec';
-          const providerType = selectedProviderId.replace('encdec_', '');
-          params.append('provider', providerType);
-        } else if (selectedProviderId === 'cinepro_core') {
-          endpoint = '/api/cinepro';
-        }
-
-        const res = await window.fetch(`${endpoint}?${params.toString()}`);
-        if (!res.ok) {
-          const errData = await res.json().catch(() => ({}));
-          throw new Error(errData.error || "Failed to resolve stream sources from provider.");
-        }
-
-        const payload = await res.json();
-        if (!isMounted) return;
-
-        if (payload.success && payload.data) {
-          if (payload.data.iframeUrl) {
-            setFallbackToIframe(true);
-            setEmbedUrl(payload.data.iframeUrl);
-            setAnivexaLoading(false);
-            return;
-          }
-          let sources = payload.data.sources || [];
-          const subs = payload.data.subtitles || [];
-
-          if (sources.length === 0) {
-            throw new Error("No video streaming sources returned from provider.");
-          }
-
-          if (selectedProviderId === 'cinepro_core') {
-            sources = sources.map((s: any, idx: number) => {
-              const providerName = s.provider?.name || s.provider?.id || `Source ${idx + 1}`;
-              const qualityStr = s.quality || s.label || 'Default';
-              const audioTrack = s.audioTracks?.[0];
-              const langStr = audioTrack ? ` - [${audioTrack.label || audioTrack.language}]` : '';
-              const uniqueLabel = `${qualityStr} (${providerName})${langStr}`;
-              return {
-                ...s,
-                quality: uniqueLabel,
-                label: uniqueLabel
-              };
-            });
-          }
-
-          if (selectedProviderId.startsWith('encdec')) {
-            if (payload.availableServers) {
-              setEncDecServers(payload.availableServers);
-            }
-            if (payload.provider) {
-              const nextFetchKey = `${selectedProviderId}-${tmdbId}-${mediaType}-${currentSeason}-${currentEpisode}-${payload.provider}-${animeLanguage}`;
-              lastFetchedKeyRef.current = nextFetchKey;
-              setSelectedEncDecServer(payload.provider);
-            }
-          }
-
-          setCustomQualities(sources);
-          const uniqueSubs = subs.filter((sub: any, idx: number, self: any[]) => {
-            const label = sub.label || sub.language || sub.lang || '';
-            return self.findIndex(s => (s.label || s.language || s.lang || '') === label) === idx;
-          });
-          setAnivexaSubtitles(uniqueSubs);
-
-          // Select preferred quality or fallback to first
-          const preferredQuality = localStorage.getItem('movieverse_preferred_quality') || '1080p';
-          let matchedSource = sources.find((s: any) => s.quality && s.quality.toLowerCase() === preferredQuality.toLowerCase())
-                              || sources.find((s: any) => (s.quality || s.label || '').toLowerCase().includes('1080'))
-                              || sources[0];
-
-          setSelectedQuality(matchedSource.quality || matchedSource.label || 'Default');
-          const getProxiedUrl = (url: string) => {
-            if ((selectedProviderId === 'videasy_adfree' || selectedProviderId.startsWith('encdec')) && url && url.startsWith('http')) {
-              let ref = '';
-              if (selectedProviderId === 'videasy_adfree') {
-                ref = 'https://player.videasy.to/';
-              } else if (selectedProviderId === 'encdec_hexa') {
-                ref = 'https://hexa.su/';
-              }
-              const refererParam = ref ? `&referer=${encodeURIComponent(ref)}` : '';
-              return `/api/m3u8-proxy?url=${encodeURIComponent(url)}${refererParam}`;
-            }
-            return url;
-          };
-          setAnivexaStreamUrl(getProxiedUrl(matchedSource.url || matchedSource.file));
+        if (selectedProviderId === 'cinepro_core' && allCineproSourcesRef.current.length > 0) {
+          sources = allCineproSourcesRef.current;
         } else {
-          throw new Error(payload.error || "Failed to resolve stream sources.");
+          const cleanTitle = title || '';
+          const params = new URLSearchParams({
+            tmdbId: String(tmdbId),
+            mediaType: mediaType,
+            seasonId: String(currentSeason),
+            episodeId: String(currentEpisode),
+            title: cleanTitle
+          });
+
+          if (anilistId) {
+            params.append('anilistId', String(anilistId));
+          }
+
+          if (selectedProviderId.startsWith('encdec') && selectedEncDecServer) {
+            params.append('server', selectedEncDecServer);
+          }
+
+          let endpoint = '/api/videasy';
+          if (selectedProviderId.startsWith('encdec')) {
+            endpoint = '/api/encdec';
+            const providerType = selectedProviderId.replace('encdec_', '');
+            params.append('provider', providerType);
+          } else if (selectedProviderId === 'cinepro_core') {
+            endpoint = '/api/cinepro';
+          }
+
+          const res = await window.fetch(`${endpoint}?${params.toString()}`);
+          if (!res.ok) {
+            const errData = await res.json().catch(() => ({}));
+            throw new Error(errData.error || "Failed to resolve stream sources from provider.");
+          }
+
+          const payload = await res.json();
+          if (!isMounted) return;
+
+          if (payload.success && payload.data) {
+            if (payload.data.iframeUrl) {
+              setFallbackToIframe(true);
+              setEmbedUrl(payload.data.iframeUrl);
+              setAnivexaLoading(false);
+              return;
+            }
+            sources = payload.data.sources || [];
+            subs = payload.data.subtitles || [];
+
+            if (selectedProviderId === 'cinepro_core') {
+              allCineproSourcesRef.current = sources;
+            }
+
+            const uniqueSubs = subs.filter((sub: any, idx: number, self: any[]) => {
+              const label = sub.label || sub.language || sub.lang || '';
+              return self.findIndex(s => (s.label || s.language || s.lang || '') === label) === idx;
+            });
+            setAnivexaSubtitles(uniqueSubs);
+
+            if (selectedProviderId.startsWith('encdec')) {
+              if (payload.availableServers) {
+                setEncDecServers(payload.availableServers);
+              }
+              if (payload.provider) {
+                const nextFetchKey = `${selectedProviderId}-${tmdbId}-${mediaType}-${currentSeason}-${currentEpisode}-${payload.provider}-${animeLanguage}`;
+                lastFetchedKeyRef.current = nextFetchKey;
+                setSelectedEncDecServer(payload.provider);
+              }
+            }
+          } else {
+            throw new Error(payload.error || "Failed to resolve stream sources.");
+          }
         }
+
+        if (sources.length === 0) {
+          throw new Error("No video streaming sources returned from provider.");
+        }
+
+        if (selectedProviderId === 'cinepro_core') {
+          // 1. Extract unique provider names/ids
+          const uniqueProviders = Array.from(new Set(sources.map((s: any) => s.provider?.name || s.provider?.id || 'Unknown')));
+          setEncDecServers(uniqueProviders);
+
+          // 2. Determine active provider
+          let activeProvider = selectedEncDecServer;
+          if (!activeProvider || !uniqueProviders.includes(activeProvider)) {
+            activeProvider = uniqueProviders[0] || '';
+            setSelectedEncDecServer(activeProvider);
+          }
+
+          // 3. Filter sources by selected provider
+          sources = sources.filter((s: any) => (s.provider?.name || s.provider?.id || 'Unknown') === activeProvider);
+
+          // 4. Map qualities
+          sources = sources.map((s: any, idx: number) => {
+            const qualityStr = s.quality || s.label || 'Default';
+            const audioTrack = s.audioTracks?.[0];
+            const langStr = audioTrack ? ` - [${audioTrack.label || audioTrack.language}]` : '';
+            const uniqueLabel = `${qualityStr}${langStr}`;
+            return {
+              ...s,
+              quality: uniqueLabel,
+              label: uniqueLabel
+            };
+          });
+        }
+
+        setCustomQualities(sources);
+
+        // Select preferred quality or fallback to first
+        const preferredQuality = localStorage.getItem('movieverse_preferred_quality') || '1080p';
+        let matchedSource = sources.find((s: any) => s.quality && s.quality.toLowerCase() === preferredQuality.toLowerCase())
+                            || sources.find((s: any) => (s.quality || s.label || '').toLowerCase().includes('1080'))
+                            || sources[0];
+
+        setSelectedQuality(matchedSource.quality || matchedSource.label || 'Default');
+        const getProxiedUrl = (url: string) => {
+          if ((selectedProviderId === 'videasy_adfree' || selectedProviderId.startsWith('encdec')) && url && url.startsWith('http')) {
+            let ref = '';
+            if (selectedProviderId === 'videasy_adfree') {
+              ref = 'https://player.videasy.to/';
+            } else if (selectedProviderId === 'encdec_hexa') {
+              ref = 'https://hexa.su/';
+            }
+            const refererParam = ref ? `&referer=${encodeURIComponent(ref)}` : '';
+            return `/api/m3u8-proxy?url=${encodeURIComponent(url)}${refererParam}`;
+          }
+          return url;
+        };
+        setAnivexaStreamUrl(getProxiedUrl(matchedSource.url || matchedSource.file));
       } catch (err: any) {
         console.error("Decryptor Error:", err);
         if (isMounted) {
@@ -2465,9 +2493,11 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                           </div>
                         </div>
 
-                        {selectedProviderId.startsWith('encdec') && encDecServers.length > 0 && (
+                        {(selectedProviderId.startsWith('encdec') || selectedProviderId === 'cinepro_core') && encDecServers.length > 0 && (
                           <div className="border-t border-white/5 pt-2.5">
-                            <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block mb-2 px-1">Select Source Server</span>
+                            <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block mb-2 px-1">
+                              {selectedProviderId === 'cinepro_core' ? 'Select Provider' : 'Select Source Server'}
+                            </span>
                             <div className="grid grid-cols-2 gap-1.5">
                               {encDecServers.map((srv) => {
                                 const isActive = selectedEncDecServer === srv;
@@ -2696,9 +2726,11 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                   );
                 })}
                 
-                {selectedProviderId.startsWith('encdec') && encDecServers.length > 0 && (
+                {(selectedProviderId.startsWith('encdec') || selectedProviderId === 'cinepro_core') && encDecServers.length > 0 && (
                   <div className="border-t border-white/5 pt-4 mt-2">
-                    <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block mb-2 px-1">Select Source Server</span>
+                    <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block mb-2 px-1">
+                      {selectedProviderId === 'cinepro_core' ? 'Select Provider' : 'Select Source Server'}
+                    </span>
                     <div className="grid grid-cols-2 gap-2">
                       {encDecServers.map((srv) => {
                         const isActive = selectedEncDecServer === srv;

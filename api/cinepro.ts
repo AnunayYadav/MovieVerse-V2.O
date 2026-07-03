@@ -102,6 +102,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // Rewrite CinePro proxy URLs to project's own /api/m3u8-proxy serverless proxy
     if (scrapersRes && scrapersRes.sources) {
+      // Sort sources so that vidapi is first, then fsharetv/fshare, then icefy, then others
+      scrapersRes.sources.sort((a: any, b: any) => {
+        const aProv = a.provider?.id || '';
+        const bProv = b.provider?.id || '';
+        if (aProv === 'vidapi' && bProv !== 'vidapi') return -1;
+        if (bProv === 'vidapi' && aProv !== 'vidapi') return 1;
+        if (aProv === 'fsharetv' && bProv !== 'fsharetv') return -1;
+        if (bProv === 'fsharetv' && aProv !== 'fsharetv') return 1;
+        if (aProv === 'fshare' && bProv !== 'fshare') return -1;
+        if (bProv === 'fshare' && aProv !== 'fshare') return 1;
+        if (aProv === 'icefy' && bProv !== 'icefy') return -1;
+        if (bProv === 'icefy' && aProv !== 'icefy') return 1;
+        return 0;
+      });
+
       scrapersRes.sources = scrapersRes.sources.map((s: any) => {
         if (s.url && s.url.includes('data=')) {
           try {
