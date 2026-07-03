@@ -1,0 +1,114 @@
+name: New Provider Request
+description: Request a new streaming provider to be added to CinePro Core
+title: 'Provider Request: '
+labels: ['🌟enhancement', '📀provider', '🔺needs-triage']
+
+body:
+    - type: markdown
+      attributes:
+          value: |-
+              Hey There! 👋 Thanks for suggesting a new provider for CinePro Core! 🚀
+              Before submitting your request, please ensure the provider is not already supported.
+
+              Please fill out this template to help us understand your request better.
+
+              > [!NOTE]
+              > Before submitting, please check if your provider request is already suggested in the [existing issues](https://github.com/cinepro-org/core/issues).
+
+    - type: checkboxes
+      attributes:
+          label: Prerequisites
+          description: '**Please check these before submitting:**'
+          options:
+              - label: I have checked the existing issues and this is not a duplicate
+                required: true
+              - label: I have read the [README.md](https://github.com/cinepro-org/core/blob/main/README.md) and ensured that this provider is not already supported
+                required: true
+              - label: I have reviewed the [OMSS Framework documentation](https://github.com/omss-spec/framework) to understand provider implementation
+                required: true
+              - label: I have included all relevant details in this request
+                required: true
+              - label: I did not answer truthfully to **ALL** the above checkboxes
+                required: false
+
+    - type: input
+      attributes:
+          label: Provider Name
+          description: What is the name of the streaming provider you want to add?
+          placeholder: 'VidSrc, VidPlay, MyProvider, etc.'
+      validations:
+          required: true
+
+    - type: input
+      attributes:
+          label: Provider URL
+          description: What is the main website or base URL for the provider?
+          placeholder: 'https://example-provider.com'
+      validations:
+          required: true
+
+    - type: dropdown
+      attributes:
+          label: Content Type Support
+          description: What types of content does this provider support?
+          multiple: true
+          options:
+              - Movies
+              - TV Shows
+              - Subtitles
+              - Other (please specify in the description)
+      validations:
+          required: true
+
+    - type: textarea
+      attributes:
+          label: Provider Description
+          description: Briefly describe the provider and what streaming sources it offers.
+          placeholder: 'Describe the provider, its quality, reliability, and why it should be added to CinePro Core.'
+      validations:
+          required: true
+
+    - type: textarea
+      attributes:
+          label: Implementation Details
+          description: If you have technical knowledge, describe how this provider could be integrated. Include API patterns, endpoints, or URL structures.
+          placeholder: |-
+              Provide any technical details you know about the provider:
+
+              **Movie URL Pattern:**
+              ```
+              https://api.provider.com/movie/{tmdb_id}
+              ```
+
+              **TV Show URL Pattern:**
+              ```
+              https://api.provider.com/tv/{tmdb_id}/season/{season}/episode/{episode}
+              ```
+
+              **Required Headers:**
+              - Referer: https://provider.com
+              - User-Agent: ...
+
+              **Response Format:** (JSON, M3U8, MP4, etc.)
+      validations:
+          required: false
+
+    - type: textarea
+      attributes:
+          label: Additional Context
+          description: Add any other context, screenshots, code snippets, or network inspection findings about the provider request here.
+          placeholder: |-
+              <!-- Optional: Include links, code snippets, browser DevTools findings, or additional information -->
+
+              **Example:** If you've inspected the provider's network requests, share relevant details here.
+          render: markdown
+      validations:
+          required: false
+
+    - type: checkboxes
+      attributes:
+          label: Support
+          description: 'Are you willing to help with the implementation of this provider?'
+          options:
+              - label: Yes, I can help with the implementation
+                required: false

@@ -1,0 +1,24 @@
+{
+    "name": "cinepro-core",
+    "main": "dist/server.js",
+    "compatibility_date": "2026-05-24",
+    "build": {
+        "command": "npm install && npm run build"
+    },
+    "workers_dev": true,
+    "observability": {
+        "enabled": true
+    },
+    "vars": {
+        "HOST": "0.0.0.0",
+        "PORT": "3000",
+        "NODE_ENV": "production",
+        "CACHE_TYPE": "memory",
+        "STREMIO_ADDON": "true",
+        "CORS_ORIGIN": "*",
+        "MCP_ENABLED": "true"
+    },
+    "secrets": {
+        "required": ["TMDB_API_KEY"]
+    }
+}

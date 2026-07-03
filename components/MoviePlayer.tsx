@@ -89,6 +89,13 @@ const getSubtitleCode = (sub: string, format: 'name' | 'iso') => {
 
 export const PROVIDERS: Provider[] = [
   {
+    id: 'cinepro_core',
+    name: 'CinePro Core (Multi-Source)',
+    getMovieUrl: () => '',
+    getTvUrl: () => '',
+    supportsPostMessage: true
+  },
+  {
     id: 'videasy_adfree',
     name: 'VidEasy (HLS Ad-Free)',
     getMovieUrl: () => '',
@@ -310,7 +317,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   const isCineSrcCustom = selectedProviderId === 'cinesrc';
   const isVidFastCustom = selectedProviderId === 'vidfast';
   const isIframeCustomControls = isCineSrcCustom || isVidFastCustom;
-  const useCustomControls = (selectedProviderId === 'videasy_adfree' || selectedProviderId.startsWith('encdec') || isIframeCustomControls) && !(selectedProviderId === 'videasy_adfree' && fallbackToNativeVideasy) && !fallbackToIframe;
+  const useCustomControls = (selectedProviderId === 'videasy_adfree' || selectedProviderId === 'cinepro_core' || selectedProviderId.startsWith('encdec') || isIframeCustomControls) && !(selectedProviderId === 'videasy_adfree' && fallbackToNativeVideasy) && !fallbackToIframe;
   const isPlayingRef = useRef(false);
   const isSeekingRef = useRef(false);
   const playerDurationRef = useRef(0);
@@ -650,9 +657,9 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     setFallbackToIframe(false);
   }, [selectedProviderId, tmdbId, currentSeason, currentEpisode]);
 
-  // Fetch streaming sources for videasy_adfree and encdec
+  // Fetch streaming sources for videasy_adfree, encdec, and cinepro_core
   useEffect(() => {
-    if (selectedProviderId !== 'videasy_adfree' && !selectedProviderId.startsWith('encdec')) return;
+    if (selectedProviderId !== 'videasy_adfree' && !selectedProviderId.startsWith('encdec') && selectedProviderId !== 'cinepro_core') return;
 
     let isMounted = true;
     const fetchDecryptedStream = async () => {
@@ -689,12 +696,14 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
           endpoint = '/api/encdec';
           const providerType = selectedProviderId.replace('encdec_', '');
           params.append('provider', providerType);
+        } else if (selectedProviderId === 'cinepro_core') {
+          endpoint = '/api/cinepro';
         }
 
         const res = await window.fetch(`${endpoint}?${params.toString()}`);
         if (!res.ok) {
           const errData = await res.json().catch(() => ({}));
-          throw new Error(errData.error || "Failed to resolve decrypted stream sources.");
+          throw new Error(errData.error || "Failed to resolve stream sources from provider.");
         }
 
         const payload = await res.json();
@@ -707,11 +716,26 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
             setAnivexaLoading(false);
             return;
           }
-          const sources = payload.data.sources || [];
+          let sources = payload.data.sources || [];
           const subs = payload.data.subtitles || [];
 
           if (sources.length === 0) {
-            throw new Error("No video streaming sources returned from decryptor.");
+            throw new Error("No video streaming sources returned from provider.");
+          }
+
+          if (selectedProviderId === 'cinepro_core') {
+            sources = sources.map((s: any, idx: number) => {
+              const providerName = s.provider?.name || s.provider?.id || `Source ${idx + 1}`;
+              const qualityStr = s.quality || s.label || 'Default';
+              const audioTrack = s.audioTracks?.[0];
+              const langStr = audioTrack ? ` - [${audioTrack.label || audioTrack.language}]` : '';
+              const uniqueLabel = `${qualityStr} (${providerName})${langStr}`;
+              return {
+                ...s,
+                quality: uniqueLabel,
+                label: uniqueLabel
+              };
+            });
           }
 
           if (selectedProviderId.startsWith('encdec')) {
@@ -754,7 +778,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
           };
           setAnivexaStreamUrl(getProxiedUrl(matchedSource.url || matchedSource.file));
         } else {
-          throw new Error(payload.error || "Decryption failed.");
+          throw new Error(payload.error || "Failed to resolve stream sources.");
         }
       } catch (err: any) {
         console.error("Decryptor Error:", err);
@@ -788,7 +812,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   }, [currentSeason, currentEpisode, onEpisodeChange]);
 
   useEffect(() => {
-    if (!isAutoplayEnabled || !hasNextEpisode || (selectedProviderId !== 'videasy_adfree' && !selectedProviderId.startsWith('encdec'))) return;
+    if (!isAutoplayEnabled || !hasNextEpisode || (selectedProviderId !== 'videasy_adfree' && !selectedProviderId.startsWith('encdec') && selectedProviderId !== 'cinepro_core')) return;
     
     if (playerDuration > 0 && playerCurrentTime >= playerDuration - 20 && !showNextCountdown) {
       setShowNextCountdown(true);
@@ -1835,7 +1859,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
         }
       `}</style>
       <div className="flex-1 relative w-full h-full z-0 overflow-hidden bg-black">
-        {(selectedProviderId === 'videasy_adfree' || selectedProviderId.startsWith('encdec')) && !fallbackToIframe ? (
+        {(selectedProviderId === 'videasy_adfree' || selectedProviderId === 'cinepro_core' || selectedProviderId.startsWith('encdec')) && !fallbackToIframe ? (
           <div className="w-full h-full absolute inset-0 bg-zinc-950 z-0 flex items-center justify-center">
             {anivexaLoading && !anivexaStreamUrl && (
               <div className="absolute inset-0 flex items-center justify-center bg-black z-30 animate-in fade-in duration-250">
@@ -2478,7 +2502,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                                   <button
                                     key={q.quality}
                                     onClick={() => {
-                                      setSelectedQuality(q.quality);
+                                      handleQualityChange(q.quality);
                                       if (q.index !== undefined && hlsRef.current) {
                                         hlsRef.current.currentLevel = q.index;
                                       }

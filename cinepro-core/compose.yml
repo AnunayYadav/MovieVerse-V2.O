@@ -1,0 +1,36 @@
+services:
+    cinepro-core:
+        build: .
+        ports:
+            - '3000:3000'
+        environment:
+            - HOST=0.0.0.0
+            - PORT=3000
+            - NODE_ENV=production
+            - TMDB_API_KEY=${TMDB_API_KEY}
+            - TMDB_CACHE_TTL=86400
+            - CACHE_TYPE=redis
+            - REDIS_HOST=redis
+            - REDIS_PORT=6379
+        depends_on:
+            - redis
+        restart: unless-stopped
+        networks:
+            - omss-network
+
+    redis:
+        image: redis:7-alpine
+        ports:
+            - '6379:6379'
+        volumes:
+            - redis-data:/data
+        restart: unless-stopped
+        networks:
+            - omss-network
+
+volumes:
+    redis-data:
+
+networks:
+    omss-network:
+        driver: bridge

@@ -1,0 +1,97 @@
+name: Feature Request
+description: Suggest a new feature or enhancement for CinePro Core
+title: 'Feat: '
+labels: ['🌟enhancement', '🔺needs-triage']
+
+body:
+    - type: markdown
+      attributes:
+          value: |-
+              Hey There! 👋 Thanks for suggesting a feature to make CinePro Core better! 🚀
+              Before submitting your feature request, please ensure it hasn't been suggested before.
+
+              Please fill out this template to help us understand your suggestion better.
+
+              > [!NOTE]
+              > Before submitting, please check if your feature request is already suggested in the [existing issues](https://github.com/cinepro-org/core/issues).
+
+              > [!IMPORTANT]
+              > Cinepro Core is based on the @omss/framework, so features that align with the OMSS specification or the OMSS framework are to be opened in the [OMSS Framework repository](https://github.com/omss-spec/framework/issues/new) or [OMSS Specification repository](https://github.com/omss-spec/spec/issues/new), not here. Please ensure your feature request is relevant to **CinePro Core** and not already covered by the OMSS specification or framework.
+
+    - type: checkboxes
+      attributes:
+          label: Prerequisites
+          description: '**Please check these before submitting:**'
+          options:
+              - label: I have checked the existing issues and this is not a duplicate
+                required: true
+              - label: I have read the [README.md](https://github.com/cinepro-org/core/blob/main/README.md) to ensure this feature doesn't already exist
+                required: true
+              - label: This feature aligns with the OMSS specification or improves the core backend
+                required: true
+              - label: This feature would benefit the majority of CinePro Core users
+                required: true
+              - label: I have considered the technical implications of this feature
+                required: true
+              - label: I did not answer truthfully to **ALL** the above checkboxes
+                required: false
+
+    - type: dropdown
+      attributes:
+          label: Feature Category
+          description: What category does this feature fall under?
+          options:
+              - Provider System Enhancement
+              - Caching & Performance
+              - API & Endpoints
+              - Error Handling & Diagnostics
+              - Configuration & Setup
+              - Documentation
+              - Other
+      validations:
+          required: true
+
+    - type: textarea
+      attributes:
+          label: Feature Description
+          description: Describe the feature you'd like to see in CinePro Core
+          placeholder: |-
+              Provide a clear and detailed description of what you want to happen.
+
+              **Problem:** What problem does this feature solve?
+              **Solution:** How would this feature improve CinePro Core?
+      validations:
+          required: true
+
+    - type: textarea
+      attributes:
+          label: Proposed Implementation
+          description: If you have technical knowledge, describe how this feature could be implemented
+          placeholder: |-
+              Technical details, code structure, dependencies, etc.
+
+              ```typescript
+              // Example code or pseudocode here
+              export class EnhancedFeature extends BaseProvider {
+                  // Implementation details
+              }
+              ```
+      validations:
+          required: false
+
+    - type: textarea
+      attributes:
+          label: Additional Context
+          description: Add any other context, screenshots, or examples about the feature request here.
+          placeholder: '<!-- Optional: Include mockups, links, use cases, or additional information -->'
+          render: markdown
+      validations:
+          required: false
+
+    - type: checkboxes
+      attributes:
+          label: Confirmation
+          description: 'Are you sure that this feature request is relevant to CinePro Core and not to be opened in the OMSS Framework or OMSS Specification repositories?'
+          options:
+              - label: Yes, I confirm this feature request is relevant to CinePro Core
+                required: true

@@ -1,0 +1,26 @@
+services:
+    - type: web
+      runtime: 'node'
+      repo: https://github.com/cinepro-org/core
+      name: cinepro-core
+      plan: free
+      autoDeploy: false
+      numInstances: 1
+      buildCommand: npm install && npm run build
+      startCommand: npm run start
+
+      envVars:
+          - key: NODE_ENV
+            value: 'production'
+          - key: CACHE_TYPE
+            value: 'memory'
+          - key: STREMIO_ADDON
+            value: 'true'
+          - key: CORS_ORIGIN
+            value: '*'
+          - key: MCP_ENABLED
+            value: 'true'
+          - key: TMDB_API_KEY
+            sync: false
+          - key: REDIS_PASSWORD
+            sync: false

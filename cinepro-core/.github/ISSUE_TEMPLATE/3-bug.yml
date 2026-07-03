@@ -1,0 +1,129 @@
+name: Bug Report
+description: Report a bug or issue with CinePro Core
+title: 'Bug: '
+labels: ['🐛bug', '🔺needs-triage']
+
+body:
+    - type: markdown
+      attributes:
+          value: |-
+              Hey There! 👋 Thanks for reporting a bug to help make CinePro Core better! 🎉
+              Before you submit your bug report, please ensure that you have the latest version of CinePro Core installed.
+
+              Please fill out this template to help us understand and fix the issue you're experiencing.
+
+              > [!NOTE]
+              > Before reporting, please check if your issue is already reported in the [existing issues](https://github.com/cinepro-org/core/issues).
+
+    - type: checkboxes
+      attributes:
+          label: Prerequisites
+          description: '**Please check these before submitting:**'
+          options:
+              - label: I have checked the existing issues and this is not a duplicate
+                required: true
+              - label: I have read the [README.md](https://github.com/cinepro-org/core/blob/main/README.md) and followed the installation instructions
+                required: true
+              - label: I am using the latest version of CinePro Core
+                required: true
+              - label: I have configured my `.env` file correctly (especially TMDB_API_KEY)
+                required: true
+              - label: I have tested this with a minimal setup (no additional modifications)
+                required: true
+              - label: I have included all relevant details in this report
+                required: true
+              - label: I did not answer truthfully to **ALL** the above checkboxes
+                required: false
+
+    - type: textarea
+      attributes:
+          label: Environment
+          description: Tell us about your environment where the bug occurs.
+          placeholder: |-
+              - Operating System: (e.g., Windows 11, macOS 14, Ubuntu 22.04)
+              - Node.js version: (run `node --version`)
+              - CinePro Core version: (from package.json)
+              - @omss/framework version: (from package.json)
+              - Cache Type: (memory/redis)
+              - Using Proxy/VPN: (yes/no)
+          render: yaml
+      validations:
+          required: true
+
+    - type: dropdown
+      attributes:
+          label: Bug Category
+          description: What component is this bug related to?
+          options:
+              - Specific Provider
+              - Server/API
+              - Caching System
+              - TMDB Integration
+              - Proxy System
+              - Configuration/Setup
+              - Other
+      validations:
+          required: true
+
+    - type: input
+      attributes:
+          label: Provider Name (if applicable)
+          description: If this bug is provider-specific, which provider is affected?
+          placeholder: 'VidSrc, Example Provider, etc. (or N/A)'
+      validations:
+          required: true
+
+    - type: input
+      attributes:
+          label: TMDB ID
+          description: Which TMDB ID is this issue related to? If not applicable, use 'N/A'
+          placeholder: '329865 (movie) or 87108/1/8 (tv: id/season/episode)'
+      validations:
+          required: true
+
+    - type: textarea
+      attributes:
+          label: Expected Behavior
+          description: What did you expect to happen?
+          placeholder: 'Describe what you expected to happen when using CinePro Core...'
+      validations:
+          required: true
+
+    - type: textarea
+      attributes:
+          label: Actual Behavior
+          description: What actually happened? Include any error messages or logs.
+          placeholder: |-
+              Describe what actually happened...
+
+              If there are error messages or logs, include them here:
+              ```
+              Error: Provider failed to fetch sources
+              at ProviderClass.getMovieSources (...)
+              ```
+      validations:
+          required: true
+
+    - type: textarea
+      attributes:
+          label: Steps to Reproduce
+          description: Provide detailed steps to reproduce the issue
+          placeholder: |-
+              1. Start the server with `npm run dev`
+              2. Make a request to `/v1/movies/329865`
+              3. Observe error in response
+              4. ...
+      validations:
+          required: true
+
+    - type: textarea
+      attributes:
+          label: Additional Information
+          description: Provide any additional information that might help us understand the issue better.
+          placeholder: |-
+              <!-- Optional: Include screenshots, network logs, or any other relevant details -->
+
+              **Example:** If you've checked the provider's website manually, does it work? Any recent changes you're aware of?
+          render: markdown
+      validations:
+          required: false
