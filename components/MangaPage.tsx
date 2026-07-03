@@ -56,6 +56,7 @@ interface MangaPageProps {
   onMovieClick: (m: any) => void; // Unused but kept to match props shape of other tabs
   searchQuery?: string;
   onSearchClear?: () => void;
+  isAiSearchActive?: boolean;
 }
 
 const MANGA_GENRES = [
@@ -164,7 +165,8 @@ export const MangaPage: React.FC<MangaPageProps> = ({
   activeChapterId,
   onChapterSelect,
   searchQuery: parentSearchQuery,
-  onSearchClear
+  onSearchClear,
+  isAiSearchActive
 }) => {
   const [trending, setTrending] = useState<MangaDexManga[]>([]);
   const [latest, setLatest] = useState<MangaDexManga[]>([]);
@@ -2062,8 +2064,27 @@ export const MangaPage: React.FC<MangaPageProps> = ({
       setSearchLoading(true);
       const ratings = getContentRatingParams();
       try {
-        const data = await fetchMangaDex(`/manga?limit=24&title=${encodeURIComponent(searchQuery)}&includes[]=cover_art${ratings}`);
-        if (isMounted) setSearchResults(data.data || []);
+        if (isAiSearchActive) {
+          const aiRes = await fetch(`/api/ai-search?query=${encodeURIComponent(searchQuery)}&category=manga`);
+          if (!aiRes.ok) throw new Error("AI search failed");
+          const aiData = await aiRes.json();
+          const titles = aiData.results || [];
+
+          const promises = titles.map(async (t: string) => {
+            try {
+              const data = await fetchMangaDex(`/manga?limit=1&title=${encodeURIComponent(t)}&includes[]=cover_art${ratings}`);
+              return data.data?.[0];
+            } catch {
+              return null;
+            }
+          });
+          const results = await Promise.all(promises);
+          const validResults = results.filter(m => m !== null && m !== undefined);
+          if (isMounted) setSearchResults(validResults);
+        } else {
+          const data = await fetchMangaDex(`/manga?limit=24&title=${encodeURIComponent(searchQuery)}&includes[]=cover_art${ratings}`);
+          if (isMounted) setSearchResults(data.data || []);
+        }
       } catch (err) {
         console.error("Manga search failed:", err);
       } finally {
@@ -2072,7 +2093,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
     };
     runSearch();
     return () => { isMounted = false; };
-  }, [searchQuery, fetchMangaDex, getContentRatingParams]);
+  }, [searchQuery, isAiSearchActive, fetchMangaDex, getContentRatingParams]);
 
   // Load Chapter list on Details open
   useEffect(() => {

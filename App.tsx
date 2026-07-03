@@ -1122,6 +1122,7 @@ export default function App() {
     const [activeCategoryRows, setActiveCategoryRows] = useState<any[]>([]);
     const [franchiseList, setFranchiseList] = useState<any[]>([]);
     const [searchQuery, setSearchQuery] = useState("");
+    const [isAiSearchActive, setIsAiSearchActive] = useState(false);
     const [searchSuggestions, setSearchSuggestions] = useState<string[]>([]);
     const [showSuggestions, setShowSuggestions] = useState(false);
     const [searchHistory, setSearchHistory] = useState<string[]>([]);
@@ -2421,6 +2422,44 @@ export default function App() {
                 }
             }
             if (searchQuery) {
+                if (isAiSearchActive) {
+                    try {
+                        const aiRes = await fetch(`/api/ai-search?query=${encodeURIComponent(searchQuery)}&category=${selectedCategory}`);
+                        if (!aiRes.ok) throw new Error("AI search failed");
+                        const aiData = await aiRes.json();
+                        const titles = aiData.results || [];
+
+                        const promises = titles.map(async (t: string) => {
+                            const searchEndpoint = selectedCategory === "People" ? "/search/person" : "/search/multi";
+                            const searchParams = new URLSearchParams({
+                                api_key: apiKey,
+                                query: t,
+                                language: "en-US",
+                                include_adult: "false"
+                            });
+                            try {
+                                const searchRes = await fetch(`${TMDB_BASE_URL}${searchEndpoint}?${searchParams.toString()}`, { signal: controller.signal });
+                                if (searchRes.ok) {
+                                    const searchData = await searchRes.json();
+                                    return searchData.results?.[0];
+                                }
+                            } catch (e) {
+                                console.warn(`TMDB fetch failed for title ${t}:`, e);
+                            }
+                            return null;
+                        });
+
+                        const results = await Promise.all(promises);
+                        const validResults = results.filter((r: any) => r !== null && r !== undefined);
+                        setMovies(validResults);
+                        setLoading(false);
+                        setHasMore(false);
+                        return;
+                    } catch (err) {
+                        console.error("AI Search Mode failed, falling back to standard search:", err);
+                    }
+                }
+
                 endpoint = selectedCategory === "People" ? "/search/person" : "/search/multi";
                 params.delete("certification_country");
                 params.delete("certification.lte");
@@ -2636,7 +2675,7 @@ export default function App() {
         } finally {
             if (!controller.signal.aborted) setLoading(false);
         }
-    }, [apiKey, searchQuery, selectedCategory, sortOption, appRegion, currentCollection, filterPeriod, selectedLanguage, selectedRegion, userProfile, maturityRating, sortMovies, tmdbCollectionId, activeKeyword, activeCountry, comingFilter, franchiseSearchQuery, dynamicFranchiseIds]);
+    }, [apiKey, searchQuery, selectedCategory, sortOption, appRegion, currentCollection, filterPeriod, selectedLanguage, selectedRegion, userProfile, maturityRating, sortMovies, tmdbCollectionId, activeKeyword, activeCountry, comingFilter, franchiseSearchQuery, dynamicFranchiseIds, isAiSearchActive]);
 
     useEffect(() => {
         if (selectedCategory === "Categories") return;
@@ -3634,7 +3673,7 @@ export default function App() {
                                     ref={searchInputRef}
                                     type="text"
                                     placeholder={selectedCategory === "Categories" ? (window.innerWidth < 640 ? "Search..." : "Search categories...") : (window.innerWidth < 640 ? "Search..." : "Search... (Press /)")}
-                                    className={`w-full bg-[#1a1a1a] border border-white/5 rounded-full py-1.5 md:py-2 pl-8 md:pl-10 pr-4 text-xs md:text-sm focus:outline-none transition-all text-white placeholder-gray-500 ${loading && searchQuery ? "border-opacity-50" : "focus:border-white/20"}`}
+                                    className={`w-full bg-[#1a1a1a] border border-white/5 rounded-full py-1.5 md:py-2 pl-8 md:pl-10 pr-9 md:pr-11 text-xs md:text-sm focus:outline-none transition-all text-white placeholder-gray-500 ${isAiSearchActive ? "ai-search-glow" : (loading && searchQuery ? "border-opacity-50" : "focus:border-white/20")}`}
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value)}
                                     onFocus={() => setShowSuggestions(true)}
@@ -3643,6 +3682,13 @@ export default function App() {
                                     onSubmit={() => handleSearchSubmit(searchQuery)}
                                 />
                                 <Search className={`absolute left-2.5 md:left-3 top-1/2 -translate-y-1/2 text-gray-500 transition-colors ${loading && searchQuery ? "text-white animate-pulse" : "group-focus-within:text-white"}`} size={14} />
+                                <button
+                                    onClick={() => setIsAiSearchActive(!isAiSearchActive)}
+                                    className={`absolute right-2.5 md:right-3 top-1/2 -translate-y-1/2 p-1 rounded-full transition-all duration-300 ${isAiSearchActive ? 'text-purple-400 bg-purple-500/10 shadow-[0_0_10px_rgba(168,85,247,0.3)] hover:text-purple-300' : 'text-gray-500 hover:text-gray-300'}`}
+                                    title="Toggle AI Semantic Search"
+                                >
+                                    <Sparkles size={14} className={isAiSearchActive ? 'animate-pulse' : ''} />
+                                </button>
                             </div>
 
                             <div className="flex items-center gap-3">
@@ -3839,6 +3885,7 @@ export default function App() {
                             onMovieClick={setSelectedMovie}
                             searchQuery={searchQuery}
                             onSearchClear={() => setSearchQuery('')}
+                            isAiSearchActive={isAiSearchActive}
                         />
 
                     ) : selectedCategory === "Explore" && !searchQuery ? (

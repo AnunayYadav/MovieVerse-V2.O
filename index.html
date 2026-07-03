@@ -128,6 +128,25 @@
       animation: shimmer 2s infinite;
       content: '';
     }
+
+    /* AI search glow effect */
+    .ai-search-glow {
+      border-color: transparent !important;
+      box-shadow: 0 0 10px rgba(168, 85, 247, 0.4), 0 0 20px rgba(236, 72, 153, 0.2) !important;
+      background: linear-gradient(#1a1a1a, #1a1a1a) padding-box,
+                  linear-gradient(135deg, #a855f7, #ec4899, #3b82f6) border-box !important;
+      border: 1.5px solid transparent !important;
+      animation: ai-glow-pulse 2s infinite alternate !important;
+    }
+
+    @keyframes ai-glow-pulse {
+      0% {
+        box-shadow: 0 0 10px rgba(168, 85, 247, 0.4), 0 0 20px rgba(236, 72, 153, 0.2);
+      }
+      100% {
+        box-shadow: 0 0 15px rgba(168, 85, 247, 0.6), 0 0 30px rgba(236, 72, 153, 0.4), 0 0 10px rgba(59, 130, 246, 0.3);
+      }
+    }
   </style>
   <script type="importmap">
 {
