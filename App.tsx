@@ -4460,7 +4460,7 @@ export default function App() {
                                                                     )}
                                                                 </div>
                                                             ))}
-                                                            {loading && [...Array(12)].map((_, i) => <MovieSkeleton key={`skel-${i}`} />)}
+                                                            {loading && [...Array(12)].map((_, i) => <MovieSkeleton key={`skel-${i}`} isAi={isAiSearchActive} />)}
                                                         </div>
                                                     </>
                                                 )}

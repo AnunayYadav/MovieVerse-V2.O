@@ -77,8 +77,15 @@ export const generateSmartRecommendations = async (query: string): Promise<{ mov
   try {
       const ai = new GoogleGenAI({ apiKey: getApiKey() });
       const prompt = `
-        Act as a premium media recommendation engine. The user searched for: "${query}".
+        Act as an extremely strict and aggressive premium media recommendation engine. The user searched for: "${query}".
         
+        YOUR MAIN RULE:
+        You MUST adhere 100% strictly and aggressively to the user's thoughts, constraints, genres, moods, themes, or years specified in the query.
+        - If the user specifies or implies a category/genre like "horror", EVERY SINGLE title you return MUST be a horror movie or TV show. Absolutely NO exceptions. Do NOT return standard dramas, thrillers, or general movies if they do not fit the horror category.
+        - If the user specifies a year, decade, or director, EVERY SINGLE title MUST fit that constraint.
+        - Do NOT make loose associations. Stick to the literal and semantic meaning of the query. 
+        - Do NOT try to be helpful by adding popular movies/shows that are outside the query's criteria.
+
         1.  **Analyze Intent**: Is it a specific title, a genre (e.g., "90s action"), a mood (e.g., "sad movies"), or a plot?
         2.  **Exact Match Priority**: IF the query looks like a specific Movie or TV Show name (e.g. "Inception", "Breaking Bad"), your FIRST recommendation MUST be that exact title.
         3.  **Select Best Fits**: Identify 15-20 specific, distinct, and popular titles (Movies OR TV Shows) that best match this query. 
@@ -88,7 +95,7 @@ export const generateSmartRecommendations = async (query: string): Promise<{ mov
 
       // Use 'gemini-3-flash-preview' for search/recommendation tasks
       const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
+        model: 'gemini-3.1-flash-lite',
         contents: prompt,
         config: {
             responseMimeType: 'application/json',
@@ -121,7 +128,7 @@ export const getSimilarMoviesAI = async (title: string, year: string): Promise<s
         const prompt = `Recommend 5 movies similar to "${title}" (${year}). Focus on genre, director style, and tone. Return a list of strings.`;
         
         const response = await ai.models.generateContent({
-            model: 'gemini-3-flash-preview',
+            model: 'gemini-3.1-flash-lite',
             contents: prompt,
             config: { 
                 responseMimeType: 'application/json',
@@ -152,7 +159,7 @@ export const getSearchSuggestions = async (query: string): Promise<string[]> => 
       `;
       
       const response = await ai.models.generateContent({
-          model: 'gemini-3-flash-preview',
+          model: 'gemini-3.1-flash-lite',
           contents: prompt,
           config: { 
               responseMimeType: 'application/json',

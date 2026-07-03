@@ -25,30 +25,56 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   let prompt = "";
   if (cat === 'manga') {
-    prompt = `You are a semantic manga search assistant. The user is searching for manga with this query: "${query}". 
-Return a JSON array of string containing the top 8-12 manga titles matching this query. 
+    prompt = `You are an extremely strict and aggressive semantic manga search assistant. The user is searching for manga matching this query: "${query}". 
+YOUR MAIN RULE:
+You MUST adhere 100% strictly and aggressively to the user's thoughts, constraints, genres, moods, themes, or years specified in the query. 
+- If the user specifies or implies a category/genre like "horror", EVERY SINGLE title you return MUST be a horror manga. Absolutely NO exceptions. Do NOT return standard action, romance, or general manga if they do not fit the horror category.
+- If the user specifies a year, decade, or status, EVERY SINGLE title MUST fit that constraint.
+- Do NOT make loose associations. Stick to the literal and semantic meaning of the query. 
+- Do NOT try to be helpful by adding popular manga that are outside the query's criteria.
+
+Return a JSON array of strings containing the top 8-12 manga titles matching this query. 
 Only return the JSON array, with no other text, markdown formatting, or explanation. 
 Example format: ["Berserk", "Monster", "Death Note"]`;
   } else if (cat === 'people') {
-    prompt = `You are a semantic entertainment search assistant. The user is looking for actors/creators with this query: "${query}". 
-Return a JSON array of string containing the top 5-8 names of people matching this query. 
+    prompt = `You are an extremely strict and aggressive semantic entertainment search assistant. The user is looking for actors/creators matching this query: "${query}". 
+YOUR MAIN RULE:
+You MUST adhere 100% strictly and aggressively to the user's thoughts, constraints, genres, roles, or characteristics specified in the query. 
+- If the user specifies a constraint (e.g. "horror actors", "directors of sci-fi"), EVERY SINGLE name you return MUST strictly fit that description. Absolutely NO exceptions.
+- Do NOT make loose associations or return generic famous names that do not fit.
+
+Return a JSON array of strings containing the top 5-8 names of people matching this query. 
 Only return the JSON array, with no other text, markdown formatting, or explanation. 
 Example format: ["Leonardo DiCaprio", "Christopher Nolan"]`;
   } else if (cat === 'anime') {
-    prompt = `You are a semantic anime search assistant. The user is searching for anime with this query: "${query}". 
-Return a JSON array of string containing the top 8-12 anime series/movie titles matching this query. 
+    prompt = `You are an extremely strict and aggressive semantic anime search assistant. The user is searching for anime matching this query: "${query}". 
+YOUR MAIN RULE:
+You MUST adhere 100% strictly and aggressively to the user's thoughts, constraints, genres, moods, themes, or years specified in the query. 
+- If the user specifies or implies a category/genre like "horror", EVERY SINGLE title you return MUST be a horror anime series/movie. Absolutely NO exceptions. Do NOT return standard action, romance, or general anime if they do not fit the horror category.
+- If the user specifies a year, decade, or studio, EVERY SINGLE title MUST fit that constraint.
+- Do NOT make loose associations. Stick to the literal and semantic meaning of the query. 
+- Do NOT try to be helpful by adding popular anime that are outside the query's criteria.
+
+Return a JSON array of strings containing the top 8-12 anime series/movie titles matching this query. 
 Only return the JSON array, with no other text, markdown formatting, or explanation. 
 Example format: ["Attack on Titan", "Death Note", "Spirited Away"]`;
   } else {
-    prompt = `You are a semantic movie and TV show search assistant. The user is searching for content with this query: "${query}". 
-Return a JSON array of string containing the top 10-15 movie or TV show titles matching this query. 
+    prompt = `You are an extremely strict and aggressive semantic movie and TV show search assistant. The user is searching for content matching this query: "${query}". 
+YOUR MAIN RULE:
+You MUST adhere 100% strictly and aggressively to the user's thoughts, constraints, genres, moods, themes, or years specified in the query. 
+- If the user specifies or implies a category/genre like "horror", EVERY SINGLE title you return MUST be a horror movie or TV show. Absolutely NO exceptions. Do NOT return standard dramas, thrillers, or general movies if they do not fit the horror category.
+- If the user specifies a year or decade (e.g. "80s"), EVERY SINGLE title MUST be from that era.
+- Do NOT make loose associations. Stick to the literal and semantic meaning of the query. 
+- Do NOT try to be helpful by adding popular movies/shows that are outside the query's criteria.
+
+Return a JSON array of strings containing the top 10-15 movie or TV show titles matching this query. 
 Only return the JSON array, with no other text, markdown formatting, or explanation. 
 Example format: ["Inception", "Interstellar", "Stranger Things"]`;
   }
 
   try {
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=${apiKey}`,
       {
         method: 'POST',
         headers: {

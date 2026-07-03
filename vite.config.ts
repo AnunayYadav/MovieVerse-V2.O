@@ -5,6 +5,10 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig(({ mode }) => {
     const env = loadEnv(mode, '.', '');
+    // Copy all loaded env variables to process.env for local serverless routes
+    for (const key in env) {
+      process.env[key] = env[key];
+    }
     return {
       server: {
         port: 3000,
@@ -45,6 +49,7 @@ export default defineConfig(({ mode }) => {
                 '/api/tmdb': './api/tmdb.ts',
                 '/api/videasy': './api/videasy.ts',
                 '/api/encdec': './api/encdec.ts',
+                '/api/ai-search': './api/ai-search.ts',
               };
               
               let matchedPath = pathname || '';

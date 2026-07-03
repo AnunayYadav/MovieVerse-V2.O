@@ -144,23 +144,45 @@ export const LogoLoader = () => {
   );
 };
 
-export const MovieSkeleton = () => (
-  <div className="group relative bg-white/5 rounded-xl overflow-hidden aspect-[16/9]">
-    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full animate-[shimmer_1.5s_infinite]" />
-    <div className="absolute bottom-0 left-0 w-full p-4 space-y-3">
-      <div className="h-4 bg-white/10 rounded-full w-3/4" />
-      <div className="flex justify-between">
-        <div className="h-3 bg-white/10 rounded-full w-1/3" />
-        <div className="h-3 bg-white/10 rounded-full w-1/4" />
+export const MovieSkeleton = ({ isAi = false }: { isAi?: boolean; key?: React.Key }) => {
+  if (isAi) {
+    return (
+      <div className="group relative bg-[#130f1d]/55 border border-purple-500/25 rounded-xl overflow-hidden aspect-[16/9] shadow-[0_0_15px_rgba(168,85,247,0.08)]">
+        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-purple-500/15 via-pink-500/10 via-transparent to-transparent -translate-x-full animate-[shimmer_1.8s_infinite]" />
+        <div className="absolute bottom-0 left-0 w-full p-4 space-y-3">
+          <div className="h-4 bg-gradient-to-r from-purple-500/25 via-pink-500/25 to-blue-500/15 rounded-full w-3/4 animate-pulse" />
+          <div className="flex justify-between">
+            <div className="h-3 bg-purple-500/25 rounded-full w-1/3 animate-pulse" />
+            <div className="h-3 bg-pink-500/25 rounded-full w-1/4 animate-pulse" />
+          </div>
+        </div>
+        <style>{`
+          @keyframes shimmer {
+            100% { transform: translateX(100%); }
+          }
+        `}</style>
       </div>
+    );
+  }
+
+  return (
+    <div className="group relative bg-white/5 rounded-xl overflow-hidden aspect-[16/9]">
+      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full animate-[shimmer_1.5s_infinite]" />
+      <div className="absolute bottom-0 left-0 w-full p-4 space-y-3">
+        <div className="h-4 bg-white/10 rounded-full w-3/4" />
+        <div className="flex justify-between">
+          <div className="h-3 bg-white/10 rounded-full w-1/3" />
+          <div className="h-3 bg-white/10 rounded-full w-1/4" />
+        </div>
+      </div>
+      <style>{`
+        @keyframes shimmer {
+          100% { transform: translateX(100%); }
+        }
+      `}</style>
     </div>
-    <style>{`
-      @keyframes shimmer {
-        100% { transform: translateX(100%); }
-      }
-    `}</style>
-  </div>
-);
+  );
+};
 
 export const StarRating = ({ rating }: { rating: number | undefined }) => {
   if (rating === undefined || rating === null) return <span className="text-white/30 text-xs italic">NR</span>;
