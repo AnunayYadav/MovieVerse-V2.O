@@ -87,6 +87,75 @@ const getSubtitleCode = (sub: string, format: 'name' | 'iso') => {
   return format === 'iso' ? (map[sub] || 'en') : sub;
 };
 
+const AUDIO_LANGUAGE_MAP: Record<string, string[]> = {
+  english: ['en', 'eng', 'english'],
+  hindi: ['hi', 'hin', 'hindi'],
+  spanish: ['es', 'spa', 'esp', 'spanish', 'castilian'],
+  japanese: ['ja', 'jpn', 'japanese'],
+  french: ['fr', 'fra', 'fre', 'french'],
+  german: ['de', 'deu', 'ger', 'german'],
+  portuguese: ['pt', 'por', 'portuguese'],
+  russian: ['ru', 'rus', 'russian']
+};
+
+const getAudioTrackIndexForLanguage = (tracks: any[], lang: string): number => {
+  const normLang = lang.toLowerCase();
+  const matchCodes = AUDIO_LANGUAGE_MAP[normLang] || [normLang];
+  
+  // First pass: exact match on lang code or name
+  let index = tracks.findIndex(t => {
+    const trackLang = (t.lang || '').toLowerCase();
+    const trackName = (t.name || '').toLowerCase();
+    return matchCodes.includes(trackLang) || matchCodes.includes(trackName);
+  });
+  
+  // Second pass: partial match on name
+  if (index === -1) {
+    index = tracks.findIndex(t => {
+      const trackName = (t.name || '').toLowerCase();
+      return matchCodes.some(code => trackName.includes(code));
+    });
+  }
+  
+  return index;
+};
+
+const switchNativeAudioTrack = (video: HTMLVideoElement, lang: string) => {
+  const nativeTracks = (video as any).audioTracks;
+  if (!nativeTracks) return;
+
+  const normLang = lang.toLowerCase();
+  const matchCodes = AUDIO_LANGUAGE_MAP[normLang] || [normLang];
+
+  let foundIdx = -1;
+  for (let i = 0; i < nativeTracks.length; i++) {
+    const track = nativeTracks[i];
+    const trackLang = (track.language || '').toLowerCase();
+    const trackLabel = (track.label || '').toLowerCase();
+    if (matchCodes.includes(trackLang) || matchCodes.includes(trackLabel)) {
+      foundIdx = i;
+      break;
+    }
+  }
+
+  if (foundIdx === -1) {
+    for (let i = 0; i < nativeTracks.length; i++) {
+      const track = nativeTracks[i];
+      const trackLabel = (track.label || '').toLowerCase();
+      if (matchCodes.some(code => trackLabel.includes(code))) {
+        foundIdx = i;
+        break;
+      }
+    }
+  }
+
+  if (foundIdx !== -1) {
+    for (let i = 0; i < nativeTracks.length; i++) {
+      nativeTracks[i].enabled = (i === foundIdx);
+    }
+  }
+};
+
 export const PROVIDERS: Provider[] = [
   {
     id: 'videasy_adfree',
@@ -365,6 +434,8 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   const [isEpisodesOverlayOpen, setIsEpisodesOverlayOpen] = useState(false);
   const [episodeSearchQuery, setEpisodeSearchQuery] = useState('');
   const [isAutoplayEnabled, setIsAutoplayEnabled] = useState(true);
+  const [detectedAudioLanguages, setDetectedAudioLanguages] = useState<string[]>([]);
+  const [hlsManifestLoaded, setHlsManifestLoaded] = useState(false);
 
   // OpenSubtitles settings states removed (using environment variables directly)
 
@@ -461,28 +532,68 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     const onSeeked = () => setIsBuffering(false);
     const onSeeking = () => setIsBuffering(true);
 
+    const updateNativeAudioTracks = () => {
+      const nativeTracks = (video as any).audioTracks;
+      if (nativeTracks && nativeTracks.length > 0) {
+        const tracksList = [];
+        for (let i = 0; i < nativeTracks.length; i++) {
+          tracksList.push({
+            id: i,
+            name: nativeTracks[i].label || '',
+            lang: nativeTracks[i].language || ''
+          });
+        }
+        const available = ['English', 'Hindi', 'Spanish', 'Japanese', 'French', 'German', 'Portuguese', 'Russian'].filter(lang => {
+          return getAudioTrackIndexForLanguage(tracksList, lang) !== -1;
+        });
+        setDetectedAudioLanguages(available);
+        setHlsManifestLoaded(true);
+
+        const preferredLang = localStorage.getItem('movieverse_preferred_audio_language') || audioLanguage;
+        switchNativeAudioTrack(video, preferredLang);
+      }
+    };
+
+    const onLoadedMetadata = () => {
+      setPlayerDuration(video.duration);
+      updateNativeAudioTracks();
+    };
+
     video.addEventListener('play', onPlay);
     video.addEventListener('pause', onPause);
     video.addEventListener('timeupdate', onTimeUpdate);
     video.addEventListener('durationchange', onDurationChange);
+    video.addEventListener('loadedmetadata', onLoadedMetadata);
     video.addEventListener('volumechange', onVolumeChange);
     video.addEventListener('waiting', onWaiting);
     video.addEventListener('playing', onPlayingEvent);
     video.addEventListener('seeked', onSeeked);
     video.addEventListener('seeking', onSeeking);
 
+    const nativeTracks = (video as any).audioTracks;
+    if (nativeTracks) {
+      nativeTracks.addEventListener('addtrack', updateNativeAudioTracks);
+      nativeTracks.addEventListener('removetrack', updateNativeAudioTracks);
+    }
+
     return () => {
       video.removeEventListener('play', onPlay);
       video.removeEventListener('pause', onPause);
       video.removeEventListener('timeupdate', onTimeUpdate);
       video.removeEventListener('durationchange', onDurationChange);
+      video.removeEventListener('loadedmetadata', onLoadedMetadata);
       video.removeEventListener('volumechange', onVolumeChange);
       video.removeEventListener('waiting', onWaiting);
       video.removeEventListener('playing', onPlayingEvent);
       video.removeEventListener('seeked', onSeeked);
       video.removeEventListener('seeking', onSeeking);
+
+      if (nativeTracks) {
+        nativeTracks.removeEventListener('addtrack', updateNativeAudioTracks);
+        nativeTracks.removeEventListener('removetrack', updateNativeAudioTracks);
+      }
     };
-  }, [selectedProviderId, isSeeking, anivexaStreamUrl, useCustomControls]);
+  }, [selectedProviderId, isSeeking, anivexaStreamUrl, useCustomControls, audioLanguage]);
 
   // Hls.js player initialization and lifecycle management
   useEffect(() => {
@@ -506,13 +617,39 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
       hls.attachMedia(video);
       hlsRef.current = hls;
 
+      const updateAvailableAudioTracks = (hlsInstance: Hls) => {
+        const tracks = hlsInstance.audioTracks || [];
+        if (tracks.length > 0) {
+          const available = ['English', 'Hindi', 'Spanish', 'Japanese', 'French', 'German', 'Portuguese', 'Russian'].filter(lang => {
+            return getAudioTrackIndexForLanguage(tracks, lang) !== -1;
+          });
+          setDetectedAudioLanguages(available);
+          setHlsManifestLoaded(true);
+
+          // Auto-select preferred language on manifest loaded
+          const preferredLang = localStorage.getItem('movieverse_preferred_audio_language') || audioLanguage;
+          const trackIndex = getAudioTrackIndexForLanguage(tracks, preferredLang);
+          if (trackIndex !== -1 && hlsInstance.audioTrack !== trackIndex) {
+            hlsInstance.audioTrack = trackIndex;
+          }
+        } else {
+          setDetectedAudioLanguages([]);
+          setHlsManifestLoaded(true);
+        }
+      };
+
       hls.on(Hls.Events.MANIFEST_PARSED, () => {
+        updateAvailableAudioTracks(hls);
         if (currentProgressRef.current > 0) {
           video.currentTime = currentProgressRef.current;
         }
         if (playState === 'play') {
           video.play().catch(() => {});
         }
+      });
+
+      hls.on(Hls.Events.AUDIO_TRACKS_UPDATED, () => {
+        updateAvailableAudioTracks(hls);
       });
 
       hls.on(Hls.Events.ERROR, (event, data) => {
@@ -547,6 +684,8 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
         hlsRef.current.destroy();
         hlsRef.current = null;
       }
+      setHlsManifestLoaded(false);
+      setDetectedAudioLanguages([]);
     };
   }, [selectedProviderId, anivexaStreamUrl, playState]);
 
@@ -666,6 +805,8 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
       setAnivexaSubtitles([]);
       setCustomQualities([]);
       setAnivexaError(null);
+      setHlsManifestLoaded(false);
+      setDetectedAudioLanguages([]);
 
       try {
         const cleanTitle = title || '';
@@ -2319,18 +2460,36 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
 
                         {['English', 'Hindi', 'Spanish', 'Japanese', 'French', 'German', 'Portuguese', 'Russian'].map(lang => {
                           const isActive = audioLanguage.toLowerCase() === lang.toLowerCase();
+                          const isEnabled = !useCustomControls || !hlsManifestLoaded || detectedAudioLanguages.includes(lang) || isActive;
                           return (
                             <button
                               key={lang}
+                              disabled={!isEnabled}
                               onClick={() => {
+                                if (!isEnabled) return;
                                 setAudioLanguage(lang);
                                 localStorage.setItem('movieverse_preferred_audio_language', lang);
+
+                                // Set active audio track in Hls.js
+                                if (hlsRef.current) {
+                                  const tracks = hlsRef.current.audioTracks || [];
+                                  const trackIndex = getAudioTrackIndexForLanguage(tracks, lang);
+                                  if (trackIndex !== -1) {
+                                    hlsRef.current.audioTrack = trackIndex;
+                                  }
+                                } else if (videoRef.current) {
+                                  // Set active audio track in HTML5 video natively
+                                  switchNativeAudioTrack(videoRef.current, lang);
+                                }
+
                                 closeAllMenus();
                               }}
                               className={`w-full text-left py-2 px-3 rounded-lg text-xs font-semibold transition-all border flex items-center justify-between ${
                                 isActive
                                   ? 'bg-red-600/10 text-red-500 border-red-500/20'
-                                  : 'bg-white/5 text-zinc-300 border-white/5 hover:border-white/10 hover:bg-white/10'
+                                  : !isEnabled
+                                    ? 'opacity-40 cursor-not-allowed bg-black/20 text-zinc-600 border-transparent'
+                                    : 'bg-white/5 text-zinc-300 border-white/5 hover:border-white/10 hover:bg-white/10'
                               }`}
                             >
                               <span>{lang}</span>
@@ -2940,14 +3099,34 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                         const val = e.target.value;
                         setAudioLanguage(val);
                         localStorage.setItem('movieverse_preferred_audio_language', val);
+
+                        // Set active audio track in Hls.js
+                        if (hlsRef.current) {
+                          const tracks = hlsRef.current.audioTracks || [];
+                          const trackIndex = getAudioTrackIndexForLanguage(tracks, val);
+                          if (trackIndex !== -1) {
+                            hlsRef.current.audioTrack = trackIndex;
+                          }
+                        } else if (videoRef.current) {
+                          // Set active audio track in HTML5 video natively
+                          switchNativeAudioTrack(videoRef.current, val);
+                        }
                       }}
                       className="w-full bg-[#141417] border border-white/10 rounded-xl px-3.5 py-2.5 text-white text-xs font-bold focus:outline-none appearance-none cursor-pointer"
                     >
-                      {['English', 'Hindi', 'Spanish', 'Japanese', 'French', 'German', 'Portuguese', 'Russian'].map(lang => (
-                        <option key={lang} value={lang} className="bg-[#141417] text-white">
-                          {lang}
-                        </option>
-                      ))}
+                      {['English', 'Hindi', 'Spanish', 'Japanese', 'French', 'German', 'Portuguese', 'Russian'].map(lang => {
+                        const isEnabled = !useCustomControls || !hlsManifestLoaded || detectedAudioLanguages.includes(lang) || audioLanguage.toLowerCase() === lang.toLowerCase();
+                        return (
+                          <option 
+                            key={lang} 
+                            value={lang} 
+                            disabled={!isEnabled}
+                            className="bg-[#141417] text-white"
+                          >
+                            {lang} {!isEnabled ? '(Unavailable)' : ''}
+                          </option>
+                        );
+                      })}
                     </select>
                     <ChevronDown size={14} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none" />
                   </div>
