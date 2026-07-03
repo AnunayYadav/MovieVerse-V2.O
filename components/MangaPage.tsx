@@ -501,7 +501,6 @@ export const MangaPage: React.FC<MangaPageProps> = ({
   const [isReaderExiting, setIsReaderExiting] = useState(false);
   const [scrollPercent, setScrollPercent] = useState(0);
   const readerScrollContainerRef = useRef<HTMLDivElement>(null);
-  const [visiblePagesCount, setVisiblePagesCount] = useState(5);
   const [autoScrollSpeed, setAutoScrollSpeed] = useState<number>(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
@@ -2187,9 +2186,13 @@ export const MangaPage: React.FC<MangaPageProps> = ({
     setPages(urls);
   }, [isDataSaver, chapterServerData, readingSource]);
  
-  // Reset visible pages count when pages change
+  // Prefetch all chapter pages in the background for instant loading
   useEffect(() => {
-    setVisiblePagesCount(5);
+    if (pages.length === 0) return;
+    pages.forEach((url) => {
+      const img = new Image();
+      img.src = url;
+    });
   }, [pages]);
 
   const handleNextPage = useCallback(() => {
@@ -2261,7 +2264,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
     return () => window.removeEventListener('keydown', handleKey);
   }, [activeChapter, readerMode, pages.length, handleNextPage, handlePrevPage]);
 
-  // Track scroll position in strip mode & lazy load next batches of pages
+  // Track scroll position in strip mode
   useEffect(() => {
     const container = readerScrollContainerRef.current;
     if (!activeChapter || readerMode !== 'strip' || !container) {
@@ -2276,21 +2279,11 @@ export const MangaPage: React.FC<MangaPageProps> = ({
       }
       const pct = Math.min(100, Math.max(0, Math.round((container.scrollTop / scrollHeight) * 100)));
       setScrollPercent(pct);
-
-      // Dynamically load 5 more pages when scrolled past 65%
-      if (pct > 65) {
-        setVisiblePagesCount(prev => {
-          if (prev < pages.length) {
-            return Math.min(pages.length, prev + 5);
-          }
-          return prev;
-        });
-      }
     };
     container.addEventListener('scroll', handleScroll);
     handleScroll();
     return () => container.removeEventListener('scroll', handleScroll);
-  }, [activeChapter, readerMode, pages.length]);
+  }, [activeChapter, readerMode]);
 
   // Autoscroll animation loop in strip mode
   useEffect(() => {
@@ -3488,14 +3481,14 @@ export const MangaPage: React.FC<MangaPageProps> = ({
               </div>
             ) : readerMode === 'strip' ? (
               /* Long Strip Mode (Stacked scroll) */
-              <div className={`${getPageWidthClass()} w-full flex flex-col ${isStitchedFormat ? 'gap-0 py-0' : 'gap-4 py-2'}`}>
-                {pages.slice(0, visiblePagesCount).map((url, i) => (
-                  <div key={i} className={`w-full relative overflow-hidden min-h-[300px] sm:min-h-[400px] flex items-center justify-center ${isStitchedFormat ? 'bg-transparent rounded-none' : 'bg-zinc-950/20 rounded-xl shadow-lg'}`}>
+              <div className={`${getPageWidthClass()} w-full flex flex-col ${isStitchedFormat ? 'gap-0 py-0' : 'gap-2 py-1'}`}>
+                {pages.map((url, i) => (
+                  <div key={i} className={`w-full relative overflow-hidden ${isStitchedFormat ? 'bg-transparent rounded-none min-h-0' : 'bg-zinc-950/20 rounded-xl shadow-lg min-h-0'}`}>
                     <img
                       src={url}
                       alt={`Page ${i + 1}`}
                       referrerPolicy="no-referrer"
-                      className="w-full object-contain pointer-events-none"
+                      className="w-full h-auto block pointer-events-none"
                       loading="lazy"
                       onError={(e) => {
                         if (readingSource !== 'mangadex') return;
