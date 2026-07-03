@@ -624,7 +624,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
       onMangaSelect(id);
       
       try {
-        const allItems = [...trending, ...popular, ...topRated, ...characterModalMediaManga];
+        const allItems = [...trending, ...popular, ...topRated, ...characterModalMediaManga, ...staffMedia, ...studioMedia];
         const item = allItems.find((x: any) => x.id === id) as any;
         const title = optionalTitle || item?.attributes?.title?.en || item?.attributes?.title?.['ja-ro'] || "";
         
@@ -649,7 +649,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
     } else {
       onMangaSelect(id);
     }
-  }, [onMangaSelect, trending, popular, topRated, characterModalMediaManga, fetchMangaDex, showToast]);
+  }, [onMangaSelect, trending, popular, topRated, characterModalMediaManga, staffMedia, studioMedia, fetchMangaDex, showToast]);
 
   // GraphQL fetch helper for AniList
   const fetchAniList = useCallback(async (query: string, variables: any = {}) => {
@@ -2669,7 +2669,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                         <div
                           key={manga.id}
                           onClick={() => {
-                            handleMangaSelect(manga.id);
+                            handleMangaSelect(manga.id, title);
                             setSelectedCharacterId(null);
                           }}
                           className="group relative shrink-0 aspect-[2/3] rounded-xl overflow-hidden cursor-pointer bg-zinc-900 border border-white/5 hover:border-red-500/50 hover:scale-[1.02] transition-all duration-300 shadow-lg"
@@ -2834,7 +2834,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                         <div
                           key={manga.id}
                           onClick={() => {
-                            handleMangaSelect(manga.id);
+                            handleMangaSelect(manga.id, title);
                             setSelectedStaffId(null);
                           }}
                           className="group relative shrink-0 aspect-[2/3] rounded-xl overflow-hidden cursor-pointer bg-zinc-900 border border-white/5 hover:border-red-500/50 hover:scale-[1.02] transition-all duration-300 shadow-lg"
@@ -2938,7 +2938,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                       <div
                         key={manga.id}
                         onClick={() => {
-                          handleMangaSelect(manga.id);
+                          handleMangaSelect(manga.id, title);
                           setSelectedStudioId(null);
                         }}
                         className="group relative shrink-0 aspect-[2/3] rounded-xl overflow-hidden cursor-pointer bg-zinc-900 border border-white/5 hover:border-red-500/50 hover:scale-[1.02] transition-all duration-300 shadow-lg"
