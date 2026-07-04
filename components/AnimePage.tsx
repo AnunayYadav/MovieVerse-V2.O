@@ -1065,6 +1065,7 @@ export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick, sear
                 src={featured.bannerImage || featured.coverImage.extraLarge || featured.coverImage.large}
                 alt={getAnimeTitle(featured)}
                 className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-102 opacity-75 animate-in fade-in duration-500"
+                referrerPolicy="no-referrer"
               />
             ) : (
               <div className="w-full h-full bg-[#070709] animate-pulse" />
@@ -1085,6 +1086,7 @@ export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick, sear
                     src={featuredLogoUrl}
                     alt={getAnimeTitle(featured)}
                     className="max-h-20 md:max-h-32 max-w-[85%] object-contain object-left mb-2 drop-shadow-[0_4px_12px_rgba(0,0,0,0.9)] animate-in fade-in duration-300"
+                    referrerPolicy="no-referrer"
                   />
                 ) : (
                   <h1 className="text-3xl md:text-5xl font-bold text-white leading-tight tracking-tight drop-shadow-2xl text-left">
@@ -1668,6 +1670,7 @@ export const AnimeCard: React.FC<AnimeCardProps> = ({ anime, apiKey, onAnimeClic
         alt={title}
         loading="lazy"
         className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+        referrerPolicy="no-referrer"
       />
 
       {/* Glassmorphic Gradient Overlay */}
@@ -1697,6 +1700,7 @@ export const AnimeCard: React.FC<AnimeCardProps> = ({ anime, apiKey, onAnimeClic
               alt={title}
               className="max-h-[28px] max-w-[85%] object-contain drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)] group-hover:scale-105 transition-transform duration-300 origin-left"
               loading="lazy"
+              referrerPolicy="no-referrer"
             />
           ) : (
             <h4 className="text-xs sm:text-sm font-bold text-white line-clamp-1 group-hover:text-red-500 transition-colors duration-300 drop-shadow-md">
@@ -1982,6 +1986,7 @@ export const AiringCard: React.FC<AiringCardProps> = ({ item, apiKey, onAnimeCli
         alt={title}
         loading="lazy"
         className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+        referrerPolicy="no-referrer"
       />
 
       {/* Modern gradient overlay */}
@@ -2006,6 +2011,7 @@ export const AiringCard: React.FC<AiringCardProps> = ({ item, apiKey, onAnimeCli
               alt={title}
               className="max-h-[22px] max-w-[85%] object-contain drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)] transition-transform duration-300 origin-left group-hover:scale-[1.02]"
               loading="lazy"
+              referrerPolicy="no-referrer"
             />
           ) : (
             <h4 className="text-xs sm:text-sm font-semibold text-white line-clamp-1 group-hover:text-red-500 transition-colors duration-300">
