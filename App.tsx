@@ -1475,6 +1475,7 @@ export default function App() {
         currentHistoryIdxRef.current = newIdx;
 
         const path = window.location.pathname || '/';
+        lastPushedPathRef.current = path;
         const parts = path.split('/');
         // parts[0] is always '' (before leading /), so parts[1] is the first segment
 
