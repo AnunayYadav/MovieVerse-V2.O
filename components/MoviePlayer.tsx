@@ -315,30 +315,98 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
       }
     });
 
-    const anySuccess = (ps: Promise<any>[]) => {
+    const runHybridRace = (ps: Promise<any>[]) => {
       return new Promise<any>((resolve, reject) => {
-        let failedCount = 0;
-        const errors: any[] = [];
+        let completedCount = 0;
+        const premiumWinners: any[] = [];
+        const standardWinners: any[] = [];
+        let isResolved = false;
+        let timeoutId: any = null;
+
+        const handleResolve = (winner: any) => {
+          if (isResolved) return;
+          isResolved = true;
+          if (timeoutId) clearTimeout(timeoutId);
+          resolve(winner);
+        };
+
+        const handleReject = () => {
+          if (isResolved) return;
+          isResolved = true;
+          if (timeoutId) clearTimeout(timeoutId);
+          reject(new Error("All providers failed to load."));
+        };
+
+        const premiumCandidates = candidates.filter(prov => 
+          prov.id === 'videasy_adfree' || prov.id === 'encdec_hexa' || prov.id.startsWith('encdec') || prov.id === 'anikai'
+        );
+        let failedPremiumCount = 0;
+
+        // Give premium/decrypted providers 1.5s head start to load their streams
+        timeoutId = setTimeout(() => {
+          if (!isResolved) {
+            if (standardWinners.length > 0) {
+              standardWinners.sort((a, b) => a.time - b.time);
+              handleResolve(standardWinners[0]);
+            }
+          }
+        }, 1500);
+
         ps.forEach(p => {
           p.then(res => {
+            completedCount++;
+            const isPremium = res.id === 'videasy_adfree' || res.id === 'encdec_hexa' || res.id.startsWith('encdec') || res.id === 'anikai';
+
             if (res.success) {
-              resolve(res);
+              if (res.payload) {
+                premiumWinners.push(res);
+                handleResolve(res);
+              } else {
+                standardWinners.push(res);
+              }
             } else {
-              failedCount++;
-              errors.push(res);
-              if (failedCount === ps.length) reject(new Error("All providers failed to load."));
+              if (isPremium) {
+                failedPremiumCount++;
+              }
+            }
+
+            // If all premium options failed, don't wait for 1.5s timeout; fall back to standard immediately
+            if (failedPremiumCount === premiumCandidates.length && standardWinners.length > 0) {
+              standardWinners.sort((a, b) => a.time - b.time);
+              handleResolve(standardWinners[0]);
+            }
+
+            if (completedCount === ps.length) {
+              if (premiumWinners.length > 0) {
+                premiumWinners.sort((a, b) => a.time - b.time);
+                handleResolve(premiumWinners[0]);
+              } else if (standardWinners.length > 0) {
+                standardWinners.sort((a, b) => a.time - b.time);
+                handleResolve(standardWinners[0]);
+              } else {
+                handleReject();
+              }
             }
           }).catch(err => {
-            failedCount++;
-            errors.push(err);
-            if (failedCount === ps.length) reject(new Error("All providers failed to load."));
+            completedCount++;
+            if (completedCount === ps.length) {
+              if (premiumWinners.length > 0) {
+                premiumWinners.sort((a, b) => a.time - b.time);
+                handleResolve(premiumWinners[0]);
+              } else if (standardWinners.length > 0) {
+                standardWinners.sort((a, b) => a.time - b.time);
+                handleResolve(standardWinners[0]);
+              } else {
+                handleReject();
+              }
+            }
           });
         });
       });
     };
 
     try {
-      const winner = await anySuccess(promises);
+      const winner = await runHybridRace(promises);
       if (winner.payload) {
         cachedPayloadRef.current = { providerId: winner.id, payload: winner.payload };
       }
