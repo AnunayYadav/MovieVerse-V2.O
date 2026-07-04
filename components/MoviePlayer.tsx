@@ -363,11 +363,11 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
         };
 
         const premiumCandidates = candidates.filter(prov => 
-          prov.id === 'videasy_adfree' || prov.id === 'encdec_hexa' || prov.id.startsWith('encdec')
+          prov.id === 'videasy_adfree' || prov.id === 'encdec_hexa' || prov.id.startsWith('encdec') || prov.id === 'anikai'
         );
         let failedPremiumCount = 0;
 
-        // Give premium/decrypted providers 1.5s head start to load their streams
+        // Give premium/decrypted/verified providers 1.5s head start to load their streams
         timeoutId = setTimeout(() => {
           if (!isResolved) {
             if (standardWinners.length > 0) {
@@ -380,10 +380,10 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
         ps.forEach(p => {
           p.then(res => {
             completedCount++;
-            const isPremium = res.id === 'videasy_adfree' || res.id === 'encdec_hexa' || res.id.startsWith('encdec');
+            const isPremium = res.id === 'videasy_adfree' || res.id === 'encdec_hexa' || res.id.startsWith('encdec') || res.id === 'anikai';
 
             if (res.success) {
-              if (res.payload) {
+              if (res.payload || res.id === 'anikai') {
                 premiumWinners.push(res);
                 handleResolve(res);
               } else {
