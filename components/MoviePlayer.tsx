@@ -151,11 +151,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   const controlsTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const progressBarRef = useRef<HTMLDivElement>(null);
 
-  const [isRacing, setIsRacing] = useState(false);
-  const [raceError, setRaceError] = useState<string | null>(null);
-  const [raceStatus, setRaceStatus] = useState<string>('');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-  const cachedPayloadRef = useRef<{ providerId: string; payload: any } | null>(null);
 
   const showToast = useCallback((msg: string) => {
     setToastMessage(msg);
@@ -163,13 +159,17 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   }, []);
 
   const [selectedProviderId, setSelectedProviderId] = useState(() => {
+    const defaultProvider = isAnime ? 'anikai' : (isWatchParty ? 'vidfast' : 'videasy_adfree');
     if (typeof window !== 'undefined') {
-      let preferred = localStorage.getItem('movieverse_preferred_provider') || 'auto_select';
+      let preferred = localStorage.getItem('movieverse_preferred_provider');
+      if (!preferred || preferred === 'auto_select') {
+        preferred = defaultProvider;
+      }
       if (!isAnime && (preferred === 'vidnest_animepahe' || preferred === 'anikai')) {
-        preferred = 'auto_select';
+        preferred = 'videasy_adfree';
       }
       if (preferred === 'encdec_animekai') {
-        preferred = 'auto_select';
+        preferred = 'videasy_adfree';
       }
       if (isWatchParty) {
         const prov = PROVIDERS.find(p => p.id === preferred);
@@ -179,7 +179,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
       }
       return preferred;
     }
-    return isWatchParty ? 'vidfast' : 'auto_select';
+    return defaultProvider;
   });
 
   const [anilistId, setAnilistId] = useState<number | null>(null);
@@ -218,237 +218,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     }
   }, [providerId, isWatchParty]);
 
-  const triggerProviderRace = useCallback(async () => {
-    if (selectedProviderId !== 'auto_select') return;
-    
-    setIsRacing(true);
-    setRaceError(null);
-    setRaceStatus('Testing latency and availability for all providers...');
 
-    const candidates = PROVIDERS.filter(p => {
-      if (p.id === 'auto_select') return false;
-      if (isWatchParty && !p.supportsPostMessage) return false;
-      if (isAnime) return true;
-      return p.id !== 'vidnest_animepahe' && p.id !== 'anikai';
-    });
-
-    const promises = candidates.map(async (prov) => {
-      const start = Date.now();
-      try {
-        if (prov.id === 'videasy_adfree' || prov.id === 'encdec_hexa' || prov.id.startsWith('encdec') || prov.id === 'anikai') {
-          const cleanTitle = title || '';
-          const params = new URLSearchParams({
-            tmdbId: String(tmdbId),
-            mediaType: mediaType,
-            seasonId: String(currentSeason),
-            episodeId: String(currentEpisode),
-            title: cleanTitle
-          });
-          if (anilistId) params.append('anilistId', String(anilistId));
-          if (prov.id.startsWith('encdec') && selectedEncDecServer) params.append('server', selectedEncDecServer);
-          if (prov.id === 'videasy_adfree') params.append('server', selectedVideasyServer);
-
-          let endpoint = '/api/videasy';
-          if (prov.id.startsWith('encdec')) {
-            endpoint = '/api/encdec';
-            const providerType = prov.id.replace('encdec_', '');
-            params.append('provider', providerType);
-          } else if (prov.id === 'anikai') {
-            endpoint = '/api/anime';
-            params.append('provider', 'anikai');
-            const subdub = animeLanguage === 'dub' || (audioLanguage && audioLanguage !== 'Japanese') ? 'dub' : 'sub';
-            params.append('lang', subdub);
-          }
-
-          const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 6000);
-          
-          const isAnikai = prov.id === 'anikai';
-          const fetchOptions: RequestInit = {
-            signal: controller.signal
-          };
-          if (isAnikai) {
-            // Anikai returns a 302 redirect. manual redirect prevents CORS errors
-            // since fetch would otherwise try to follow the redirect to anikai's domain.
-            fetchOptions.redirect = 'manual';
-          }
-
-          const res = await window.fetch(`${endpoint}?${params.toString()}`, fetchOptions);
-          clearTimeout(timeoutId);
-
-          if (isAnikai) {
-            // 302 redirects result in status 0 (opaque) or 302/200 under 'manual' redirect
-            if (res.status === 0 || res.status === 302 || res.status === 301 || res.ok) {
-              return {
-                id: prov.id,
-                name: prov.name,
-                time: Date.now() - start,
-                success: true
-              };
-            } else {
-              throw new Error(`HTTP ${res.status}`);
-            }
-          }
-
-          if (!res.ok) throw new Error(`HTTP ${res.status}`);
-          const payload = await res.json();
-          if (payload.success && payload.data && (payload.data.sources?.length > 0 || payload.data.iframeUrl)) {
-            return {
-              id: prov.id,
-              name: prov.name,
-              time: Date.now() - start,
-              success: true,
-              payload
-            };
-          } else {
-            throw new Error(payload.error || "Empty sources");
-          }
-        } else {
-          const iframeUrl = mediaType === 'movie'
-            ? prov.getMovieUrl(tmdbId, activeColor, 0, isAnime, anilistId, animeLanguage, audioLanguage, subtitleLanguage)
-            : prov.getTvUrl(tmdbId, currentSeason, currentEpisode, activeColor, 0, isAnime, anilistId, animeLanguage, audioLanguage, subtitleLanguage);
-
-          if (!iframeUrl) throw new Error("Empty URL");
-
-          const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 5000);
-          const urlObj = new URL(iframeUrl);
-          const pingUrl = `${urlObj.protocol}//${urlObj.host}/`;
-
-          await window.fetch(pingUrl, {
-            mode: 'no-cors',
-            signal: controller.signal
-          });
-          clearTimeout(timeoutId);
-
-          // Add a penalty of 400ms for iframe load overhead
-          return {
-            id: prov.id,
-            name: prov.name,
-            time: Date.now() - start + 400,
-            success: true
-          };
-        }
-      } catch (err: any) {
-        return {
-          id: prov.id,
-          name: prov.name,
-          time: Date.now() - start,
-          success: false,
-          error: err.message || String(err)
-        };
-      }
-    });
-
-    const runHybridRace = (ps: Promise<any>[]) => {
-      return new Promise<any>((resolve, reject) => {
-        let completedCount = 0;
-        const premiumWinners: any[] = [];
-        const standardWinners: any[] = [];
-        let isResolved = false;
-        let timeoutId: any = null;
-
-        const handleResolve = (winner: any) => {
-          if (isResolved) return;
-          isResolved = true;
-          if (timeoutId) clearTimeout(timeoutId);
-          resolve(winner);
-        };
-
-        const handleReject = () => {
-          if (isResolved) return;
-          isResolved = true;
-          if (timeoutId) clearTimeout(timeoutId);
-          reject(new Error("All providers failed to load."));
-        };
-
-        const premiumCandidates = candidates.filter(prov => 
-          prov.id === 'videasy_adfree' || prov.id === 'encdec_hexa' || prov.id.startsWith('encdec') || prov.id === 'anikai'
-        );
-        let failedPremiumCount = 0;
-
-        // Give premium/decrypted/verified providers 1.5s head start to load their streams
-        timeoutId = setTimeout(() => {
-          if (!isResolved) {
-            if (standardWinners.length > 0) {
-              standardWinners.sort((a, b) => a.time - b.time);
-              handleResolve(standardWinners[0]);
-            }
-          }
-        }, 1500);
-
-        ps.forEach(p => {
-          p.then(res => {
-            completedCount++;
-            const isPremium = res.id === 'videasy_adfree' || res.id === 'encdec_hexa' || res.id.startsWith('encdec') || res.id === 'anikai';
-
-            if (res.success) {
-              if (res.payload || res.id === 'anikai') {
-                premiumWinners.push(res);
-                handleResolve(res);
-              } else {
-                standardWinners.push(res);
-              }
-            } else {
-              if (isPremium) {
-                failedPremiumCount++;
-              }
-            }
-
-            // If all premium options failed, don't wait for 1.5s timeout; fall back to standard immediately
-            if (failedPremiumCount === premiumCandidates.length && standardWinners.length > 0) {
-              standardWinners.sort((a, b) => a.time - b.time);
-              handleResolve(standardWinners[0]);
-            }
-
-            if (completedCount === ps.length) {
-              if (premiumWinners.length > 0) {
-                premiumWinners.sort((a, b) => a.time - b.time);
-                handleResolve(premiumWinners[0]);
-              } else if (standardWinners.length > 0) {
-                standardWinners.sort((a, b) => a.time - b.time);
-                handleResolve(standardWinners[0]);
-              } else {
-                handleReject();
-              }
-            }
-          }).catch(err => {
-            completedCount++;
-            if (completedCount === ps.length) {
-              if (premiumWinners.length > 0) {
-                premiumWinners.sort((a, b) => a.time - b.time);
-                handleResolve(premiumWinners[0]);
-              } else if (standardWinners.length > 0) {
-                standardWinners.sort((a, b) => a.time - b.time);
-                handleResolve(standardWinners[0]);
-              } else {
-                handleReject();
-              }
-            }
-          });
-        });
-      });
-    };
-
-    try {
-      const winner = await runHybridRace(promises);
-      if (winner.payload) {
-        cachedPayloadRef.current = { providerId: winner.id, payload: winner.payload };
-      }
-      setSelectedProviderId(winner.id);
-      showToast(`Auto-Selected ${winner.name} (${winner.time}ms)`);
-    } catch (err: any) {
-      setRaceError(err.message || "All providers failed to load.");
-    } finally {
-      setIsRacing(false);
-    }
-  }, [selectedProviderId, tmdbId, mediaType, currentSeason, currentEpisode, title, anilistId, selectedEncDecServer, selectedVideasyServer, animeLanguage, audioLanguage, subtitleLanguage, activeColor, isAnime, isWatchParty, showToast]);
-
-  useEffect(() => {
-    if (selectedProviderId === 'auto_select') {
-      triggerProviderRace();
-    }
-  }, [selectedProviderId, tmdbId, currentSeason, currentEpisode]);
 
   // --- Custom Controls PostMessage Helpers ---
   const sendPlayerCommand = useCallback((command: string, params?: Record<string, any>) => {
@@ -928,48 +698,41 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
       setDetectedAudioLanguages([]);
 
       try {
-        let payload: any = null;
-        if (cachedPayloadRef.current && cachedPayloadRef.current.providerId === selectedProviderId) {
-          payload = cachedPayloadRef.current.payload;
-          cachedPayloadRef.current = null; // Clear cache
-          console.log("Using cached payload for provider:", selectedProviderId);
-        } else {
-          const cleanTitle = title || '';
-          const params = new URLSearchParams({
-            tmdbId: String(tmdbId),
-            mediaType: mediaType,
-            seasonId: String(currentSeason),
-            episodeId: String(currentEpisode),
-            title: cleanTitle
-          });
+        const cleanTitle = title || '';
+        const params = new URLSearchParams({
+          tmdbId: String(tmdbId),
+          mediaType: mediaType,
+          seasonId: String(currentSeason),
+          episodeId: String(currentEpisode),
+          title: cleanTitle
+        });
 
-          if (anilistId) {
-            params.append('anilistId', String(anilistId));
-          }
-
-          if (selectedProviderId.startsWith('encdec') && selectedEncDecServer) {
-            params.append('server', selectedEncDecServer);
-          }
-
-          if (selectedProviderId === 'videasy_adfree') {
-            params.append('server', selectedVideasyServer);
-          }
-
-          let endpoint = '/api/videasy';
-          if (selectedProviderId.startsWith('encdec')) {
-            endpoint = '/api/encdec';
-            const providerType = selectedProviderId.replace('encdec_', '');
-            params.append('provider', providerType);
-          }
-
-          const res = await window.fetch(`${endpoint}?${params.toString()}`);
-          if (!res.ok) {
-            const errData = await res.json().catch(() => ({}));
-            throw new Error(errData.error || "Failed to resolve stream sources from provider.");
-          }
-
-          payload = await res.json();
+        if (anilistId) {
+          params.append('anilistId', String(anilistId));
         }
+
+        if (selectedProviderId.startsWith('encdec') && selectedEncDecServer) {
+          params.append('server', selectedEncDecServer);
+        }
+
+        if (selectedProviderId === 'videasy_adfree') {
+          params.append('server', selectedVideasyServer);
+        }
+
+        let endpoint = '/api/videasy';
+        if (selectedProviderId.startsWith('encdec')) {
+          endpoint = '/api/encdec';
+          const providerType = selectedProviderId.replace('encdec_', '');
+          params.append('provider', providerType);
+        }
+
+        const res = await window.fetch(`${endpoint}?${params.toString()}`);
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.error || "Failed to resolve stream sources from provider.");
+        }
+
+        const payload = await res.json();
 
         if (!isMounted) return;
 
@@ -2108,39 +1871,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
         }
       `}</style>
       <div className="flex-1 relative w-full h-full z-0 overflow-hidden bg-black">
-        {isRacing ? (
-          <div className="absolute inset-0 flex flex-col items-center justify-center bg-zinc-950 z-40 p-8 text-center animate-in fade-in duration-200">
-            <div className="relative mb-6">
-              <div className="w-16 h-16 border-[3px] border-red-600 border-t-transparent rounded-full animate-spin shadow-[0_0_20px_rgba(229,9,20,0.3)]" />
-              <Zap className="absolute inset-0 m-auto text-red-500 animate-pulse" size={24} />
-            </div>
-            <div className="space-y-2">
-              <h4 className="text-white font-extrabold text-sm tracking-wider uppercase">Smart Provider Race</h4>
-              <p className="text-zinc-400 text-xs max-w-xs mx-auto leading-relaxed">{raceStatus || 'Analyzing network latency to providers...'}</p>
-            </div>
-          </div>
-        ) : selectedProviderId === 'auto_select' ? (
-          <div className="absolute inset-0 flex flex-col items-center justify-center bg-zinc-950 z-40 p-8 text-center animate-in fade-in duration-200">
-            {raceError ? (
-              <div className="flex flex-col items-center justify-center gap-4 bg-zinc-950/95 backdrop-blur-2xl p-8 text-center max-w-md">
-                <AlertTriangle className="text-red-500 animate-pulse" size={48} />
-                <div className="space-y-1">
-                  <h4 className="text-white font-extrabold text-sm tracking-wider uppercase">Auto-Select Failed</h4>
-                  <p className="text-zinc-500 text-xs leading-relaxed">{raceError}</p>
-                </div>
-                <button
-                  onClick={() => triggerProviderRace()}
-                  className="px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white font-bold text-xs uppercase tracking-wider rounded-xl transition-all border border-red-500/20 backdrop-blur-md active:scale-95 shadow-xl"
-                >
-                  Retry Auto-Select
-                </button>
-              </div>
-            ) : (
-              <div className="w-12 h-12 border-[3px] border-zinc-700 border-t-transparent rounded-full animate-spin" />
-            )}
-          </div>
-        ) : (
-          (selectedProviderId === 'videasy_adfree' || selectedProviderId === 'cinepro_core' || selectedProviderId.startsWith('encdec')) && !fallbackToIframe ? (
+        {(selectedProviderId === 'videasy_adfree' || selectedProviderId === 'cinepro_core' || selectedProviderId.startsWith('encdec')) && !fallbackToIframe ? (
             <div className="w-full h-full absolute inset-0 bg-zinc-950 z-0 flex items-center justify-center">
               {anivexaLoading && !anivexaStreamUrl && (
                 <div className="absolute inset-0 flex items-center justify-center bg-black z-30 animate-in fade-in duration-250">
@@ -2208,7 +1939,6 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                   allowFullScreen
               />
             )
-          )
         )}
 
         {/* Custom Controls Overlay for PostMessage providers */}

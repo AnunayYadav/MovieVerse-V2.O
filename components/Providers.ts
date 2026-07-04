@@ -36,13 +36,6 @@ export const getSubtitleCode = (sub: string, format: 'name' | 'iso') => {
 
 export const PROVIDERS: Provider[] = [
   {
-    id: 'auto_select',
-    name: '⚡ Smart Auto-Select (Fastest)',
-    getMovieUrl: () => '',
-    getTvUrl: () => '',
-    supportsPostMessage: true
-  },
-  {
     id: 'videasy_adfree',
     name: 'VidEasy (HLS Ad-Free)',
     getMovieUrl: () => '',
