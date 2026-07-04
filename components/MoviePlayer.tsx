@@ -262,8 +262,33 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
 
           const controller = new AbortController();
           const timeoutId = setTimeout(() => controller.abort(), 6000);
-          const res = await window.fetch(`${endpoint}?${params.toString()}`, { signal: controller.signal });
+          
+          const isAnikai = prov.id === 'anikai';
+          const fetchOptions: RequestInit = {
+            signal: controller.signal
+          };
+          if (isAnikai) {
+            // Anikai returns a 302 redirect. manual redirect prevents CORS errors
+            // since fetch would otherwise try to follow the redirect to anikai's domain.
+            fetchOptions.redirect = 'manual';
+          }
+
+          const res = await window.fetch(`${endpoint}?${params.toString()}`, fetchOptions);
           clearTimeout(timeoutId);
+
+          if (isAnikai) {
+            // 302 redirects result in status 0 (opaque) or 302/200 under 'manual' redirect
+            if (res.status === 0 || res.status === 302 || res.status === 301 || res.ok) {
+              return {
+                id: prov.id,
+                name: prov.name,
+                time: Date.now() - start,
+                success: true
+              };
+            } else {
+              throw new Error(`HTTP ${res.status}`);
+            }
+          }
 
           if (!res.ok) throw new Error(`HTTP ${res.status}`);
           const payload = await res.json();
@@ -338,7 +363,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
         };
 
         const premiumCandidates = candidates.filter(prov => 
-          prov.id === 'videasy_adfree' || prov.id === 'encdec_hexa' || prov.id.startsWith('encdec') || prov.id === 'anikai'
+          prov.id === 'videasy_adfree' || prov.id === 'encdec_hexa' || prov.id.startsWith('encdec')
         );
         let failedPremiumCount = 0;
 
@@ -355,7 +380,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
         ps.forEach(p => {
           p.then(res => {
             completedCount++;
-            const isPremium = res.id === 'videasy_adfree' || res.id === 'encdec_hexa' || res.id.startsWith('encdec') || res.id === 'anikai';
+            const isPremium = res.id === 'videasy_adfree' || res.id === 'encdec_hexa' || res.id.startsWith('encdec');
 
             if (res.success) {
               if (res.payload) {
