@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
-import { X, Tv, ChevronLeft, ChevronRight, Check, ListVideo, Sliders, ChevronDown, Info, RefreshCw, Palette, Copy, Play, Pause, Volume2, VolumeX, Maximize, Loader2, AlertTriangle, Settings, Subtitles, ArrowLeft, RotateCcw, RotateCw, SkipForward, MessageSquare, Search, Languages } from 'lucide-react';
+import { X, Tv, ChevronLeft, ChevronRight, Check, ListVideo, Sliders, ChevronDown, Info, RefreshCw, Palette, Copy, Play, Pause, Volume2, VolumeX, Maximize, Loader2, AlertTriangle, Settings, Subtitles, ArrowLeft, RotateCcw, RotateCw, SkipForward, MessageSquare, Search, Languages, Zap } from 'lucide-react';
 import Hls from 'hls.js';
 import { TvFocusButton } from '../tvNavigation';
 import { pause, resume } from '@noriginmedia/norigin-spatial-navigation';
@@ -158,6 +158,13 @@ const switchNativeAudioTrack = (video: HTMLVideoElement, lang: string) => {
 
 export const PROVIDERS: Provider[] = [
   {
+    id: 'auto_select',
+    name: '⚡ Smart Auto-Select (Fastest)',
+    getMovieUrl: () => '',
+    getTvUrl: () => '',
+    supportsPostMessage: true
+  },
+  {
     id: 'videasy_adfree',
     name: 'VidEasy (HLS Ad-Free)',
     getMovieUrl: () => '',
@@ -297,14 +304,25 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   const controlsTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const progressBarRef = useRef<HTMLDivElement>(null);
 
+  const [isRacing, setIsRacing] = useState(false);
+  const [raceError, setRaceError] = useState<string | null>(null);
+  const [raceStatus, setRaceStatus] = useState<string>('');
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const cachedPayloadRef = useRef<{ providerId: string; payload: any } | null>(null);
+
+  const showToast = useCallback((msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 3500);
+  }, []);
+
   const [selectedProviderId, setSelectedProviderId] = useState(() => {
     if (typeof window !== 'undefined') {
-      let preferred = localStorage.getItem('movieverse_preferred_provider') || (isAnime ? 'vidnest' : 'peachify');
+      let preferred = localStorage.getItem('movieverse_preferred_provider') || 'auto_select';
       if (!isAnime && (preferred === 'vidnest_animepahe' || preferred === 'anikai')) {
-        preferred = 'videasy_adfree';
+        preferred = 'auto_select';
       }
       if (preferred === 'encdec_animekai') {
-        preferred = isAnime ? 'vidnest' : 'videasy_adfree';
+        preferred = 'auto_select';
       }
       if (isWatchParty) {
         const prov = PROVIDERS.find(p => p.id === preferred);
@@ -314,7 +332,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
       }
       return preferred;
     }
-    return isWatchParty ? 'vidfast' : (isAnime ? 'vidnest' : 'peachify');
+    return isWatchParty ? 'vidfast' : 'auto_select';
   });
 
   useEffect(() => {
@@ -326,6 +344,145 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
       setSelectedProviderId(providerId);
     }
   }, [providerId, isWatchParty]);
+
+  const triggerProviderRace = useCallback(async () => {
+    if (selectedProviderId !== 'auto_select') return;
+    
+    setIsRacing(true);
+    setRaceError(null);
+    setRaceStatus('Testing latency and availability for all providers...');
+
+    const candidates = PROVIDERS.filter(p => {
+      if (p.id === 'auto_select') return false;
+      if (isWatchParty && !p.supportsPostMessage) return false;
+      if (isAnime) return true;
+      return p.id !== 'vidnest_animepahe' && p.id !== 'anikai';
+    });
+
+    const promises = candidates.map(async (prov) => {
+      const start = Date.now();
+      try {
+        if (prov.id === 'videasy_adfree' || prov.id === 'encdec_hexa' || prov.id.startsWith('encdec') || prov.id === 'anikai') {
+          const cleanTitle = title || '';
+          const params = new URLSearchParams({
+            tmdbId: String(tmdbId),
+            mediaType: mediaType,
+            seasonId: String(currentSeason),
+            episodeId: String(currentEpisode),
+            title: cleanTitle
+          });
+          if (anilistId) params.append('anilistId', String(anilistId));
+          if (prov.id.startsWith('encdec') && selectedEncDecServer) params.append('server', selectedEncDecServer);
+          if (prov.id === 'videasy_adfree') params.append('server', selectedVideasyServer);
+
+          let endpoint = '/api/videasy';
+          if (prov.id.startsWith('encdec')) {
+            endpoint = '/api/encdec';
+            const providerType = prov.id.replace('encdec_', '');
+            params.append('provider', providerType);
+          } else if (prov.id === 'anikai') {
+            endpoint = '/api/anime';
+            params.append('provider', 'anikai');
+            const subdub = animeLanguage === 'dub' || (audioLanguage && audioLanguage !== 'Japanese') ? 'dub' : 'sub';
+            params.append('lang', subdub);
+          }
+
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 6000);
+          const res = await window.fetch(`${endpoint}?${params.toString()}`, { signal: controller.signal });
+          clearTimeout(timeoutId);
+
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const payload = await res.json();
+          if (payload.success && payload.data && (payload.data.sources?.length > 0 || payload.data.iframeUrl)) {
+            return {
+              id: prov.id,
+              name: prov.name,
+              time: Date.now() - start,
+              success: true,
+              payload
+            };
+          } else {
+            throw new Error(payload.error || "Empty sources");
+          }
+        } else {
+          const iframeUrl = mediaType === 'movie'
+            ? prov.getMovieUrl(tmdbId, activeColor, 0, isAnime, anilistId, animeLanguage, audioLanguage, subtitleLanguage)
+            : prov.getTvUrl(tmdbId, currentSeason, currentEpisode, activeColor, 0, isAnime, anilistId, animeLanguage, audioLanguage, subtitleLanguage);
+
+          if (!iframeUrl) throw new Error("Empty URL");
+
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 5000);
+          const urlObj = new URL(iframeUrl);
+          const pingUrl = `${urlObj.protocol}//${urlObj.host}/`;
+
+          await window.fetch(pingUrl, {
+            mode: 'no-cors',
+            signal: controller.signal
+          });
+          clearTimeout(timeoutId);
+
+          // Add a penalty of 400ms for iframe load overhead
+          return {
+            id: prov.id,
+            name: prov.name,
+            time: Date.now() - start + 400,
+            success: true
+          };
+        }
+      } catch (err: any) {
+        return {
+          id: prov.id,
+          name: prov.name,
+          time: Date.now() - start,
+          success: false,
+          error: err.message || String(err)
+        };
+      }
+    });
+
+    const anySuccess = (ps: Promise<any>[]) => {
+      return new Promise<any>((resolve, reject) => {
+        let failedCount = 0;
+        const errors: any[] = [];
+        ps.forEach(p => {
+          p.then(res => {
+            if (res.success) {
+              resolve(res);
+            } else {
+              failedCount++;
+              errors.push(res);
+              if (failedCount === ps.length) reject(new Error("All providers failed to load."));
+            }
+          }).catch(err => {
+            failedCount++;
+            errors.push(err);
+            if (failedCount === ps.length) reject(new Error("All providers failed to load."));
+          });
+        });
+      });
+    };
+
+    try {
+      const winner = await anySuccess(promises);
+      if (winner.payload) {
+        cachedPayloadRef.current = { providerId: winner.id, payload: winner.payload };
+      }
+      setSelectedProviderId(winner.id);
+      showToast(`Auto-Selected ${winner.name} (${winner.time}ms)`);
+    } catch (err: any) {
+      setRaceError(err.message || "All providers failed to load.");
+    } finally {
+      setIsRacing(false);
+    }
+  }, [selectedProviderId, tmdbId, mediaType, currentSeason, currentEpisode, title, anilistId, selectedEncDecServer, selectedVideasyServer, animeLanguage, audioLanguage, subtitleLanguage, activeColor, isAnime, isWatchParty, showToast]);
+
+  useEffect(() => {
+    if (selectedProviderId === 'auto_select') {
+      triggerProviderRace();
+    }
+  }, [selectedProviderId, tmdbId, currentSeason, currentEpisode]);
 
   // --- Custom Controls PostMessage Helpers ---
   const sendPlayerCommand = useCallback((command: string, params?: Record<string, any>) => {
@@ -831,41 +988,49 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
       setDetectedAudioLanguages([]);
 
       try {
-        const cleanTitle = title || '';
-        const params = new URLSearchParams({
-          tmdbId: String(tmdbId),
-          mediaType: mediaType,
-          seasonId: String(currentSeason),
-          episodeId: String(currentEpisode),
-          title: cleanTitle
-        });
+        let payload: any = null;
+        if (cachedPayloadRef.current && cachedPayloadRef.current.providerId === selectedProviderId) {
+          payload = cachedPayloadRef.current.payload;
+          cachedPayloadRef.current = null; // Clear cache
+          console.log("Using cached payload for provider:", selectedProviderId);
+        } else {
+          const cleanTitle = title || '';
+          const params = new URLSearchParams({
+            tmdbId: String(tmdbId),
+            mediaType: mediaType,
+            seasonId: String(currentSeason),
+            episodeId: String(currentEpisode),
+            title: cleanTitle
+          });
 
-        if (anilistId) {
-          params.append('anilistId', String(anilistId));
+          if (anilistId) {
+            params.append('anilistId', String(anilistId));
+          }
+
+          if (selectedProviderId.startsWith('encdec') && selectedEncDecServer) {
+            params.append('server', selectedEncDecServer);
+          }
+
+          if (selectedProviderId === 'videasy_adfree') {
+            params.append('server', selectedVideasyServer);
+          }
+
+          let endpoint = '/api/videasy';
+          if (selectedProviderId.startsWith('encdec')) {
+            endpoint = '/api/encdec';
+            const providerType = selectedProviderId.replace('encdec_', '');
+            params.append('provider', providerType);
+          }
+
+          const res = await window.fetch(`${endpoint}?${params.toString()}`);
+          if (!res.ok) {
+            const errData = await res.json().catch(() => ({}));
+            throw new Error(errData.error || "Failed to resolve stream sources from provider.");
+          }
+
+          payload = await res.json();
         }
 
-        if (selectedProviderId.startsWith('encdec') && selectedEncDecServer) {
-          params.append('server', selectedEncDecServer);
-        }
-
-        if (selectedProviderId === 'videasy_adfree') {
-          params.append('server', selectedVideasyServer);
-        }
-
-        let endpoint = '/api/videasy';
-        if (selectedProviderId.startsWith('encdec')) {
-          endpoint = '/api/encdec';
-          const providerType = selectedProviderId.replace('encdec_', '');
-          params.append('provider', providerType);
-        }
-
-        const res = await window.fetch(`${endpoint}?${params.toString()}`);
-        if (!res.ok) {
-          const errData = await res.json().catch(() => ({}));
-          throw new Error(errData.error || "Failed to resolve stream sources from provider.");
-        }
-
-        const payload = await res.json();
         if (!isMounted) return;
 
         if (payload.success && payload.data) {
@@ -2003,73 +2168,106 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
         }
       `}</style>
       <div className="flex-1 relative w-full h-full z-0 overflow-hidden bg-black">
-        {(selectedProviderId === 'videasy_adfree' || selectedProviderId === 'cinepro_core' || selectedProviderId.startsWith('encdec')) && !fallbackToIframe ? (
-          <div className="w-full h-full absolute inset-0 bg-zinc-950 z-0 flex items-center justify-center">
-            {anivexaLoading && !anivexaStreamUrl && (
-              <div className="absolute inset-0 flex items-center justify-center bg-black z-30 animate-in fade-in duration-250">
-                <div className="w-12 h-12 border-[3px] border-[#E50914] border-t-transparent rounded-full animate-spin shadow-[0_0_15px_rgba(229,9,20,0.4)]" />
-              </div>
-            )}
-            {anivexaError && (
-              <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-zinc-950/95 backdrop-blur-2xl z-30 p-8 text-center">
+        {isRacing ? (
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-zinc-950 z-40 p-8 text-center animate-in fade-in duration-200">
+            <div className="relative mb-6">
+              <div className="w-16 h-16 border-[3px] border-red-600 border-t-transparent rounded-full animate-spin shadow-[0_0_20px_rgba(229,9,20,0.3)]" />
+              <Zap className="absolute inset-0 m-auto text-red-500 animate-pulse" size={24} />
+            </div>
+            <div className="space-y-2">
+              <h4 className="text-white font-extrabold text-sm tracking-wider uppercase">Smart Provider Race</h4>
+              <p className="text-zinc-400 text-xs max-w-xs mx-auto leading-relaxed">{raceStatus || 'Analyzing network latency to providers...'}</p>
+            </div>
+          </div>
+        ) : selectedProviderId === 'auto_select' ? (
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-zinc-950 z-40 p-8 text-center animate-in fade-in duration-200">
+            {raceError ? (
+              <div className="flex flex-col items-center justify-center gap-4 bg-zinc-950/95 backdrop-blur-2xl p-8 text-center max-w-md">
                 <AlertTriangle className="text-red-500 animate-pulse" size={48} />
                 <div className="space-y-1">
-                  <h4 className="text-white font-extrabold text-sm tracking-wider uppercase">Playback Error</h4>
-                  <p className="text-zinc-500 text-xs max-w-xs mx-auto leading-relaxed">{anivexaError}</p>
+                  <h4 className="text-white font-extrabold text-sm tracking-wider uppercase">Auto-Select Failed</h4>
+                  <p className="text-zinc-500 text-xs leading-relaxed">{raceError}</p>
                 </div>
-                {selectedProviderId === 'videasy_adfree' ? (
-                  <button
-                    onClick={() => {
-                      setFallbackToNativeVideasy(true);
-                      setAnivexaError(null);
-                    }}
-                    className="px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white font-bold text-xs uppercase tracking-wider rounded-xl transition-all border border-red-500/20 backdrop-blur-md active:scale-95 shadow-xl"
-                  >
-                    Switch to Native Embed Player
-                  </button>
-                ) : (
-                  <button
-                    onClick={() => {
-                      setSelectedProviderId(isAnime ? 'vidnest' : 'cinesrc');
-                    }}
-                    className="px-5 py-2.5 bg-white/10 hover:bg-white/15 text-white font-bold text-xs uppercase tracking-wider rounded-xl transition-all border border-white/10 backdrop-blur-md active:scale-95 shadow-xl"
-                  >
-                    Switch to Embed Player
-                  </button>
-                )}
+                <button
+                  onClick={() => triggerProviderRace()}
+                  className="px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white font-bold text-xs uppercase tracking-wider rounded-xl transition-all border border-red-500/20 backdrop-blur-md active:scale-95 shadow-xl"
+                >
+                  Retry Auto-Select
+                </button>
               </div>
-            )}
-            {anivexaStreamUrl && (
-              <video
-                ref={videoRef}
-                className="w-full h-full object-contain"
-                playsInline
-                crossOrigin="anonymous"
-              >
-                {anivexaSubtitles.map((sub, idx) => (
-                  <track
-                    key={idx}
-                    kind="subtitles"
-                    src={sub.url && sub.url.startsWith('http') ? `/api/subtitles?url=${encodeURIComponent(sub.url)}` : sub.url}
-                    srcLang={sub.lang || sub.language}
-                    label={sub.language || sub.lang}
-                  />
-                ))}
-              </video>
+            ) : (
+              <div className="w-12 h-12 border-[3px] border-zinc-700 border-t-transparent rounded-full animate-spin" />
             )}
           </div>
         ) : (
-          embedUrl && (
-            <iframe 
-                ref={iframeRef}
-                src={embedUrl}
-                onLoad={handleIframeLoad}
-                className="w-full h-full absolute inset-0 bg-black z-0"
-                title="Media Player"
-                frameBorder="0"
-                allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
-                allowFullScreen
-            />
+          (selectedProviderId === 'videasy_adfree' || selectedProviderId === 'cinepro_core' || selectedProviderId.startsWith('encdec')) && !fallbackToIframe ? (
+            <div className="w-full h-full absolute inset-0 bg-zinc-950 z-0 flex items-center justify-center">
+              {anivexaLoading && !anivexaStreamUrl && (
+                <div className="absolute inset-0 flex items-center justify-center bg-black z-30 animate-in fade-in duration-250">
+                  <div className="w-12 h-12 border-[3px] border-[#E50914] border-t-transparent rounded-full animate-spin shadow-[0_0_15px_rgba(229,9,20,0.4)]" />
+                </div>
+              )}
+              {anivexaError && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-zinc-950/95 backdrop-blur-2xl z-30 p-8 text-center">
+                  <AlertTriangle className="text-red-500 animate-pulse" size={48} />
+                  <div className="space-y-1">
+                    <h4 className="text-white font-extrabold text-sm tracking-wider uppercase">Playback Error</h4>
+                    <p className="text-zinc-500 text-xs max-w-xs mx-auto leading-relaxed">{anivexaError}</p>
+                  </div>
+                  {selectedProviderId === 'videasy_adfree' ? (
+                    <button
+                      onClick={() => {
+                        setFallbackToNativeVideasy(true);
+                        setAnivexaError(null);
+                      }}
+                      className="px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white font-bold text-xs uppercase tracking-wider rounded-xl transition-all border border-red-500/20 backdrop-blur-md active:scale-95 shadow-xl"
+                    >
+                      Switch to Native Embed Player
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => {
+                        setSelectedProviderId(isAnime ? 'vidnest' : 'cinesrc');
+                      }}
+                      className="px-5 py-2.5 bg-white/10 hover:bg-white/15 text-white font-bold text-xs uppercase tracking-wider rounded-xl transition-all border border-white/10 backdrop-blur-md active:scale-95 shadow-xl"
+                    >
+                      Switch to Embed Player
+                    </button>
+                  )}
+                </div>
+              )}
+              {anivexaStreamUrl && (
+                <video
+                  ref={videoRef}
+                  className="w-full h-full object-contain"
+                  playsInline
+                  crossOrigin="anonymous"
+                >
+                  {anivexaSubtitles.map((sub, idx) => (
+                    <track
+                      key={idx}
+                      kind="subtitles"
+                      src={sub.url && sub.url.startsWith('http') ? `/api/subtitles?url=${encodeURIComponent(sub.url)}` : sub.url}
+                      srcLang={sub.lang || sub.language}
+                      label={sub.language || sub.lang}
+                    />
+                  ))}
+                </video>
+              )}
+            </div>
+          ) : (
+            embedUrl && (
+              <iframe 
+                  ref={iframeRef}
+                  src={embedUrl}
+                  onLoad={handleIframeLoad}
+                  className="w-full h-full absolute inset-0 bg-black z-0"
+                  title="Media Player"
+                  frameBorder="0"
+                  allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
+                  allowFullScreen
+              />
+            )
           )
         )}
 
@@ -3284,6 +3482,12 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
         </div>
       </div>
 
+      {toastMessage && (
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 px-4 py-2 bg-black/80 backdrop-blur-md border border-white/10 rounded-xl text-white font-bold text-xs tracking-wider uppercase z-50 flex items-center gap-2 shadow-2xl animate-in slide-in-from-top-4 duration-300">
+          <Zap className="text-yellow-400 animate-pulse" size={14} />
+          <span>{toastMessage}</span>
+        </div>
+      )}
 
     </div>
   );

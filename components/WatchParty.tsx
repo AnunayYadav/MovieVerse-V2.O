@@ -653,7 +653,7 @@ export const WatchPartySection: React.FC<WatchPartySectionProps> = ({
             </button>
             {isProviderDropdownOpen && (
               <div className="absolute left-0 right-0 top-full mt-2 bg-[#09090b]/98 backdrop-blur-2xl border border-white/10 rounded-xl shadow-[0_10px_30px_rgba(0,0,0,0.5)] py-1.5 z-50 animate-in fade-in slide-in-from-top-2 duration-200">
-                {PROVIDERS.filter(p => p.supportsPostMessage).map((prov) => (
+                {PROVIDERS.filter(p => p.supportsPostMessage && p.id !== 'auto_select').map((prov) => (
                   <button
                     key={prov.id}
                     type="button"
