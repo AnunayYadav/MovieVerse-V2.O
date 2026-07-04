@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Send, Users, LogOut, Copy, Check, MessageSquare, RefreshCw, Maximize2, Minimize2, ChevronDown, Tv } from 'lucide-react';
-import { PROVIDERS } from './MoviePlayer';
+import { PROVIDERS } from './Providers';
 import { triggerSystemNotification } from '../services/supabase';
 
 interface Message {

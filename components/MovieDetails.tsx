@@ -17,7 +17,7 @@ const isTV = typeof window !== 'undefined' && (
 );
 
 const MoviePlayer = React.lazy(() => import('./MoviePlayer').then(module => ({ default: module.MoviePlayer })));
-import { PROVIDERS } from './MoviePlayer';
+import { PROVIDERS } from './Providers';
 
 const LANGUAGES_FULL_MAP: Record<string, string> = {
     en: "English",
