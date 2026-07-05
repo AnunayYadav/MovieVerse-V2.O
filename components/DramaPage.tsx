@@ -20,6 +20,7 @@ export interface MDLDramaSummary {
   slug: string;
   year?: string;
   image: string;
+  backdrop?: string;
   rating?: string;
   url?: string;
   episode?: string;
@@ -103,6 +104,7 @@ export const DramaPage: React.FC<DramaPageProps> = ({
       slug: `tmdb-${item.id}`,
       year: (item.first_air_date || item.release_date || '').slice(0, 4),
       image: item.poster_path ? `${TMDB_IMAGE_BASE}${item.poster_path}` : 'https://images.unsplash.com/photo-1574375927938-d5a98e8edd85?q=80&w=400',
+      backdrop: item.backdrop_path ? `${TMDB_IMAGE_BASE}${item.backdrop_path}` : undefined,
       rating: item.vote_average ? item.vote_average.toFixed(1) : undefined,
       tmdbId: item.id,
       mediaType: item.first_air_date ? 'tv' : 'movie'
@@ -123,7 +125,9 @@ export const DramaPage: React.FC<DramaPageProps> = ({
     const res = await window.fetch(`${TMDB_BASE_URL}${endpoint}${separator}api_key=${apiKey}`);
     if (!res.ok) return [];
     const data = await res.json();
-    return (data.results || []).map(mapTmdbToMdlSummary);
+    return (data.results || [])
+      .filter((item: any) => !item.genre_ids?.includes(16))
+      .map(mapTmdbToMdlSummary);
   }, [apiKey, mapTmdbToMdlSummary]);
 
   // Helper: fetch MDL seasonal and map to MDLDramaSummary
@@ -777,25 +781,40 @@ export const DramaCard: React.FC<DramaCardProps> = ({ drama, onDramaClick, title
     onEnterPress: () => onDramaClick(drama)
   });
 
-  const [posterUrl, setPosterUrl] = useState<string>(drama.image);
+  const [imageUrl, setImageUrl] = useState<string>(drama.image);
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [logoLoading, setLogoLoading] = useState<boolean>(true);
   const [displayTitle, setDisplayTitle] = useState<string>(drama.title);
   const [rating, setRating] = useState<number | null>(drama.rating ? parseFloat(drama.rating) : null);
 
-  // Asynchronously resolve TMDB high-res poster and title
+  // Asynchronously resolve TMDB high-res backdrop and logo
   useEffect(() => {
     let isMounted = true;
-    const resolveTmdb = async () => {
-      if (drama.tmdbId) return;
+    
+    const resolveTmdbAndLogo = async () => {
+      let tmdbId = drama.tmdbId;
+      let mediaType = drama.mediaType || 'tv';
+      let backdropPath = drama.backdrop;
 
-      const cacheKey = `movieverse_drama_tmdb_match_${drama.slug}`;
-      const cached = localStorage.getItem(cacheKey);
-      if (cached) {
+      if (!tmdbId && drama.slug.startsWith('tmdb-')) {
+        tmdbId = parseInt(drama.slug.replace('tmdb-', ''), 10);
+      }
+
+      const matchCacheKey = `movieverse_drama_tmdb_match_${drama.slug}`;
+      const logoCacheKey = `movieverse_drama_logo_${drama.slug}`;
+      
+      const cachedMatch = localStorage.getItem(matchCacheKey);
+      const cachedLogo = localStorage.getItem(logoCacheKey);
+
+      if (cachedMatch) {
         try {
-          const matchData = JSON.parse(cached);
+          const matchData = JSON.parse(cachedMatch);
+          tmdbId = matchData.id;
+          mediaType = matchData.mediaType || mediaType;
+          if (matchData.backdrop_path) {
+            backdropPath = `https://image.tmdb.org/t/p/w500${matchData.backdrop_path}`;
+          }
           if (isMounted) {
-            if (matchData.poster_path) {
-              setPosterUrl(`https://image.tmdb.org/t/p/w500${matchData.poster_path}`);
-            }
             const tmdbTitle = titleLanguage === 'native'
               ? (matchData.original_name || drama.title)
               : (matchData.name || drama.title);
@@ -804,78 +823,131 @@ export const DramaCard: React.FC<DramaCardProps> = ({ drama, onDramaClick, title
               setRating(matchData.vote_average);
             }
           }
-          return;
         } catch (_) {}
       }
 
-      try {
-        const cleanTitle = drama.title.replace(/\(\d{4}\)/g, '').trim();
-        const year = drama.year;
-        let queryStr = encodeURIComponent(cleanTitle);
-        if (year) {
-          queryStr += `&first_air_date_year=${year}`;
-        }
-        
-        const tvRes = await window.fetch(`${TMDB_BASE_URL}/search/tv?api_key=${apiKey}&query=${queryStr}`);
-        const tvData = await tvRes.json();
-        let match = null;
-
-        if (tvData && tvData.results && tvData.results.length > 0) {
-          match = tvData.results.find((item: any) => 
-            ['ko', 'zh', 'ja'].includes(item.original_language)
-          ) || tvData.results[0];
-        }
-
-        if (!match) {
-          const movieRes = await window.fetch(`${TMDB_BASE_URL}/search/movie?api_key=${apiKey}&query=${encodeURIComponent(cleanTitle)}`);
-          const movieData = await movieRes.json();
-          if (movieData && movieData.results && movieData.results.length > 0) {
-            match = movieData.results.find((item: any) => 
-              ['ko', 'zh', 'ja'].includes(item.original_language)
-            ) || movieData.results[0];
+      if (!tmdbId) {
+        try {
+          const cleanTitle = drama.title.replace(/\(\d{4}\)/g, '').trim();
+          const year = drama.year;
+          let queryStr = encodeURIComponent(cleanTitle);
+          if (year) {
+            queryStr += `&first_air_date_year=${year}`;
           }
-        }
-
-        if (match && isMounted) {
-          const matchData = {
-            id: match.id,
-            mediaType: match.first_air_date ? 'tv' : 'movie',
-            poster_path: match.poster_path,
-            backdrop_path: match.backdrop_path,
-            name: match.name || match.title,
-            original_name: match.original_name || match.original_title,
-            vote_average: match.vote_average
-          };
-          localStorage.setItem(cacheKey, JSON.stringify(matchData));
           
-          if (match.poster_path) {
-            setPosterUrl(`https://image.tmdb.org/t/p/w500${match.poster_path}`);
+          const tvRes = await window.fetch(`${TMDB_BASE_URL}/search/tv?api_key=${apiKey}&query=${queryStr}`);
+          const tvData = await tvRes.json();
+          let match = null;
+
+          if (tvData && tvData.results && tvData.results.length > 0) {
+            match = tvData.results.find((item: any) => 
+              ['ko', 'zh', 'ja'].includes(item.original_language)
+            ) || tvData.results[0];
           }
-          const tmdbTitle = titleLanguage === 'native'
-            ? (matchData.original_name || drama.title)
-            : (matchData.name || drama.title);
-          setDisplayTitle(tmdbTitle);
-          if (match.vote_average) {
-            setRating(match.vote_average);
+
+          if (!match) {
+            const movieRes = await window.fetch(`${TMDB_BASE_URL}/search/movie?api_key=${apiKey}&query=${encodeURIComponent(cleanTitle)}`);
+            const movieData = await movieRes.json();
+            if (movieData && movieData.results && movieData.results.length > 0) {
+              match = movieData.results.find((item: any) => 
+                ['ko', 'zh', 'ja'].includes(item.original_language)
+              ) || movieData.results[0];
+              mediaType = 'movie';
+            }
+          }
+
+          if (match) {
+            tmdbId = match.id;
+            mediaType = match.first_air_date ? 'tv' : 'movie';
+            if (match.backdrop_path) {
+              backdropPath = `https://image.tmdb.org/t/p/w500${match.backdrop_path}`;
+            }
+            const matchData = {
+              id: match.id,
+              mediaType,
+              poster_path: match.poster_path,
+              backdrop_path: match.backdrop_path,
+              name: match.name || match.title,
+              original_name: match.original_name || match.original_title,
+              vote_average: match.vote_average
+            };
+            localStorage.setItem(matchCacheKey, JSON.stringify(matchData));
+            
+            if (isMounted) {
+              const tmdbTitle = titleLanguage === 'native'
+                ? (matchData.original_name || drama.title)
+                : (matchData.name || drama.title);
+              setDisplayTitle(tmdbTitle);
+              if (match.vote_average) {
+                setRating(match.vote_average);
+              }
+            }
+          }
+        } catch (e) {
+          console.error("Failed resolving TMDB match in DramaCard:", e);
+        }
+      }
+
+      if (isMounted) {
+        if (backdropPath) {
+          setImageUrl(backdropPath);
+        } else if (drama.backdrop) {
+          setImageUrl(drama.backdrop);
+        } else {
+          setImageUrl(drama.image);
+        }
+      }
+
+      if (tmdbId) {
+        if (cachedLogo !== null) {
+          if (isMounted) {
+            setLogoUrl(cachedLogo || null);
+            setLogoLoading(false);
+          }
+        } else {
+          try {
+            const imgRes = await window.fetch(`${TMDB_BASE_URL}/${mediaType}/${tmdbId}/images?api_key=${apiKey}`);
+            const imgData = await imgRes.json();
+            const logo = imgData.logos?.find((l: any) => l.iso_639_1 === 'en') || imgData.logos?.[0];
+            if (logo && isMounted) {
+              const logoPath = `https://image.tmdb.org/t/p/w300${logo.file_path}`;
+              setLogoUrl(logoPath);
+              localStorage.setItem(logoCacheKey, logoPath);
+            } else if (isMounted) {
+              setLogoUrl(null);
+              localStorage.setItem(logoCacheKey, '');
+            }
+          } catch (e) {
+            console.error("Logo fetch failed for DramaCard:", e);
+            if (isMounted) {
+              setLogoUrl(null);
+              localStorage.setItem(logoCacheKey, '');
+            }
+          } finally {
+            if (isMounted) {
+              setLogoLoading(false);
+            }
           }
         }
-      } catch (e) {
-        console.error("Failed resolving TMDB match in DramaCard:", e);
+      } else {
+        if (isMounted) {
+          setLogoLoading(false);
+        }
       }
     };
 
-    resolveTmdb();
+    resolveTmdbAndLogo();
 
     return () => {
       isMounted = false;
     };
-  }, [drama.slug, drama.tmdbId, drama.image, drama.title, drama.native_title, drama.rating, titleLanguage, apiKey]);
+  }, [drama.slug, drama.tmdbId, drama.image, drama.backdrop, drama.title, drama.rating, titleLanguage, apiKey]);
 
   return (
     <div
       ref={ref}
       onClick={() => onDramaClick(drama)}
-      className={`group relative ${widthClass || 'shrink-0 w-[140px] sm:w-[170px]'} aspect-[2/3] rounded-xl overflow-hidden cursor-pointer bg-zinc-900 border border-white/5 hover:border-red-500/50 hover:shadow-[0_0_20px_rgba(239,68,68,0.25)] hover:scale-[1.03] transition-all duration-500 select-none`}
+      className={`group relative ${widthClass || 'shrink-0 w-[220px] md:w-[260px]'} aspect-[16/9] rounded-xl overflow-hidden cursor-pointer bg-zinc-900 border border-white/5 hover:border-red-500/50 hover:shadow-[0_0_20px_rgba(239,68,68,0.25)] hover:scale-[1.03] transition-all duration-500 select-none`}
     >
       {/* Rating Badge */}
       {rating && (
@@ -892,19 +964,29 @@ export const DramaCard: React.FC<DramaCardProps> = ({ drama, onDramaClick, title
       )}
 
       <img
-        src={posterUrl}
+        src={imageUrl}
         alt={displayTitle}
         loading="lazy"
         referrerPolicy="no-referrer"
         className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
       />
-      <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/35 to-transparent opacity-85 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
+      <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/45 to-transparent opacity-85 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
 
       {/* Title Details Overlay */}
       <div className="absolute inset-0 p-3 flex flex-col justify-end text-left select-none pointer-events-none">
-        <h4 className="text-xs sm:text-sm font-bold text-white line-clamp-2 group-hover:text-red-500 transition-colors duration-300 drop-shadow-md leading-tight">
-          {displayTitle}
-        </h4>
+        <div className="min-h-[35px] flex items-end">
+          {!logoLoading && logoUrl ? (
+            <img
+              src={logoUrl}
+              alt={displayTitle}
+              className="max-h-[32px] max-w-[85%] object-contain drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)] group-hover:scale-105 transition-transform duration-300 origin-left"
+            />
+          ) : (
+            <h4 className="text-sm font-bold text-white line-clamp-1 group-hover:text-red-500 transition-colors duration-300 drop-shadow-md leading-tight">
+              {displayTitle}
+            </h4>
+          )}
+        </div>
         <div className="max-h-0 overflow-hidden group-hover:max-h-10 group-hover:mt-1 transition-all duration-500 ease-out opacity-0 group-hover:opacity-100 flex items-center justify-between text-[9px] text-zinc-400 font-semibold font-sans">
           <span>{drama.year || drama.network || 'Airing'}</span>
           {drama.air_time && (
@@ -928,7 +1010,7 @@ export interface DramaRowProps {
 export const DramaRow: React.FC<DramaRowProps> = ({ title, items, onDramaClick, titleLanguage, apiKey, onExpand }) => {
   if (!items || items.length === 0) return null;
   return (
-    <div className="mb-10 animate-in fade-in duration-500 text-left font-sans select-none px-3 md:px-6">
+    <div className="animate-in fade-in duration-500 text-left font-sans select-none px-3 md:px-6">
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-lg font-bold text-white tracking-tight flex items-center gap-2 select-none">
           <span className="w-1.5 h-5 bg-red-600 rounded-full inline-block"></span>
@@ -979,7 +1061,7 @@ export const DramaPageSkeleton: React.FC = () => {
             <div className="h-6 w-48 bg-white/10 rounded-md shimmer-bg" />
             <div className="flex gap-5 overflow-x-hidden pb-4">
               {[1, 2, 3, 4, 5, 6, 7].map((j) => (
-                <div key={j} className="shrink-0 w-[140px] sm:w-[170px] aspect-[2/3] bg-zinc-955/40 border border-white/5 rounded-xl shimmer-bg" />
+                <div key={j} className="shrink-0 w-[220px] md:w-[260px] aspect-[16/9] bg-zinc-955/40 border border-white/5 rounded-xl shimmer-bg" />
               ))}
             </div>
           </div>

@@ -1653,10 +1653,10 @@ export const AnimeCard: React.FC<AnimeCardProps> = ({ anime, apiKey, onAnimeClic
     <div
       ref={ref}
       onClick={() => onAnimeClick(anime)}
-      className="group relative shrink-0 w-[140px] sm:w-[170px] aspect-[2/3] rounded-xl overflow-hidden cursor-pointer bg-zinc-900 border border-white/5 hover:border-red-500/50 hover:shadow-[0_0_20px_rgba(239,68,68,0.25)] hover:scale-[1.03] transition-all duration-500 select-none"
+      className="group relative shrink-0 w-[220px] md:w-[260px] aspect-[16/9] rounded-xl overflow-hidden cursor-pointer bg-zinc-900 border border-white/5 hover:border-red-500/50 hover:shadow-[0_0_20px_rgba(239,68,68,0.25)] hover:scale-[1.03] transition-all duration-500 select-none"
     >
       <img
-        src={anime.coverImage.extraLarge || anime.coverImage.large || "https://placehold.co/320x480/111/444?text=Loading..."}
+        src={backdropUrl || anime.bannerImage || anime.coverImage.extraLarge || anime.coverImage.large || "https://placehold.co/600x338/111/444?text=Loading..."}
         alt={title}
         loading="lazy"
         className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
@@ -1683,9 +1683,19 @@ export const AnimeCard: React.FC<AnimeCardProps> = ({ anime, apiKey, onAnimeClic
 
       {/* Content Details Overlay */}
       <div className="absolute inset-0 p-3 flex flex-col justify-end text-left select-none pointer-events-none">
-        <h4 className="text-xs sm:text-sm font-bold text-white line-clamp-2 group-hover:text-red-500 transition-colors duration-300 drop-shadow-md leading-tight">
-          {title}
-        </h4>
+        <div className="min-h-[35px] flex items-end">
+          {!logoLoading && logoUrl ? (
+            <img
+              src={logoUrl}
+              alt={title}
+              className="max-h-[32px] max-w-[85%] object-contain drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)] group-hover:scale-105 transition-transform duration-300 origin-left"
+            />
+          ) : (
+            <h4 className="text-sm font-bold text-white line-clamp-1 group-hover:text-red-500 transition-colors duration-300 drop-shadow-md leading-tight">
+              {title}
+            </h4>
+          )}
+        </div>
 
         {/* Hover Expanded Info */}
         <div className="max-h-0 overflow-hidden group-hover:max-h-12 group-hover:mt-1.5 transition-all duration-500 ease-out opacity-0 group-hover:opacity-100 flex flex-col gap-1 z-10">
