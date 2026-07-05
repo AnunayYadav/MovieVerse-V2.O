@@ -316,12 +316,10 @@ export const DramaPage: React.FC<DramaPageProps> = ({
 
   // Match Drama with TMDB to launch player
   const handleWatchNow = async (title: string, year?: string) => {
-    // Extract a clean title (remove year if in title, etc.)
     let cleanTitle = title.replace(/\(\d{4}\)/g, '').trim();
     
     setMatchingStatus({ isActive: true, title: cleanTitle, error: null });
 
-    // Look for matching TV Show on TMDB first
     try {
       let queryStr = encodeURIComponent(cleanTitle);
       if (year) {
@@ -331,7 +329,6 @@ export const DramaPage: React.FC<DramaPageProps> = ({
       const tvData = await tvRes.json();
       
       if (tvData && tvData.results && tvData.results.length > 0) {
-        // Find best match (matching original language 'ko', 'zh', 'ja' or highest popularity)
         const match = tvData.results.find((item: any) => 
           ['ko', 'zh', 'ja'].includes(item.original_language)
         ) || tvData.results[0];
@@ -406,7 +403,7 @@ export const DramaPage: React.FC<DramaPageProps> = ({
   }
 
   return (
-    <div className={`min-h-screen bg-[#030303] pb-24 text-white font-sans ${disableEntryAnimation ? '' : 'animate-in fade-in duration-500'}`}>
+    <div className={`min-h-screen bg-[#030303] pb-24 text-white font-sans ${disableEntryAnimation ? '' : 'animate-in fade-in duration-500'} overflow-x-hidden`}>
       
       {/* TMDB Match Loader Overlay */}
       {matchingStatus.isActive && (
@@ -467,9 +464,9 @@ export const DramaPage: React.FC<DramaPageProps> = ({
               </div>
 
               {/* Hero Content */}
-              <div className="absolute bottom-0 left-0 right-0 px-4 md:px-12 pb-12 max-w-7xl mx-auto flex flex-col items-start gap-4">
+              <div className="absolute bottom-0 left-0 right-0 px-4 md:px-12 pb-12 max-w-7xl mx-auto flex flex-col items-start gap-4 text-left">
                 <div className="flex items-center gap-2.5">
-                  <span className="bg-red-600/25 border border-red-500/30 text-red-500 font-extrabold text-[10px] uppercase tracking-widest px-2.5 py-1 rounded-full backdrop-blur-sm animate-pulse">
+                  <span className="bg-red-600/25 border border-red-500/30 text-red-500 font-extrabold text-[10px] uppercase tracking-widest px-2.5 py-1 rounded-full backdrop-blur-sm animate-pulse animate-duration-1000">
                     ★ MDL Featured
                   </span>
                   {heroDetails?.rating && (
@@ -536,9 +533,9 @@ export const DramaPage: React.FC<DramaPageProps> = ({
           </div>
 
           {/* Catalog Body */}
-          <div className="max-w-7xl mx-auto px-4 md:px-12 mt-8 flex flex-col gap-10 select-none">
+          <div className="max-w-7xl mx-auto mt-8 flex flex-col gap-10 select-none pb-16">
             {error && (
-              <div className="bg-red-500/10 border border-red-500/20 p-5 rounded-2xl flex items-center gap-4 text-sm text-red-400">
+              <div className="mx-4 md:mx-12 bg-red-500/10 border border-red-500/20 p-5 rounded-2xl flex items-center gap-4 text-sm text-red-400">
                 <AlertCircle className="shrink-0" />
                 <p>{error}</p>
               </div>
@@ -546,8 +543,8 @@ export const DramaPage: React.FC<DramaPageProps> = ({
 
             {/* Search Results Grid */}
             {searchQuery && (
-              <div>
-                <h2 className="text-xl md:text-2xl font-black text-white tracking-tight flex items-center gap-3.5 mb-6">
+              <div className="px-4 md:px-12">
+                <h2 className="text-xl md:text-2xl font-black text-white tracking-tight flex items-center gap-3.5 mb-6 text-left">
                   <span className="w-2.5 h-6 rounded-full bg-red-600"></span>
                   Search Results for "{searchQuery}"
                 </h2>
@@ -556,36 +553,9 @@ export const DramaPage: React.FC<DramaPageProps> = ({
                     <Loader2 className="w-8 h-8 text-red-600 animate-spin" />
                   </div>
                 ) : searchResults.length > 0 ? (
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6 justify-items-center">
                     {searchResults.map(drama => (
-                      <div 
-                        key={drama.slug} 
-                        onClick={() => onDramaSelect(drama.slug)}
-                        className="group relative bg-[#0c0c0e] border border-white/10 rounded-xl overflow-hidden cursor-pointer transition-all duration-300 hover:scale-[1.03] hover:border-white/20 hover:shadow-[0_8px_30px_rgb(0,0,0,0.6)]"
-                      >
-                        <div className="aspect-[2/3] w-full overflow-hidden relative">
-                          <img 
-                            src={drama.image} 
-                            alt={drama.title}
-                            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                            loading="lazy"
-                          />
-                          {drama.rating && (
-                            <span className="absolute top-2 right-2 flex items-center gap-0.5 bg-black/70 backdrop-blur-md text-amber-500 font-extrabold text-[9px] px-1.5 py-0.5 rounded-md">
-                              ★ {drama.rating}
-                            </span>
-                          )}
-                          <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
-                            <div className="w-10 h-10 rounded-full bg-red-600 flex items-center justify-center shadow-lg">
-                              <Play size={14} className="fill-white ml-0.5" />
-                            </div>
-                          </div>
-                        </div>
-                        <div className="p-3">
-                          <h4 className="text-xs font-bold text-white line-clamp-1 group-hover:text-red-500 transition-colors">{drama.title}</h4>
-                          <span className="text-[10px] text-zinc-500 mt-0.5 block">{drama.year || 'TBA'}</span>
-                        </div>
-                      </div>
+                      <DramaCard key={drama.slug} drama={drama} onDramaClick={onDramaSelect} />
                     ))}
                   </div>
                 ) : (
@@ -601,14 +571,14 @@ export const DramaPage: React.FC<DramaPageProps> = ({
               <>
                 {/* Airing Calendar Section */}
                 {Object.keys(calendarDramas).length > 0 && (
-                  <div className="bg-[#0c0c0e]/50 border border-white/5 rounded-2xl p-4 md:p-6 shadow-xl">
+                  <div className="mx-4 md:mx-12 bg-[#0c0c0e]/50 border border-white/5 rounded-2xl p-4 md:p-6 shadow-xl text-left">
                     <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-white/5 pb-4 mb-5 gap-3">
                       <div>
                         <h2 className="text-lg md:text-xl font-black text-white tracking-tight flex items-center gap-2.5">
                           <Calendar size={18} className="text-red-500" />
                           Airing Calendar
                         </h2>
-                        <p className="text-zinc-500 text-[11px] mt-0.5">Currently airing Asian dramas scheduled by days of the week.</p>
+                        <p className="text-zinc-500 text-[11px] mt-0.5 font-medium">Currently airing Asian dramas scheduled by days of the week.</p>
                       </div>
                       
                       {/* Weekdays Tabs */}
@@ -633,350 +603,199 @@ export const DramaPage: React.FC<DramaPageProps> = ({
                       </div>
                     </div>
 
-                    {/* Day Content */}
+                    {/* Day Content Row */}
                     {calendarDramas[selectedDay] && calendarDramas[selectedDay].length > 0 ? (
-                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                      <div className="flex gap-5 overflow-x-auto pb-4 hide-scrollbar scroll-smooth">
                         {calendarDramas[selectedDay].map(drama => (
-                          <div 
-                            key={drama.slug}
-                            onClick={() => onDramaSelect(drama.slug)}
-                            className="group bg-[#08080a] border border-white/5 rounded-xl overflow-hidden cursor-pointer transition-all duration-300 hover:scale-[1.02] hover:border-white/15 hover:shadow-[0_8px_20px_rgba(0,0,0,0.5)]"
-                          >
-                            <div className="aspect-[3/4] w-full overflow-hidden relative bg-zinc-900">
-                              <img 
-                                src={drama.image} 
-                                alt={drama.title}
-                                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                                loading="lazy"
-                              />
-                              {drama.episode && (
-                                <span className="absolute bottom-2 left-2 bg-red-600/90 text-white font-extrabold text-[8px] px-1.5 py-0.5 rounded backdrop-blur-sm">
-                                  {drama.episode.replace('Episode ', 'Ep ')}
-                                </span>
-                              )}
-                              {drama.air_time && (
-                                <span className="absolute top-2 right-2 bg-black/60 backdrop-blur-sm text-zinc-300 font-bold text-[8px] px-1.5 py-0.5 rounded flex items-center gap-0.5">
-                                  <Clock size={8} /> {drama.air_time}
-                                </span>
-                              )}
-                            </div>
-                            <div className="p-3">
-                              <h4 className="text-[11px] font-bold text-white line-clamp-1 group-hover:text-red-500 transition-colors">{drama.title}</h4>
-                              <span className="text-[9px] text-zinc-500 block mt-0.5">{drama.network || 'Airing'}</span>
-                            </div>
-                          </div>
+                          <DramaCard key={drama.slug} drama={drama} onDramaClick={onDramaSelect} />
                         ))}
                       </div>
                     ) : (
                       <div className="text-center py-10">
-                        <p className="text-zinc-500 text-xs">No dramas scheduled for {selectedDay}.</p>
+                        <p className="text-zinc-500 text-xs font-semibold">No dramas scheduled for {selectedDay}.</p>
                       </div>
                     )}
                   </div>
                 )}
 
-                {/* Trending Carousel */}
-                {trending.length > 0 && (
-                  <div>
-                    <h2 className="text-lg md:text-xl font-black text-white tracking-tight flex items-center gap-3.5 mb-5">
-                      <span className="w-2.5 h-6 rounded-full bg-red-600"></span>
-                      Trending Dramas
-                    </h2>
-                    <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-thin select-none">
-                      {trending.map(drama => (
-                        <div 
-                          key={drama.slug}
-                          onClick={() => onDramaSelect(drama.slug)}
-                          className="shrink-0 w-32 sm:w-40 bg-[#0c0c0e] border border-white/5 rounded-xl overflow-hidden cursor-pointer transition-all duration-300 hover:scale-[1.03] hover:border-white/15"
-                        >
-                          <div className="aspect-[2/3] w-full overflow-hidden relative">
-                            <img 
-                              src={drama.image} 
-                              alt={drama.title}
-                              className="w-full h-full object-cover transition-transform duration-500 hover:scale-105"
-                              loading="lazy"
-                            />
-                            {drama.rating && (
-                              <span className="absolute top-2 right-2 flex items-center gap-0.5 bg-black/70 backdrop-blur-md text-amber-500 font-extrabold text-[8px] px-1.5 py-0.5 rounded-md">
-                                ★ {drama.rating}
-                              </span>
-                            )}
-                          </div>
-                          <div className="p-2.5">
-                            <h4 className="text-[10px] font-bold text-white line-clamp-1">{drama.title}</h4>
-                            <span className="text-[9px] text-zinc-500 mt-0.5 block">{drama.year || 'TBA'}</span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Seasonal Row 1 (Recent Hits) */}
-                {seasonalRow1.length > 0 && (
-                  <div>
-                    <h2 className="text-lg md:text-xl font-black text-white tracking-tight flex items-center gap-3.5 mb-5">
-                      <span className="w-2.5 h-6 rounded-full bg-red-600"></span>
-                      Winter Masterpieces (Recent Hits)
-                    </h2>
-                    <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-thin select-none">
-                      {seasonalRow1.map(drama => (
-                        <div 
-                          key={drama.slug}
-                          onClick={() => onDramaSelect(drama.slug)}
-                          className="shrink-0 w-32 sm:w-40 bg-[#0c0c0e] border border-white/5 rounded-xl overflow-hidden cursor-pointer transition-all duration-300 hover:scale-[1.03] hover:border-white/15"
-                        >
-                          <div className="aspect-[2/3] w-full overflow-hidden relative">
-                            <img 
-                              src={drama.image} 
-                              alt={drama.title}
-                              className="w-full h-full object-cover transition-transform duration-500 hover:scale-105"
-                              loading="lazy"
-                            />
-                            {drama.rating && (
-                              <span className="absolute top-2 right-2 flex items-center gap-0.5 bg-black/70 backdrop-blur-md text-amber-500 font-extrabold text-[8px] px-1.5 py-0.5 rounded-md">
-                                ★ {drama.rating}
-                              </span>
-                            )}
-                          </div>
-                          <div className="p-2.5">
-                            <h4 className="text-[10px] font-bold text-white line-clamp-1">{drama.title}</h4>
-                            <span className="text-[9px] text-zinc-500 mt-0.5 block">{drama.year || 'TBA'}</span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Seasonal Row 2 (Popular Favourites) */}
-                {seasonalRow2.length > 0 && (
-                  <div>
-                    <h2 className="text-lg md:text-xl font-black text-white tracking-tight flex items-center gap-3.5 mb-5">
-                      <span className="w-2.5 h-6 rounded-full bg-red-600"></span>
-                      All-Time Fan Favourites
-                    </h2>
-                    <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-thin select-none">
-                      {seasonalRow2.map(drama => (
-                        <div 
-                          key={drama.slug}
-                          onClick={() => onDramaSelect(drama.slug)}
-                          className="shrink-0 w-32 sm:w-40 bg-[#0c0c0e] border border-white/5 rounded-xl overflow-hidden cursor-pointer transition-all duration-300 hover:scale-[1.03] hover:border-white/15"
-                        >
-                          <div className="aspect-[2/3] w-full overflow-hidden relative">
-                            <img 
-                              src={drama.image} 
-                              alt={drama.title}
-                              className="w-full h-full object-cover transition-transform duration-500 hover:scale-105"
-                              loading="lazy"
-                            />
-                            {drama.rating && (
-                              <span className="absolute top-2 right-2 flex items-center gap-0.5 bg-black/70 backdrop-blur-md text-amber-500 font-extrabold text-[8px] px-1.5 py-0.5 rounded-md">
-                                ★ {drama.rating}
-                              </span>
-                            )}
-                          </div>
-                          <div className="p-2.5">
-                            <h4 className="text-[10px] font-bold text-white line-clamp-1">{drama.title}</h4>
-                            <span className="text-[9px] text-zinc-500 mt-0.5 block">{drama.year || 'TBA'}</span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
+                {/* Seasonal/Trending Horizontally Scrollable Category Rows */}
+                <DramaRow title="Trending Right Now" items={trending} onDramaClick={onDramaSelect} />
+                <DramaRow title="Winter 2026 Hits" items={seasonalRow1} onDramaClick={onDramaSelect} />
+                <DramaRow title="Fall 2025 Hits" items={seasonalRow2} onDramaClick={onDramaSelect} />
               </>
             )}
           </div>
         </>
       )}
 
-      {/* Drama Detailed View Panel (Overlay-style details) */}
+      {/* Drama Detailed View Panel (Premium Full-Screen Layout) */}
       {selectedDramaSlug && (
-        <div className="max-w-6xl mx-auto px-4 md:px-12 pt-6 select-none animate-in slide-in-from-bottom-6 duration-300">
+        <div className="min-h-screen bg-[#030303] text-white pb-16 relative select-none font-sans animate-in fade-in duration-300">
           
-          {/* Back button to catalog */}
-          <button 
-            onClick={() => onDramaSelect(null)}
-            className="flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 hover:bg-white/10 border border-white/5 transition-all text-xs font-bold text-zinc-300 hover:text-white cursor-pointer mb-6"
-          >
-            <ArrowLeft size={14} /> Back to Dramas Page
-          </button>
+          {/* Backdrop Hero Banner */}
+          <div className="relative w-full h-[25vh] md:h-[35vh] overflow-hidden select-none">
+            {dramaDetails && (
+              <img
+                src={dramaDetails.image}
+                alt={dramaDetails.title}
+                referrerPolicy="no-referrer"
+                className="w-full h-full object-cover opacity-15 blur-xl scale-110"
+              />
+            )}
+            <div className="absolute inset-0 bg-gradient-to-t from-[#030303] via-[#030303]/60 to-transparent" />
+            
+            <button
+              onClick={() => onDramaSelect(null)}
+              className="absolute top-4 left-4 md:left-12 flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/[0.03] hover:bg-white/[0.07] border border-white/[0.04] text-xs font-normal text-zinc-300 hover:text-white transition-all active:scale-95 z-30"
+            >
+              <ArrowLeft size={14} /> Back to Dramas
+            </button>
+          </div>
 
           {detailsLoading ? (
-            <div className="flex flex-col items-center justify-center py-24 gap-4">
-              <Loader2 className="w-10 h-10 text-red-600 animate-spin" />
-              <p className="text-zinc-400 text-xs">Loading detailed records...</p>
+            <div className="max-w-7xl mx-auto px-4 md:px-12 -mt-20 md:-mt-32 relative z-20 flex flex-col md:flex-row gap-8 pb-16 text-left">
+              {/* Left Column Shimmer */}
+              <div className="w-[180px] md:w-[280px] shrink-0">
+                <div className="w-full aspect-[2/3] bg-zinc-950/20 shimmer-bg rounded-xl" />
+                <div className="w-full h-12 bg-zinc-950/20 shimmer-bg rounded-lg mt-5" />
+              </div>
+              {/* Right Column Shimmer */}
+              <div className="flex-1 space-y-6 pt-12 md:pt-24">
+                <div className="h-10 w-2/3 bg-zinc-950/20 shimmer-bg rounded-lg" />
+                <div className="h-4 w-1/3 bg-zinc-950/20 shimmer-bg rounded-lg" />
+                <div className="space-y-3 pt-6">
+                  <div className="h-4 w-full bg-zinc-950/20 shimmer-bg rounded-lg" />
+                  <div className="h-4 w-full bg-zinc-950/20 shimmer-bg rounded-lg" />
+                  <div className="h-4 w-3/4 bg-zinc-950/20 shimmer-bg rounded-lg" />
+                </div>
+              </div>
             </div>
           ) : detailsError ? (
-            <div className="bg-red-500/10 border border-red-500/20 p-8 rounded-2xl text-center flex flex-col items-center gap-4">
+            <div className="max-w-xl mx-auto mt-12 bg-red-500/10 border border-red-500/20 p-8 rounded-2xl text-center flex flex-col items-center gap-4">
               <AlertCircle className="w-10 h-10 text-red-500" />
-              <h3 className="text-lg font-bold text-white">Oops! Details Unavailable</h3>
-              <p className="text-zinc-400 text-xs max-w-md">{detailsError}</p>
+              <h3 className="text-lg font-bold text-white">Details Unavailable</h3>
+              <p className="text-zinc-400 text-xs">{detailsError}</p>
               <button 
                 onClick={() => onDramaSelect(null)}
-                className="px-5 py-2 bg-white/5 hover:bg-white/10 rounded-full border border-white/10 text-xs font-bold"
+                className="px-6 py-2 bg-white/5 hover:bg-white/10 rounded-full border border-white/10 text-xs font-bold transition-all active:scale-95"
               >
                 Go Back
               </button>
             </div>
           ) : dramaDetails ? (
-            <div className="flex flex-col gap-8">
+            <div className="max-w-7xl mx-auto px-4 md:px-12 -mt-20 md:-mt-32 relative z-20 flex flex-col md:flex-row gap-8 pb-16 text-left">
               
-              {/* Cover Banner Header Card */}
-              <div className="relative bg-[#0c0c0e] border border-white/10 rounded-3xl overflow-hidden shadow-2xl flex flex-col md:flex-row min-h-[350px]">
-                <div className="absolute inset-0 z-0 opacity-10">
-                  <img src={dramaDetails.image} alt={dramaDetails.title} className="w-full h-full object-cover blur-md" />
-                </div>
-
-                {/* Left Card Cover */}
-                <div className="shrink-0 w-full md:w-72 aspect-[2/3] md:aspect-auto overflow-hidden relative border-r border-white/5 z-10">
-                  <img 
-                    src={dramaDetails.image} 
-                    alt={dramaDetails.title} 
+              {/* Left Column - Side Cover Card & Specs */}
+              <div className="w-full md:w-[280px] shrink-0 flex flex-col items-center md:items-start select-none">
+                <div className="w-[180px] md:w-full aspect-[2/3] bg-zinc-900 rounded-xl overflow-hidden shadow-2xl relative border border-white/10">
+                  <img
+                    src={dramaDetails.image}
+                    alt={dramaDetails.title}
+                    referrerPolicy="no-referrer"
                     className="w-full h-full object-cover"
                   />
                   {dramaDetails.rating && (
-                    <span className="absolute top-4 right-4 bg-amber-500 text-black font-black text-xs px-2.5 py-1 rounded-full flex items-center gap-1 shadow-lg">
+                    <span className="absolute top-3 right-3 bg-amber-500 text-black font-black text-[10px] px-2 py-0.5 rounded-full flex items-center gap-0.5 shadow-lg border border-amber-400/20">
                       ★ {dramaDetails.rating}
                     </span>
                   )}
                 </div>
+                
+                <button
+                  onClick={() => handleWatchNow(dramaDetails.title, dramaDetails.aired.split(',').pop())}
+                  className="w-full mt-5 py-3 bg-red-600 hover:bg-red-700 text-white font-black rounded-lg flex items-center justify-center gap-2 transition-all shadow-md shadow-red-600/20 hover:scale-[1.01] active:scale-98 text-xs tracking-wide cursor-pointer"
+                >
+                  <PlayCircle size={16} /> WATCH NOW
+                </button>
 
-                {/* Right Details Header Info */}
-                <div className="p-6 md:p-8 flex-1 flex flex-col justify-center gap-4 z-10">
-                  <div>
-                    <span className="text-[10px] font-extrabold tracking-widest text-red-500 uppercase">{dramaDetails.country} Drama</span>
-                    <h2 className="text-2xl md:text-4xl font-black text-white tracking-tight mt-1">{dramaDetails.title}</h2>
-                    {dramaDetails.native_title && (
-                      <p className="text-zinc-500 text-xs mt-1">Native Title: <span className="text-zinc-400 font-semibold">{dramaDetails.native_title}</span></p>
-                    )}
-                  </div>
+                <a 
+                  href={dramaDetails.url} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="w-full mt-2.5 py-2.5 bg-white/5 hover:bg-white/10 text-zinc-300 hover:text-white font-bold text-xs rounded-lg border border-white/5 transition-all text-center flex items-center justify-center gap-1.5 cursor-pointer"
+                >
+                  MyDramaList <ExternalLink size={12} />
+                </a>
 
-                  {/* Badges/Metadata Grid */}
-                  <div className="flex flex-wrap items-center gap-2 text-[10px]">
-                    <span className="bg-white/5 border border-white/10 px-2.5 py-1 rounded-full text-zinc-300 font-bold">{dramaDetails.episodes} Episodes</span>
-                    <span className="bg-white/5 border border-white/10 px-2.5 py-1 rounded-full text-zinc-300 font-bold">{dramaDetails.duration}</span>
+                {/* Technical metadata card */}
+                <div className="w-full mt-6 bg-[#0c0c0e]/80 border border-white/5 rounded-xl p-5 space-y-4">
+                  <h4 className="text-xs font-semibold text-zinc-400 tracking-wider uppercase">Information</h4>
+                  
+                  <div className="space-y-3.5 text-xs">
+                    <div>
+                      <span className="text-zinc-500 font-normal block mb-0.5">Country</span>
+                      <span className="text-zinc-300 font-bold">{dramaDetails.country}</span>
+                    </div>
+                    <div>
+                      <span className="text-zinc-500 font-normal block mb-0.5">Episodes</span>
+                      <span className="text-zinc-300 font-bold">{dramaDetails.episodes}</span>
+                    </div>
+                    <div>
+                      <span className="text-zinc-500 font-normal block mb-0.5">Duration</span>
+                      <span className="text-zinc-300 font-bold">{dramaDetails.duration}</span>
+                    </div>
                     {dramaDetails.original_network && (
-                      <span className="bg-white/5 border border-white/10 px-2.5 py-1 rounded-full text-zinc-300 font-bold">{dramaDetails.original_network}</span>
+                      <div>
+                        <span className="text-zinc-500 font-normal block mb-0.5">Network</span>
+                        <span className="text-zinc-300 font-bold">{dramaDetails.original_network}</span>
+                      </div>
                     )}
                     {dramaDetails.content_rating && (
-                      <span className="bg-white/5 border border-white/10 px-2.5 py-1 rounded-full text-zinc-300 font-bold">{dramaDetails.content_rating}</span>
+                      <div>
+                        <span className="text-zinc-500 font-normal block mb-0.5">Content Rating</span>
+                        <span className="text-zinc-300 font-bold">{dramaDetails.content_rating}</span>
+                      </div>
                     )}
-                    <span className="bg-white/5 border border-white/10 px-2.5 py-1 rounded-full text-zinc-300 font-bold">{dramaDetails.aired}</span>
-                  </div>
-
-                  <p className="text-zinc-300 text-xs md:text-sm leading-relaxed max-w-3xl line-clamp-4">
-                    {dramaDetails.synopsis}
-                  </p>
-
-                  <div className="flex items-center gap-4 mt-2">
-                    <button 
-                      onClick={() => handleWatchNow(dramaDetails.title, dramaDetails.aired.split(',').pop())}
-                      className="flex items-center gap-2.5 px-7 py-3 bg-red-600 hover:bg-red-700 text-white font-black text-xs rounded-full transition-all hover:scale-105 shadow-[0_8px_25px_rgba(220,38,38,0.4)] cursor-pointer"
-                    >
-                      <PlayCircle size={16} /> WATCH NOW
-                    </button>
-                    <a 
-                      href={dramaDetails.url} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-2 px-5 py-3 bg-white/5 hover:bg-white/10 text-zinc-300 hover:text-white font-bold text-xs rounded-full border border-white/5 transition-colors cursor-pointer"
-                    >
-                      MyDramaList <ExternalLink size={12} />
-                    </a>
+                    <div>
+                      <span className="text-zinc-500 font-normal block mb-0.5">Aired</span>
+                      <span className="text-zinc-300 font-semibold">{dramaDetails.aired}</span>
+                    </div>
                   </div>
                 </div>
               </div>
 
-              {/* Sub-sections tabs */}
-              <div className="flex flex-col gap-6">
-                <div className="flex items-center gap-1 border-b border-white/5 overflow-x-auto pb-1 scrollbar-none">
-                  {[
-                    { id: 'overview', label: 'Overview' },
-                    { id: 'cast', label: `Cast & Crew` },
-                    { id: 'episodes', label: `Episodes (${episodes.length || dramaDetails.episodes})` },
-                    { id: 'reviews', label: `User Reviews` },
-                    { id: 'recs', label: 'Similar Recommendations' }
-                  ].map(tab => (
-                    <button
-                      key={tab.id}
-                      onClick={() => setActiveDetailsTab(tab.id as any)}
-                      className={`px-5 py-2.5 text-xs font-bold border-b-2 transition-all cursor-pointer whitespace-nowrap ${
-                        activeDetailsTab === tab.id 
-                          ? 'border-red-600 text-red-500' 
-                          : 'border-transparent text-zinc-400 hover:text-white'
-                      }`}
-                    >
-                      {tab.label}
-                    </button>
-                  ))}
+              {/* Right Column - Title, Synopsis, Tabs */}
+              <div className="flex-1 space-y-6">
+                <div className="mt-6 md:mt-16">
+                  <h2 className="text-3xl md:text-5xl font-black text-white tracking-tight leading-tight">{dramaDetails.title}</h2>
+                  {dramaDetails.native_title && (
+                    <p className="text-zinc-500 text-xs md:text-sm mt-1.5">Native Title: <span className="text-zinc-300 font-semibold">{dramaDetails.native_title}</span></p>
+                  )}
                 </div>
 
-                {/* Tab content containers */}
-                <div className="min-h-[200px] animate-in fade-in duration-300">
-                  
-                  {/* OVERVIEW TAB */}
-                  {activeDetailsTab === 'overview' && (
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                      {/* Left metadata card column */}
-                      <div className="bg-[#0c0c0e] border border-white/5 rounded-2xl p-5 md:p-6 flex flex-col gap-4">
-                        <h3 className="text-sm font-bold text-white border-b border-white/5 pb-2">Drama Statistics</h3>
-                        
-                        <div className="flex flex-col gap-3 text-xs">
-                          {dramaDetails.ranked && (
-                            <div className="flex justify-between">
-                              <span className="text-zinc-500">MDL Rank:</span>
-                              <span className="text-zinc-300 font-bold">{dramaDetails.ranked}</span>
-                            </div>
-                          )}
-                          {dramaDetails.popularity && (
-                            <div className="flex justify-between">
-                              <span className="text-zinc-500">Popularity:</span>
-                              <span className="text-zinc-300 font-bold">{dramaDetails.popularity}</span>
-                            </div>
-                          )}
-                          {dramaDetails.watchers && (
-                            <div className="flex justify-between">
-                              <span className="text-zinc-500">Watchers:</span>
-                              <span className="text-zinc-300 font-bold">{dramaDetails.watchers}</span>
-                            </div>
-                          )}
-                          {dramaDetails.score_details && (
-                            <div className="flex justify-between">
-                              <span className="text-zinc-500">Rating Detail:</span>
-                              <span className="text-zinc-300 font-bold">{dramaDetails.score_details}</span>
-                            </div>
-                          )}
-                          <div className="flex justify-between">
-                            <span className="text-zinc-500">Aired Dates:</span>
-                            <span className="text-zinc-300 font-bold text-right">{dramaDetails.aired}</span>
-                          </div>
-                          {dramaDetails.aired_on && (
-                            <div className="flex justify-between">
-                              <span className="text-zinc-500">Scheduled days:</span>
-                              <span className="text-zinc-300 font-bold">{dramaDetails.aired_on}</span>
-                            </div>
-                          )}
-                        </div>
+                {/* Sub-sections tabs */}
+                <div className="flex flex-col gap-6">
+                  <div className="flex items-center gap-1 border-b border-white/5 overflow-x-auto pb-1 scrollbar-none w-full">
+                    {[
+                      { id: 'overview', label: 'Overview' },
+                      { id: 'cast', label: `Cast & Crew` },
+                      { id: 'episodes', label: `Episodes (${episodes.length || dramaDetails.episodes})` },
+                      { id: 'reviews', label: `User Reviews (${reviews.length})` },
+                      { id: 'recs', label: 'Recommendations' }
+                    ].map(tab => (
+                      <button
+                        key={tab.id}
+                        onClick={() => setActiveDetailsTab(tab.id as any)}
+                        className={`px-5 py-2.5 text-xs font-bold border-b-2 transition-all cursor-pointer whitespace-nowrap ${
+                          activeDetailsTab === tab.id 
+                            ? 'border-red-600 text-red-500' 
+                            : 'border-transparent text-zinc-400 hover:text-white'
+                        }`}
+                      >
+                        {tab.label}
+                      </button>
+                    ))}
+                  </div>
 
-                        {dramaDetails.also_known_as && dramaDetails.also_known_as.length > 0 && (
-                          <div className="mt-2 border-t border-white/5 pt-4">
-                            <h4 className="text-[11px] font-bold text-zinc-400 mb-2 uppercase tracking-wide">Alternative Titles</h4>
-                            <ul className="flex flex-col gap-1.5 text-zinc-400 text-xs">
-                              {dramaDetails.also_known_as.slice(0, 4).map((alt, i) => (
-                                <li key={i} className="line-clamp-1 font-medium">{alt}</li>
-                              ))}
-                            </ul>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Right Synopsis, Genres, Tags column */}
-                      <div className="lg:col-span-2 flex flex-col gap-6">
+                  {/* Tab content containers */}
+                  <div className="min-h-[200px] animate-in fade-in duration-300 text-left">
+                    
+                    {/* OVERVIEW TAB */}
+                    {activeDetailsTab === 'overview' && (
+                      <div className="space-y-8">
                         <div>
-                          <h3 className="text-base font-bold text-white mb-2">Synopsis</h3>
-                          <p className="text-zinc-300 text-xs md:text-sm leading-relaxed whitespace-pre-line bg-[#0c0c0e]/30 border border-white/5 rounded-2xl p-5">
+                          <h3 className="text-xs font-bold text-zinc-400 mb-3 uppercase tracking-widest">Synopsis</h3>
+                          <p className="text-zinc-300 text-xs sm:text-sm leading-relaxed whitespace-pre-line bg-[#0c0c0e]/30 border border-white/5 rounded-2xl p-5 md:p-6">
                             {dramaDetails.synopsis}
                           </p>
                         </div>
@@ -984,12 +803,12 @@ export const DramaPage: React.FC<DramaPageProps> = ({
                         {/* Genres */}
                         {dramaDetails.genres && dramaDetails.genres.length > 0 && (
                           <div>
-                            <h3 className="text-sm font-bold text-white mb-2.5">Genres</h3>
+                            <h3 className="text-xs font-bold text-zinc-400 mb-3 uppercase tracking-widest">Genres</h3>
                             <div className="flex flex-wrap gap-2">
                               {dramaDetails.genres.map((g, i) => (
                                 <span 
                                   key={i} 
-                                  className="bg-red-500/10 border border-red-500/20 text-red-400 font-bold text-[10px] px-3.5 py-1.5 rounded-full"
+                                  className="bg-red-500/10 border border-red-500/20 text-red-400 font-bold text-[9px] px-3.5 py-1.5 rounded-full uppercase tracking-wider"
                                 >
                                   {g}
                                 </span>
@@ -1001,12 +820,12 @@ export const DramaPage: React.FC<DramaPageProps> = ({
                         {/* Tags */}
                         {dramaDetails.tags && dramaDetails.tags.length > 0 && (
                           <div>
-                            <h3 className="text-sm font-bold text-white mb-2.5">Keywords & Tags</h3>
+                            <h3 className="text-xs font-bold text-zinc-400 mb-3 uppercase tracking-widest">Keywords & Tags</h3>
                             <div className="flex flex-wrap gap-1.5">
                               {dramaDetails.tags.slice(0, 15).map((t, i) => (
                                 <span 
                                   key={i} 
-                                  className="bg-white/5 border border-white/10 text-zinc-400 font-medium text-[9px] px-2.5 py-1 rounded-md"
+                                  className="bg-white/5 border border-white/10 text-zinc-400 font-medium text-[8px] px-2.5 py-1 rounded-md"
                                 >
                                   #{t}
                                 </span>
@@ -1014,159 +833,158 @@ export const DramaPage: React.FC<DramaPageProps> = ({
                             </div>
                           </div>
                         )}
-                      </div>
-                    </div>
-                  )}
 
-                  {/* CAST & CREW TAB */}
-                  {activeDetailsTab === 'cast' && (
-                    <div className="flex flex-col gap-8">
-                      {Object.keys(cast).length > 0 ? (
-                        Object.keys(cast).map(role => {
-                          const members = cast[role];
-                          if (!members || members.length === 0) return null;
-                          return (
-                            <div key={role}>
-                              <h3 className="text-sm font-bold text-white border-b border-white/5 pb-2 mb-4 uppercase tracking-wider">{role}s</h3>
-                              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-                                {members.map((member, idx) => (
-                                  <a 
-                                    key={idx}
-                                    href={member.profile_url}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="group flex flex-col bg-[#0c0c0e] border border-white/5 rounded-2xl p-3 items-center text-center hover:border-white/15 hover:bg-white/5 transition-all duration-300"
-                                  >
-                                    <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full overflow-hidden mb-3 border border-white/10 group-hover:scale-105 transition-transform duration-300">
-                                      <img 
-                                        src={member.image || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=200'} 
-                                        alt={member.name} 
-                                        className="w-full h-full object-cover" 
-                                        onError={(e) => {
-                                          e.currentTarget.src = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=200';
-                                        }}
-                                      />
-                                    </div>
-                                    <h4 className="text-[11px] font-bold text-white line-clamp-1 group-hover:text-red-500 transition-colors">{member.name}</h4>
-                                    {member.character && (
-                                      <p className="text-[9px] text-zinc-500 mt-1 line-clamp-1 font-medium">as {member.character}</p>
-                                    )}
-                                  </a>
-                                ))}
-                              </div>
+                        {/* Alternative Titles */}
+                        {dramaDetails.also_known_as && dramaDetails.also_known_as.length > 0 && (
+                          <div>
+                            <h3 className="text-xs font-bold text-zinc-400 mb-3 uppercase tracking-widest">Alternative Titles</h3>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-zinc-400 text-xs">
+                              {dramaDetails.also_known_as.slice(0, 6).map((alt, i) => (
+                                <div key={i} className="flex items-center gap-2 bg-white/[0.02] border border-white/5 p-2.5 rounded-lg font-medium">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-red-600 shrink-0"></span>
+                                  <span className="line-clamp-1">{alt}</span>
+                                </div>
+                              ))}
                             </div>
-                          );
-                        })
-                      ) : (
-                        <div className="text-center py-10 border border-white/5 rounded-2xl bg-[#0c0c0e]/30">
-                          <p className="text-zinc-500 text-xs">No cast or crew details available for this show.</p>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* EPISODES TAB */}
-                  {activeDetailsTab === 'episodes' && (
-                    <div>
-                      {episodes.length > 0 ? (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-w-4xl">
-                          {episodes.map(ep => (
-                            <div 
-                              key={ep.episode_number}
-                              onClick={() => handleWatchNow(dramaDetails.title, dramaDetails.aired.split(',').pop())}
-                              className="group flex items-center justify-between p-4 bg-[#0c0c0e] border border-white/5 rounded-2xl hover:border-red-600/30 hover:bg-white/5 transition-all duration-300 cursor-pointer select-none"
-                            >
-                              <div className="flex items-center gap-4">
-                                <div className="w-9 h-9 rounded-xl bg-red-600/10 border border-red-500/20 flex items-center justify-center text-red-500 font-black text-xs group-hover:bg-red-600 group-hover:text-white transition-colors duration-300">
-                                  {ep.episode_number}
-                                </div>
-                                <div>
-                                  <h4 className="text-[11px] font-bold text-white group-hover:text-red-500 transition-colors line-clamp-1">{ep.title}</h4>
-                                  <p className="text-[9px] text-zinc-500 mt-0.5">Release: {ep.air_date || 'TBA'}</p>
-                                </div>
-                              </div>
-                              <Play size={12} className="text-zinc-500 group-hover:text-red-500 transition-colors mr-1" />
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="text-center py-10 border border-white/5 rounded-2xl bg-[#0c0c0e]/30">
-                          <p className="text-zinc-500 text-xs">No detailed episode list available. Use watch button to play seasons.</p>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* USER REVIEWS TAB */}
-                  {activeDetailsTab === 'reviews' && (
-                    <div className="flex flex-col gap-4 max-w-4xl">
-                      {reviews.length > 0 ? (
-                        reviews.map((rev, idx) => (
-                          <div key={idx} className="bg-[#0c0c0e] border border-white/5 rounded-2xl p-5 flex flex-col gap-3">
-                            <div className="flex items-center justify-between border-b border-white/5 pb-2.5">
-                              <div className="flex items-center gap-2.5">
-                                <div className="w-8 h-8 rounded-full bg-zinc-800 border border-white/10 flex items-center justify-center text-[11px] font-bold text-zinc-300 uppercase">
-                                  {rev.username?.slice(0, 2) || 'MD'}
-                                </div>
-                                <div>
-                                  <h4 className="text-[11px] font-bold text-white">{rev.username || 'MDL Reviewer'}</h4>
-                                  {rev.date && <span className="text-[9px] text-zinc-500 block mt-0.5">{rev.date}</span>}
-                                </div>
-                              </div>
-                              {rev.rating && (
-                                <span className="bg-amber-500/10 border border-amber-500/20 text-amber-500 font-extrabold text-[10px] px-2.5 py-0.5 rounded-md flex items-center gap-0.5">
-                                  ★ {rev.rating}
-                                </span>
-                              )}
-                            </div>
-                            <p className="text-zinc-300 text-xs leading-relaxed whitespace-pre-line line-clamp-6">
-                              {rev.review}
-                            </p>
                           </div>
-                        ))
-                      ) : (
-                        <div className="text-center py-10 border border-white/5 rounded-2xl bg-[#0c0c0e]/30">
-                          <p className="text-zinc-500 text-xs">No reviews submitted for this drama yet.</p>
-                        </div>
-                      )}
-                    </div>
-                  )}
+                        )}
+                      </div>
+                    )}
 
-                  {/* RECOMMENDATIONS TAB */}
-                  {activeDetailsTab === 'recs' && (
-                    <div>
-                      {recs.length > 0 ? (
-                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-                          {recs.map((rec, idx) => (
-                            <div 
-                              key={idx}
-                              onClick={() => onDramaSelect(rec.slug)}
-                              className="group bg-[#0c0c0e] border border-white/5 rounded-2xl overflow-hidden cursor-pointer transition-all duration-300 hover:scale-[1.02] hover:border-white/15 hover:shadow-lg"
-                            >
-                              <div className="aspect-[2/3] w-full overflow-hidden relative">
-                                <img src={rec.image} alt={rec.title} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
-                                {rec.rating && (
-                                  <span className="absolute top-2 right-2 flex items-center gap-0.5 bg-black/70 backdrop-blur-md text-amber-500 font-extrabold text-[8px] px-1.5 py-0.5 rounded-md">
-                                    ★ {rec.rating}
+                    {/* CAST & CREW TAB */}
+                    {activeDetailsTab === 'cast' && (
+                      <div className="flex flex-col gap-8">
+                        {Object.keys(cast).length > 0 ? (
+                          Object.keys(cast).map(role => {
+                            const members = cast[role];
+                            if (!members || members.length === 0) return null;
+                            return (
+                              <div key={role}>
+                                <h3 className="text-xs font-bold text-zinc-400 border-b border-white/5 pb-2 mb-4 uppercase tracking-widest">{role}s</h3>
+                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                                  {members.map((member, idx) => (
+                                    <a 
+                                      key={idx}
+                                      href={member.profile_url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="group flex flex-col bg-[#0c0c0e] border border-white/5 rounded-2xl p-3 items-center text-center hover:border-white/15 hover:bg-white/5 transition-all duration-300"
+                                    >
+                                      <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full overflow-hidden mb-3 border border-white/10 group-hover:scale-105 transition-transform duration-300 bg-zinc-800">
+                                        <img 
+                                          src={member.image || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=200'} 
+                                          alt={member.name} 
+                                          className="w-full h-full object-cover" 
+                                          onError={(e) => {
+                                            e.currentTarget.src = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=200';
+                                          }}
+                                        />
+                                      </div>
+                                      <h4 className="text-[10px] font-bold text-white line-clamp-1 group-hover:text-red-500 transition-colors">{member.name}</h4>
+                                      {member.character && (
+                                        <p className="text-[8px] text-zinc-500 mt-1 line-clamp-1 font-medium">as {member.character}</p>
+                                      )}
+                                    </a>
+                                  ))}
+                                </div>
+                              </div>
+                            );
+                          })
+                        ) : (
+                          <div className="text-center py-10 border border-white/5 rounded-2xl bg-[#0c0c0e]/30">
+                            <p className="text-zinc-500 text-xs">No cast or crew details available for this show.</p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* EPISODES TAB */}
+                    {activeDetailsTab === 'episodes' && (
+                      <div>
+                        {episodes.length > 0 ? (
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-w-4xl">
+                            {episodes.map(ep => (
+                              <div 
+                                key={ep.episode_number}
+                                onClick={() => handleWatchNow(dramaDetails.title, dramaDetails.aired.split(',').pop())}
+                                className="group flex items-center justify-between p-4 bg-[#0c0c0e] border border-white/5 rounded-2xl hover:border-red-600/30 hover:bg-white/5 transition-all duration-300 cursor-pointer select-none"
+                              >
+                                <div className="flex items-center gap-4">
+                                  <div className="w-9 h-9 rounded-xl bg-red-600/10 border border-red-500/20 flex items-center justify-center text-red-500 font-black text-xs group-hover:bg-red-600 group-hover:text-white transition-colors duration-300">
+                                    {ep.episode_number}
+                                  </div>
+                                  <div>
+                                    <h4 className="text-[11px] font-bold text-white group-hover:text-red-500 transition-colors line-clamp-1">{ep.title}</h4>
+                                    <p className="text-[9px] text-zinc-500 mt-0.5">Release: {ep.air_date || 'TBA'}</p>
+                                  </div>
+                                </div>
+                                <Play size={12} className="text-zinc-500 group-hover:text-red-500 transition-colors mr-1" />
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="text-center py-10 border border-white/5 rounded-2xl bg-[#0c0c0e]/30">
+                            <p className="text-zinc-500 text-xs">No detailed episode list available. Use watch button to play seasons.</p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* USER REVIEWS TAB */}
+                    {activeDetailsTab === 'reviews' && (
+                      <div className="flex flex-col gap-4 max-w-4xl">
+                        {reviews.length > 0 ? (
+                          reviews.map((rev, idx) => (
+                            <div key={idx} className="bg-[#0c0c0e] border border-white/5 rounded-2xl p-5 flex flex-col gap-3 font-sans">
+                              <div className="flex items-center justify-between border-b border-white/5 pb-2.5">
+                                <div className="flex items-center gap-2.5">
+                                  <div className="w-8 h-8 rounded-full bg-zinc-800 border border-white/10 flex items-center justify-center text-[10px] font-bold text-zinc-300 uppercase">
+                                    {rev.username?.slice(0, 2) || 'MD'}
+                                  </div>
+                                  <div>
+                                    <h4 className="text-[10px] font-bold text-white">{rev.username || 'MDL Reviewer'}</h4>
+                                    {rev.date && <span className="text-[8px] text-zinc-500 block mt-0.5">{rev.date}</span>}
+                                  </div>
+                                </div>
+                                {rev.rating && (
+                                  <span className="bg-amber-500/10 border border-amber-500/20 text-amber-500 font-extrabold text-[10px] px-2.5 py-0.5 rounded-md flex items-center gap-0.5">
+                                    ★ {rev.rating}
                                   </span>
                                 )}
                               </div>
-                              <div className="p-2.5">
-                                <h4 className="text-[10px] font-bold text-white line-clamp-1 group-hover:text-red-500 transition-colors">{rec.title}</h4>
-                                <span className="text-[9px] text-zinc-500 mt-0.5 block">{rec.year || 'MDL'}</span>
-                              </div>
+                              <p className="text-zinc-300 text-xs leading-relaxed whitespace-pre-line line-clamp-6">
+                                {rev.review}
+                              </p>
                             </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="text-center py-10 border border-white/5 rounded-2xl bg-[#0c0c0e]/30">
-                          <p className="text-zinc-500 text-xs">No recommendations found for this show.</p>
-                        </div>
-                      )}
-                    </div>
-                  )}
+                          ))
+                        ) : (
+                          <div className="text-center py-10 border border-white/5 rounded-2xl bg-[#0c0c0e]/30">
+                            <p className="text-zinc-500 text-xs">No reviews submitted for this drama yet.</p>
+                          </div>
+                        )}
+                      </div>
+                    )}
 
+                    {/* RECOMMENDATIONS TAB */}
+                    {activeDetailsTab === 'recs' && (
+                      <div>
+                        {recs.length > 0 ? (
+                          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6 justify-items-center">
+                            {recs.map((rec, idx) => (
+                              <DramaCard key={idx} drama={rec} onDramaClick={onDramaSelect} />
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="text-center py-10 border border-white/5 rounded-2xl bg-[#0c0c0e]/30">
+                            <p className="text-zinc-500 text-xs">No recommendations found for this show.</p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                  </div>
                 </div>
+
               </div>
 
             </div>
@@ -1174,6 +992,100 @@ export const DramaPage: React.FC<DramaPageProps> = ({
         </div>
       )}
 
+    </div>
+  );
+};
+
+// --- SUB COMPONENTS ---
+
+export interface DramaCardProps {
+  drama: any;
+  onDramaClick: (slug: string) => void;
+}
+
+export const DramaCard: React.FC<DramaCardProps> = ({ drama, onDramaClick }) => {
+  const { ref } = useTvFocus({
+    onEnterPress: () => onDramaClick(drama.slug)
+  });
+
+  const rating = drama.rating ? parseFloat(drama.rating) : null;
+
+  return (
+    <div
+      ref={ref}
+      onClick={() => onDramaClick(drama.slug)}
+      className="group relative shrink-0 w-[140px] sm:w-[170px] aspect-[2/3] rounded-xl overflow-hidden cursor-pointer bg-zinc-900 border border-white/5 hover:border-red-500/50 hover:shadow-[0_0_20px_rgba(239,68,68,0.25)] hover:scale-[1.03] transition-all duration-500 select-none"
+    >
+      {/* Rating Badge */}
+      {rating && (
+        <div className="absolute top-2 left-2 z-10 bg-black/75 backdrop-blur-md text-[9px] font-bold text-amber-500 px-1.5 py-0.5 rounded shadow-md border border-white/5 flex items-center gap-0.5">
+          ★ {rating.toFixed(1)}
+        </div>
+      )}
+
+      {/* Episode Badge */}
+      {drama.episode && (
+        <div className="absolute top-2 right-2 z-10 bg-red-600/90 backdrop-blur-sm text-[8px] font-bold text-white px-1.5 py-0.5 rounded shadow-md">
+          {drama.episode.replace('Episode ', 'Ep ')}
+        </div>
+      )}
+
+      <img
+        src={drama.image}
+        alt={drama.title}
+        loading="lazy"
+        referrerPolicy="no-referrer"
+        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+      />
+      <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/35 to-transparent opacity-85 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
+
+      {/* Title Details Overlay */}
+      <div className="absolute inset-0 p-3 flex flex-col justify-end text-left select-none pointer-events-none">
+        <h4 className="text-xs sm:text-sm font-bold text-white line-clamp-2 group-hover:text-red-500 transition-colors duration-300 drop-shadow-md leading-tight">
+          {drama.title}
+        </h4>
+        <div className="max-h-0 overflow-hidden group-hover:max-h-10 group-hover:mt-1 transition-all duration-500 ease-out opacity-0 group-hover:opacity-100 flex items-center justify-between text-[9px] text-zinc-400 font-semibold">
+          <span>{drama.year || drama.network || 'Airing'}</span>
+          {drama.air_time && (
+            <span className="uppercase text-[8px] px-1 rounded bg-white/10">{drama.air_time}</span>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export interface DramaRowProps {
+  title: string;
+  items: any[];
+  onDramaClick: (slug: string) => void;
+  onExpand?: () => void;
+}
+
+export const DramaRow: React.FC<DramaRowProps> = ({ title, items, onDramaClick, onExpand }) => {
+  if (!items || items.length === 0) return null;
+  return (
+    <div className="mb-10 animate-in fade-in duration-500 text-left font-sans select-none">
+      <div className="flex items-center justify-between px-4 md:px-12 mb-4">
+        <h3 className="text-lg font-bold text-white tracking-tight flex items-center gap-2 select-none">
+          <span className="w-1.5 h-5 bg-red-600 rounded-full inline-block"></span>
+          {title}
+        </h3>
+        {onExpand && (
+          <button
+            onClick={onExpand}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-white/5 hover:bg-white/10 hover:text-white text-zinc-400 text-xs font-bold transition-all border border-white/5 hover:border-white/10 active:scale-95 shadow-md select-none"
+          >
+            <span>See All</span>
+            <ChevronRight size={14} />
+          </button>
+        )}
+      </div>
+      <div className="flex gap-5 overflow-x-auto px-4 md:px-12 pb-4 hide-scrollbar scroll-smooth">
+        {items.map((drama) => (
+          <DramaCard key={drama.slug} drama={drama} onDramaClick={onDramaClick} />
+        ))}
+      </div>
     </div>
   );
 };
