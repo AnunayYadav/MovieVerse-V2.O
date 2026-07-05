@@ -152,7 +152,7 @@ export const DramaPage: React.FC<DramaPageProps> = ({
       setError(null);
       try {
         // 1. Fetch Calendar
-        const calRes = await window.fetch('/api/drama?path=/api/calendar');
+        const calRes = await window.fetch('/api/drama/api/calendar');
         if (calRes.ok) {
           const calData = await calRes.json();
           if (calData && calData.days) {
@@ -165,14 +165,14 @@ export const DramaPage: React.FC<DramaPageProps> = ({
 
         // 2. Fetch Seasonal Dramas (2026 Quarter 1 & 2025 Quarter 4)
         const currentYear = new Date().getFullYear();
-        const season1Res = await window.fetch(`/api/drama?path=/api/seasonal/${currentYear}/1`);
+        const season1Res = await window.fetch(`/api/drama/api/seasonal/${currentYear}/1`);
         let data1 = { dramas: [] };
         if (season1Res.ok) {
           data1 = await season1Res.json();
           setSeasonalRow1(data1.dramas || []);
         }
 
-        const season2Res = await window.fetch(`/api/drama?path=/api/seasonal/${currentYear - 1}/4`);
+        const season2Res = await window.fetch(`/api/drama/api/seasonal/${currentYear - 1}/4`);
         let data2 = { dramas: [] };
         if (season2Res.ok) {
           data2 = await season2Res.json();
@@ -205,7 +205,7 @@ export const DramaPage: React.FC<DramaPageProps> = ({
   const fetchHeroDetails = async (slug: string) => {
     setHeroLoading(true);
     try {
-      const res = await window.fetch(`/api/drama?path=/api/id/${slug}`);
+      const res = await window.fetch(`/api/drama/api/id/${slug}`);
       if (res.ok) {
         const data = await res.json();
         setHeroDetails(data);
@@ -227,7 +227,7 @@ export const DramaPage: React.FC<DramaPageProps> = ({
     const performSearch = async () => {
       setSearchLoading(true);
       try {
-        const res = await window.fetch(`/api/drama?path=/api/search/q/${encodeURIComponent(searchQuery)}`);
+        const res = await window.fetch(`/api/drama/api/search/q/${encodeURIComponent(searchQuery)}`);
         if (res.ok) {
           const data = await res.json();
           setSearchResults(data.results || []);
@@ -259,7 +259,7 @@ export const DramaPage: React.FC<DramaPageProps> = ({
       setDetailsError(null);
       try {
         // Fetch details
-        const detailsRes = await window.fetch(`/api/drama?path=/api/id/${selectedDramaSlug}`);
+        const detailsRes = await window.fetch(`/api/drama/api/id/${selectedDramaSlug}`);
         if (!detailsRes.ok) throw new Error("Failed to load drama details");
         const detailsData = await detailsRes.json();
         setDramaDetails(detailsData);
@@ -279,25 +279,25 @@ export const DramaPage: React.FC<DramaPageProps> = ({
 
   const fetchSubResources = async (slug: string) => {
     // Fetch cast
-    window.fetch(`/api/drama?path=/api/id/${slug}/cast`)
+    window.fetch(`/api/drama/api/id/${slug}/cast`)
       .then(res => res.ok ? res.json() : null)
       .then(data => data && setCast(data.cast || {}))
       .catch(e => console.error("Failed to load cast", e));
 
     // Fetch episodes
-    window.fetch(`/api/drama?path=/api/id/${slug}/episodes`)
+    window.fetch(`/api/drama/api/id/${slug}/episodes`)
       .then(res => res.ok ? res.json() : null)
       .then(data => data && setEpisodes(data.episodes || []))
       .catch(e => console.error("Failed to load episodes", e));
 
     // Fetch recommendations
-    window.fetch(`/api/drama?path=/api/id/${slug}/recs`)
+    window.fetch(`/api/drama/api/id/${slug}/recs`)
       .then(res => res.ok ? res.json() : null)
       .then(data => data && setRecs(data.recommendations || []))
       .catch(e => console.error("Failed to load recs", e));
 
     // Fetch reviews
-    window.fetch(`/api/drama?path=/api/id/${slug}/reviews`)
+    window.fetch(`/api/drama/api/id/${slug}/reviews`)
       .then(res => res.ok ? res.json() : null)
       .then(data => data && setReviews(data.reviews || []))
       .catch(e => console.error("Failed to load reviews", e));
