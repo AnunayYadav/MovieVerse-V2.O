@@ -1207,16 +1207,6 @@ export default function App() {
     const [fetchError, setFetchError] = useState(false);
     const [selectedMovieVal, setSelectedMovieVal] = useState<Movie | null>(null);
     const setSelectedMovie = (movie: Movie | null) => {
-        if (movie) {
-            const isTv = movie.media_type === 'tv' || !!movie.first_air_date;
-            const isEastAsian = ['ko', 'ja', 'zh'].includes(movie.original_language || '');
-            if (isTv && isEastAsian) {
-                setSelectedCategory("Dramas");
-                setSelectedDramaSlug(`tmdb-${movie.id}`);
-                setSelectedMovieVal(null);
-                return;
-            }
-        }
         setSelectedMovieVal(movie);
     };
     const selectedMovie = selectedMovieVal;
@@ -1558,6 +1548,10 @@ export default function App() {
             const dramaSlug = parts[2];
             if (dramaSlug) {
                 dramaSlugToSelect = dramaSlug;
+                if (dramaSlug.startsWith('tmdb-')) {
+                    const parsedId = parseInt(dramaSlug.replace('tmdb-', ''), 10);
+                    movieToSelect = { id: parsedId, media_type: 'tv' } as any;
+                }
             }
         } else if (path.startsWith('/manga/')) {
             category = "Manga";
@@ -4253,8 +4247,6 @@ export default function App() {
                     ) : selectedCategory === "Dramas" ? (
                         <DramaPage
                             apiKey={apiKey}
-                            selectedDramaSlug={selectedDramaSlug}
-                            onDramaSelect={setSelectedDramaSlug}
                             onMovieClick={(m: any) => {
                                 if (m.initial_season) {
                                     setWatchSeason(m.initial_season);

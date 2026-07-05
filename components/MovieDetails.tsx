@@ -453,6 +453,15 @@ export const MoviePage: React.FC<MoviePageProps> = ({
     const [aniListReviews, setAniListReviews] = useState<any[]>([]);
     const [aniListReviewsLoading, setAniListReviewsLoading] = useState(false);
     
+    // MyDramaList (MDL) states for Asian Dramas
+    const [mdlSlug, setMdlSlug] = useState<string | null>(null);
+    const [mdlDetails, setMdlDetails] = useState<any | null>(null);
+    const [mdlCast, setMdlCast] = useState<any[]>([]);
+    const [mdlEpisodes, setMdlEpisodes] = useState<any[]>([]);
+    const [mdlReviews, setMdlReviews] = useState<any[]>([]);
+    const [mdlRecs, setMdlRecs] = useState<any[]>([]);
+    const [mdlLoading, setMdlLoading] = useState(false);
+    
     // Custom Seasons Dropdown State
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const [isCastApiAvailable, setIsCastApiAvailable] = useState(false);
@@ -767,6 +776,132 @@ export const MoviePage: React.FC<MoviePageProps> = ({
     };
 
     const isAnime = !!((details?.genres || movie?.genres)?.some((g: any) => g.id === 16) && (details?.original_language || movie?.original_language) === 'ja');
+
+    const isDrama = !!(
+      ((details?.original_language || movie?.original_language) === 'ko' || 
+       (details?.original_language || movie?.original_language) === 'zh' || 
+       (details?.original_language || movie?.original_language) === 'ja' || 
+       (details?.original_language || movie?.original_language) === 'th') &&
+      !(details?.genres || movie?.genres)?.some((g: any) => g.id === 16)
+    );
+
+    // Fetch MyDramaList details for Asian Dramas
+    useEffect(() => {
+        if (!details) {
+            setMdlSlug(null);
+            setMdlDetails(null);
+            setMdlCast([]);
+            setMdlEpisodes([]);
+            setMdlReviews([]);
+            setMdlRecs([]);
+            return;
+        }
+
+        if (!isDrama) {
+            setMdlSlug(null);
+            setMdlDetails(null);
+            setMdlCast([]);
+            setMdlEpisodes([]);
+            setMdlReviews([]);
+            setMdlRecs([]);
+            return;
+        }
+
+        const title = details.name || details.original_name || details.title || details.original_title;
+        if (!title) return;
+
+        const cleanTitle = title.replace(/\s*\(?(Dub|Sub|TV|Movie|uncensored|censored|season\s*\d+|part\s*\d+)\)?\s*$/i, '').trim();
+
+        setMdlLoading(true);
+
+        // Check if there is a cached map for this TMDB ID to MDL Slug
+        const cacheKey = `movieverse_drama_mdl_slug_map_${details.id}`;
+        const cachedSlug = localStorage.getItem(cacheKey);
+
+        const fetchAllMdlData = async (slug: string) => {
+            setMdlSlug(slug);
+            // 1. Fetch Details
+            try {
+                const detRes = await window.fetch(`/api/drama/api/id/${slug}`);
+                if (detRes.ok) {
+                    const detData = await detRes.json();
+                    setMdlDetails(detData);
+                }
+            } catch (err) {
+                console.error("MDL Details fetch error:", err);
+            }
+
+            // 2. Fetch Cast
+            try {
+                const castRes = await window.fetch(`/api/drama/api/id/${slug}/cast`);
+                if (castRes.ok) {
+                    const castData = await castRes.json();
+                    setMdlCast(castData.cast || []);
+                }
+            } catch (err) {
+                console.error("MDL Cast fetch error:", err);
+            }
+
+            // 3. Fetch Episodes
+            try {
+                const epRes = await window.fetch(`/api/drama/api/id/${slug}/episodes`);
+                if (epRes.ok) {
+                    const epData = await epRes.json();
+                    setMdlEpisodes(epData.episodes || []);
+                }
+            } catch (err) {
+                console.error("MDL Episodes fetch error:", err);
+            }
+
+            // 4. Fetch Reviews
+            try {
+                const revRes = await window.fetch(`/api/drama/api/id/${slug}/reviews`);
+                if (revRes.ok) {
+                    const revData = await revRes.json();
+                    setMdlReviews(revData.reviews || []);
+                }
+            } catch (err) {
+                console.error("MDL Reviews fetch error:", err);
+            }
+
+            // 5. Fetch Recs
+            try {
+                const recRes = await window.fetch(`/api/drama/api/id/${slug}/recs`);
+                if (recRes.ok) {
+                    const recData = await recRes.json();
+                    setMdlRecs(recData.recs || []);
+                }
+            } catch (err) {
+                console.error("MDL Recs fetch error:", err);
+            }
+
+            setMdlLoading(false);
+        };
+
+        if (cachedSlug) {
+            fetchAllMdlData(cachedSlug);
+        } else {
+            // Search MDL scraper by title
+            window.fetch(`/api/drama/api/search/q/${encodeURIComponent(cleanTitle)}`)
+                .then(res => {
+                    if (!res.ok) throw new Error("Search failed");
+                    return res.json();
+                })
+                .then(data => {
+                    if (data.results && data.results.length > 0) {
+                        const slug = data.results[0].slug;
+                        localStorage.setItem(cacheKey, slug);
+                        fetchAllMdlData(slug);
+                    } else {
+                        setMdlLoading(false);
+                    }
+                })
+                .catch(err => {
+                    console.error("Error searching MDL:", err);
+                    setMdlLoading(false);
+                });
+        }
+    }, [details, isDrama]);
 
     useEffect(() => {
       if (activeTab === 'social' && aniListId) {
@@ -1654,7 +1789,9 @@ export const MoviePage: React.FC<MoviePageProps> = ({
         ...(isAnime ? [{ id: 'social', label: 'Social' }] : []),
         ...(isTv ? [{ id: 'seasons', label: 'Seasons' }] : []),
         ...(isAnime ? [{ id: 'characters', label: 'Characters' }] : []),
+        ...(isDrama && mdlCast.length > 0 ? [{ id: 'mdlCast', label: 'MDL Cast' }] : []),
         ...(isAnime && sortedRelations.length > 0 ? [{ id: 'relations', label: 'Relations' }] : []),
+        ...(isDrama && mdlRecs.length > 0 ? [{ id: 'recs', label: 'Recommendations' }] : []),
         ...(displayData.similar?.results && displayData.similar.results.length > 0 ? [{ id: 'similar', label: 'Similar' }] : []),
     ];
 
@@ -2293,8 +2430,51 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                 </div>
                                             )) : null}
 
+                                            {/* Render MyDramaList Scraped Reviews */}
+                                            {isDrama && mdlLoading ? (
+                                                <div className="flex items-center justify-center py-6 gap-2">
+                                                    <Loader2 className="w-5 h-5 text-amber-500 animate-spin" size={16} />
+                                                    <span className="text-[9px] text-zinc-500 font-bold uppercase tracking-wider">Fetching MyDramaList reviews...</span>
+                                                </div>
+                                            ) : isDrama && mdlReviews.length ? mdlReviews.map((rev, idx) => (
+                                                <div key={`mdl-rev-${idx}`} className="bg-[#0c0c0e]/60 p-5 rounded-2xl border border-white/5 hover:border-white/10 transition-colors text-left relative mb-6">
+                                                    <span className="absolute top-4 right-4 bg-amber-500/10 border border-amber-500/20 text-amber-500 text-[8px] uppercase tracking-widest font-extrabold px-2 py-0.5 rounded-full">MDL Fan Review</span>
+                                                    <div className="flex items-center justify-between mb-3">
+                                                        <div className="flex items-center gap-3">
+                                                            <img 
+                                                                src={rev.user_avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(rev.username || 'User')}&background=333&color=fff`} 
+                                                                className="w-9 h-9 rounded-full object-cover border border-white/10" 
+                                                                alt="" 
+                                                            />
+                                                            <div>
+                                                                <h4 className="font-bold text-white text-xs sm:text-sm">{rev.username}</h4>
+                                                                <p className="text-[10px] text-gray-500">{rev.date}</p>
+                                                            </div>
+                                                        </div>
+                                                        {rev.rating && (
+                                                            <div className="flex items-center gap-1 bg-white/10 px-2 py-0.5 rounded-md text-[10px] sm:text-xs font-bold text-amber-500 mr-24">
+                                                                <Star size={11} fill="currentColor"/> {rev.rating}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                    <p className={`text-gray-400 text-xs sm:text-sm leading-relaxed whitespace-pre-line transition-all duration-300 ${expandedReviews[`mdl-${idx}`] ? '' : 'line-clamp-4'}`}>
+                                                        {rev.review}
+                                                    </p>
+                                                    {rev.review && rev.review.length > 280 && (
+                                                        <TvFocusButton
+                                                            onClick={() => toggleReviewExpand(`mdl-${idx}`)}
+                                                            className="mt-2.5 text-xs font-bold text-red-500 hover:text-red-400 transition-colors focus:outline-none"
+                                                        >
+                                                            {expandedReviews[`mdl-${idx}`] ? 'Show Less' : 'Read More'}
+                                                        </TvFocusButton>
+                                                    )}
+                                                </div>
+                                            )) : null}
+
                                             {/* Fallback if no reviews at all */}
-                                            {!displayData.reviews?.results?.length && (!isAnime || (!aniListReviewsLoading && !aniListReviews.length)) && (
+                                            {!displayData.reviews?.results?.length && 
+                                             (!isAnime || (!aniListReviewsLoading && !aniListReviews.length)) && 
+                                             (!isDrama || (!mdlLoading && !mdlReviews.length)) && (
                                                 <div className="text-center py-12 text-gray-500 border border-white/5 rounded-2xl text-xs">
                                                     No reviews yet.
                                                 </div>
@@ -2764,9 +2944,142 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                             </div>
                                         </div>
                                     )}
+
+                                    {activeTab === 'mdlCast' && isDrama && (
+                                        <div className="space-y-6 animate-in fade-in select-none text-left">
+                                            {mdlLoading ? (
+                                                <div className="flex items-center justify-center py-12 gap-2">
+                                                    <Loader2 className="w-6 h-6 text-amber-500 animate-spin" />
+                                                    <span className="text-xs text-zinc-500 font-bold uppercase tracking-wider">Loading cast...</span>
+                                                </div>
+                                            ) : mdlCast.length > 0 ? (
+                                                <div className="flex gap-6 overflow-x-auto pb-4 hide-scrollbar scroll-smooth">
+                                                    {mdlCast.map((actor: any, idx) => (
+                                                        <a
+                                                            key={idx}
+                                                            href={actor.profile_url || '#'}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            className="flex flex-col items-center text-center shrink-0 w-20 group cursor-pointer"
+                                                        >
+                                                            <div className="w-16 h-16 rounded-full overflow-hidden mb-3 bg-zinc-900 border border-white/5 transition-all group-hover:border-red-500/50 shadow-md">
+                                                                <img
+                                                                    src={actor.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(actor.name)}&background=333&color=fff`}
+                                                                    alt={actor.name}
+                                                                    className="w-full h-full object-cover"
+                                                                />
+                                                            </div>
+                                                            <h4 className="text-[10px] font-black text-white leading-tight mb-0.5 line-clamp-2 group-hover:text-red-500 transition-colors">{actor.name}</h4>
+                                                            <p className="text-[9px] text-zinc-500 line-clamp-1 font-light">{actor.character || 'Cast'}</p>
+                                                        </a>
+                                                    ))}
+                                                </div>
+                                            ) : (
+                                                <p className="text-zinc-500 text-xs italic">No cast information available.</p>
+                                            )}
+                                        </div>
+                                    )}
+
+                                    {activeTab === 'recs' && isDrama && (
+                                        <div className="space-y-6 animate-in fade-in select-none text-left">
+                                            {mdlLoading ? (
+                                                <div className="flex items-center justify-center py-12 gap-2">
+                                                    <Loader2 className="w-6 h-6 text-red-500 animate-spin" />
+                                                    <span className="text-xs text-zinc-500 font-bold uppercase tracking-wider">Loading recommendations...</span>
+                                                </div>
+                                            ) : mdlRecs.length > 0 ? (
+                                                <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-4">
+                                                    {mdlRecs.map((rec, idx) => (
+                                                        <DramaRecCard
+                                                            key={idx}
+                                                            rec={rec}
+                                                            apiKey={apiKey}
+                                                            onSwitchMovie={onSwitchMovie}
+                                                        />
+                                                    ))}
+                                                </div>
+                                            ) : (
+                                                <p className="text-zinc-500 text-xs italic">No recommendations available.</p>
+                                            )}
+                                        </div>
+                                    )}
                                 </div>
 
                                 <div className="space-y-6">
+                                    {isDrama && (mdlLoading ? (
+                                        <div className="bg-[#0b0b0d]/70 backdrop-blur-xl border border-white/5 rounded-3xl p-6 shadow-2xl flex items-center justify-center gap-2">
+                                            <Loader2 className="w-4 h-4 animate-spin text-red-500" />
+                                            <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider">Fetching MyDramaList Info...</span>
+                                        </div>
+                                    ) : mdlDetails ? (
+                                        <div className="bg-[#0b0b0d]/70 backdrop-blur-xl border border-white/5 rounded-3xl p-6 space-y-5 shadow-2xl relative overflow-hidden group text-left">
+                                            <div className="absolute -top-24 -right-24 w-48 h-48 rounded-full blur-[120px] opacity-10 bg-amber-500 pointer-events-none" />
+                                            
+                                            <h3 className="text-xs font-black text-white/95 uppercase tracking-[0.25em] border-b border-white/5 pb-4 mb-2 flex items-center gap-2">
+                                                <Tv size={14} className="text-amber-500" />
+                                                <span>MyDramaList Details</span>
+                                            </h3>
+
+                                            <div className="space-y-3.5 text-xs">
+                                                {mdlDetails.alternative_titles && (
+                                                    <div>
+                                                        <span className="text-zinc-500 font-normal block mb-0.5">Alternative Titles</span>
+                                                        <span className="text-zinc-300 font-bold leading-normal">{mdlDetails.alternative_titles}</span>
+                                                    </div>
+                                                )}
+                                                <div className="grid grid-cols-2 gap-4">
+                                                    {mdlDetails.country && (
+                                                        <div>
+                                                            <span className="text-zinc-500 block mb-0.5">Country</span>
+                                                            <span className="text-zinc-200 font-bold">{mdlDetails.country}</span>
+                                                        </div>
+                                                    )}
+                                                    {mdlDetails.duration && (
+                                                        <div>
+                                                            <span className="text-zinc-500 block mb-0.5">Duration</span>
+                                                            <span className="text-zinc-200 font-bold">{mdlDetails.duration}</span>
+                                                        </div>
+                                                    )}
+                                                    {mdlDetails.score_details && (
+                                                        <div>
+                                                            <span className="text-zinc-500 block mb-0.5">MDL Score</span>
+                                                            <span className="text-amber-500 font-bold flex items-center gap-0.5">★ {mdlDetails.score_details}</span>
+                                                        </div>
+                                                    )}
+                                                    {mdlDetails.ranked && (
+                                                        <div>
+                                                            <span className="text-zinc-500 block mb-0.5">Ranking</span>
+                                                            <span className="text-zinc-200 font-bold">#{mdlDetails.ranked}</span>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                {mdlDetails.original_network && (
+                                                    <div>
+                                                        <span className="text-zinc-500 block mb-0.5">Original Network</span>
+                                                        <span className="text-zinc-300 font-bold">{mdlDetails.original_network}</span>
+                                                    </div>
+                                                )}
+                                                {mdlDetails.aired && (
+                                                    <div>
+                                                        <span className="text-zinc-500 block mb-0.5">Aired Dates</span>
+                                                        <span className="text-zinc-300 font-medium">{mdlDetails.aired}</span>
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            {mdlDetails.url && (
+                                                <a 
+                                                    href={mdlDetails.url}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="block w-full py-2 bg-white/5 hover:bg-white/10 text-zinc-300 hover:text-white font-bold text-center text-[10px] rounded-xl border border-white/5 transition-all uppercase tracking-wider"
+                                                >
+                                                    View on MyDramaList
+                                                </a>
+                                            )}
+                                        </div>
+                                    ) : null)}
+
                                     <div className="bg-[#0b0b0d]/70 backdrop-blur-xl border border-white/5 rounded-3xl p-6 md:p-8 space-y-6 shadow-2xl relative overflow-hidden group">
                                         <div className="absolute -top-24 -right-24 w-48 h-48 rounded-full blur-[120px] opacity-10 bg-red-600 pointer-events-none transition-all duration-1000 group-hover:opacity-20" />
                                         
@@ -3449,4 +3762,141 @@ const AiringCountdown: React.FC<AiringCountdownProps> = ({ airingAt }) => {
         </span>
     );
 };
+
+const DramaRecCard: React.FC<{
+  rec: any;
+  apiKey: string;
+  onSwitchMovie: (m: any) => void;
+}> = ({ rec, apiKey, onSwitchMovie }) => {
+  const [posterUrl, setPosterUrl] = useState<string>(rec.image);
+  const [rating, setRating] = useState<number | null>(rec.rating ? parseFloat(rec.rating) : null);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+    const resolveRec = async () => {
+      const cacheKey = `movieverse_drama_tmdb_match_${rec.slug}`;
+      const cached = localStorage.getItem(cacheKey);
+      if (cached) {
+        try {
+          const data = JSON.parse(cached);
+          if (isMounted) {
+            if (data.poster_path) {
+              setPosterUrl(`https://image.tmdb.org/t/p/w500${data.poster_path}`);
+            }
+            if (data.vote_average) {
+              setRating(data.vote_average);
+            }
+          }
+          return;
+        } catch (_) {}
+      }
+
+      try {
+        const cleanTitle = rec.title.replace(/\(\d{4}\)/g, '').trim();
+        const tvRes = await window.fetch(`https://api.themoviedb.org/3/search/tv?api_key=${apiKey}&query=${encodeURIComponent(cleanTitle)}`);
+        const tvData = await tvRes.json();
+        let match = tvData.results?.find((x: any) => ['ko', 'zh', 'ja'].includes(x.original_language)) || tvData.results?.[0];
+        
+        if (!match) {
+          const movieRes = await window.fetch(`https://api.themoviedb.org/3/search/movie?api_key=${apiKey}&query=${encodeURIComponent(cleanTitle)}`);
+          const movieData = await movieRes.json();
+          match = movieData.results?.find((x: any) => ['ko', 'zh', 'ja'].includes(x.original_language)) || movieData.results?.[0];
+        }
+
+        if (match && isMounted) {
+          const matchData = {
+            id: match.id,
+            mediaType: match.first_air_date ? 'tv' : 'movie',
+            poster_path: match.poster_path,
+            vote_average: match.vote_average
+          };
+          localStorage.setItem(cacheKey, JSON.stringify(matchData));
+          if (match.poster_path) {
+            setPosterUrl(`https://image.tmdb.org/t/p/w500${match.poster_path}`);
+          }
+          if (match.vote_average) {
+            setRating(match.vote_average);
+          }
+        }
+      } catch (_) {}
+    };
+
+    resolveRec();
+    return () => { isMounted = false; };
+  }, [rec.slug, rec.title, apiKey]);
+
+  const handleClick = async () => {
+    if (loading) return;
+    setLoading(true);
+    const cacheKey = `movieverse_drama_tmdb_match_${rec.slug}`;
+    let cached = localStorage.getItem(cacheKey);
+    let resolved = cached ? JSON.parse(cached) : null;
+
+    if (!resolved) {
+      try {
+        const cleanTitle = rec.title.replace(/\(\d{4}\)/g, '').trim();
+        const tvRes = await window.fetch(`https://api.themoviedb.org/3/search/tv?api_key=${apiKey}&query=${encodeURIComponent(cleanTitle)}`);
+        const tvData = await tvRes.json();
+        let match = tvData.results?.find((x: any) => ['ko', 'zh', 'ja'].includes(x.original_language)) || tvData.results?.[0];
+
+        if (!match) {
+          const movieRes = await window.fetch(`https://api.themoviedb.org/3/search/movie?api_key=${apiKey}&query=${encodeURIComponent(cleanTitle)}`);
+          const movieData = await movieRes.json();
+          match = movieData.results?.find((x: any) => ['ko', 'zh', 'ja'].includes(x.original_language)) || movieData.results?.[0];
+        }
+
+        if (match) {
+          resolved = {
+            id: match.id,
+            mediaType: match.first_air_date ? 'tv' : 'movie',
+            poster_path: match.poster_path,
+            vote_average: match.vote_average
+          };
+          localStorage.setItem(cacheKey, JSON.stringify(resolved));
+        }
+      } catch (_) {}
+    }
+
+    setLoading(false);
+    if (resolved) {
+      onSwitchMovie({
+        id: resolved.id,
+        media_type: resolved.mediaType || 'tv',
+        title: rec.title,
+        name: rec.title,
+        poster_path: resolved.poster_path
+      });
+    }
+  };
+
+  return (
+    <div 
+      onClick={handleClick}
+      className="cursor-pointer group flex flex-col items-start gap-1"
+    >
+      <div className="relative aspect-[2/3] w-full rounded-xl overflow-hidden border border-white/5 group-hover:border-red-500/50 transition-all shadow-md bg-zinc-900 flex items-center justify-center">
+        <img 
+          src={posterUrl} 
+          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" 
+          alt={rec.title} 
+        />
+        {rating && (
+          <div className="absolute top-2 left-2 z-10 bg-black/75 backdrop-blur-md text-[9px] font-bold text-amber-500 px-1.5 py-0.5 rounded shadow-md border border-white/5 flex items-center gap-0.5 font-sans">
+            ★ {rating.toFixed(1)}
+          </div>
+        )}
+        {loading && (
+          <div className="absolute inset-0 bg-black/60 flex items-center justify-center backdrop-blur-sm z-30">
+            <Loader2 className="animate-spin text-red-500" size={16} />
+          </div>
+        )}
+      </div>
+      <h5 className="font-bold text-[10px] text-zinc-300 group-hover:text-red-400 transition-colors line-clamp-1 leading-tight w-full">
+        {rec.title}
+      </h5>
+    </div>
+  );
+};
+
 
