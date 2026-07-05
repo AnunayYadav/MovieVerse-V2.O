@@ -103,12 +103,26 @@ export const DramaPage: React.FC<DramaPageProps> = ({
   const [seasonalRow1, setSeasonalRow1] = useState<MDLDramaSummary[]>([]);
   const [seasonalRow2, setSeasonalRow2] = useState<MDLDramaSummary[]>([]);
   const [calendarDramas, setCalendarDramas] = useState<Record<string, MDLDramaSummary[]>>({});
+  
+  // Regional Drama Categories
+  const [kDramas, setKDramas] = useState<MDLDramaSummary[]>([]);
+  const [cDramas, setCDramas] = useState<MDLDramaSummary[]>([]);
+  const [jDramas, setJDramas] = useState<MDLDramaSummary[]>([]);
+  const [otherDramas, setOtherDramas] = useState<MDLDramaSummary[]>([]);
+  
+  // Subcategories (Genres)
+  const [romanceKDramas, setRomanceKDramas] = useState<MDLDramaSummary[]>([]);
+  const [actionDramas, setActionDramas] = useState<MDLDramaSummary[]>([]);
+  
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   // Title Language States
   const [titleLanguage, setTitleLanguage] = useState<'english' | 'romaji' | 'native'>('english');
   const [isLangDropdownOpen, setIsLangDropdownOpen] = useState(false);
+
+  // Subcategory Navigation Filter
+  const [activeCategoryFilter, setActiveCategoryFilter] = useState<'All' | 'K-Drama' | 'C-Drama' | 'J-Drama' | 'Romance' | 'Action'>('All');
 
   // Calendar States
   const weekdays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
@@ -238,14 +252,56 @@ export const DramaPage: React.FC<DramaPageProps> = ({
           });
         }
 
-        // 3. Fetch Seasonal 2026 Hits from TMDB (without_genres=16 to exclude Anime)
+        // 3. Fetch K-Dramas (ko)
+        const kRes = await window.fetch(`${TMDB_BASE_URL}/discover/tv?api_key=${apiKey}&without_genres=16&with_original_language=ko&sort_by=popularity.desc`);
+        if (kRes.ok) {
+          const data = await kRes.json();
+          setKDramas((data.results || []).slice(0, 15).map(mapTmdbToMdlSummary));
+        }
+
+        // 4. Fetch C-Dramas (zh)
+        const cRes = await window.fetch(`${TMDB_BASE_URL}/discover/tv?api_key=${apiKey}&without_genres=16&with_original_language=zh&sort_by=popularity.desc`);
+        if (cRes.ok) {
+          const data = await cRes.json();
+          setCDramas((data.results || []).slice(0, 15).map(mapTmdbToMdlSummary));
+        }
+
+        // 5. Fetch J-Dramas (ja)
+        const jRes = await window.fetch(`${TMDB_BASE_URL}/discover/tv?api_key=${apiKey}&without_genres=16&with_original_language=ja&sort_by=popularity.desc`);
+        if (jRes.ok) {
+          const data = await jRes.json();
+          setJDramas((data.results || []).slice(0, 15).map(mapTmdbToMdlSummary));
+        }
+
+        // 6. Fetch Other Asian Dramas (th)
+        const otherRes = await window.fetch(`${TMDB_BASE_URL}/discover/tv?api_key=${apiKey}&without_genres=16&with_original_language=th&sort_by=popularity.desc`);
+        if (otherRes.ok) {
+          const data = await otherRes.json();
+          setOtherDramas((data.results || []).slice(0, 15).map(mapTmdbToMdlSummary));
+        }
+
+        // 7. Fetch K-Drama Romance Subcategory (with_genres=18)
+        const romanceRes = await window.fetch(`${TMDB_BASE_URL}/discover/tv?api_key=${apiKey}&without_genres=16&with_original_language=ko&with_genres=18&sort_by=popularity.desc`);
+        if (romanceRes.ok) {
+          const data = await romanceRes.json();
+          setRomanceKDramas((data.results || []).slice(0, 15).map(mapTmdbToMdlSummary));
+        }
+
+        // 8. Fetch Action / Thriller Dramas (with_genres=10759)
+        const actionRes = await window.fetch(`${TMDB_BASE_URL}/discover/tv?api_key=${apiKey}&without_genres=16&with_original_language=ko|ja&with_genres=10759&sort_by=popularity.desc`);
+        if (actionRes.ok) {
+          const data = await actionRes.json();
+          setActionDramas((data.results || []).slice(0, 15).map(mapTmdbToMdlSummary));
+        }
+
+        // 9. Fetch Seasonal 2026 Hits from TMDB (without_genres=16 to exclude Anime)
         const season1Res = await window.fetch(`${TMDB_BASE_URL}/discover/tv?api_key=${apiKey}&without_genres=16&with_original_language=ko|ja|zh&first_air_date_year=2026&sort_by=popularity.desc`);
         if (season1Res.ok) {
           const data = await season1Res.json();
           setSeasonalRow1((data.results || []).slice(0, 15).map(mapTmdbToMdlSummary));
         }
 
-        // 4. Fetch Seasonal 2025 Hits from TMDB (without_genres=16 to exclude Anime)
+        // 10. Fetch Seasonal 2025 Hits from TMDB (without_genres=16 to exclude Anime)
         const season2Res = await window.fetch(`${TMDB_BASE_URL}/discover/tv?api_key=${apiKey}&without_genres=16&with_original_language=ko|ja|zh&first_air_date_year=2025&sort_by=popularity.desc`);
         if (season2Res.ok) {
           const data = await season2Res.json();
@@ -748,7 +804,7 @@ export const DramaPage: React.FC<DramaPageProps> = ({
   // Infinite scroll listener
   useEffect(() => {
     const handleScroll = () => {
-      if (selectedDramaSlug || searchQuery) return;
+      if (selectedDramaSlug || searchQuery || activeCategoryFilter !== 'All') return;
       const scrollHeight = document.documentElement.scrollHeight;
       const scrollTop = document.documentElement.scrollTop;
       const clientHeight = document.documentElement.clientHeight;
@@ -760,7 +816,7 @@ export const DramaPage: React.FC<DramaPageProps> = ({
 
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
-  }, [loadMoreQuarters, selectedDramaSlug, searchQuery]);
+  }, [loadMoreQuarters, selectedDramaSlug, searchQuery, activeCategoryFilter]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -871,6 +927,18 @@ export const DramaPage: React.FC<DramaPageProps> = ({
 
   // Next Episode Airing object
   const nextEp = tmdbDetailsData?.next_episode_to_air;
+
+  // Filter grid list based on selected category navigation tab
+  const getFilteredGridList = (): MDLDramaSummary[] => {
+    switch (activeCategoryFilter) {
+      case 'K-Drama': return kDramas;
+      case 'C-Drama': return cDramas;
+      case 'J-Drama': return jDramas;
+      case 'Romance': return romanceKDramas;
+      case 'Action': return actionDramas;
+      default: return [];
+    }
+  };
 
   return (
     <div className={`min-h-screen bg-[#030303] pb-24 text-white font-sans ${disableEntryAnimation ? '' : 'animate-in fade-in duration-500'} overflow-x-hidden`}>
@@ -1012,67 +1080,97 @@ export const DramaPage: React.FC<DramaPageProps> = ({
           )}
 
           {/* Search Section & Configuration Header */}
-          <div className="max-w-7xl mx-auto px-3 md:px-6 mt-8 select-none flex items-center justify-between gap-4 flex-wrap">
-            <form onSubmit={handleSearchSubmit} className="relative max-w-md w-full">
-              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-400" size={16} />
-              <input 
-                type="text"
-                placeholder="Search Asian dramas..."
-                value={searchInput}
-                onChange={(e) => setSearchInput(e.target.value)}
-                className="w-full bg-[#0c0c0e]/90 border border-white/10 rounded-full pl-10 pr-10 py-2.5 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-red-600/60 focus:ring-1 focus:ring-red-600/30 transition-all shadow-[inset_0_2px_4px_rgba(0,0,0,0.4)]"
-              />
-              {searchInput && (
-                <button 
-                  type="button" 
-                  onClick={clearSearch} 
-                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white"
-                >
-                  <X size={14} />
-                </button>
-              )}
-            </form>
+          <div className="max-w-7xl mx-auto px-3 md:px-6 mt-8 select-none flex flex-col gap-6">
+            <div className="flex items-center justify-between gap-4 flex-wrap w-full">
+              <form onSubmit={handleSearchSubmit} className="relative max-w-md w-full">
+                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-400" size={16} />
+                <input 
+                  type="text"
+                  placeholder="Search Asian dramas..."
+                  value={searchInput}
+                  onChange={(e) => setSearchInput(e.target.value)}
+                  className="w-full bg-[#0c0c0e]/90 border border-white/10 rounded-full pl-10 pr-10 py-2.5 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-red-600/60 focus:ring-1 focus:ring-red-600/30 transition-all shadow-[inset_0_2px_4px_rgba(0,0,0,0.4)]"
+                />
+                {searchInput && (
+                  <button 
+                    type="button" 
+                    onClick={clearSearch} 
+                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white"
+                  >
+                    <X size={14} />
+                  </button>
+                )}
+              </form>
 
-            {/* Title Language Dropdown Selector */}
-            <div className="relative group shrink-0">
-              <button 
-                onClick={() => setIsLangDropdownOpen(!isLangDropdownOpen)} 
-                className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/15 hover:border-white/25 rounded-full text-xs font-bold text-gray-200 transition-all active:scale-95 min-w-[130px] justify-between shadow-lg backdrop-blur-md"
-              >
-                <div className="flex items-center gap-2">
-                  <Languages size={14} className="text-red-500" /> 
-                  <span>{titleLanguage === 'english' ? 'English' : titleLanguage === 'romaji' ? 'Romaji' : 'Native'}</span>
-                </div>
-                <ChevronDown size={12} className="text-zinc-500 group-hover:text-white transition-colors" />
-              </button>
-              {isLangDropdownOpen && (
-                <>
-                  <div className="fixed inset-0 z-40" onClick={() => setIsLangDropdownOpen(false)} />
-                  <div className="absolute right-0 mt-2 w-40 bg-[#0c0c0e]/95 backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden shadow-2xl transition-all origin-top-right z-50 p-1.5 animate-in fade-in slide-in-from-top-2 duration-200">
-                    {[
-                      { value: 'english', label: 'English' },
-                      { value: 'romaji', label: 'Romaji' },
-                      { value: 'native', label: 'Native' }
-                    ].map(opt => (
-                      <button 
-                        key={opt.value} 
-                        onClick={() => { 
-                          setTitleLanguage(opt.value as any); 
-                          setIsLangDropdownOpen(false); 
-                        }} 
-                        className={`w-full text-left px-3.5 py-2 text-xs font-bold rounded-xl transition-colors flex items-center justify-between ${
-                          titleLanguage === opt.value 
-                            ? 'bg-red-600 text-white shadow-md shadow-red-600/20' 
-                            : 'text-zinc-400 hover:bg-white/5 hover:text-white'
-                        }`}
-                      >
-                        {opt.label}
-                        {titleLanguage === opt.value && <Check size={12} />}
-                      </button>
-                    ))}
+              {/* Title Language Dropdown Selector */}
+              <div className="relative group shrink-0">
+                <button 
+                  onClick={() => setIsLangDropdownOpen(!isLangDropdownOpen)} 
+                  className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/15 hover:border-white/25 rounded-full text-xs font-bold text-gray-200 transition-all active:scale-95 min-w-[130px] justify-between shadow-lg backdrop-blur-md"
+                >
+                  <div className="flex items-center gap-2">
+                    <Languages size={14} className="text-red-500" /> 
+                    <span>{titleLanguage === 'english' ? 'English' : titleLanguage === 'romaji' ? 'Romaji' : 'Native'}</span>
                   </div>
-                </>
-              )}
+                  <ChevronDown size={12} className="text-zinc-500 group-hover:text-white transition-colors" />
+                </button>
+                {isLangDropdownOpen && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setIsLangDropdownOpen(false)} />
+                    <div className="absolute right-0 mt-2 w-40 bg-[#0c0c0e]/95 backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden shadow-2xl transition-all origin-top-right z-50 p-1.5 animate-in fade-in slide-in-from-top-2 duration-200">
+                      {[
+                        { value: 'english', label: 'English' },
+                        { value: 'romaji', label: 'Romaji' },
+                        { value: 'native', label: 'Native' }
+                      ].map(opt => (
+                        <button 
+                          key={opt.value} 
+                          onClick={() => { 
+                            setTitleLanguage(opt.value as any); 
+                            setIsLangDropdownOpen(false); 
+                          }} 
+                          className={`w-full text-left px-3.5 py-2 text-xs font-bold rounded-xl transition-colors flex items-center justify-between ${
+                            titleLanguage === opt.value 
+                              ? 'bg-red-600 text-white shadow-md shadow-red-600/20' 
+                              : 'text-zinc-400 hover:bg-white/5 hover:text-white'
+                          }`}
+                        >
+                          {opt.label}
+                          {titleLanguage === opt.value && <Check size={12} />}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+
+            {/* Category Filter Bar */}
+            <div className="flex flex-wrap items-center gap-2 select-none border-b border-white/5 pb-4">
+              {[
+                { id: 'All', label: 'All Catalog' },
+                { id: 'K-Drama', label: 'K-Dramas (Korean)' },
+                { id: 'C-Drama', label: 'C-Dramas (Chinese)' },
+                { id: 'J-Drama', label: 'J-Dramas (Japanese)' },
+                { id: 'Romance', label: 'Melodrama & Romance' },
+                { id: 'Action', label: 'Action & Thrillers' }
+              ].map(tab => (
+                <button
+                  key={tab.id}
+                  onClick={() => {
+                    setActiveCategoryFilter(tab.id as any);
+                    // Reset scroll to top
+                    window.scrollTo({ top: 400, behavior: 'smooth' });
+                  }}
+                  className={`px-4 py-2 rounded-full text-xs font-bold transition-all cursor-pointer ${
+                    activeCategoryFilter === tab.id
+                      ? 'bg-red-600 text-white shadow-lg shadow-red-600/30 border-transparent'
+                      : 'bg-white/5 text-zinc-400 border border-white/5 hover:bg-white/10 hover:text-white'
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
             </div>
           </div>
 
@@ -1113,70 +1211,103 @@ export const DramaPage: React.FC<DramaPageProps> = ({
             {/* Catalog Content (when not searching) */}
             {!searchQuery && (
               <>
-                {/* Airing Calendar Section */}
-                {Object.keys(calendarDramas).length > 0 && (
-                  <div className="mx-3 md:mx-6 bg-[#0c0c0e]/50 border border-white/5 rounded-2xl p-4 md:p-6 shadow-xl text-left text-zinc-100 font-sans">
-                    <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-white/5 pb-4 mb-5 gap-3">
-                      <div>
-                        <h2 className="text-lg md:text-xl font-black text-white tracking-tight flex items-center gap-2.5">
-                          <Calendar size={18} className="text-red-500" />
-                          Airing Calendar
-                        </h2>
-                        <p className="text-zinc-500 text-[11px] mt-0.5 font-medium">Currently airing Asian dramas scheduled by days of the week.</p>
-                      </div>
-                      
-                      {/* Weekdays Tabs */}
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        {weekdays.map(day => {
-                          const count = calendarDramas[day]?.length || 0;
-                          const isActive = selectedDay === day;
-                          return (
-                            <button
-                              key={day}
-                              onClick={() => setSelectedDay(day)}
-                              className={`px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all cursor-pointer ${
-                                isActive 
-                                  ? 'bg-red-600 text-white shadow-md' 
-                                  : 'bg-white/5 text-zinc-400 hover:bg-white/10 hover:text-white'
-                              }`}
-                            >
-                              {day.slice(0, 3)} {count > 0 && <span className={`ml-1 px-1 rounded text-[8px] ${isActive ? 'bg-white text-red-600' : 'bg-white/10 text-zinc-400'}`}>{count}</span>}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
+                {activeCategoryFilter === 'All' ? (
+                  <>
+                    {/* Airing Calendar Section */}
+                    {Object.keys(calendarDramas).length > 0 && (
+                      <div className="mx-3 md:mx-6 bg-[#0c0c0e]/50 border border-white/5 rounded-2xl p-4 md:p-6 shadow-xl text-left text-zinc-100 font-sans">
+                        <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-white/5 pb-4 mb-5 gap-3">
+                          <div>
+                            <h2 className="text-lg md:text-xl font-black text-white tracking-tight flex items-center gap-2.5">
+                              <Calendar size={18} className="text-red-500" />
+                              Airing Calendar
+                            </h2>
+                            <p className="text-zinc-500 text-[11px] mt-0.5 font-medium">Currently airing Asian dramas scheduled by days of the week.</p>
+                          </div>
+                          
+                          {/* Weekdays Tabs */}
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            {weekdays.map(day => {
+                              const count = calendarDramas[day]?.length || 0;
+                              const isActive = selectedDay === day;
+                              return (
+                                <button
+                                  key={day}
+                                  onClick={() => setSelectedDay(day)}
+                                  className={`px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all cursor-pointer ${
+                                    isActive 
+                                      ? 'bg-red-600 text-white shadow-md' 
+                                      : 'bg-white/5 text-zinc-400 hover:bg-white/10 hover:text-white'
+                                  }`}
+                                >
+                                  {day.slice(0, 3)} {count > 0 && <span className={`ml-1 px-1 rounded text-[8px] ${isActive ? 'bg-white text-red-600' : 'bg-white/10 text-zinc-400'}`}>{count}</span>}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
 
-                    {/* Day Content Row */}
-                    {calendarDramas[selectedDay] && calendarDramas[selectedDay].length > 0 ? (
-                      <div className="flex gap-5 overflow-x-auto pb-4 hide-scrollbar scroll-smooth">
-                        {calendarDramas[selectedDay].map(drama => (
-                          <DramaCard key={drama.slug} drama={drama} onDramaClick={onDramaSelect} titleLanguage={titleLanguage} apiKey={apiKey} />
+                        {/* Day Content Row */}
+                        {calendarDramas[selectedDay] && calendarDramas[selectedDay].length > 0 ? (
+                          <div className="flex gap-5 overflow-x-auto pb-4 hide-scrollbar scroll-smooth">
+                            {calendarDramas[selectedDay].map(drama => (
+                              <DramaCard key={drama.slug} drama={drama} onDramaClick={onDramaSelect} titleLanguage={titleLanguage} apiKey={apiKey} />
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="text-center py-10">
+                            <p className="text-zinc-500 text-xs font-semibold">No dramas scheduled for {selectedDay}.</p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Regional / Categorized Rows */}
+                    <DramaRow title="Trending Right Now" items={trending} onDramaClick={onDramaSelect} titleLanguage={titleLanguage} apiKey={apiKey} />
+                    <DramaRow title="Korean Hits (K-Dramas)" items={kDramas} onDramaClick={onDramaSelect} titleLanguage={titleLanguage} apiKey={apiKey} />
+                    <DramaRow title="Chinese Hits (C-Dramas)" items={cDramas} onDramaClick={onDramaSelect} titleLanguage={titleLanguage} apiKey={apiKey} />
+                    <DramaRow title="Japanese Hits (J-Dramas)" items={jDramas} onDramaClick={onDramaSelect} titleLanguage={titleLanguage} apiKey={apiKey} />
+                    
+                    {/* Subcategories (Genres) Rows */}
+                    <DramaRow title="Popular Romance & Melodramas" items={romanceKDramas} onDramaClick={onDramaSelect} titleLanguage={titleLanguage} apiKey={apiKey} />
+                    <DramaRow title="Action & Thrillers" items={actionDramas} onDramaClick={onDramaSelect} titleLanguage={titleLanguage} apiKey={apiKey} />
+                    
+                    {/* Seasonal & Others Rows */}
+                    <DramaRow title="Winter 2026 Hits" items={seasonalRow1} onDramaClick={onDramaSelect} titleLanguage={titleLanguage} apiKey={apiKey} />
+                    <DramaRow title="Fall 2025 Hits" items={seasonalRow2} onDramaClick={onDramaSelect} titleLanguage={titleLanguage} apiKey={apiKey} />
+                    <DramaRow title="Popular Thai & Other Asian Shows" items={otherDramas} onDramaClick={onDramaSelect} titleLanguage={titleLanguage} apiKey={apiKey} />
+
+                    {/* Infinite Loaded Rows */}
+                    {infiniteRows.map((row, idx) => (
+                      <DramaRow key={idx} title={row.title} items={row.items} onDramaClick={onDramaSelect} titleLanguage={titleLanguage} apiKey={apiKey} />
+                    ))}
+
+                    {/* Scrolling loading indicator */}
+                    {loadingMoreRows && (
+                      <div className="flex items-center justify-center py-6 gap-2">
+                        <Loader2 className="w-5 h-5 text-red-600 animate-spin" />
+                        <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Loading older hits...</span>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  /* Grid Filter View */
+                  <div className="px-3 md:px-6">
+                    <h2 className="text-xl md:text-2xl font-black text-white tracking-tight flex items-center gap-3.5 mb-6 text-left">
+                      <span className="w-2.5 h-6 rounded-full bg-red-600"></span>
+                      Viewing Category: {activeCategoryFilter === 'K-Drama' ? 'K-Dramas' : activeCategoryFilter === 'C-Drama' ? 'C-Dramas' : activeCategoryFilter === 'J-Drama' ? 'J-Dramas' : activeCategoryFilter === 'Romance' ? 'Romance Melodramas' : 'Action & Thrillers'}
+                    </h2>
+                    {getFilteredGridList().length > 0 ? (
+                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-5">
+                        {getFilteredGridList().map(drama => (
+                          <DramaCard key={drama.slug} drama={drama} onDramaClick={onDramaSelect} titleLanguage={titleLanguage} apiKey={apiKey} widthClass="w-full" />
                         ))}
                       </div>
                     ) : (
-                      <div className="text-center py-10">
-                        <p className="text-zinc-500 text-xs font-semibold">No dramas scheduled for {selectedDay}.</p>
+                      <div className="text-center py-16 border border-white/5 rounded-2xl bg-[#0c0c0e]/30">
+                        <p className="text-zinc-500 text-sm">No dramas loaded in this category yet.</p>
                       </div>
                     )}
-                  </div>
-                )}
-
-                {/* Seasonal/Trending Horizontally Scrollable Category Rows */}
-                <DramaRow title="Trending Right Now" items={trending} onDramaClick={onDramaSelect} titleLanguage={titleLanguage} apiKey={apiKey} />
-                <DramaRow title="Winter 2026 Hits" items={seasonalRow1} onDramaClick={onDramaSelect} titleLanguage={titleLanguage} apiKey={apiKey} />
-                <DramaRow title="Fall 2025 Hits" items={seasonalRow2} onDramaClick={onDramaSelect} titleLanguage={titleLanguage} apiKey={apiKey} />
-
-                {/* Infinite Loaded Rows */}
-                {infiniteRows.map((row, idx) => (
-                  <DramaRow key={idx} title={row.title} items={row.items} onDramaClick={onDramaSelect} titleLanguage={titleLanguage} apiKey={apiKey} />
-                ))}
-
-                {/* Scrolling loading indicator */}
-                {loadingMoreRows && (
-                  <div className="flex items-center justify-center py-6 gap-2">
-                    <Loader2 className="w-5 h-5 text-red-600 animate-spin" />
-                    <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Loading older hits...</span>
                   </div>
                 )}
               </>
@@ -1591,7 +1722,7 @@ export const DramaPage: React.FC<DramaPageProps> = ({
                                 .filter((v: any) => v.site === 'YouTube' && ['Trailer', 'Teaser'].includes(v.type))
                                 .slice(0, 4)
                                 .map((video: any) => (
-                                  <div key={video.id} className="relative w-full aspect-video rounded-2xl overflow-hidden border border-white/5 bg-zinc-950/60 shadow-lg">
+                                  <div key={video.id} className="relative w-full aspect-video rounded-2xl overflow-hidden border border-white/5 bg-zinc-955/60 shadow-lg">
                                     <iframe 
                                       src={`https://www.youtube.com/embed/${video.key}`}
                                       title={video.name}
