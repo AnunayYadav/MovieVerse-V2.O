@@ -421,9 +421,6 @@ interface MovieCardProps {
 
 export const MovieCard = React.memo(React.forwardRef<HTMLDivElement, MovieCardProps>(({ movie, onClick, isWatched, onToggleWatched }, ref) => {
     if (!movie) return null;
-  
-    const [logoUrl, setLogoUrl] = useState<string | null>(null);
-    const [logoLoading, setLogoLoading] = useState(true);
 
     const { ref: focusRef } = useTvFocus({
         onEnterPress: () => onClick(movie)
@@ -438,46 +435,10 @@ export const MovieCard = React.memo(React.forwardRef<HTMLDivElement, MovieCardPr
         }
     };
 
-    React.useEffect(() => {
-        if (isTVApp) {
-            setLogoLoading(false);
-            return;
-        }
-        let isMounted = true;
-        const key = getTmdbKey();
-        if (!key) {
-            setLogoLoading(false);
-            return;
-        }
-        
-        const type = movie.media_type === 'tv' || (!movie.release_date && movie.first_air_date) ? 'tv' : 'movie';
-        
-        fetch(`${TMDB_BASE_URL}/${type}/${movie.id}/images?api_key=${key}`)
-            .then(res => {
-                if (!res.ok) throw new Error();
-                return res.json();
-            })
-            .then(data => {
-                if (!isMounted) return;
-                const logo = data.logos?.find((l: any) => l.iso_639_1 === 'en') || data.logos?.[0];
-                if (logo) {
-                    setLogoUrl(`https://image.tmdb.org/t/p/w300${logo.file_path}`);
-                }
-            })
-            .catch(() => {})
-            .finally(() => {
-                if (isMounted) setLogoLoading(false);
-            });
+    const posterUrl = movie.poster_path 
+      ? `https://image.tmdb.org/t/p/w500${movie.poster_path}`
+      : (movie.backdrop_path ? `https://image.tmdb.org/t/p/w500${movie.backdrop_path}` : `https://placehold.co/320x480/111/444?text=${encodeURIComponent(movie.title || movie.name || "Movie")}`);
 
-        return () => {
-            isMounted = false;
-        };
-    }, [movie.id]);
-
-    const backdropUrl = movie.backdrop_path 
-      ? `${TMDB_IMAGE_BASE}${movie.backdrop_path}`
-      : (movie.poster_path ? `${TMDB_IMAGE_BASE}${movie.poster_path}` : `https://placehold.co/600x338/111/444?text=${encodeURIComponent(movie.title || movie.name || "Movie")}`);
-  
     const rating = movie.vote_average;
     const year = (movie.release_date || movie.first_air_date || "").split('-')[0];
     const isFuture = new Date(movie.release_date || `${movie.year}-01-01`) > new Date();
@@ -489,12 +450,12 @@ export const MovieCard = React.memo(React.forwardRef<HTMLDivElement, MovieCardPr
     return (
       <div 
         ref={combinedRef}
-        className="group relative rounded-xl overflow-hidden cursor-pointer transition-all duration-500 ease-[cubic-bezier(0.33,1,0.68,1)] hover:z-20 hover:scale-[1.03] hover:shadow-[0_10px_40px_rgba(0,0,0,0.5)] font-sans"
+        className="group relative shrink-0 w-[140px] sm:w-[170px] aspect-[2/3] rounded-xl overflow-hidden cursor-pointer transition-all duration-500 ease-[cubic-bezier(0.33,1,0.68,1)] hover:z-20 hover:scale-[1.03] hover:shadow-[0_10px_40px_rgba(0,0,0,0.5)] border border-white/5 hover:border-red-500/50 font-sans select-none"
         onClick={() => onClick(movie)}
       >
-        <div className="aspect-[16/9] overflow-hidden bg-white/5 relative">
+        <div className="w-full h-full relative bg-white/5">
           <img 
-            src={backdropUrl} 
+            src={posterUrl} 
             alt={movie.title || movie.name || "Movie Poster"} 
             loading="lazy"
             decoding="async"
@@ -519,23 +480,12 @@ export const MovieCard = React.memo(React.forwardRef<HTMLDivElement, MovieCardPr
                 {isFuture && (
                   <span className="w-fit bg-red-600/90 backdrop-blur-sm text-white text-[9px] font-bold px-2 py-0.5 rounded-md shadow-lg mb-1 animate-pulse">COMING SOON</span>
                 )}
-                <div className="min-h-[35px] flex items-end">
-                    {!logoLoading && logoUrl ? (
-                        <img 
-                            src={logoUrl} 
-                            alt={movie.title || movie.name} 
-                            className="max-h-[32px] max-w-[85%] object-contain drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)] group-hover:scale-105 transition-transform duration-300 origin-left"
-                            loading="lazy"
-                        />
-                    ) : (
-                        <h4 className="text-sm font-bold text-white line-clamp-1 group-hover:text-red-500 transition-colors duration-300 drop-shadow-md">
-                            {movie.title || movie.name}
-                        </h4>
-                    )}
-                </div>
-                <div className="flex items-center justify-between mt-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300 transform translate-y-1 group-hover:translate-y-0 transition-transform duration-300">
+                <h4 className="text-xs sm:text-sm font-bold text-white line-clamp-2 group-hover:text-red-500 transition-colors duration-300 drop-shadow-md leading-tight">
+                    {movie.title || movie.name}
+                </h4>
+                <div className="max-h-0 overflow-hidden group-hover:max-h-10 group-hover:mt-1 transition-all duration-500 ease-out opacity-0 group-hover:opacity-100 flex items-center justify-between text-[9px] text-zinc-400 font-semibold">
                   <span>{year || 'TBA'}</span>
-                  <MVRatingBadge rating={getMovieVerseRating(movie.id, movie.vote_average, movie.popularity, movie.vote_count, movie.release_date || movie.first_air_date)} size={14} />
+                  <MVRatingBadge rating={getMovieVerseRating(movie.id, movie.vote_average, movie.popularity, movie.vote_count, movie.release_date || movie.first_air_date)} size={12} />
                 </div>
              </div>
           </div>

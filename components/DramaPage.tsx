@@ -986,13 +986,13 @@ export const DramaPage: React.FC<DramaPageProps> = ({
         <>
           {/* Custom Hero Banner Carousel */}
           {activeHero && (
-            <div className="relative w-full h-[75vh] md:h-[80vh] overflow-hidden select-none bg-black">
+            <div className="relative w-full h-[70vh] md:h-[80vh] overflow-hidden select-none bg-black">
               {/* Cover Art Backdrop */}
               <div className="absolute inset-0">
                 <img 
                   src={heroBackdrop || activeHero.image} 
                   alt={activeHero.title}
-                  className="w-full h-full object-cover opacity-20 blur-[2px] scale-105" 
+                  className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105" 
                   onError={(e) => {
                     e.currentTarget.src = 'https://images.unsplash.com/photo-1574375927938-d5a98e8edd85?q=80&w=1920';
                   }}
@@ -1001,68 +1001,56 @@ export const DramaPage: React.FC<DramaPageProps> = ({
                 <div className="absolute inset-0 bg-gradient-to-r from-[#030303] via-[#030303]/40 to-transparent" />
               </div>
 
-              {/* Hero Content - Split Layout with Vertical Poster */}
-              <div className="absolute bottom-0 left-0 right-0 px-3 md:px-6 pb-12 max-w-7xl mx-auto flex flex-col md:flex-row items-center md:items-end gap-6 md:gap-8 z-20 text-left w-full">
-                {/* Left: Vertical Poster */}
-                <div className="w-[120px] sm:w-[150px] md:w-[180px] aspect-[2/3] rounded-xl overflow-hidden border border-white/10 shadow-2xl shrink-0">
-                  <img
-                    src={activeHero.image}
-                    alt={activeHero.title}
-                    className="w-full h-full object-cover"
-                  />
+              {/* Hero Content - horizontal Overlay layout */}
+              <div className="absolute bottom-0 left-0 w-full p-6 md:p-12 pb-16 z-20 flex flex-col items-start gap-4 md:max-w-4xl animate-in slide-in-from-bottom-10 duration-700 text-left font-sans">
+                <div className="flex items-center gap-2.5">
+                  <span className="bg-red-600/25 border border-red-500/30 text-red-500 font-extrabold text-[10px] uppercase tracking-widest px-2.5 py-1 rounded-full backdrop-blur-sm animate-pulse">
+                    ★ MDL Featured
+                  </span>
+                  {heroDetails?.rating && (
+                    <span className="flex items-center gap-1 bg-amber-500/20 border border-amber-500/30 text-amber-500 font-extrabold text-[10px] px-2.5 py-1 rounded-full backdrop-blur-sm">
+                      <Star size={11} className="fill-amber-500 stroke-none" /> {heroDetails.rating}
+                    </span>
+                  )}
+                  {heroDetails?.original_network && (
+                    <span className="bg-white/5 border border-white/10 text-zinc-300 font-bold text-[10px] px-2.5 py-1 rounded-full backdrop-blur-sm">
+                      {heroDetails.original_network}
+                    </span>
+                  )}
                 </div>
 
-                {/* Right: Info */}
-                <div className="flex-1 flex flex-col items-start gap-3">
-                  <div className="flex items-center gap-2.5">
-                    <span className="bg-red-600/25 border border-red-500/30 text-red-500 font-extrabold text-[10px] uppercase tracking-widest px-2.5 py-1 rounded-full backdrop-blur-sm animate-pulse">
-                      ★ MDL Featured
-                    </span>
-                    {heroDetails?.rating && (
-                      <span className="flex items-center gap-1 bg-amber-500/20 border border-amber-500/30 text-amber-500 font-extrabold text-[10px] px-2.5 py-1 rounded-full backdrop-blur-sm">
-                        <Star size={11} className="fill-amber-500 stroke-none" /> {heroDetails.rating}
-                      </span>
-                    )}
-                    {heroDetails?.original_network && (
-                      <span className="bg-white/5 border border-white/10 text-zinc-300 font-bold text-[10px] px-2.5 py-1 rounded-full backdrop-blur-sm">
-                        {heroDetails.original_network}
-                      </span>
-                    )}
-                  </div>
+                {/* Logo or Title */}
+                {activeHero.tmdbId && dramaLogos[activeHero.tmdbId] ? (
+                  <img
+                    src={`https://image.tmdb.org/t/p/w500${dramaLogos[activeHero.tmdbId]}`}
+                    alt={activeHero.title}
+                    className="max-h-16 md:max-h-24 max-w-[85%] object-contain object-left mb-1 drop-shadow-[0_4px_12px_rgba(0,0,0,0.9)] animate-in fade-in duration-300"
+                  />
+                ) : (
+                  <h1 className="text-4xl md:text-6xl font-black text-white leading-tight tracking-tight drop-shadow-2xl">
+                    {activeHero.title}
+                  </h1>
+                )}
 
-                  {/* Logo or Title */}
-                  {activeHero.tmdbId && dramaLogos[activeHero.tmdbId] ? (
-                    <img
-                      src={`https://image.tmdb.org/t/p/w500${dramaLogos[activeHero.tmdbId]}`}
-                      alt={activeHero.title}
-                      className="max-h-16 md:max-h-24 max-w-[85%] object-contain object-left mb-1 drop-shadow-[0_4px_12px_rgba(0,0,0,0.9)] animate-in fade-in duration-300"
-                    />
-                  ) : (
-                    <h1 className="text-3xl md:text-5xl font-black tracking-tight text-white max-w-3xl drop-shadow-lg leading-tight">
-                      {activeHero.title}
-                    </h1>
-                  )}
+                {heroDetails && (
+                  <p className="text-gray-300 text-sm md:text-lg line-clamp-3 md:line-clamp-2 max-w-2xl leading-relaxed drop-shadow-md">
+                    {heroDetails.synopsis}
+                  </p>
+                )}
 
-                  {heroDetails && (
-                    <p className="text-zinc-400 text-xs md:text-sm max-w-xl line-clamp-3 leading-relaxed drop-shadow">
-                      {heroDetails.synopsis}
-                    </p>
-                  )}
-
-                  <div className="flex items-center gap-3.5 mt-2">
-                    <button 
-                      onClick={() => playDrama(1, activeHero.title, activeHero.year)}
-                      className="flex items-center gap-2 px-6 py-2.5 rounded-full bg-red-600 hover:bg-red-700 text-white font-bold text-xs transition-all hover:scale-105 active:scale-95 shadow-[0_8px_20px_rgba(220,38,38,0.3)] cursor-pointer"
-                    >
-                      <Play size={14} className="fill-white" /> Watch Now
-                    </button>
-                    <button 
-                      onClick={() => onDramaSelect(activeHero.slug)}
-                      className="flex items-center gap-2 px-6 py-2.5 rounded-full bg-white/10 hover:bg-white/15 text-white font-bold text-xs border border-white/10 transition-all cursor-pointer"
-                    >
-                      <Info size={14} /> Full Details
-                    </button>
-                  </div>
+                <div className="flex items-center gap-3.5 mt-2">
+                  <button 
+                    onClick={() => playDrama(1, activeHero.title, activeHero.year)}
+                    className="flex items-center gap-2 px-6 py-2.5 rounded-full bg-red-600 hover:bg-red-700 text-white font-bold text-xs transition-all hover:scale-105 active:scale-95 shadow-[0_8px_20px_rgba(220,38,38,0.3)] cursor-pointer"
+                  >
+                    <Play size={14} className="fill-white" /> Watch Now
+                  </button>
+                  <button 
+                    onClick={() => onDramaSelect(activeHero.slug)}
+                    className="flex items-center gap-2 px-6 py-2.5 rounded-full bg-white/10 hover:bg-white/15 text-white font-bold text-xs border border-white/10 transition-all cursor-pointer"
+                  >
+                    <Info size={14} /> Full Details
+                  </button>
                 </div>
               </div>
 
