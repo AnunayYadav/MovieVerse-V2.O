@@ -50,15 +50,16 @@ export default defineConfig(({ mode }) => {
                 '/api/videasy': './api/videasy.ts',
                 '/api/encdec': './api/encdec.ts',
                 '/api/ai-search': './api/ai-search.ts',
-                '/api/drama': './api/drama.ts',
               };
               
               let matchedPath = pathname || '';
+              let isDramaDev = false;
               if (matchedPath.startsWith('/api/anime/')) {
                 matchedPath = '/api/anime';
               }
               if (matchedPath.startsWith('/api/drama/')) {
-                matchedPath = '/api/drama';
+                matchedPath = '/api/mangadex';
+                isDramaDev = true;
               }
               
               const modulePath = apiRoutes[matchedPath];
@@ -99,7 +100,11 @@ export default defineConfig(({ mode }) => {
                 
                 // Build mock VercelRequest
                 const mockReq: any = Object.create(req);
-                mockReq.query = parsedUrl.query;
+                mockReq.query = isDramaDev ? {
+                  ...parsedUrl.query,
+                  service: 'drama',
+                  path: pathname.replace(/^\/api\/drama/, '')
+                } : parsedUrl.query;
                 mockReq.method = req.method;
                 
                 await handler(mockReq, mockRes);
