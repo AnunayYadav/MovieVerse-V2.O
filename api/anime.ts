@@ -326,6 +326,36 @@ function decryptSubtitleText(data: string, url: string): string {
   return decryptedLines;
 }
 
+async function getKisskhJsCode(baseUrl: string): Promise<string> {
+  const g = global as any;
+  const now = Date.now();
+  if (g.cachedKisskhJsCode && (now - g.cachedKisskhJsTime < 6 * 60 * 60 * 1000)) {
+    return g.cachedKisskhJsCode;
+  }
+  const indexRes = await fetch(`${baseUrl}/index.html`, {
+    headers: {
+      "User-Agent": USER_AGENT
+    }
+  });
+  if (!indexRes.ok) throw new Error(`Index.html fetch failed on ${baseUrl}`);
+  const html = await indexRes.text();
+  const scriptMatch = html.match(/<script[^>]*src="([^"]*common[^"]*)"/i);
+  if (!scriptMatch) {
+    throw new Error(`Could not find common script in index.html on ${baseUrl}`);
+  }
+  const scriptSrc = scriptMatch[1];
+  const jsRes = await fetch(`${baseUrl}/${scriptSrc}`, {
+    headers: {
+      "User-Agent": USER_AGENT
+    }
+  });
+  if (!jsRes.ok) throw new Error(`Common JS fetch failed on ${baseUrl}`);
+  const jsCode = await jsRes.text();
+  g.cachedKisskhJsCode = jsCode;
+  g.cachedKisskhJsTime = now;
+  return jsCode;
+}
+
 async function resolveKisskh(
   title: string,
   mediaType: string,
@@ -350,7 +380,10 @@ async function resolveKisskh(
           "Accept": "application/json"
         }
       });
-      if (!searchRes.ok) throw new Error(`Search failed on ${baseUrl}`);
+      if (!searchRes.ok) {
+        const errBody = await searchRes.text().catch(() => "");
+        throw new Error(`Search failed on ${baseUrl} (Status ${searchRes.status}): ${errBody.substring(0, 100)}`);
+      }
       const searchList = await searchRes.json() as any[];
       
       if (!searchList || searchList.length === 0) {
@@ -372,13 +405,17 @@ async function resolveKisskh(
 
       const dramaId = matchedShow.id;
 
-      // 2. Fetch drama details
-      const detailRes = await fetch(`${baseUrl}/api/DramaList/Drama/${dramaId}`, {
-        headers: {
-          "User-Agent": USER_AGENT,
-          "Accept": "application/json"
-        }
-      });
+      // 2. Fetch drama details and index JS code concurrently
+      const [detailRes, jsCode] = await Promise.all([
+        fetch(`${baseUrl}/api/DramaList/Drama/${dramaId}`, {
+          headers: {
+            "User-Agent": USER_AGENT,
+            "Accept": "application/json"
+          }
+        }),
+        getKisskhJsCode(baseUrl)
+      ]);
+
       if (!detailRes.ok) throw new Error(`Details fetch failed on ${baseUrl}`);
       const detail = await detailRes.json() as any;
 
@@ -389,29 +426,6 @@ async function resolveKisskh(
         throw new Error(`Episode ${requestedEpNum} not found for drama "${detail.title}"`);
       }
       const episodeId = ep.id;
-
-      // 3. Fetch index.html to find the script and evaluate token generator
-      const indexRes = await fetch(`${baseUrl}/index.html`, {
-        headers: {
-          "User-Agent": USER_AGENT
-        }
-      });
-      if (!indexRes.ok) throw new Error(`Index.html fetch failed on ${baseUrl}`);
-      const html = await indexRes.text();
-      const scriptMatch = html.match(/<script[^>]*src="([^"]*common[^"]*)"/i);
-      if (!scriptMatch) {
-        throw new Error(`Could not find common script in index.html on ${baseUrl}`);
-      }
-      const scriptSrc = scriptMatch[1];
-
-      // Fetch script JS
-      const jsRes = await fetch(`${baseUrl}/${scriptSrc}`, {
-        headers: {
-          "User-Agent": USER_AGENT
-        }
-      });
-      if (!jsRes.ok) throw new Error(`Common JS fetch failed on ${baseUrl}`);
-      const jsCode = await jsRes.text();
 
       // Evaluate stream token
       const streamSandbox = `
@@ -437,13 +451,22 @@ async function resolveKisskh(
         throw new Error(`Subtitle token evaluation failed on ${baseUrl}: ${e.message}`);
       }
 
-      // 4. Fetch direct video stream URL
-      const streamRes = await fetch(`${baseUrl}/api/DramaList/Episode/${episodeId}.png?kkey=${streamToken}`, {
-        headers: {
-          "User-Agent": USER_AGENT,
-          "Accept": "application/json"
-        }
-      });
+      // 3. Fetch direct video stream URL and subtitle options concurrently
+      const [streamRes, subsRes] = await Promise.all([
+        fetch(`${baseUrl}/api/DramaList/Episode/${episodeId}.png?kkey=${streamToken}`, {
+          headers: {
+            "User-Agent": USER_AGENT,
+            "Accept": "application/json"
+          }
+        }),
+        fetch(`${baseUrl}/api/Sub/${episodeId}?kkey=${subToken}`, {
+          headers: {
+            "User-Agent": USER_AGENT,
+            "Accept": "application/json"
+          }
+        }).catch(() => null)
+      ]);
+
       if (!streamRes.ok) throw new Error(`Stream details fetch failed on ${baseUrl}`);
       const streamData = await streamRes.json() as any;
       if (!streamData || !streamData.Video) {
@@ -455,16 +478,10 @@ async function resolveKisskh(
         finalVideoUrl = `https:${finalVideoUrl}`;
       }
 
-      // 5. Fetch subtitle options
+      // 4. Fetch subtitle options
       let subtitlesList: any[] = [];
-      try {
-        const subsRes = await fetch(`${baseUrl}/api/Sub/${episodeId}?kkey=${subToken}`, {
-          headers: {
-            "User-Agent": USER_AGENT,
-            "Accept": "application/json"
-          }
-        });
-        if (subsRes.ok) {
+      if (subsRes && subsRes.ok) {
+        try {
           const subsData = await subsRes.json() as any[];
           if (Array.isArray(subsData)) {
             subtitlesList = subsData.map((sub: any) => {
@@ -480,9 +497,9 @@ async function resolveKisskh(
               };
             });
           }
+        } catch (e) {
+          console.error("Failed fetching/mapping subtitles:", e);
         }
-      } catch (e) {
-        console.error("Failed fetching/mapping subtitles:", e);
       }
 
       return {
@@ -550,11 +567,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   let seasonEpisodeCount = 0;
   let absoluteEpisode = episode ? parseInt(String(episode), 10) : 1;
 
-  if (tmdbId) {
+  if (tmdbId && (!cleanTitle || provider === 'anikai')) {
     try {
       const apiKey = process.env.VITE_TMDB_API_KEY || 'fe42b660a036f4d6a2bfeb4d0f523ce9';
       const typeStr = mediaType === 'tv' ? 'tv' : 'movie';
-      const tmdbRes = await fetch(`https://api.themoviedb.org/3/${typeStr}/${tmdbId}?api_key=${apiKey}`);
+      
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 2000);
+
+      const tmdbRes = await fetch(`https://api.themoviedb.org/3/${typeStr}/${tmdbId}?api_key=${apiKey}`, {
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
+
       if (tmdbRes.ok) {
         const tmdbData = await tmdbRes.json() as any;
         if (!cleanTitle) {
