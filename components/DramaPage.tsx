@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Calendar, Clock, Star, Play, Info, ChevronRight, AlertTriangle, Tv, Loader2, Languages, ChevronDown, Check, Search, X } from 'lucide-react';
+import { Calendar, Clock, Star, Play, Info, ChevronRight, AlertTriangle, AlertCircle, Tv, Loader2, Languages, ChevronDown, Check, Search, X } from 'lucide-react';
 import { useTvFocus, TvFocusButton } from '../tvNavigation';
 import { Movie } from '../types';
 
@@ -117,13 +117,37 @@ export const DramaPage: React.FC<DramaPageProps> = ({
     }
   }, [parentSearchQuery]);
 
+  // Helper: fetch TMDB discover/trending and map to MDLDramaSummary
+  const fetchTmdbDramas = useCallback(async (endpoint: string): Promise<MDLDramaSummary[]> => {
+    const separator = endpoint.includes('?') ? '&' : '?';
+    const res = await window.fetch(`${TMDB_BASE_URL}${endpoint}${separator}api_key=${apiKey}`);
+    if (!res.ok) return [];
+    const data = await res.json();
+    return (data.results || []).map(mapTmdbToMdlSummary);
+  }, [apiKey, mapTmdbToMdlSummary]);
+
+  // Helper: fetch MDL seasonal and map to MDLDramaSummary
+  const fetchMdlSeasonal = useCallback(async (year: number, quarter: number): Promise<MDLDramaSummary[]> => {
+    const res = await window.fetch(`/api/drama/api/seasonal/${year}/${quarter}`);
+    if (!res.ok) return [];
+    const data = await res.json();
+    return (data.dramas || []).map((d: any) => ({
+      title: d.title,
+      slug: d.slug,
+      year: d.year || String(year),
+      image: d.image || 'https://images.unsplash.com/photo-1574375927938-d5a98e8edd85?q=80&w=400',
+      rating: d.rating,
+      url: d.url,
+    }));
+  }, []);
+
   // Fetch initial catalog data
   useEffect(() => {
     const fetchCatalog = async () => {
       setLoading(true);
       setError(null);
       try {
-        // 1. Fetch Calendar
+        // 1. Fetch Calendar (MDL)
         const calRes = await window.fetch('/api/drama/api/calendar');
         if (calRes.ok) {
           const calData = await calRes.json();
@@ -136,63 +160,38 @@ export const DramaPage: React.FC<DramaPageProps> = ({
           }
         }
 
-        // 2. Fetch Trending
-        const trendingRes = await window.fetch('/api/drama/api/category/trending');
-        if (trendingRes.ok) {
-          const trendData = await trendingRes.json();
-          setTrending(trendData.results || []);
-        }
+        // 2. Fetch Trending (TMDB trending TV in Asia)
+        const trendingItems = await fetchTmdbDramas('/trending/tv/week?language=en-US&with_original_language=ko|zh|ja');
+        setTrending(trendingItems);
 
-        // 3. Fetch Regional Rows
-        const kdRes = await window.fetch('/api/drama/api/category/korean');
-        if (kdRes.ok) {
-          const kdData = await kdRes.json();
-          setKDramas(kdData.results || []);
-        }
+        // 3. Fetch Regional Rows (TMDB discover with origin country filter)
+        const [kdItems, cdItems, jdItems, otherItems] = await Promise.all([
+          fetchTmdbDramas('/discover/tv?with_origin_country=KR&sort_by=popularity.desc&language=en-US'),
+          fetchTmdbDramas('/discover/tv?with_origin_country=CN&sort_by=popularity.desc&language=en-US'),
+          fetchTmdbDramas('/discover/tv?with_origin_country=JP&sort_by=popularity.desc&language=en-US'),
+          fetchTmdbDramas('/discover/tv?with_origin_country=TH|TW|PH&sort_by=popularity.desc&language=en-US'),
+        ]);
+        setKDramas(kdItems);
+        setCDramas(cdItems);
+        setJDramas(jdItems);
+        setOtherDramas(otherItems);
 
-        const cdRes = await window.fetch('/api/drama/api/category/chinese');
-        if (cdRes.ok) {
-          const cdData = await cdRes.json();
-          setCDramas(cdData.results || []);
-        }
+        // 4. Fetch Subcategories / Genres (TMDB discover with genre IDs)
+        // Genre 10749 = Romance, Genre 10759 = Action & Adventure (TV)
+        const [romanceItems, actionItems] = await Promise.all([
+          fetchTmdbDramas('/discover/tv?with_genres=10749&with_origin_country=KR|CN|JP&sort_by=popularity.desc&language=en-US'),
+          fetchTmdbDramas('/discover/tv?with_genres=10759&with_origin_country=KR|CN|JP&sort_by=popularity.desc&language=en-US'),
+        ]);
+        setRomanceKDramas(romanceItems);
+        setActionDramas(actionItems);
 
-        const jdRes = await window.fetch('/api/drama/api/category/japanese');
-        if (jdRes.ok) {
-          const jdData = await jdRes.json();
-          setJDramas(jdData.results || []);
-        }
-
-        const otherRes = await window.fetch('/api/drama/api/category/other');
-        if (otherRes.ok) {
-          const otherData = await otherRes.json();
-          setOtherDramas(otherData.results || []);
-        }
-
-        // 4. Fetch Subcategories (Genres)
-        const romanceRes = await window.fetch('/api/drama/api/category/romance');
-        if (romanceRes.ok) {
-          const romanceData = await romanceRes.json();
-          setRomanceKDramas(romanceData.results || []);
-        }
-
-        const actionRes = await window.fetch('/api/drama/api/category/action');
-        if (actionRes.ok) {
-          const actionData = await actionRes.json();
-          setActionDramas(actionData.results || []);
-        }
-
-        // 5. Fetch Seasonal Rows
-        const s1Res = await window.fetch('/api/drama/api/category/winter2026');
-        if (s1Res.ok) {
-          const s1Data = await s1Res.json();
-          setSeasonalRow1(s1Data.results || []);
-        }
-
-        const s2Res = await window.fetch('/api/drama/api/category/fall2025');
-        if (s2Res.ok) {
-          const s2Data = await s2Res.json();
-          setSeasonalRow2(s2Data.results || []);
-        }
+        // 5. Fetch Seasonal Rows (MDL seasonal endpoint)
+        const [s1Items, s2Items] = await Promise.all([
+          fetchMdlSeasonal(2026, 1), // Winter 2026
+          fetchMdlSeasonal(2025, 4), // Fall 2025
+        ]);
+        setSeasonalRow1(s1Items);
+        setSeasonalRow2(s2Items);
 
       } catch (err: any) {
         console.error(err);
@@ -203,7 +202,7 @@ export const DramaPage: React.FC<DramaPageProps> = ({
     };
 
     fetchCatalog();
-  }, []);
+  }, [fetchTmdbDramas, fetchMdlSeasonal]);
 
   // Fetch search results
   useEffect(() => {
@@ -235,15 +234,12 @@ export const DramaPage: React.FC<DramaPageProps> = ({
     setLoadingMoreRows(true);
     const item = additionalQuarters[currentLoadIndex];
     try {
-      const res = await window.fetch(`/api/drama/api/category/year/${item.year}`);
-      if (res.ok) {
-        const data = await res.json();
-        setInfiniteRows(prev => [...prev, { title: item.title, items: data.results || [] }]);
-        setCurrentLoadIndex(prev => prev + 1);
-      }
+      const items = await fetchMdlSeasonal(item.year, 1);
+      setInfiniteRows(prev => [...prev, { title: item.title, items }]);
+      setCurrentLoadIndex(prev => prev + 1);
     } catch (_) {}
     setLoadingMoreRows(false);
-  }, [currentLoadIndex, loadingMoreRows]);
+  }, [currentLoadIndex, loadingMoreRows, fetchMdlSeasonal]);
 
   useEffect(() => {
     if (loading || searchQuery) return;
