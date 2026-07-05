@@ -272,7 +272,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   const isCineSrcCustom = selectedProviderId === 'cinesrc';
   const isVidFastCustom = selectedProviderId === 'vidfast';
   const isIframeCustomControls = isCineSrcCustom || isVidFastCustom;
-  const useCustomControls = (selectedProviderId === 'videasy_adfree' || selectedProviderId.startsWith('encdec') || selectedProviderId === 'kisskh' || isIframeCustomControls) && !(selectedProviderId === 'videasy_adfree' && fallbackToNativeVideasy) && !fallbackToIframe;
+  const useCustomControls = (selectedProviderId === 'videasy_adfree' || selectedProviderId.startsWith('encdec') || isIframeCustomControls) && !(selectedProviderId === 'videasy_adfree' && fallbackToNativeVideasy) && !fallbackToIframe;
   const isPlayingRef = useRef(false);
   const isSeekingRef = useRef(false);
   const playerDurationRef = useRef(0);
@@ -681,7 +681,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
 
   // Fetch streaming sources for videasy_adfree and encdec
   useEffect(() => {
-    if (selectedProviderId !== 'videasy_adfree' && !selectedProviderId.startsWith('encdec') && selectedProviderId !== 'kisskh') return;
+    if (selectedProviderId !== 'videasy_adfree' && !selectedProviderId.startsWith('encdec')) return;
 
     let isMounted = true;
     const fetchDecryptedStream = async () => {
@@ -724,11 +724,6 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
           endpoint = '/api/encdec';
           const providerType = selectedProviderId.replace('encdec_', '');
           params.append('provider', providerType);
-        } else if (selectedProviderId === 'kisskh') {
-          endpoint = '/api/anime';
-          params.append('provider', 'kisskh');
-          params.append('season', String(currentSeason));
-          params.append('episode', String(currentEpisode));
         }
 
         const res = await window.fetch(`${endpoint}?${params.toString()}`);
@@ -1876,7 +1871,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
         }
       `}</style>
       <div className="flex-1 relative w-full h-full z-0 overflow-hidden bg-black">
-        {(selectedProviderId === 'videasy_adfree' || selectedProviderId === 'cinepro_core' || selectedProviderId.startsWith('encdec') || selectedProviderId === 'kisskh') && !fallbackToIframe ? (
+        {(selectedProviderId === 'videasy_adfree' || selectedProviderId === 'cinepro_core' || selectedProviderId.startsWith('encdec')) && !fallbackToIframe ? (
             <div className="w-full h-full absolute inset-0 bg-zinc-950 z-0 flex items-center justify-center">
               {anivexaLoading && !anivexaStreamUrl && (
                 <div className="absolute inset-0 flex items-center justify-center bg-black z-30 animate-in fade-in duration-250">

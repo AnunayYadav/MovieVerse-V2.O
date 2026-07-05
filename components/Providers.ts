@@ -143,13 +143,4 @@ export const PROVIDERS: Provider[] = [
     },
     supportsPostMessage: true
   },
-  {
-    id: 'kisskh',
-    name: 'KissKh (Premium Direct)',
-    getMovieUrl: (tmdbId) => 
-      `/api/anime?provider=kisskh&mediaType=movie&tmdbId=${tmdbId}`,
-    getTvUrl: (tmdbId, season, episode) => 
-      `/api/anime?provider=kisskh&mediaType=tv&tmdbId=${tmdbId}&season=${season}&episode=${episode}`,
-    supportsPostMessage: false
-  },
 ];

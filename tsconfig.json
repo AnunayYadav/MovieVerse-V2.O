@@ -25,6 +25,5 @@
     },
     "allowImportingTsExtensions": true,
     "noEmit": true
-  },
-  "exclude": ["scratch"]
+  }
 }

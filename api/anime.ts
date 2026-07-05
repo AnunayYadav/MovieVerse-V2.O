@@ -1,7 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import * as cheerio from 'cheerio';
 import zlib from 'zlib';
-import crypto from 'crypto';
 import { META } from '@consumet/extensions';
 
 // Initialize and cache AniList Meta provider instance
@@ -275,246 +274,7 @@ async function resolveAnikai(
   return matchedVideoUrl;
 }
 
-const DECRYPT_KEYS: Record<string, { key: Buffer; iv: Buffer }> = {
-  txt: {
-    key: Buffer.from("8056483646328763"),
-    iv: Buffer.from("6852612370185273"),
-  },
-  txt1: {
-    key: Buffer.from("AmSmZVcH93UQUezi"),
-    iv: Buffer.from("ReBKWW8cqdjPEnF6"),
-  },
-  default: {
-    key: Buffer.from("sWODXX04QRTkHdlZ"),
-    iv: Buffer.from("8pwhapJeC4hrS9hO"),
-  },
-};
 
-function decryptSubtitleText(data: string, url: string): string {
-  const lowerUrl = url.split("?")[0]?.toLowerCase() || url.toLowerCase();
-  let format = "default";
-  if (lowerUrl.endsWith(".txt1")) {
-    format = "txt1";
-  } else if (lowerUrl.endsWith(".txt")) {
-    format = "txt";
-  }
-  const { key, iv } = DECRYPT_KEYS[format] || DECRYPT_KEYS.default;
-
-  const normalizedData = data
-    .replace(/\\n/g, "\n")
-    .replace(/\\r/g, "\r")
-    .replace(/"/g, "");
-  const lines = normalizedData.split(/\r?\n/);
-  
-  const decryptedLines = lines
-    .map((line) => {
-      const trimmed = line.trim();
-      if (/^[A-Za-z0-9+/]+={0,2}$/.test(trimmed) && trimmed.length > 4) {
-        try {
-          const decipher = crypto.createDecipheriv("aes-128-cbc", key, iv);
-          let decryptedLine = decipher.update(trimmed, "base64", "utf8");
-          decryptedLine += decipher.final("utf8");
-          return decryptedLine;
-        } catch (error) {
-          return line;
-        }
-      }
-      return line;
-    })
-    .join("\n");
-  
-  return decryptedLines;
-}
-
-async function getKisskhJsCode(baseUrl: string): Promise<string> {
-  const g = global as any;
-  const now = Date.now();
-  if (g.cachedKisskhJsCode && (now - g.cachedKisskhJsTime < 6 * 60 * 60 * 1000)) {
-    return g.cachedKisskhJsCode;
-  }
-  const indexRes = await fetch(`${baseUrl}/index.html`, {
-    headers: {
-      "User-Agent": USER_AGENT
-    }
-  });
-  if (!indexRes.ok) throw new Error(`Index.html fetch failed on ${baseUrl}`);
-  const html = await indexRes.text();
-  const scriptMatch = html.match(/<script[^>]*src="([^"]*common[^"]*)"/i);
-  if (!scriptMatch) {
-    throw new Error(`Could not find common script in index.html on ${baseUrl}`);
-  }
-  const scriptSrc = scriptMatch[1];
-  const jsRes = await fetch(`${baseUrl}/${scriptSrc}`, {
-    headers: {
-      "User-Agent": USER_AGENT
-    }
-  });
-  if (!jsRes.ok) throw new Error(`Common JS fetch failed on ${baseUrl}`);
-  const jsCode = await jsRes.text();
-  g.cachedKisskhJsCode = jsCode;
-  g.cachedKisskhJsTime = now;
-  return jsCode;
-}
-
-async function resolveKisskh(
-  title: string,
-  mediaType: string,
-  seasonNum: number,
-  episodeNum: number,
-  year?: string
-) {
-  const domains = ["https://kisskh.nl", "https://kisskh.co", "https://kisskh.do"];
-  const viGuid = "62f176f3bb1b5b8e70e39932ad34a0c7";
-  const subGuid = "VgV52sWhwvBSf8BsM3BRY9weWiiCbtGp";
-
-  let lastError: any = new Error("No KissKh domains succeeded");
-
-  for (const baseUrl of domains) {
-    try {
-      // 1. Search for drama
-      const cleanTarget = title.replace(/\(\d{4}\)/g, '').trim();
-      const searchUrl = `${baseUrl}/api/DramaList/Search?q=${encodeURIComponent(cleanTarget)}&type=0`;
-      const searchRes = await fetch(searchUrl, {
-        headers: {
-          "User-Agent": USER_AGENT,
-          "Accept": "application/json"
-        }
-      });
-      if (!searchRes.ok) {
-        const errBody = await searchRes.text().catch(() => "");
-        throw new Error(`Search failed on ${baseUrl} (Status ${searchRes.status}): ${errBody.substring(0, 100)}`);
-      }
-      const searchList = await searchRes.json() as any[];
-      
-      if (!searchList || searchList.length === 0) {
-        throw new Error(`No show found on ${baseUrl} matching "${title}"`);
-      }
-
-      // Find best match
-      const lowerTarget = cleanTarget.toLowerCase();
-      let matchedShow = searchList.find(item => item.title.toLowerCase() === lowerTarget);
-      if (!matchedShow && year) {
-        matchedShow = searchList.find(item => item.title.toLowerCase().includes(lowerTarget) && item.title.includes(year));
-      }
-      if (!matchedShow) {
-        matchedShow = searchList.find(item => item.title.toLowerCase().includes(lowerTarget) || lowerTarget.includes(item.title.toLowerCase()));
-      }
-      if (!matchedShow) {
-        matchedShow = searchList[0];
-      }
-
-      const dramaId = matchedShow.id;
-
-      // 2. Fetch drama details and index JS code concurrently
-      const [detailRes, jsCode] = await Promise.all([
-        fetch(`${baseUrl}/api/DramaList/Drama/${dramaId}`, {
-          headers: {
-            "User-Agent": USER_AGENT,
-            "Accept": "application/json"
-          }
-        }),
-        getKisskhJsCode(baseUrl)
-      ]);
-
-      if (!detailRes.ok) throw new Error(`Details fetch failed on ${baseUrl}`);
-      const detail = await detailRes.json() as any;
-
-      // Find correct episode
-      const requestedEpNum = mediaType === 'movie' ? 1 : episodeNum;
-      const ep = detail.episodes.find((e: any) => e.number === requestedEpNum) || detail.episodes[0];
-      if (!ep) {
-        throw new Error(`Episode ${requestedEpNum} not found for drama "${detail.title}"`);
-      }
-      const episodeId = ep.id;
-
-      // Evaluate stream token
-      const streamSandbox = `
-        ${jsCode};
-        _0x54b991(${episodeId}, null, "2.8.10", "${viGuid}", 4830201, "kisskh", "kisskh", "kisskh", "kisskh", "kisskh", "kisskh");
-      `;
-      let streamToken;
-      try {
-        streamToken = eval(streamSandbox);
-      } catch (e: any) {
-        throw new Error(`Stream token evaluation failed on ${baseUrl}: ${e.message}`);
-      }
-
-      // Evaluate subtitle token
-      const subSandbox = `
-        ${jsCode};
-        _0x54b991(${episodeId}, null, "2.8.10", "${subGuid}", 4830201, "kisskh", "kisskh", "kisskh", "kisskh", "kisskh", "kisskh");
-      `;
-      let subToken;
-      try {
-        subToken = eval(subSandbox);
-      } catch (e: any) {
-        throw new Error(`Subtitle token evaluation failed on ${baseUrl}: ${e.message}`);
-      }
-
-      // 3. Fetch direct video stream URL and subtitle options concurrently
-      const [streamRes, subsRes] = await Promise.all([
-        fetch(`${baseUrl}/api/DramaList/Episode/${episodeId}.png?kkey=${streamToken}`, {
-          headers: {
-            "User-Agent": USER_AGENT,
-            "Accept": "application/json"
-          }
-        }),
-        fetch(`${baseUrl}/api/Sub/${episodeId}?kkey=${subToken}`, {
-          headers: {
-            "User-Agent": USER_AGENT,
-            "Accept": "application/json"
-          }
-        }).catch(() => null)
-      ]);
-
-      if (!streamRes.ok) throw new Error(`Stream details fetch failed on ${baseUrl}`);
-      const streamData = await streamRes.json() as any;
-      if (!streamData || !streamData.Video) {
-        throw new Error(`No video source resolved from ${baseUrl}`);
-      }
-
-      let finalVideoUrl = streamData.Video;
-      if (!finalVideoUrl.startsWith("http")) {
-        finalVideoUrl = `https:${finalVideoUrl}`;
-      }
-
-      // 4. Fetch subtitle options
-      let subtitlesList: any[] = [];
-      if (subsRes && subsRes.ok) {
-        try {
-          const subsData = await subsRes.json() as any[];
-          if (Array.isArray(subsData)) {
-            subtitlesList = subsData.map((sub: any) => {
-              const isEncrypted = sub.src.split('?')[0].endsWith('.txt') || sub.src.split('?')[0].endsWith('.txt1');
-              const finalSubUrl = isEncrypted
-                ? `/api/anime?action=subtitle-proxy&url=${encodeURIComponent(sub.src)}`
-                : sub.src;
-              
-              return {
-                url: finalSubUrl,
-                lang: sub.label || sub.land,
-                label: sub.label || sub.land
-              };
-            });
-          }
-        } catch (e) {
-          console.error("Failed fetching/mapping subtitles:", e);
-        }
-      }
-
-      return {
-        videoUrl: finalVideoUrl,
-        subtitles: subtitlesList
-      };
-
-    } catch (err: any) {
-      console.warn(`Failed KissKh resolution on ${baseUrl}: ${err.message}`);
-      lastError = err;
-    }
-  }
-
-  throw lastError;
-}
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Set CORS headers
@@ -529,34 +289,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const { provider, action, tmdbId, mediaType, season, episode, anilistId, title, lang, episodeId } = req.query;
 
-  // Handle subtitle proxy action early
-  if (action === 'subtitle-proxy') {
-    const { url } = req.query;
-    if (!url || typeof url !== 'string') {
-      return res.status(400).send("URL parameter is required.");
-    }
-    try {
-      const subRes = await fetch(url, {
-        headers: {
-          "User-Agent": USER_AGENT
-        }
-      });
-      if (!subRes.ok) throw new Error("Failed to fetch subtitle file");
-      const encryptedData = await subRes.text();
-      const decrypted = decryptSubtitleText(encryptedData, url);
-      
-      res.setHeader('Content-Type', 'text/vtt; charset=utf-8');
-      res.setHeader('Cache-Control', 's-maxage=86400, stale-while-revalidate=3600');
-      return res.status(200).send(decrypted);
-    } catch (e: any) {
-      console.error("Subtitle decryption error:", e);
-      return res.status(502).send(`Subtitle decryption error: ${e.message}`);
-    }
-  }
-
   // Resolve clean title if missing or provided
   let cleanTitle = '';
-  let yearStr = req.query.year ? String(req.query.year) : '';
   if (title) {
     cleanTitle = String(title)
       .replace(/\s*\(?(Dub|Sub|TV|Movie|uncensored|censored|season\s*\d+|part\s*\d+)\)?\s*$/i, '')
@@ -567,31 +301,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   let seasonEpisodeCount = 0;
   let absoluteEpisode = episode ? parseInt(String(episode), 10) : 1;
 
-  if (tmdbId && (!cleanTitle || provider === 'anikai')) {
+  if (tmdbId) {
     try {
       const apiKey = process.env.VITE_TMDB_API_KEY || 'fe42b660a036f4d6a2bfeb4d0f523ce9';
       const typeStr = mediaType === 'tv' ? 'tv' : 'movie';
-      
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 2000);
-
-      const tmdbRes = await fetch(`https://api.themoviedb.org/3/${typeStr}/${tmdbId}?api_key=${apiKey}`, {
-        signal: controller.signal
-      });
-      clearTimeout(timeoutId);
-
+      const tmdbRes = await fetch(`https://api.themoviedb.org/3/${typeStr}/${tmdbId}?api_key=${apiKey}`);
       if (tmdbRes.ok) {
         const tmdbData = await tmdbRes.json() as any;
         if (!cleanTitle) {
           cleanTitle = typeStr === 'movie'
             ? (tmdbData.title || tmdbData.original_title)
             : (tmdbData.name || tmdbData.original_name);
-        }
-        if (!yearStr) {
-          const relDate = tmdbData.release_date || tmdbData.first_air_date || '';
-          if (relDate) {
-            yearStr = relDate.substring(0, 4);
-          }
         }
 
         if (typeStr === 'tv') {
@@ -637,41 +357,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
   }
 
-  // 1.5. Route to KissKh Scraper
-  if (provider === 'kisskh') {
-    if (!cleanTitle) {
-      return res.status(400).send("Could not resolve drama title.");
-    }
-    const seasonVal = season ? parseInt(String(season), 10) : 1;
-    const episodeVal = episode ? parseInt(String(episode), 10) : 1;
-    const mediaTypeStr = mediaType ? String(mediaType) : 'tv';
-
-    try {
-      const data = await resolveKisskh(
-        cleanTitle,
-        mediaTypeStr,
-        seasonVal,
-        episodeVal,
-        yearStr || undefined
-      );
-      return res.status(200).json({
-        success: true,
-        data: {
-          sources: [
-            {
-              url: data.videoUrl,
-              quality: 'Default',
-              label: 'Default'
-            }
-          ],
-          subtitles: data.subtitles
-        }
-      });
-    } catch (e: any) {
-      console.error("KissKh extraction error:", e);
-      return res.status(502).json({ error: `KissKh extraction error: ${e.message}` });
-    }
-  }
 
   // 4. Default: Consumet AniList Meta logic
   if (!action || typeof action !== 'string') {
