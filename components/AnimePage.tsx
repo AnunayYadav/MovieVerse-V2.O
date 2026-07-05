@@ -1381,11 +1381,11 @@ export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick, sear
             )}
           </div>
 
-          <AnimeRow title="Trending Right Now" items={trending} apiKey={apiKey} onAnimeClick={handleAnimeClick} titleLanguage={titleLanguage} onExpand={() => setExpandedCategory({ title: "Trending Right Now", items: trending })} />
-          <AnimeRow title="Summer 2026 Season" items={seasonal} apiKey={apiKey} onAnimeClick={handleAnimeClick} titleLanguage={titleLanguage} onExpand={() => setExpandedCategory({ title: "Summer 2026 Season", items: seasonal })} />
-          <AnimeRow title="All-Time Popular Favorites" items={popular} apiKey={apiKey} onAnimeClick={handleAnimeClick} titleLanguage={titleLanguage} onExpand={() => setExpandedCategory({ title: "All-Time Popular Favorites", items: popular })} />
-          <AnimeRow title="Top Ranked Masterpieces" items={topRated} apiKey={apiKey} onAnimeClick={handleAnimeClick} titleLanguage={titleLanguage} onExpand={() => setExpandedCategory({ title: "Top Ranked Masterpieces", items: topRated })} />
-          <AnimeRow title="Upcoming Anticipated Releases" items={upcoming} apiKey={apiKey} onAnimeClick={handleAnimeClick} titleLanguage={titleLanguage} onExpand={() => setExpandedCategory({ title: "Upcoming Anticipated Releases", items: upcoming })} />
+          <AnimeRow title="Trending Right Now" items={trending} apiKey={apiKey} onAnimeClick={handleAnimeClick} titleLanguage={titleLanguage} onExpand={() => setExpandedCategory({ title: "Trending Right Now", items: trending })} type="trending" />
+          <AnimeRow title="Summer 2026 Season" items={seasonal} apiKey={apiKey} onAnimeClick={handleAnimeClick} titleLanguage={titleLanguage} onExpand={() => setExpandedCategory({ title: "Summer 2026 Season", items: seasonal })} type="seasonal" season="SUMMER" seasonYear={2026} />
+          <AnimeRow title="All-Time Popular Favorites" items={popular} apiKey={apiKey} onAnimeClick={handleAnimeClick} titleLanguage={titleLanguage} onExpand={() => setExpandedCategory({ title: "All-Time Popular Favorites", items: popular })} type="popular" />
+          <AnimeRow title="Top Ranked Masterpieces" items={topRated} apiKey={apiKey} onAnimeClick={handleAnimeClick} titleLanguage={titleLanguage} onExpand={() => setExpandedCategory({ title: "Top Ranked Masterpieces", items: topRated })} type="topRated" />
+          <AnimeRow title="Upcoming Anticipated Releases" items={upcoming} apiKey={apiKey} onAnimeClick={handleAnimeClick} titleLanguage={titleLanguage} onExpand={() => setExpandedCategory({ title: "Upcoming Anticipated Releases", items: upcoming })} type="upcoming" />
           
           {/* Dynamically Lazy-loaded Endless Genres */}
           {genreRows.map((row) => (
@@ -1397,6 +1397,7 @@ export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick, sear
               onAnimeClick={handleAnimeClick} 
               titleLanguage={titleLanguage}
               onExpand={() => setExpandedCategory({ title: `${row.genre} Series`, items: row.media })}
+              genre={row.genre}
             />
           ))}
 
@@ -1716,10 +1717,148 @@ export interface AnimeRowProps {
   onAnimeClick: (anime: AniListMedia) => void;
   titleLanguage: 'english' | 'romaji' | 'native';
   onExpand?: () => void;
+  genre?: string;
+  type?: 'trending' | 'popular' | 'topRated' | 'seasonal' | 'upcoming';
+  season?: string;
+  seasonYear?: number;
 }
 
-export const AnimeRow: React.FC<AnimeRowProps> = ({ title, items, apiKey, onAnimeClick, titleLanguage, onExpand }) => {
+export const AnimeRow: React.FC<AnimeRowProps> = ({ 
+  title, 
+  items: initialItems, 
+  apiKey, 
+  onAnimeClick, 
+  titleLanguage, 
+  onExpand,
+  genre,
+  type,
+  season,
+  seasonYear
+}) => {
+  const [items, setItems] = useState<AniListMedia[]>(initialItems);
+  const [page, setPage] = useState(1);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+
+  // Sync initial items
+  useEffect(() => {
+    setItems(initialItems);
+    setPage(1);
+    setHasMore(true);
+  }, [initialItems]);
+
+  const loadNextPage = async () => {
+    if (loadingMore || !hasMore || (!genre && !type)) return;
+    setLoadingMore(true);
+
+    const nextPage = page + 1;
+    const includeNsfw = localStorage.getItem('movieverse_include_nsfw') === 'true';
+
+    const query = `
+      query ($page: Int, $perPage: Int, $genre: String, $isAdult: Boolean, $season: MediaSeason, $seasonYear: Int, $status: MediaStatus, $sort: [MediaSort]) {
+        Page(page: $page, perPage: $perPage) {
+          media(type: ANIME, isAdult: $isAdult, genre: $genre, season: $season, seasonYear: $seasonYear, status: $status, sort: $sort) {
+            id
+            title {
+              romaji
+              english
+              native
+              userPreferred
+            }
+            coverImage {
+              extraLarge
+              large
+              medium
+              color
+            }
+            bannerImage
+            description
+            season
+            seasonYear
+            status
+            episodes
+            duration
+            averageScore
+            popularity
+            genres
+            trailer {
+              id
+              site
+            }
+          }
+        }
+      }
+    `;
+
+    const variables: any = {
+      page: nextPage,
+      perPage: 30,
+      isAdult: !includeNsfw ? false : undefined
+    };
+
+    if (genre) {
+      variables.genre = genre;
+      variables.sort = ['POPULARITY_DESC', 'SCORE_DESC'];
+    } else if (type) {
+      if (type === 'trending') {
+        variables.sort = ['TRENDING_DESC', 'POPULARITY_DESC'];
+      } else if (type === 'popular') {
+        variables.sort = ['POPULARITY_DESC'];
+      } else if (type === 'topRated') {
+        variables.sort = ['SCORE_DESC'];
+      } else if (type === 'seasonal') {
+        variables.season = season || 'SUMMER';
+        variables.seasonYear = seasonYear || 2026;
+        variables.sort = ['POPULARITY_DESC'];
+      } else if (type === 'upcoming') {
+        variables.status = 'NOT_YET_RELEASED';
+        variables.sort = ['POPULARITY_DESC'];
+      }
+    }
+
+    try {
+      const response = await window.fetch('/api/anilist', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: JSON.stringify({ query, variables })
+      });
+      
+      const json = await response.json();
+      if (json.errors) throw new Error(json.errors[0]?.message);
+      
+      const results = json.data?.Page?.media || [];
+      if (results.length === 0) {
+        setHasMore(false);
+      } else {
+        setItems(prev => {
+          // Avoid duplicates
+          const existingIds = new Set(prev.map(x => x.id));
+          const uniqueResults = results.filter((x: any) => !existingIds.has(x.id));
+          return [...prev, ...uniqueResults];
+        });
+        setPage(nextPage);
+      }
+    } catch (e) {
+      console.error("Error fetching next page in AnimeRow:", e);
+      setHasMore(false);
+    } finally {
+      setLoadingMore(false);
+    }
+  };
+
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    if (!genre && !type) return;
+    const target = e.currentTarget;
+    if (target.scrollWidth - target.scrollLeft - target.clientWidth < 800) {
+      loadNextPage();
+    }
+  };
+
   if (items.length === 0) return null;
+
   return (
     <div className="mb-10 animate-in fade-in duration-500 text-left">
       <div className="flex items-center justify-between px-4 md:px-12 mb-4">
@@ -1737,10 +1876,18 @@ export const AnimeRow: React.FC<AnimeRowProps> = ({ title, items, apiKey, onAnim
           </button>
         )}
       </div>
-      <div className="flex gap-5 overflow-x-auto px-4 md:px-12 pb-4 hide-scrollbar scroll-smooth">
+      <div 
+        onScroll={handleScroll}
+        className="flex gap-5 overflow-x-auto px-4 md:px-12 pb-4 hide-scrollbar scroll-smooth"
+      >
         {items.map((anime) => (
           <AnimeCard key={anime.id} anime={anime} apiKey={apiKey} onAnimeClick={onAnimeClick} titleLanguage={titleLanguage} />
         ))}
+        {loadingMore && (
+          <div className="shrink-0 w-[80px] flex items-center justify-center">
+            <Loader2 className="w-6 h-6 text-red-600 animate-spin" />
+          </div>
+        )}
       </div>
     </div>
   );

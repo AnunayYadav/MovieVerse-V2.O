@@ -132,7 +132,7 @@ export const DramaPage: React.FC<DramaPageProps> = ({
 
   // Helper: fetch MDL seasonal and map to MDLDramaSummary
   const fetchMdlSeasonal = useCallback(async (year: number, quarter: number): Promise<MDLDramaSummary[]> => {
-    const res = await window.fetch(`/api/drama/api/seasonal/${year}/${quarter}`);
+    const res = await window.fetch(`/api/drama/seasonal/${year}/${quarter}`);
     if (!res.ok) return [];
     const data = await res.json();
     return (data.dramas || []).map((d: any) => ({
@@ -152,7 +152,7 @@ export const DramaPage: React.FC<DramaPageProps> = ({
       setError(null);
       try {
         // 1. Fetch Calendar (MDL)
-        const calRes = await window.fetch('/api/drama/api/calendar');
+        const calRes = await window.fetch('/api/drama/calendar');
         if (calRes.ok) {
           const calData = await calRes.json();
           setCalendarDramas(calData.calendar || {});
@@ -217,7 +217,7 @@ export const DramaPage: React.FC<DramaPageProps> = ({
     const performSearch = async () => {
       setSearchLoading(true);
       try {
-        const res = await window.fetch(`/api/drama/api/search/q/${encodeURIComponent(searchQuery)}`);
+        const res = await window.fetch(`/api/drama/search/q/${encodeURIComponent(searchQuery)}`);
         if (res.ok) {
           const data = await res.json();
           setSearchResults(data.results || []);
@@ -266,7 +266,7 @@ export const DramaPage: React.FC<DramaPageProps> = ({
 
     const loadHero = async () => {
       try {
-        const res = await window.fetch(`/api/drama/api/id/${activeHero.slug}`);
+        const res = await window.fetch(`/api/drama/id/${activeHero.slug}`);
         if (res.ok) {
           const details = await res.json();
           setHeroDetails(details);
@@ -370,7 +370,7 @@ export const DramaPage: React.FC<DramaPageProps> = ({
 
     try {
       // 1. Fetch MDL drama details first to get the title and aired year
-      const detailsRes = await window.fetch(`/api/drama/api/id/${drama.slug}`);
+      const detailsRes = await window.fetch(`/api/drama/id/${drama.slug}`);
       if (!detailsRes.ok) throw new Error("Failed to load drama details");
       const detailsData = await detailsRes.json();
       
@@ -732,19 +732,19 @@ export const DramaPage: React.FC<DramaPageProps> = ({
               )}
 
               {/* Regional / Categorized Rows */}
-              <DramaRow title="Trending Right Now" items={trending} onDramaClick={handleDramaClick} titleLanguage={titleLanguage} apiKey={apiKey} />
-              <DramaRow title="Korean Hits (K-Dramas)" items={kDramas} onDramaClick={handleDramaClick} titleLanguage={titleLanguage} apiKey={apiKey} />
-              <DramaRow title="Chinese Hits (C-Dramas)" items={cDramas} onDramaClick={handleDramaClick} titleLanguage={titleLanguage} apiKey={apiKey} />
-              <DramaRow title="Japanese Hits (J-Dramas)" items={jDramas} onDramaClick={handleDramaClick} titleLanguage={titleLanguage} apiKey={apiKey} />
+              <DramaRow title="Trending Right Now" items={trending} onDramaClick={handleDramaClick} titleLanguage={titleLanguage} apiKey={apiKey} endpoint="/trending/tv/week?language=en-US&with_original_language=ko|zh|ja" />
+              <DramaRow title="Korean Hits (K-Dramas)" items={kDramas} onDramaClick={handleDramaClick} titleLanguage={titleLanguage} apiKey={apiKey} endpoint="/discover/tv?with_origin_country=KR&sort_by=popularity.desc&language=en-US" />
+              <DramaRow title="Chinese Hits (C-Dramas)" items={cDramas} onDramaClick={handleDramaClick} titleLanguage={titleLanguage} apiKey={apiKey} endpoint="/discover/tv?with_origin_country=CN&sort_by=popularity.desc&language=en-US" />
+              <DramaRow title="Japanese Hits (J-Dramas)" items={jDramas} onDramaClick={handleDramaClick} titleLanguage={titleLanguage} apiKey={apiKey} endpoint="/discover/tv?with_origin_country=JP&sort_by=popularity.desc&language=en-US" />
               
               {/* Subcategories (Genres) Rows */}
-              <DramaRow title="Popular Romance & Melodramas" items={romanceKDramas} onDramaClick={handleDramaClick} titleLanguage={titleLanguage} apiKey={apiKey} />
-              <DramaRow title="Action & Thrillers" items={actionDramas} onDramaClick={handleDramaClick} titleLanguage={titleLanguage} apiKey={apiKey} />
+              <DramaRow title="Popular Romance & Melodramas" items={romanceKDramas} onDramaClick={handleDramaClick} titleLanguage={titleLanguage} apiKey={apiKey} endpoint="/discover/tv?with_genres=10749&with_origin_country=KR|CN|JP&sort_by=popularity.desc&language=en-US" />
+              <DramaRow title="Action & Thrillers" items={actionDramas} onDramaClick={handleDramaClick} titleLanguage={titleLanguage} apiKey={apiKey} endpoint="/discover/tv?with_genres=10759&with_origin_country=KR|CN|JP&sort_by=popularity.desc&language=en-US" />
               
               {/* Seasonal & Others Rows */}
               <DramaRow title="Winter 2026 Hits" items={seasonalRow1} onDramaClick={handleDramaClick} titleLanguage={titleLanguage} apiKey={apiKey} />
               <DramaRow title="Fall 2025 Hits" items={seasonalRow2} onDramaClick={handleDramaClick} titleLanguage={titleLanguage} apiKey={apiKey} />
-              <DramaRow title="Popular Thai & Other Asian Shows" items={otherDramas} onDramaClick={handleDramaClick} titleLanguage={titleLanguage} apiKey={apiKey} />
+              <DramaRow title="Popular Thai & Other Asian Shows" items={otherDramas} onDramaClick={handleDramaClick} titleLanguage={titleLanguage} apiKey={apiKey} endpoint="/discover/tv?with_origin_country=TH|TW|PH&sort_by=popularity.desc&language=en-US" />
 
               {/* Infinite Loaded Rows */}
               {infiniteRows.map((row, idx) => (
@@ -1004,11 +1004,79 @@ export interface DramaRowProps {
   onDramaClick: (d: any) => void;
   titleLanguage: 'english' | 'romaji' | 'native';
   apiKey: string;
+  endpoint?: string;
   onExpand?: () => void;
 }
 
-export const DramaRow: React.FC<DramaRowProps> = ({ title, items, onDramaClick, titleLanguage, apiKey, onExpand }) => {
+export const DramaRow: React.FC<DramaRowProps> = ({ title, items: initialItems, onDramaClick, titleLanguage, apiKey, endpoint, onExpand }) => {
+  const [items, setItems] = useState<any[]>(initialItems);
+  const [page, setPage] = useState(1);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+
+  // Sync initial items when they change
+  useEffect(() => {
+    setItems(initialItems);
+    setPage(1);
+    setHasMore(true);
+  }, [initialItems]);
+
+  const loadNextPage = async () => {
+    if (!endpoint || !apiKey || loadingMore || !hasMore) return;
+    setLoadingMore(true);
+
+    const nextPage = page + 1;
+    const separator = endpoint.includes('?') ? '&' : '?';
+    const url = `${TMDB_BASE_URL}${endpoint}${separator}api_key=${apiKey}&page=${nextPage}`;
+
+    try {
+      const res = await window.fetch(url);
+      if (res.ok) {
+        const data = await res.json();
+        const results = (data.results || [])
+          .filter((item: any) => !item.genre_ids?.includes(16)) // Exclude Animation
+          .map((item: any) => ({
+            title: item.name || item.title,
+            slug: `tmdb-${item.id}`,
+            year: (item.first_air_date || item.release_date || '').slice(0, 4),
+            image: item.poster_path ? `${TMDB_IMAGE_BASE}${item.poster_path}` : 'https://images.unsplash.com/photo-1574375927938-d5a98e8edd85?q=80&w=400',
+            backdrop: item.backdrop_path ? `${TMDB_IMAGE_BASE}${item.backdrop_path}` : undefined,
+            rating: item.vote_average ? item.vote_average.toFixed(1) : undefined,
+            tmdbId: item.id,
+            mediaType: item.first_air_date ? 'tv' : 'movie'
+          }));
+
+        if (results.length === 0) {
+          setHasMore(false);
+        } else {
+          setItems(prev => {
+            // Avoid duplicates
+            const existingIds = new Set(prev.map(x => x.tmdbId));
+            const uniqueResults = results.filter(x => !existingIds.has(x.tmdbId));
+            return [...prev, ...uniqueResults];
+          });
+          setPage(nextPage);
+        }
+      } else {
+        setHasMore(false);
+      }
+    } catch (e) {
+      console.error("Error loading next page in DramaRow:", e);
+    } finally {
+      setLoadingMore(false);
+    }
+  };
+
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    if (!endpoint) return;
+    const target = e.currentTarget;
+    if (target.scrollWidth - target.scrollLeft - target.clientWidth < 800) {
+      loadNextPage();
+    }
+  };
+
   if (!items || items.length === 0) return null;
+
   return (
     <div className="animate-in fade-in duration-500 text-left font-sans select-none px-3 md:px-6">
       <div className="flex items-center justify-between mb-4">
@@ -1026,10 +1094,18 @@ export const DramaRow: React.FC<DramaRowProps> = ({ title, items, onDramaClick, 
           </button>
         )}
       </div>
-      <div className="flex gap-5 overflow-x-auto pb-4 hide-scrollbar scroll-smooth">
+      <div 
+        onScroll={handleScroll}
+        className="flex gap-5 overflow-x-auto pb-4 hide-scrollbar scroll-smooth"
+      >
         {items.map((drama) => (
           <DramaCard key={drama.slug} drama={drama} onDramaClick={onDramaClick} titleLanguage={titleLanguage} apiKey={apiKey} />
         ))}
+        {loadingMore && (
+          <div className="shrink-0 w-[80px] flex items-center justify-center">
+            <Loader2 className="w-6 h-6 text-red-600 animate-spin" />
+          </div>
+        )}
       </div>
     </div>
   );
