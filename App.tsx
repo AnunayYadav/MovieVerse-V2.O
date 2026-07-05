@@ -1205,7 +1205,21 @@ export default function App() {
 
     const [loading, setLoading] = useState(false);
     const [fetchError, setFetchError] = useState(false);
-    const [selectedMovie, setSelectedMovie] = useState<Movie | null>(null);
+    const [selectedMovieVal, setSelectedMovieVal] = useState<Movie | null>(null);
+    const setSelectedMovie = (movie: Movie | null) => {
+        if (movie) {
+            const isTv = movie.media_type === 'tv' || !!movie.first_air_date;
+            const isEastAsian = ['ko', 'ja', 'zh'].includes(movie.original_language || '');
+            if (isTv && isEastAsian) {
+                setSelectedCategory("Dramas");
+                setSelectedDramaSlug(`tmdb-${movie.id}`);
+                setSelectedMovieVal(null);
+                return;
+            }
+        }
+        setSelectedMovieVal(movie);
+    };
+    const selectedMovie = selectedMovieVal;
     const [modalHistory, setModalHistory] = useState<Array<{ type: 'movie' | 'person'; data: any }>>([]);
     const [featuredMovie, setFeaturedMovie] = useState<Movie | null>(null);
     const [featuredLogo, setFeaturedLogo] = useState<string | null>(null);

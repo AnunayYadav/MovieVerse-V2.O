@@ -130,7 +130,7 @@ export const DramaPage: React.FC<DramaPageProps> = ({
   const [dramaDetails, setDramaDetails] = useState<MDLDramaDetails | null>(null);
   const [detailsLoading, setDetailsLoading] = useState(false);
   const [detailsError, setDetailsError] = useState<string | null>(null);
-  const [activeDetailsTab, setActiveDetailsTab] = useState<'overview' | 'cast' | 'episodes' | 'reviews' | 'recs'>('overview');
+  const [activeDetailsTab, setActiveDetailsTab] = useState<'overview' | 'cast' | 'episodes' | 'media' | 'reviews' | 'recs'>('overview');
 
   // Sub-detail states
   const [cast, setCast] = useState<Record<string, MDLActor[]>>({});
@@ -140,6 +140,8 @@ export const DramaPage: React.FC<DramaPageProps> = ({
 
   // TMDB details mapping state
   const [resolvedTmdb, setResolvedTmdb] = useState<{ id: number; mediaType: 'movie' | 'tv' } | null>(null);
+  const [tmdbDetailsData, setTmdbDetailsData] = useState<any>(null);
+  const [activeSeason, setActiveSeason] = useState<number>(1);
   const [tmdbEpisodes, setTmdbEpisodes] = useState<any[]>([]);
   const [loadingEpisodes, setLoadingEpisodes] = useState(false);
 
@@ -329,6 +331,8 @@ export const DramaPage: React.FC<DramaPageProps> = ({
       setDramaDetails(null);
       setResolvedTmdb(null);
       setTmdbEpisodes([]);
+      setTmdbDetailsData(null);
+      setActiveSeason(1);
       setIsWatching(false);
       setActiveDetailsTab('overview');
       return;
@@ -445,7 +449,7 @@ export const DramaPage: React.FC<DramaPageProps> = ({
           // Set resolved TMDB data
           if (tmdbIdToUse) {
             setResolvedTmdb({ id: tmdbIdToUse, mediaType: mediaTypeToUse });
-            loadReviews(selectedDramaSlug, tmdbIdToUse, mediaTypeToUse);
+            loadTmdbDetails(tmdbIdToUse, mediaTypeToUse);
           } else {
             resolveTmdbForDetails(finalDetails.title, finalDetails.aired?.split(',').pop()?.trim());
           }
@@ -463,6 +467,60 @@ export const DramaPage: React.FC<DramaPageProps> = ({
     loadDetails();
   }, [selectedDramaSlug, apiKey, mapTmdbToMdlSummary]);
 
+  const loadTmdbDetails = async (tmdbId: number, mediaType: 'movie' | 'tv') => {
+    try {
+      const res = await window.fetch(`${TMDB_BASE_URL}/${mediaType}/${tmdbId}?api_key=${apiKey}&append_to_response=credits,recommendations,reviews,images,videos`);
+      if (res.ok) {
+        const data = await res.json();
+        setTmdbDetailsData(data);
+
+        // Populate Cast using TMDB credits cast
+        if (data.credits && data.credits.cast) {
+          const actors = (data.credits.cast || []).slice(0, 18).map((actor: any) => ({
+            name: actor.name,
+            character: actor.character,
+            image: actor.profile_path ? `${TMDB_IMAGE_BASE}${actor.profile_path}` : '',
+            profile_url: `https://www.themoviedb.org/person/${actor.id}`
+          }));
+          setCast({ 'Cast Member': actors });
+        }
+
+        // Populate Recommendations using TMDB recommendations
+        if (data.recommendations && data.recommendations.results && data.recommendations.results.length > 0) {
+          setRecs(data.recommendations.results.slice(0, 12).map(mapTmdbToMdlSummary));
+        }
+
+        // Populate Reviews (merged TMDB + MDL)
+        const tmdbReviews = (data.reviews?.results || []).map((item: any) => ({
+          username: item.author_details?.username || item.author,
+          rating: item.author_details?.rating ? item.author_details.rating.toString() : undefined,
+          date: new Date(item.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+          content: item.content,
+          source: 'TMDB'
+        }));
+
+        let mdlReviews: MDLReview[] = [];
+        try {
+          const mdlRes = await window.fetch(`/api/drama/api/id/${selectedDramaSlug}/reviews`);
+          if (mdlRes.ok) {
+            const mdlData = await mdlRes.json();
+            mdlReviews = (mdlData.reviews || []).map((rev: any) => ({
+              username: rev.author || 'MDL Reviewer',
+              rating: rev.rating,
+              date: rev.date,
+              content: rev.content || rev.review || '',
+              source: 'MyDramaList'
+            }));
+          }
+        } catch (_) {}
+
+        setReviews([...mdlReviews, ...tmdbReviews]);
+      }
+    } catch (err) {
+      console.error("Failed to load rich TMDB details:", err);
+    }
+  };
+
   const resolveTmdbForDetails = async (title: string, year?: string) => {
     const cacheKey = `movieverse_drama_tmdb_match_${selectedDramaSlug}`;
     const cached = localStorage.getItem(cacheKey);
@@ -471,7 +529,7 @@ export const DramaPage: React.FC<DramaPageProps> = ({
         const data = JSON.parse(cached);
         if (data) {
           setResolvedTmdb({ id: data.id, mediaType: data.mediaType });
-          loadReviews(selectedDramaSlug!, data.id, data.mediaType);
+          loadTmdbDetails(data.id, data.mediaType);
           return;
         }
       } catch (_) {}
@@ -503,7 +561,7 @@ export const DramaPage: React.FC<DramaPageProps> = ({
           };
           localStorage.setItem(cacheKey, JSON.stringify(matchData));
           setResolvedTmdb({ id: match.id, mediaType: 'tv' });
-          loadReviews(selectedDramaSlug!, match.id, 'tv');
+          loadTmdbDetails(match.id, 'tv');
           return;
         }
       }
@@ -529,7 +587,7 @@ export const DramaPage: React.FC<DramaPageProps> = ({
           };
           localStorage.setItem(cacheKey, JSON.stringify(matchData));
           setResolvedTmdb({ id: match.id, mediaType: 'movie' });
-          loadReviews(selectedDramaSlug!, match.id, 'movie');
+          loadTmdbDetails(match.id, 'movie');
           return;
         }
       }
@@ -560,7 +618,7 @@ export const DramaPage: React.FC<DramaPageProps> = ({
       .catch(e => console.error("Failed to load recs", e));
   };
 
-  // Fetch TMDB Episodes if TMDB TV ID is resolved
+  // Fetch TMDB Episodes if TV ID and activeSeason is resolved
   useEffect(() => {
     if (!resolvedTmdb || resolvedTmdb.mediaType !== 'tv') {
       setTmdbEpisodes([]);
@@ -570,7 +628,7 @@ export const DramaPage: React.FC<DramaPageProps> = ({
     const fetchEpisodesFromTmdb = async () => {
       setLoadingEpisodes(true);
       try {
-        const res = await window.fetch(`${TMDB_BASE_URL}/tv/${resolvedTmdb.id}/season/1?api_key=${apiKey}`);
+        const res = await window.fetch(`${TMDB_BASE_URL}/tv/${resolvedTmdb.id}/season/${activeSeason}?api_key=${apiKey}`);
         if (res.ok) {
           const data = await res.json();
           setTmdbEpisodes(data.episodes || []);
@@ -586,10 +644,10 @@ export const DramaPage: React.FC<DramaPageProps> = ({
     };
 
     fetchEpisodesFromTmdb();
-  }, [resolvedTmdb, apiKey]);
+  }, [resolvedTmdb, activeSeason, apiKey]);
 
-  // Fetch reviews from TMDB
-  const fetchTmdbReviews = async (tmdbId: number, mediaType: 'movie' | 'tv') => {
+  // Fetch reviews from TMDB (fallback Reviews loader)
+  const fetchTmdbReviewsOnly = async (tmdbId: number, mediaType: 'movie' | 'tv') => {
     try {
       const res = await window.fetch(`${TMDB_BASE_URL}/${mediaType}/${tmdbId}/reviews?api_key=${apiKey}`);
       if (res.ok) {
@@ -608,7 +666,7 @@ export const DramaPage: React.FC<DramaPageProps> = ({
     return [];
   };
 
-  // Merge MDL & TMDB Reviews
+  // Merge MDL & TMDB Reviews (fallback loader)
   const loadReviews = async (slug: string, tmdbId?: number, mediaType?: 'movie' | 'tv') => {
     let mdlList: MDLReview[] = [];
     try {
@@ -629,7 +687,7 @@ export const DramaPage: React.FC<DramaPageProps> = ({
 
     let tmdbList: any[] = [];
     if (tmdbId && mediaType) {
-      tmdbList = await fetchTmdbReviews(tmdbId, mediaType);
+      tmdbList = await fetchTmdbReviewsOnly(tmdbId, mediaType);
     }
 
     setReviews([...mdlList, ...tmdbList]);
@@ -757,7 +815,7 @@ export const DramaPage: React.FC<DramaPageProps> = ({
     const match = await ensureTmdbMatched(customTitle, customYear);
     if (match) {
       setWatchEpisode(episodeNum);
-      setWatchSeason(1);
+      setWatchSeason(activeSeason);
       setIsWatching(true);
     }
   };
@@ -783,6 +841,9 @@ export const DramaPage: React.FC<DramaPageProps> = ({
   const detailsTitle = dramaDetails ? (
     titleLanguage === 'native' ? (dramaDetails.native_title || dramaDetails.title) : dramaDetails.title
   ) : '';
+
+  // Next Episode Airing object
+  const nextEp = tmdbDetailsData?.next_episode_to_air;
 
   return (
     <div className={`min-h-screen bg-[#030303] pb-24 text-white font-sans ${disableEntryAnimation ? '' : 'animate-in fade-in duration-500'} overflow-x-hidden`}>
@@ -1196,7 +1257,17 @@ export const DramaPage: React.FC<DramaPageProps> = ({
                 <div className="mt-6 md:mt-16">
                   <h2 className="text-3xl md:text-5xl font-black text-white tracking-tight leading-tight">{detailsTitle}</h2>
                   {dramaDetails.native_title && (
-                    <p className="text-zinc-500 text-xs md:text-sm mt-1.5">Native Title: <span className="text-zinc-300 font-semibold">{dramaDetails.native_title}</span></p>
+                    <p className="text-zinc-500 text-xs md:text-sm mt-1.5 font-semibold">Native Title: <span className="text-zinc-300 font-semibold">{dramaDetails.native_title}</span></p>
+                  )}
+                  {/* Next Episode Airing alert indicator */}
+                  {nextEp && (
+                    <div className="mt-4 inline-flex items-center gap-2 px-3 py-1.5 bg-red-600/10 border border-red-500/20 text-red-500 font-bold text-[10px] rounded-xl animate-pulse">
+                      <Clock size={12} />
+                      <span>
+                        Next Episode: Episode {nextEp.episode_number} airs on {new Date(nextEp.air_date).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}
+                        {nextEp.name ? ` - "${nextEp.name}"` : ''}
+                      </span>
+                    </div>
                   )}
                 </div>
 
@@ -1207,6 +1278,7 @@ export const DramaPage: React.FC<DramaPageProps> = ({
                       { id: 'overview', label: 'Overview' },
                       { id: 'cast', label: `Cast & Crew` },
                       { id: 'episodes', label: `Episodes (${episodes.length || dramaDetails.episodes})` },
+                      { id: 'media', label: `Media` },
                       { id: 'reviews', label: `User Reviews (${reviews.length})` },
                       { id: 'recs', label: 'Recommendations' }
                     ].map(tab => (
@@ -1232,7 +1304,7 @@ export const DramaPage: React.FC<DramaPageProps> = ({
                       <div className="space-y-8">
                         <div>
                           <h3 className="text-xs font-bold text-zinc-400 mb-3 uppercase tracking-widest">Synopsis</h3>
-                          <p className="text-zinc-300 text-xs sm:text-sm leading-relaxed whitespace-pre-line bg-[#0c0c0e]/30 border border-white/5 rounded-2xl p-5 md:p-6">
+                          <p className="text-zinc-300 text-xs sm:text-sm leading-relaxed whitespace-pre-line bg-[#0c0c0e]/30 border border-white/5 rounded-2xl p-5 md:p-6 font-sans">
                             {dramaDetails.synopsis}
                           </p>
                         </div>
@@ -1296,7 +1368,7 @@ export const DramaPage: React.FC<DramaPageProps> = ({
                             const members = cast[role];
                             if (!members || members.length === 0) return null;
                             return (
-                              <div key={role} className="text-left">
+                              <div key={role} className="text-left font-sans">
                                 <h3 className="text-[10px] font-bold text-zinc-500 border-b border-white/5 pb-2 mb-4 uppercase tracking-widest">{role}s</h3>
                                 <div className="flex flex-wrap gap-6 mt-4">
                                   {members.map((member, idx) => (
@@ -1328,7 +1400,7 @@ export const DramaPage: React.FC<DramaPageProps> = ({
                             );
                           })
                         ) : (
-                          <div className="text-center py-10 border border-white/5 rounded-2xl bg-[#0c0c0e]/30">
+                          <div className="text-center py-10 border border-white/5 rounded-2xl bg-[#0c0c0e]/30 font-sans">
                             <p className="text-zinc-500 text-xs">No cast or crew details available for this show.</p>
                           </div>
                         )}
@@ -1338,6 +1410,28 @@ export const DramaPage: React.FC<DramaPageProps> = ({
                     {/* EPISODES TAB */}
                     {activeDetailsTab === 'episodes' && (
                       <div>
+                        {/* TMDB Season Selector */}
+                        {tmdbDetailsData?.seasons && tmdbDetailsData.seasons.filter((s: any) => s.season_number > 0).length > 1 && (
+                          <div className="flex items-center gap-3 mb-6 select-none font-sans">
+                            <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Season</span>
+                            <div className="relative">
+                              <select
+                                value={activeSeason}
+                                onChange={(e) => setActiveSeason(parseInt(e.target.value, 10))}
+                                className="bg-[#0c0c0e]/90 border border-white/10 text-white rounded-lg px-4 py-2 text-xs font-bold focus:outline-none focus:border-red-600 transition-colors cursor-pointer"
+                              >
+                                {tmdbDetailsData.seasons
+                                  .filter((s: any) => s.season_number > 0)
+                                  .map((s: any) => (
+                                    <option key={s.season_number} value={s.season_number}>
+                                      {s.name} ({s.episode_count} Episodes)
+                                    </option>
+                                  ))}
+                              </select>
+                            </div>
+                          </div>
+                        )}
+
                         {loadingEpisodes ? (
                           <div className="flex justify-center py-12">
                             <Loader2 className="w-8 h-8 text-red-600 animate-spin" />
@@ -1352,7 +1446,7 @@ export const DramaPage: React.FC<DramaPageProps> = ({
                                 <div 
                                   key={ep.id}
                                   onClick={() => playDrama(ep.episode_number)}
-                                  className="flex gap-4 p-4 bg-[#0c0c0e] hover:bg-white/5 rounded-2xl border border-white/5 hover:border-red-600/30 transition-all cursor-pointer group text-left"
+                                  className="flex gap-4 p-4 bg-[#0c0c0e] hover:bg-white/5 rounded-2xl border border-white/5 hover:border-red-600/30 transition-all cursor-pointer group text-left font-sans"
                                 >
                                   {/* Thumbnail Preview */}
                                   <div className="relative aspect-video w-28 sm:w-36 md:w-44 shrink-0 rounded-xl overflow-hidden shadow-md bg-black/40">
@@ -1388,7 +1482,7 @@ export const DramaPage: React.FC<DramaPageProps> = ({
                                         <span className="flex items-center gap-0.5 text-yellow-500 font-bold"><Star size={10} fill="currentColor" /> {ep.vote_average.toFixed(1)}</span>
                                       )}
                                     </div>
-                                    <p className="text-[10px] sm:text-xs text-zinc-400 leading-normal line-clamp-2">
+                                    <p className="text-[10px] sm:text-xs text-zinc-400 leading-normal line-clamp-2 font-sans">
                                       {ep.overview || "No synopsis available for this episode."}
                                     </p>
                                   </div>
@@ -1410,7 +1504,7 @@ export const DramaPage: React.FC<DramaPageProps> = ({
                                     {ep.episode_number}
                                   </div>
                                   <div>
-                                    <h4 className="text-[11px] font-bold text-white group-hover:text-red-500 transition-colors line-clamp-1">{ep.title}</h4>
+                                    <h4 className="text-[11px] font-bold text-white group-hover:text-red-500 transition-colors line-clamp-1 font-sans">{ep.title}</h4>
                                     <p className="text-[9px] text-zinc-500 mt-0.5">Release: {ep.air_date || 'TBA'}</p>
                                   </div>
                                 </div>
@@ -1421,6 +1515,62 @@ export const DramaPage: React.FC<DramaPageProps> = ({
                         ) : (
                           <div className="text-center py-10 border border-white/5 rounded-2xl bg-[#0c0c0e]/30">
                             <p className="text-zinc-500 text-xs">No detailed episode list available. Use watch button to play seasons.</p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* MEDIA TAB */}
+                    {activeDetailsTab === 'media' && (
+                      <div className="space-y-8 text-left font-sans">
+                        {/* Video Trailers */}
+                        {tmdbDetailsData?.videos?.results && tmdbDetailsData.videos.results.filter((v: any) => v.site === 'YouTube' && ['Trailer', 'Teaser'].includes(v.type)).length > 0 ? (
+                          <div>
+                            <h3 className="text-xs font-bold text-zinc-400 mb-4 uppercase tracking-widest">Videos & Trailers</h3>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-5 max-w-5xl">
+                              {tmdbDetailsData.videos.results
+                                .filter((v: any) => v.site === 'YouTube' && ['Trailer', 'Teaser'].includes(v.type))
+                                .slice(0, 4)
+                                .map((video: any) => (
+                                  <div key={video.id} className="relative w-full aspect-video rounded-2xl overflow-hidden border border-white/5 bg-zinc-955/60 shadow-lg">
+                                    <iframe 
+                                      src={`https://www.youtube.com/embed/${video.key}`}
+                                      title={video.name}
+                                      className="w-full h-full border-0"
+                                      allowFullScreen
+                                    />
+                                  </div>
+                                ))}
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="text-center py-10 border border-white/5 rounded-2xl bg-[#0c0c0e]/30 max-w-5xl">
+                            <p className="text-zinc-500 text-xs">No video trailers available for this show.</p>
+                          </div>
+                        )}
+
+                        {/* Backdrops Gallery */}
+                        {tmdbDetailsData?.images?.backdrops && tmdbDetailsData.images.backdrops.length > 0 && (
+                          <div>
+                            <h3 className="text-xs font-bold text-zinc-400 mb-4 uppercase tracking-widest">Backdrops</h3>
+                            <div className="grid grid-cols-2 md:grid-cols-3 gap-4 max-w-5xl">
+                              {tmdbDetailsData.images.backdrops.slice(0, 9).map((img: any, idx: number) => (
+                                <a 
+                                  key={idx}
+                                  href={`https://image.tmdb.org/t/p/original${img.file_path}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="relative aspect-video rounded-xl overflow-hidden border border-white/5 bg-zinc-900 shadow hover:border-red-500/50 transition-all duration-300"
+                                >
+                                  <img 
+                                    src={`https://image.tmdb.org/t/p/w500${img.file_path}`} 
+                                    alt="backdrop" 
+                                    className="w-full h-full object-cover hover:scale-105 transition-transform duration-500" 
+                                    loading="lazy"
+                                  />
+                                </a>
+                              ))}
+                            </div>
                           </div>
                         )}
                       </div>
@@ -1439,7 +1589,7 @@ export const DramaPage: React.FC<DramaPageProps> = ({
                                   </div>
                                   <div>
                                     <h4 className="text-[10px] font-bold text-white">{rev.username || 'MDL Reviewer'}</h4>
-                                    <div className="flex items-center gap-2 mt-0.5">
+                                    <div className="flex items-center gap-2 mt-0.5 font-sans">
                                       {rev.date && <span className="text-[8px] text-zinc-500">{rev.date}</span>}
                                       {rev.source && (
                                         <span className="text-[8px] bg-red-600/10 border border-red-500/20 text-red-500 font-bold px-1.5 rounded">
@@ -1450,12 +1600,12 @@ export const DramaPage: React.FC<DramaPageProps> = ({
                                   </div>
                                 </div>
                                 {rev.rating && (
-                                  <span className="bg-amber-500/10 border border-amber-500/20 text-amber-500 font-extrabold text-[10px] px-2.5 py-0.5 rounded-md flex items-center gap-0.5">
+                                  <span className="bg-amber-500/10 border border-amber-500/20 text-amber-500 font-extrabold text-[10px] px-2.5 py-0.5 rounded-md flex items-center gap-0.5 font-sans">
                                     ★ {rev.rating}
                                   </span>
                                 )}
                               </div>
-                              <p className="text-zinc-300 text-xs leading-relaxed whitespace-pre-line line-clamp-6">
+                              <p className="text-zinc-300 text-xs leading-relaxed whitespace-pre-line line-clamp-6 font-sans">
                                 {rev.content ? rev.content.replace(/Read More$/i, '').trim() : ''}
                               </p>
                             </div>
@@ -1651,7 +1801,7 @@ export const DramaCard: React.FC<DramaCardProps> = ({ drama, onDramaClick, title
     >
       {/* Rating Badge */}
       {rating && (
-        <div className="absolute top-2 left-2 z-10 bg-black/75 backdrop-blur-md text-[9px] font-bold text-amber-500 px-1.5 py-0.5 rounded shadow-md border border-white/5 flex items-center gap-0.5">
+        <div className="absolute top-2 left-2 z-10 bg-black/75 backdrop-blur-md text-[9px] font-bold text-amber-500 px-1.5 py-0.5 rounded shadow-md border border-white/5 flex items-center gap-0.5 font-sans">
           ★ {rating.toFixed(1)}
         </div>
       )}
