@@ -3740,8 +3740,7 @@ export default function App() {
         { id: "Coming", icon: CalendarDays, label: "Coming Soon", action: () => { resetFilters(); setSelectedCategory("Coming"); } },
         { id: "Categories", icon: Clapperboard, label: "Categories", action: () => { resetFilters(); setSelectedCategory("Categories"); } },
         { id: "WatchParty", icon: Users, label: "Watch Party", action: () => { resetFilters(); setSelectedCategory("WatchParty"); } },
-        { id: "LiveTV", icon: Radio, label: "Live TV", action: () => { resetFilters(); setSelectedCategory("LiveTV"); } },
-        { id: "Dramas", icon: Drama, label: "Dramas", action: () => { resetFilters(); setSelectedDramaSlug(null); setSelectedCategory("Dramas"); } }
+        { id: "LiveTV", icon: Radio, label: "Live TV", action: () => { resetFilters(); setSelectedCategory("LiveTV"); } }
     ];
 
     if (authChecking) return <div className="fixed inset-0 bg-black flex items-center justify-center"><LogoLoader /></div>;
