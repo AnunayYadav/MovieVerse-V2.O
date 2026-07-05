@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Play, Check, ChevronDown, Info, Search, Star, Film, X, Calendar, RefreshCcw, Loader2, ArrowLeft, Tv, AlertCircle, Languages, ChevronRight, MessageSquare, ThumbsUp, Heart, User, Clock, ExternalLink, BookOpen, AlertTriangle, PlayCircle } from 'lucide-react';
+import { Play, Check, ChevronDown, Info, Search, Star, Film, X, Calendar, RefreshCcw, Loader2, ArrowLeft, Tv, AlertCircle, Languages, ChevronDown as ArrowDown, ChevronRight, MessageSquare, ThumbsUp, Heart, User, Clock, ExternalLink, BookOpen, AlertTriangle, PlayCircle } from 'lucide-react';
 import { Movie } from '../types';
 import { TMDB_BASE_URL, TMDB_IMAGE_BASE, TMDB_BACKDROP_BASE, tvFetch } from './Shared';
 import { useTvFocus, TvFocusButton, TvFocusInput } from '../tvNavigation';
@@ -114,11 +114,12 @@ export const DramaPage: React.FC<DramaPageProps> = ({
   const weekdays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
   const [selectedDay, setSelectedDay] = useState('Monday');
 
-  // Hero Section State
-  const [heroDrama, setHeroDrama] = useState<MDLDramaSummary | null>(null);
+  // Hero Carousel Section States
+  const [heroIndex, setHeroIndex] = useState(0);
   const [heroDetails, setHeroDetails] = useState<MDLDramaDetails | null>(null);
   const [heroLoading, setHeroLoading] = useState(false);
   const [heroBackdrop, setHeroBackdrop] = useState<string | null>(null);
+  const [dramaLogos, setDramaLogos] = useState<Record<number, string>>({});
 
   // Search States
   const [searchInput, setSearchInput] = useState('');
@@ -209,37 +210,46 @@ export const DramaPage: React.FC<DramaPageProps> = ({
           }
         }
 
-        // 2. Fetch Trending Dramas from TMDB (distinct and high quality)
-        const trendingRes = await window.fetch(`${TMDB_BASE_URL}/discover/tv?api_key=${apiKey}&with_original_language=ko|ja|zh&sort_by=popularity.desc`);
+        // 2. Fetch Trending Dramas from TMDB (without_genres=16 to exclude Anime)
+        const trendingRes = await window.fetch(`${TMDB_BASE_URL}/discover/tv?api_key=${apiKey}&without_genres=16&with_original_language=ko|ja|zh&sort_by=popularity.desc`);
         let trendingItems: MDLDramaSummary[] = [];
         if (trendingRes.ok) {
           const data = await trendingRes.json();
           trendingItems = (data.results || []).slice(0, 15).map(mapTmdbToMdlSummary);
           setTrending(trendingItems);
+
+          // Fetch logos for top 5 featured items
+          const topFive = trendingItems.slice(0, 5);
+          topFive.forEach(async (item) => {
+            if (item.tmdbId) {
+              try {
+                const imgRes = await window.fetch(`${TMDB_BASE_URL}/tv/${item.tmdbId}/images?api_key=${apiKey}`);
+                if (imgRes.ok) {
+                  const imgData = await imgRes.json();
+                  const logo = imgData?.logos?.find((l: any) => l.iso_639_1 === 'en' || !l.iso_639_1);
+                  if (logo) {
+                    setDramaLogos(prev => ({ ...prev, [item.tmdbId!]: logo.file_path }));
+                  }
+                }
+              } catch (e) {
+                console.error("Failed fetching logo", e);
+              }
+            }
+          });
         }
 
-        // 3. Fetch Seasonal 2026 Hits from TMDB
-        const season1Res = await window.fetch(`${TMDB_BASE_URL}/discover/tv?api_key=${apiKey}&with_original_language=ko|ja|zh&first_air_date_year=2026&sort_by=popularity.desc`);
+        // 3. Fetch Seasonal 2026 Hits from TMDB (without_genres=16 to exclude Anime)
+        const season1Res = await window.fetch(`${TMDB_BASE_URL}/discover/tv?api_key=${apiKey}&without_genres=16&with_original_language=ko|ja|zh&first_air_date_year=2026&sort_by=popularity.desc`);
         if (season1Res.ok) {
           const data = await season1Res.json();
           setSeasonalRow1((data.results || []).slice(0, 15).map(mapTmdbToMdlSummary));
         }
 
-        // 4. Fetch Seasonal 2025 Hits from TMDB
-        const season2Res = await window.fetch(`${TMDB_BASE_URL}/discover/tv?api_key=${apiKey}&with_original_language=ko|ja|zh&first_air_date_year=2025&sort_by=popularity.desc`);
+        // 4. Fetch Seasonal 2025 Hits from TMDB (without_genres=16 to exclude Anime)
+        const season2Res = await window.fetch(`${TMDB_BASE_URL}/discover/tv?api_key=${apiKey}&without_genres=16&with_original_language=ko|ja|zh&first_air_date_year=2025&sort_by=popularity.desc`);
         if (season2Res.ok) {
           const data = await season2Res.json();
           setSeasonalRow2((data.results || []).slice(0, 15).map(mapTmdbToMdlSummary));
-        }
-
-        // 5. Select a featured Hero drama from the TMDB Trending list
-        if (trendingItems.length > 0) {
-          const randomIndex = Math.floor(Math.random() * Math.min(trendingItems.length, 5));
-          const chosen = trendingItems[randomIndex];
-          setHeroDrama(chosen);
-          if (chosen.tmdbId) {
-            fetchHeroDetailsFromTmdb(chosen.tmdbId, chosen.title);
-          }
         }
       } catch (e: any) {
         console.error("Failed to load dramas catalog:", e);
@@ -251,6 +261,18 @@ export const DramaPage: React.FC<DramaPageProps> = ({
 
     fetchCatalog();
   }, [apiKey, mapTmdbToMdlSummary]);
+
+  // Active Hero Slide
+  const activeHero = trending[heroIndex] || null;
+
+  // Auto scroll Hero banner slideshow
+  useEffect(() => {
+    if (trending.length === 0) return;
+    const interval = setInterval(() => {
+      setHeroIndex((prev) => (prev + 1) % Math.min(trending.length, 5));
+    }, 6000);
+    return () => clearInterval(interval);
+  }, [trending]);
 
   // Fetch Hero Details from TMDB
   const fetchHeroDetailsFromTmdb = async (tmdbId: number, title: string) => {
@@ -295,6 +317,11 @@ export const DramaPage: React.FC<DramaPageProps> = ({
       setHeroLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (!activeHero || !activeHero.tmdbId) return;
+    fetchHeroDetailsFromTmdb(activeHero.tmdbId, activeHero.title);
+  }, [activeHero, apiKey]);
 
   // Fetch Search Results
   useEffect(() => {
@@ -700,7 +727,7 @@ export const DramaPage: React.FC<DramaPageProps> = ({
     
     const target = additionalQuarters[currentLoadIndex];
     try {
-      const res = await window.fetch(`${TMDB_BASE_URL}/discover/tv?api_key=${apiKey}&with_original_language=ko|ja|zh&first_air_date_year=${target.year}&sort_by=popularity.desc`);
+      const res = await window.fetch(`${TMDB_BASE_URL}/discover/tv?api_key=${apiKey}&without_genres=16&with_original_language=ko|ja|zh&first_air_date_year=${target.year}&sort_by=popularity.desc`);
       if (res.ok) {
         const data = await res.json();
         if (data && data.results) {
@@ -889,65 +916,97 @@ export const DramaPage: React.FC<DramaPageProps> = ({
       {/* Main Catalog View */}
       {!selectedDramaSlug && (
         <>
-          {/* Custom Hero Banner */}
-          {heroDrama && (
+          {/* Custom Hero Banner Carousel */}
+          {activeHero && (
             <div className="relative w-full h-[75vh] md:h-[80vh] overflow-hidden select-none bg-black">
               {/* Cover Art Backdrop */}
               <div className="absolute inset-0">
                 <img 
-                  src={heroBackdrop || heroDetails?.image || heroDrama.image} 
-                  alt={heroDrama.title}
-                  className="w-full h-full object-cover opacity-30 scale-105" 
+                  src={heroBackdrop || activeHero.image} 
+                  alt={activeHero.title}
+                  className="w-full h-full object-cover opacity-20 blur-[2px] scale-105" 
                   onError={(e) => {
                     e.currentTarget.src = 'https://images.unsplash.com/photo-1574375927938-d5a98e8edd85?q=80&w=1920';
                   }}
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-[#030303] via-[#030303]/40 to-transparent" />
-                <div className="absolute inset-0 bg-gradient-to-r from-[#030303] via-[#030303]/30 to-transparent" />
+                <div className="absolute inset-0 bg-gradient-to-t from-[#030303] via-[#030303]/60 to-transparent" />
+                <div className="absolute inset-0 bg-gradient-to-r from-[#030303] via-[#030303]/40 to-transparent" />
               </div>
 
-              {/* Hero Content */}
-              <div className="absolute bottom-0 left-0 right-0 px-3 md:px-6 pb-12 max-w-7xl mx-auto flex flex-col items-start gap-4 text-left">
-                <div className="flex items-center gap-2.5">
-                  <span className="bg-red-600/25 border border-red-500/30 text-red-500 font-extrabold text-[10px] uppercase tracking-widest px-2.5 py-1 rounded-full backdrop-blur-sm animate-pulse animate-duration-1000">
-                    ★ MDL Featured
-                  </span>
-                  {heroDetails?.rating && (
-                    <span className="flex items-center gap-1 bg-amber-500/20 border border-amber-500/30 text-amber-500 font-extrabold text-[10px] px-2.5 py-1 rounded-full backdrop-blur-sm">
-                      <Star size={11} className="fill-amber-500 stroke-none" /> {heroDetails.rating}
-                    </span>
-                  )}
-                  {heroDetails?.original_network && (
-                    <span className="bg-white/5 border border-white/10 text-zinc-300 font-bold text-[10px] px-2.5 py-1 rounded-full backdrop-blur-sm">
-                      {heroDetails.original_network}
-                    </span>
-                  )}
+              {/* Hero Content - Split Layout with Vertical Poster */}
+              <div className="absolute bottom-0 left-0 right-0 px-3 md:px-6 pb-12 max-w-7xl mx-auto flex flex-col md:flex-row items-center md:items-end gap-6 md:gap-8 z-20 text-left w-full">
+                {/* Left: Vertical Poster */}
+                <div className="w-[120px] sm:w-[150px] md:w-[180px] aspect-[2/3] rounded-xl overflow-hidden border border-white/10 shadow-2xl shrink-0">
+                  <img
+                    src={activeHero.image}
+                    alt={activeHero.title}
+                    className="w-full h-full object-cover"
+                  />
                 </div>
 
-                <h1 className="text-3xl md:text-5xl lg:text-6xl font-black tracking-tight text-white max-w-3xl drop-shadow-lg leading-tight">
-                  {heroDrama.title}
-                </h1>
+                {/* Right: Info */}
+                <div className="flex-1 flex flex-col items-start gap-3">
+                  <div className="flex items-center gap-2.5">
+                    <span className="bg-red-600/25 border border-red-500/30 text-red-500 font-extrabold text-[10px] uppercase tracking-widest px-2.5 py-1 rounded-full backdrop-blur-sm animate-pulse">
+                      ★ MDL Featured
+                    </span>
+                    {heroDetails?.rating && (
+                      <span className="flex items-center gap-1 bg-amber-500/20 border border-amber-500/30 text-amber-500 font-extrabold text-[10px] px-2.5 py-1 rounded-full backdrop-blur-sm">
+                        <Star size={11} className="fill-amber-500 stroke-none" /> {heroDetails.rating}
+                      </span>
+                    )}
+                    {heroDetails?.original_network && (
+                      <span className="bg-white/5 border border-white/10 text-zinc-300 font-bold text-[10px] px-2.5 py-1 rounded-full backdrop-blur-sm">
+                        {heroDetails.original_network}
+                      </span>
+                    )}
+                  </div>
 
-                {heroDetails && (
-                  <p className="text-zinc-400 text-xs md:text-sm max-w-2xl line-clamp-3 leading-relaxed drop-shadow">
-                    {heroDetails.synopsis}
-                  </p>
-                )}
+                  {/* Logo or Title */}
+                  {activeHero.tmdbId && dramaLogos[activeHero.tmdbId] ? (
+                    <img
+                      src={`https://image.tmdb.org/t/p/w500${dramaLogos[activeHero.tmdbId]}`}
+                      alt={activeHero.title}
+                      className="max-h-16 md:max-h-24 max-w-[85%] object-contain object-left mb-1 drop-shadow-[0_4px_12px_rgba(0,0,0,0.9)] animate-in fade-in duration-300"
+                    />
+                  ) : (
+                    <h1 className="text-3xl md:text-5xl font-black tracking-tight text-white max-w-3xl drop-shadow-lg leading-tight">
+                      {activeHero.title}
+                    </h1>
+                  )}
 
-                <div className="flex items-center gap-3.5 mt-2">
-                  <button 
-                    onClick={() => playDrama(1, heroDrama.title, heroDrama.year)}
-                    className="flex items-center gap-2 px-6 py-2.5 rounded-full bg-red-600 hover:bg-red-700 text-white font-bold text-xs transition-all hover:scale-105 active:scale-95 shadow-[0_8px_20px_rgba(220,38,38,0.3)] cursor-pointer"
-                  >
-                    <Play size={14} className="fill-white" /> Watch Now
-                  </button>
-                  <button 
-                    onClick={() => onDramaSelect(heroDrama.slug)}
-                    className="flex items-center gap-2 px-6 py-2.5 rounded-full bg-white/10 hover:bg-white/15 text-white font-bold text-xs border border-white/10 transition-all cursor-pointer"
-                  >
-                    <Info size={14} /> Full Details
-                  </button>
+                  {heroDetails && (
+                    <p className="text-zinc-400 text-xs md:text-sm max-w-xl line-clamp-3 leading-relaxed drop-shadow">
+                      {heroDetails.synopsis}
+                    </p>
+                  )}
+
+                  <div className="flex items-center gap-3.5 mt-2">
+                    <button 
+                      onClick={() => playDrama(1, activeHero.title, activeHero.year)}
+                      className="flex items-center gap-2 px-6 py-2.5 rounded-full bg-red-600 hover:bg-red-700 text-white font-bold text-xs transition-all hover:scale-105 active:scale-95 shadow-[0_8px_20px_rgba(220,38,38,0.3)] cursor-pointer"
+                    >
+                      <Play size={14} className="fill-white" /> Watch Now
+                    </button>
+                    <button 
+                      onClick={() => onDramaSelect(activeHero.slug)}
+                      className="flex items-center gap-2 px-6 py-2.5 rounded-full bg-white/10 hover:bg-white/15 text-white font-bold text-xs border border-white/10 transition-all cursor-pointer"
+                    >
+                      <Info size={14} /> Full Details
+                    </button>
+                  </div>
                 </div>
+              </div>
+
+              {/* Carousel Indicators Dots */}
+              <div className="absolute right-6 bottom-12 z-30 flex flex-col gap-2">
+                {trending.slice(0, 5).map((_, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setHeroIndex(i)}
+                    className={`w-2 h-2 rounded-full transition-all duration-300 ${heroIndex === i ? 'bg-red-600 h-6' : 'bg-white/30 hover:bg-white/60'}`}
+                  />
+                ))}
               </div>
             </div>
           )}
@@ -1154,17 +1213,17 @@ export const DramaPage: React.FC<DramaPageProps> = ({
             <div className="max-w-7xl mx-auto px-3 md:px-6 -mt-20 md:-mt-32 relative z-20 flex flex-col md:flex-row gap-8 pb-16 text-left">
               {/* Left Column Shimmer */}
               <div className="w-[180px] md:w-[280px] shrink-0">
-                <div className="w-full aspect-[2/3] bg-zinc-950/40 shimmer-bg rounded-xl" />
-                <div className="w-full h-12 bg-zinc-950/40 shimmer-bg rounded-lg mt-5" />
+                <div className="w-full aspect-[2/3] bg-zinc-955/40 shimmer-bg rounded-xl" />
+                <div className="w-full h-12 bg-zinc-955/40 shimmer-bg rounded-lg mt-5" />
               </div>
               {/* Right Column Shimmer */}
               <div className="flex-1 space-y-6 pt-12 md:pt-24">
-                <div className="h-10 w-2/3 bg-zinc-950/40 shimmer-bg rounded-lg" />
-                <div className="h-4 w-1/3 bg-zinc-950/40 shimmer-bg rounded-lg" />
+                <div className="h-10 w-2/3 bg-zinc-955/40 shimmer-bg rounded-lg" />
+                <div className="h-4 w-1/3 bg-zinc-955/40 shimmer-bg rounded-lg" />
                 <div className="space-y-3 pt-6">
-                  <div className="h-4 w-full bg-zinc-950/40 shimmer-bg rounded-lg" />
-                  <div className="h-4 w-full bg-zinc-950/40 shimmer-bg rounded-lg" />
-                  <div className="h-4 w-3/4 bg-zinc-950/40 shimmer-bg rounded-lg" />
+                  <div className="h-4 w-full bg-zinc-955/40 shimmer-bg rounded-lg" />
+                  <div className="h-4 w-full bg-zinc-955/40 shimmer-bg rounded-lg" />
+                  <div className="h-4 w-3/4 bg-zinc-955/40 shimmer-bg rounded-lg" />
                 </div>
               </div>
             </div>
@@ -1532,7 +1591,7 @@ export const DramaPage: React.FC<DramaPageProps> = ({
                                 .filter((v: any) => v.site === 'YouTube' && ['Trailer', 'Teaser'].includes(v.type))
                                 .slice(0, 4)
                                 .map((video: any) => (
-                                  <div key={video.id} className="relative w-full aspect-video rounded-2xl overflow-hidden border border-white/5 bg-zinc-955/60 shadow-lg">
+                                  <div key={video.id} className="relative w-full aspect-video rounded-2xl overflow-hidden border border-white/5 bg-zinc-950/60 shadow-lg">
                                     <iframe 
                                       src={`https://www.youtube.com/embed/${video.key}`}
                                       title={video.name}
@@ -1881,7 +1940,7 @@ export const DramaPageSkeleton: React.FC = () => {
   return (
     <div className="min-h-screen bg-[#030303] pb-24 text-white font-sans text-left overflow-hidden">
       {/* Hero Banner Skeleton */}
-      <div className="relative w-full h-[65vh] md:h-[75vh] bg-zinc-950/40 shimmer-bg flex flex-col justify-end p-8 md:p-16">
+      <div className="relative w-full h-[65vh] md:h-[75vh] bg-zinc-955/40 shimmer-bg flex flex-col justify-end p-8 md:p-16">
         <div className="max-w-3xl space-y-4">
           <div className="h-6 w-32 bg-white/10 rounded-full shimmer-bg" />
           <div className="h-12 w-3/4 bg-white/10 rounded-xl shimmer-bg" />
@@ -1901,7 +1960,7 @@ export const DramaPageSkeleton: React.FC = () => {
             <div className="h-6 w-48 bg-white/10 rounded-md shimmer-bg" />
             <div className="flex gap-5 overflow-x-hidden pb-4">
               {[1, 2, 3, 4, 5, 6, 7].map((j) => (
-                <div key={j} className="shrink-0 w-[140px] sm:w-[170px] aspect-[2/3] bg-zinc-950/40 border border-white/5 rounded-xl shimmer-bg" />
+                <div key={j} className="shrink-0 w-[140px] sm:w-[170px] aspect-[2/3] bg-zinc-955/40 border border-white/5 rounded-xl shimmer-bg" />
               ))}
             </div>
           </div>

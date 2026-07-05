@@ -1058,13 +1058,13 @@ export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick, sear
       
       {/* 1. Hero Spotlight Carousel */}
       {!searchQuery && (featured || activeTab === 'community') && (
-        <div className="relative w-full h-[65vh] md:h-[75vh] overflow-hidden group mb-10 border-b border-white/5 select-none bg-[#030303]">
+        <div className="relative w-full h-[75vh] md:h-[80vh] overflow-hidden group mb-10 border-b border-white/5 select-none bg-black">
           <div className="absolute inset-0">
             {featured ? (
               <img
                 src={featured.bannerImage || featured.coverImage.extraLarge || featured.coverImage.large}
                 alt={getAnimeTitle(featured)}
-                className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-102 opacity-75 animate-in fade-in duration-500"
+                className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-102 opacity-20 blur-[2px] animate-in fade-in duration-500"
                 referrerPolicy="no-referrer"
               />
             ) : (
@@ -1074,74 +1074,82 @@ export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick, sear
             <div className="absolute inset-0 bg-gradient-to-r from-[#030303] via-[#030303]/40 to-transparent" />
           </div>
 
-          <div className="absolute bottom-0 left-0 w-full p-6 md:p-12 z-20 flex flex-col items-start gap-3.5 md:max-w-4xl animate-in slide-in-from-bottom-8 duration-700">
+          <div className="absolute bottom-0 left-0 w-full p-3 md:p-6 pb-12 z-20 flex items-center justify-start max-w-7xl mx-auto">
             {activeTab === 'catalog' ? (
-              <>
-                <span className="px-3 py-1 rounded-full text-[9px] font-bold uppercase tracking-widest bg-red-600 text-white shadow-lg shadow-red-600/30 flex items-center gap-1.5 animate-in fade-in duration-300">
-                  <Sparkles size={11} fill="currentColor" /> Spotlight Anime
-                </span>
-                
-                {featured && (!featuredLogoLoading && featuredLogoUrl ? (
-                  <img
-                    src={featuredLogoUrl}
-                    alt={getAnimeTitle(featured)}
-                    className="max-h-20 md:max-h-32 max-w-[85%] object-contain object-left mb-2 drop-shadow-[0_4px_12px_rgba(0,0,0,0.9)] animate-in fade-in duration-300"
-                    referrerPolicy="no-referrer"
-                  />
-                ) : (
-                  <h1 className="text-3xl md:text-5xl font-bold text-white leading-tight tracking-tight drop-shadow-2xl text-left">
-                    {getAnimeTitle(featured)}
-                  </h1>
-                ))}
-
+              <div className="flex flex-col md:flex-row items-center md:items-end gap-6 md:gap-8 w-full text-left font-sans">
+                {/* Left: Vertical Poster */}
                 {featured && (
-                  <div className="flex flex-wrap items-center gap-3.5 text-xs font-bold text-gray-300">
-                    {featured.averageScore && (
-                      <span className="text-yellow-400 font-extrabold flex items-center gap-1 text-sm bg-yellow-400/10 px-2 py-0.5 rounded border border-yellow-400/20 shadow-[0_0_10px_rgba(250,204,21,0.05)]">
-                        <Star size={12} fill="currentColor" />
-                        {(featured.averageScore / 10).toFixed(1)} Score
+                  <div className="w-[120px] sm:w-[150px] md:w-[180px] aspect-[2/3] rounded-xl overflow-hidden border border-white/10 shadow-2xl shrink-0 animate-in slide-in-from-left-6 duration-700">
+                    <img
+                      src={featured.coverImage.extraLarge || featured.coverImage.large}
+                      alt={getAnimeTitle(featured)}
+                      className="w-full h-full object-cover"
+                      referrerPolicy="no-referrer"
+                    />
+                  </div>
+                )}
+
+                {/* Right: Info */}
+                <div className="flex-1 flex flex-col items-start gap-3.5 animate-in slide-in-from-bottom-8 duration-700">
+                  <span className="px-3 py-1 rounded-full text-[9px] font-bold uppercase tracking-widest bg-red-600 text-white shadow-lg shadow-red-600/30 flex items-center gap-1.5">
+                    <Sparkles size={11} fill="currentColor" /> Spotlight Anime
+                  </span>
+                  
+                  {featured && (
+                    <h1 className="text-3xl md:text-5xl font-black text-white leading-tight tracking-tight drop-shadow-2xl text-left">
+                      {getAnimeTitle(featured)}
+                    </h1>
+                  )}
+
+                  {featured && (
+                    <div className="flex flex-wrap items-center gap-3.5 text-xs font-bold text-gray-300">
+                      {featured.averageScore && (
+                        <span className="text-yellow-400 font-extrabold flex items-center gap-1 text-sm bg-yellow-400/10 px-2 py-0.5 rounded border border-yellow-400/20 shadow-[0_0_10px_rgba(250,204,21,0.05)]">
+                          <Star size={12} fill="currentColor" />
+                          {(featured.averageScore / 10).toFixed(1)} Score
+                        </span>
+                      )}
+                      <span>•</span>
+                      <span className="text-green-400 font-bold">{featured.episodes ? `${featured.episodes} Episodes` : 'Ongoing'}</span>
+                      <span>•</span>
+                      <span className="uppercase">{featured.season} {featured.seasonYear}</span>
+                      <span>•</span>
+                      <span className="px-2 py-0.5 rounded bg-white/10 text-white text-[9px] tracking-wider font-extrabold uppercase">
+                        {featured.status.replace('_', ' ')}
                       </span>
-                    )}
-                    <span>•</span>
-                    <span className="text-green-400">{featured.episodes ? `${featured.episodes} Episodes` : 'Ongoing'}</span>
-                    <span>•</span>
-                    <span className="uppercase">{featured.season} {featured.seasonYear}</span>
-                    <span>•</span>
-                    <span className="px-2 py-0.5 rounded bg-white/10 text-white text-[9px] tracking-wider font-extrabold uppercase">
-                      {featured.status.replace('_', ' ')}
-                    </span>
-                  </div>
-                )}
+                    </div>
+                  )}
 
-                {featured && (
-                  <p className="text-gray-300 text-xs md:text-sm line-clamp-3 max-w-2xl leading-relaxed text-left font-medium drop-shadow-md">
-                    {cleanDescription(featured.description) || "Step into this captivating anime world."}
-                  </p>
-                )}
+                  {featured && (
+                    <p className="text-gray-300 text-xs md:text-sm line-clamp-3 max-w-xl leading-relaxed text-left font-medium drop-shadow-md">
+                      {cleanDescription(featured.description) || "Step into this captivating anime world."}
+                    </p>
+                  )}
 
-                {featured && (
-                  <div className="flex flex-row items-center gap-3 w-full sm:w-auto mt-2">
-                    <TvFocusButton
-                      onClick={() => handleAnimeClick(featured)}
-                      className="flex-1 sm:flex-none px-6 py-2.5 text-sm sm:text-base rounded-md font-bold flex items-center justify-center gap-2.5 transition-all hover:scale-[1.02] active:scale-95 shadow-md bg-white text-black hover:bg-white/90"
-                    >
-                      <Play size={18} fill="currentColor" /> Watch Now
-                    </TvFocusButton>
-                    {featured.trailer && featured.trailer.site === 'youtube' && (
-                      <a
-                        href={`https://www.youtube.com/watch?v=${featured.trailer.id}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="flex-1 sm:flex-none px-6 py-2.5 text-sm sm:text-base rounded-md font-bold flex items-center justify-center gap-2.5 bg-white/10 hover:bg-white/20 text-white transition-all hover:scale-[1.02] active:scale-95 border border-white/10 backdrop-blur-md"
+                  {featured && (
+                    <div className="flex flex-row items-center gap-3 w-full sm:w-auto mt-2">
+                      <TvFocusButton
+                        onClick={() => handleAnimeClick(featured)}
+                        className="flex-1 sm:flex-none px-6 py-2.5 text-sm sm:text-base rounded-md font-bold flex items-center justify-center gap-2.5 transition-all hover:scale-[1.02] active:scale-95 shadow-md bg-white text-black hover:bg-white/90"
                       >
-                        Trailer
-                      </a>
-                    )}
-                  </div>
-                )}
-              </>
+                        <Play size={18} fill="currentColor" /> Watch Now
+                      </TvFocusButton>
+                      {featured.trailer && featured.trailer.site === 'youtube' && (
+                        <a
+                          href={`https://www.youtube.com/watch?v=${featured.trailer.id}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="flex-1 sm:flex-none px-6 py-2.5 text-sm sm:text-base rounded-md font-bold flex items-center justify-center gap-2.5 bg-white/10 hover:bg-white/20 text-white transition-all hover:scale-[1.02] active:scale-95 border border-white/10 backdrop-blur-md"
+                        >
+                          Trailer
+                        </a>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
             ) : (
-              <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 font-sans text-left">
                 <span className="px-3 py-1 rounded-full text-[9px] font-medium uppercase tracking-widest bg-white/10 border border-white/15 text-zinc-300 mb-3 inline-flex items-center gap-1.5 backdrop-blur-sm">
                   <MessageSquare size={10} /> AniList Live Feed
                 </span>

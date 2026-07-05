@@ -1222,6 +1222,21 @@ export default function App() {
     const selectedMovie = selectedMovieVal;
     const [modalHistory, setModalHistory] = useState<Array<{ type: 'movie' | 'person'; data: any }>>([]);
     const [featuredMovie, setFeaturedMovie] = useState<Movie | null>(null);
+    const [featuredMovies, setFeaturedMovies] = useState<Movie[]>([]);
+    const [featuredIndex, setFeaturedIndex] = useState(0);
+
+    useEffect(() => {
+        const current = featuredMovies[featuredIndex] || null;
+        setFeaturedMovie(current);
+    }, [featuredMovies, featuredIndex]);
+
+    useEffect(() => {
+        if (featuredMovies.length <= 1) return;
+        const interval = setInterval(() => {
+            setFeaturedIndex(prev => (prev + 1) % featuredMovies.length);
+        }, 6000);
+        return () => clearInterval(interval);
+    }, [featuredMovies]);
     const [featuredLogo, setFeaturedLogo] = useState<string | null>(null);
     const [expandedCategory, setExpandedCategory] = useState<{ title: string; items: Movie[]; endpoint?: string; mediaType?: 'movie' | 'tv' } | null>(null);
 
@@ -2961,8 +2976,13 @@ export default function App() {
                 setMovies(finalResults);
                 const hasHero = !["People", "Coming", "Collections", "Categories", "Franchise", "Anime", "AnimeCommunity", "Manga"].includes(selectedCategory) && !searchQuery;
                 if (hasHero && finalResults.length > 0) {
-                    setFeaturedMovie(finalResults.find((m: Movie) => m.backdrop_path) || finalResults[0]);
-                } else setFeaturedMovie(null);
+                    const pool = finalResults.filter((m: Movie) => m.backdrop_path).slice(0, 5);
+                    const selectedPool = pool.length > 0 ? pool : finalResults.slice(0, 5);
+                    setFeaturedMovies(selectedPool);
+                    setFeaturedIndex(0);
+                } else {
+                    setFeaturedMovies([]);
+                }
             }
             setHasMore(data.page < data.total_pages);
         } catch (error: any) {
@@ -4524,63 +4544,84 @@ export default function App() {
                             {selectedCategory !== "Coming" && selectedCategory !== "Genres" && selectedCategory !== "Franchise" && (
                                 <>
                                     {!searchQuery && featuredMovie && !["People", "Coming", "Collections", "Genres", "Franchise", "Anime", "AnimeCommunity", "Manga"].includes(selectedCategory) && (
-                                        <div className="relative w-full h-[70vh] md:h-[80vh] overflow-hidden group">
+                                        <div className="relative w-full h-[75vh] md:h-[80vh] overflow-hidden group select-none bg-black">
+                                            {/* Backdrop Background */}
                                             <div className="absolute inset-0">
                                                 <img
                                                     src={featuredMovie.backdrop_path ? `${TMDB_BACKDROP_BASE}${featuredMovie.backdrop_path}` : `${TMDB_IMAGE_BASE}${featuredMovie.poster_path}`}
-                                                    alt={featuredMovie.title}
-                                                    className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105"
+                                                    alt={featuredMovie.title || featuredMovie.name}
+                                                    className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105 opacity-20 blur-[2px]"
                                                 />
                                                 <div className="absolute inset-0 bg-gradient-to-t from-[#030303] via-[#030303]/60 to-transparent"></div>
                                                 <div className="absolute inset-0 bg-gradient-to-r from-[#030303] via-[#030303]/40 to-transparent"></div>
                                             </div>
 
-                                            <div className="absolute bottom-0 left-0 w-full p-6 md:p-12 z-20 flex flex-col items-start gap-4 md:max-w-4xl animate-in slide-in-from-bottom-10 duration-700">
-                                                <span className="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-widest bg-red-600 text-white">
-                                                    Featured
-                                                </span>
+                                            {/* Foreground - Split vertical Layout */}
+                                            <div className="absolute bottom-0 left-0 w-full p-3 md:p-6 pb-12 z-20 flex items-center justify-start max-w-7xl mx-auto">
+                                                <div className="flex flex-col md:flex-row items-center md:items-end gap-6 md:gap-8 w-full text-left font-sans">
+                                                    {/* Left: Vertical Poster */}
+                                                    <div className="w-[120px] sm:w-[150px] md:w-[180px] aspect-[2/3] rounded-xl overflow-hidden border border-white/10 shadow-2xl shrink-0 animate-in slide-in-from-left-6 duration-700">
+                                                        <img
+                                                            src={`${TMDB_IMAGE_BASE}${featuredMovie.poster_path}`}
+                                                            alt={featuredMovie.title || featuredMovie.name}
+                                                            className="w-full h-full object-cover"
+                                                        />
+                                                    </div>
 
-                                                {featuredLogo ? (
-                                                    <img
-                                                        src={`${TMDB_IMAGE_BASE}${featuredLogo}`}
-                                                        alt={featuredMovie.title || featuredMovie.name}
-                                                        className="max-h-24 md:max-h-36 max-w-[80%] md:max-w-[50%] object-contain object-left mb-2 drop-shadow-2xl"
-                                                    />
-                                                ) : (
-                                                    <h1 className="text-4xl md:text-6xl font-black text-white leading-tight drop-shadow-2xl">
-                                                        {featuredMovie.title || featuredMovie.name}
-                                                    </h1>
-                                                )}
+                                                    {/* Right: Info */}
+                                                    <div className="flex-1 flex flex-col items-start gap-3.5 animate-in slide-in-from-bottom-8 duration-700">
+                                                        <span className="px-3 py-1 rounded-full text-[9px] font-bold uppercase tracking-widest bg-red-600 text-white shadow-lg shadow-red-600/30">
+                                                            Featured
+                                                        </span>
 
-                                                <div className="flex items-center gap-4 text-sm font-medium text-gray-300">
-                                                    <span className="text-green-400 font-bold">{featuredMovie.vote_average ? featuredMovie.vote_average.toFixed(1) : 'NR'} Rating</span>
-                                                    <span>•</span>
-                                                    <span>{featuredMovie.release_date?.split('-')[0] || featuredMovie.first_air_date?.split('-')[0] || 'TBA'}</span>
-                                                    <span>•</span>
-                                                    <span>{GENRES_MAP[Object.keys(GENRES_MAP).find(key => GENRES_MAP[key] === featuredMovie.genre_ids?.[0]) || ""] || "Movie"}</span>
-                                                </div>
+                                                        <h1 className="text-3xl md:text-5xl font-black text-white leading-tight tracking-tight drop-shadow-2xl">
+                                                            {featuredMovie.title || featuredMovie.name}
+                                                        </h1>
 
-                                                <p className="text-gray-300 text-sm md:text-lg line-clamp-3 md:line-clamp-2 max-w-2xl leading-relaxed drop-shadow-md">
-                                                    {featuredMovie.overview}
-                                                </p>
+                                                        <div className="flex items-center gap-4 text-xs font-bold text-gray-300">
+                                                            <span className="text-green-400 font-bold">{featuredMovie.vote_average ? featuredMovie.vote_average.toFixed(1) : 'NR'} Rating</span>
+                                                            <span>•</span>
+                                                            <span>{featuredMovie.release_date?.split('-')[0] || featuredMovie.first_air_date?.split('-')[0] || 'TBA'}</span>
+                                                            <span>•</span>
+                                                            <span className="uppercase">{GENRES_MAP[Object.keys(GENRES_MAP).find(key => GENRES_MAP[key] === featuredMovie.genre_ids?.[0]) || ""] || "Movie"}</span>
+                                                        </div>
 
-                                                <div className="flex flex-row items-center gap-3 w-full sm:w-auto mt-2">
-                                                    {isExclusive && (
-                                                        <TvFocusButton
-                                                            onClick={() => setSelectedMovie(featuredMovie)}
-                                                            className="flex-1 sm:flex-none px-6 py-2.5 text-sm sm:text-base rounded-md font-bold flex items-center justify-center gap-2.5 transition-all hover:scale-[1.02] active:scale-95 shadow-md bg-white text-black hover:bg-white/90"
-                                                        >
-                                                            <Play size={18} fill="currentColor" /> Watch Now
-                                                        </TvFocusButton>
-                                                    )}
-                                                    <TvFocusButton
-                                                        onClick={() => setSelectedMovie(featuredMovie)}
-                                                        className="flex-1 sm:flex-none px-6 py-2.5 text-sm sm:text-base rounded-md font-bold flex items-center justify-center gap-2.5 bg-white/20 hover:bg-white/35 backdrop-blur-md text-white transition-all hover:scale-[1.02] active:scale-95"
-                                                    >
-                                                        <Info size={18} /> More Info
-                                                    </TvFocusButton>
+                                                        <p className="text-gray-300 text-xs md:text-sm line-clamp-3 max-w-xl leading-relaxed drop-shadow-md font-medium">
+                                                            {featuredMovie.overview}
+                                                        </p>
+
+                                                        <div className="flex flex-row items-center gap-3 w-full sm:w-auto mt-2">
+                                                            {isExclusive && (
+                                                                <TvFocusButton
+                                                                    onClick={() => setSelectedMovie(featuredMovie)}
+                                                                    className="flex-1 sm:flex-none px-6 py-2.5 text-sm sm:text-base rounded-md font-bold flex items-center justify-center gap-2.5 transition-all hover:scale-[1.02] active:scale-95 shadow-md bg-white text-black hover:bg-white/90"
+                                                                >
+                                                                    <Play size={18} fill="currentColor" /> Watch Now
+                                                                </TvFocusButton>
+                                                            )}
+                                                            <TvFocusButton
+                                                                onClick={() => setSelectedMovie(featuredMovie)}
+                                                                className="flex-1 sm:flex-none px-6 py-2.5 text-sm sm:text-base rounded-md font-bold flex items-center justify-center gap-2.5 bg-white/20 hover:bg-white/35 backdrop-blur-md text-white transition-all hover:scale-[1.02] active:scale-95"
+                                                            >
+                                                                <Info size={18} /> More Info
+                                                            </TvFocusButton>
+                                                        </div>
+                                                    </div>
                                                 </div>
                                             </div>
+
+                                            {/* Carousel Indicator Dots */}
+                                            {featuredMovies.length > 1 && (
+                                                <div className="absolute right-6 bottom-12 z-30 flex flex-col gap-2">
+                                                    {featuredMovies.map((_, i) => (
+                                                        <button
+                                                            key={i}
+                                                            onClick={() => setFeaturedIndex(i)}
+                                                            className={`w-2 h-2 rounded-full transition-all duration-300 ${featuredIndex === i ? 'bg-red-600 h-6' : 'bg-white/30 hover:bg-white/60'}`}
+                                                        />
+                                                    ))}
+                                                </div>
+                                            )}
                                         </div>
                                     )}
 
