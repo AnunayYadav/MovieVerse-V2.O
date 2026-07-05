@@ -3,6 +3,7 @@ import { Play, Info, Search, Star, Film, X, Calendar, RefreshCcw, Loader2, Arrow
 import { Movie } from '../types';
 import { TMDB_BASE_URL, TMDB_IMAGE_BASE, TMDB_BACKDROP_BASE, tvFetch } from './Shared';
 import { useTvFocus, TvFocusButton, TvFocusInput } from '../tvNavigation';
+import { MoviePlayer } from './MoviePlayer';
 
 const fetch = tvFetch;
 
@@ -130,6 +131,12 @@ export const DramaPage: React.FC<DramaPageProps> = ({
   const [recs, setRecs] = useState<MDLRecommendation[]>([]);
   const [reviews, setReviews] = useState<MDLReview[]>([]);
 
+  // Watching States
+  const [resolvedTmdb, setResolvedTmdb] = useState<{ id: number; mediaType: 'movie' | 'tv' } | null>(null);
+  const [isWatching, setIsWatching] = useState(false);
+  const [watchSeason, setWatchSeason] = useState(1);
+  const [watchEpisode, setWatchEpisode] = useState(1);
+
   // TMDB matching overlay state
   const [matchingStatus, setMatchingStatus] = useState<{
     isActive: boolean;
@@ -250,6 +257,8 @@ export const DramaPage: React.FC<DramaPageProps> = ({
   useEffect(() => {
     if (!selectedDramaSlug) {
       setDramaDetails(null);
+      setResolvedTmdb(null);
+      setIsWatching(false);
       setActiveDetailsTab('overview');
       return;
     }
@@ -315,15 +324,21 @@ export const DramaPage: React.FC<DramaPageProps> = ({
   };
 
   // Match Drama with TMDB to launch player
-  const handleWatchNow = async (title: string, year?: string) => {
-    let cleanTitle = title.replace(/\(\d{4}\)/g, '').trim();
+  const ensureTmdbMatched = async (customTitle?: string, customYear?: string): Promise<{ id: number; mediaType: 'movie' | 'tv' } | null> => {
+    if (resolvedTmdb) return resolvedTmdb;
+    
+    const titleToSearch = customTitle || dramaDetails?.title;
+    if (!titleToSearch) return null;
+
+    let cleanTitle = titleToSearch.replace(/\(\d{4}\)/g, '').trim();
+    const year = customYear || dramaDetails?.aired?.split(',').pop()?.trim();
     
     setMatchingStatus({ isActive: true, title: cleanTitle, error: null });
 
     try {
       let queryStr = encodeURIComponent(cleanTitle);
       if (year) {
-        queryStr += `&first_air_date_year=${year.trim()}`;
+        queryStr += `&first_air_date_year=${year}`;
       }
       const tvRes = await window.fetch(`${TMDB_BASE_URL}/search/tv?api_key=${apiKey}&query=${queryStr}`);
       const tvData = await tvRes.json();
@@ -334,21 +349,10 @@ export const DramaPage: React.FC<DramaPageProps> = ({
         ) || tvData.results[0];
 
         if (match) {
+          const res = { id: match.id, mediaType: 'tv' as const };
+          setResolvedTmdb(res);
           setMatchingStatus({ isActive: false, title: '', error: null });
-          onMovieClick({
-            id: match.id,
-            media_type: 'tv',
-            title: match.name,
-            name: match.name,
-            overview: match.overview,
-            poster_path: match.poster_path,
-            backdrop_path: match.backdrop_path,
-            vote_average: match.vote_average,
-            vote_count: match.vote_count,
-            popularity: match.popularity,
-            initial_season: 1
-          } as any);
-          return;
+          return res;
         }
       }
 
@@ -362,34 +366,34 @@ export const DramaPage: React.FC<DramaPageProps> = ({
         ) || movieData.results[0];
 
         if (match) {
+          const res = { id: match.id, mediaType: 'movie' as const };
+          setResolvedTmdb(res);
           setMatchingStatus({ isActive: false, title: '', error: null });
-          onMovieClick({
-            id: match.id,
-            media_type: 'movie',
-            title: match.title,
-            name: match.title,
-            overview: match.overview,
-            poster_path: match.poster_path,
-            backdrop_path: match.backdrop_path,
-            vote_average: match.vote_average,
-            vote_count: match.vote_count,
-            popularity: match.popularity
-          } as any);
-          return;
+          return res;
         }
       }
 
-      // If no matches found
       setMatchingStatus(prev => ({ 
         ...prev, 
         error: "We couldn't locate this drama in our streaming database. It may not be indexed yet."
       }));
+      return null;
     } catch (err) {
       console.error("Failed to match TMDB video:", err);
       setMatchingStatus(prev => ({ 
         ...prev, 
         error: "An error occurred while connecting to the stream server."
       }));
+      return null;
+    }
+  };
+
+  const playDrama = async (episodeNum: number = 1, customTitle?: string, customYear?: string) => {
+    const match = await ensureTmdbMatched(customTitle, customYear);
+    if (match) {
+      setWatchEpisode(episodeNum);
+      setWatchSeason(1);
+      setIsWatching(true);
     }
   };
 
@@ -493,7 +497,7 @@ export const DramaPage: React.FC<DramaPageProps> = ({
 
                 <div className="flex items-center gap-3.5 mt-2">
                   <button 
-                    onClick={() => handleWatchNow(heroDrama.title, heroDrama.year)}
+                    onClick={() => playDrama(1, heroDrama.title, heroDrama.year)}
                     className="flex items-center gap-2 px-6 py-2.5 rounded-full bg-red-600 hover:bg-red-700 text-white font-bold text-xs transition-all hover:scale-105 active:scale-95 shadow-[0_8px_20px_rgba(220,38,38,0.3)] cursor-pointer"
                   >
                     <Play size={14} className="fill-white" /> Watch Now
@@ -702,7 +706,7 @@ export const DramaPage: React.FC<DramaPageProps> = ({
                 </div>
                 
                 <button
-                  onClick={() => handleWatchNow(dramaDetails.title, dramaDetails.aired.split(',').pop())}
+                  onClick={() => playDrama(1)}
                   className="w-full mt-5 py-3 bg-red-600 hover:bg-red-700 text-white font-black rounded-lg flex items-center justify-center gap-2 transition-all shadow-md shadow-red-600/20 hover:scale-[1.01] active:scale-98 text-xs tracking-wide cursor-pointer"
                 >
                   <PlayCircle size={16} /> WATCH NOW
@@ -906,7 +910,7 @@ export const DramaPage: React.FC<DramaPageProps> = ({
                             {episodes.map(ep => (
                               <div 
                                 key={ep.episode_number}
-                                onClick={() => handleWatchNow(dramaDetails.title, dramaDetails.aired.split(',').pop())}
+                                onClick={() => playDrama(parseInt(ep.episode_number, 10) || 1)}
                                 className="group flex items-center justify-between p-4 bg-[#0c0c0e] border border-white/5 rounded-2xl hover:border-red-600/30 hover:bg-white/5 transition-all duration-300 cursor-pointer select-none"
                               >
                                 <div className="flex items-center gap-4">
@@ -989,6 +993,24 @@ export const DramaPage: React.FC<DramaPageProps> = ({
 
             </div>
           ) : null}
+        </div>
+      )}
+
+      {/* Embedded Full-Screen Video Player Overlay */}
+      {isWatching && resolvedTmdb && (
+        <div className="fixed inset-0 z-[250] bg-black select-none">
+          <MoviePlayer
+            tmdbId={resolvedTmdb.id}
+            mediaType={resolvedTmdb.mediaType}
+            initialSeason={watchSeason}
+            initialEpisode={watchEpisode}
+            apiKey={apiKey}
+            onClose={() => setIsWatching(false)}
+            onEpisodeChange={(s, e) => {
+              setWatchSeason(s);
+              setWatchEpisode(e);
+            }}
+          />
         </div>
       )}
 
