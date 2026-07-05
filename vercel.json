@@ -9,6 +9,10 @@
       "destination": "/api/mangadex.ts?path=/$1"
     },
     {
+      "source": "/api/drama/(.*)",
+      "destination": "/api/drama.ts?path=/$1"
+    },
+    {
       "source": "/((?!api/).*)",
       "destination": "/index.html"
     }

@@ -18,7 +18,8 @@ import { ExplorePage } from './components/ExplorePage';
 import { AnimePage } from './components/AnimePage';
 import { MovieDome } from './components/MovieDome';
 import { MangaPage } from './components/MangaPage';
-import { BookOpen } from 'lucide-react';
+import { DramaPage } from './components/DramaPage';
+import { BookOpen, Drama } from 'lucide-react';
 import { useTvFocus, TvFocusButton, TvFocusInput } from './tvNavigation';
 import AppTV from './components/AppTV';
 
@@ -1256,6 +1257,7 @@ export default function App() {
     const [activeProvider, setActiveProvider] = useState<any | null>(null);
     const [selectedMangaId, setSelectedMangaId] = useState<string | null>(null);
     const [activeMangaChapterId, setActiveMangaChapterId] = useState<string | null>(null);
+    const [selectedDramaSlug, setSelectedDramaSlug] = useState<string | null>(null);
 
 
     // Routing-related details & player states
@@ -1488,6 +1490,7 @@ export default function App() {
         setIsSidebarOpen(false);
         setSelectedMangaId(null);
         setActiveMangaChapterId(null);
+        setSelectedDramaSlug(null);
 
 
         let category = selectedCategoryRef.current || "All";
@@ -1501,6 +1504,7 @@ export default function App() {
         let characterIdToSelect: number | null = null;
         let mangaIdToSelect: string | null = null;
         let mangaChapterIdToSelect: string | null = null;
+        let dramaSlugToSelect: string | null = null;
 
 
         // Details-related states to sync
@@ -1518,6 +1522,14 @@ export default function App() {
         } else if (path === '/manga' || path === '/browse/manga') {
             category = "Manga";
         } else if (path === '/live-tv') {
+        } else if (path === '/dramas' || path === '/browse/dramas') {
+            category = "Dramas";
+        } else if (path.startsWith('/drama/')) {
+            category = "Dramas";
+            const dramaSlug = parts[2];
+            if (dramaSlug) {
+                dramaSlugToSelect = dramaSlug;
+            }
         } else if (path.startsWith('/manga/')) {
             category = "Manga";
             const mangaId = parts[2];
@@ -1653,6 +1665,7 @@ export default function App() {
         setSelectedPersonId(personIdToSelect);
         setSelectedMangaId(mangaIdToSelect);
         setActiveMangaChapterId(mangaChapterIdToSelect);
+        setSelectedDramaSlug(dramaSlugToSelect);
         setSelectedCharacterId(characterIdToSelect);
 
 
@@ -1769,6 +1782,13 @@ export default function App() {
                     newPath = '/manga';
                 }
 
+            } else if (selectedCategory === 'Dramas') {
+                if (selectedDramaSlug) {
+                    newPath = `/drama/${selectedDramaSlug}`;
+                } else {
+                    newPath = '/browse/dramas';
+                }
+
             } else if (selectedCategory === 'Collection' && currentCollection) {
                 newPath = `/custom-collection/${currentCollection}`;
             }
@@ -1800,7 +1820,7 @@ export default function App() {
                 clearTimeout(urlPushTimerRef.current);
             }
         };
-    }, [selectedCategory, selectedMovie, selectedPersonId, selectedCharacterId, activeWatchPartyRoom, activeKeyword, tmdbCollectionId, activeCountry, currentCollection, isWatching, watchSeason, watchEpisode, showDetailsCast, showDetailsCrew, activeDetailsTab, selectedMangaId, activeMangaChapterId]);
+    }, [selectedCategory, selectedMovie, selectedPersonId, selectedCharacterId, activeWatchPartyRoom, activeKeyword, tmdbCollectionId, activeCountry, currentCollection, isWatching, watchSeason, watchEpisode, showDetailsCast, showDetailsCrew, activeDetailsTab, selectedMangaId, activeMangaChapterId, selectedDramaSlug]);
 
 
     // Dedicated effect to dynamically update document.title based on the active route/state
@@ -1864,6 +1884,8 @@ export default function App() {
             pageTitle = `Country: ${activeCountry.name} - MovieVerse AI`;
         } else if (selectedCategory === 'Manga') {
             pageTitle = 'Manga - MovieVerse AI';
+        } else if (selectedCategory === 'Dramas') {
+            pageTitle = 'Dramas - MovieVerse AI';
         } else if (selectedCategory === 'Collection' && currentCollection) {
             pageTitle = `Collection: ${currentCollection} - MovieVerse AI`;
         } else if (searchQuery) {
@@ -1873,7 +1895,7 @@ export default function App() {
         }
 
         document.title = pageTitle;
-    }, [authChecking, isAuthenticated, selectedCategory, selectedMovie, selectedPersonId, activeWatchPartyRoom, activeKeyword, tmdbCollectionId, activeCountry, currentCollection, isWatching, watchSeason, watchEpisode, showDetailsCast, showDetailsCrew, activeDetailsTab, selectedMangaId, activeMangaChapterId, searchQuery]);
+    }, [authChecking, isAuthenticated, selectedCategory, selectedMovie, selectedPersonId, activeWatchPartyRoom, activeKeyword, tmdbCollectionId, activeCountry, currentCollection, isWatching, watchSeason, watchEpisode, showDetailsCast, showDetailsCrew, activeDetailsTab, selectedMangaId, activeMangaChapterId, selectedDramaSlug, searchQuery]);
 
 
     // Load recommendations based on watch history
@@ -3718,7 +3740,8 @@ export default function App() {
         { id: "Coming", icon: CalendarDays, label: "Coming Soon", action: () => { resetFilters(); setSelectedCategory("Coming"); } },
         { id: "Categories", icon: Clapperboard, label: "Categories", action: () => { resetFilters(); setSelectedCategory("Categories"); } },
         { id: "WatchParty", icon: Users, label: "Watch Party", action: () => { resetFilters(); setSelectedCategory("WatchParty"); } },
-        { id: "LiveTV", icon: Radio, label: "Live TV", action: () => { resetFilters(); setSelectedCategory("LiveTV"); } }
+        { id: "LiveTV", icon: Radio, label: "Live TV", action: () => { resetFilters(); setSelectedCategory("LiveTV"); } },
+        { id: "Dramas", icon: Drama, label: "Dramas", action: () => { resetFilters(); setSelectedDramaSlug(null); setSelectedCategory("Dramas"); } }
     ];
 
     if (authChecking) return <div className="fixed inset-0 bg-black flex items-center justify-center"><LogoLoader /></div>;
@@ -3799,6 +3822,9 @@ export default function App() {
                                 </button>
                                 <button onClick={() => { resetFilters(); setSelectedMangaId(null); setActiveMangaChapterId(null); setSelectedCategory("Manga"); }} className={getSidebarItemClass(selectedCategory === "Manga")}>
                                     <BookOpen size={18} /> Manga
+                                </button>
+                                <button onClick={() => { resetFilters(); setSelectedDramaSlug(null); setSelectedCategory("Dramas"); }} className={getSidebarItemClass(selectedCategory === "Dramas")}>
+                                    <Drama size={18} /> Dramas
                                 </button>
                                 <button onClick={() => { resetFilters(); setSelectedCategory("Multiverse"); }} className={getSidebarItemClass(selectedCategory === "Multiverse")}>
                                     <Sparkles size={18} /> Multiverse <span className="ml-auto text-[8px] opacity-40 hidden lg:inline">Alt+M</span>
@@ -3896,12 +3922,16 @@ export default function App() {
                                     <BookOpen size={15} className="transition-all duration-300 group-hover:scale-110" />
                                     <span>Manga</span>
                                 </TvFocusButton>
+                                <TvFocusButton onClick={() => { resetFilters(); setSelectedDramaSlug(null); setSelectedCategory("Dramas"); }} className={`group flex items-center gap-2 px-5 py-2 rounded-full text-xs font-semibold tracking-wide transition-all duration-300 ${selectedCategory === "Dramas" ? "bg-white/10 text-white" : "text-zinc-400 hover:text-white hover:bg-white/5"}`}>
+                                    <Drama size={15} className="transition-all duration-300 group-hover:scale-110" />
+                                    <span>Dramas</span>
+                                </TvFocusButton>
                                 <div
                                     className="relative flex items-center h-full"
                                     onMouseEnter={handleBrowseEnter}
                                     onMouseLeave={handleBrowseLeave}
                                 >
-                                    <TvFocusButton onClick={() => setIsBrowseOpen(!isBrowseOpen)} className={`flex items-center gap-2 px-5 py-2 rounded-full text-xs font-semibold tracking-wide transition-all duration-300 ${isBrowseOpen || ["Categories", "Awards", "AnimeCommunity", "Franchise", "Family", "TV Shows", "Coming", "LiveTV", "WatchParty", "Multiverse"].includes(selectedCategory)
+                                    <TvFocusButton onClick={() => setIsBrowseOpen(!isBrowseOpen)} className={`flex items-center gap-2 px-5 py-2 rounded-full text-xs font-semibold tracking-wide transition-all duration-300 ${isBrowseOpen || ["Categories", "Awards", "AnimeCommunity", "Franchise", "Family", "TV Shows", "Coming", "LiveTV", "WatchParty", "Multiverse", "Dramas"].includes(selectedCategory)
                                             ? "bg-white/10 text-white shadow-[0_4px_20px_rgba(0,0,0,0.3)] border border-white/10"
                                             : "text-zinc-400 hover:text-white hover:bg-white/5 border border-transparent"
                                         }`}>
@@ -4184,6 +4214,24 @@ export default function App() {
                                     setSelectedMangaId(null);
                                 }
                             }}
+                            disableEntryAnimation={isNavigatingBack}
+                        />
+
+                    ) : selectedCategory === "Dramas" ? (
+                        <DramaPage
+                            apiKey={apiKey}
+                            selectedDramaSlug={selectedDramaSlug}
+                            onDramaSelect={setSelectedDramaSlug}
+                            onMovieClick={(m: any) => {
+                                if (m.initial_season) {
+                                    setWatchSeason(m.initial_season);
+                                    setWatchEpisode(1);
+                                }
+                                setSelectedMovie(m);
+                            }}
+                            searchQuery={searchQuery}
+                            onSearchClear={() => setSearchQuery('')}
+                            isAiSearchActive={isAiSearchActive}
                             disableEntryAnimation={isNavigatingBack}
                         />
 
@@ -4998,7 +5046,7 @@ export default function App() {
                             { id: 'Anime', label: 'Anime', icon: Ghost, action: () => { setIsBrowseOpen(false); resetFilters(); setSelectedCategory("Anime"); }, activeCondition: selectedCategory === "Anime" },
                             { id: 'Manga', label: 'Manga', icon: BookOpen, action: () => { setIsBrowseOpen(false); resetFilters(); setSelectedMangaId(null); setActiveMangaChapterId(null); setSelectedCategory("Manga"); }, activeCondition: selectedCategory === "Manga" },
                             { id: 'LiveTV', label: 'Live TV', icon: Radio, action: () => { setIsBrowseOpen(false); resetFilters(); setSelectedCategory("LiveTV"); }, activeCondition: selectedCategory === "LiveTV" },
-                            { id: 'Browse', label: 'Browse', icon: LayoutGrid, action: () => setIsBrowseOpen(!isBrowseOpen), activeCondition: isBrowseOpen || ["Categories", "Awards", "AnimeCommunity", "Franchise", "Family", "TV Shows", "Coming"].includes(selectedCategory) }
+                            { id: 'Browse', label: 'Browse', icon: LayoutGrid, action: () => setIsBrowseOpen(!isBrowseOpen), activeCondition: isBrowseOpen || ["Categories", "Awards", "AnimeCommunity", "Franchise", "Family", "TV Shows", "Coming", "Dramas"].includes(selectedCategory) }
                         ].map((tab) => {
                             const Icon = tab.icon;
                             const isActive = tab.activeCondition;

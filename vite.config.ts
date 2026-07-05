@@ -50,11 +50,15 @@ export default defineConfig(({ mode }) => {
                 '/api/videasy': './api/videasy.ts',
                 '/api/encdec': './api/encdec.ts',
                 '/api/ai-search': './api/ai-search.ts',
+                '/api/drama': './api/drama.ts',
               };
               
               let matchedPath = pathname || '';
               if (matchedPath.startsWith('/api/anime/')) {
                 matchedPath = '/api/anime';
+              }
+              if (matchedPath.startsWith('/api/drama/')) {
+                matchedPath = '/api/drama';
               }
               
               const modulePath = apiRoutes[matchedPath];
