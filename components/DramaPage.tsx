@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Play, Info, Search, Star, Film, X, Calendar, RefreshCcw, Loader2, ArrowLeft, Tv, AlertCircle, Languages, ChevronRight, MessageSquare, ThumbsUp, Heart, User, Clock, ExternalLink, BookOpen, AlertTriangle, PlayCircle } from 'lucide-react';
+import { Play, Check, ChevronDown, Info, Search, Star, Film, X, Calendar, RefreshCcw, Loader2, ArrowLeft, Tv, AlertCircle, Languages, ChevronRight, MessageSquare, ThumbsUp, Heart, User, Clock, ExternalLink, BookOpen, AlertTriangle, PlayCircle } from 'lucide-react';
 import { Movie } from '../types';
 import { TMDB_BASE_URL, TMDB_IMAGE_BASE, TMDB_BACKDROP_BASE, tvFetch } from './Shared';
 import { useTvFocus, TvFocusButton, TvFocusInput } from '../tvNavigation';
@@ -104,6 +104,10 @@ export const DramaPage: React.FC<DramaPageProps> = ({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Title Language States
+  const [titleLanguage, setTitleLanguage] = useState<'english' | 'romaji' | 'native'>('english');
+  const [isLangDropdownOpen, setIsLangDropdownOpen] = useState(false);
+
   // Calendar States
   const weekdays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
   const [selectedDay, setSelectedDay] = useState('Monday');
@@ -136,6 +140,21 @@ export const DramaPage: React.FC<DramaPageProps> = ({
   const [isWatching, setIsWatching] = useState(false);
   const [watchSeason, setWatchSeason] = useState(1);
   const [watchEpisode, setWatchEpisode] = useState(1);
+
+  // Infinite Scroll / More Categories States
+  const [infiniteRows, setInfiniteRows] = useState<Array<{ title: string; items: MDLDramaSummary[] }>>([]);
+  const [currentLoadIndex, setCurrentLoadIndex] = useState(0);
+  const [loadingMoreRows, setLoadingMoreRows] = useState(false);
+
+  const additionalQuarters = [
+    { year: 2025, quarter: 3, title: "Summer 2025 Hits" },
+    { year: 2025, quarter: 2, title: "Spring 2025 Hits" },
+    { year: 2025, quarter: 1, title: "Winter 2025 Hits" },
+    { year: 2024, quarter: 4, title: "Fall 2024 Hits" },
+    { year: 2024, quarter: 3, title: "Summer 2024 Hits" },
+    { year: 2024, quarter: 2, title: "Spring 2024 Hits" },
+    { year: 2024, quarter: 1, title: "Winter 2024 Hits" }
+  ];
 
   // TMDB matching overlay state
   const [matchingStatus, setMatchingStatus] = useState<{
@@ -312,6 +331,48 @@ export const DramaPage: React.FC<DramaPageProps> = ({
       .catch(e => console.error("Failed to load reviews", e));
   };
 
+  // Load more categories (quarters) on scroll
+  const loadMoreQuarters = useCallback(async () => {
+    if (loadingMoreRows || currentLoadIndex >= additionalQuarters.length) return;
+    setLoadingMoreRows(true);
+    
+    const target = additionalQuarters[currentLoadIndex];
+    try {
+      const res = await window.fetch(`/api/drama/api/seasonal/${target.year}/${target.quarter}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.dramas) {
+          setInfiniteRows(prev => [...prev, {
+            title: target.title,
+            items: data.dramas || []
+          }]);
+          setCurrentLoadIndex(prev => prev + 1);
+        }
+      }
+    } catch (e) {
+      console.error("Failed to load more seasonal rows:", e);
+    } finally {
+      setLoadingMoreRows(false);
+    }
+  }, [currentLoadIndex, loadingMoreRows]);
+
+  // Infinite scroll listener
+  useEffect(() => {
+    const handleScroll = () => {
+      if (selectedDramaSlug || searchQuery) return;
+      const scrollHeight = document.documentElement.scrollHeight;
+      const scrollTop = document.documentElement.scrollTop;
+      const clientHeight = document.documentElement.clientHeight;
+      
+      if (scrollHeight - scrollTop - clientHeight < 400) {
+        loadMoreQuarters();
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [loadMoreQuarters, selectedDramaSlug, searchQuery]);
+
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setSearchQuery(searchInput);
@@ -398,13 +459,26 @@ export const DramaPage: React.FC<DramaPageProps> = ({
   };
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-[#030303] flex flex-col items-center justify-center gap-4">
-        <Loader2 className="w-10 h-10 text-red-600 animate-spin" />
-        <p className="text-zinc-400 text-sm animate-pulse">Loading MovieVerse Dramas...</p>
-      </div>
-    );
+    return <DramaPageSkeleton />;
   }
+
+  // Build high-res backdrop from TMDB cache if present
+  const cacheKey = selectedDramaSlug ? `movieverse_drama_tmdb_match_${selectedDramaSlug}` : '';
+  const cachedMatchRaw = cacheKey ? localStorage.getItem(cacheKey) : null;
+  let backdropUrl = dramaDetails?.image || '';
+  if (cachedMatchRaw) {
+    try {
+      const cachedMatch = JSON.parse(cachedMatchRaw);
+      if (cachedMatch && cachedMatch.backdrop_path) {
+        backdropUrl = `https://image.tmdb.org/t/p/w1280${cachedMatch.backdrop_path}`;
+      }
+    } catch (_) {}
+  }
+
+  // Resolve details title language
+  const detailsTitle = dramaDetails ? (
+    titleLanguage === 'native' ? (dramaDetails.native_title || dramaDetails.title) : dramaDetails.title
+  ) : '';
 
   return (
     <div className={`min-h-screen bg-[#030303] pb-24 text-white font-sans ${disableEntryAnimation ? '' : 'animate-in fade-in duration-500'} overflow-x-hidden`}>
@@ -468,7 +542,7 @@ export const DramaPage: React.FC<DramaPageProps> = ({
               </div>
 
               {/* Hero Content */}
-              <div className="absolute bottom-0 left-0 right-0 px-4 md:px-12 pb-12 max-w-7xl mx-auto flex flex-col items-start gap-4 text-left">
+              <div className="absolute bottom-0 left-0 right-0 px-3 md:px-6 pb-12 max-w-7xl mx-auto flex flex-col items-start gap-4 text-left">
                 <div className="flex items-center gap-2.5">
                   <span className="bg-red-600/25 border border-red-500/30 text-red-500 font-extrabold text-[10px] uppercase tracking-widest px-2.5 py-1 rounded-full backdrop-blur-sm animate-pulse animate-duration-1000">
                     ★ MDL Featured
@@ -513,8 +587,8 @@ export const DramaPage: React.FC<DramaPageProps> = ({
             </div>
           )}
 
-          {/* Search Section */}
-          <div className="max-w-7xl mx-auto px-4 md:px-12 mt-8 select-none">
+          {/* Search Section & Configuration Header */}
+          <div className="max-w-7xl mx-auto px-3 md:px-6 mt-8 select-none flex items-center justify-between gap-4 flex-wrap">
             <form onSubmit={handleSearchSubmit} className="relative max-w-md w-full">
               <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-400" size={16} />
               <input 
@@ -534,12 +608,54 @@ export const DramaPage: React.FC<DramaPageProps> = ({
                 </button>
               )}
             </form>
+
+            {/* Title Language Dropdown Selector */}
+            <div className="relative group shrink-0">
+              <button 
+                onClick={() => setIsLangDropdownOpen(!isLangDropdownOpen)} 
+                className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/15 hover:border-white/25 rounded-full text-xs font-bold text-gray-200 transition-all active:scale-95 min-w-[130px] justify-between shadow-lg backdrop-blur-md"
+              >
+                <div className="flex items-center gap-2">
+                  <Languages size={14} className="text-red-500" /> 
+                  <span>{titleLanguage === 'english' ? 'English' : titleLanguage === 'romaji' ? 'Romaji' : 'Native'}</span>
+                </div>
+                <ChevronDown size={12} className="text-zinc-500 group-hover:text-white transition-colors" />
+              </button>
+              {isLangDropdownOpen && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setIsLangDropdownOpen(false)} />
+                  <div className="absolute right-0 mt-2 w-40 bg-[#0c0c0e]/95 backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden shadow-2xl transition-all origin-top-right z-50 p-1.5 p-1 animate-in fade-in slide-in-from-top-2 duration-200">
+                    {[
+                      { value: 'english', label: 'English' },
+                      { value: 'romaji', label: 'Romaji' },
+                      { value: 'native', label: 'Native' }
+                    ].map(opt => (
+                      <button 
+                        key={opt.value} 
+                        onClick={() => { 
+                          setTitleLanguage(opt.value as any); 
+                          setIsLangDropdownOpen(false); 
+                        }} 
+                        className={`w-full text-left px-3.5 py-2 text-xs font-bold rounded-xl transition-colors flex items-center justify-between ${
+                          titleLanguage === opt.value 
+                            ? 'bg-red-600 text-white shadow-md shadow-red-600/20' 
+                            : 'text-zinc-400 hover:bg-white/5 hover:text-white'
+                        }`}
+                      >
+                        {opt.label}
+                        {titleLanguage === opt.value && <Check size={12} />}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
           </div>
 
           {/* Catalog Body */}
           <div className="max-w-7xl mx-auto mt-8 flex flex-col gap-10 select-none pb-16">
             {error && (
-              <div className="mx-4 md:mx-12 bg-red-500/10 border border-red-500/20 p-5 rounded-2xl flex items-center gap-4 text-sm text-red-400">
+              <div className="mx-3 md:mx-6 bg-red-500/10 border border-red-500/20 p-5 rounded-2xl flex items-center gap-4 text-sm text-red-400">
                 <AlertCircle className="shrink-0" />
                 <p>{error}</p>
               </div>
@@ -547,7 +663,7 @@ export const DramaPage: React.FC<DramaPageProps> = ({
 
             {/* Search Results Grid */}
             {searchQuery && (
-              <div className="px-4 md:px-12">
+              <div className="px-3 md:px-6">
                 <h2 className="text-xl md:text-2xl font-black text-white tracking-tight flex items-center gap-3.5 mb-6 text-left">
                   <span className="w-2.5 h-6 rounded-full bg-red-600"></span>
                   Search Results for "{searchQuery}"
@@ -559,7 +675,7 @@ export const DramaPage: React.FC<DramaPageProps> = ({
                 ) : searchResults.length > 0 ? (
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6 justify-items-center">
                     {searchResults.map(drama => (
-                      <DramaCard key={drama.slug} drama={drama} onDramaClick={onDramaSelect} />
+                      <DramaCard key={drama.slug} drama={drama} onDramaClick={onDramaSelect} titleLanguage={titleLanguage} apiKey={apiKey} />
                     ))}
                   </div>
                 ) : (
@@ -575,7 +691,7 @@ export const DramaPage: React.FC<DramaPageProps> = ({
               <>
                 {/* Airing Calendar Section */}
                 {Object.keys(calendarDramas).length > 0 && (
-                  <div className="mx-4 md:mx-12 bg-[#0c0c0e]/50 border border-white/5 rounded-2xl p-4 md:p-6 shadow-xl text-left">
+                  <div className="mx-3 md:mx-6 bg-[#0c0c0e]/50 border border-white/5 rounded-2xl p-4 md:p-6 shadow-xl text-left text-zinc-100">
                     <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-white/5 pb-4 mb-5 gap-3">
                       <div>
                         <h2 className="text-lg md:text-xl font-black text-white tracking-tight flex items-center gap-2.5">
@@ -611,7 +727,7 @@ export const DramaPage: React.FC<DramaPageProps> = ({
                     {calendarDramas[selectedDay] && calendarDramas[selectedDay].length > 0 ? (
                       <div className="flex gap-5 overflow-x-auto pb-4 hide-scrollbar scroll-smooth">
                         {calendarDramas[selectedDay].map(drama => (
-                          <DramaCard key={drama.slug} drama={drama} onDramaClick={onDramaSelect} />
+                          <DramaCard key={drama.slug} drama={drama} onDramaClick={onDramaSelect} titleLanguage={titleLanguage} apiKey={apiKey} />
                         ))}
                       </div>
                     ) : (
@@ -623,9 +739,22 @@ export const DramaPage: React.FC<DramaPageProps> = ({
                 )}
 
                 {/* Seasonal/Trending Horizontally Scrollable Category Rows */}
-                <DramaRow title="Trending Right Now" items={trending} onDramaClick={onDramaSelect} />
-                <DramaRow title="Winter 2026 Hits" items={seasonalRow1} onDramaClick={onDramaSelect} />
-                <DramaRow title="Fall 2025 Hits" items={seasonalRow2} onDramaClick={onDramaSelect} />
+                <DramaRow title="Trending Right Now" items={trending} onDramaClick={onDramaSelect} titleLanguage={titleLanguage} apiKey={apiKey} />
+                <DramaRow title="Winter 2026 Hits" items={seasonalRow1} onDramaClick={onDramaSelect} titleLanguage={titleLanguage} apiKey={apiKey} />
+                <DramaRow title="Fall 2025 Hits" items={seasonalRow2} onDramaClick={onDramaSelect} titleLanguage={titleLanguage} apiKey={apiKey} />
+
+                {/* Infinite Loaded Rows */}
+                {infiniteRows.map((row, idx) => (
+                  <DramaRow key={idx} title={row.title} items={row.items} onDramaClick={onDramaSelect} titleLanguage={titleLanguage} apiKey={apiKey} />
+                ))}
+
+                {/* Scrolling loading indicator */}
+                {loadingMoreRows && (
+                  <div className="flex items-center justify-center py-6 gap-2">
+                    <Loader2 className="w-5 h-5 text-red-600 animate-spin" />
+                    <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Loading older hits...</span>
+                  </div>
+                )}
               </>
             )}
           </div>
@@ -634,14 +763,14 @@ export const DramaPage: React.FC<DramaPageProps> = ({
 
       {/* Drama Detailed View Panel (Premium Full-Screen Layout) */}
       {selectedDramaSlug && (
-        <div className="min-h-screen bg-[#030303] text-white pb-16 relative select-none font-sans animate-in fade-in duration-300">
+        <div className="min-h-screen bg-[#030303] text-white pb-16 relative select-none font-sans animate-in fade-in duration-300 pt-16">
           
           {/* Backdrop Hero Banner */}
           <div className="relative w-full h-[25vh] md:h-[35vh] overflow-hidden select-none">
-            {dramaDetails && (
+            {backdropUrl && (
               <img
-                src={dramaDetails.image}
-                alt={dramaDetails.title}
+                src={backdropUrl}
+                alt={dramaDetails?.title}
                 referrerPolicy="no-referrer"
                 className="w-full h-full object-cover opacity-15 blur-xl scale-110"
               />
@@ -650,27 +779,27 @@ export const DramaPage: React.FC<DramaPageProps> = ({
             
             <button
               onClick={() => onDramaSelect(null)}
-              className="absolute top-4 left-4 md:left-12 flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/[0.03] hover:bg-white/[0.07] border border-white/[0.04] text-xs font-normal text-zinc-300 hover:text-white transition-all active:scale-95 z-30"
+              className="absolute top-4 left-3 md:left-6 flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/[0.03] hover:bg-white/[0.07] border border-white/[0.04] text-xs font-normal text-zinc-300 hover:text-white transition-all active:scale-95 z-30 font-sans"
             >
               <ArrowLeft size={14} /> Back to Dramas
             </button>
           </div>
 
           {detailsLoading ? (
-            <div className="max-w-7xl mx-auto px-4 md:px-12 -mt-20 md:-mt-32 relative z-20 flex flex-col md:flex-row gap-8 pb-16 text-left">
+            <div className="max-w-7xl mx-auto px-3 md:px-6 -mt-20 md:-mt-32 relative z-20 flex flex-col md:flex-row gap-8 pb-16 text-left">
               {/* Left Column Shimmer */}
               <div className="w-[180px] md:w-[280px] shrink-0">
-                <div className="w-full aspect-[2/3] bg-zinc-950/20 shimmer-bg rounded-xl" />
-                <div className="w-full h-12 bg-zinc-950/20 shimmer-bg rounded-lg mt-5" />
+                <div className="w-full aspect-[2/3] bg-zinc-950/40 shimmer-bg rounded-xl" />
+                <div className="w-full h-12 bg-zinc-950/40 shimmer-bg rounded-lg mt-5" />
               </div>
               {/* Right Column Shimmer */}
               <div className="flex-1 space-y-6 pt-12 md:pt-24">
-                <div className="h-10 w-2/3 bg-zinc-950/20 shimmer-bg rounded-lg" />
-                <div className="h-4 w-1/3 bg-zinc-950/20 shimmer-bg rounded-lg" />
+                <div className="h-10 w-2/3 bg-zinc-950/40 shimmer-bg rounded-lg" />
+                <div className="h-4 w-1/3 bg-zinc-950/40 shimmer-bg rounded-lg" />
                 <div className="space-y-3 pt-6">
-                  <div className="h-4 w-full bg-zinc-950/20 shimmer-bg rounded-lg" />
-                  <div className="h-4 w-full bg-zinc-950/20 shimmer-bg rounded-lg" />
-                  <div className="h-4 w-3/4 bg-zinc-950/20 shimmer-bg rounded-lg" />
+                  <div className="h-4 w-full bg-zinc-950/40 shimmer-bg rounded-lg" />
+                  <div className="h-4 w-full bg-zinc-950/40 shimmer-bg rounded-lg" />
+                  <div className="h-4 w-3/4 bg-zinc-950/40 shimmer-bg rounded-lg" />
                 </div>
               </div>
             </div>
@@ -687,13 +816,13 @@ export const DramaPage: React.FC<DramaPageProps> = ({
               </button>
             </div>
           ) : dramaDetails ? (
-            <div className="max-w-7xl mx-auto px-4 md:px-12 -mt-20 md:-mt-32 relative z-20 flex flex-col md:flex-row gap-8 pb-16 text-left">
+            <div className="max-w-7xl mx-auto px-3 md:px-6 -mt-20 md:-mt-32 relative z-20 flex flex-col md:flex-row gap-8 pb-16 text-left">
               
               {/* Left Column - Side Cover Card & Specs */}
               <div className="w-full md:w-[280px] shrink-0 flex flex-col items-center md:items-start select-none">
                 <div className="w-[180px] md:w-full aspect-[2/3] bg-zinc-900 rounded-xl overflow-hidden shadow-2xl relative border border-white/10">
                   <img
-                    src={dramaDetails.image}
+                    src={backdropUrl || dramaDetails.image}
                     alt={dramaDetails.title}
                     referrerPolicy="no-referrer"
                     className="w-full h-full object-cover"
@@ -716,7 +845,7 @@ export const DramaPage: React.FC<DramaPageProps> = ({
                   href={dramaDetails.url} 
                   target="_blank" 
                   rel="noopener noreferrer"
-                  className="w-full mt-2.5 py-2.5 bg-white/5 hover:bg-white/10 text-zinc-300 hover:text-white font-bold text-xs rounded-lg border border-white/5 transition-all text-center flex items-center justify-center gap-1.5 cursor-pointer"
+                  className="w-full mt-2.5 py-2.5 bg-white/5 hover:bg-white/10 text-zinc-300 hover:text-white font-bold text-xs rounded-lg border border-white/5 transition-all text-center flex items-center justify-center gap-1.5 cursor-pointer font-sans"
                 >
                   MyDramaList <ExternalLink size={12} />
                 </a>
@@ -761,7 +890,7 @@ export const DramaPage: React.FC<DramaPageProps> = ({
               {/* Right Column - Title, Synopsis, Tabs */}
               <div className="flex-1 space-y-6">
                 <div className="mt-6 md:mt-16">
-                  <h2 className="text-3xl md:text-5xl font-black text-white tracking-tight leading-tight">{dramaDetails.title}</h2>
+                  <h2 className="text-3xl md:text-5xl font-black text-white tracking-tight leading-tight">{detailsTitle}</h2>
                   {dramaDetails.native_title && (
                     <p className="text-zinc-500 text-xs md:text-sm mt-1.5">Native Title: <span className="text-zinc-300 font-semibold">{dramaDetails.native_title}</span></p>
                   )}
@@ -844,7 +973,7 @@ export const DramaPage: React.FC<DramaPageProps> = ({
                             <h3 className="text-xs font-bold text-zinc-400 mb-3 uppercase tracking-widest">Alternative Titles</h3>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-zinc-400 text-xs">
                               {dramaDetails.also_known_as.slice(0, 6).map((alt, i) => (
-                                <div key={i} className="flex items-center gap-2 bg-white/[0.02] border border-white/5 p-2.5 rounded-lg font-medium">
+                                <div key={i} className="flex items-center gap-2 bg-white/[0.02] border border-white/5 p-2.5 rounded-lg font-medium font-sans">
                                   <span className="w-1.5 h-1.5 rounded-full bg-red-600 shrink-0"></span>
                                   <span className="line-clamp-1">{alt}</span>
                                 </div>
@@ -975,7 +1104,7 @@ export const DramaPage: React.FC<DramaPageProps> = ({
                         {recs.length > 0 ? (
                           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6 justify-items-center">
                             {recs.map((rec, idx) => (
-                              <DramaCard key={idx} drama={rec} onDramaClick={onDramaSelect} />
+                              <DramaCard key={idx} drama={rec} onDramaClick={onDramaSelect} titleLanguage={titleLanguage} apiKey={apiKey} />
                             ))}
                           </div>
                         ) : (
@@ -1023,14 +1152,109 @@ export const DramaPage: React.FC<DramaPageProps> = ({
 export interface DramaCardProps {
   drama: any;
   onDramaClick: (slug: string) => void;
+  titleLanguage: 'english' | 'romaji' | 'native';
+  apiKey: string;
 }
 
-export const DramaCard: React.FC<DramaCardProps> = ({ drama, onDramaClick }) => {
+export const DramaCard: React.FC<DramaCardProps> = ({ drama, onDramaClick, titleLanguage, apiKey }) => {
   const { ref } = useTvFocus({
     onEnterPress: () => onDramaClick(drama.slug)
   });
 
-  const rating = drama.rating ? parseFloat(drama.rating) : null;
+  const [posterUrl, setPosterUrl] = useState<string>(drama.image);
+  const [displayTitle, setDisplayTitle] = useState<string>(drama.title);
+  const [rating, setRating] = useState<number | null>(drama.rating ? parseFloat(drama.rating) : null);
+
+  // Asynchronously resolve TMDB high-res poster and title
+  useEffect(() => {
+    let isMounted = true;
+    const cacheKey = `movieverse_drama_tmdb_match_${drama.slug}`;
+    const cached = localStorage.getItem(cacheKey);
+
+    if (cached) {
+      try {
+        const data = JSON.parse(cached);
+        if (data) {
+          if (data.poster_path && isMounted) {
+            setPosterUrl(`https://image.tmdb.org/t/p/w500${data.poster_path}`);
+          }
+          if (isMounted) {
+            const tmdbTitle = titleLanguage === 'native' 
+              ? (data.original_name || data.original_title || drama.title)
+              : (data.name || data.title || drama.title);
+            setDisplayTitle(tmdbTitle);
+            if (data.vote_average) {
+              setRating(data.vote_average);
+            }
+          }
+        }
+      } catch (_) {}
+      return;
+    }
+
+    if (!apiKey) return;
+
+    const resolveTmdb = async () => {
+      const cleanTitle = drama.title.replace(/\(\d{4}\)/g, '').trim();
+      try {
+        let queryStr = encodeURIComponent(cleanTitle);
+        if (drama.year) {
+          queryStr += `&first_air_date_year=${drama.year.trim()}`;
+        }
+        const tvRes = await fetch(`${TMDB_BASE_URL}/search/tv?api_key=${apiKey}&query=${queryStr}`);
+        const tvData = await tvRes.json();
+        let match = null;
+        
+        if (tvData && tvData.results && tvData.results.length > 0) {
+          match = tvData.results.find((item: any) => 
+            ['ko', 'zh', 'ja'].includes(item.original_language)
+          ) || tvData.results[0];
+        }
+
+        if (!match) {
+          const movieRes = await fetch(`${TMDB_BASE_URL}/search/movie?api_key=${apiKey}&query=${encodeURIComponent(cleanTitle)}`);
+          const movieData = await movieRes.json();
+          if (movieData && movieData.results && movieData.results.length > 0) {
+            match = movieData.results.find((item: any) => 
+              ['ko', 'zh', 'ja'].includes(item.original_language)
+            ) || movieData.results[0];
+          }
+        }
+
+        if (match && isMounted) {
+          const matchData = {
+            id: match.id,
+            mediaType: match.first_air_date ? 'tv' : 'movie',
+            poster_path: match.poster_path,
+            backdrop_path: match.backdrop_path,
+            name: match.name || match.title,
+            original_name: match.original_name || match.original_title,
+            vote_average: match.vote_average
+          };
+          localStorage.setItem(cacheKey, JSON.stringify(matchData));
+          
+          if (match.poster_path) {
+            setPosterUrl(`https://image.tmdb.org/t/p/w500${match.poster_path}`);
+          }
+          const tmdbTitle = titleLanguage === 'native'
+            ? (matchData.original_name || drama.title)
+            : (matchData.name || drama.title);
+          setDisplayTitle(tmdbTitle);
+          if (match.vote_average) {
+            setRating(match.vote_average);
+          }
+        }
+      } catch (e) {
+        console.error("Failed resolving TMDB match in DramaCard:", e);
+      }
+    };
+
+    resolveTmdb();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [drama.slug, titleLanguage, apiKey]);
 
   return (
     <div
@@ -1053,8 +1277,8 @@ export const DramaCard: React.FC<DramaCardProps> = ({ drama, onDramaClick }) => 
       )}
 
       <img
-        src={drama.image}
-        alt={drama.title}
+        src={posterUrl}
+        alt={displayTitle}
         loading="lazy"
         referrerPolicy="no-referrer"
         className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
@@ -1064,7 +1288,7 @@ export const DramaCard: React.FC<DramaCardProps> = ({ drama, onDramaClick }) => 
       {/* Title Details Overlay */}
       <div className="absolute inset-0 p-3 flex flex-col justify-end text-left select-none pointer-events-none">
         <h4 className="text-xs sm:text-sm font-bold text-white line-clamp-2 group-hover:text-red-500 transition-colors duration-300 drop-shadow-md leading-tight">
-          {drama.title}
+          {displayTitle}
         </h4>
         <div className="max-h-0 overflow-hidden group-hover:max-h-10 group-hover:mt-1 transition-all duration-500 ease-out opacity-0 group-hover:opacity-100 flex items-center justify-between text-[9px] text-zinc-400 font-semibold">
           <span>{drama.year || drama.network || 'Airing'}</span>
@@ -1081,14 +1305,16 @@ export interface DramaRowProps {
   title: string;
   items: any[];
   onDramaClick: (slug: string) => void;
+  titleLanguage: 'english' | 'romaji' | 'native';
+  apiKey: string;
   onExpand?: () => void;
 }
 
-export const DramaRow: React.FC<DramaRowProps> = ({ title, items, onDramaClick, onExpand }) => {
+export const DramaRow: React.FC<DramaRowProps> = ({ title, items, onDramaClick, titleLanguage, apiKey, onExpand }) => {
   if (!items || items.length === 0) return null;
   return (
-    <div className="mb-10 animate-in fade-in duration-500 text-left font-sans select-none">
-      <div className="flex items-center justify-between px-4 md:px-12 mb-4">
+    <div className="mb-10 animate-in fade-in duration-500 text-left font-sans select-none px-3 md:px-6">
+      <div className="flex items-center justify-between mb-4">
         <h3 className="text-lg font-bold text-white tracking-tight flex items-center gap-2 select-none">
           <span className="w-1.5 h-5 bg-red-600 rounded-full inline-block"></span>
           {title}
@@ -1103,9 +1329,45 @@ export const DramaRow: React.FC<DramaRowProps> = ({ title, items, onDramaClick, 
           </button>
         )}
       </div>
-      <div className="flex gap-5 overflow-x-auto px-4 md:px-12 pb-4 hide-scrollbar scroll-smooth">
+      <div className="flex gap-5 overflow-x-auto pb-4 hide-scrollbar scroll-smooth">
         {items.map((drama) => (
-          <DramaCard key={drama.slug} drama={drama} onDramaClick={onDramaClick} />
+          <DramaCard key={drama.slug} drama={drama} onDramaClick={onDramaClick} titleLanguage={titleLanguage} apiKey={apiKey} />
+        ))}
+      </div>
+    </div>
+  );
+};
+
+// --- SHIMMER SKELETON LOADER ---
+
+export const DramaPageSkeleton: React.FC = () => {
+  return (
+    <div className="min-h-screen bg-[#030303] pb-24 text-white font-sans text-left overflow-hidden">
+      {/* Hero Banner Skeleton */}
+      <div className="relative w-full h-[65vh] md:h-[75vh] bg-zinc-950/40 shimmer-bg flex flex-col justify-end p-8 md:p-16">
+        <div className="max-w-3xl space-y-4">
+          <div className="h-6 w-32 bg-white/10 rounded-full shimmer-bg" />
+          <div className="h-12 w-3/4 bg-white/10 rounded-xl shimmer-bg" />
+          <div className="h-4 w-full bg-white/10 rounded-lg shimmer-bg" />
+          <div className="h-4 w-2/3 bg-white/10 rounded-lg shimmer-bg" />
+          <div className="flex gap-3 pt-2">
+            <div className="h-10 w-28 bg-white/10 rounded-full shimmer-bg" />
+            <div className="h-10 w-28 bg-white/10 rounded-full shimmer-bg" />
+          </div>
+        </div>
+      </div>
+
+      {/* Rows Skeletons */}
+      <div className="max-w-7xl mx-auto px-4 md:px-6 mt-12 space-y-12">
+        {[1, 2].map((i) => (
+          <div key={i} className="space-y-4 text-left">
+            <div className="h-6 w-48 bg-white/10 rounded-md shimmer-bg" />
+            <div className="flex gap-5 overflow-x-hidden pb-4">
+              {[1, 2, 3, 4, 5, 6, 7].map((j) => (
+                <div key={j} className="shrink-0 w-[140px] sm:w-[170px] aspect-[2/3] bg-zinc-950/40 border border-white/5 rounded-xl shimmer-bg" />
+              ))}
+            </div>
+          </div>
         ))}
       </div>
     </div>
