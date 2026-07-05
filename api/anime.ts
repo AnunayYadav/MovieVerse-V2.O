@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import * as cheerio from 'cheerio';
 import zlib from 'zlib';
+import crypto from 'crypto';
 import { META } from '@consumet/extensions';
 
 // Initialize and cache AniList Meta provider instance
@@ -274,7 +275,217 @@ async function resolveAnikai(
   return matchedVideoUrl;
 }
 
+const DECRYPT_KEYS: Record<string, { key: Buffer; iv: Buffer }> = {
+  txt: {
+    key: Buffer.from("8056483646328763"),
+    iv: Buffer.from("6852612370185273"),
+  },
+  txt1: {
+    key: Buffer.from("AmSmZVcH93UQUezi"),
+    iv: Buffer.from("ReBKWW8cqdjPEnF6"),
+  },
+  default: {
+    key: Buffer.from("sWODXX04QRTkHdlZ"),
+    iv: Buffer.from("8pwhapJeC4hrS9hO"),
+  },
+};
 
+function decryptSubtitleText(data: string, url: string): string {
+  const lowerUrl = url.split("?")[0]?.toLowerCase() || url.toLowerCase();
+  let format = "default";
+  if (lowerUrl.endsWith(".txt1")) {
+    format = "txt1";
+  } else if (lowerUrl.endsWith(".txt")) {
+    format = "txt";
+  }
+  const { key, iv } = DECRYPT_KEYS[format] || DECRYPT_KEYS.default;
+
+  const normalizedData = data
+    .replace(/\\n/g, "\n")
+    .replace(/\\r/g, "\r")
+    .replace(/"/g, "");
+  const lines = normalizedData.split(/\r?\n/);
+  
+  const decryptedLines = lines
+    .map((line) => {
+      const trimmed = line.trim();
+      if (/^[A-Za-z0-9+/]+={0,2}$/.test(trimmed) && trimmed.length > 4) {
+        try {
+          const decipher = crypto.createDecipheriv("aes-128-cbc", key, iv);
+          let decryptedLine = decipher.update(trimmed, "base64", "utf8");
+          decryptedLine += decipher.final("utf8");
+          return decryptedLine;
+        } catch (error) {
+          return line;
+        }
+      }
+      return line;
+    })
+    .join("\n");
+  
+  return decryptedLines;
+}
+
+async function resolveKisskh(
+  title: string,
+  mediaType: string,
+  seasonNum: number,
+  episodeNum: number,
+  year?: string
+) {
+  const baseUrl = "https://kisskh.nl";
+  const viGuid = "62f176f3bb1b5b8e70e39932ad34a0c7";
+  const subGuid = "VgV52sWhwvBSf8BsM3BRY9weWiiCbtGp";
+
+  // 1. Search for drama
+  const cleanTarget = title.replace(/\(\d{4}\)/g, '').trim();
+  const searchUrl = `${baseUrl}/api/DramaList/Search?q=${encodeURIComponent(cleanTarget)}&type=0`;
+  const searchRes = await fetch(searchUrl, {
+    headers: {
+      "User-Agent": USER_AGENT,
+      "Accept": "application/json"
+    }
+  });
+  if (!searchRes.ok) throw new Error("KissKh search failed");
+  const searchList = await searchRes.json() as any[];
+  
+  if (!searchList || searchList.length === 0) {
+    throw new Error(`No show found on KissKh matching "${title}"`);
+  }
+
+  // Find best match
+  const lowerTarget = cleanTarget.toLowerCase();
+  let matchedShow = searchList.find(item => item.title.toLowerCase() === lowerTarget);
+  if (!matchedShow && year) {
+    matchedShow = searchList.find(item => item.title.toLowerCase().includes(lowerTarget) && item.title.includes(year));
+  }
+  if (!matchedShow) {
+    matchedShow = searchList.find(item => item.title.toLowerCase().includes(lowerTarget) || lowerTarget.includes(item.title.toLowerCase()));
+  }
+  if (!matchedShow) {
+    matchedShow = searchList[0];
+  }
+
+  const dramaId = matchedShow.id;
+
+  // 2. Fetch drama details
+  const detailRes = await fetch(`${baseUrl}/api/DramaList/Drama/${dramaId}`, {
+    headers: {
+      "User-Agent": USER_AGENT,
+      "Accept": "application/json"
+    }
+  });
+  if (!detailRes.ok) throw new Error("Failed to fetch drama details from KissKh");
+  const detail = await detailRes.json() as any;
+
+  // Find correct episode
+  const requestedEpNum = mediaType === 'movie' ? 1 : episodeNum;
+  const ep = detail.episodes.find((e: any) => e.number === requestedEpNum) || detail.episodes[0];
+  if (!ep) {
+    throw new Error(`Episode ${requestedEpNum} not found for drama "${detail.title}"`);
+  }
+  const episodeId = ep.id;
+
+  // 3. Fetch index.html to find the script and evaluate token generator
+  const indexRes = await fetch(`${baseUrl}/index.html`, {
+    headers: {
+      "User-Agent": USER_AGENT
+    }
+  });
+  if (!indexRes.ok) throw new Error("Failed to fetch KissKh index.html");
+  const html = await indexRes.text();
+  const scriptMatch = html.match(/<script[^>]*src="([^"]*common[^"]*)"/i);
+  if (!scriptMatch) {
+    throw new Error("Could not find common script in KissKh index.html");
+  }
+  const scriptSrc = scriptMatch[1];
+
+  // Fetch script JS
+  const jsRes = await fetch(`${baseUrl}/${scriptSrc}`, {
+    headers: {
+      "User-Agent": USER_AGENT
+    }
+  });
+  if (!jsRes.ok) throw new Error("Failed to fetch KissKh common JS file");
+  const jsCode = await jsRes.text();
+
+  // Evaluate stream token
+  const streamSandbox = `
+    ${jsCode};
+    _0x54b991(${episodeId}, null, "2.8.10", "${viGuid}", 4830201, "kisskh", "kisskh", "kisskh", "kisskh", "kisskh", "kisskh");
+  `;
+  let streamToken;
+  try {
+    streamToken = eval(streamSandbox);
+  } catch (e: any) {
+    throw new Error(`Stream token evaluation failed: ${e.message}`);
+  }
+
+  // Evaluate subtitle token
+  const subSandbox = `
+    ${jsCode};
+    _0x54b991(${episodeId}, null, "2.8.10", "${subGuid}", 4830201, "kisskh", "kisskh", "kisskh", "kisskh", "kisskh", "kisskh");
+  `;
+  let subToken;
+  try {
+    subToken = eval(subSandbox);
+  } catch (e: any) {
+    throw new Error(`Subtitle token evaluation failed: ${e.message}`);
+  }
+
+  // 4. Fetch direct video stream URL
+  const streamRes = await fetch(`${baseUrl}/api/DramaList/Episode/${episodeId}.png?kkey=${streamToken}`, {
+    headers: {
+      "User-Agent": USER_AGENT,
+      "Accept": "application/json"
+    }
+  });
+  if (!streamRes.ok) throw new Error("Failed to fetch stream details from KissKh");
+  const streamData = await streamRes.json() as any;
+  if (!streamData || !streamData.Video) {
+    throw new Error("No video source resolved from KissKh");
+  }
+
+  let finalVideoUrl = streamData.Video;
+  if (!finalVideoUrl.startsWith("http")) {
+    finalVideoUrl = `https:${finalVideoUrl}`;
+  }
+
+  // 5. Fetch subtitle options
+  let subtitlesList: any[] = [];
+  try {
+    const subsRes = await fetch(`${baseUrl}/api/Sub/${episodeId}?kkey=${subToken}`, {
+      headers: {
+        "User-Agent": USER_AGENT,
+        "Accept": "application/json"
+      }
+    });
+    if (subsRes.ok) {
+      const subsData = await subsRes.json() as any[];
+      if (Array.isArray(subsData)) {
+        subtitlesList = subsData.map((sub: any) => {
+          const isEncrypted = sub.src.split('?')[0].endsWith('.txt') || sub.src.split('?')[0].endsWith('.txt1');
+          const finalSubUrl = isEncrypted
+            ? `/api/anime?action=subtitle-proxy&url=${encodeURIComponent(sub.src)}`
+            : sub.src;
+          
+          return {
+            url: finalSubUrl,
+            lang: sub.label || sub.land,
+            label: sub.label || sub.land
+          };
+        });
+      }
+    }
+  } catch (e) {
+    console.error("Failed fetching/mapping subtitles:", e);
+  }
+
+  return {
+    videoUrl: finalVideoUrl,
+    subtitles: subtitlesList
+  };
+}
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Set CORS headers
@@ -289,8 +500,34 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const { provider, action, tmdbId, mediaType, season, episode, anilistId, title, lang, episodeId } = req.query;
 
+  // Handle subtitle proxy action early
+  if (action === 'subtitle-proxy') {
+    const { url } = req.query;
+    if (!url || typeof url !== 'string') {
+      return res.status(400).send("URL parameter is required.");
+    }
+    try {
+      const subRes = await fetch(url, {
+        headers: {
+          "User-Agent": USER_AGENT
+        }
+      });
+      if (!subRes.ok) throw new Error("Failed to fetch subtitle file");
+      const encryptedData = await subRes.text();
+      const decrypted = decryptSubtitleText(encryptedData, url);
+      
+      res.setHeader('Content-Type', 'text/vtt; charset=utf-8');
+      res.setHeader('Cache-Control', 's-maxage=86400, stale-while-revalidate=3600');
+      return res.status(200).send(decrypted);
+    } catch (e: any) {
+      console.error("Subtitle decryption error:", e);
+      return res.status(502).send(`Subtitle decryption error: ${e.message}`);
+    }
+  }
+
   // Resolve clean title if missing or provided
   let cleanTitle = '';
+  let yearStr = req.query.year ? String(req.query.year) : '';
   if (title) {
     cleanTitle = String(title)
       .replace(/\s*\(?(Dub|Sub|TV|Movie|uncensored|censored|season\s*\d+|part\s*\d+)\)?\s*$/i, '')
@@ -312,6 +549,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           cleanTitle = typeStr === 'movie'
             ? (tmdbData.title || tmdbData.original_title)
             : (tmdbData.name || tmdbData.original_name);
+        }
+        if (!yearStr) {
+          const relDate = tmdbData.release_date || tmdbData.first_air_date || '';
+          if (relDate) {
+            yearStr = relDate.substring(0, 4);
+          }
         }
 
         if (typeStr === 'tv') {
@@ -357,6 +600,41 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
   }
 
+  // 1.5. Route to KissKh Scraper
+  if (provider === 'kisskh') {
+    if (!cleanTitle) {
+      return res.status(400).send("Could not resolve drama title.");
+    }
+    const seasonVal = season ? parseInt(String(season), 10) : 1;
+    const episodeVal = episode ? parseInt(String(episode), 10) : 1;
+    const mediaTypeStr = mediaType ? String(mediaType) : 'tv';
+
+    try {
+      const data = await resolveKisskh(
+        cleanTitle,
+        mediaTypeStr,
+        seasonVal,
+        episodeVal,
+        yearStr || undefined
+      );
+      return res.status(200).json({
+        success: true,
+        data: {
+          sources: [
+            {
+              url: data.videoUrl,
+              quality: 'Default',
+              label: 'Default'
+            }
+          ],
+          subtitles: data.subtitles
+        }
+      });
+    } catch (e: any) {
+      console.error("KissKh extraction error:", e);
+      return res.status(502).json({ error: `KissKh extraction error: ${e.message}` });
+    }
+  }
 
   // 4. Default: Consumet AniList Meta logic
   if (!action || typeof action !== 'string') {
