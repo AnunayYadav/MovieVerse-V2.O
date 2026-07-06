@@ -2291,14 +2291,15 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                           {subtitleLanguage === 'None' && <Check size={12} />}
                         </button>
 
-                        {/* Render available custom video subtitle tracks */}
-                        {anivexaSubtitles && anivexaSubtitles.length > 0 && (
+                        {/* Render native subtitle tracks (non-OpenSubtitles) */}
+                        {anivexaSubtitles && anivexaSubtitles.some(s => !s.isOS) && (
                           anivexaSubtitles.map((sub, idx) => {
+                            if (sub.isOS) return null;
                             const label = sub.label || sub.language || sub.lang || `Track ${idx + 1}`;
                             const isActive = subtitleLanguage === label;
                             return (
                               <button
-                                key={idx}
+                                key={`native-${idx}`}
                                 onClick={() => {
                                   setSubtitleLanguage(label);
                                   localStorage.setItem('movieverse_preferred_subtitle_language', label);
@@ -2322,10 +2323,49 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                             );
                           })
                         )}
+
+                        {/* OpenSubtitles section at bottom */}
+                        {anivexaSubtitles && anivexaSubtitles.some(s => s.isOS) && (
+                          <>
+                            <div className="flex items-center justify-between border-t border-white/5 pt-2 mt-1 mb-1">
+                              <span className="text-[10px] font-bold text-amber-500/80 uppercase tracking-wider">OpenSubtitles</span>
+                            </div>
+                            {anivexaSubtitles.map((sub, idx) => {
+                              if (!sub.isOS) return null;
+                              const label = sub.label || sub.language || sub.lang || `Track ${idx + 1}`;
+                              const isActive = subtitleLanguage === label;
+                              return (
+                                <button
+                                  key={`os-${idx}`}
+                                  onClick={() => {
+                                    setSubtitleLanguage(label);
+                                    localStorage.setItem('movieverse_preferred_subtitle_language', label);
+                                    if (videoRef.current) {
+                                      const tracks = videoRef.current.textTracks;
+                                      for (let i = 0; i < tracks.length; i++) {
+                                        tracks[i].mode = i === idx ? 'showing' : 'disabled';
+                                      }
+                                    }
+                                    closeAllMenus();
+                                  }}
+                                  className={`w-full text-left py-2 px-3 rounded-lg text-xs font-semibold transition-all border flex items-center justify-between ${
+                                    isActive
+                                      ? 'bg-red-600/10 text-red-500 border-red-500/20'
+                                      : 'bg-white/5 text-zinc-300 border-white/5 hover:border-white/10 hover:bg-white/10'
+                                  }`}
+                                >
+                                  <span>{label}</span>
+                                  {isActive && <Check size={12} />}
+                                </button>
+                              );
+                            })}
+                          </>
+                        )}
                       </div>
                     </div>
 
-                    {/* Audio Language Selector */}
+                    {/* Audio Language Selector - hidden for iframe providers (CineSrc/VidFast handle audio internally) */}
+                    {!isIframeCustomControls && (
                     <div className="relative flex items-center justify-center">
                       <button 
                         onClick={(e) => {
@@ -2393,6 +2433,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                         })}
                       </div>
                     </div>
+                    )}
 
                     <div className="relative flex items-center justify-center">
                       <button
@@ -2839,12 +2880,13 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                   {subtitleLanguage === 'None' && <Check size={12} />}
                 </button>
                 
-                {anivexaSubtitles && anivexaSubtitles.length > 0 ? (
-                  Array.from(new Set(anivexaSubtitles.map(s => s.language || s.lang || s.label || 'Unknown'))).map((lang: any) => {
+                {/* Native subtitle tracks */}
+                {anivexaSubtitles && anivexaSubtitles.some(s => !s.isOS) && (
+                  Array.from(new Set(anivexaSubtitles.filter(s => !s.isOS).map(s => s.language || s.lang || s.label || 'Unknown'))).map((lang: any) => {
                     const isSel = subtitleLanguage.toLowerCase() === (lang || '').toLowerCase();
                     return (
                       <button
-                        key={lang}
+                        key={`native-${lang}`}
                         onClick={() => {
                           setSubtitleLanguage(lang);
                           localStorage.setItem('movieverse_preferred_subtitle_language', lang);
@@ -2861,7 +2903,40 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                       </button>
                     );
                   })
-                ) : (
+                )}
+
+                {/* OpenSubtitles section */}
+                {anivexaSubtitles && anivexaSubtitles.some(s => s.isOS) && (
+                  <>
+                    <div className="flex items-center justify-between border-t border-white/5 pt-3 mt-2 mb-1">
+                      <span className="text-[10px] font-bold text-amber-500/80 uppercase tracking-wider">OpenSubtitles</span>
+                    </div>
+                    {Array.from(new Set(anivexaSubtitles.filter(s => s.isOS).map(s => s.language || s.lang || s.label || 'Unknown'))).map((lang: any) => {
+                      const isSel = subtitleLanguage.toLowerCase() === (lang || '').toLowerCase();
+                      return (
+                        <button
+                          key={`os-${lang}`}
+                          onClick={() => {
+                            setSubtitleLanguage(lang);
+                            localStorage.setItem('movieverse_preferred_subtitle_language', lang);
+                            setIsDrawerOpen(false);
+                          }}
+                          className={`w-full py-3 px-4 rounded-xl text-xs font-bold transition-all border flex items-center justify-between active:scale-[0.98] ${
+                            isSel 
+                              ? 'bg-red-600/20 text-red-500 border-red-500/30 font-extrabold' 
+                              : 'bg-white/5 text-zinc-300 border-white/5 hover:border-white/10 hover:bg-white/10'
+                          }`}
+                        >
+                          <span className="truncate">{lang}</span>
+                          {isSel && <Check size={12} />}
+                        </button>
+                      );
+                    })}
+                  </>
+                )}
+
+                {/* No subtitles fallback */}
+                {(!anivexaSubtitles || anivexaSubtitles.length === 0) && (
                   <div className="text-[11px] text-zinc-500 text-center py-6 italic border border-white/5 rounded-xl bg-white/[0.01]">
                     No subtitles loaded.
                   </div>
@@ -3039,7 +3114,8 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                   </div>
                 )}
 
-                {/* Audio Language Preference */}
+                {/* Audio Language Preference - hidden for iframe providers */}
+                {!isIframeCustomControls && (
                 <div className="border-t border-white/5 pt-4">
                   <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block mb-2 px-1">
                     Audio Language
@@ -3083,6 +3159,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                     <ChevronDown size={14} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none" />
                   </div>
                 </div>
+                )}
 
                 {/* Subtitle Preference */}
                 <div className="border-t border-white/5 pt-4">
