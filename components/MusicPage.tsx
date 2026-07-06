@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Play, Pause, SkipForward, SkipBack, Shuffle, Repeat, Volume2, VolumeX, Search, Music, Maximize2, Minimize2, Heart, ListMusic, Loader2, Sparkles, Sliders, ChevronDown, RefreshCw, Plus, Download, MoreHorizontal, ArrowLeft, Disc } from 'lucide-react';
 import { useTvFocus, TvFocusButton } from '../tvNavigation';
 
@@ -93,6 +93,7 @@ export const MusicPage: React.FC<MusicPageProps> = ({ disableEntryAnimation }) =
   const [jumpBackIn, setJumpBackIn] = useState<any[]>([]);
   const [visualizerMode, setVisualizerMode] = useState<'circular' | 'bars' | 'none'>('circular');
   const [loadingPlaylistId, setLoadingPlaylistId] = useState<string | null>(null);
+  const [searchFilter, setSearchFilter] = useState<'all' | 'tracks' | 'albums' | 'artists'>('all');
   
   // Lyrics Scrolling
   const activeLyricRef = useRef<HTMLParagraphElement | null>(null);
@@ -130,6 +131,21 @@ export const MusicPage: React.FC<MusicPageProps> = ({ disableEntryAnimation }) =
   useEffect(() => {
     fetchRecommendations();
   }, []);
+
+  const uniqueArtists = useMemo(() => {
+    const list: any[] = [];
+    const seen = new Set<string>();
+    for (const track of searchTracks) {
+      if (!seen.has(track.artist)) {
+        seen.add(track.artist);
+        list.push({
+          name: track.artist,
+          imageUrl: track.coverUrl || "https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?w=500&q=80"
+        });
+      }
+    }
+    return list;
+  }, [searchTracks]);
 
   const playMixOrArtist = async (name: string, id: string) => {
     setLoadingMixId(id);
@@ -274,6 +290,7 @@ export const MusicPage: React.FC<MusicPageProps> = ({ disableEntryAnimation }) =
 
     setSearching(true);
     setActiveTab('search');
+    setSearchFilter('all');
     try {
       // Fetch songs search and albums search in parallel
       const [tracksRes, albumsRes] = await Promise.all([
@@ -894,93 +911,161 @@ export const MusicPage: React.FC<MusicPageProps> = ({ disableEntryAnimation }) =
               <Loader2 className="text-blue-500 animate-spin" size={32} />
               <p className="text-xs text-zinc-400">Searching music database...</p>
             </div>
-          ) : searchTracks.length > 0 ? (
+          ) : (
             <>
-              {/* Songs Column */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-bold text-white">Tracks</h3>
-                <div className="border border-zinc-800 bg-zinc-900/20 rounded-xl overflow-hidden shadow-2xl">
-                  <table className="w-full text-left border-collapse text-xs">
-                    <thead>
-                      <tr className="border-b border-zinc-800 text-zinc-500">
-                        <th className="p-4 font-semibold uppercase tracking-wider w-[50px]">#</th>
-                        <th className="p-4 font-semibold uppercase tracking-wider">Title</th>
-                        <th className="p-4 font-semibold uppercase tracking-wider">Album</th>
-                        <th className="p-4 font-semibold uppercase tracking-wider text-right w-[100px]">Duration</th>
-                        <th className="p-4 font-semibold uppercase tracking-wider w-[60px]"></th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {searchTracks.map((track, index) => (
-                        <tr
-                          key={track.id}
-                          className="border-b border-zinc-850 hover:bg-white/5 transition-colors cursor-pointer group"
-                          onClick={() => selectAndPlay(track, searchTracks)}
-                        >
-                          <td className="p-4 text-zinc-500 font-medium">
-                            <span className="group-hover:hidden">{index + 1}</span>
-                            <Play size={12} fill="currentColor" className="hidden group-hover:inline text-green-500" />
-                          </td>
-                          <td className="p-4 flex items-center gap-3">
-                            <img src={track.coverUrl} className="w-9 h-9 rounded object-cover shadow" alt="" />
-                            <div>
-                              <p className="font-bold text-white line-clamp-1">{track.title}</p>
-                              <p className="text-zinc-500 text-[10px] mt-0.5">{track.artist}</p>
-                            </div>
-                          </td>
-                          <td className="p-4 text-zinc-400 line-clamp-1 font-medium">{track.album}</td>
-                          <td className="p-4 text-right text-zinc-400 font-medium">{formatTime(track.duration)}</td>
-                          <td className="p-4 text-center" onClick={(e) => e.stopPropagation()}>
-                            <button
-                              onClick={() => toggleFavorite(track)}
-                              className={`p-2 rounded-full transition-colors ${favoritesList.some(t => t.id === track.id) ? 'text-green-500' : 'text-zinc-500 hover:text-white'}`}
-                            >
-                              <Heart size={14} fill={favoritesList.some(t => t.id === track.id) ? "currentColor" : "none"} />
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
-              {/* Albums Grid */}
-              <div className="space-y-4 pt-4">
-                <h3 className="text-lg font-bold text-white">Albums</h3>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4">
-                  {searchAlbums.map(album => (
-                    <div
-                      key={album.id}
-                      onClick={() => loadAlbumDetails(album)}
-                      className="group relative cursor-pointer bg-zinc-900/30 hover:bg-zinc-800/40 border border-zinc-900/50 hover:border-zinc-800 rounded-xl p-3.5 transition-all duration-300"
+              {/* Pill Filters */}
+              {(searchTracks.length > 0 || searchAlbums.length > 0) && (
+                <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none">
+                  {(['all', 'tracks', 'albums', 'artists'] as const).map(filter => (
+                    <button
+                      key={filter}
+                      onClick={() => setSearchFilter(filter)}
+                      className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all shrink-0 capitalize ${
+                        searchFilter === filter
+                          ? 'bg-green-500 text-black shadow-md shadow-green-500/25 scale-105'
+                          : 'bg-zinc-900 text-zinc-300 hover:bg-zinc-800'
+                      }`}
                     >
-                      <div className="aspect-square w-full rounded-lg overflow-hidden bg-zinc-800 relative mb-3 shadow-md">
-                        <img
-                          src={album.artworkUrl}
-                          alt={album.name}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                        />
-                        <div className="absolute inset-0 bg-black/45 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                          <div className="w-10 h-10 rounded-full bg-white text-black flex items-center justify-center transform scale-90 group-hover:scale-100 transition-all shadow-lg">
-                            <Play size={16} fill="currentColor" className="ml-0.5" />
-                          </div>
-                        </div>
-                      </div>
-                      <h4 className="text-xs font-bold text-white line-clamp-1 mb-0.5">{album.name}</h4>
-                      <p className="text-[10px] text-zinc-400 line-clamp-1">{album.artistName}</p>
-                    </div>
+                      {filter}
+                    </button>
                   ))}
                 </div>
-              </div>
+              )}
+
+              {searchTracks.length > 0 || searchAlbums.length > 0 ? (
+                <>
+                  {/* Tracks Section */}
+                  {(searchFilter === 'all' || searchFilter === 'tracks') && searchTracks.length > 0 && (
+                    <div className="space-y-4">
+                      <h3 className="text-lg font-bold text-white">Tracks</h3>
+                      <div className="mt-4">
+                        <table className="w-full text-left border-collapse text-xs">
+                          <thead>
+                            <tr className="border-b border-zinc-800/80 text-zinc-500">
+                              <th className="p-4 font-semibold uppercase tracking-wider w-[50px] text-center">#</th>
+                              <th className="p-4 font-semibold uppercase tracking-wider">Title</th>
+                              <th className="p-4 font-semibold uppercase tracking-wider">Album</th>
+                              <th className="p-4 font-semibold uppercase tracking-wider text-right w-[100px]">Duration</th>
+                              <th className="p-4 font-semibold uppercase tracking-wider w-[60px]"></th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {searchTracks.map((track, index) => {
+                              const isCurrent = currentTrack?.id === track.id;
+                              return (
+                                <tr
+                                  key={track.id}
+                                  className="group hover:bg-white/10 transition-colors cursor-pointer"
+                                  onClick={() => selectAndPlay(track, searchTracks)}
+                                >
+                                  <td className="p-4 text-zinc-500 font-bold w-[50px] text-center rounded-l-lg">
+                                    {isCurrent && isPlaying ? (
+                                      <span className="text-green-500">▶</span>
+                                    ) : (
+                                      <>
+                                        <span className="group-hover:hidden">{index + 1}</span>
+                                        <Play size={12} fill="currentColor" className="hidden group-hover:inline text-green-500 ml-1.5" />
+                                      </>
+                                    )}
+                                  </td>
+                                  <td className="p-4">
+                                    <div className="flex items-center gap-3">
+                                      <img src={track.coverUrl} className="w-9 h-9 rounded object-cover shadow" alt="" />
+                                      <div className="text-left">
+                                        <p className={`font-bold text-sm line-clamp-1 ${isCurrent ? 'text-green-500' : 'text-white'}`}>{track.title}</p>
+                                        <p className="text-zinc-500 text-[10px] mt-0.5">{track.artist}</p>
+                                      </div>
+                                    </div>
+                                  </td>
+                                  <td className="p-4 text-zinc-400 line-clamp-1 font-medium">{track.album}</td>
+                                  <td className="p-4 text-right text-zinc-400 font-medium">{formatTime(track.duration)}</td>
+                                  <td className="p-4 text-center rounded-r-lg" onClick={(e) => e.stopPropagation()}>
+                                    <button
+                                      onClick={() => toggleFavorite(track)}
+                                      className={`p-2 rounded-full transition-colors ${favoritesList.some(t => t.id === track.id) ? 'text-green-500' : 'text-zinc-500 hover:text-white'}`}
+                                    >
+                                      <Heart size={14} fill={favoritesList.some(t => t.id === track.id) ? "currentColor" : "none"} />
+                                    </button>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Albums Section */}
+                  {(searchFilter === 'all' || searchFilter === 'albums') && searchAlbums.length > 0 && (
+                    <div className="space-y-4 pt-4">
+                      <h3 className="text-lg font-bold text-white">Albums</h3>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4">
+                        {searchAlbums.map(album => (
+                          <div
+                            key={album.id}
+                            onClick={() => loadAlbumDetails(album)}
+                            className="group relative cursor-pointer bg-zinc-900/30 hover:bg-zinc-800/40 border border-zinc-900/50 hover:border-zinc-800 rounded-xl p-3.5 transition-all duration-300 text-left"
+                          >
+                            <div className="aspect-square w-full rounded-lg overflow-hidden bg-zinc-800 relative mb-3 shadow-md">
+                              <img
+                                src={album.artworkUrl}
+                                alt={album.name}
+                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                              />
+                              <div className="absolute inset-0 bg-black/45 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                <div className="w-10 h-10 rounded-full bg-white text-black flex items-center justify-center transform scale-90 group-hover:scale-100 transition-all shadow-lg">
+                                  <Play size={16} fill="currentColor" className="ml-0.5" />
+                                </div>
+                              </div>
+                            </div>
+                            <h4 className="text-xs font-bold text-white line-clamp-1 mb-0.5">{album.name}</h4>
+                            <p className="text-[10px] text-zinc-400 line-clamp-1">{album.artistName}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Artists Section */}
+                  {(searchFilter === 'all' || searchFilter === 'artists') && uniqueArtists.length > 0 && (
+                    <div className="space-y-4 pt-4">
+                      <h3 className="text-lg font-bold text-white">Artists</h3>
+                      <div className="grid grid-cols-3 sm:grid-cols-6 gap-6">
+                        {uniqueArtists.slice(0, 6).map((artist, idx) => (
+                          <div
+                            key={idx}
+                            onClick={() => playMixOrArtist(artist.name, `search_art_${idx}`)}
+                            className="flex flex-col items-center text-center cursor-pointer group select-none"
+                          >
+                            <div className="w-24 h-24 rounded-full overflow-hidden mb-3 relative shadow-lg bg-zinc-900 flex items-center justify-center">
+                              <img
+                                src={artist.imageUrl}
+                                alt={artist.name}
+                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                              />
+                              <div className="absolute inset-0 bg-black/45 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                <div className="w-8 h-8 rounded-full bg-white text-black flex items-center justify-center transform scale-90 group-hover:scale-100 transition-all">
+                                  {loadingMixId === `search_art_${idx}` ? <Loader2 className="animate-spin text-black" size={12} /> : <Play size={12} fill="currentColor" className="ml-0.5" />}
+                                </div>
+                              </div>
+                            </div>
+                            <span className="text-xs font-bold text-zinc-300 group-hover:text-white transition-colors">{artist.name}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </>
+              ) : (
+                searchQuery && (
+                  <div className="text-center py-20 border border-zinc-900 rounded-2xl bg-zinc-900/10">
+                    <Music className="mx-auto text-zinc-700 mb-3" size={32} />
+                    <p className="text-xs text-zinc-500">No tracks found. Search for another song, artist, or album!</p>
+                  </div>
+                )
+              )}
             </>
-          ) : (
-            searchQuery && (
-              <div className="text-center py-20 border border-zinc-900 rounded-2xl bg-zinc-900/10">
-                <Music className="mx-auto text-zinc-700 mb-3" size={32} />
-                <p className="text-xs text-zinc-500">No tracks found. Search for another song, artist, or album!</p>
-              </div>
-            )
           )}
         </div>
       )}
