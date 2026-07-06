@@ -458,6 +458,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
     const [mdlDetails, setMdlDetails] = useState<any | null>(null);
     const [mdlCast, setMdlCast] = useState<any[]>([]);
     const [mdlEpisodes, setMdlEpisodes] = useState<any[]>([]);
+    const [mdlEpisodesLoading, setMdlEpisodesLoading] = useState(false);
     const [mdlReviews, setMdlReviews] = useState<any[]>([]);
     const [mdlRecs, setMdlRecs] = useState<any[]>([]);
     const [mdlLoading, setMdlLoading] = useState(false);
@@ -792,6 +793,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
             setMdlDetails(null);
             setMdlCast([]);
             setMdlEpisodes([]);
+            setMdlEpisodesLoading(false);
             setMdlReviews([]);
             setMdlRecs([]);
             return;
@@ -802,6 +804,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
             setMdlDetails(null);
             setMdlCast([]);
             setMdlEpisodes([]);
+            setMdlEpisodesLoading(false);
             setMdlReviews([]);
             setMdlRecs([]);
             return;
@@ -844,13 +847,16 @@ export const MoviePage: React.FC<MoviePageProps> = ({
 
             // 3. Fetch Episodes
             try {
-                const epRes = await window.fetch(`/api/drama/api/id/${slug}/episodes`);
+                setMdlEpisodesLoading(true);
+                const epRes = await window.fetch(`/api/drama/api/id/${slug}/episodes/all`);
                 if (epRes.ok) {
                     const epData = await epRes.json();
                     setMdlEpisodes(epData.episodes || []);
                 }
             } catch (err) {
                 console.error("MDL Episodes fetch error:", err);
+            } finally {
+                setMdlEpisodesLoading(false);
             }
 
             // 4. Fetch Reviews
@@ -1790,6 +1796,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
         ...(isTv ? [{ id: 'seasons', label: 'Seasons' }] : []),
         ...(isAnime ? [{ id: 'characters', label: 'Characters' }] : []),
         ...(isDrama && mdlCast.length > 0 ? [{ id: 'mdlCast', label: 'MDL Cast' }] : []),
+        ...(isDrama && mdlEpisodes.length > 0 ? [{ id: 'mdlEpisodes', label: 'Episodes' }] : []),
         ...(isAnime && sortedRelations.length > 0 ? [{ id: 'relations', label: 'Relations' }] : []),
         ...(isDrama && mdlRecs.length > 0 ? [{ id: 'recs', label: 'Recommendations' }] : []),
         ...(displayData.similar?.results && displayData.similar.results.length > 0 ? [{ id: 'similar', label: 'Similar' }] : []),
@@ -2976,6 +2983,72 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                 </div>
                                             ) : (
                                                 <p className="text-zinc-500 text-xs italic">No cast information available.</p>
+                                            )}
+                                        </div>
+                                    )}
+
+                                    {activeTab === 'mdlEpisodes' && isDrama && (
+                                        <div className="space-y-4 animate-in fade-in select-none text-left">
+                                            <div className="flex items-center gap-2 pb-3 border-b border-white/5">
+                                                <div className="w-1 h-5 sm:h-6 bg-red-600 rounded-full" />
+                                                <h3 className="text-sm sm:text-base md:text-lg font-bold text-white uppercase tracking-wider">Episodes</h3>
+                                            </div>
+
+                                            {mdlEpisodesLoading ? (
+                                                <div className="flex flex-col items-center justify-center py-12 gap-3">
+                                                    <Loader2 className="w-6 h-6 animate-spin text-red-500" />
+                                                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Loading episodes...</p>
+                                                </div>
+                                            ) : mdlEpisodes.length > 0 ? (
+                                                <div className="space-y-3 max-h-[600px] overflow-y-auto pr-1.5 custom-scrollbar">
+                                                    {mdlEpisodes.map((episode, idx) => {
+                                                        const epThumbnail = episode.image 
+                                                            ? episode.image 
+                                                            : (displayData.backdrop_path ? `${TMDB_IMAGE_BASE}${displayData.backdrop_path}` : "https://images.unsplash.com/photo-1574375927938-d5a98e8edd85?q=80&w=400");
+                                                        
+                                                        return (
+                                                            <div 
+                                                                key={idx}
+                                                                className="flex gap-3 sm:gap-4 p-2.5 sm:p-4 bg-white/5 hover:bg-white/10 rounded-xl sm:rounded-2xl border border-white/5 hover:border-white/10 transition-all group relative overflow-hidden text-left"
+                                                            >
+                                                                {/* Thumbnail */}
+                                                                <div className="relative aspect-video w-28 sm:w-36 md:w-44 shrink-0 rounded-lg sm:rounded-xl overflow-hidden shadow-md bg-black/40">
+                                                                    <img 
+                                                                        src={epThumbnail} 
+                                                                        alt={episode.title || `Episode ${episode.episode_number}`} 
+                                                                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" 
+                                                                        loading="lazy"
+                                                                    />
+                                                                    <div className="absolute bottom-1 left-1 px-1 rounded bg-black/85 text-[8px] sm:text-[10px] font-black text-white z-10 border border-white/5 shadow">
+                                                                        {episode.episode_number}
+                                                                    </div>
+                                                                </div>
+
+                                                                {/* Info */}
+                                                                <div className="flex-1 min-w-0 flex flex-col justify-center">
+                                                                    <h4 className="text-xs sm:text-sm md:text-base font-bold text-white group-hover:text-red-500 transition-colors leading-tight mb-0.5 sm:mb-1 truncate">
+                                                                        {episode.title || `Episode ${episode.episode_number}`}
+                                                                    </h4>
+                                                                    <div className="flex flex-wrap items-center gap-1.5 sm:gap-2.5 text-[8px] sm:text-[10px] md:text-xs text-gray-400 mb-1 sm:mb-2 font-semibold font-sans">
+                                                                        {episode.air_date && (
+                                                                            <span className="flex items-center gap-0.5"><Calendar size={10} /> {episode.air_date}</span>
+                                                                        )}
+                                                                        {episode.rating && episode.rating !== "N/A" && (
+                                                                            <span className="flex items-center gap-0.5 text-yellow-500 font-bold"><Star size={10} fill="currentColor" /> {episode.rating}</span>
+                                                                        )}
+                                                                    </div>
+                                                                    {episode.description && (
+                                                                        <p className="text-[10px] sm:text-xs text-zinc-400 font-medium line-clamp-2 md:line-clamp-3 leading-normal mt-0.5 font-sans">
+                                                                            {episode.description}
+                                                                        </p>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            ) : (
+                                                <p className="text-zinc-500 text-xs italic">No episode information available.</p>
                                             )}
                                         </div>
                                     )}
