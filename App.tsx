@@ -19,7 +19,8 @@ import { AnimePage } from './components/AnimePage';
 import { MovieDome } from './components/MovieDome';
 import { MangaPage } from './components/MangaPage';
 import { DramaPage } from './components/DramaPage';
-import { BookOpen, Drama } from 'lucide-react';
+import { MusicPage } from './components/MusicPage';
+import { BookOpen, Drama, Music } from 'lucide-react';
 import { useTvFocus, TvFocusButton, TvFocusInput } from './tvNavigation';
 import AppTV from './components/AppTV';
 
@@ -2694,7 +2695,7 @@ export default function App() {
 
     const fetchMovies = useCallback(async (pageNum: number = 1, isLoadMore = false, overrideQuery?: string) => {
         if (!apiKey) return;
-        if (selectedCategory === "Manga" || selectedCategory === "Anime" || selectedCategory === "AnimeCommunity") return;
+        if (selectedCategory === "Manga" || selectedCategory === "Anime" || selectedCategory === "AnimeCommunity" || selectedCategory === "Music") return;
         setFetchError(false);
         if (["Watchlist", "Favorites", "History"].includes(selectedCategory)) {
             const list = selectedCategory === "Watchlist" ? watchlistRef.current : selectedCategory === "Favorites" ? favoritesRef.current : watchedRef.current;
@@ -3651,7 +3652,7 @@ export default function App() {
 
     useEffect(() => {
         const isHomepage = selectedCategory === 'All' && !searchQuery && !currentCollection && !activeCountry && !activeKeyword && !tmdbCollectionId;
-        const isDynamicCategory = !searchQuery && !["People", "Coming", "Collections", "Categories", "Franchise", "Anime", "AnimeCommunity", "Manga", "Watchlist", "Favorites", "History"].includes(selectedCategory) && !tmdbCollectionId;
+        const isDynamicCategory = !searchQuery && !["People", "Coming", "Collections", "Categories", "Franchise", "Anime", "AnimeCommunity", "Manga", "Watchlist", "Favorites", "History", "Music"].includes(selectedCategory) && !tmdbCollectionId;
 
         if (!isHomepage && !isDynamicCategory) return;
 
@@ -3767,6 +3768,7 @@ export default function App() {
         { id: "TV Shows", icon: Tv, label: "TV Shows", action: () => { resetFilters(); setSelectedCategory("TV Shows"); } },
         { id: "Coming", icon: CalendarDays, label: "Coming Soon", action: () => { resetFilters(); setSelectedCategory("Coming"); } },
         { id: "Categories", icon: Clapperboard, label: "Categories", action: () => { resetFilters(); setSelectedCategory("Categories"); } },
+        { id: "Music", icon: Music, label: "Music", action: () => { resetFilters(); setSelectedCategory("Music"); } },
         { id: "WatchParty", icon: Users, label: "Watch Party", action: () => { resetFilters(); setSelectedCategory("WatchParty"); } },
         { id: "LiveTV", icon: Radio, label: "Live TV", action: () => { resetFilters(); setSelectedCategory("LiveTV"); } }
     ];
@@ -3860,6 +3862,9 @@ export default function App() {
 
                             <div className="space-y-1">
                                 <p className="px-3 text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Entertainment</p>
+                                <button onClick={() => { resetFilters(); setSelectedCategory("Music"); }} className={getSidebarItemClass(selectedCategory === "Music")}>
+                                    <Music size={18} /> Music
+                                </button>
                                 <button onClick={() => { resetFilters(); setSelectedCategory("TV Shows"); }} className={getSidebarItemClass(selectedCategory === "TV Shows")}>
                                     <Tv size={18} /> TV Shows
                                 </button>
@@ -3952,6 +3957,10 @@ export default function App() {
                                 <TvFocusButton onClick={() => { resetFilters(); setSelectedDramaSlug(null); setSelectedCategory("Dramas"); }} className={`group flex items-center gap-2 px-5 py-2 rounded-full text-xs font-semibold tracking-wide transition-all duration-300 ${selectedCategory === "Dramas" ? "bg-white/10 text-white" : "text-zinc-400 hover:text-white hover:bg-white/5"}`}>
                                     <Drama size={15} className="transition-all duration-300 group-hover:scale-110" />
                                     <span>Dramas</span>
+                                </TvFocusButton>
+                                <TvFocusButton onClick={() => { resetFilters(); setSelectedCategory("Music"); }} className={`group flex items-center gap-2 px-5 py-2 rounded-full text-xs font-semibold tracking-wide transition-all duration-300 ${selectedCategory === "Music" ? "bg-white/10 text-white" : "text-zinc-400 hover:text-white hover:bg-white/5"}`}>
+                                    <Music size={15} className="transition-all duration-300 group-hover:scale-110" />
+                                    <span>Music</span>
                                 </TvFocusButton>
                                 <div
                                     className="relative flex items-center h-full"
@@ -4260,6 +4269,11 @@ export default function App() {
                             disableEntryAnimation={isNavigatingBack}
                         />
 
+                    ) : selectedCategory === "Music" ? (
+                        <MusicPage
+                            disableEntryAnimation={isNavigatingBack}
+                        />
+
                     ) : selectedCategory === "Categories" ? (
                         <div className="animate-in fade-in slide-in-from-bottom-4 min-h-screen pb-16 pt-2 select-none">
                             <div className="px-4 md:px-12 max-w-7xl mx-auto">
@@ -4535,7 +4549,7 @@ export default function App() {
                         <>
                             {selectedCategory !== "Coming" && selectedCategory !== "Genres" && selectedCategory !== "Franchise" && (
                                 <>
-                                    {!searchQuery && featuredMovie && !["People", "Coming", "Collections", "Genres", "Franchise", "Anime", "AnimeCommunity", "Manga"].includes(selectedCategory) && (
+                                    {!searchQuery && featuredMovie && !["People", "Coming", "Collections", "Genres", "Franchise", "Anime", "AnimeCommunity", "Manga", "Music"].includes(selectedCategory) && (
                                         <div className="relative w-full h-[70vh] md:h-[80vh] overflow-hidden group select-none bg-black">
                                             {/* Backdrop Background */}
                                             <div className="absolute inset-0">
@@ -4783,7 +4797,7 @@ export default function App() {
                                             </div>
                                         ) : (
                                             <div className="space-y-8">
-                                                {!searchQuery && !["People", "Coming", "Collections", "Genres", "Franchise", "Anime", "AnimeCommunity", "Manga", "Watchlist", "Favorites", "History"].includes(selectedCategory) && !tmdbCollectionId ? (
+                                                {!searchQuery && !["People", "Coming", "Collections", "Genres", "Franchise", "Anime", "AnimeCommunity", "Manga", "Watchlist", "Favorites", "History", "Music"].includes(selectedCategory) && !tmdbCollectionId ? (
                                                     <div className="space-y-4 animate-in fade-in duration-700 -mx-4 md:-mx-12">
                                                         {activeCategoryRows.map(cat => (
                                                             <MovieRow
