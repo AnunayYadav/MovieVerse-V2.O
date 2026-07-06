@@ -432,13 +432,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     if (providerStr === 'vidlink') {
-      const result = await resolveVidlink(
-        mediaType,
-        tmdbId,
-        seasonNum,
-        episodeNum
-      );
-      return res.status(200).json(result);
+      try {
+        const result = await resolveVidlink(
+          mediaType,
+          tmdbId,
+          seasonNum,
+          episodeNum
+        );
+        return res.status(200).json(result);
+      } catch (err: any) {
+        console.warn(`VidLink direct decryption failed: ${err.message}. Falling back to iframe.`);
+        return res.status(200).json({
+          success: true,
+          provider: 'VidLink Iframe Fallback',
+          availableServers: ['VidLink Iframe Fallback'],
+          data: {
+            iframeUrl: mediaType === 'movie'
+              ? `https://vidlink.pro/movie/${tmdbId}?primaryColor=EF4444`
+              : `https://vidlink.pro/tv/${tmdbId}/${seasonNum}/${episodeNum}?primaryColor=EF4444`
+          }
+        });
+      }
     }
 
     return res.status(400).json({ error: `Unsupported provider: ${providerStr}` });

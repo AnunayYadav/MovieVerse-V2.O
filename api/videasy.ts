@@ -383,9 +383,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       data: successData
     });
   } else {
-    return res.status(502).json({
-      success: false,
-      error: `All Videasy providers failed — ${errors.join('; ')}`
+    console.warn(`All Videasy direct providers failed: ${errors.join('; ')}. Falling back to iframe.`);
+    return res.status(200).json({
+      success: true,
+      provider: 'Videasy Iframe Fallback',
+      data: {
+        iframeUrl: mediaType === 'tv'
+          ? `https://player.videasy.net/tv/${tmdbId}/${seasonNum}/${episodeNum}?autoplay=true`
+          : `https://player.videasy.net/movie/${tmdbId}?autoplay=true`
+      }
     });
   }
 }
