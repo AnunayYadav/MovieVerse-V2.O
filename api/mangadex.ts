@@ -30,7 +30,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
   }
 
-  const targetBase = isDrama ? 'https://my-drama-list-api-ten.vercel.app' : 'https://api.mangadex.org';
+  const targetBase = isDrama ? 'https://my-drama-list-api-ten.vercel.app/api' : 'https://api.mangadex.org';
   const cleanPath = path.startsWith('/') ? path : `/${path}`;
   const targetUrl = `${targetBase}${cleanPath}${searchParams.toString() ? '?' + searchParams.toString() : ''}`;
 

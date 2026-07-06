@@ -264,42 +264,68 @@ export const DramaPage: React.FC<DramaPageProps> = ({
 
     const loadHero = async () => {
       try {
-        const res = await window.fetch(`/api/drama/id/${activeHero.slug}`);
-        if (res.ok) {
-          const details = await res.json();
-          setHeroDetails(details);
-          
-          // Match with TMDB to get backdrops and logos
-          let tmdbId = activeHero.tmdbId;
-          const matchCacheKey = `movieverse_drama_tmdb_match_${activeHero.slug}`;
-          const cached = localStorage.getItem(matchCacheKey);
-          if (cached) {
-            const data = JSON.parse(cached);
-            tmdbId = data.id;
-          } else {
-            // Find match
-            const searchRes = await window.fetch(`${TMDB_BASE_URL}/search/tv?api_key=${apiKey}&query=${encodeURIComponent(details.title.replace(/\(\d{4}\)/, '').trim())}`);
-            if (searchRes.ok) {
-              const tvData = await searchRes.json();
-              const match = tvData.results?.find((x: any) => ['ko', 'zh', 'ja'].includes(x.original_language)) || tvData.results?.[0];
-              if (match) {
-                tmdbId = match.id;
-                localStorage.setItem(matchCacheKey, JSON.stringify({ id: match.id, mediaType: 'tv', name: match.name, poster_path: match.poster_path, backdrop_path: match.backdrop_path }));
-              }
+        let tmdbId = activeHero.tmdbId;
+        const mediaType = activeHero.mediaType || 'tv';
+
+        if (activeHero.slug.startsWith('tmdb-') && tmdbId) {
+          // Fetch directly from TMDB for details, backdrop, and logo
+          const tmdbRes = await window.fetch(`${TMDB_BASE_URL}/${mediaType}/${tmdbId}?api_key=${apiKey}&append_to_response=images`);
+          if (tmdbRes.ok) {
+            const tmdbData = await tmdbRes.json();
+            setHeroDetails({
+              title: tmdbData.name || tmdbData.title,
+              synopsis: tmdbData.overview,
+              aired: tmdbData.first_air_date || tmdbData.release_date,
+              rating: tmdbData.vote_average ? tmdbData.vote_average.toFixed(1) : undefined
+            });
+            if (tmdbData.backdrop_path) {
+              setHeroBackdrop(`https://image.tmdb.org/t/p/w1280${tmdbData.backdrop_path}`);
+            }
+            const logo = tmdbData.images?.logos?.find((l: any) => l.iso_639_1 === 'en') || tmdbData.images?.logos?.[0];
+            if (logo) {
+              setDramaLogos(prev => ({ ...prev, [tmdbId!]: logo.file_path }));
             }
           }
-
-          if (tmdbId) {
-            // Fetch TMDB images (backdrop/logo)
-            const imgRes = await window.fetch(`${TMDB_BASE_URL}/tv/${tmdbId}?api_key=${apiKey}&append_to_response=images`);
-            if (imgRes.ok) {
-              const imgData = await imgRes.json();
-              if (imgData.backdrop_path) {
-                setHeroBackdrop(`https://image.tmdb.org/t/p/w1280${imgData.backdrop_path}`);
+        } else {
+          // MDL item: fetch MDL details, then resolve/fetch TMDB assets
+          const res = await window.fetch(`/api/drama/id/${activeHero.slug}`);
+          if (res.ok) {
+            const details = await res.json();
+            setHeroDetails(details);
+            
+            const matchCacheKey = `movieverse_drama_tmdb_match_${activeHero.slug}`;
+            const cached = localStorage.getItem(matchCacheKey);
+            let resolvedMediaType = 'tv';
+            if (cached) {
+              const data = JSON.parse(cached);
+              tmdbId = data.id;
+              resolvedMediaType = data.mediaType || 'tv';
+            } else {
+              // Find match
+              const searchRes = await window.fetch(`${TMDB_BASE_URL}/search/tv?api_key=${apiKey}&query=${encodeURIComponent(details.title.replace(/\(\d{4}\)/, '').trim())}`);
+              if (searchRes.ok) {
+                const tvData = await searchRes.json();
+                const match = tvData.results?.find((x: any) => ['ko', 'zh', 'ja'].includes(x.original_language)) || tvData.results?.[0];
+                if (match) {
+                  tmdbId = match.id;
+                  resolvedMediaType = 'tv';
+                  localStorage.setItem(matchCacheKey, JSON.stringify({ id: match.id, mediaType: 'tv', name: match.name, poster_path: match.poster_path, backdrop_path: match.backdrop_path }));
+                }
               }
-              const logo = imgData.images?.logos?.find((l: any) => l.iso_639_1 === 'en') || imgData.images?.logos?.[0];
-              if (logo) {
-                setDramaLogos(prev => ({ ...prev, [tmdbId!]: logo.file_path }));
+            }
+
+            if (tmdbId) {
+              // Fetch TMDB images (backdrop/logo)
+              const imgRes = await window.fetch(`${TMDB_BASE_URL}/${resolvedMediaType}/${tmdbId}?api_key=${apiKey}&append_to_response=images`);
+              if (imgRes.ok) {
+                const imgData = await imgRes.json();
+                if (imgData.backdrop_path) {
+                  setHeroBackdrop(`https://image.tmdb.org/t/p/w1280${imgData.backdrop_path}`);
+                }
+                const logo = imgData.images?.logos?.find((l: any) => l.iso_639_1 === 'en') || imgData.images?.logos?.[0];
+                if (logo) {
+                  setDramaLogos(prev => ({ ...prev, [tmdbId!]: logo.file_path }));
+                }
               }
             }
           }

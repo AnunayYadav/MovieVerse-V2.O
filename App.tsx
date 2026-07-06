@@ -4547,16 +4547,23 @@ export default function App() {
                                                 <div className="absolute inset-0 bg-gradient-to-t from-[#030303] via-[#030303]/60 to-transparent"></div>
                                                 <div className="absolute inset-0 bg-gradient-to-r from-[#030303] via-[#030303]/40 to-transparent"></div>
                                             </div>
-
                                             {/* Foreground details overlay */}
                                             <div className="absolute bottom-0 left-0 w-full p-6 md:p-12 pb-16 z-20 flex flex-col items-start gap-4 md:max-w-4xl animate-in slide-in-from-bottom-10 duration-700 text-left font-sans">
                                                 <span className="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-widest bg-red-600 text-white shadow-lg shadow-red-600/30">
                                                     Featured
                                                 </span>
 
-                                                <h1 className="text-4xl md:text-6xl font-black text-white leading-tight tracking-tight drop-shadow-2xl">
-                                                    {featuredMovie.title || featuredMovie.name}
-                                                </h1>
+                                                {featuredLogo ? (
+                                                    <img 
+                                                        src={`https://image.tmdb.org/t/p/w500${featuredLogo}`} 
+                                                        alt={featuredMovie.title || featuredMovie.name} 
+                                                        className="max-h-16 md:max-h-24 max-w-[85%] object-contain object-left mb-1 drop-shadow-[0_4px_12px_rgba(0,0,0,0.9)] animate-in fade-in duration-300" 
+                                                    />
+                                                ) : (
+                                                    <h1 className="text-4xl md:text-6xl font-black text-white leading-tight tracking-tight drop-shadow-2xl">
+                                                        {featuredMovie.title || featuredMovie.name}
+                                                    </h1>
+                                                )}
 
                                                 <div className="flex items-center gap-4 text-sm font-medium text-gray-300">
                                                     <span className="text-green-400 font-bold">{featuredMovie.vote_average ? featuredMovie.vote_average.toFixed(1) : 'NR'} Rating</span>

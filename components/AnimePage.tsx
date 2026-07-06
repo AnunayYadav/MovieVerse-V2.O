@@ -76,6 +76,7 @@ const ANIME_GENRES = [
 
 export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick, searchQuery: parentSearchQuery, onSearchClear, initialTab = 'catalog', isAiSearchActive, disableEntryAnimation }) => {
   const [trending, setTrending] = useState<AniListMedia[]>([]);
+  const [latestEpisodes, setLatestEpisodes] = useState<AniListMedia[]>([]);
   const [popular, setPopular] = useState<AniListMedia[]>([]);
   const [topRated, setTopRated] = useState<AniListMedia[]>([]);
   const [seasonal, setSeasonal] = useState<AniListMedia[]>([]);
@@ -244,10 +245,17 @@ export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick, sear
     setError(null);
     try {
       const query = `
-        query ($season: MediaSeason, $seasonYear: Int ${!includeNsfw ? ', $isAdult: Boolean' : ''}) {
+        query ($season: MediaSeason, $seasonYear: Int, $now: Int, $past: Int ${!includeNsfw ? ', $isAdult: Boolean' : ''}) {
           trending: Page(page: 1, perPage: 30) {
             media(type: ANIME, ${!includeNsfw ? 'isAdult: $isAdult,' : ''} sort: [TRENDING_DESC, POPULARITY_DESC]) {
               ...animeFields
+            }
+          }
+          latestEpisodes: Page(page: 1, perPage: 40) {
+            airingSchedules(airingAt_greater: $past, airingAt_lesser: $now, sort: TIME_DESC) {
+              media {
+                ...animeFields
+              }
             }
           }
           popular: Page(page: 1, perPage: 30) {
@@ -304,13 +312,26 @@ export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick, sear
       `;
 
       // Current local metadata year is 2026, month is June -> Summer 2026
-      const variables: any = { season: 'SUMMER', seasonYear: 2026 };
+      const nowSec = Math.floor(Date.now() / 1000);
+      const pastSec = nowSec - 7 * 24 * 60 * 60; // past 7 days
+      const variables: any = { 
+        season: 'SUMMER', 
+        seasonYear: 2026,
+        now: nowSec,
+        past: pastSec
+      };
       if (!includeNsfw) {
         variables.isAdult = false;
       }
       const data = await fetchAniList(query, variables);
       
       setTrending(filterDuplicateAnime(data.trending?.media || []).slice(0, 12));
+      
+      const latestAired = data.latestEpisodes?.airingSchedules
+        ?.map((x: any) => x.media)
+        .filter((m: any) => m !== null) || [];
+      setLatestEpisodes(filterDuplicateAnime(latestAired).slice(0, 12));
+
       setPopular(filterDuplicateAnime(data.popular?.media || []).slice(0, 12));
       setTopRated(filterDuplicateAnime(data.topRated?.media || []).slice(0, 12));
       setSeasonal(filterDuplicateAnime(data.seasonal?.media || []).slice(0, 12));
@@ -1082,9 +1103,17 @@ export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick, sear
                 </span>
                 
                 {featured && (
-                  <h1 className="text-4xl md:text-6xl font-black text-white leading-tight tracking-tight drop-shadow-2xl">
-                    {getAnimeTitle(featured)}
-                  </h1>
+                  featuredLogoUrl ? (
+                    <img 
+                      src={featuredLogoUrl} 
+                      alt={getAnimeTitle(featured)} 
+                      className="max-h-16 md:max-h-24 max-w-[85%] object-contain object-left mb-1 drop-shadow-[0_4px_12px_rgba(0,0,0,0.9)] animate-in fade-in duration-300"
+                    />
+                  ) : (
+                    <h1 className="text-4xl md:text-6xl font-black text-white leading-tight tracking-tight drop-shadow-2xl">
+                      {getAnimeTitle(featured)}
+                    </h1>
+                  )
                 )}
 
                 {featured && (
@@ -1382,6 +1411,7 @@ export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick, sear
           </div>
 
           <AnimeRow title="Trending Right Now" items={trending} apiKey={apiKey} onAnimeClick={handleAnimeClick} titleLanguage={titleLanguage} onExpand={() => setExpandedCategory({ title: "Trending Right Now", items: trending })} type="trending" />
+          <AnimeRow title="Latest Episodes Released" items={latestEpisodes} apiKey={apiKey} onAnimeClick={handleAnimeClick} titleLanguage={titleLanguage} onExpand={() => setExpandedCategory({ title: "Latest Episodes Released", items: latestEpisodes })} type="latest" />
           <AnimeRow title="Summer 2026 Season" items={seasonal} apiKey={apiKey} onAnimeClick={handleAnimeClick} titleLanguage={titleLanguage} onExpand={() => setExpandedCategory({ title: "Summer 2026 Season", items: seasonal })} type="seasonal" season="SUMMER" seasonYear={2026} />
           <AnimeRow title="All-Time Popular Favorites" items={popular} apiKey={apiKey} onAnimeClick={handleAnimeClick} titleLanguage={titleLanguage} onExpand={() => setExpandedCategory({ title: "All-Time Popular Favorites", items: popular })} type="popular" />
           <AnimeRow title="Top Ranked Masterpieces" items={topRated} apiKey={apiKey} onAnimeClick={handleAnimeClick} titleLanguage={titleLanguage} onExpand={() => setExpandedCategory({ title: "Top Ranked Masterpieces", items: topRated })} type="topRated" />
@@ -1718,7 +1748,7 @@ export interface AnimeRowProps {
   titleLanguage: 'english' | 'romaji' | 'native';
   onExpand?: () => void;
   genre?: string;
-  type?: 'trending' | 'popular' | 'topRated' | 'seasonal' | 'upcoming';
+  type?: 'trending' | 'popular' | 'topRated' | 'seasonal' | 'upcoming' | 'latest';
   season?: string;
   seasonYear?: number;
 }
@@ -1748,7 +1778,7 @@ export const AnimeRow: React.FC<AnimeRowProps> = ({
   }, [initialItems]);
 
   const loadNextPage = async () => {
-    if (loadingMore || !hasMore || (!genre && !type)) return;
+    if (loadingMore || !hasMore || (!genre && !type) || type === 'latest') return;
     setLoadingMore(true);
 
     const nextPage = page + 1;
