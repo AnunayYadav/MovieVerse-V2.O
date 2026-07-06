@@ -12,6 +12,7 @@ interface Track {
   duration: number; // in seconds
   previewUrl: string;
   releaseDate?: string;
+  genre?: string;
 }
 
 interface Album {
@@ -24,86 +25,12 @@ interface Album {
   copyright?: string;
 }
 
-const TOP_MIXES = [
-  {
-    id: "mix_anirudh",
-    name: "Anirudh Ravichander Mix",
-    artistName: "Sai Abhyankkar, Darbuka Siva, G.V. Prakash...",
-    artworkUrl: "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=500&q=80",
-    color: "#b0c4de",
-    query: "Anirudh Ravichander"
-  },
-  {
-    id: "mix_2020s",
-    name: "2020s Mix",
-    artistName: "The Weeknd, Tyla, Dua Lipa, Billie Eilish...",
-    artworkUrl: "https://images.unsplash.com/photo-1498038432885-c6f3f1b912ee?w=500&q=80",
-    color: "#f08080",
-    query: "2020s Pop"
-  },
-  {
-    id: "mix_2010s",
-    name: "2010s Mix",
-    artistName: "Kendrick Lamar, Drake, Sean Paul, Bruno Mars...",
-    artworkUrl: "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=500&q=80",
-    color: "#98fb98",
-    query: "2010s Pop"
-  },
-  {
-    id: "mix_love",
-    name: "Love Mix",
-    artistName: "Pritam, Javed-Mohsin, Lady Gaga, Taylor Swift...",
-    artworkUrl: "https://images.unsplash.com/photo-1518609878373-06d740f60d8b?w=500&q=80",
-    color: "#ffe4c4",
-    query: "Love Songs"
-  },
-  {
-    id: "mix_djsnake",
-    name: "DJ Snake Mix",
-    artistName: "Mike Posner, Calvin Harris, Kygo, Martin Garrix...",
-    artworkUrl: "https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?w=500&q=80",
-    color: "#adff2f",
-    query: "DJ Snake"
-  }
-];
-
-const JUMP_BACK_IN = [
-  {
-    id: "artist_anirudh",
-    name: "Anirudh Ravichander",
-    imageUrl: "https://images.unsplash.com/photo-1506157786151-b8491531f063?w=300&q=80",
-    query: "Anirudh Ravichander"
-  },
-  {
-    id: "artist_arijit",
-    name: "Arijit Singh",
-    imageUrl: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&q=80",
-    query: "Arijit Singh"
-  },
-  {
-    id: "artist_weeknd",
-    name: "The Weeknd",
-    imageUrl: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=300&q=80",
-    query: "The Weeknd"
-  },
-  {
-    id: "artist_diljit",
-    name: "Diljit Dosanjh",
-    imageUrl: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=300&q=80",
-    query: "Diljit Dosanjh"
-  },
-  {
-    id: "artist_justin",
-    name: "Justin Bieber",
-    imageUrl: "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=300&q=80",
-    query: "Justin Bieber"
-  },
-  {
-    id: "artist_djsnake",
-    name: "DJ Snake",
-    imageUrl: "https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?w=300&q=80",
-    query: "DJ Snake"
-  }
+const DYNAMIC_PLAYLISTS = [
+  { id: "playlist_pop", name: "Pop Mix", genreId: 14, color: "#b0c4de", artworkUrl: "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=500&q=80" },
+  { id: "playlist_hiphop", name: "Hip-Hop Mix", genreId: 18, color: "#f08080", artworkUrl: "https://images.unsplash.com/photo-1498038432885-c6f3f1b912ee?w=500&q=80" },
+  { id: "playlist_electronic", name: "Electronic Mix", genreId: 7, color: "#98fb98", artworkUrl: "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=500&q=80" },
+  { id: "playlist_rock", name: "Rock Mix", genreId: 21, color: "#ffe4c4", artworkUrl: "https://images.unsplash.com/photo-1518609878373-06d740f60d8b?w=500&q=80" },
+  { id: "playlist_rnb", name: "R&B Mix", genreId: 15, color: "#adff2f", artworkUrl: "https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?w=500&q=80" }
 ];
 
 interface MusicPageProps {
@@ -152,6 +79,24 @@ export const MusicPage: React.FC<MusicPageProps> = ({ disableEntryAnimation }) =
   const [lyricsText, setLyricsText] = useState<string[]>([]);
   const [lyricsLoading, setLyricsLoading] = useState(false);
   const [loadingMixId, setLoadingMixId] = useState<string | null>(null);
+  
+  // Dynamic Charts feeds states
+  const [jumpBackIn, setJumpBackIn] = useState<any[]>([]);
+  const [visualizerMode, setVisualizerMode] = useState<'circular' | 'bars' | 'none'>('circular');
+  const [loadingPlaylistId, setLoadingPlaylistId] = useState<string | null>(null);
+  
+  // Lyrics Scrolling
+  const activeLyricRef = useRef<HTMLParagraphElement | null>(null);
+  const activeLyricIndex = duration > 0 ? Math.floor((currentTime / duration) * lyricsText.length) : -1;
+
+  useEffect(() => {
+    if (activeLyricRef.current) {
+      activeLyricRef.current.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center'
+      });
+    }
+  }, [activeLyricIndex]);
 
   // Audio HTML5 setup
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -190,7 +135,8 @@ export const MusicPage: React.FC<MusicPageProps> = ({ disableEntryAnimation }) =
         albumId: String(item.collectionId),
         coverUrl: item.artworkUrl100 ? item.artworkUrl100.replace('100x100bb.jpg', '500x500bb.jpg') : "",
         duration: Math.floor(item.trackTimeMillis / 1000),
-        previewUrl: item.previewUrl
+        previewUrl: item.previewUrl,
+        genre: item.primaryGenreName || "Pop"
       }));
       if (mappedTracks.length > 0) {
         selectAndPlay(mappedTracks[0], mappedTracks);
@@ -199,6 +145,41 @@ export const MusicPage: React.FC<MusicPageProps> = ({ disableEntryAnimation }) =
       console.error("Failed to play mix or artist:", name, e);
     } finally {
       setLoadingMixId(null);
+    }
+  };
+
+  const playPlaylistFeed = async (genreId: number, id: string) => {
+    setLoadingPlaylistId(id);
+    try {
+      const res = await fetch(`https://itunes.apple.com/us/rss/topsongs/limit=25/genre=${genreId}/json`);
+      const data = await res.json();
+      const entries = data.feed?.entry || [];
+      const songIds = entries.map((entry: any) => entry.id?.attributes?.['im:id']).filter(Boolean);
+
+      if (songIds.length > 0) {
+        const lookupRes = await fetch(`https://itunes.apple.com/lookup?id=${songIds.join(',')}`);
+        const lookupData = await lookupRes.json();
+        const mappedTracks: Track[] = (lookupData.results || [])
+          .filter((item: any) => item.wrapperType === 'track')
+          .map((item: any) => ({
+            id: String(item.trackId),
+            title: item.trackName,
+            artist: item.artistName,
+            album: item.collectionName,
+            albumId: String(item.collectionId),
+            coverUrl: item.artworkUrl100 ? item.artworkUrl100.replace('100x100bb.jpg', '500x500bb.jpg') : "",
+            duration: Math.floor(item.trackTimeMillis / 1000),
+            previewUrl: item.previewUrl,
+            genre: item.primaryGenreName || "Pop"
+          }));
+        if (mappedTracks.length > 0) {
+          selectAndPlay(mappedTracks[0], mappedTracks);
+        }
+      }
+    } catch (e) {
+      console.error("Failed to play playlist feed:", genreId, e);
+    } finally {
+      setLoadingPlaylistId(null);
     }
   };
 
@@ -223,7 +204,7 @@ export const MusicPage: React.FC<MusicPageProps> = ({ disableEntryAnimation }) =
       setRecommendedAlbums(mappedAlbums);
 
       // 2. Fetch Top Songs RSS
-      const songRes = await fetch("https://itunes.apple.com/us/rss/topsongs/limit=15/json");
+      const songRes = await fetch("https://itunes.apple.com/us/rss/topsongs/limit=35/json");
       const songData = await songRes.json();
       const songEntries = songData.feed?.entry || [];
       const songIds = songEntries.map((entry: any) => entry.id?.attributes?.['im:id']).filter(Boolean);
@@ -242,9 +223,27 @@ export const MusicPage: React.FC<MusicPageProps> = ({ disableEntryAnimation }) =
             albumId: String(item.collectionId),
             coverUrl: item.artworkUrl100 ? item.artworkUrl100.replace('100x100bb.jpg', '500x500bb.jpg') : "",
             duration: Math.floor(item.trackTimeMillis / 1000),
-            previewUrl: item.previewUrl
+            previewUrl: item.previewUrl,
+            genre: item.primaryGenreName || "Pop"
           }));
         setRecommendedSongs(mappedTracks);
+
+        // Extract top 6 unique artists for Jump Back In dynamically
+        const artistsList: any[] = [];
+        const seenArtists = new Set<string>();
+        for (const track of mappedTracks) {
+          if (!seenArtists.has(track.artist)) {
+            seenArtists.add(track.artist);
+            artistsList.push({
+              id: `artist_${track.id}`,
+              name: track.artist,
+              imageUrl: track.coverUrl || "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=300&q=80",
+              query: track.artist
+            });
+          }
+          if (artistsList.length >= 6) break;
+        }
+        setJumpBackIn(artistsList);
         
         // Auto-select first track if none is selected
         if (mappedTracks.length > 0 && !currentTrack) {
@@ -532,56 +531,76 @@ export const MusicPage: React.FC<MusicPageProps> = ({ disableEntryAnimation }) =
       animationFrameRef.current = requestAnimationFrame(draw);
       analyser.getByteFrequencyData(dataArray);
 
-      ctx.fillStyle = 'rgba(9, 9, 11, 0.2)'; // semi-transparent deep background
+      ctx.fillStyle = 'rgba(9, 9, 11, 0.25)'; // semi-transparent deep background
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      const centerX = canvas.width / 2;
-      const centerY = canvas.height / 2;
-      const baseRadius = 110;
+      if (visualizerMode === 'circular') {
+        const centerX = canvas.width / 2;
+        const centerY = canvas.height / 2;
+        const baseRadius = 110;
 
-      // Draw elegant circular reactive wave
-      ctx.beginPath();
-      for (let i = 0; i < bufferLength; i++) {
-        const value = dataArray[i];
-        const percent = value / 255;
-        const radius = baseRadius + (percent * 60);
-        const angle = (i / bufferLength) * Math.PI * 2;
-
-        const x = centerX + Math.cos(angle) * radius;
-        const y = centerY + Math.sin(angle) * radius;
-
-        if (i === 0) {
-          ctx.moveTo(x, y);
-        } else {
-          ctx.lineTo(x, y);
-        }
-      }
-      ctx.closePath();
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.85)'; // White
-      ctx.lineWidth = 3;
-      ctx.shadowBlur = 20;
-      ctx.shadowColor = '#ffffff';
-      ctx.stroke();
-      ctx.shadowBlur = 0;
-
-      // Draw particle bars radiating outwards
-      for (let i = 0; i < bufferLength; i += 4) {
-        const value = dataArray[i];
-        const percent = value / 255;
-        const barHeight = percent * 90;
-        const angle = (i / bufferLength) * Math.PI * 2;
-
-        const startX = centerX + Math.cos(angle) * baseRadius;
-        const startY = centerY + Math.sin(angle) * baseRadius;
-        const endX = centerX + Math.cos(angle) * (baseRadius + barHeight);
-        const endY = centerY + Math.sin(angle) * (baseRadius + barHeight);
-
+        // Draw elegant circular reactive wave
         ctx.beginPath();
-        ctx.moveTo(startX, startY);
-        ctx.lineTo(endX, endY);
-        ctx.strokeStyle = `rgba(34, 197, 94, ${0.2 + percent * 0.8})`; // Active green particles
-        ctx.lineWidth = 2;
+        for (let i = 0; i < bufferLength; i++) {
+          const value = dataArray[i];
+          const percent = value / 255;
+          const radius = baseRadius + (percent * 60);
+          const angle = (i / bufferLength) * Math.PI * 2;
+
+          const x = centerX + Math.cos(angle) * radius;
+          const y = centerY + Math.sin(angle) * radius;
+
+          if (i === 0) {
+            ctx.moveTo(x, y);
+          } else {
+            ctx.lineTo(x, y);
+          }
+        }
+        ctx.closePath();
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.85)'; // White
+        ctx.lineWidth = 3;
+        ctx.shadowBlur = 20;
+        ctx.shadowColor = '#ffffff';
         ctx.stroke();
+        ctx.shadowBlur = 0;
+
+        // Draw particle bars radiating outwards
+        for (let i = 0; i < bufferLength; i += 4) {
+          const value = dataArray[i];
+          const percent = value / 255;
+          const barHeight = percent * 90;
+          const angle = (i / bufferLength) * Math.PI * 2;
+
+          const startX = centerX + Math.cos(angle) * baseRadius;
+          const startY = centerY + Math.sin(angle) * baseRadius;
+          const endX = centerX + Math.cos(angle) * (baseRadius + barHeight);
+          const endY = centerY + Math.sin(angle) * (baseRadius + barHeight);
+
+          ctx.beginPath();
+          ctx.moveTo(startX, startY);
+          ctx.lineTo(endX, endY);
+          ctx.strokeStyle = `rgba(34, 197, 94, ${0.2 + percent * 0.8})`; // Active green particles
+          ctx.lineWidth = 2;
+          ctx.stroke();
+        }
+      } else if (visualizerMode === 'bars') {
+        // Draw symmetrical frequency bars
+        const barWidth = (canvas.width / (bufferLength / 3)) * 1.5;
+        let x = 0;
+
+        for (let i = 0; i < bufferLength / 3; i++) {
+          const value = dataArray[i];
+          const percent = value / 255;
+          const barHeight = Math.max(4, percent * (canvas.height * 0.8));
+          const y = (canvas.height - barHeight) / 2;
+
+          ctx.fillStyle = `rgba(34, 197, 94, ${0.4 + percent * 0.6})`;
+          ctx.fillRect(x, y, barWidth - 2, barHeight);
+          x += barWidth;
+        }
+      } else {
+        // Mode is none: clear canvas
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
       }
     };
 
@@ -590,7 +609,7 @@ export const MusicPage: React.FC<MusicPageProps> = ({ disableEntryAnimation }) =
     return () => {
       if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
     };
-  }, [isPlayerExpanded]);
+  }, [isPlayerExpanded, visualizerMode]);
 
   const selectAndPlay = (track: Track, newQueue: Track[]) => {
     setCurrentTrack(track);
@@ -666,12 +685,12 @@ export const MusicPage: React.FC<MusicPageProps> = ({ disableEntryAnimation }) =
               <h3 className="text-xl font-bold text-white tracking-tight">Your top mixes</h3>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-5">
-              {TOP_MIXES.map(mix => {
-                const isLoading = loadingMixId === mix.id;
+              {DYNAMIC_PLAYLISTS.map(mix => {
+                const isLoading = loadingPlaylistId === mix.id;
                 return (
                   <div
                     key={mix.id}
-                    onClick={() => !isLoading && playMixOrArtist(mix.query, mix.id)}
+                    onClick={() => !isLoading && playPlaylistFeed(mix.genreId, mix.id)}
                     className="group relative cursor-pointer bg-zinc-900/30 hover:bg-zinc-800/30 border border-zinc-900/50 hover:border-zinc-800 rounded-xl p-3.5 transition-all duration-300 text-left"
                   >
                     <div className="relative aspect-square w-full rounded-lg overflow-hidden bg-zinc-800 mb-3 shadow-md">
@@ -690,7 +709,7 @@ export const MusicPage: React.FC<MusicPageProps> = ({ disableEntryAnimation }) =
                       </div>
                     </div>
                     <h4 className="text-xs font-bold text-white line-clamp-1 mb-0.5">{mix.name}</h4>
-                    <p className="text-[10px] text-zinc-400 line-clamp-2 leading-tight">{mix.artistName}</p>
+                    <p className="text-[10px] text-zinc-400 line-clamp-2 leading-tight">Trending hits in {mix.name.replace(" Mix", "")}</p>
                   </div>
                 );
               })}
@@ -703,30 +722,39 @@ export const MusicPage: React.FC<MusicPageProps> = ({ disableEntryAnimation }) =
               <h3 className="text-xl font-bold text-white tracking-tight">Jump back in</h3>
             </div>
             <div className="grid grid-cols-3 sm:grid-cols-6 gap-6">
-              {JUMP_BACK_IN.map(artist => {
-                const isLoading = loadingMixId === artist.id;
-                return (
-                  <div
-                    key={artist.id}
-                    onClick={() => !isLoading && playMixOrArtist(artist.query, artist.id)}
-                    className="flex flex-col items-center text-center cursor-pointer group select-none"
-                  >
-                    <div className="w-24 h-24 rounded-full overflow-hidden mb-3 relative shadow-lg bg-zinc-900 border border-zinc-850 flex items-center justify-center">
-                      <img
-                        src={artist.imageUrl}
-                        alt={artist.name}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                      />
-                      <div className="absolute inset-0 bg-black/45 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                        <div className="w-8 h-8 rounded-full bg-white text-black flex items-center justify-center transform scale-90 group-hover:scale-100 transition-all">
-                          {isLoading ? <Loader2 className="animate-spin text-black" size={12} /> : <Play size={12} fill="currentColor" className="ml-0.5" />}
+              {jumpBackIn.length === 0 ? (
+                Array.from({ length: 6 }).map((_, idx) => (
+                  <div key={idx} className="flex flex-col items-center animate-pulse">
+                    <div className="w-24 h-24 rounded-full bg-zinc-800 mb-3 shadow-lg"></div>
+                    <div className="h-3 bg-zinc-800 rounded w-16"></div>
+                  </div>
+                ))
+              ) : (
+                jumpBackIn.map(artist => {
+                  const isLoading = loadingMixId === artist.id;
+                  return (
+                    <div
+                      key={artist.id}
+                      onClick={() => !isLoading && playMixOrArtist(artist.query, artist.id)}
+                      className="flex flex-col items-center text-center cursor-pointer group select-none"
+                    >
+                      <div className="w-24 h-24 rounded-full overflow-hidden mb-3 relative shadow-lg bg-zinc-900 border border-zinc-850 flex items-center justify-center">
+                        <img
+                          src={artist.imageUrl}
+                          alt={artist.name}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                        />
+                        <div className="absolute inset-0 bg-black/45 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                          <div className="w-8 h-8 rounded-full bg-white text-black flex items-center justify-center transform scale-90 group-hover:scale-100 transition-all">
+                            {isLoading ? <Loader2 className="animate-spin text-black" size={12} /> : <Play size={12} fill="currentColor" className="ml-0.5" />}
+                          </div>
                         </div>
                       </div>
+                      <span className="text-xs font-bold text-zinc-300 group-hover:text-white transition-colors">{artist.name}</span>
                     </div>
-                    <span className="text-xs font-bold text-zinc-300 group-hover:text-white transition-colors">{artist.name}</span>
-                  </div>
-                );
-              })}
+                  );
+                })
+              )}
             </div>
           </div>
 
@@ -1229,50 +1257,58 @@ export const MusicPage: React.FC<MusicPageProps> = ({ disableEntryAnimation }) =
           </div>
         </div>
       )}
-
-      {/* Fullscreen Lyrics & Circular Wave Visualizer Overlay */}
+           {/* Fullscreen Lyrics & Circular Wave Visualizer Overlay */}
       {isPlayerExpanded && currentTrack && (
-        <div className="fixed inset-0 z-[120] bg-zinc-950 flex flex-col md:flex-row p-6 md:p-12 overflow-y-auto animate-in fade-in zoom-in-95 duration-300">
+        <div className="fixed inset-0 z-[120] bg-zinc-950 flex flex-col md:flex-row p-6 md:p-12 overflow-y-auto animate-in fade-in zoom-in-95 duration-300 text-left">
           <button
             onClick={() => setIsPlayerExpanded(false)}
             className="absolute top-6 right-6 p-2 rounded-full bg-white/5 border border-white/10 hover:bg-white/10 transition-colors text-white z-50 shadow-md"
           >
             <ChevronDown size={20} />
           </button>
-
+ 
           {/* Left Panel: Cover Art & Circular Visualizer */}
-          <div className="flex-1 flex flex-col items-center justify-center relative min-h-[400px] select-none">
-            {/* Visualizer Canvas */}
-            <canvas
-              ref={canvasRef}
-              width="450"
-              height="450"
-              className="absolute z-10 pointer-events-none w-[320px] h-[320px] md:w-[450px] md:h-[450px]"
-            />
+          <div className="flex-1 flex flex-col items-center justify-between min-h-[500px] select-none text-center py-6">
+            
+            {/* Visualizer and Disk Container (Fixed Height to prevent overlaps!) */}
+            <div className="relative w-full h-[360px] flex items-center justify-center">
+              {/* Visualizer Canvas */}
+              {visualizerMode !== 'none' && (
+                <canvas
+                  ref={canvasRef}
+                  width="450"
+                  height="450"
+                  className="absolute pointer-events-none w-[320px] h-[320px] md:w-[450px] md:h-[450px]"
+                />
+              )}
 
-            {/* Glowing Vinyl Cover Art */}
-            <div className="relative z-20 w-[240px] h-[240px] md:w-[320px] md:h-[320px] rounded-full overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.85)] border-8 border-zinc-900 bg-black flex items-center justify-center group">
-              <img
-                src={currentTrack.coverUrl}
-                alt=""
-                className={`w-full h-full object-cover rounded-full ${isPlaying ? 'animate-[spin_20s_linear_infinite]' : ''}`}
-              />
-              <div className="absolute w-12 h-12 rounded-full bg-zinc-950 border-4 border-zinc-900 z-30 shadow-inner flex items-center justify-center">
-                <div className="w-3.5 h-3.5 rounded-full bg-green-500 shadow-md shadow-green-500/50" />
-              </div>
-            </div>
-
-            {/* Track Info */}
-            <div className="text-center mt-8 relative z-20">
-              <h3 className="text-2xl font-extrabold text-white tracking-tight leading-tight">{currentTrack.title}</h3>
-              <p className="text-zinc-400 text-sm mt-1">{currentTrack.artist}</p>
-              {currentTrack.album && (
-                <p className="text-zinc-500 text-xs mt-0.5">{currentTrack.album}</p>
+              {/* Glowing Vinyl Cover Art */}
+              {visualizerMode !== 'bars' && (
+                <div className="relative z-20 w-[240px] h-[240px] md:w-[310px] md:h-[310px] rounded-full overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.85)] border-[6px] border-zinc-900 bg-black flex items-center justify-center group">
+                  <img
+                    src={currentTrack.coverUrl}
+                    alt=""
+                    className={`w-full h-full object-cover rounded-full ${isPlaying ? 'animate-[spin_20s_linear_infinite]' : ''}`}
+                  />
+                  <div className="absolute w-12 h-12 rounded-full bg-zinc-950 border-4 border-zinc-900 z-30 shadow-inner flex items-center justify-center">
+                    <div className="w-3.5 h-3.5 rounded-full bg-green-500 shadow-md shadow-green-500/50" />
+                  </div>
+                </div>
               )}
             </div>
 
-            {/* Controls */}
-            <div className="w-full max-w-lg mt-8 relative z-20 px-6 space-y-6">
+            {/* Track Info */}
+            <div className="w-full max-w-lg space-y-1 mt-6">
+              <h3 className="text-2xl md:text-3xl font-black text-white tracking-tight leading-tight">{currentTrack.title}</h3>
+              <p className="text-zinc-400 text-sm font-bold">{currentTrack.artist}</p>
+              {currentTrack.album && (
+                <p className="text-zinc-650 text-xs font-semibold uppercase tracking-wider">{currentTrack.album}</p>
+              )}
+            </div>
+
+            {/* Controls & Scrubber */}
+            <div className="w-full max-w-lg px-6 space-y-6 mt-6">
+              {/* Scrubber */}
               <div className="space-y-1">
                 <div className="flex items-center justify-between text-[10px] text-zinc-500 font-semibold mb-1">
                   <span>{formatTime(currentTime)}</span>
@@ -1292,60 +1328,138 @@ export const MusicPage: React.FC<MusicPageProps> = ({ disableEntryAnimation }) =
                 />
               </div>
 
-              <div className="flex items-center justify-between">
+              {/* Main Playback Control Bar */}
+              <div className="flex items-center justify-between gap-2">
+                {/* Shuffle */}
                 <button
                   onClick={() => setIsShuffle(!isShuffle)}
                   className={`p-2 transition-colors ${isShuffle ? 'text-green-500' : 'text-zinc-500 hover:text-white'}`}
+                  title="Shuffle"
                 >
                   <Shuffle size={18} />
                 </button>
+                
                 <div className="flex items-center gap-6">
-                  <button onClick={skipPrevious} className="text-zinc-400 hover:text-white transition-colors">
+                  {/* Previous */}
+                  <button onClick={skipPrevious} className="text-zinc-400 hover:text-white transition-colors" title="Previous">
                     <SkipBack size={24} fill="currentColor" />
                   </button>
+                  
+                  {/* Play / Pause */}
                   <button
                     onClick={togglePlay}
                     className="w-14 h-14 rounded-full bg-white hover:scale-105 text-black flex items-center justify-center shadow-lg transition-transform"
+                    title={isPlaying ? "Pause" : "Play"}
                   >
                     {isPlaying ? <Pause size={28} fill="currentColor" /> : <Play size={28} fill="currentColor" className="ml-1" />}
                   </button>
-                  <button onClick={skipNext} className="text-zinc-400 hover:text-white transition-colors">
+                  
+                  {/* Next */}
+                  <button onClick={skipNext} className="text-zinc-400 hover:text-white transition-colors" title="Next">
                     <SkipForward size={24} fill="currentColor" />
                   </button>
                 </div>
+
+                {/* Repeat */}
                 <button
                   onClick={() => setIsRepeat(!isRepeat)}
                   className={`p-2 transition-colors ${isRepeat ? 'text-green-500' : 'text-zinc-500 hover:text-white'}`}
+                  title="Repeat"
                 >
                   <Repeat size={18} />
                 </button>
               </div>
+
+              {/* Sub Controls row (Heart, Volume slider, Visualizer Mode selector!) */}
+              <div className="flex items-center justify-between border-t border-zinc-900 pt-5">
+                {/* Heart/Favorite toggle */}
+                <button
+                  onClick={() => toggleFavorite(currentTrack)}
+                  className={`p-2 rounded-full transition-colors ${favoritesList.some(t => t.id === currentTrack.id) ? 'text-green-500' : 'text-zinc-500 hover:text-white'}`}
+                  title="Save to Favorites"
+                >
+                  <Heart size={18} fill={favoritesList.some(t => t.id === currentTrack.id) ? "currentColor" : "none"} />
+                </button>
+
+                {/* Visualizer Mode selector */}
+                <div className="flex bg-zinc-900 border border-zinc-800 p-0.5 rounded-lg text-[9px] font-bold">
+                  <button
+                    onClick={() => setVisualizerMode('circular')}
+                    className={`px-2.5 py-1 rounded transition-all ${visualizerMode === 'circular' ? 'bg-zinc-800 text-white' : 'text-zinc-500 hover:text-white'}`}
+                    title="Circular wave visualizer"
+                  >
+                    Circular
+                  </button>
+                  <button
+                    onClick={() => setVisualizerMode('bars')}
+                    className={`px-2.5 py-1 rounded transition-all ${visualizerMode === 'bars' ? 'bg-zinc-800 text-white' : 'text-zinc-500 hover:text-white'}`}
+                    title="Symmetrical frequency bars"
+                  >
+                    Bars
+                  </button>
+                  <button
+                    onClick={() => setVisualizerMode('none')}
+                    className={`px-2.5 py-1 rounded transition-all ${visualizerMode === 'none' ? 'bg-zinc-800 text-white' : 'text-zinc-500 hover:text-white'}`}
+                    title="Disable visualizer"
+                  >
+                    Off
+                  </button>
+                </div>
+
+                {/* Volume Slider control */}
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setIsMuted(!isMuted)}
+                    className="text-zinc-400 hover:text-white transition-colors"
+                  >
+                    {isMuted ? <VolumeX size={16} /> : <Volume2 size={16} />}
+                  </button>
+                  <input
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.01"
+                    value={volume}
+                    onChange={(e) => {
+                      setVolume(parseFloat(e.target.value));
+                      setIsMuted(false);
+                    }}
+                    className="w-20 h-1 bg-zinc-800 accent-white rounded-full cursor-pointer"
+                  />
+                </div>
+              </div>
+
             </div>
           </div>
-
+ 
           {/* Right Panel: Scrollable Karaoke Lyrics */}
           <div className="flex-1 flex flex-col border-t md:border-t-0 md:border-l border-zinc-900 pt-8 md:pt-0 md:pl-12">
             <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-widest mb-6 flex items-center gap-2">
               <ListMusic size={16} /> TIMED LYRICS
             </h3>
-
+ 
             {lyricsLoading ? (
               <div className="flex-1 flex items-center justify-center">
                 <Loader2 className="animate-spin text-white" size={24} />
               </div>
             ) : (
               <div className="flex-1 overflow-y-auto space-y-6 max-h-[450px] md:max-h-[600px] pr-4 custom-scrollbar scroll-smooth">
-                {lyricsText.map((line, idx) => (
-                  <p
-                    key={idx}
-                    className={`text-base md:text-lg font-extrabold tracking-tight transition-all duration-300 ${idx === Math.floor((currentTime / duration) * lyricsText.length)
-                      ? 'text-green-400 scale-[1.02] origin-left drop-shadow-[0_4px_12px_rgba(34,197,94,0.2)]'
-                      : 'text-zinc-700 hover:text-zinc-500'
-                    }`}
-                  >
-                    {line}
-                  </p>
-                ))}
+                {lyricsText.map((line, idx) => {
+                  const isActive = idx === activeLyricIndex;
+                  return (
+                    <p
+                      key={idx}
+                      ref={isActive ? activeLyricRef : null}
+                      className={`text-2xl md:text-3xl font-black tracking-tight leading-snug transition-all duration-500 select-text ${
+                        isActive
+                          ? 'text-green-400 scale-[1.03] origin-left drop-shadow-[0_0_15px_rgba(34,197,94,0.25)]'
+                          : 'text-white/20 hover:text-white/40'
+                      }`}
+                    >
+                      {line}
+                    </p>
+                  );
+                })}
               </div>
             )}
           </div>
