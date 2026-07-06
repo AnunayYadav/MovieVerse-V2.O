@@ -1735,7 +1735,11 @@ export const AnimeCard: React.FC<AnimeCardProps> = ({ anime, apiKey, onAnimeClic
       if (tmdbId && mediaType) {
         // Set backdrop URL (prefer TMDB landscape backdrop)
         if (backdropPath) {
-          setBackdropUrl(`https://image.tmdb.org/t/p/w500${backdropPath}`);
+          if (backdropPath.startsWith('http')) {
+            setBackdropUrl(backdropPath);
+          } else {
+            setBackdropUrl(`https://image.tmdb.org/t/p/w500${backdropPath}`);
+          }
         } else {
           setBackdropUrl(anime.bannerImage || anime.coverImage.extraLarge || anime.coverImage.large);
         }
@@ -2194,7 +2198,11 @@ export const AiringCard: React.FC<AiringCardProps> = ({ item, apiKey, onAnimeCli
       
       if (tmdbId && mediaType) {
         if (backdropPath) {
-          setBackdropUrl(`https://image.tmdb.org/t/p/w500${backdropPath}`);
+          if (backdropPath.startsWith('http')) {
+            setBackdropUrl(backdropPath);
+          } else {
+            setBackdropUrl(`https://image.tmdb.org/t/p/w500${backdropPath}`);
+          }
         } else {
           setBackdropUrl(item.media.bannerImage || item.media.coverImage.extraLarge || item.media.coverImage.large);
         }
