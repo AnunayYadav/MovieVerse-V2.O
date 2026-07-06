@@ -417,9 +417,10 @@ interface MovieCardProps {
     onClick: (m: Movie) => void;
     isWatched: boolean;
     onToggleWatched: (m: Movie) => void;
+    horizontal?: boolean;
 }
 
-export const MovieCard = React.memo(React.forwardRef<HTMLDivElement, MovieCardProps>(({ movie, onClick, isWatched, onToggleWatched }, ref) => {
+export const MovieCard = React.memo(React.forwardRef<HTMLDivElement, MovieCardProps>(({ movie, onClick, isWatched, onToggleWatched, horizontal = false }, ref) => {
     if (!movie) return null;
 
     const { ref: focusRef } = useTvFocus({
@@ -435,9 +436,13 @@ export const MovieCard = React.memo(React.forwardRef<HTMLDivElement, MovieCardPr
         }
     };
 
-    const posterUrl = movie.poster_path 
-      ? `https://image.tmdb.org/t/p/w500${movie.poster_path}`
-      : (movie.backdrop_path ? `https://image.tmdb.org/t/p/w500${movie.backdrop_path}` : `https://placehold.co/320x480/111/444?text=${encodeURIComponent(movie.title || movie.name || "Movie")}`);
+    const posterUrl = horizontal
+      ? (movie.backdrop_path 
+          ? `https://image.tmdb.org/t/p/w500${movie.backdrop_path}`
+          : (movie.poster_path ? `https://image.tmdb.org/t/p/w500${movie.poster_path}` : `https://placehold.co/600x338/111/444?text=${encodeURIComponent(movie.title || movie.name || "Movie")}`))
+      : (movie.poster_path 
+          ? `https://image.tmdb.org/t/p/w500${movie.poster_path}`
+          : (movie.backdrop_path ? `https://image.tmdb.org/t/p/w500${movie.backdrop_path}` : `https://placehold.co/320x480/111/444?text=${encodeURIComponent(movie.title || movie.name || "Movie")}`));
 
     const rating = movie.vote_average;
     const year = (movie.release_date || movie.first_air_date || "").split('-')[0];
@@ -450,7 +455,7 @@ export const MovieCard = React.memo(React.forwardRef<HTMLDivElement, MovieCardPr
     return (
       <div 
         ref={combinedRef}
-        className="group relative shrink-0 w-[140px] sm:w-[170px] aspect-[2/3] rounded-xl overflow-hidden cursor-pointer transition-all duration-500 ease-[cubic-bezier(0.33,1,0.68,1)] hover:z-20 hover:scale-[1.03] hover:shadow-[0_10px_40px_rgba(0,0,0,0.5)] border border-white/5 hover:border-red-500/50 font-sans select-none"
+        className={`group relative ${horizontal ? 'w-full aspect-[16/9]' : 'shrink-0 w-[140px] sm:w-[170px] aspect-[2/3]'} rounded-xl overflow-hidden cursor-pointer transition-all duration-500 ease-[cubic-bezier(0.33,1,0.68,1)] hover:z-20 hover:scale-[1.03] hover:shadow-[0_10px_40px_rgba(0,0,0,0.5)] border border-white/5 hover:border-red-500/50 font-sans select-none`}
         onClick={() => onClick(movie)}
       >
         <div className="w-full h-full relative bg-white/5">

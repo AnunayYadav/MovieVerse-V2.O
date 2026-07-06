@@ -113,10 +113,8 @@ export const DramaPage: React.FC<DramaPageProps> = ({
 
   // Sync parent search query
   useEffect(() => {
-    if (parentSearchQuery) {
-      setSearchQuery(parentSearchQuery);
-      setSearchInput(parentSearchQuery);
-    }
+    setSearchQuery(parentSearchQuery || '');
+    setSearchInput(parentSearchQuery || '');
   }, [parentSearchQuery]);
 
   // Helper: fetch TMDB discover/trending and map to MDLDramaSummary
@@ -573,27 +571,7 @@ export const DramaPage: React.FC<DramaPageProps> = ({
 
         {/* Search Section & Configuration Header */}
         <div className="max-w-7xl mx-auto px-3 md:px-6 mt-8 select-none flex flex-col gap-6">
-          <div className="flex items-center justify-between gap-4 flex-wrap w-full">
-            <form onSubmit={handleSearchSubmit} className="relative max-w-md w-full">
-              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-400" size={16} />
-              <input 
-                type="text"
-                placeholder="Search Asian dramas..."
-                value={searchInput}
-                onChange={(e) => setSearchInput(e.target.value)}
-                className="w-full bg-[#0c0c0e]/90 border border-white/10 rounded-full pl-10 pr-10 py-2.5 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-red-600/60 focus:ring-1 focus:ring-red-600/30 transition-all shadow-[inset_0_2px_4px_rgba(0,0,0,0.4)]"
-              />
-              {searchInput && (
-                <button 
-                  type="button" 
-                  onClick={clearSearch} 
-                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white"
-                >
-                  <X size={14} />
-                </button>
-              )}
-            </form>
-
+          <div className="flex items-center justify-end gap-4 flex-wrap w-full">
             {/* Title Language Dropdown Selector */}
             <div className="relative group shrink-0">
               <button 

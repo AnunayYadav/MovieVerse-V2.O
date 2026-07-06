@@ -818,11 +818,11 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ apiKey, onMovieClick, 
                         </div>
 
                         {searching && ottSearchResults.length === 0 ? (
-                            <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 md:gap-8">
+                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6 md:gap-8">
                                 {[...Array(8)].map((_, i) => <MovieSkeleton key={i} />)}
                             </div>
                         ) : ottSearchResults.length > 0 ? (
-                            <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 md:gap-8 animate-in fade-in duration-500">
+                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6 md:gap-8 animate-in fade-in duration-500">
                                 {ottSearchResults.map(movie => (
                                     <MovieCard 
                                         key={movie.id} 
@@ -830,6 +830,7 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ apiKey, onMovieClick, 
                                         onClick={onMovieClick} 
                                         isWatched={false} 
                                         onToggleWatched={() => {}} 
+                                        horizontal={true}
                                     />
                                 ))}
                             </div>
