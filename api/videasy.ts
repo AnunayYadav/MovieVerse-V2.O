@@ -221,7 +221,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   let providers: { name: string; endpoint: string; queryParams?: Record<string, string> }[] = [];
 
-  if (serverStr.includes('hydrogen') || serverStr.includes('cdn')) {
+  if (serverStr.includes('neon')) {
+    providers = [{ name: 'Neon', endpoint: 'neon2' }];
+  } else if (serverStr.includes('jett')) {
+    providers = [{ name: 'Jett', endpoint: 'jett' }];
+  } else if (serverStr.includes('tejo')) {
+    providers = [{ name: 'Tejo', endpoint: 'tejo' }];
+  } else if (serverStr.includes('sage')) {
+    providers = [{ name: 'Sage', endpoint: 'ym' }];
+  } else if (serverStr.includes('breach')) {
+    providers = [{ name: 'Breach', endpoint: 'm4uhd' }];
+  } else if (serverStr.includes('hydrogen') || serverStr.includes('cdn')) {
     providers = [{ name: 'Hydrogen', endpoint: 'cdn' }];
   } else if (serverStr.includes('lithium') || serverStr.includes('downloader2')) {
     providers = [{ name: 'Lithium', endpoint: 'downloader2' }];
@@ -241,16 +251,42 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Default loop/fallback order
     providers = [
       { name: 'Hydrogen', endpoint: 'cdn' },
+      { name: 'Neon', endpoint: 'neon2' },
+      { name: 'Vyse (English)', endpoint: 'hdmovie' },
       { name: 'Lithium', endpoint: 'downloader2' },
       { name: 'Oxygen', endpoint: 'mb-flix' }
     ];
   }
 
+  // Fetch seed first
+  let seed = '';
+  try {
+    const seedRes = await fetch(`https://api.wingsdatabase.com/seed?mediaId=${tmdbId}`, {
+      headers: {
+        "Accept": "*/*",
+        "Origin": "https://player.videasy.to",
+        "Referer": "https://player.videasy.to/",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
+      }
+    });
+    if (seedRes.ok) {
+      const seedData = await seedRes.json() as any;
+      seed = seedData.seed || '';
+    }
+  } catch (e) {
+    console.warn("Failed to fetch seed from wingsdatabase:", e);
+  }
+
+  // Double URL encode title as required by Videasy API
+  const doubleEncodedTitle = encodeURIComponent(encodeURIComponent(String(title)));
+
   const baseQueryParams: Record<string, string> = {
-    title: String(title),
+    title: doubleEncodedTitle,
     mediaType: String(mediaType),
     year: year ? String(year) : '',
-    tmdbId: String(tmdbId)
+    tmdbId: String(tmdbId),
+    enc: '2',
+    seed: seed
   };
 
   if (mediaType === 'tv') {
@@ -265,14 +301,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   for (const provider of providers) {
     const mergedParams = { ...baseQueryParams, ...(provider.queryParams || {}) };
     const queryString = new URLSearchParams(mergedParams).toString();
-    const url = `https://api.videasy.to/${provider.endpoint}/sources-with-title?${queryString}`;
+    const url = `https://api.wingsdatabase.com/${provider.endpoint}/sources-with-title?${queryString}`;
 
     try {
       const fetchRes = await fetch(url, {
         headers: {
-          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36",
-          "Referer": "https://www.vidking.net/",
-          "Origin": "https://www.vidking.net"
+          "Accept": "*/*",
+          "Origin": "https://player.videasy.to",
+          "Referer": "https://player.videasy.to/",
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
         }
       });
 
@@ -281,14 +318,34 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         continue;
       }
 
-      const cipherHex = (await fetchRes.text()).trim();
-      if (!cipherHex) {
+      const cipherText = (await fetchRes.text()).trim();
+      if (!cipherText) {
         errors.push(`${provider.name}: Empty response`);
         continue;
       }
 
-      let decrypted = await decryptCipher(cipherHex, Number(tmdbId));
-      if (decrypted && decrypted.sources && decrypted.sources.length > 0) {
+      // Decrypt using enc-dec.app API (since the local WASM is for algorithm v1)
+      const decRes = await fetch("https://enc-dec.app/api/dec-videasy", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          text: cipherText,
+          id: tmdbId,
+          seed: seed
+        })
+      });
+
+      if (!decRes.ok) {
+        errors.push(`${provider.name}: Decryption service failed (HTTP ${decRes.status})`);
+        continue;
+      }
+
+      const decJson = await decRes.json() as any;
+      if (decJson.status === 200 && decJson.result && decJson.result.sources && decJson.result.sources.length > 0) {
+        let decrypted = decJson.result;
+
         // Filter decrypted sources by language
         if (serverStr.includes('fade') || serverStr.includes('hindi')) {
           const filtered = decrypted.sources.filter((s: any) => {
@@ -298,7 +355,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           if (filtered.length > 0) {
             decrypted.sources = filtered;
           }
-        } else if (serverStr.includes('vyse') || serverStr.includes('hydrogen') || serverStr.includes('lithium') || serverStr.includes('oxygen')) {
+        } else if (serverStr.includes('vyse') || serverStr.includes('hydrogen') || serverStr.includes('neon') || serverStr.includes('lithium') || serverStr.includes('oxygen')) {
           const filtered = decrypted.sources.filter((s: any) => {
             const qualityStr = (s.quality || s.label || '').toLowerCase();
             return !qualityStr.includes('hindi') && !qualityStr.includes('spanish') && !qualityStr.includes('portuguese') && !qualityStr.includes('german');
@@ -312,7 +369,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         successfulProvider = provider.name;
         break; // Success!
       } else {
-        errors.push(`${provider.name}: Decryption returned empty sources list`);
+        errors.push(`${provider.name}: Decryption returned empty sources list or error`);
       }
     } catch (err: any) {
       errors.push(`${provider.name}: ${err.message || err}`);

@@ -271,6 +271,88 @@ async function resolveHexa(
 }
 
 // ----------------------------------------------------
+// 2. Vidlink Scraper
+// ----------------------------------------------------
+async function resolveVidlink(
+  type: 'movie' | 'tv',
+  tmdbId: string,
+  season: string,
+  episode: string
+) {
+  // 1. Get encrypted TMDB ID from enc-dec.app API
+  const encUrl = `https://enc-dec.app/api/enc-vidlink?text=${tmdbId}`;
+  const encRes = await fetch(encUrl);
+  if (!encRes.ok) {
+    throw new Error(`Failed to encrypt TMDB ID for Vidlink: HTTP ${encRes.status}`);
+  }
+
+  const encJson = await encRes.json() as any;
+  if (encJson.status !== 200 || !encJson.result) {
+    throw new Error(`Vidlink encryption failed: ${encJson.error || 'unknown'}`);
+  }
+
+  const encrypted = encJson.result;
+
+  // 2. Fetch from Vidlink API
+  const url = type === 'movie'
+    ? `https://vidlink.pro/api/b/movie/${encrypted}`
+    : `https://vidlink.pro/api/b/tv/${encrypted}/${season}/${episode}`;
+
+  const fetchRes = await fetch(url, {
+    headers: {
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36",
+      "Origin": "https://vidlink.pro",
+      "Referer": "https://vidlink.pro/"
+    }
+  });
+
+  if (!fetchRes.ok) {
+    throw new Error(`Vidlink API request failed: HTTP ${fetchRes.status}`);
+  }
+
+  const data = await fetchRes.json() as any;
+
+  // 3. Transform to unified stream/subtitle structure expected by the player
+  const sources: any[] = [];
+  if (data.stream && data.stream.qualities) {
+    for (const [q, details] of Object.entries(data.stream.qualities) as any) {
+      sources.push({
+        url: details.url,
+        quality: `${q}p`,
+        label: `${q}p`,
+        type: details.type === 'hls' ? 'hls' : 'mp4'
+      });
+    }
+  }
+
+  // Fallback to playlist URL if qualities object is missing
+  if (sources.length === 0 && data.stream && data.stream.playlist) {
+    sources.push({
+      url: data.stream.playlist,
+      quality: 'Auto',
+      label: 'Auto',
+      type: 'hls'
+    });
+  }
+
+  const rawCaptions = data.captions || (data.stream && data.stream.captions) || [];
+  const subtitles = rawCaptions.map((cap: any) => ({
+    url: cap.url,
+    label: cap.language || cap.lang || 'English'
+  }));
+
+  return {
+    success: true,
+    provider: 'VidLink Direct',
+    availableServers: ['VidLink Direct'],
+    data: {
+      sources,
+      subtitles
+    }
+  };
+}
+
+// ----------------------------------------------------
 // Main Handler
 // ----------------------------------------------------
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -303,20 +385,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   let cleanTitle = typeof title === 'string' ? title : Array.isArray(title) ? title[0] : '';
   let cleanYear = typeof year === 'string' ? year : Array.isArray(year) ? year[0] : '';
 
-  try {
-    const tmdbRes = await fetch(`https://api.themoviedb.org/3/${mediaType}/${tmdbId}?api_key=${apiKey}`);
-    if (tmdbRes.ok) {
-      const tmdbData = await tmdbRes.json() as any;
-      if (mediaType === 'movie') {
-        cleanTitle = cleanTitle || tmdbData.title || tmdbData.original_title;
-        cleanYear = cleanYear || (tmdbData.release_date ? tmdbData.release_date.split('-')[0] : '');
-      } else {
-        cleanTitle = cleanTitle || tmdbData.name || tmdbData.original_name;
-        cleanYear = cleanYear || (tmdbData.first_air_date ? tmdbData.first_air_date.split('-')[0] : '');
+  if (!cleanTitle || !cleanYear) {
+    try {
+      const tmdbRes = await fetch(`https://api.themoviedb.org/3/${mediaType}/${tmdbId}?api_key=${apiKey}`);
+      if (tmdbRes.ok) {
+        const tmdbData = await tmdbRes.json() as any;
+        if (mediaType === 'movie') {
+          cleanTitle = cleanTitle || tmdbData.title || tmdbData.original_title;
+          cleanYear = cleanYear || (tmdbData.release_date ? tmdbData.release_date.split('-')[0] : '');
+        } else {
+          cleanTitle = cleanTitle || tmdbData.name || tmdbData.original_name;
+          cleanYear = cleanYear || (tmdbData.first_air_date ? tmdbData.first_air_date.split('-')[0] : '');
+        }
       }
+    } catch (e) {
+      console.warn("Failed to fetch metadata from TMDB:", e);
     }
-  } catch (e) {
-    console.warn("Failed to fetch metadata from TMDB:", e);
   }
 
   if (!cleanTitle) {
@@ -339,6 +423,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (providerStr === 'hexa') {
       const result = await resolveHexa(
+        mediaType,
+        tmdbId,
+        seasonNum,
+        episodeNum
+      );
+      return res.status(200).json(result);
+    }
+
+    if (providerStr === 'vidlink') {
+      const result = await resolveVidlink(
         mediaType,
         tmdbId,
         seasonNum,

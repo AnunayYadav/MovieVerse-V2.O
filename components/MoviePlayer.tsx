@@ -2529,8 +2529,8 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                             <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block mb-2 px-1">
                               Select Source Server
                             </span>
-                            <div className="grid grid-cols-2 gap-1.5 max-h-[140px] overflow-y-auto custom-scrollbar pr-1">
-                              {['Hydrogen', 'Lithium', 'Oxygen', 'Vyse (English)', 'Fade (Hindi)', 'Omen (Spanish)', 'Raze (Portuguese)', 'Killjoy (German)'].map((srv) => {
+                             <div className="grid grid-cols-2 gap-1.5 max-h-[140px] overflow-y-auto custom-scrollbar pr-1">
+                              {['Hydrogen', 'Neon', 'Lithium', 'Oxygen', 'Vyse (English)', 'Fade (Hindi)', 'Omen (Spanish)', 'Raze (Portuguese)', 'Killjoy (German)', 'Jett', 'Tejo', 'Sage', 'Breach'].map((srv) => {
                                 const isActive = selectedVideasyServer === srv;
                                 return (
                                   <button
@@ -2551,7 +2551,17 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                                       } else if (srv === 'Killjoy (German)') {
                                         setAudioLanguage('German');
                                         localStorage.setItem('movieverse_preferred_audio_language', 'German');
-                                      } else if (srv === 'Vyse (English)' || srv === 'Hydrogen' || srv === 'Lithium' || srv === 'Oxygen') {
+                                      } else if (
+                                        srv === 'Vyse (English)' ||
+                                        srv === 'Hydrogen' ||
+                                        srv === 'Neon' ||
+                                        srv === 'Lithium' ||
+                                        srv === 'Oxygen' ||
+                                        srv === 'Jett' ||
+                                        srv === 'Tejo' ||
+                                        srv === 'Sage' ||
+                                        srv === 'Breach'
+                                      ) {
                                         setAudioLanguage('English');
                                         localStorage.setItem('movieverse_preferred_audio_language', 'English');
                                       }

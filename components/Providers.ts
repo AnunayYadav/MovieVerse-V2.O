@@ -50,6 +50,13 @@ export const PROVIDERS: Provider[] = [
     supportsPostMessage: true
   },
   {
+    id: 'encdec_vidlink',
+    name: 'VidLink (HLS Ad-Free)',
+    getMovieUrl: () => '',
+    getTvUrl: () => '',
+    supportsPostMessage: true
+  },
+  {
     id: 'anikai',
     name: 'Anikai',
     getMovieUrl: (tmdbId, color, progress, isAnime, anilistId, animeLanguage, language) => {
