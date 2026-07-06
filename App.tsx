@@ -1537,6 +1537,8 @@ export default function App() {
 
         if (path === '/' || path === '') {
             category = "All";
+        } else if (path === '/music' || path === '/browse/music') {
+            category = "Music";
         } else if (path === '/anime' || path === '/explore') {
             category = "Anime";
         } else if (path === '/manga' || path === '/browse/manga') {
@@ -1812,6 +1814,9 @@ export default function App() {
                 } else {
                     newPath = '/browse/dramas';
                 }
+
+            } else if (selectedCategory === 'Music') {
+                newPath = '/music';
 
             } else if (selectedCategory === 'Collection' && currentCollection) {
                 newPath = `/custom-collection/${currentCollection}`;

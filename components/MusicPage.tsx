@@ -632,7 +632,7 @@ export const MusicPage: React.FC<MusicPageProps> = ({ disableEntryAnimation }) =
   };
 
   return (
-    <div className="animate-in fade-in slide-in-from-bottom-4 min-h-screen pb-32 pt-4 px-4 md:px-12 max-w-7xl mx-auto select-none font-sans text-zinc-100 text-left">
+    <div className={`${disableEntryAnimation ? '' : 'animate-in fade-in slide-in-from-bottom-4'} min-h-screen pb-32 pt-4 px-4 md:px-12 max-w-7xl mx-auto select-none font-sans text-zinc-100 text-left`}>
       
       {/* Page Header Block */}
       <div className="mb-8 border-b border-zinc-800 pb-6">
@@ -678,7 +678,7 @@ export const MusicPage: React.FC<MusicPageProps> = ({ disableEntryAnimation }) =
 
       {/* Discover / Home View */}
       {activeTab === 'home' && (
-        <div className="space-y-12">
+        <div className="space-y-12 animate-in fade-in duration-300">
           {/* Your top mixes */}
           <div className="space-y-6">
             <div className="flex items-center justify-between">
@@ -691,7 +691,7 @@ export const MusicPage: React.FC<MusicPageProps> = ({ disableEntryAnimation }) =
                   <div
                     key={mix.id}
                     onClick={() => !isLoading && playPlaylistFeed(mix.genreId, mix.id)}
-                    className="group relative cursor-pointer bg-zinc-900/30 hover:bg-zinc-800/30 border border-zinc-900/50 hover:border-zinc-800 rounded-xl p-3.5 transition-all duration-300 text-left"
+                    className="group relative cursor-pointer bg-zinc-900/30 hover:bg-zinc-800/40 hover:-translate-y-1 hover:shadow-2xl border border-zinc-900/50 hover:border-zinc-800 rounded-xl p-3.5 transition-all duration-300 text-left"
                   >
                     <div className="relative aspect-square w-full rounded-lg overflow-hidden bg-zinc-800 mb-3 shadow-md">
                       <img
@@ -847,7 +847,7 @@ export const MusicPage: React.FC<MusicPageProps> = ({ disableEntryAnimation }) =
                   <div
                     key={album.id}
                     onClick={() => loadAlbumDetails(album)}
-                    className="group relative cursor-pointer bg-zinc-900/30 hover:bg-zinc-800/40 border border-zinc-900/50 hover:border-zinc-800 rounded-xl p-3.5 transition-all duration-300"
+                    className="group relative cursor-pointer bg-zinc-900/30 hover:bg-zinc-800/50 hover:-translate-y-1 hover:shadow-2xl border border-zinc-900/50 hover:border-zinc-800 rounded-xl p-3.5 transition-all duration-300"
                   >
                     <div className="aspect-square w-full rounded-lg overflow-hidden bg-zinc-800 relative mb-3 shadow-md">
                       <img
@@ -873,7 +873,7 @@ export const MusicPage: React.FC<MusicPageProps> = ({ disableEntryAnimation }) =
 
       {/* Search Results View */}
       {activeTab === 'search' && (
-        <div className="space-y-8">
+        <div className="space-y-8 animate-in fade-in duration-300">
           {searching ? (
             <div className="flex flex-col items-center justify-center py-24 gap-3">
               <Loader2 className="text-blue-500 animate-spin" size={32} />
@@ -972,7 +972,7 @@ export const MusicPage: React.FC<MusicPageProps> = ({ disableEntryAnimation }) =
 
       {/* Album Detail View */}
       {activeTab === 'album' && selectedAlbum && (
-        <div className="space-y-8">
+        <div className="space-y-8 animate-in fade-in duration-300">
           {/* Back button */}
           <button
             onClick={() => setActiveTab(searchTracks.length > 0 ? 'search' : 'home')}
@@ -1095,7 +1095,7 @@ export const MusicPage: React.FC<MusicPageProps> = ({ disableEntryAnimation }) =
 
       {/* Favorites List View */}
       {activeTab === 'favorites' && (
-        <div className="space-y-6">
+        <div className="space-y-6 animate-in fade-in duration-300">
           <h3 className="text-xl font-bold text-white tracking-tight">Your Favorites</h3>
           {favoritesList.length > 0 ? (
             <div className="border border-zinc-800 bg-zinc-900/20 rounded-xl overflow-hidden shadow-2xl">
@@ -1153,7 +1153,7 @@ export const MusicPage: React.FC<MusicPageProps> = ({ disableEntryAnimation }) =
 
       {/* Persistent Bottom Player Bar */}
       {currentTrack && (
-        <div className="fixed bottom-0 left-0 right-0 z-[80] bg-zinc-950/95 backdrop-blur-2xl border-t border-zinc-900 p-4 select-none px-4 md:px-12 flex items-center justify-between gap-4">
+        <div className="fixed bottom-0 left-0 right-0 z-[80] bg-zinc-950/95 backdrop-blur-2xl border-t border-zinc-900 p-4 select-none px-4 md:px-12 flex items-center justify-between gap-4 animate-in slide-in-from-bottom duration-500">
           
           {/* Left: Track Details */}
           <div className="flex items-center gap-3 w-1/3 min-w-[200px]">
