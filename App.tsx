@@ -2123,7 +2123,7 @@ export default function App() {
 
     const showStickyHeader = !["Categories", "Franchise", "LiveTV", "Multiverse", "Anime", "Manga"].includes(selectedCategory);
     const hasHeroBanner = !!(
-        (!searchQuery && featuredMovie && !["People", "Coming", "Collections", "Categories", "Franchise", "LiveTV", "Multiverse", "Anime", "Manga"].includes(selectedCategory)) ||
+        (!searchQuery && featuredMovie && !["People", "Coming", "Collections", "Categories", "Franchise", "LiveTV", "Multiverse", "Anime", "Manga", "Music"].includes(selectedCategory)) ||
         (selectedCategory === "Franchise" && franchiseList.length > 0) ||
         (!searchQuery && (selectedCategory === "Anime" || (selectedCategory === "Manga" && !selectedMangaId)))
     );

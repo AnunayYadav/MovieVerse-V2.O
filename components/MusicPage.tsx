@@ -24,6 +24,88 @@ interface Album {
   copyright?: string;
 }
 
+const TOP_MIXES = [
+  {
+    id: "mix_anirudh",
+    name: "Anirudh Ravichander Mix",
+    artistName: "Sai Abhyankkar, Darbuka Siva, G.V. Prakash...",
+    artworkUrl: "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=500&q=80",
+    color: "#b0c4de",
+    query: "Anirudh Ravichander"
+  },
+  {
+    id: "mix_2020s",
+    name: "2020s Mix",
+    artistName: "The Weeknd, Tyla, Dua Lipa, Billie Eilish...",
+    artworkUrl: "https://images.unsplash.com/photo-1498038432885-c6f3f1b912ee?w=500&q=80",
+    color: "#f08080",
+    query: "2020s Pop"
+  },
+  {
+    id: "mix_2010s",
+    name: "2010s Mix",
+    artistName: "Kendrick Lamar, Drake, Sean Paul, Bruno Mars...",
+    artworkUrl: "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=500&q=80",
+    color: "#98fb98",
+    query: "2010s Pop"
+  },
+  {
+    id: "mix_love",
+    name: "Love Mix",
+    artistName: "Pritam, Javed-Mohsin, Lady Gaga, Taylor Swift...",
+    artworkUrl: "https://images.unsplash.com/photo-1518609878373-06d740f60d8b?w=500&q=80",
+    color: "#ffe4c4",
+    query: "Love Songs"
+  },
+  {
+    id: "mix_djsnake",
+    name: "DJ Snake Mix",
+    artistName: "Mike Posner, Calvin Harris, Kygo, Martin Garrix...",
+    artworkUrl: "https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?w=500&q=80",
+    color: "#adff2f",
+    query: "DJ Snake"
+  }
+];
+
+const JUMP_BACK_IN = [
+  {
+    id: "artist_anirudh",
+    name: "Anirudh Ravichander",
+    imageUrl: "https://images.unsplash.com/photo-1506157786151-b8491531f063?w=300&q=80",
+    query: "Anirudh Ravichander"
+  },
+  {
+    id: "artist_arijit",
+    name: "Arijit Singh",
+    imageUrl: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&q=80",
+    query: "Arijit Singh"
+  },
+  {
+    id: "artist_weeknd",
+    name: "The Weeknd",
+    imageUrl: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=300&q=80",
+    query: "The Weeknd"
+  },
+  {
+    id: "artist_diljit",
+    name: "Diljit Dosanjh",
+    imageUrl: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=300&q=80",
+    query: "Diljit Dosanjh"
+  },
+  {
+    id: "artist_justin",
+    name: "Justin Bieber",
+    imageUrl: "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=300&q=80",
+    query: "Justin Bieber"
+  },
+  {
+    id: "artist_djsnake",
+    name: "DJ Snake",
+    imageUrl: "https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?w=300&q=80",
+    query: "DJ Snake"
+  }
+];
+
 interface MusicPageProps {
   userProfile?: any;
   disableEntryAnimation?: boolean;
@@ -69,6 +151,7 @@ export const MusicPage: React.FC<MusicPageProps> = ({ disableEntryAnimation }) =
   const [isPlayerExpanded, setIsPlayerExpanded] = useState(false);
   const [lyricsText, setLyricsText] = useState<string[]>([]);
   const [lyricsLoading, setLyricsLoading] = useState(false);
+  const [loadingMixId, setLoadingMixId] = useState<string | null>(null);
 
   // Audio HTML5 setup
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -78,10 +161,46 @@ export const MusicPage: React.FC<MusicPageProps> = ({ disableEntryAnimation }) =
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const animationFrameRef = useRef<number | null>(null);
 
+  // Refs for stable event listener callbacks
+  const skipNextRef = useRef<() => void>(() => {});
+  const skipPreviousRef = useRef<() => void>(() => {});
+  const handleTrackEndedRef = useRef<() => void>(() => {});
+
+  useEffect(() => {
+    skipNextRef.current = skipNext;
+    skipPreviousRef.current = skipPrevious;
+    handleTrackEndedRef.current = handleTrackEnded;
+  });
+
   // Load recommendations on mount
   useEffect(() => {
     fetchRecommendations();
   }, []);
+
+  const playMixOrArtist = async (name: string, id: string) => {
+    setLoadingMixId(id);
+    try {
+      const res = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(name)}&entity=song&limit=25`);
+      const data = await res.json();
+      const mappedTracks: Track[] = (data.results || []).map((item: any) => ({
+        id: String(item.trackId),
+        title: item.trackName,
+        artist: item.artistName,
+        album: item.collectionName,
+        albumId: String(item.collectionId),
+        coverUrl: item.artworkUrl100 ? item.artworkUrl100.replace('100x100bb.jpg', '500x500bb.jpg') : "",
+        duration: Math.floor(item.trackTimeMillis / 1000),
+        previewUrl: item.previewUrl
+      }));
+      if (mappedTracks.length > 0) {
+        selectAndPlay(mappedTracks[0], mappedTracks);
+      }
+    } catch (e) {
+      console.error("Failed to play mix or artist:", name, e);
+    } finally {
+      setLoadingMixId(null);
+    }
+  };
 
   // Fetch iTunes RSS Feeds and lookup track details
   const fetchRecommendations = async () => {
@@ -225,7 +344,7 @@ export const MusicPage: React.FC<MusicPageProps> = ({ disableEntryAnimation }) =
 
     const handleTimeUpdate = () => setCurrentTime(audio.currentTime);
     const handleDurationChange = () => setDuration(audio.duration || 0);
-    const handleEnded = () => handleTrackEnded();
+    const handleEnded = () => handleTrackEndedRef.current();
 
     audio.addEventListener('timeupdate', handleTimeUpdate);
     audio.addEventListener('durationchange', handleDurationChange);
@@ -238,7 +357,7 @@ export const MusicPage: React.FC<MusicPageProps> = ({ disableEntryAnimation }) =
       audio.removeEventListener('ended', handleEnded);
       if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
     };
-  }, [queue, isShuffle, isRepeat]);
+  }, []);
 
   // Load track source
   useEffect(() => {
@@ -438,10 +557,10 @@ export const MusicPage: React.FC<MusicPageProps> = ({ disableEntryAnimation }) =
         }
       }
       ctx.closePath();
-      ctx.strokeStyle = 'rgba(59, 130, 246, 0.8)'; // Sky Blue
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.85)'; // White
       ctx.lineWidth = 3;
       ctx.shadowBlur = 20;
-      ctx.shadowColor = '#3b82f6';
+      ctx.shadowColor = '#ffffff';
       ctx.stroke();
       ctx.shadowBlur = 0;
 
@@ -460,7 +579,7 @@ export const MusicPage: React.FC<MusicPageProps> = ({ disableEntryAnimation }) =
         ctx.beginPath();
         ctx.moveTo(startX, startY);
         ctx.lineTo(endX, endY);
-        ctx.strokeStyle = `rgba(96, 165, 250, ${0.2 + percent * 0.8})`;
+        ctx.strokeStyle = `rgba(34, 197, 94, ${0.2 + percent * 0.8})`; // Active green particles
         ctx.lineWidth = 2;
         ctx.stroke();
       }
@@ -494,48 +613,131 @@ export const MusicPage: React.FC<MusicPageProps> = ({ disableEntryAnimation }) =
   };
 
   return (
-    <div className="animate-in fade-in slide-in-from-bottom-4 min-h-screen pb-32 pt-2 px-4 md:px-12 max-w-7xl mx-auto select-none font-sans text-zinc-100">
+    <div className="animate-in fade-in slide-in-from-bottom-4 min-h-screen pb-32 pt-4 px-4 md:px-12 max-w-7xl mx-auto select-none font-sans text-zinc-100 text-left">
       
-      {/* Top Search & Nav Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-zinc-800 pb-6 mb-8">
+      {/* Page Header Block */}
+      <div className="mb-8 border-b border-zinc-800 pb-6">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <h2 className="text-2xl md:text-3xl font-black text-white tracking-tight flex items-center gap-3">
+              <span className="w-2.5 h-8 rounded-full bg-white"></span>
+              Music Universe
+            </h2>
+            <p className="text-zinc-500 text-xs md:text-sm mt-1">Discover top mixes, browse trending albums, and curate your personal favorites playlist.</p>
+          </div>
+
+          <div className="flex bg-zinc-900 border border-zinc-800 p-1 rounded-xl shrink-0 self-start md:self-auto">
+            <button
+              onClick={() => setActiveTab('home')}
+              className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${activeTab === 'home' ? 'bg-zinc-800 text-white shadow-md' : 'text-zinc-400 hover:text-white'}`}
+            >
+              Home
+            </button>
+            <button
+              onClick={() => setActiveTab('favorites')}
+              className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${activeTab === 'favorites' ? 'bg-zinc-800 text-white shadow-md' : 'text-zinc-400 hover:text-white'}`}
+            >
+              Favorites ({favoritesList.length})
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Top Search bar */}
+      <div className="mb-8">
         <form onSubmit={handleSearch} className="relative w-full max-w-xl">
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search for tracks, artists, albums..."
-            className="w-full h-11 pl-12 pr-4 bg-zinc-900 border border-zinc-800 focus:border-blue-500 rounded-xl text-sm font-medium text-white placeholder-zinc-500 focus:outline-none transition-all"
+            className="w-full h-11 pl-12 pr-4 bg-zinc-900 border border-zinc-850 hover:border-zinc-800 focus:border-zinc-700 rounded-xl text-sm font-medium text-white placeholder-zinc-500 focus:outline-none transition-all"
           />
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500" size={18} />
         </form>
-
-        <div className="flex bg-zinc-900 border border-zinc-800 p-1 rounded-xl">
-          <button
-            onClick={() => setActiveTab('home')}
-            className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${activeTab === 'home' ? 'bg-zinc-800 text-white shadow-md' : 'text-zinc-400 hover:text-white'}`}
-          >
-            Home
-          </button>
-          <button
-            onClick={() => setActiveTab('favorites')}
-            className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${activeTab === 'favorites' ? 'bg-zinc-800 text-white shadow-md' : 'text-zinc-400 hover:text-white'}`}
-          >
-            Favorites ({favoritesList.length})
-          </button>
-        </div>
       </div>
 
       {/* Discover / Home View */}
       {activeTab === 'home' && (
         <div className="space-y-12">
-          {/* Recommended Songs Section */}
+          {/* Your top mixes */}
           <div className="space-y-6">
             <div className="flex items-center justify-between">
+              <h3 className="text-xl font-bold text-white tracking-tight">Your top mixes</h3>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-5">
+              {TOP_MIXES.map(mix => {
+                const isLoading = loadingMixId === mix.id;
+                return (
+                  <div
+                    key={mix.id}
+                    onClick={() => !isLoading && playMixOrArtist(mix.query, mix.id)}
+                    className="group relative cursor-pointer bg-zinc-900/30 hover:bg-zinc-800/30 border border-zinc-900/50 hover:border-zinc-800 rounded-xl p-3.5 transition-all duration-300 text-left"
+                  >
+                    <div className="relative aspect-square w-full rounded-lg overflow-hidden bg-zinc-800 mb-3 shadow-md">
+                      <img
+                        src={mix.artworkUrl}
+                        alt={mix.name}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                      />
+                      <div className="absolute bottom-0 left-0 right-0 h-9 flex items-center px-3" style={{ backgroundColor: mix.color }}>
+                        <span className="text-[10px] font-black text-black uppercase tracking-tight truncate">{mix.name}</span>
+                      </div>
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <div className="w-10 h-10 rounded-full bg-white text-black flex items-center justify-center transform scale-90 group-hover:scale-100 transition-all shadow-lg">
+                          {isLoading ? <Loader2 className="animate-spin text-black" size={16} /> : <Play size={16} fill="currentColor" className="ml-0.5" />}
+                        </div>
+                      </div>
+                    </div>
+                    <h4 className="text-xs font-bold text-white line-clamp-1 mb-0.5">{mix.name}</h4>
+                    <p className="text-[10px] text-zinc-400 line-clamp-2 leading-tight">{mix.artistName}</p>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Jump back in */}
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xl font-bold text-white tracking-tight">Jump back in</h3>
+            </div>
+            <div className="grid grid-cols-3 sm:grid-cols-6 gap-6">
+              {JUMP_BACK_IN.map(artist => {
+                const isLoading = loadingMixId === artist.id;
+                return (
+                  <div
+                    key={artist.id}
+                    onClick={() => !isLoading && playMixOrArtist(artist.query, artist.id)}
+                    className="flex flex-col items-center text-center cursor-pointer group select-none"
+                  >
+                    <div className="w-24 h-24 rounded-full overflow-hidden mb-3 relative shadow-lg bg-zinc-900 border border-zinc-850 flex items-center justify-center">
+                      <img
+                        src={artist.imageUrl}
+                        alt={artist.name}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                      />
+                      <div className="absolute inset-0 bg-black/45 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <div className="w-8 h-8 rounded-full bg-white text-black flex items-center justify-center transform scale-90 group-hover:scale-100 transition-all">
+                          {isLoading ? <Loader2 className="animate-spin text-black" size={12} /> : <Play size={12} fill="currentColor" className="ml-0.5" />}
+                        </div>
+                      </div>
+                    </div>
+                    <span className="text-xs font-bold text-zinc-300 group-hover:text-white transition-colors">{artist.name}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Recommended Songs Section */}
+          <div className="space-y-6 text-left">
+            <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <h3 className="text-xl font-bold text-white tracking-tight">Recommended Songs</h3>
+                <h3 className="text-xl font-bold text-white tracking-tight">Trending Hits</h3>
                 <button 
                   onClick={() => playEntireList(recommendedSongs, true)}
-                  className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 hover:bg-blue-500/20 text-blue-400 text-xs font-semibold transition-colors"
+                  className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/5 border border-white/10 hover:bg-white/10 text-white text-xs font-semibold transition-colors"
                 >
                   <Shuffle size={12} />
                   <span>Start Infinite Radio</span>
@@ -546,7 +748,7 @@ export const MusicPage: React.FC<MusicPageProps> = ({ disableEntryAnimation }) =
                 className="p-2 rounded-full hover:bg-zinc-800 text-zinc-400 hover:text-white transition-colors"
                 title="Refresh Recommendations"
               >
-                <RefreshCw size={16} className={loadingRecommendations ? 'animate-spin text-blue-500' : ''} />
+                <RefreshCw size={16} className={loadingRecommendations ? 'animate-spin text-white' : ''} />
               </button>
             </div>
 
@@ -576,7 +778,7 @@ export const MusicPage: React.FC<MusicPageProps> = ({ disableEntryAnimation }) =
                         <Play size={14} fill="currentColor" className="text-white ml-0.5" />
                       </div>
                     </div>
-                    <div className="flex-1 min-w-0">
+                    <div className="flex-1 min-w-0 text-left">
                       <h4 className="text-sm font-bold text-white truncate">{track.title}</h4>
                       <p className="text-[11px] text-zinc-400 truncate mt-0.5">{track.artist}</p>
                     </div>
@@ -590,14 +792,14 @@ export const MusicPage: React.FC<MusicPageProps> = ({ disableEntryAnimation }) =
           </div>
 
           {/* Recommended Albums Section */}
-          <div className="space-y-6">
+          <div className="space-y-6 text-left">
             <div className="flex items-center justify-between">
               <h3 className="text-xl font-bold text-white tracking-tight">Recommended Albums</h3>
               <button 
                 onClick={fetchRecommendations} 
                 className="p-2 rounded-full hover:bg-zinc-800 text-zinc-400 hover:text-white transition-colors"
               >
-                <RefreshCw size={16} className={loadingRecommendations ? 'animate-spin text-blue-500' : ''} />
+                <RefreshCw size={16} className={loadingRecommendations ? 'animate-spin text-white' : ''} />
               </button>
             </div>
 
@@ -626,7 +828,7 @@ export const MusicPage: React.FC<MusicPageProps> = ({ disableEntryAnimation }) =
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                       />
                       <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                        <div className="w-10 h-10 rounded-full bg-blue-500 text-white flex items-center justify-center transform scale-90 group-hover:scale-100 transition-all shadow-lg">
+                        <div className="w-10 h-10 rounded-full bg-white text-black flex items-center justify-center transform scale-90 group-hover:scale-100 transition-all shadow-lg">
                           <Play size={16} fill="currentColor" className="ml-0.5" />
                         </div>
                       </div>
@@ -674,7 +876,7 @@ export const MusicPage: React.FC<MusicPageProps> = ({ disableEntryAnimation }) =
                         >
                           <td className="p-4 text-zinc-500 font-medium">
                             <span className="group-hover:hidden">{index + 1}</span>
-                            <Play size={12} fill="currentColor" className="hidden group-hover:inline text-blue-400" />
+                            <Play size={12} fill="currentColor" className="hidden group-hover:inline text-green-500" />
                           </td>
                           <td className="p-4 flex items-center gap-3">
                             <img src={track.coverUrl} className="w-9 h-9 rounded object-cover shadow" alt="" />
@@ -688,7 +890,7 @@ export const MusicPage: React.FC<MusicPageProps> = ({ disableEntryAnimation }) =
                           <td className="p-4 text-center" onClick={(e) => e.stopPropagation()}>
                             <button
                               onClick={() => toggleFavorite(track)}
-                              className={`p-2 rounded-full transition-colors ${favoritesList.some(t => t.id === track.id) ? 'text-blue-400' : 'text-zinc-500 hover:text-white'}`}
+                              className={`p-2 rounded-full transition-colors ${favoritesList.some(t => t.id === track.id) ? 'text-green-500' : 'text-zinc-500 hover:text-white'}`}
                             >
                               <Heart size={14} fill={favoritesList.some(t => t.id === track.id) ? "currentColor" : "none"} />
                             </button>
@@ -716,8 +918,8 @@ export const MusicPage: React.FC<MusicPageProps> = ({ disableEntryAnimation }) =
                           alt={album.name}
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                         />
-                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                          <div className="w-10 h-10 rounded-full bg-blue-500 text-white flex items-center justify-center transform scale-90 group-hover:scale-100 transition-all shadow-lg">
+                        <div className="absolute inset-0 bg-black/45 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                          <div className="w-10 h-10 rounded-full bg-white text-black flex items-center justify-center transform scale-90 group-hover:scale-100 transition-all shadow-lg">
                             <Play size={16} fill="currentColor" className="ml-0.5" />
                           </div>
                         </div>
@@ -759,7 +961,7 @@ export const MusicPage: React.FC<MusicPageProps> = ({ disableEntryAnimation }) =
             </div>
             
             <div className="space-y-3">
-              <span className="text-[10px] font-bold tracking-widest text-blue-400 uppercase">ALBUM</span>
+              <span className="text-[10px] font-bold tracking-widest text-zinc-400 uppercase">ALBUM</span>
               <h2 className="text-3xl md:text-4xl font-extrabold text-white tracking-tight leading-tight">{selectedAlbum.name}</h2>
               
               <div className="text-xs text-zinc-400 space-y-1">
@@ -774,7 +976,7 @@ export const MusicPage: React.FC<MusicPageProps> = ({ disableEntryAnimation }) =
               <div className="flex items-center gap-3 pt-3">
                 <button
                   onClick={() => playEntireList(albumTracks)}
-                  className="w-11 h-11 rounded-full bg-blue-500 text-white flex items-center justify-center hover:scale-105 active:scale-95 transition-transform shadow-lg shadow-blue-500/25"
+                  className="w-11 h-11 rounded-full bg-white text-black flex items-center justify-center hover:scale-105 active:scale-95 transition-transform shadow-lg shadow-white/5"
                   title="Play Album"
                 >
                   <Play size={18} fill="currentColor" className="ml-0.5" />
@@ -814,7 +1016,7 @@ export const MusicPage: React.FC<MusicPageProps> = ({ disableEntryAnimation }) =
           {/* Tracks List */}
           {loadingAlbumTracks ? (
             <div className="flex flex-col items-center justify-center py-20 gap-3">
-              <Loader2 className="animate-spin text-blue-500" size={24} />
+              <Loader2 className="animate-spin text-white" size={24} />
               <p className="text-xs text-zinc-500">Loading tracks...</p>
             </div>
           ) : (
@@ -837,7 +1039,7 @@ export const MusicPage: React.FC<MusicPageProps> = ({ disableEntryAnimation }) =
                     >
                       <td className="p-4 text-zinc-500 font-medium">
                         <span className="group-hover:hidden">{index + 1}</span>
-                        <Play size={12} fill="currentColor" className="hidden group-hover:inline text-blue-400" />
+                        <Play size={12} fill="currentColor" className="hidden group-hover:inline text-green-500" />
                       </td>
                       <td className="p-4">
                         <div>
@@ -849,7 +1051,7 @@ export const MusicPage: React.FC<MusicPageProps> = ({ disableEntryAnimation }) =
                       <td className="p-4 text-center" onClick={(e) => e.stopPropagation()}>
                         <button
                           onClick={() => toggleFavorite(track)}
-                          className={`p-2 rounded-full transition-colors ${favoritesList.some(t => t.id === track.id) ? 'text-blue-400' : 'text-zinc-500 hover:text-white'}`}
+                          className={`p-2 rounded-full transition-colors ${favoritesList.some(t => t.id === track.id) ? 'text-green-500' : 'text-zinc-500 hover:text-white'}`}
                         >
                           <Heart size={14} fill={favoritesList.some(t => t.id === track.id) ? "currentColor" : "none"} />
                         </button>
@@ -888,7 +1090,7 @@ export const MusicPage: React.FC<MusicPageProps> = ({ disableEntryAnimation }) =
                     >
                       <td className="p-4 text-zinc-500 font-medium">
                         <span className="group-hover:hidden">{index + 1}</span>
-                        <Play size={12} fill="currentColor" className="hidden group-hover:inline text-blue-400" />
+                        <Play size={12} fill="currentColor" className="hidden group-hover:inline text-green-500" />
                       </td>
                       <td className="p-4 flex items-center gap-3">
                         <img src={track.coverUrl} className="w-9 h-9 rounded object-cover shadow" alt="" />
@@ -902,7 +1104,7 @@ export const MusicPage: React.FC<MusicPageProps> = ({ disableEntryAnimation }) =
                       <td className="p-4 text-center" onClick={(e) => e.stopPropagation()}>
                         <button
                           onClick={() => toggleFavorite(track)}
-                          className="p-2 rounded-full text-blue-400 hover:text-blue-300 transition-colors"
+                          className="p-2 rounded-full text-green-500 hover:text-green-400 transition-colors"
                         >
                           <Heart size={14} fill="currentColor" />
                         </button>
@@ -942,7 +1144,7 @@ export const MusicPage: React.FC<MusicPageProps> = ({ disableEntryAnimation }) =
             </div>
             <button
               onClick={() => toggleFavorite(currentTrack)}
-              className={`p-1.5 rounded-full transition-colors shrink-0 ${favoritesList.some(t => t.id === currentTrack.id) ? 'text-blue-400' : 'text-zinc-500 hover:text-white'}`}
+              className={`p-1.5 rounded-full transition-colors shrink-0 ${favoritesList.some(t => t.id === currentTrack.id) ? 'text-green-500' : 'text-zinc-500 hover:text-white'}`}
             >
               <Heart size={16} fill={favoritesList.some(t => t.id === currentTrack.id) ? "currentColor" : "none"} />
             </button>
@@ -953,7 +1155,7 @@ export const MusicPage: React.FC<MusicPageProps> = ({ disableEntryAnimation }) =
             <div className="flex items-center gap-5">
               <button
                 onClick={() => setIsShuffle(!isShuffle)}
-                className={`p-1.5 transition-colors ${isShuffle ? 'text-blue-400' : 'text-zinc-500 hover:text-white'}`}
+                className={`p-1.5 transition-colors ${isShuffle ? 'text-green-500' : 'text-zinc-500 hover:text-white'}`}
                 title="Shuffle"
               >
                 <Shuffle size={14} />
@@ -963,7 +1165,7 @@ export const MusicPage: React.FC<MusicPageProps> = ({ disableEntryAnimation }) =
               </button>
               <button
                 onClick={togglePlay}
-                className="w-10 h-10 rounded-full bg-blue-500 hover:scale-105 active:scale-95 text-white flex items-center justify-center transition-all shadow-md shadow-blue-500/20"
+                className="w-10 h-10 rounded-full bg-white hover:scale-105 active:scale-95 text-black flex items-center justify-center transition-all shadow-md shadow-white/5"
               >
                 {isPlaying ? <Pause size={18} fill="currentColor" /> : <Play size={18} fill="currentColor" className="ml-0.5" />}
               </button>
@@ -972,7 +1174,7 @@ export const MusicPage: React.FC<MusicPageProps> = ({ disableEntryAnimation }) =
               </button>
               <button
                 onClick={() => setIsRepeat(!isRepeat)}
-                className={`p-1.5 transition-colors ${isRepeat ? 'text-blue-400' : 'text-zinc-500 hover:text-white'}`}
+                className={`p-1.5 transition-colors ${isRepeat ? 'text-green-500' : 'text-zinc-500 hover:text-white'}`}
                 title="Repeat"
               >
                 <Repeat size={14} />
@@ -991,7 +1193,7 @@ export const MusicPage: React.FC<MusicPageProps> = ({ disableEntryAnimation }) =
                     audioRef.current.currentTime = parseFloat(e.target.value);
                   }
                 }}
-                className="flex-1 accent-blue-500 h-1 bg-zinc-800 rounded-full cursor-pointer hover:accent-blue-400"
+                className="flex-1 accent-white h-1 bg-zinc-800 rounded-full cursor-pointer hover:accent-zinc-200"
               />
               <span>{formatTime(duration)}</span>
             </div>
@@ -1015,7 +1217,7 @@ export const MusicPage: React.FC<MusicPageProps> = ({ disableEntryAnimation }) =
                 setVolume(parseFloat(e.target.value));
                 setIsMuted(false);
               }}
-              className="w-20 md:w-24 h-1 bg-zinc-800 accent-blue-500 rounded-full cursor-pointer"
+              className="w-20 md:w-24 h-1 bg-zinc-800 accent-white rounded-full cursor-pointer"
             />
             <button
               onClick={() => setIsPlayerExpanded(true)}
@@ -1056,7 +1258,7 @@ export const MusicPage: React.FC<MusicPageProps> = ({ disableEntryAnimation }) =
                 className={`w-full h-full object-cover rounded-full ${isPlaying ? 'animate-[spin_20s_linear_infinite]' : ''}`}
               />
               <div className="absolute w-12 h-12 rounded-full bg-zinc-950 border-4 border-zinc-900 z-30 shadow-inner flex items-center justify-center">
-                <div className="w-3.5 h-3.5 rounded-full bg-blue-500 shadow-md shadow-blue-500/50" />
+                <div className="w-3.5 h-3.5 rounded-full bg-green-500 shadow-md shadow-green-500/50" />
               </div>
             </div>
 
@@ -1086,14 +1288,14 @@ export const MusicPage: React.FC<MusicPageProps> = ({ disableEntryAnimation }) =
                       audioRef.current.currentTime = parseFloat(e.target.value);
                     }
                   }}
-                  className="w-full accent-blue-500 h-1.5 rounded-full cursor-pointer bg-zinc-800"
+                  className="w-full accent-white h-1.5 rounded-full cursor-pointer bg-zinc-800"
                 />
               </div>
 
               <div className="flex items-center justify-between">
                 <button
                   onClick={() => setIsShuffle(!isShuffle)}
-                  className={`p-2 transition-colors ${isShuffle ? 'text-blue-400' : 'text-zinc-500 hover:text-white'}`}
+                  className={`p-2 transition-colors ${isShuffle ? 'text-green-500' : 'text-zinc-500 hover:text-white'}`}
                 >
                   <Shuffle size={18} />
                 </button>
@@ -1113,7 +1315,7 @@ export const MusicPage: React.FC<MusicPageProps> = ({ disableEntryAnimation }) =
                 </div>
                 <button
                   onClick={() => setIsRepeat(!isRepeat)}
-                  className={`p-2 transition-colors ${isRepeat ? 'text-blue-400' : 'text-zinc-500 hover:text-white'}`}
+                  className={`p-2 transition-colors ${isRepeat ? 'text-green-500' : 'text-zinc-500 hover:text-white'}`}
                 >
                   <Repeat size={18} />
                 </button>
@@ -1129,7 +1331,7 @@ export const MusicPage: React.FC<MusicPageProps> = ({ disableEntryAnimation }) =
 
             {lyricsLoading ? (
               <div className="flex-1 flex items-center justify-center">
-                <Loader2 className="animate-spin text-blue-500" size={24} />
+                <Loader2 className="animate-spin text-white" size={24} />
               </div>
             ) : (
               <div className="flex-1 overflow-y-auto space-y-6 max-h-[450px] md:max-h-[600px] pr-4 custom-scrollbar scroll-smooth">
@@ -1137,7 +1339,7 @@ export const MusicPage: React.FC<MusicPageProps> = ({ disableEntryAnimation }) =
                   <p
                     key={idx}
                     className={`text-base md:text-lg font-extrabold tracking-tight transition-all duration-300 ${idx === Math.floor((currentTime / duration) * lyricsText.length)
-                      ? 'text-blue-400 scale-[1.02] origin-left drop-shadow-[0_4px_12px_rgba(59,130,246,0.2)]'
+                      ? 'text-green-400 scale-[1.02] origin-left drop-shadow-[0_4px_12px_rgba(34,197,94,0.2)]'
                       : 'text-zinc-700 hover:text-zinc-500'
                     }`}
                   >
