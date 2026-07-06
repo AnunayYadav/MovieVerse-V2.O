@@ -81,6 +81,7 @@ export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick, sear
   const [topRated, setTopRated] = useState<AniListMedia[]>([]);
   const [seasonal, setSeasonal] = useState<AniListMedia[]>([]);
   const [upcoming, setUpcoming] = useState<AniListMedia[]>([]);
+  const [cartoons, setCartoons] = useState<AniListMedia[]>([]);
   const [expandedCategory, setExpandedCategory] = useState<{ title: string; items: AniListMedia[] } | null>(null);
   
   // Streaming Timeline / Airing Schedule States
@@ -323,7 +324,94 @@ export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick, sear
       if (!includeNsfw) {
         variables.isAdult = false;
       }
-      const data = await fetchAniList(query, variables);
+
+      const cartoonsQuery = `
+        query {
+          doraemon: Page(page: 1, perPage: 1) {
+            media(type: ANIME, search: "Doraemon") { ...animeFields }
+          }
+          shinchan: Page(page: 1, perPage: 1) {
+            media(type: ANIME, search: "Crayon Shin-chan") { ...animeFields }
+          }
+          pokemon: Page(page: 1, perPage: 1) {
+            media(type: ANIME, search: "Pokemon") { ...animeFields }
+          }
+          kochikame: Page(page: 1, perPage: 1) {
+            media(type: ANIME, search: "Kochira Katsushikaku Kameari Kouenmae Hashitsujo") { ...animeFields }
+          }
+          hattori: Page(page: 1, perPage: 1) {
+            media(type: ANIME, search: "Ninja Hattori-kun") { ...animeFields }
+          }
+          perman: Page(page: 1, perPage: 1) {
+            media(type: ANIME, search: "Perman") { ...animeFields }
+          }
+          kiteretsu: Page(page: 1, perPage: 1) {
+            media(type: ANIME, search: "Kiteretsu Daihyakka") { ...animeFields }
+          }
+          beyblade: Page(page: 1, perPage: 1) {
+            media(type: ANIME, search: "Beyblade") { ...animeFields }
+          }
+          bakugan: Page(page: 1, perPage: 1) {
+            media(type: ANIME, search: "Bakugan Battle Brawlers") { ...animeFields }
+          }
+          digimon: Page(page: 1, perPage: 1) {
+            media(type: ANIME, search: "Digimon Adventure") { ...animeFields }
+          }
+          conan: Page(page: 1, perPage: 1) {
+            media(type: ANIME, search: "Detective Conan") { ...animeFields }
+          }
+          idaten: Page(page: 1, perPage: 1) {
+            media(type: ANIME, search: "Idaten Jump") { ...animeFields }
+          }
+          maruko: Page(page: 1, perPage: 1) {
+            media(type: ANIME, search: "Chibi Maruko-chan") { ...animeFields }
+          }
+          zatchbell: Page(page: 1, perPage: 1) {
+            media(type: ANIME, search: "Konjiki no Gash Bell!!") { ...animeFields }
+          }
+          atashinchi: Page(page: 1, perPage: 1) {
+            media(type: ANIME, search: "Atashin'chi") { ...animeFields }
+          }
+        }
+
+        fragment animeFields on Media {
+          id
+          title {
+            romaji
+            english
+            native
+            userPreferred
+          }
+          coverImage {
+            extraLarge
+            large
+            medium
+            color
+          }
+          bannerImage
+          description
+          season
+          seasonYear
+          status
+          episodes
+          duration
+          averageScore
+          popularity
+          genres
+          trailer {
+            id
+            site
+          }
+        }
+      `;
+
+      const [data, cartoonsDataResult] = await Promise.all([
+        fetchAniList(query, variables),
+        fetchAniList(cartoonsQuery).catch(err => {
+          console.error("Error loading cartoons in parallel:", err);
+          return null;
+        })
+      ]);
       
       setTrending(filterDuplicateAnime(data.trending?.media || []).slice(0, 12));
       
@@ -336,6 +424,22 @@ export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick, sear
       setTopRated(filterDuplicateAnime(data.topRated?.media || []).slice(0, 12));
       setSeasonal(filterDuplicateAnime(data.seasonal?.media || []).slice(0, 12));
       setUpcoming(filterDuplicateAnime(data.upcoming?.media || []).slice(0, 12));
+
+      let cartoonsList: AniListMedia[] = [];
+      if (cartoonsDataResult) {
+        const cartoonKeys = [
+          'doraemon', 'shinchan', 'pokemon', 'kochikame', 'hattori',
+          'perman', 'kiteretsu', 'beyblade', 'bakugan', 'digimon',
+          'conan', 'idaten', 'maruko', 'zatchbell', 'atashinchi'
+        ];
+        for (const key of cartoonKeys) {
+          const media = cartoonsDataResult[key]?.media?.[0];
+          if (media) {
+            cartoonsList.push(media);
+          }
+        }
+      }
+      setCartoons(cartoonsList);
       
       // Reset infinite scrolling indices
       setGenreRows([]);
@@ -1411,6 +1515,7 @@ export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick, sear
           </div>
 
           <AnimeRow title="Trending Right Now" items={trending} apiKey={apiKey} onAnimeClick={handleAnimeClick} titleLanguage={titleLanguage} onExpand={() => setExpandedCategory({ title: "Trending Right Now", items: trending })} type="trending" />
+          <AnimeRow title="Childhood Cartoon Classics" items={cartoons} apiKey={apiKey} onAnimeClick={handleAnimeClick} titleLanguage={titleLanguage} onExpand={() => setExpandedCategory({ title: "Childhood Cartoon Classics", items: cartoons })} />
           <AnimeRow title="Latest Episodes Released" items={latestEpisodes} apiKey={apiKey} onAnimeClick={handleAnimeClick} titleLanguage={titleLanguage} onExpand={() => setExpandedCategory({ title: "Latest Episodes Released", items: latestEpisodes })} type="latest" />
           <AnimeRow title="Summer 2026 Season" items={seasonal} apiKey={apiKey} onAnimeClick={handleAnimeClick} titleLanguage={titleLanguage} onExpand={() => setExpandedCategory({ title: "Summer 2026 Season", items: seasonal })} type="seasonal" season="SUMMER" seasonYear={2026} />
           <AnimeRow title="All-Time Popular Favorites" items={popular} apiKey={apiKey} onAnimeClick={handleAnimeClick} titleLanguage={titleLanguage} onExpand={() => setExpandedCategory({ title: "All-Time Popular Favorites", items: popular })} type="popular" />
