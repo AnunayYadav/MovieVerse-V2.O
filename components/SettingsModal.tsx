@@ -46,6 +46,11 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
     const [profileError, setProfileError] = useState("");
     const [isSaving, setIsSaving] = useState(false);
 
+    // AniList & MAL states
+    const [anilistUsername, setAnilistUsername] = useState(profile.anilistUsername || "");
+    const [anilistToken, setAnilistToken] = useState(profile.anilistToken || "");
+    const [malUsername, setMalUsername] = useState(profile.malUsername || "");
+
     // Expandable accordion states
     const [isProfileExpanded, setIsProfileExpanded] = useState(false);
     const [isHistoryExpanded, setIsHistoryExpanded] = useState(false);
@@ -70,6 +75,9 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
             setProfileAvatar(profile.avatar || "");
             setProfileAvatarBg(profile.avatarBackground || "bg-gradient-to-br from-red-600 to-red-900");
             setProfileError("");
+            setAnilistUsername(profile.anilistUsername || "");
+            setAnilistToken(profile.anilistToken || "");
+            setMalUsername(profile.malUsername || "");
 
             // Fetch real user data from Supabase
             const fetchUser = async () => {
@@ -133,7 +141,10 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                 genres: profileGenres,
                 avatar: profileAvatar,
                 avatarBackground: profileAvatarBg,
-                maturityRating: maturityRating
+                maturityRating: maturityRating,
+                anilistUsername,
+                anilistToken,
+                malUsername
             };
 
             await onUpdateProfile(updatedProfile);
@@ -589,6 +600,46 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                                                 {profileGenres.includes(genre) && <Check size={10} />}
                                             </button>
                                         ))}
+                                    </div>
+                                </div>
+
+                                {/* AniList & MyAnimeList Connections */}
+                                <div className="space-y-4 pt-4 border-t border-zinc-900">
+                                    <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider ml-1 block">Anime List Connections</label>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                        <div className="space-y-1.5 text-left">
+                                            <label className="text-[10px] font-bold text-zinc-400 ml-1">AniList Username</label>
+                                            <input 
+                                                type="text" 
+                                                value={anilistUsername} 
+                                                onChange={(e) => setAnilistUsername(e.target.value)} 
+                                                className="w-full bg-zinc-900/50 border border-zinc-800 rounded-lg py-2 px-3.5 text-white focus:outline-none focus:border-red-600 text-sm" 
+                                                placeholder="e.g. AnimeFan123" 
+                                            />
+                                        </div>
+                                        <div className="space-y-1.5 text-left">
+                                            <label className="text-[10px] font-bold text-zinc-400 ml-1">MyAnimeList Username</label>
+                                            <input 
+                                                type="text" 
+                                                value={malUsername} 
+                                                onChange={(e) => setMalUsername(e.target.value)} 
+                                                className="w-full bg-zinc-900/50 border border-zinc-800 rounded-lg py-2 px-3.5 text-white focus:outline-none focus:border-red-600 text-sm" 
+                                                placeholder="e.g. MALProfileName" 
+                                            />
+                                        </div>
+                                    </div>
+                                    <div className="space-y-1.5 text-left">
+                                        <label className="text-[10px] font-bold text-zinc-400 ml-1">AniList Access Token (For Watchlist Sync)</label>
+                                        <input 
+                                            type="password" 
+                                            value={anilistToken} 
+                                            onChange={(e) => setAnilistToken(e.target.value)} 
+                                            className="w-full bg-zinc-900/50 border border-zinc-800 rounded-lg py-2 px-3.5 text-white focus:outline-none focus:border-red-600 text-sm font-mono" 
+                                            placeholder="Paste developer access token here..." 
+                                        />
+                                        <p className="text-[10px] text-zinc-500 leading-normal px-1">
+                                            Generate this token in your AniList settings (Developer settings &gt; Create New Token) to enable syncing of watchlists directly to your AniList profile.
+                                        </p>
                                     </div>
                                 </div>
 

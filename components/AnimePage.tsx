@@ -8,6 +8,8 @@ import { ExpandedCategoryModal } from './Modals';
 
 const fetch = tvFetch;
 
+import { fetchAniListUserList } from '../services/anilistSync';
+
 interface AnimePageProps {
   apiKey: string;
   onMovieClick: (m: Movie) => void;
@@ -16,6 +18,7 @@ interface AnimePageProps {
   initialTab?: 'catalog' | 'community';
   isAiSearchActive?: boolean;
   disableEntryAnimation?: boolean;
+  profile?: any;
 }
 
 export interface AniListMedia {
@@ -74,7 +77,7 @@ const ANIME_GENRES = [
   "Psychological"
 ];
 
-export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick, searchQuery: parentSearchQuery, onSearchClear, initialTab = 'catalog', isAiSearchActive, disableEntryAnimation }) => {
+export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick, searchQuery: parentSearchQuery, onSearchClear, initialTab = 'catalog', isAiSearchActive, disableEntryAnimation, profile }) => {
   const [trending, setTrending] = useState<AniListMedia[]>([]);
   const [latestEpisodes, setLatestEpisodes] = useState<AniListMedia[]>([]);
   const [popular, setPopular] = useState<AniListMedia[]>([]);
@@ -83,6 +86,12 @@ export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick, sear
   const [upcoming, setUpcoming] = useState<AniListMedia[]>([]);
   const [cartoons, setCartoons] = useState<AniListMedia[]>([]);
   const [expandedCategory, setExpandedCategory] = useState<{ title: string; items: AniListMedia[] } | null>(null);
+
+  // Personalization & Sync States
+  const [anilistPlanning, setAnilistPlanning] = useState<AniListMedia[]>([]);
+  const [missedAnimeSequels, setMissedAnimeSequels] = useState<AniListMedia[]>([]);
+  const [malPlanning, setMalPlanning] = useState<AniListMedia[]>([]);
+  const [loadingPersonalized, setLoadingPersonalized] = useState(false);
   
   // Streaming Timeline / Airing Schedule States
   const [airingSchedules, setAiringSchedules] = useState<AiringScheduleItem[]>([]);
@@ -451,6 +460,152 @@ export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick, sear
       setLoading(false);
     }
   }, [fetchAniList, includeNsfw]);
+
+  // Load personalized AniList watchlist and missed sequels
+  useEffect(() => {
+    if (!profile?.anilistUsername) {
+      setAnilistPlanning([]);
+      setMissedAnimeSequels([]);
+      return;
+    }
+
+    const loadPersonalizedData = async () => {
+      setLoadingPersonalized(true);
+      try {
+        const userEntries = await fetchAniListUserList(profile.anilistUsername);
+        
+        // 1. Set Planning list
+        const planningList = userEntries
+          .filter(e => e.status === 'PLANNING')
+          .map(e => e.media as any as AniListMedia);
+        setAnilistPlanning(planningList);
+
+        // 2. Scan completed items for missed sequels/spin-offs
+        const completedList = userEntries.filter(e => e.status === 'COMPLETED');
+        const completedIds = new Set(completedList.map(e => e.media.id));
+        const plannedOrWatchingIds = new Set(
+          userEntries.filter(e => e.status === 'PLANNING' || e.status === 'CURRENT').map(e => e.media.id)
+        );
+
+        const missed: AniListMedia[] = [];
+        const seenIds = new Set<number>();
+
+        // Check the last 10 completed anime for sequels
+        for (const entry of completedList.slice(0, 10)) {
+          const relationQuery = `
+            query ($id: Int) {
+              Media(id: $id) {
+                relations {
+                  edges {
+                    relationType
+                    node {
+                      id
+                      title {
+                        romaji
+                        english
+                        native
+                        userPreferred
+                      }
+                      coverImage {
+                        extraLarge
+                        large
+                        medium
+                        color
+                      }
+                      format
+                      episodes
+                      averageScore
+                      bannerImage
+                      popularity
+                      genres
+                    }
+                  }
+                }
+              }
+            }
+          `;
+          try {
+            const res = await window.fetch('https://graphql.anilist.co', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ query: relationQuery, variables: { id: entry.media.id } })
+            });
+            const json = await res.json();
+            const edges = json.data?.Media?.relations?.edges || [];
+            for (const edge of edges) {
+              if (edge.relationType === 'SEQUEL' || edge.relationType === 'ALTERNATIVE') {
+                const sequelMedia = edge.node;
+                if (sequelMedia && !completedIds.has(sequelMedia.id) && !plannedOrWatchingIds.has(sequelMedia.id)) {
+                  if (!seenIds.has(sequelMedia.id)) {
+                    seenIds.add(sequelMedia.id);
+                    missed.push(sequelMedia as any as AniListMedia);
+                  }
+                }
+              }
+            }
+          } catch (_) {}
+        }
+        setMissedAnimeSequels(missed);
+      } catch (error) {
+        console.error("Failed to load AniList personalized data:", error);
+      } finally {
+        setLoadingPersonalized(false);
+      }
+    };
+
+    loadPersonalizedData();
+  }, [profile?.anilistUsername]);
+
+  // Load MyAnimeList Watchlist via Jikan API
+  useEffect(() => {
+    if (!profile?.malUsername) {
+      setMalPlanning([]);
+      return;
+    }
+
+    const fetchMalPlanning = async () => {
+      try {
+        const res = await window.fetch(`https://api.jikan.moe/v4/users/${profile.malUsername}/animelist?status=plan_to_watch`);
+        const json = await res.json();
+        const malItems = json.data || [];
+        
+        const mapped: AniListMedia[] = malItems.map((item: any) => {
+          const anime = item.anime;
+          return {
+            id: anime.mal_id,
+            title: {
+              romaji: anime.title,
+              english: anime.title_english || anime.title,
+              native: anime.title_japanese || anime.title,
+              userPreferred: anime.title
+            },
+            coverImage: {
+              extraLarge: anime.images?.jpg?.large_image_url || anime.images?.jpg?.image_url,
+              large: anime.images?.jpg?.image_url,
+              medium: anime.images?.jpg?.small_image_url,
+              color: '#3b82f6'
+            },
+            bannerImage: null,
+            description: anime.synopsis || null,
+            season: null,
+            seasonYear: anime.year || null,
+            status: anime.status || 'FINISHED',
+            episodes: anime.episodes || null,
+            duration: null,
+            averageScore: anime.score ? anime.score * 10 : null,
+            popularity: 0,
+            genres: anime.genres?.map((g: any) => g.name) || []
+          };
+        });
+        setMalPlanning(mapped);
+      } catch (error) {
+        console.error("Failed to load MyAnimeList watchlist from Jikan:", error);
+      }
+    };
+
+    const timer = setTimeout(fetchMalPlanning, 1500);
+    return () => clearTimeout(timer);
+  }, [profile?.malUsername]);
 
   // Synchronize and trigger reloading when includeNsfw changes
   useEffect(() => {
@@ -1513,6 +1668,18 @@ export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick, sear
               </div>
             )}
           </div>
+
+          {anilistPlanning.length > 0 && (
+            <AnimeRow title="Your AniList Watchlist" items={anilistPlanning} apiKey={apiKey} onAnimeClick={handleAnimeClick} titleLanguage={titleLanguage} onExpand={() => setExpandedCategory({ title: "Your AniList Watchlist", items: anilistPlanning })} />
+          )}
+
+          {malPlanning.length > 0 && (
+            <AnimeRow title="Your MyAnimeList Watchlist" items={malPlanning} apiKey={apiKey} onAnimeClick={handleAnimeClick} titleLanguage={titleLanguage} onExpand={() => setExpandedCategory({ title: "Your MyAnimeList Watchlist", items: malPlanning })} />
+          )}
+
+          {missedAnimeSequels.length > 0 && (
+            <AnimeRow title="Missed Sequels & Next Seasons" items={missedAnimeSequels} apiKey={apiKey} onAnimeClick={handleAnimeClick} titleLanguage={titleLanguage} onExpand={() => setExpandedCategory({ title: "Missed Sequels & Next Seasons", items: missedAnimeSequels })} />
+          )}
 
           <AnimeRow title="Trending Right Now" items={trending} apiKey={apiKey} onAnimeClick={handleAnimeClick} titleLanguage={titleLanguage} onExpand={() => setExpandedCategory({ title: "Trending Right Now", items: trending })} type="trending" />
           <AnimeRow title="Childhood Cartoon Classics" items={cartoons} apiKey={apiKey} onAnimeClick={handleAnimeClick} titleLanguage={titleLanguage} onExpand={() => setExpandedCategory({ title: "Childhood Cartoon Classics", items: cartoons })} />

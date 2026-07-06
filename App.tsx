@@ -22,6 +22,7 @@ import { MusicPage } from './components/MusicPage';
 import { BookOpen, Drama, Music } from 'lucide-react';
 import { useTvFocus, TvFocusButton, TvFocusInput } from './tvNavigation';
 import AppTV from './components/AppTV';
+import { syncWatchlistToAniList } from './services/anilistSync';
 
 const fetch = tvFetch;
 
@@ -1260,6 +1261,8 @@ export default function App() {
     const [watchlist, setWatchlist] = useState<Movie[]>([]);
     const [favorites, setFavorites] = useState<Movie[]>([]);
     const [watched, setWatched] = useState<Movie[]>([]);
+    const [missedSequels, setMissedSequels] = useState<Movie[]>([]);
+    const [loadingMissedSequels, setLoadingMissedSequels] = useState(false);
 
     const [userProfile, setUserProfile] = useState<UserProfile>({ name: "Guest", age: "", genres: [], enableHistory: true });
     const [hasUnread, setHasUnread] = useState(false);
@@ -2477,11 +2480,143 @@ export default function App() {
         return () => clearTimeout(timeoutId);
     }, [searchQuery]);
 
+    // Calculate missed sequels and next seasons from user's watch history
+    useEffect(() => {
+        if (!apiKey || watched.length === 0) {
+            setMissedSequels([]);
+            return;
+        }
+
+        const loadMissedSequels = async () => {
+            setLoadingMissedSequels(true);
+            try {
+                const list: Movie[] = [];
+                const seenIds = new Set<number>();
+
+                // 1. Scan TV shows recently watched for new seasons
+                const watchedTvShows = watched.filter(m => m.name && !m.title);
+                for (const show of watchedTvShows.slice(0, 5)) {
+                    try {
+                        const res = await fetch(`${TMDB_BASE_URL}/tv/${show.id}?api_key=${apiKey}`);
+                        const details = await res.json();
+                        if (details && details.seasons) {
+                            const lastWatchedSeason = show.last_watched_data?.season || 1;
+                            const nextSeason = details.seasons.find((s: any) => s.season_number === lastWatchedSeason + 1);
+                            if (nextSeason && nextSeason.air_date && new Date(nextSeason.air_date) < new Date()) {
+                                if (!seenIds.has(show.id)) {
+                                    seenIds.add(show.id);
+                                    list.push({
+                                        ...show,
+                                        title: show.name || show.title,
+                                        customRecommendationLabel: `Next Season: ${nextSeason.name}`
+                                    });
+                                }
+                            }
+                        }
+                    } catch (_) {}
+                }
+
+                // 2. Scan Movies recently watched for sequels in collections
+                const watchedMovies = watched.filter(m => m.title && !m.name);
+                for (const movie of watchedMovies.slice(0, 5)) {
+                    try {
+                        const res = await fetch(`${TMDB_BASE_URL}/movie/${movie.id}?api_key=${apiKey}`);
+                        const details = await res.json();
+                        if (details && details.belongs_to_collection) {
+                            const colId = details.belongs_to_collection.id;
+                            const colRes = await fetch(`${TMDB_BASE_URL}/collection/${colId}?api_key=${apiKey}`);
+                            const colDetails = await colRes.json();
+                            if (colDetails && colDetails.parts) {
+                                const parts = colDetails.parts.sort((a: any, b: any) => {
+                                    return new Date(a.release_date).getTime() - new Date(b.release_date).getTime();
+                                });
+                                const watchedIndex = parts.findIndex((p: any) => p.id === movie.id);
+                                if (watchedIndex !== -1) {
+                                    for (let i = watchedIndex + 1; i < parts.length; i++) {
+                                        const nextPart = parts[i];
+                                        const alreadyWatched = watched.some(w => w.id === nextPart.id);
+                                        if (!alreadyWatched && nextPart.release_date && new Date(nextPart.release_date) < new Date()) {
+                                            if (!seenIds.has(nextPart.id)) {
+                                                seenIds.add(nextPart.id);
+                                                list.push({
+                                                    ...nextPart,
+                                                    customRecommendationLabel: `Sequel to ${movie.title}`
+                                                });
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    } catch (_) {}
+                }
+
+                setMissedSequels(list);
+            } catch (error) {
+                console.error("Failed to load missed sequels:", error);
+            } finally {
+                setLoadingMissedSequels(false);
+            }
+        };
+
+        const timer = setTimeout(loadMissedSequels, 1500);
+        return () => clearTimeout(timer);
+    }, [watched, apiKey]);
+
     const toggleList = (list: Movie[], setList: (l: Movie[]) => void, key: string, movie: Movie) => {
         const exists = list.some(m => m.id === movie.id);
         const newList = exists ? list.filter(m => m.id !== movie.id) : [...list, movie];
         setList(newList);
         localStorage.setItem(key, JSON.stringify(newList));
+
+        // Sync to AniList Planning status if added to watchlist and token is linked
+        if (!exists && key === 'movieverse_watchlist' && userProfile.anilistToken) {
+            const cachedId = localStorage.getItem(`movieverse_anilist_map_${movie.id}`) || localStorage.getItem(`movieverse_anilist_tmdb_match_${movie.id}`);
+            if (cachedId) {
+                try {
+                    let anilistId: number | null = null;
+                    if (cachedId.startsWith('{')) {
+                        const parsed = JSON.parse(cachedId);
+                        anilistId = parsed.id;
+                    } else {
+                        anilistId = parseInt(cachedId, 10);
+                    }
+                    if (anilistId) {
+                        syncWatchlistToAniList(anilistId, userProfile.anilistToken);
+                    }
+                } catch (e) {
+                    console.error("Failed to parse cached AniList ID for sync:", e);
+                }
+            } else {
+                const searchTitle = movie.title || movie.name;
+                if (searchTitle) {
+                    const cleanTitle = searchTitle.replace(/\s*\(?(Dub|Sub|TV|Movie|uncensored|censored|season\s*\d+|part\s*\d+)\)?\s*$/i, '').trim();
+                    fetch('https://graphql.anilist.co', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            query: `
+                                query ($search: String) {
+                                    Media (search: $search, type: ANIME) {
+                                        id
+                                    }
+                                }
+                            `,
+                            variables: { search: cleanTitle }
+                        })
+                    })
+                    .then(res => res.json())
+                    .then(data => {
+                        const id = data.data?.Media?.id;
+                        if (id) {
+                            localStorage.setItem(`movieverse_anilist_map_${movie.id}`, String(id));
+                            syncWatchlistToAniList(id, userProfile.anilistToken);
+                        }
+                    })
+                    .catch(err => console.error("Background AniList lookup failed for sync:", err));
+                }
+            }
+        }
     };
 
     const handleToggleWatched = (movie: Movie) => {
@@ -4190,6 +4325,7 @@ export default function App() {
                             initialTab="catalog"
                             isAiSearchActive={isAiSearchActive}
                             disableEntryAnimation={isNavigatingBack}
+                            profile={userProfile}
                         />
                     ) : selectedCategory === "AnimeCommunity" ? (
                         <AnimePage
@@ -4206,6 +4342,7 @@ export default function App() {
                             initialTab="community"
                             isAiSearchActive={isAiSearchActive}
                             disableEntryAnimation={isNavigatingBack}
+                            profile={userProfile}
                         />
                     ) : selectedCategory === "Manga" ? (
                         <MangaPage
@@ -4718,6 +4855,17 @@ export default function App() {
                                                     onMovieClick={setSelectedMovie} 
                                                     onExpand={() => setExpandedCategory({ title: "Continue Watching", items: watched.filter(m => m.play_progress && m.play_progress > 0 && m.play_progress < 95) })}
                                                 />
+
+                                                {missedSequels.length > 0 && (
+                                                    <MovieRow
+                                                        title="Missed Sequels & Next Seasons"
+                                                        movies={missedSequels}
+                                                        onMovieClick={setSelectedMovie}
+                                                        sortOption={sortOption}
+                                                        selectedLanguage={selectedLanguage}
+                                                        onExpand={() => setExpandedCategory({ title: "Missed Sequels & Next Seasons", items: missedSequels })}
+                                                    />
+                                                )}
 
                                                 {watched.length > 0 && (
                                                     <MovieRow

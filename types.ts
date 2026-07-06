@@ -259,6 +259,9 @@ export interface UserProfile {
   // Synced Preferences
   maturityRating?: MaturityRating;
   region?: string;
+  anilistUsername?: string;
+  anilistToken?: string;
+  malUsername?: string;
 }
 
 export interface AIAnalysisResult {
