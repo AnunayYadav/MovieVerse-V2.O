@@ -4373,6 +4373,7 @@ export default function App() {
                                 }
                             }}
                             disableEntryAnimation={isNavigatingBack}
+                            profile={userProfile}
                         />
 
                     ) : selectedCategory === "Dramas" ? (

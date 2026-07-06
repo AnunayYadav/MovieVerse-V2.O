@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { Play, Info, Search, Star, BookOpen, X, ChevronLeft, ChevronRight, FileText, LayoutList, RefreshCcw, Loader2, AlertCircle, Sparkles, Trophy, Calendar, TrendingUp, ArrowLeft, Users, Globe, Bookmark, AlertTriangle, Settings, Heart, Maximize, Minimize, Languages, ChevronDown, Check, Send } from 'lucide-react';
 import { useTvFocus, TvFocusButton, TvFocusInput } from '../tvNavigation';
 import { ExpandedCategoryModal } from './Modals';
+import { fetchAniListUserList } from '../services/anilistSync';
 
 export interface MangaDexManga {
   id: string;
@@ -59,6 +60,7 @@ interface MangaPageProps {
   isAiSearchActive?: boolean;
   onCloseDetails?: () => void;
   disableEntryAnimation?: boolean;
+  profile?: any;
 }
 
 const MANGA_GENRES = [
@@ -170,13 +172,19 @@ export const MangaPage: React.FC<MangaPageProps> = ({
   onSearchClear,
   isAiSearchActive,
   onCloseDetails,
-  disableEntryAnimation
+  disableEntryAnimation,
+  profile
 }) => {
   const [trending, setTrending] = useState<MangaDexManga[]>([]);
   const [latest, setLatest] = useState<MangaDexManga[]>([]);
   const [popular, setPopular] = useState<MangaDexManga[]>([]);
   const [topRated, setTopRated] = useState<MangaDexManga[]>([]);
   const [expandedCategory, setExpandedCategory] = useState<{ title: string; items: MangaDexManga[] } | null>(null);
+
+  // Personalization States
+  const [anilistPlanning, setAnilistPlanning] = useState<MangaDexManga[]>([]);
+  const [malPlanning, setMalPlanning] = useState<MangaDexManga[]>([]);
+  const [missedMangaSequels, setMissedMangaSequels] = useState<MangaDexManga[]>([]);
 
   // Character Details Modal States
   const [selectedCharacterId, setSelectedCharacterId] = useState<number | null>(null);
@@ -258,6 +266,152 @@ export const MangaPage: React.FC<MangaPageProps> = ({
   const [socialRecommendations, setSocialRecommendations] = useState<any[]>([]);
   const [socialRecommendationsLoading, setSocialRecommendationsLoading] = useState(false);
   const [socialPostText, setSocialPostText] = useState("");
+
+  // Load personalized AniList manga watchlist and missed sequels
+  useEffect(() => {
+    if (!profile?.anilistUsername) {
+      setAnilistPlanning([]);
+      setMissedMangaSequels([]);
+      return;
+    }
+
+    const loadPersonalizedManga = async () => {
+      try {
+        const userEntries = await fetchAniListUserList(profile.anilistUsername, 'MANGA');
+        
+        // 1. Planning list
+        const planningList = userEntries
+          .filter(e => e.status === 'PLANNING')
+          .map(e => translateAniListToManga(e.media));
+        setAnilistPlanning(planningList);
+
+        // 2. Missed sequels
+        const completedList = userEntries.filter(e => e.status === 'COMPLETED');
+        const completedIds = new Set(completedList.map(e => e.media.id));
+        const plannedOrWatchingIds = new Set(
+          userEntries.filter(e => e.status === 'PLANNING' || e.status === 'CURRENT').map(e => e.media.id)
+        );
+
+        const missed: MangaDexManga[] = [];
+        const seenIds = new Set<number>();
+
+        for (const entry of completedList.slice(0, 10)) {
+          const relationQuery = `
+            query ($id: Int) {
+              Media(id: $id) {
+                relations {
+                  edges {
+                    relationType
+                    node {
+                      id
+                      title {
+                        romaji
+                        english
+                        native
+                        userPreferred
+                      }
+                      coverImage {
+                        extraLarge
+                        large
+                        medium
+                        color
+                      }
+                      format
+                      chapters
+                      averageScore
+                      bannerImage
+                      popularity
+                      genres
+                    }
+                  }
+                }
+              }
+            }
+          `;
+          try {
+            const res = await window.fetch('https://graphql.anilist.co', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ query: relationQuery, variables: { id: entry.media.id } })
+            });
+            const json = await res.json();
+            const edges = json.data?.Media?.relations?.edges || [];
+            for (const edge of edges) {
+              if (edge.relationType === 'SEQUEL' || edge.relationType === 'ALTERNATIVE') {
+                const sequelMedia = edge.node;
+                if (sequelMedia && !completedIds.has(sequelMedia.id) && !plannedOrWatchingIds.has(sequelMedia.id)) {
+                  if (!seenIds.has(sequelMedia.id)) {
+                    seenIds.add(sequelMedia.id);
+                    missed.push(translateAniListToManga(sequelMedia));
+                  }
+                }
+              }
+            }
+          } catch (_) {}
+        }
+        setMissedMangaSequels(missed);
+      } catch (error) {
+        console.error("Failed to load AniList personalized manga:", error);
+      }
+    };
+
+    loadPersonalizedManga();
+  }, [profile?.anilistUsername]);
+
+  // Load MyAnimeList Manga Watchlist via Jikan API
+  useEffect(() => {
+    if (!profile?.malUsername) {
+      setMalPlanning([]);
+      return;
+    }
+
+    const fetchMalManga = async () => {
+      try {
+        const res = await window.fetch(`https://api.jikan.moe/v4/users/${profile.malUsername}/mangalist?status=plan_to_read`);
+        const json = await res.json();
+        const malItems = json.data || [];
+        
+        const mapped: MangaDexManga[] = malItems.map((item: any) => {
+          const manga = item.manga;
+          return {
+            id: `mal-manga-${manga.mal_id}`,
+            attributes: {
+              title: {
+                en: manga.title,
+                'ja-ro': manga.title
+              },
+              description: {
+                en: manga.synopsis || ""
+              },
+              status: manga.status?.toLowerCase() || "ongoing",
+              year: manga.publishing ? manga.published?.prop?.from?.year : null,
+              contentRating: "safe",
+              tags: manga.genres?.map((g: any) => ({
+                id: g.name,
+                attributes: { name: { en: g.name } }
+              })) || []
+            },
+            relationships: [
+              {
+                type: "cover_art",
+                attributes: {
+                  fileName: manga.images?.jpg?.large_image_url || manga.images?.jpg?.image_url || ""
+                }
+              }
+            ],
+            isMAL: true,
+            malId: manga.mal_id
+          } as any;
+        });
+        setMalPlanning(mapped);
+      } catch (error) {
+        console.error("Failed to load MyAnimeList manga watchlist:", error);
+      }
+    };
+
+    const timer = setTimeout(fetchMalManga, 1500);
+    return () => clearTimeout(timer);
+  }, [profile?.malUsername]);
 
   useEffect(() => {
     if (!selectedManga) {
@@ -4878,6 +5032,18 @@ export const MangaPage: React.FC<MangaPageProps> = ({
             </div>
           </div>
         </div>
+
+          {anilistPlanning.length > 0 && (
+            <MangaRow title="Your AniList Manga Watchlist" items={anilistPlanning} onMangaClick={handleMangaSelect} titleLanguage={titleLanguage} onExpand={() => setExpandedCategory({ title: "Your AniList Manga Watchlist", items: anilistPlanning })} />
+          )}
+
+          {malPlanning.length > 0 && (
+            <MangaRow title="Your MyAnimeList Manga Watchlist" items={malPlanning} onMangaClick={handleMangaSelect} titleLanguage={titleLanguage} onExpand={() => setExpandedCategory({ title: "Your MyAnimeList Manga Watchlist", items: malPlanning })} />
+          )}
+
+          {missedMangaSequels.length > 0 && (
+            <MangaRow title="Missed Sequels & Next Seasons" items={missedMangaSequels} onMangaClick={handleMangaSelect} titleLanguage={titleLanguage} onExpand={() => setExpandedCategory({ title: "Missed Sequels & Next Seasons", items: missedMangaSequels })} />
+          )}
 
           <MangaRow title="Trending Manga Releases" items={trending} onMangaClick={handleMangaSelect} titleLanguage={titleLanguage} onExpand={() => setExpandedCategory({ title: "Trending Manga Releases", items: trending })} />
           <MangaRow title="Recently Uploaded Chapters" items={latest} onMangaClick={handleMangaSelect} titleLanguage={titleLanguage} onExpand={() => setExpandedCategory({ title: "Recently Uploaded Chapters", items: latest })} />

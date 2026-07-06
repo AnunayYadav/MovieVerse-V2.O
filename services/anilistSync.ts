@@ -12,6 +12,7 @@ export interface AniListMediaItem {
   };
   format?: string;
   episodes?: number;
+  chapters?: number;
 }
 
 export interface AniListEntry {
@@ -20,12 +21,12 @@ export interface AniListEntry {
 }
 
 /**
- * Fetch a user's anime list from AniList by username
+ * Fetch a user's anime or manga list from AniList by username
  */
-export async function fetchAniListUserList(username: string): Promise<AniListEntry[]> {
+export async function fetchAniListUserList(username: string, type: 'ANIME' | 'MANGA' = 'ANIME'): Promise<AniListEntry[]> {
   const query = `
-    query ($username: String) {
-      MediaListCollection(userName: $username, type: ANIME) {
+    query ($username: String, $type: MediaType) {
+      MediaListCollection(userName: $username, type: $type) {
         lists {
           name
           status
@@ -42,6 +43,7 @@ export async function fetchAniListUserList(username: string): Promise<AniListEnt
               }
               format
               episodes
+              chapters
             }
             status
           }
@@ -59,7 +61,7 @@ export async function fetchAniListUserList(username: string): Promise<AniListEnt
       },
       body: JSON.stringify({
         query,
-        variables: { username }
+        variables: { username, type }
       })
     });
 
