@@ -16,7 +16,6 @@ import { PROVIDERS } from './components/Providers';
 import { LiveTV } from './components/LiveTV';
 import { ExplorePage } from './components/ExplorePage';
 import { AnimePage } from './components/AnimePage';
-import { MovieDome } from './components/MovieDome';
 import { MangaPage } from './components/MangaPage';
 import { DramaPage } from './components/DramaPage';
 import { MusicPage } from './components/MusicPage';
@@ -2126,9 +2125,9 @@ export default function App() {
     const accentBg = "bg-red-600";
     const accentBgLow = "bg-red-600/20";
 
-    const showStickyHeader = !["Categories", "Franchise", "LiveTV", "Multiverse", "Anime", "Manga"].includes(selectedCategory);
+    const showStickyHeader = !["Categories", "Franchise", "LiveTV", "Anime", "Manga"].includes(selectedCategory);
     const hasHeroBanner = !!(
-        (!searchQuery && featuredMovie && !["People", "Coming", "Collections", "Categories", "Franchise", "LiveTV", "Multiverse", "Anime", "Manga", "Music"].includes(selectedCategory)) ||
+        (!searchQuery && featuredMovie && !["People", "Coming", "Collections", "Categories", "Franchise", "LiveTV", "Anime", "Manga", "Music"].includes(selectedCategory)) ||
         (selectedCategory === "Franchise" && franchiseList.length > 0) ||
         (!searchQuery && (selectedCategory === "Anime" || (selectedCategory === "Manga" && !selectedMangaId)))
     );
@@ -2172,7 +2171,6 @@ export default function App() {
                     case 'w': resetFilters(); setSelectedCategory("Watchlist"); break;
                     case 'e': resetFilters(); setSelectedCategory("Anime"); break;
                     case 't': resetFilters(); setSelectedCategory("LiveTV"); break;
-                    case 'm': resetFilters(); setSelectedCategory("Multiverse"); break;
                 }
             }
         };
@@ -2708,7 +2706,7 @@ export default function App() {
             setFeaturedMovie(selectedCategory === "Watchlist" ? list[0] : null);
             setHasMore(false); return;
         }
-        if (["LiveTV", "Categories", "Collections", "Countries", "Multiverse"].includes(selectedCategory) && !activeCountry) return;
+        if (["LiveTV", "Categories", "Collections", "Countries"].includes(selectedCategory) && !activeCountry) return;
         if (abortControllerRef.current) abortControllerRef.current.abort();
         const controller = new AbortController();
         abortControllerRef.current = controller;
@@ -3763,19 +3761,15 @@ export default function App() {
     };
 
     const browseOptions = [
-        { id: "Trending", icon: TrendingUp, label: "Trending", action: resetToHome },
-        { id: "Multiverse", icon: Sparkles, label: "Multiverse", action: () => { resetFilters(); setSelectedCategory("Multiverse"); } },
-        { id: "Awards", icon: Award, label: "Awards", action: () => { resetFilters(); setSelectedCategory("Awards"); } },
-        { id: "AnimeCommunity", icon: MessageSquare, label: "Anime Forum", action: () => { resetFilters(); setSelectedCategory("AnimeCommunity"); } },
-
-        { id: "Franchise", icon: Layers, label: "Franchises", action: () => { resetFilters(); setSelectedCategory("Franchise"); } },
-        { id: "Family", icon: Baby, label: "Family", action: () => { resetFilters(); setSelectedCategory("Family"); } },
-        { id: "TV Shows", icon: Tv, label: "TV Shows", action: () => { resetFilters(); setSelectedCategory("TV Shows"); } },
-        { id: "Coming", icon: CalendarDays, label: "Coming Soon", action: () => { resetFilters(); setSelectedCategory("Coming"); } },
         { id: "Categories", icon: Clapperboard, label: "Categories", action: () => { resetFilters(); setSelectedCategory("Categories"); } },
+        { id: "TV Shows", icon: Tv, label: "TV Shows", action: () => { resetFilters(); setSelectedCategory("TV Shows"); } },
+        { id: "LiveTV", icon: Radio, label: "Live TV", action: () => { resetFilters(); setSelectedCategory("LiveTV"); } },
         { id: "Music", icon: Music, label: "Music", action: () => { resetFilters(); setSelectedCategory("Music"); } },
         { id: "WatchParty", icon: Users, label: "Watch Party", action: () => { resetFilters(); setSelectedCategory("WatchParty"); } },
-        { id: "LiveTV", icon: Radio, label: "Live TV", action: () => { resetFilters(); setSelectedCategory("LiveTV"); } }
+        { id: "Coming", icon: CalendarDays, label: "Coming Soon", action: () => { resetFilters(); setSelectedCategory("Coming"); } },
+        { id: "Awards", icon: Award, label: "Awards", action: () => { resetFilters(); setSelectedCategory("Awards"); } },
+        { id: "AnimeCommunity", icon: MessageSquare, label: "Anime Forum", action: () => { resetFilters(); setSelectedCategory("AnimeCommunity"); } },
+        { id: "Family", icon: Baby, label: "Family", action: () => { resetFilters(); setSelectedCategory("Family"); } }
     ];
 
     if (authChecking) return <div className="fixed inset-0 bg-black flex items-center justify-center"><LogoLoader /></div>;
@@ -3859,9 +3853,6 @@ export default function App() {
                                 </button>
                                 <button onClick={() => { resetFilters(); setSelectedDramaSlug(null); setSelectedCategory("Dramas"); }} className={getSidebarItemClass(selectedCategory === "Dramas")}>
                                     <Drama size={18} /> Dramas
-                                </button>
-                                <button onClick={() => { resetFilters(); setSelectedCategory("Multiverse"); }} className={getSidebarItemClass(selectedCategory === "Multiverse")}>
-                                    <Sparkles size={18} /> Multiverse <span className="ml-auto text-[8px] opacity-40 hidden lg:inline">Alt+M</span>
                                 </button>
                             </div>
 
@@ -3968,7 +3959,7 @@ export default function App() {
                                     onMouseEnter={handleBrowseEnter}
                                     onMouseLeave={handleBrowseLeave}
                                 >
-                                    <TvFocusButton onClick={() => setIsBrowseOpen(!isBrowseOpen)} className={`flex items-center gap-2 px-5 py-2 rounded-full text-xs font-semibold tracking-wide transition-all duration-300 ${isBrowseOpen || ["Categories", "Awards", "AnimeCommunity", "Franchise", "Family", "TV Shows", "Coming", "LiveTV", "WatchParty", "Multiverse"].includes(selectedCategory)
+                                    <TvFocusButton onClick={() => setIsBrowseOpen(!isBrowseOpen)} className={`flex items-center gap-2 px-5 py-2 rounded-full text-xs font-semibold tracking-wide transition-all duration-300 ${isBrowseOpen || ["Categories", "Awards", "AnimeCommunity", "Family", "TV Shows", "Coming", "LiveTV", "WatchParty"].includes(selectedCategory)
                                             ? "bg-white/10 text-white shadow-[0_4px_20px_rgba(0,0,0,0.3)] border border-white/10"
                                             : "text-zinc-400 hover:text-white hover:bg-white/5 border border-transparent"
                                         }`}>
@@ -3977,30 +3968,29 @@ export default function App() {
                                         <ChevronDown size={12} className={`transition-transform duration-500 opacity-60 ${isBrowseOpen ? 'rotate-180' : ''}`} />
                                     </TvFocusButton>
 
-                                    <div className={`absolute top-full left-1/2 -translate-x-1/2 w-[350px] h-[18px] bg-transparent z-[55] transition-opacity duration-200 ${isBrowseOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`} />
-                                    <div className={`absolute top-[calc(100%+0.5rem)] left-1/2 -translate-x-1/2 w-[350px] bg-[#0c0c0e]/95 backdrop-blur-3xl border border-white/10 rounded-2xl shadow-[0_24px_50px_rgba(0,0,0,0.7)] p-4 grid grid-cols-3 gap-3 z-[60] transition-all duration-200 transform origin-top select-none ${isBrowseOpen ? 'opacity-100 scale-100 translate-y-0 pointer-events-auto' : 'opacity-0 scale-95 -translate-y-2 pointer-events-none'}`}>
+                                    <div className={`absolute top-full left-1/2 -translate-x-1/2 w-[360px] h-[18px] bg-transparent z-[55] transition-opacity duration-200 ${isBrowseOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`} />
+                                    <div className={`absolute top-[calc(100%+0.5rem)] left-1/2 -translate-x-1/2 w-[360px] bg-gradient-to-b from-[#18181b]/98 to-[#0c0c0d]/98 backdrop-blur-2xl border border-white/5 rounded-2xl shadow-[0_24px_50px_rgba(0,0,0,0.85)] p-4 grid grid-cols-3 gap-3 z-[60] transition-all duration-200 transform origin-top select-none ${isBrowseOpen ? 'opacity-100 scale-100 translate-y-0 pointer-events-auto' : 'opacity-0 scale-95 -translate-y-2 pointer-events-none'}`}>
                                         {/* Popover Arrow */}
-                                        <div className="absolute -top-1 w-2.5 h-2.5 rotate-45 bg-[#0c0c0e] border-t border-l border-white/10 left-1/2 -translate-x-1/2 z-[-1]" />
+                                        <div className="absolute -top-1 w-2.5 h-2.5 rotate-45 bg-[#18181b] border-t border-l border-white/5 left-1/2 -translate-x-1/2 z-[-1]" />
 
                                         {browseOptions.map(opt => {
                                             const isActive = selectedCategory === opt.id ||
-                                                (opt.id === "Trending" && selectedCategory === "All") ||
                                                 (opt.id === "WatchParty" && (activeWatchPartyRoom !== null || isWatchPartyJoinOpen));
 
                                             return (
                                                 <TvFocusButton
                                                     key={opt.id}
                                                     onClick={() => handleBrowseAction(opt.action)}
-                                                    className="group flex flex-col items-center justify-center gap-2 py-2 px-1 rounded-xl transition-all duration-300 hover:bg-white/5 active:scale-95 border border-transparent"
+                                                    className="group flex flex-col items-center justify-center gap-2.5 py-2.5 px-1 rounded-xl transition-all duration-300 hover:bg-white/[0.03] active:scale-95 border border-transparent hover:border-white/[0.01]"
                                                 >
-                                                    <div className={`w-12 h-12 rounded-[14px] flex items-center justify-center transition-all duration-300 ${isActive
-                                                            ? 'bg-red-600 text-white shadow-[0_8px_20px_-4px_rgba(220,38,38,0.4)]'
-                                                            : 'bg-white/5 text-zinc-400 group-hover:bg-white/10 group-hover:text-white group-hover:scale-105 group-hover:shadow-[0_4px_12px_rgba(255,255,255,0.03)]'
+                                                    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all duration-300 ${isActive
+                                                            ? 'bg-gradient-to-br from-red-500 to-rose-600 border border-red-400/20 text-white shadow-[0_8px_20px_rgba(239,68,68,0.35)] scale-105'
+                                                            : 'bg-zinc-900/60 border border-zinc-800/40 text-zinc-400 group-hover:bg-zinc-800/80 group-hover:border-zinc-700/60 group-hover:text-white group-hover:scale-105 group-hover:shadow-[0_8px_20px_rgba(0,0,0,0.4)]'
                                                         }`}>
                                                         <opt.icon size={22} className="transition-transform duration-300 group-hover:scale-110" />
                                                     </div>
-                                                    <span className={`text-[11px] font-medium tracking-wide transition-colors duration-300 ${isActive
-                                                            ? 'text-red-500 font-semibold'
+                                                    <span className={`text-[11px] font-semibold tracking-wide transition-colors duration-300 ${isActive
+                                                            ? 'text-red-400 font-extrabold'
                                                             : 'text-zinc-400 group-hover:text-zinc-200'
                                                         }`}>{opt.label}</span>
                                                 </TvFocusButton>
@@ -4185,13 +4175,7 @@ export default function App() {
                             apiKey={apiKey}
                             onJoinRoom={handleJoinWatchParty}
                         />
-                    ) : selectedCategory === "LiveTV" ? (<LiveTV userProfile={userProfile} />) : selectedCategory === "Multiverse" ? (
-                        <MovieDome
-                            apiKey={apiKey}
-                            onMovieClick={setSelectedMovie}
-                            onClose={() => setSelectedCategory("All")}
-                        />
-                    ) : selectedCategory === "Anime" ? (
+                    ) : selectedCategory === "LiveTV" ? (<LiveTV userProfile={userProfile} />) : selectedCategory === "Anime" ? (
                         <AnimePage
                             apiKey={apiKey}
                             onMovieClick={(m: any) => {
@@ -5068,41 +5052,39 @@ export default function App() {
             />
 
             {/* Mobile Browse Dropdown Menu */}
-            <div className={`fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom,0px))] left-1/2 -translate-x-1/2 w-[280px] z-[85] ${isTV ? 'hidden' : 'md:hidden'} bg-[#0c0c0e]/95 backdrop-blur-3xl border border-white/10 rounded-2xl shadow-[0_24px_50px_rgba(0,0,0,0.8)] p-2.5 grid grid-cols-3 gap-2 transition-all duration-300 transform origin-bottom select-none ${isBrowseOpen ? 'visible opacity-100 scale-100 translate-y-0 pointer-events-auto' : 'invisible opacity-0 scale-95 translate-y-4 pointer-events-none'}`}>
+            <div className={`fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom,0px))] left-1/2 -translate-x-1/2 w-[290px] z-[85] ${isTV ? 'hidden' : 'md:hidden'} bg-gradient-to-b from-[#18181b]/98 to-[#0c0c0d]/98 backdrop-blur-3xl border border-white/5 rounded-2xl shadow-[0_24px_60px_rgba(0,0,0,0.95)] p-3 grid grid-cols-3 gap-2.5 transition-all duration-300 transform origin-bottom select-none ${isBrowseOpen ? 'visible opacity-100 scale-100 translate-y-0 pointer-events-auto' : 'invisible opacity-0 scale-95 translate-y-4 pointer-events-none'}`}>
                 {browseOptions.map(opt => {
                     const isActive = selectedCategory === opt.id ||
-                        (opt.id === "Trending" && selectedCategory === "All") ||
                         (opt.id === "WatchParty" && (activeWatchPartyRoom !== null || selectedCategory === "WatchParty"));
 
                     return (
                         <button
                             key={opt.id}
                             onClick={() => handleBrowseAction(opt.action)}
-                            className="group flex flex-col items-center justify-center gap-1 py-1.5 px-0.5 rounded-xl transition-all duration-300 hover:bg-white/5 active:scale-95 border border-transparent"
+                            className="group flex flex-col items-center justify-center gap-2 py-2 px-0.5 rounded-xl transition-all duration-300 hover:bg-white/[0.03] active:scale-95 border border-transparent"
                         >
-                            <div className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all duration-300 ${isActive
-                                    ? 'bg-red-600 text-white shadow-[0_6px_15px_-4px_rgba(220,38,38,0.4)]'
-                                    : 'bg-white/5 text-zinc-400 group-hover:bg-white/10 group-hover:text-white group-hover:scale-105 shadow-[inset_0_1px_1px_rgba(255,255,255,0.02)]'
+                            <div className={`w-11 h-11 rounded-xl flex items-center justify-center transition-all duration-300 ${isActive
+                                    ? 'bg-gradient-to-br from-red-500 to-rose-600 border border-red-400/20 text-white shadow-[0_6px_15px_rgba(239,68,68,0.3)] scale-105'
+                                    : 'bg-zinc-900/60 border border-zinc-800/40 text-zinc-400 group-hover:bg-zinc-800/80 group-hover:border-zinc-700/60 group-hover:text-white group-hover:scale-105'
                                 }`}>
                                 <opt.icon size={18} className="transition-transform duration-300 group-hover:scale-110" />
                             </div>
-                            <span className="text-[9px] font-bold text-zinc-300 group-hover:text-white transition-colors text-center line-clamp-1">{opt.label}</span>
+                            <span className={`text-[9px] font-bold text-center line-clamp-1 transition-colors duration-300 ${isActive ? 'text-red-400' : 'text-zinc-400 group-hover:text-white'}`}>{opt.label}</span>
                         </button>
                     );
                 })}
             </div>
 
             {/* Mobile Bottom Navigation Bar */}
-            {selectedCategory !== "Multiverse" && (
-                <div className={`fixed bottom-0 left-0 right-0 z-[80] ${isTV ? 'hidden' : 'md:hidden'} bg-[#070708]/90 backdrop-blur-2xl border-t border-white/10 pb-safe shadow-[0_-8px_30px_rgb(0,0,0,0.5)]`}>
-                    <div className="h-16 flex items-center justify-around px-2">
-                        {[
-                            { id: 'Home', label: 'Home', icon: Home, action: () => { setIsBrowseOpen(false); resetToHome(); }, activeCondition: selectedCategory === "All" && !searchQuery },
-                            { id: 'Anime', label: 'Anime', icon: Ghost, action: () => { setIsBrowseOpen(false); resetFilters(); setSelectedCategory("Anime"); }, activeCondition: selectedCategory === "Anime" },
-                            { id: 'Manga', label: 'Manga', icon: BookOpen, action: () => { setIsBrowseOpen(false); resetFilters(); setSelectedMangaId(null); setActiveMangaChapterId(null); setSelectedCategory("Manga"); }, activeCondition: selectedCategory === "Manga" },
-                            { id: 'LiveTV', label: 'Live TV', icon: Radio, action: () => { setIsBrowseOpen(false); resetFilters(); setSelectedCategory("LiveTV"); }, activeCondition: selectedCategory === "LiveTV" },
-                            { id: 'Browse', label: 'Browse', icon: LayoutGrid, action: () => setIsBrowseOpen(!isBrowseOpen), activeCondition: isBrowseOpen || ["Categories", "Awards", "AnimeCommunity", "Franchise", "Family", "TV Shows", "Coming"].includes(selectedCategory) }
-                        ].map((tab) => {
+            <div className={`fixed bottom-0 left-0 right-0 z-[80] ${isTV ? 'hidden' : 'md:hidden'} bg-[#070708]/90 backdrop-blur-2xl border-t border-white/10 pb-safe shadow-[0_-8px_30px_rgb(0,0,0,0.5)]`}>
+                <div className="h-16 flex items-center justify-around px-2">
+                    {[
+                        { id: 'Home', label: 'Home', icon: Home, action: () => { setIsBrowseOpen(false); resetToHome(); }, activeCondition: selectedCategory === "All" && !searchQuery },
+                        { id: 'Anime', label: 'Anime', icon: Ghost, action: () => { setIsBrowseOpen(false); resetFilters(); setSelectedCategory("Anime"); }, activeCondition: selectedCategory === "Anime" },
+                        { id: 'Manga', label: 'Manga', icon: BookOpen, action: () => { setIsBrowseOpen(false); resetFilters(); setSelectedMangaId(null); setActiveMangaChapterId(null); setSelectedCategory("Manga"); }, activeCondition: selectedCategory === "Manga" },
+                        { id: 'LiveTV', label: 'Live TV', icon: Radio, action: () => { setIsBrowseOpen(false); resetFilters(); setSelectedCategory("LiveTV"); }, activeCondition: selectedCategory === "LiveTV" },
+                        { id: 'Browse', label: 'Browse', icon: LayoutGrid, action: () => setIsBrowseOpen(!isBrowseOpen), activeCondition: isBrowseOpen || ["Categories", "Awards", "AnimeCommunity", "Family", "TV Shows", "Coming"].includes(selectedCategory) }
+                    ].map((tab) => {
                             const Icon = tab.icon;
                             const isActive = tab.activeCondition;
                             return (
@@ -5122,7 +5104,6 @@ export default function App() {
                         })}
                     </div>
                 </div>
-            )}
 
             {!apiKey && loading && <div className="fixed inset-0 z-[100] bg-black"><LogoLoader /></div>}
         </div>
