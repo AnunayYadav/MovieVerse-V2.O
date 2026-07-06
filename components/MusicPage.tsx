@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Play, Pause, SkipForward, SkipBack, Shuffle, Repeat, Volume2, VolumeX, Search, Music, Maximize2, Minimize2, Heart, Disc, ListMusic, Loader2, Sparkles, Sliders, ChevronDown } from 'lucide-react';
+import { Play, Pause, SkipForward, SkipBack, Shuffle, Repeat, Volume2, VolumeX, Search, Music, Maximize2, Minimize2, Heart, ListMusic, Loader2, Sparkles, Sliders, ChevronDown, RefreshCw, Plus, Download, MoreHorizontal, ArrowLeft, Disc } from 'lucide-react';
 import { useTvFocus, TvFocusButton } from '../tvNavigation';
 
 interface Track {
@@ -7,10 +7,21 @@ interface Track {
   title: string;
   artist: string;
   album: string;
-  releaseId?: string;
+  albumId?: string;
   coverUrl: string;
   duration: number; // in seconds
-  isrc: string;
+  previewUrl: string;
+  releaseDate?: string;
+}
+
+interface Album {
+  id: string;
+  name: string;
+  artistName: string;
+  artworkUrl: string;
+  releaseDate: string;
+  trackCount: number;
+  copyright?: string;
 }
 
 interface MusicPageProps {
@@ -18,140 +29,24 @@ interface MusicPageProps {
   disableEntryAnimation?: boolean;
 }
 
-const FEATURED_TRACKS: Track[] = [
-  {
-    id: "sunflower",
-    title: "Sunflower",
-    artist: "Post Malone & Swae Lee",
-    album: "Spider-Man: Into the Spider-Verse",
-    releaseId: "10ca0b19-dc48-47c3-9ee2-937381ec9ab8",
-    coverUrl: "https://coverartarchive.org/release/10ca0b19-dc48-47c3-9ee2-937381ec9ab8/front-500",
-    duration: 158,
-    isrc: "USUM71902679"
-  },
-  {
-    id: "blinding-lights",
-    title: "Blinding Lights",
-    artist: "The Weeknd",
-    album: "After Hours",
-    releaseId: "c18f3a38-cbf3-4b95-a4ee-57c5a089d71c",
-    coverUrl: "https://coverartarchive.org/release/c18f3a38-cbf3-4b95-a4ee-57c5a089d71c/front-500",
-    duration: 200,
-    isrc: "USUM71922572"
-  },
-  {
-    id: "shape-of-you",
-    title: "Shape of You",
-    artist: "Ed Sheeran",
-    album: "÷ (Divide)",
-    releaseId: "4b2aa9d0-c3d3-4a1e-8e50-f8f438515c0e",
-    coverUrl: "https://coverartarchive.org/release/4b2aa9d0-c3d3-4a1e-8e50-f8f438515c0e/front-500",
-    duration: 233,
-    isrc: "GBAHS1600463"
-  },
-  {
-    id: "stay",
-    title: "Stay",
-    artist: "The Kid LAROI & Justin Bieber",
-    album: "F*CK LOVE 3: OVER YOU",
-    releaseId: "c6b0ebad-99f5-46f5-8c76-59de8a3b09bb",
-    coverUrl: "https://coverartarchive.org/release/c6b0ebad-99f5-46f5-8c76-59de8a3b09bb/front-500",
-    duration: 141,
-    isrc: "USSM12102551"
-  },
-  {
-    id: "as-it-was",
-    title: "As It Was",
-    artist: "Harry Styles",
-    album: "Harry's House",
-    releaseId: "e9f0e15c-35cd-41e7-8b06-cb2a77a942bd",
-    coverUrl: "https://coverartarchive.org/release/e9f0e15c-35cd-41e7-8b06-cb2a77a942bd/front-500",
-    duration: 167,
-    isrc: "USSM12200782"
-  },
-  {
-    id: "starboy",
-    title: "Starboy",
-    artist: "The Weeknd",
-    album: "Starboy",
-    releaseId: "c0b8de90-1c09-4ef2-9214-e2b20757cd55",
-    coverUrl: "https://coverartarchive.org/release/c0b8de90-1c09-4ef2-9214-e2b20757cd55/front-500",
-    duration: 230,
-    isrc: "USUM71607007"
-  }
-];
-
-const LOFI_TRACKS: Track[] = [
-  {
-    id: "get-you",
-    title: "Get You",
-    artist: "Daniel Caesar ft. Kali Uchis",
-    album: "Freudian",
-    releaseId: "bc7d66be-5752-4a0b-8dbe-065d07feea1e",
-    coverUrl: "https://coverartarchive.org/release/bc7d66be-5752-4a0b-8dbe-065d07feea1e/front-500",
-    duration: 278,
-    isrc: "CA53B1600109"
-  },
-  {
-    id: "death-bed",
-    title: "death bed (coffee for your head)",
-    artist: "Powfu ft. beabadoobee",
-    album: "poems of the past",
-    releaseId: "d634ebad-8d9e-4c7c-9de2-9856a29be8cc",
-    coverUrl: "https://coverartarchive.org/release/d634ebad-8d9e-4c7c-9de2-9856a29be8cc/front-500",
-    duration: 173,
-    isrc: "USSM12000570"
-  },
-  {
-    id: "sunset-lover",
-    title: "Sunset Lover",
-    artist: "Petit Biscuit",
-    album: "Presence",
-    releaseId: "bf0b0bad-ff76-4d2d-8b89-fb4d989fcd42",
-    coverUrl: "https://coverartarchive.org/release/bf0b0bad-ff76-4d2d-8b89-fb4d989fcd42/front-500",
-    duration: 237,
-    isrc: "FR96X1500058"
-  }
-];
-
-const ROCK_TRACKS: Track[] = [
-  {
-    id: "bohemian-rhapsody",
-    title: "Bohemian Rhapsody",
-    artist: "Queen",
-    album: "A Night at the Opera",
-    releaseId: "77042a9b-dc4d-4be9-ba18-cb0a69a0be76",
-    coverUrl: "https://coverartarchive.org/release/77042a9b-dc4d-4be9-ba18-cb0a69a0be76/front-500",
-    duration: 354,
-    isrc: "GBARL1100067"
-  },
-  {
-    id: "smells-like-teen-spirit",
-    title: "Smells Like Teen Spirit",
-    artist: "Nirvana",
-    album: "Nevermind",
-    releaseId: "4aefad32-9dfc-469b-9a88-fb36a992fbcc",
-    coverUrl: "https://coverartarchive.org/release/4aefad32-9dfc-469b-9a88-fb36a992fbcc/front-500",
-    duration: 301,
-    isrc: "USGF19942501"
-  },
-  {
-    id: "sweet-child-o-mine",
-    title: "Sweet Child O' Mine",
-    artist: "Guns N' Roses",
-    album: "Appetite for Destruction",
-    releaseId: "898a9d0a-abdf-4ef9-8d76-eef7d8bcf5bd",
-    coverUrl: "https://coverartarchive.org/release/898a9d0a-abdf-4ef9-8d76-eef7d8bcf5bd/front-500",
-    duration: 356,
-    isrc: "USGF10355486"
-  }
-];
-
 export const MusicPage: React.FC<MusicPageProps> = ({ disableEntryAnimation }) => {
-  const [activeTab, setActiveTab] = useState<'home' | 'search' | 'favorites'>('home');
+  const [activeTab, setActiveTab] = useState<'home' | 'search' | 'favorites' | 'album'>('home');
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<Track[]>([]);
+  const [searchTracks, setSearchTracks] = useState<Track[]>([]);
+  const [searchAlbums, setSearchAlbums] = useState<Album[]>([]);
   const [searching, setSearching] = useState(false);
+  
+  // Recommendations states
+  const [recommendedSongs, setRecommendedSongs] = useState<Track[]>([]);
+  const [recommendedAlbums, setRecommendedAlbums] = useState<Album[]>([]);
+  const [loadingRecommendations, setLoadingRecommendations] = useState(true);
+
+  // Album detail states
+  const [selectedAlbum, setSelectedAlbum] = useState<Album | null>(null);
+  const [albumTracks, setAlbumTracks] = useState<Track[]>([]);
+  const [loadingAlbumTracks, setLoadingAlbumTracks] = useState(false);
+
+  // Favorites state
   const [favoritesList, setFavoritesList] = useState<Track[]>(() => {
     try {
       const stored = localStorage.getItem('movieverse_music_favorites');
@@ -162,7 +57,7 @@ export const MusicPage: React.FC<MusicPageProps> = ({ disableEntryAnimation }) =
   });
 
   // Playback state
-  const [currentTrack, setCurrentTrack] = useState<Track | null>(FEATURED_TRACKS[0]);
+  const [currentTrack, setCurrentTrack] = useState<Track | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -170,7 +65,7 @@ export const MusicPage: React.FC<MusicPageProps> = ({ disableEntryAnimation }) =
   const [isMuted, setIsMuted] = useState(false);
   const [isShuffle, setIsShuffle] = useState(false);
   const [isRepeat, setIsRepeat] = useState(false);
-  const [queue, setQueue] = useState<Track[]>(FEATURED_TRACKS);
+  const [queue, setQueue] = useState<Track[]>([]);
   const [isPlayerExpanded, setIsPlayerExpanded] = useState(false);
   const [lyricsText, setLyricsText] = useState<string[]>([]);
   const [lyricsLoading, setLyricsLoading] = useState(false);
@@ -183,7 +78,147 @@ export const MusicPage: React.FC<MusicPageProps> = ({ disableEntryAnimation }) =
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const animationFrameRef = useRef<number | null>(null);
 
-  // Initialize Audio Element
+  // Load recommendations on mount
+  useEffect(() => {
+    fetchRecommendations();
+  }, []);
+
+  // Fetch iTunes RSS Feeds and lookup track details
+  const fetchRecommendations = async () => {
+    setLoadingRecommendations(true);
+    try {
+      // 1. Fetch Top Albums RSS
+      const albumRes = await fetch("https://itunes.apple.com/us/rss/topalbums/limit=12/json");
+      const albumData = await albumRes.json();
+      const albumEntries = albumData.feed?.entry || [];
+      const mappedAlbums: Album[] = albumEntries.map((entry: any) => {
+        const id = entry.id?.attributes?.['im:id'];
+        const name = entry['im:name']?.label;
+        const artist = entry['im:artist']?.label;
+        const rawArtwork = entry['im:image']?.[2]?.label || "";
+        const artworkUrl = rawArtwork.replace('170x170bb.png', '500x500bb.jpg').replace('100x100bb.jpg', '500x500bb.jpg');
+        const releaseDate = entry['im:releaseDate']?.attributes?.label || 'TBA';
+        const trackCount = Number(entry['im:itemCount']?.label || 10);
+        return { id, name, artistName: artist, artworkUrl, releaseDate, trackCount };
+      });
+      setRecommendedAlbums(mappedAlbums);
+
+      // 2. Fetch Top Songs RSS
+      const songRes = await fetch("https://itunes.apple.com/us/rss/topsongs/limit=15/json");
+      const songData = await songRes.json();
+      const songEntries = songData.feed?.entry || [];
+      const songIds = songEntries.map((entry: any) => entry.id?.attributes?.['im:id']).filter(Boolean);
+
+      if (songIds.length > 0) {
+        // Query details for these track IDs in a single batch lookup
+        const lookupRes = await fetch(`https://itunes.apple.com/lookup?id=${songIds.join(',')}`);
+        const lookupData = await lookupRes.json();
+        const mappedTracks: Track[] = (lookupData.results || [])
+          .filter((item: any) => item.wrapperType === 'track')
+          .map((item: any) => ({
+            id: String(item.trackId),
+            title: item.trackName,
+            artist: item.artistName,
+            album: item.collectionName,
+            albumId: String(item.collectionId),
+            coverUrl: item.artworkUrl100 ? item.artworkUrl100.replace('100x100bb.jpg', '500x500bb.jpg') : "",
+            duration: Math.floor(item.trackTimeMillis / 1000),
+            previewUrl: item.previewUrl
+          }));
+        setRecommendedSongs(mappedTracks);
+        
+        // Auto-select first track if none is selected
+        if (mappedTracks.length > 0 && !currentTrack) {
+          setCurrentTrack(mappedTracks[0]);
+          setQueue(mappedTracks);
+        }
+      }
+    } catch (error) {
+      console.error("Failed to load iTunes recommendations:", error);
+    } finally {
+      setLoadingRecommendations(false);
+    }
+  };
+
+  // Search tracks and albums from iTunes API
+  const handleSearch = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!searchQuery.trim()) return;
+
+    setSearching(true);
+    setActiveTab('search');
+    try {
+      // Fetch songs search and albums search in parallel
+      const [tracksRes, albumsRes] = await Promise.all([
+        fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(searchQuery)}&entity=song&limit=20`),
+        fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(searchQuery)}&entity=album&limit=12`)
+      ]);
+
+      const [tracksData, albumsData] = await Promise.all([
+        tracksRes.json(),
+        albumsRes.json()
+      ]);
+
+      const mappedTracks: Track[] = (tracksData.results || []).map((item: any) => ({
+        id: String(item.trackId),
+        title: item.trackName,
+        artist: item.artistName,
+        album: item.collectionName,
+        albumId: String(item.collectionId),
+        coverUrl: item.artworkUrl100 ? item.artworkUrl100.replace('100x100bb.jpg', '500x500bb.jpg') : "",
+        duration: Math.floor(item.trackTimeMillis / 1000),
+        previewUrl: item.previewUrl
+      }));
+
+      const mappedAlbums: Album[] = (albumsData.results || []).map((item: any) => ({
+        id: String(item.collectionId),
+        name: item.collectionName,
+        artistName: item.artistName,
+        artworkUrl: item.artworkUrl100 ? item.artworkUrl100.replace('100x100bb.jpg', '500x500bb.jpg') : "",
+        releaseDate: item.releaseDate ? new Date(item.releaseDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : 'TBA',
+        trackCount: item.trackCount,
+        copyright: item.copyright
+      }));
+
+      setSearchTracks(mappedTracks);
+      setSearchAlbums(mappedAlbums);
+    } catch (error) {
+      console.error("Search failed:", error);
+    } finally {
+      setSearching(false);
+    }
+  };
+
+  // Load tracks in album
+  const loadAlbumDetails = async (album: Album) => {
+    setSelectedAlbum(album);
+    setAlbumTracks([]);
+    setLoadingAlbumTracks(true);
+    setActiveTab('album');
+    try {
+      const res = await fetch(`https://itunes.apple.com/lookup?id=${album.id}&entity=song`);
+      const data = await res.json();
+      const mappedTracks: Track[] = (data.results || [])
+        .filter((item: any) => item.wrapperType === 'track')
+        .map((item: any) => ({
+          id: String(item.trackId),
+          title: item.trackName,
+          artist: item.artistName,
+          album: item.collectionName,
+          albumId: String(item.collectionId),
+          coverUrl: item.artworkUrl100 ? item.artworkUrl100.replace('100x100bb.jpg', '500x500bb.jpg') : album.artworkUrl,
+          duration: Math.floor(item.trackTimeMillis / 1000),
+          previewUrl: item.previewUrl
+        }));
+      setAlbumTracks(mappedTracks);
+    } catch (error) {
+      console.error("Failed to load album tracks:", error);
+    } finally {
+      setLoadingAlbumTracks(false);
+    }
+  };
+
+  // Initialize HTML5 Audio Element
   useEffect(() => {
     const audio = new Audio();
     audioRef.current = audio;
@@ -209,11 +244,10 @@ export const MusicPage: React.FC<MusicPageProps> = ({ disableEntryAnimation }) =
   useEffect(() => {
     if (!audioRef.current || !currentTrack) return;
     const wasPlaying = isPlaying;
-    
-    // Deezer stream fallback resolution
-    audioRef.current.src = `https://dzr.tabs-vs-spaces.wtf/stream/?isrc=${currentTrack.isrc}&format=MP3_320`;
+
+    audioRef.current.src = currentTrack.previewUrl;
     audioRef.current.load();
-    
+
     if (wasPlaying) {
       audioRef.current.play().catch(err => {
         console.warn("Autoplay failed:", err.message);
@@ -235,7 +269,9 @@ export const MusicPage: React.FC<MusicPageProps> = ({ disableEntryAnimation }) =
       const analyser = ctx.createAnalyser();
       analyser.fftSize = 256;
 
-      // Connect source to analyser and analyser to destination
+      // Enable CORS on audio element
+      audioRef.current.crossOrigin = "anonymous";
+
       const source = ctx.createMediaElementSource(audioRef.current);
       source.connect(analyser);
       analyser.connect(ctx.destination);
@@ -245,6 +281,9 @@ export const MusicPage: React.FC<MusicPageProps> = ({ disableEntryAnimation }) =
       sourceNodeRef.current = source;
     } catch (e) {
       console.warn("Web Audio API not supported or user gesture required:", e);
+      if (audioRef.current) {
+        audioRef.current.removeAttribute('crossorigin');
+      }
     }
   };
 
@@ -322,8 +361,8 @@ export const MusicPage: React.FC<MusicPageProps> = ({ disableEntryAnimation }) =
   // Sync Favorites List to LocalStorage
   const toggleFavorite = (track: Track) => {
     let updated;
-    if (favoritesList.some(t => t.isrc === track.isrc)) {
-      updated = favoritesList.filter(t => t.isrc !== track.isrc);
+    if (favoritesList.some(t => t.id === track.id)) {
+      updated = favoritesList.filter(t => t.id !== track.id);
     } else {
       updated = [...favoritesList, track];
     }
@@ -331,10 +370,9 @@ export const MusicPage: React.FC<MusicPageProps> = ({ disableEntryAnimation }) =
     localStorage.setItem('movieverse_music_favorites', JSON.stringify(updated));
   };
 
-  // Load mockup synced lyrics
+  // Load mock synced lyrics
   const loadLyrics = (track: Track) => {
     setLyricsLoading(true);
-    // Simulate API delay
     setTimeout(() => {
       const sampleLyrics = [
         `🎵 Now playing: ${track.title} by ${track.artist}`,
@@ -357,56 +395,7 @@ export const MusicPage: React.FC<MusicPageProps> = ({ disableEntryAnimation }) =
       ];
       setLyricsText(sampleLyrics);
       setLyricsLoading(false);
-    }, 600);
-  };
-
-  // MusicBrainz API Search
-  const handleSearch = async (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    if (!searchQuery.trim()) return;
-
-    setSearching(true);
-    setSearchResults([]);
-
-    try {
-      const url = `https://musicbrainz.org/ws/2/recording?query=recording:"${encodeURIComponent(searchQuery)}" OR artist:"${encodeURIComponent(searchQuery)}"&limit=30&fmt=json`;
-      const res = await window.fetch(url, {
-        headers: {
-          'User-Agent': 'MovieVerseAI/1.0.0 ( anunay.yadav.dev@gmail.com )'
-        }
-      });
-      if (!res.ok) throw new Error("MusicBrainz search failed");
-      const data = await res.json();
-      
-      const mappedTracks: Track[] = (data.recordings || [])
-        .filter((r: any) => r.isrcs && r.isrcs.length > 0) // Ensure track has a streamable ISRC
-        .map((r: any) => {
-          const artistName = r['artist-credit']?.map((ac: any) => ac.name).join(' & ') || 'Unknown Artist';
-          const release = r.releases?.[0];
-          const releaseId = release?.id;
-          const albumTitle = release?.title || 'Single';
-          const coverUrl = releaseId
-            ? `https://coverartarchive.org/release/${releaseId}/front-500`
-            : "https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?q=80&w=400"; // Cool music background
-          const duration = r.length ? Math.floor(r.length / 1000) : 180;
-          return {
-            id: r.id,
-            title: r.title,
-            artist: artistName,
-            album: albumTitle,
-            releaseId,
-            coverUrl,
-            duration,
-            isrc: r.isrcs[0]
-          };
-        });
-
-      setSearchResults(mappedTracks);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setSearching(false);
-    }
+    }, 400);
   };
 
   // Canvas visualizer draw loop
@@ -424,19 +413,19 @@ export const MusicPage: React.FC<MusicPageProps> = ({ disableEntryAnimation }) =
       animationFrameRef.current = requestAnimationFrame(draw);
       analyser.getByteFrequencyData(dataArray);
 
-      ctx.fillStyle = 'rgba(3, 3, 3, 0.2)'; // semi-transparent background for trails
+      ctx.fillStyle = 'rgba(9, 9, 11, 0.2)'; // semi-transparent deep background
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
       const centerX = canvas.width / 2;
       const centerY = canvas.height / 2;
-      const baseRadius = 100;
+      const baseRadius = 110;
 
-      // Draw beautiful audio-reactive circular wave
+      // Draw elegant circular reactive wave
       ctx.beginPath();
       for (let i = 0; i < bufferLength; i++) {
         const value = dataArray[i];
         const percent = value / 255;
-        const radius = baseRadius + (percent * 50);
+        const radius = baseRadius + (percent * 60);
         const angle = (i / bufferLength) * Math.PI * 2;
 
         const x = centerX + Math.cos(angle) * radius;
@@ -449,29 +438,29 @@ export const MusicPage: React.FC<MusicPageProps> = ({ disableEntryAnimation }) =
         }
       }
       ctx.closePath();
-      ctx.strokeStyle = '#ef4444'; // Red theme
+      ctx.strokeStyle = 'rgba(59, 130, 246, 0.8)'; // Sky Blue
       ctx.lineWidth = 3;
-      ctx.shadowBlur = 15;
-      ctx.shadowColor = '#ef4444';
+      ctx.shadowBlur = 20;
+      ctx.shadowColor = '#3b82f6';
       ctx.stroke();
-      ctx.shadowBlur = 0; // Reset shadow
+      ctx.shadowBlur = 0;
 
-      // Draw particle bars inside visualizer
+      // Draw particle bars radiating outwards
       for (let i = 0; i < bufferLength; i += 4) {
         const value = dataArray[i];
         const percent = value / 255;
-        const barHeight = percent * 80;
+        const barHeight = percent * 90;
         const angle = (i / bufferLength) * Math.PI * 2;
 
         const startX = centerX + Math.cos(angle) * baseRadius;
         const startY = centerY + Math.sin(angle) * baseRadius;
-        const endX = centerX + Math.cos(angle) * (baseRadius - barHeight);
-        const endY = centerY + Math.sin(angle) * (baseRadius - barHeight);
+        const endX = centerX + Math.cos(angle) * (baseRadius + barHeight);
+        const endY = centerY + Math.sin(angle) * (baseRadius + barHeight);
 
         ctx.beginPath();
         ctx.moveTo(startX, startY);
         ctx.lineTo(endX, endY);
-        ctx.strokeStyle = `rgba(239, 68, 68, ${0.15 + percent})`;
+        ctx.strokeStyle = `rgba(96, 165, 250, ${0.2 + percent * 0.8})`;
         ctx.lineWidth = 2;
         ctx.stroke();
       }
@@ -495,188 +484,414 @@ export const MusicPage: React.FC<MusicPageProps> = ({ disableEntryAnimation }) =
     }
   };
 
-  return (
-    <div className={`animate-in fade-in slide-in-from-bottom-4 min-h-screen pb-32 pt-2 px-4 md:px-12 max-w-7xl mx-auto select-none`}>
-      {/* Search Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-white/5 pb-6 mb-8">
-        <div>
-          <h2 className="text-2xl md:text-3xl font-black text-white tracking-tight flex items-center gap-3">
-            <span className="w-2.5 h-8 rounded-full bg-red-600"></span>
-            MovieVerse Music
-          </h2>
-          <p className="text-zinc-500 text-xs mt-1">High-fidelity, ad-free music streaming powered by MusicBrainz & Deezer API</p>
-        </div>
+  const playEntireList = (tracksList: Track[], shuffleList = false) => {
+    if (tracksList.length === 0) return;
+    let targetList = [...tracksList];
+    if (shuffleList) {
+      targetList = targetList.sort(() => Math.random() - 0.5);
+    }
+    selectAndPlay(targetList[0], targetList);
+  };
 
-        {/* Tab Selection */}
-        <div className="flex bg-zinc-900/60 border border-white/5 p-1 rounded-xl">
+  return (
+    <div className="animate-in fade-in slide-in-from-bottom-4 min-h-screen pb-32 pt-2 px-4 md:px-12 max-w-7xl mx-auto select-none font-sans text-zinc-100">
+      
+      {/* Top Search & Nav Header */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-zinc-800 pb-6 mb-8">
+        <form onSubmit={handleSearch} className="relative w-full max-w-xl">
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search for tracks, artists, albums..."
+            className="w-full h-11 pl-12 pr-4 bg-zinc-900 border border-zinc-800 focus:border-blue-500 rounded-xl text-sm font-medium text-white placeholder-zinc-500 focus:outline-none transition-all"
+          />
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500" size={18} />
+        </form>
+
+        <div className="flex bg-zinc-900 border border-zinc-800 p-1 rounded-xl">
           <button
             onClick={() => setActiveTab('home')}
-            className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${activeTab === 'home' ? 'bg-red-600 text-white shadow-md' : 'text-zinc-400 hover:text-white'}`}
+            className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${activeTab === 'home' ? 'bg-zinc-800 text-white shadow-md' : 'text-zinc-400 hover:text-white'}`}
           >
-            Discover
-          </button>
-          <button
-            onClick={() => setActiveTab('search')}
-            className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${activeTab === 'search' ? 'bg-red-600 text-white shadow-md' : 'text-zinc-400 hover:text-white'}`}
-          >
-            Search
+            Home
           </button>
           <button
             onClick={() => setActiveTab('favorites')}
-            className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${activeTab === 'favorites' ? 'bg-red-600 text-white shadow-md' : 'text-zinc-400 hover:text-white'}`}
+            className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${activeTab === 'favorites' ? 'bg-zinc-800 text-white shadow-md' : 'text-zinc-400 hover:text-white'}`}
           >
             Favorites ({favoritesList.length})
           </button>
         </div>
       </div>
 
-      {/* Main Tabs Container */}
+      {/* Discover / Home View */}
       {activeTab === 'home' && (
-        <div className="space-y-10">
-          {/* Featured Playlist */}
-          <div>
-            <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-              <Sparkles size={16} className="text-red-500" /> Hits & Trending
-            </h3>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4">
-              {FEATURED_TRACKS.map(track => (
-                <div
-                  key={track.id}
-                  onClick={() => selectAndPlay(track, FEATURED_TRACKS)}
-                  className="group relative cursor-pointer bg-zinc-900/40 hover:bg-zinc-800/50 border border-white/5 hover:border-white/10 rounded-xl p-3.5 transition-all duration-300 transform hover:scale-[1.02] hover:shadow-2xl"
+        <div className="space-y-12">
+          {/* Recommended Songs Section */}
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <h3 className="text-xl font-bold text-white tracking-tight">Recommended Songs</h3>
+                <button 
+                  onClick={() => playEntireList(recommendedSongs, true)}
+                  className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 hover:bg-blue-500/20 text-blue-400 text-xs font-semibold transition-colors"
                 >
-                  <div className="aspect-square w-full rounded-lg overflow-hidden bg-zinc-800 relative mb-3 shadow-md">
-                    <img
-                      src={track.coverUrl}
-                      alt={track.title}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).src = "https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?q=80&w=400";
-                      }}
-                    />
-                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                      <div className="w-10 h-10 rounded-full bg-red-600 text-white flex items-center justify-center transform scale-90 group-hover:scale-100 transition-all shadow-lg">
-                        <Play size={16} fill="currentColor" className="ml-0.5" />
-                      </div>
+                  <Shuffle size={12} />
+                  <span>Start Infinite Radio</span>
+                </button>
+              </div>
+              <button 
+                onClick={fetchRecommendations} 
+                className="p-2 rounded-full hover:bg-zinc-800 text-zinc-400 hover:text-white transition-colors"
+                title="Refresh Recommendations"
+              >
+                <RefreshCw size={16} className={loadingRecommendations ? 'animate-spin text-blue-500' : ''} />
+              </button>
+            </div>
+
+            {loadingRecommendations ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                {Array.from({ length: 9 }).map((_, idx) => (
+                  <div key={idx} className="flex items-center gap-4 bg-zinc-900/40 border border-zinc-900 p-3 rounded-xl animate-pulse">
+                    <div className="w-12 h-12 bg-zinc-800 rounded-lg shrink-0"></div>
+                    <div className="flex-1 space-y-2">
+                      <div className="h-3.5 bg-zinc-800 rounded w-2/3"></div>
+                      <div className="h-2.5 bg-zinc-800 rounded w-1/2"></div>
                     </div>
                   </div>
-                  <h4 className="text-xs font-bold text-white line-clamp-1 mb-0.5">{track.title}</h4>
-                  <p className="text-[10px] text-zinc-400 line-clamp-1">{track.artist}</p>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                {recommendedSongs.slice(0, 9).map((track, index) => (
+                  <div
+                    key={track.id}
+                    onClick={() => selectAndPlay(track, recommendedSongs)}
+                    className="group flex items-center gap-4 bg-zinc-900/30 hover:bg-zinc-800/40 border border-zinc-900/60 hover:border-zinc-800 rounded-xl p-3 cursor-pointer transition-all duration-300"
+                  >
+                    <div className="relative w-12 h-12 rounded-lg overflow-hidden shrink-0 shadow-md">
+                      <img src={track.coverUrl} className="w-full h-full object-cover" alt="" />
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-all">
+                        <Play size={14} fill="currentColor" className="text-white ml-0.5" />
+                      </div>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h4 className="text-sm font-bold text-white truncate">{track.title}</h4>
+                      <p className="text-[11px] text-zinc-400 truncate mt-0.5">{track.artist}</p>
+                    </div>
+                    <div className="text-[11px] text-zinc-500 font-medium shrink-0 pr-2">
+                      {formatTime(track.duration)}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
-          {/* Lo-Fi Chill Row */}
-          <div>
-            <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-              <Sliders size={16} className="text-red-500" /> Chill Lo-Fi Sessions
-            </h3>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4">
-              {LOFI_TRACKS.map(track => (
-                <div
-                  key={track.id}
-                  onClick={() => selectAndPlay(track, LOFI_TRACKS)}
-                  className="group relative cursor-pointer bg-zinc-900/40 hover:bg-zinc-800/50 border border-white/5 hover:border-white/10 rounded-xl p-3.5 transition-all duration-300 transform hover:scale-[1.02]"
-                >
-                  <div className="aspect-square w-full rounded-lg overflow-hidden bg-zinc-800 relative mb-3 shadow-md">
-                    <img
-                      src={track.coverUrl}
-                      alt={track.title}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                    />
-                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                      <div className="w-10 h-10 rounded-full bg-red-600 text-white flex items-center justify-center transform scale-90 group-hover:scale-100 transition-all shadow-lg">
-                        <Play size={16} fill="currentColor" className="ml-0.5" />
-                      </div>
-                    </div>
-                  </div>
-                  <h4 className="text-xs font-bold text-white line-clamp-1 mb-0.5">{track.title}</h4>
-                  <p className="text-[10px] text-zinc-400 line-clamp-1">{track.artist}</p>
-                </div>
-              ))}
+          {/* Recommended Albums Section */}
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xl font-bold text-white tracking-tight">Recommended Albums</h3>
+              <button 
+                onClick={fetchRecommendations} 
+                className="p-2 rounded-full hover:bg-zinc-800 text-zinc-400 hover:text-white transition-colors"
+              >
+                <RefreshCw size={16} className={loadingRecommendations ? 'animate-spin text-blue-500' : ''} />
+              </button>
             </div>
-          </div>
 
-          {/* Rock Classics */}
-          <div>
-            <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-              <Music size={16} className="text-red-500" /> Rock Classics
-            </h3>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4">
-              {ROCK_TRACKS.map(track => (
-                <div
-                  key={track.id}
-                  onClick={() => selectAndPlay(track, ROCK_TRACKS)}
-                  className="group relative cursor-pointer bg-zinc-900/40 hover:bg-zinc-800/50 border border-white/5 hover:border-white/10 rounded-xl p-3.5 transition-all duration-300 transform hover:scale-[1.02]"
-                >
-                  <div className="aspect-square w-full rounded-lg overflow-hidden bg-zinc-800 relative mb-3 shadow-md">
-                    <img
-                      src={track.coverUrl}
-                      alt={track.title}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                    />
-                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                      <div className="w-10 h-10 rounded-full bg-red-600 text-white flex items-center justify-center transform scale-90 group-hover:scale-100 transition-all shadow-lg">
-                        <Play size={16} fill="currentColor" className="ml-0.5" />
+            {loadingRecommendations ? (
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4">
+                {Array.from({ length: 12 }).map((_, idx) => (
+                  <div key={idx} className="space-y-3 animate-pulse">
+                    <div className="aspect-square w-full bg-zinc-800 rounded-xl"></div>
+                    <div className="h-3 bg-zinc-800 rounded w-3/4"></div>
+                    <div className="h-2.5 bg-zinc-800 rounded w-1/2"></div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4">
+                {recommendedAlbums.map(album => (
+                  <div
+                    key={album.id}
+                    onClick={() => loadAlbumDetails(album)}
+                    className="group relative cursor-pointer bg-zinc-900/30 hover:bg-zinc-800/40 border border-zinc-900/50 hover:border-zinc-800 rounded-xl p-3.5 transition-all duration-300"
+                  >
+                    <div className="aspect-square w-full rounded-lg overflow-hidden bg-zinc-800 relative mb-3 shadow-md">
+                      <img
+                        src={album.artworkUrl}
+                        alt={album.name}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                      />
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <div className="w-10 h-10 rounded-full bg-blue-500 text-white flex items-center justify-center transform scale-90 group-hover:scale-100 transition-all shadow-lg">
+                          <Play size={16} fill="currentColor" className="ml-0.5" />
+                        </div>
                       </div>
                     </div>
+                    <h4 className="text-xs font-bold text-white line-clamp-1 mb-0.5">{album.name}</h4>
+                    <p className="text-[10px] text-zinc-400 line-clamp-1">{album.artistName}</p>
                   </div>
-                  <h4 className="text-xs font-bold text-white line-clamp-1 mb-0.5">{track.title}</h4>
-                  <p className="text-[10px] text-zinc-400 line-clamp-1">{track.artist}</p>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       )}
 
-      {/* Search Tab */}
+      {/* Search Results View */}
       {activeTab === 'search' && (
-        <div className="space-y-6">
-          <form onSubmit={handleSearch} className="relative w-full max-w-xl">
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search by track name, artist, or album..."
-              className="w-full h-11 pl-12 pr-4 bg-zinc-900/60 border border-white/5 focus:border-red-600 rounded-xl text-sm font-medium text-white placeholder-zinc-500 focus:outline-none transition-all"
-            />
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500" size={18} />
-          </form>
-
+        <div className="space-y-8">
           {searching ? (
-            <div className="flex flex-col items-center justify-center py-20 gap-3">
-              <Loader2 className="text-red-600 animate-spin" size={32} />
-              <p className="text-xs text-zinc-400">Searching MusicBrainz Database...</p>
+            <div className="flex flex-col items-center justify-center py-24 gap-3">
+              <Loader2 className="text-blue-500 animate-spin" size={32} />
+              <p className="text-xs text-zinc-400">Searching music database...</p>
             </div>
-          ) : searchResults.length > 0 ? (
-            <div className="border border-white/5 bg-zinc-900/30 rounded-xl overflow-hidden shadow-2xl">
+          ) : searchTracks.length > 0 ? (
+            <>
+              {/* Songs Column */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-bold text-white">Tracks</h3>
+                <div className="border border-zinc-800 bg-zinc-900/20 rounded-xl overflow-hidden shadow-2xl">
+                  <table className="w-full text-left border-collapse text-xs">
+                    <thead>
+                      <tr className="border-b border-zinc-800 text-zinc-500">
+                        <th className="p-4 font-semibold uppercase tracking-wider w-[50px]">#</th>
+                        <th className="p-4 font-semibold uppercase tracking-wider">Title</th>
+                        <th className="p-4 font-semibold uppercase tracking-wider">Album</th>
+                        <th className="p-4 font-semibold uppercase tracking-wider text-right w-[100px]">Duration</th>
+                        <th className="p-4 font-semibold uppercase tracking-wider w-[60px]"></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {searchTracks.map((track, index) => (
+                        <tr
+                          key={track.id}
+                          className="border-b border-zinc-850 hover:bg-white/5 transition-colors cursor-pointer group"
+                          onClick={() => selectAndPlay(track, searchTracks)}
+                        >
+                          <td className="p-4 text-zinc-500 font-medium">
+                            <span className="group-hover:hidden">{index + 1}</span>
+                            <Play size={12} fill="currentColor" className="hidden group-hover:inline text-blue-400" />
+                          </td>
+                          <td className="p-4 flex items-center gap-3">
+                            <img src={track.coverUrl} className="w-9 h-9 rounded object-cover shadow" alt="" />
+                            <div>
+                              <p className="font-bold text-white line-clamp-1">{track.title}</p>
+                              <p className="text-zinc-500 text-[10px] mt-0.5">{track.artist}</p>
+                            </div>
+                          </td>
+                          <td className="p-4 text-zinc-400 line-clamp-1 font-medium">{track.album}</td>
+                          <td className="p-4 text-right text-zinc-400 font-medium">{formatTime(track.duration)}</td>
+                          <td className="p-4 text-center" onClick={(e) => e.stopPropagation()}>
+                            <button
+                              onClick={() => toggleFavorite(track)}
+                              className={`p-2 rounded-full transition-colors ${favoritesList.some(t => t.id === track.id) ? 'text-blue-400' : 'text-zinc-500 hover:text-white'}`}
+                            >
+                              <Heart size={14} fill={favoritesList.some(t => t.id === track.id) ? "currentColor" : "none"} />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Albums Grid */}
+              <div className="space-y-4 pt-4">
+                <h3 className="text-lg font-bold text-white">Albums</h3>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4">
+                  {searchAlbums.map(album => (
+                    <div
+                      key={album.id}
+                      onClick={() => loadAlbumDetails(album)}
+                      className="group relative cursor-pointer bg-zinc-900/30 hover:bg-zinc-800/40 border border-zinc-900/50 hover:border-zinc-800 rounded-xl p-3.5 transition-all duration-300"
+                    >
+                      <div className="aspect-square w-full rounded-lg overflow-hidden bg-zinc-800 relative mb-3 shadow-md">
+                        <img
+                          src={album.artworkUrl}
+                          alt={album.name}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                        />
+                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                          <div className="w-10 h-10 rounded-full bg-blue-500 text-white flex items-center justify-center transform scale-90 group-hover:scale-100 transition-all shadow-lg">
+                            <Play size={16} fill="currentColor" className="ml-0.5" />
+                          </div>
+                        </div>
+                      </div>
+                      <h4 className="text-xs font-bold text-white line-clamp-1 mb-0.5">{album.name}</h4>
+                      <p className="text-[10px] text-zinc-400 line-clamp-1">{album.artistName}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </>
+          ) : (
+            searchQuery && (
+              <div className="text-center py-20 border border-zinc-900 rounded-2xl bg-zinc-900/10">
+                <Music className="mx-auto text-zinc-700 mb-3" size={32} />
+                <p className="text-xs text-zinc-500">No tracks found. Search for another song, artist, or album!</p>
+              </div>
+            )
+          )}
+        </div>
+      )}
+
+      {/* Album Detail View */}
+      {activeTab === 'album' && selectedAlbum && (
+        <div className="space-y-8">
+          {/* Back button */}
+          <button
+            onClick={() => setActiveTab(searchTracks.length > 0 ? 'search' : 'home')}
+            className="flex items-center gap-2 text-zinc-400 hover:text-white transition-colors text-xs font-bold group"
+          >
+            <ArrowLeft size={14} className="group-hover:-translate-x-0.5 transition-transform" />
+            <span>Back</span>
+          </button>
+
+          {/* Album Header Block */}
+          <div className="flex flex-col md:flex-row gap-6 md:items-end">
+            <div className="w-48 h-48 md:w-56 md:h-56 rounded-xl overflow-hidden shrink-0 shadow-2xl border border-zinc-800">
+              <img src={selectedAlbum.artworkUrl} className="w-full h-full object-cover" alt="" />
+            </div>
+            
+            <div className="space-y-3">
+              <span className="text-[10px] font-bold tracking-widest text-blue-400 uppercase">ALBUM</span>
+              <h2 className="text-3xl md:text-4xl font-extrabold text-white tracking-tight leading-tight">{selectedAlbum.name}</h2>
+              
+              <div className="text-xs text-zinc-400 space-y-1">
+                <p className="font-semibold text-white">By {selectedAlbum.artistName}</p>
+                <p>{selectedAlbum.releaseDate} • {selectedAlbum.trackCount} tracks</p>
+                {selectedAlbum.copyright && (
+                  <p className="text-[10px] text-zinc-500 italic max-w-xl">{selectedAlbum.copyright}</p>
+                )}
+              </div>
+
+              {/* Action Buttons Row */}
+              <div className="flex items-center gap-3 pt-3">
+                <button
+                  onClick={() => playEntireList(albumTracks)}
+                  className="w-11 h-11 rounded-full bg-blue-500 text-white flex items-center justify-center hover:scale-105 active:scale-95 transition-transform shadow-lg shadow-blue-500/25"
+                  title="Play Album"
+                >
+                  <Play size={18} fill="currentColor" className="ml-0.5" />
+                </button>
+                <button
+                  onClick={() => playEntireList(albumTracks, true)}
+                  className="w-11 h-11 rounded-full bg-zinc-900 border border-zinc-800 text-zinc-300 hover:text-white flex items-center justify-center hover:scale-105 active:scale-95 transition-transform"
+                  title="Shuffle Album"
+                >
+                  <Shuffle size={16} />
+                </button>
+                <button
+                  className="w-11 h-11 rounded-full bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white flex items-center justify-center cursor-not-allowed opacity-50"
+                  title="Download Track Preview"
+                  disabled
+                >
+                  <Download size={16} />
+                </button>
+                <button
+                  className="w-11 h-11 rounded-full bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white flex items-center justify-center cursor-not-allowed opacity-50"
+                  title="Add to Playlist"
+                  disabled
+                >
+                  <Plus size={16} />
+                </button>
+                <button
+                  className="w-11 h-11 rounded-full bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white flex items-center justify-center cursor-not-allowed opacity-50"
+                  title="More Options"
+                  disabled
+                >
+                  <MoreHorizontal size={16} />
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Tracks List */}
+          {loadingAlbumTracks ? (
+            <div className="flex flex-col items-center justify-center py-20 gap-3">
+              <Loader2 className="animate-spin text-blue-500" size={24} />
+              <p className="text-xs text-zinc-500">Loading tracks...</p>
+            </div>
+          ) : (
+            <div className="border border-zinc-800 bg-zinc-900/10 rounded-xl overflow-hidden shadow-xl mt-8">
               <table className="w-full text-left border-collapse text-xs">
                 <thead>
-                  <tr className="border-b border-white/5 text-zinc-500">
+                  <tr className="border-b border-zinc-800 text-zinc-500">
+                    <th className="p-4 font-semibold uppercase tracking-wider w-[50px]">#</th>
+                    <th className="p-4 font-semibold uppercase tracking-wider">Title</th>
+                    <th className="p-4 font-semibold uppercase tracking-wider text-right w-[100px]">Duration</th>
+                    <th className="p-4 font-semibold uppercase tracking-wider w-[60px]"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {albumTracks.map((track, index) => (
+                    <tr
+                      key={track.id}
+                      className="border-b border-zinc-850 hover:bg-white/5 transition-colors cursor-pointer group"
+                      onClick={() => selectAndPlay(track, albumTracks)}
+                    >
+                      <td className="p-4 text-zinc-500 font-medium">
+                        <span className="group-hover:hidden">{index + 1}</span>
+                        <Play size={12} fill="currentColor" className="hidden group-hover:inline text-blue-400" />
+                      </td>
+                      <td className="p-4">
+                        <div>
+                          <p className="font-bold text-white line-clamp-1">{track.title}</p>
+                          <p className="text-zinc-500 text-[10px] mt-0.5">{track.artist}</p>
+                        </div>
+                      </td>
+                      <td className="p-4 text-right text-zinc-400 font-medium">{formatTime(track.duration)}</td>
+                      <td className="p-4 text-center" onClick={(e) => e.stopPropagation()}>
+                        <button
+                          onClick={() => toggleFavorite(track)}
+                          className={`p-2 rounded-full transition-colors ${favoritesList.some(t => t.id === track.id) ? 'text-blue-400' : 'text-zinc-500 hover:text-white'}`}
+                        >
+                          <Heart size={14} fill={favoritesList.some(t => t.id === track.id) ? "currentColor" : "none"} />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Favorites List View */}
+      {activeTab === 'favorites' && (
+        <div className="space-y-6">
+          <h3 className="text-xl font-bold text-white tracking-tight">Your Favorites</h3>
+          {favoritesList.length > 0 ? (
+            <div className="border border-zinc-800 bg-zinc-900/20 rounded-xl overflow-hidden shadow-2xl">
+              <table className="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr className="border-b border-zinc-800 text-zinc-500">
                     <th className="p-4 font-semibold uppercase tracking-wider w-[50px]">#</th>
                     <th className="p-4 font-semibold uppercase tracking-wider">Title</th>
                     <th className="p-4 font-semibold uppercase tracking-wider">Album</th>
                     <th className="p-4 font-semibold uppercase tracking-wider text-right w-[100px]">Duration</th>
-                    <th className="p-4 font-semibold uppercase tracking-wider w-[80px]">Actions</th>
+                    <th className="p-4 font-semibold uppercase tracking-wider w-[60px]"></th>
                   </tr>
                 </thead>
                 <tbody>
-                  {searchResults.map((track, index) => (
+                  {favoritesList.map((track, index) => (
                     <tr
                       key={track.id}
-                      className="border-b border-white/5 hover:bg-white/5 transition-colors cursor-pointer group"
-                      onClick={() => selectAndPlay(track, searchResults)}
+                      className="border-b border-zinc-850 hover:bg-white/5 transition-colors cursor-pointer group"
+                      onClick={() => selectAndPlay(track, favoritesList)}
                     >
                       <td className="p-4 text-zinc-500 font-medium">
                         <span className="group-hover:hidden">{index + 1}</span>
-                        <Play size={12} className="hidden group-hover:inline text-red-500" />
+                        <Play size={12} fill="currentColor" className="hidden group-hover:inline text-blue-400" />
                       </td>
                       <td className="p-4 flex items-center gap-3">
-                        <img src={track.coverUrl} className="w-9 h-9 rounded object-cover shadow" alt="" onError={(e) => {
-                          (e.target as HTMLImageElement).src = "https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?q=80&w=400";
-                        }} />
+                        <img src={track.coverUrl} className="w-9 h-9 rounded object-cover shadow" alt="" />
                         <div>
                           <p className="font-bold text-white line-clamp-1">{track.title}</p>
                           <p className="text-zinc-500 text-[10px] mt-0.5">{track.artist}</p>
@@ -684,12 +899,12 @@ export const MusicPage: React.FC<MusicPageProps> = ({ disableEntryAnimation }) =
                       </td>
                       <td className="p-4 text-zinc-400 line-clamp-1 font-medium">{track.album}</td>
                       <td className="p-4 text-right text-zinc-400 font-medium">{formatTime(track.duration)}</td>
-                      <td className="p-4" onClick={(e) => e.stopPropagation()}>
+                      <td className="p-4 text-center" onClick={(e) => e.stopPropagation()}>
                         <button
                           onClick={() => toggleFavorite(track)}
-                          className={`p-2 rounded-full transition-colors ${favoritesList.some(t => t.isrc === track.isrc) ? 'text-red-500' : 'text-zinc-500 hover:text-white'}`}
+                          className="p-2 rounded-full text-blue-400 hover:text-blue-300 transition-colors"
                         >
-                          <Heart size={14} fill={favoritesList.some(t => t.isrc === track.isrc) ? "currentColor" : "none"} />
+                          <Heart size={14} fill="currentColor" />
                         </button>
                       </td>
                     </tr>
@@ -698,102 +913,73 @@ export const MusicPage: React.FC<MusicPageProps> = ({ disableEntryAnimation }) =
               </table>
             </div>
           ) : (
-            searchQuery && (
-              <div className="text-center py-20">
-                <Music className="mx-auto text-zinc-700 mb-3" size={32} />
-                <p className="text-xs text-zinc-500">No streamable tracks found. Try searching for something else!</p>
-              </div>
-            )
-          )}
-        </div>
-      )}
-
-      {/* Favorites Tab */}
-      {activeTab === 'favorites' && (
-        <div>
-          {favoritesList.length > 0 ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4">
-              {favoritesList.map(track => (
-                <div
-                  key={track.id}
-                  onClick={() => selectAndPlay(track, favoritesList)}
-                  className="group relative cursor-pointer bg-zinc-900/40 hover:bg-zinc-800/50 border border-white/5 hover:border-white/10 rounded-xl p-3.5 transition-all duration-300 transform hover:scale-[1.02]"
-                >
-                  <div className="aspect-square w-full rounded-lg overflow-hidden bg-zinc-800 relative mb-3 shadow-md">
-                    <img
-                      src={track.coverUrl}
-                      alt={track.title}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                    />
-                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                      <div className="w-10 h-10 rounded-full bg-red-600 text-white flex items-center justify-center transform scale-90 group-hover:scale-100 transition-all shadow-lg">
-                        <Play size={16} fill="currentColor" className="ml-0.5" />
-                      </div>
-                    </div>
-                  </div>
-                  <h4 className="text-xs font-bold text-white line-clamp-1 mb-0.5">{track.title}</h4>
-                  <p className="text-[10px] text-zinc-400 line-clamp-1">{track.artist}</p>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-20">
+            <div className="text-center py-20 border border-zinc-900 rounded-2xl bg-zinc-900/10">
               <Heart className="mx-auto text-zinc-700 mb-3" size={32} />
-              <p className="text-xs text-zinc-500">No favorite songs added yet. Mark songs with a heart to see them here!</p>
+              <p className="text-xs text-zinc-500">No favorite songs yet. Tap the heart icon on any song to add it here!</p>
             </div>
           )}
         </div>
       )}
 
-      {/* Persistent Bottom Spotify Player Bar */}
+      {/* Persistent Bottom Player Bar */}
       {currentTrack && (
-        <div className="fixed bottom-0 left-0 right-0 z-[80] bg-[#030303]/90 backdrop-blur-2xl border-t border-white/10 p-4 select-none px-4 md:px-12 flex items-center justify-between gap-4">
-          {/* Track Info */}
-          <div className="flex items-center gap-3 w-1/3 min-w-[200px]" onClick={() => setIsPlayerExpanded(true)}>
-            <div className="relative w-14 h-14 rounded-lg overflow-hidden shrink-0 shadow-md cursor-pointer group">
+        <div className="fixed bottom-0 left-0 right-0 z-[80] bg-zinc-950/95 backdrop-blur-2xl border-t border-zinc-900 p-4 select-none px-4 md:px-12 flex items-center justify-between gap-4">
+          
+          {/* Left: Track Details */}
+          <div className="flex items-center gap-3 w-1/3 min-w-[200px]">
+            <div 
+              onClick={() => setIsPlayerExpanded(true)}
+              className="relative w-14 h-14 rounded-lg overflow-hidden shrink-0 shadow-md cursor-pointer group border border-zinc-800"
+            >
               <img src={currentTrack.coverUrl} alt="" className="w-full h-full object-cover" />
-              <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-all">
                 <Maximize2 size={14} className="text-white" />
               </div>
             </div>
-            <div className="cursor-pointer">
-              <h4 className="text-sm font-bold text-white line-clamp-1 hover:underline">{currentTrack.title}</h4>
-              <p className="text-[11px] text-zinc-400 line-clamp-1 mt-0.5">{currentTrack.artist}</p>
+            <div className="cursor-pointer min-w-0" onClick={() => setIsPlayerExpanded(true)}>
+              <h4 className="text-sm font-bold text-white truncate hover:underline">{currentTrack.title}</h4>
+              <p className="text-[11px] text-zinc-400 truncate mt-0.5">{currentTrack.artist}</p>
             </div>
+            <button
+              onClick={() => toggleFavorite(currentTrack)}
+              className={`p-1.5 rounded-full transition-colors shrink-0 ${favoritesList.some(t => t.id === currentTrack.id) ? 'text-blue-400' : 'text-zinc-500 hover:text-white'}`}
+            >
+              <Heart size={16} fill={favoritesList.some(t => t.id === currentTrack.id) ? "currentColor" : "none"} />
+            </button>
           </div>
 
-          {/* Controls & Progress */}
+          {/* Center: Controls & Scrubber */}
           <div className="flex flex-col items-center gap-2 w-1/3 max-w-xl">
             <div className="flex items-center gap-5">
               <button
                 onClick={() => setIsShuffle(!isShuffle)}
-                className={`p-1.5 transition-colors ${isShuffle ? 'text-red-500' : 'text-zinc-500 hover:text-white'}`}
+                className={`p-1.5 transition-colors ${isShuffle ? 'text-blue-400' : 'text-zinc-500 hover:text-white'}`}
                 title="Shuffle"
               >
                 <Shuffle size={14} />
               </button>
-              <button onClick={skipPrevious} className="text-zinc-500 hover:text-white transition-colors">
+              <button onClick={skipPrevious} className="text-zinc-400 hover:text-white transition-colors">
                 <SkipBack size={16} fill="currentColor" />
               </button>
               <button
                 onClick={togglePlay}
-                className="w-9 h-9 rounded-full bg-white hover:scale-105 active:scale-95 text-black flex items-center justify-center transition-transform"
+                className="w-10 h-10 rounded-full bg-blue-500 hover:scale-105 active:scale-95 text-white flex items-center justify-center transition-all shadow-md shadow-blue-500/20"
               >
-                {isPlaying ? <Pause size={16} fill="currentColor" /> : <Play size={16} fill="currentColor" className="ml-0.5" />}
+                {isPlaying ? <Pause size={18} fill="currentColor" /> : <Play size={18} fill="currentColor" className="ml-0.5" />}
               </button>
-              <button onClick={skipNext} className="text-zinc-500 hover:text-white transition-colors">
+              <button onClick={skipNext} className="text-zinc-400 hover:text-white transition-colors">
                 <SkipForward size={16} fill="currentColor" />
               </button>
               <button
                 onClick={() => setIsRepeat(!isRepeat)}
-                className={`p-1.5 transition-colors ${isRepeat ? 'text-red-500' : 'text-zinc-500 hover:text-white'}`}
+                className={`p-1.5 transition-colors ${isRepeat ? 'text-blue-400' : 'text-zinc-500 hover:text-white'}`}
                 title="Repeat"
               >
                 <Repeat size={14} />
               </button>
             </div>
 
-            <div className="w-full flex items-center gap-2 text-[10px] text-zinc-400">
+            <div className="w-full flex items-center gap-2 text-[10px] text-zinc-500 font-medium">
               <span>{formatTime(currentTime)}</span>
               <input
                 type="range"
@@ -805,24 +991,17 @@ export const MusicPage: React.FC<MusicPageProps> = ({ disableEntryAnimation }) =
                     audioRef.current.currentTime = parseFloat(e.target.value);
                   }
                 }}
-                className="flex-1 accent-red-600 h-1 rounded-full cursor-pointer"
+                className="flex-1 accent-blue-500 h-1 bg-zinc-800 rounded-full cursor-pointer hover:accent-blue-400"
               />
               <span>{formatTime(duration)}</span>
             </div>
           </div>
 
-          {/* Volume & Details Toggle */}
+          {/* Right: Audio Volume & Fullscreen Toggle */}
           <div className="flex items-center justify-end gap-3 w-1/3 min-w-[150px]">
             <button
-              onClick={() => toggleFavorite(currentTrack)}
-              className={`p-1.5 rounded-full transition-colors ${favoritesList.some(t => t.isrc === currentTrack.isrc) ? 'text-red-500' : 'text-zinc-500 hover:text-white'}`}
-            >
-              <Heart size={16} fill={favoritesList.some(t => t.isrc === currentTrack.isrc) ? "currentColor" : "none"} />
-            </button>
-
-            <button
               onClick={() => setIsMuted(!isMuted)}
-              className="text-zinc-500 hover:text-white transition-colors"
+              className="text-zinc-400 hover:text-white transition-colors"
             >
               {isMuted ? <VolumeX size={16} /> : <Volume2 size={16} />}
             </button>
@@ -836,12 +1015,12 @@ export const MusicPage: React.FC<MusicPageProps> = ({ disableEntryAnimation }) =
                 setVolume(parseFloat(e.target.value));
                 setIsMuted(false);
               }}
-              className="w-20 md:w-24 h-1 accent-red-600 rounded-full cursor-pointer"
+              className="w-20 md:w-24 h-1 bg-zinc-800 accent-blue-500 rounded-full cursor-pointer"
             />
             <button
               onClick={() => setIsPlayerExpanded(true)}
-              className="text-zinc-500 hover:text-white transition-colors ml-2"
-              title="Expand Player"
+              className="text-zinc-400 hover:text-white transition-colors ml-2"
+              title="Fullscreen Lyrics & Visualizer"
             >
               <Maximize2 size={16} />
             </button>
@@ -849,19 +1028,19 @@ export const MusicPage: React.FC<MusicPageProps> = ({ disableEntryAnimation }) =
         </div>
       )}
 
-      {/* Widescreen Full Player Modal Overlay */}
+      {/* Fullscreen Lyrics & Circular Wave Visualizer Overlay */}
       {isPlayerExpanded && currentTrack && (
         <div className="fixed inset-0 z-[120] bg-zinc-950 flex flex-col md:flex-row p-6 md:p-12 overflow-y-auto animate-in fade-in zoom-in-95 duration-300">
           <button
             onClick={() => setIsPlayerExpanded(false)}
-            className="absolute top-6 right-6 p-2 rounded-full bg-white/5 border border-white/10 hover:bg-white/10 transition-colors text-white z-50"
+            className="absolute top-6 right-6 p-2 rounded-full bg-white/5 border border-white/10 hover:bg-white/10 transition-colors text-white z-50 shadow-md"
           >
             <ChevronDown size={20} />
           </button>
 
-          {/* Left panel: Album art / visualizer */}
-          <div className="flex-1 flex flex-col items-center justify-center relative min-h-[400px]">
-            {/* Visualizer Background Canvas */}
+          {/* Left Panel: Cover Art & Circular Visualizer */}
+          <div className="flex-1 flex flex-col items-center justify-center relative min-h-[400px] select-none">
+            {/* Visualizer Canvas */}
             <canvas
               ref={canvasRef}
               width="450"
@@ -869,54 +1048,52 @@ export const MusicPage: React.FC<MusicPageProps> = ({ disableEntryAnimation }) =
               className="absolute z-10 pointer-events-none w-[320px] h-[320px] md:w-[450px] md:h-[450px]"
             />
 
-            {/* Glowing Widescreen vinyl Cover Art */}
-            <div className="relative z-20 w-[240px] h-[240px] md:w-[320px] md:h-[320px] rounded-full overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.8)] border-4 border-zinc-900 bg-black flex items-center justify-center group">
+            {/* Glowing Vinyl Cover Art */}
+            <div className="relative z-20 w-[240px] h-[240px] md:w-[320px] md:h-[320px] rounded-full overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.85)] border-8 border-zinc-900 bg-black flex items-center justify-center group">
               <img
                 src={currentTrack.coverUrl}
                 alt=""
                 className={`w-full h-full object-cover rounded-full ${isPlaying ? 'animate-[spin_20s_linear_infinite]' : ''}`}
-                onError={(e) => {
-                  (e.target as HTMLImageElement).src = "https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?q=80&w=400";
-                }}
               />
               <div className="absolute w-12 h-12 rounded-full bg-zinc-950 border-4 border-zinc-900 z-30 shadow-inner flex items-center justify-center">
-                <div className="w-3.5 h-3.5 rounded-full bg-red-600" />
+                <div className="w-3.5 h-3.5 rounded-full bg-blue-500 shadow-md shadow-blue-500/50" />
               </div>
             </div>
 
-            {/* Track Metadata */}
+            {/* Track Info */}
             <div className="text-center mt-8 relative z-20">
-              <h3 className="text-xl md:text-2xl font-black text-white">{currentTrack.title}</h3>
-              <p className="text-zinc-400 text-xs md:text-sm mt-1">{currentTrack.artist}</p>
-              <span className="inline-block mt-3 text-[10px] bg-red-600/10 border border-red-600/20 text-red-500 px-3 py-1 rounded-full uppercase tracking-wider font-sans font-bold">
-                ISRC: {currentTrack.isrc}
-              </span>
+              <h3 className="text-2xl font-extrabold text-white tracking-tight leading-tight">{currentTrack.title}</h3>
+              <p className="text-zinc-400 text-sm mt-1">{currentTrack.artist}</p>
+              {currentTrack.album && (
+                <p className="text-zinc-500 text-xs mt-0.5">{currentTrack.album}</p>
+              )}
             </div>
 
-            {/* Expanded player timeline controls */}
-            <div className="w-full max-w-lg mt-8 relative z-20 px-6">
-              <div className="flex items-center justify-between text-[10px] text-zinc-500 mb-1">
-                <span>{formatTime(currentTime)}</span>
-                <span>{formatTime(duration)}</span>
+            {/* Controls */}
+            <div className="w-full max-w-lg mt-8 relative z-20 px-6 space-y-6">
+              <div className="space-y-1">
+                <div className="flex items-center justify-between text-[10px] text-zinc-500 font-semibold mb-1">
+                  <span>{formatTime(currentTime)}</span>
+                  <span>{formatTime(duration)}</span>
+                </div>
+                <input
+                  type="range"
+                  min="0"
+                  max={duration || 100}
+                  value={currentTime}
+                  onChange={(e) => {
+                    if (audioRef.current) {
+                      audioRef.current.currentTime = parseFloat(e.target.value);
+                    }
+                  }}
+                  className="w-full accent-blue-500 h-1.5 rounded-full cursor-pointer bg-zinc-800"
+                />
               </div>
-              <input
-                type="range"
-                min="0"
-                max={duration || 100}
-                value={currentTime}
-                onChange={(e) => {
-                  if (audioRef.current) {
-                    audioRef.current.currentTime = parseFloat(e.target.value);
-                  }
-                }}
-                className="w-full accent-red-600 h-1.5 rounded-full cursor-pointer bg-zinc-800"
-              />
 
-              {/* Music controls */}
-              <div className="flex items-center justify-between mt-8">
+              <div className="flex items-center justify-between">
                 <button
                   onClick={() => setIsShuffle(!isShuffle)}
-                  className={`p-2 transition-colors ${isShuffle ? 'text-red-500' : 'text-zinc-500 hover:text-white'}`}
+                  className={`p-2 transition-colors ${isShuffle ? 'text-blue-400' : 'text-zinc-500 hover:text-white'}`}
                 >
                   <Shuffle size={18} />
                 </button>
@@ -936,7 +1113,7 @@ export const MusicPage: React.FC<MusicPageProps> = ({ disableEntryAnimation }) =
                 </div>
                 <button
                   onClick={() => setIsRepeat(!isRepeat)}
-                  className={`p-2 transition-colors ${isRepeat ? 'text-red-500' : 'text-zinc-500 hover:text-white'}`}
+                  className={`p-2 transition-colors ${isRepeat ? 'text-blue-400' : 'text-zinc-500 hover:text-white'}`}
                 >
                   <Repeat size={18} />
                 </button>
@@ -944,24 +1121,24 @@ export const MusicPage: React.FC<MusicPageProps> = ({ disableEntryAnimation }) =
             </div>
           </div>
 
-          {/* Right panel: Synced Lyrics */}
-          <div className="flex-1 flex flex-col border-t md:border-t-0 md:border-l border-white/5 pt-8 md:pt-0 md:pl-12">
-            <h3 className="text-sm font-bold text-zinc-500 uppercase tracking-widest mb-6 flex items-center gap-2">
-              <ListMusic size={16} /> Scrolling Lyrics
+          {/* Right Panel: Scrollable Karaoke Lyrics */}
+          <div className="flex-1 flex flex-col border-t md:border-t-0 md:border-l border-zinc-900 pt-8 md:pt-0 md:pl-12">
+            <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-widest mb-6 flex items-center gap-2">
+              <ListMusic size={16} /> TIMED LYRICS
             </h3>
 
             {lyricsLoading ? (
               <div className="flex-1 flex items-center justify-center">
-                <Loader2 className="animate-spin text-red-600" size={24} />
+                <Loader2 className="animate-spin text-blue-500" size={24} />
               </div>
             ) : (
               <div className="flex-1 overflow-y-auto space-y-6 max-h-[450px] md:max-h-[600px] pr-4 custom-scrollbar scroll-smooth">
                 {lyricsText.map((line, idx) => (
                   <p
                     key={idx}
-                    className={`text-sm md:text-base font-extrabold tracking-tight transition-all duration-300 ${idx === Math.floor((currentTime / duration) * lyricsText.length)
-                      ? 'text-red-500 scale-[1.02] origin-left drop-shadow-[0_4px_12px_rgba(239,68,68,0.3)]'
-                      : 'text-zinc-600 hover:text-zinc-400'
+                    className={`text-base md:text-lg font-extrabold tracking-tight transition-all duration-300 ${idx === Math.floor((currentTime / duration) * lyricsText.length)
+                      ? 'text-blue-400 scale-[1.02] origin-left drop-shadow-[0_4px_12px_rgba(59,130,246,0.2)]'
+                      : 'text-zinc-700 hover:text-zinc-500'
                     }`}
                   >
                     {line}

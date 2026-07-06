@@ -3958,10 +3958,6 @@ export default function App() {
                                     <Drama size={15} className="transition-all duration-300 group-hover:scale-110" />
                                     <span>Dramas</span>
                                 </TvFocusButton>
-                                <TvFocusButton onClick={() => { resetFilters(); setSelectedCategory("Music"); }} className={`group flex items-center gap-2 px-5 py-2 rounded-full text-xs font-semibold tracking-wide transition-all duration-300 ${selectedCategory === "Music" ? "bg-white/10 text-white" : "text-zinc-400 hover:text-white hover:bg-white/5"}`}>
-                                    <Music size={15} className="transition-all duration-300 group-hover:scale-110" />
-                                    <span>Music</span>
-                                </TvFocusButton>
                                 <div
                                     className="relative flex items-center h-full"
                                     onMouseEnter={handleBrowseEnter}
