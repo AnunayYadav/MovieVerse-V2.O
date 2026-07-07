@@ -3176,7 +3176,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                                 <div className="flex items-center gap-2 mt-1">
                                   <button
                                     onClick={() => {
-                                      const next = Math.max(-10, subDelay - 0.5);
+                                      const next = parseFloat((subDelay - 0.5).toFixed(1));
                                       setSubDelay(next);
                                       localStorage.setItem('movieverse_subtitle_delay', next.toString());
                                     }}
@@ -3195,7 +3195,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                                   </button>
                                   <button
                                     onClick={() => {
-                                      const next = Math.min(10, subDelay + 0.5);
+                                      const next = parseFloat((subDelay + 0.5).toFixed(1));
                                       setSubDelay(next);
                                       localStorage.setItem('movieverse_subtitle_delay', next.toString());
                                     }}
@@ -4047,7 +4047,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                     <div className="flex items-center gap-1.5">
                       <button
                         onClick={() => {
-                          const next = Math.max(-10, subDelay - 0.5);
+                          const next = parseFloat((subDelay - 0.5).toFixed(1));
                           setSubDelay(next);
                           localStorage.setItem('movieverse_subtitle_delay', next.toString());
                         }}
@@ -4060,7 +4060,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                       </span>
                       <button
                         onClick={() => {
-                          const next = Math.min(10, subDelay + 0.5);
+                          const next = parseFloat((subDelay + 0.5).toFixed(1));
                           setSubDelay(next);
                           localStorage.setItem('movieverse_subtitle_delay', next.toString());
                         }}
