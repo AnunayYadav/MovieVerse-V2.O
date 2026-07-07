@@ -1285,45 +1285,14 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                     session = castContext.getCurrentSession();
                 }
                 if (session) {
-                    const isTvShow = resolvedMediaType === 'tv';
-                    const provider = PROVIDERS.find(p => p.id === selectedCastProviderId) || PROVIDERS[0];
-                    const mediaUrl = isTvShow
-                        ? provider.getTvUrl(displayData.id, playParams.season, playParams.episode, "EF4444", 0)
-                        : provider.getMovieUrl(displayData.id, "EF4444", 0);
-
-                    // Try to load media
-                    const mediaInfo = new (window as any).chrome.cast.media.MediaInfo(
-                        mediaUrl,
-                        'video/mp4' // Generic video type
-                    );
-                    
-                    // Add metadata
-                    const metadata = new (window as any).chrome.cast.media.GenericMediaMetadata();
-                    metadata.title = `${displayData.title || displayData.name} (${provider.name})`;
-                    metadata.subtitle = `Streaming via ${provider.name} - MovieVerse`;
-                    metadata.images = [{ url: displayData.poster_path ? `${TMDB_IMAGE_BASE}${displayData.poster_path}` : "https://placehold.co/300x450" }];
-                    mediaInfo.metadata = metadata;
-                    
-                    const request = new (window as any).chrome.cast.media.LoadRequest(mediaInfo);
-                    
-                    session.loadMedia(request).then(
-                        () => {
-                            console.log('Provider URL loaded successfully on Cast device');
-                            setShowCastModal(false);
-                            handleWatchClick(); // Start local player for tab cast
-                        },
-                        (e: any) => {
-                            console.warn('Failed to load Cast media:', e);
-                            setShowCastModal(false);
-                            handleWatchClick(); // Fallback to local player
-                        }
-                    );
+                    setShowCastModal(false);
+                    handleWatchClick(); // Opens local player which automatically casts the direct decrypted stream
                 }
             }
         } catch (err) {
             console.error("Failed to request Cast session:", err);
             setShowCastModal(false);
-            handleWatchClick(); // Fallback to local player
+            handleWatchClick();
         }
     };
 

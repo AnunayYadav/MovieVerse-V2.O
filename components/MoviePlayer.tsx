@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
-import { X, Tv, ChevronLeft, ChevronRight, Check, ListVideo, Sliders, ChevronDown, Info, RefreshCw, Palette, Copy, Play, Pause, Volume2, VolumeX, Maximize, Loader2, AlertTriangle, Settings, Subtitles, ArrowLeft, RotateCcw, RotateCw, SkipForward, MessageSquare, Search, Languages, Zap, Sun, FlipHorizontal } from 'lucide-react';
+import { X, Tv, ChevronLeft, ChevronRight, Check, ListVideo, Sliders, ChevronDown, Info, RefreshCw, Palette, Copy, Play, Pause, Volume2, VolumeX, Maximize, Loader2, AlertTriangle, Settings, Subtitles, ArrowLeft, RotateCcw, RotateCw, SkipForward, MessageSquare, Search, Languages, Zap, Sun, FlipHorizontal, Cast } from 'lucide-react';
 import Hls from 'hls.js';
 import { TvFocusButton } from '../tvNavigation';
 import { pause, resume } from '@noriginmedia/norigin-spatial-navigation';
@@ -430,6 +430,176 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     }
     return 0;
   });
+
+  // Chromecast states
+  const [isCasting, setIsCasting] = useState(false);
+  const [castDeviceName, setCastDeviceName] = useState('');
+  const [isCastApiAvailable, setIsCastApiAvailable] = useState(false);
+
+  // Initialize Chromecast SDK in MoviePlayer
+  useEffect(() => {
+    const initializeCast = () => {
+      try {
+        const castContext = (window as any).cast?.framework?.CastContext.getInstance();
+        if (castContext) {
+          const appId = (window as any).chrome?.cast?.media?.DEFAULT_MEDIA_RECEIVER_APP_ID || 'CC1AD845';
+          const joinPolicy = (window as any).chrome?.cast?.AutoJoinPolicy?.ORIGIN_SCOPED || 'origin_scoped';
+          castContext.setOptions({
+            receiverApplicationId: appId,
+            autoJoinPolicy: joinPolicy
+          });
+          
+          // Listen for session events
+          const contextEvent = (window as any).cast.framework.CastContextEventType;
+          castContext.addEventListener(contextEvent.SESSION_STATE_CHANGED, (event: any) => {
+            const state = event.sessionState;
+            const sessionState = (window as any).cast.framework.SessionState;
+            
+            if (state === sessionState.SESSION_STARTED || state === sessionState.SESSION_RESUMED) {
+              const session = castContext.getCurrentSession();
+              if (session) {
+                const device = session.getCastDevice();
+                setCastDeviceName(device?.friendlyName || "Chromecast Device");
+                setIsCasting(true);
+                // Pause local playback
+                const video = videoRef.current;
+                if (video && !video.paused) {
+                  video.pause();
+                }
+              }
+            } else if (state === sessionState.SESSION_ENDED || state === sessionState.NO_SESSION) {
+              setIsCasting(false);
+              setCastDeviceName("");
+            }
+          });
+          
+          setIsCastApiAvailable(true);
+          
+          // Check if already connected
+          const activeSession = castContext.getCurrentSession();
+          if (activeSession) {
+            const device = activeSession.getCastDevice();
+            setCastDeviceName(device?.friendlyName || "Chromecast Device");
+            setIsCasting(true);
+          }
+        }
+      } catch (err) {
+        console.warn("Failed to initialize Chromecast SDK in MoviePlayer:", err);
+      }
+    };
+
+    if ((window as any).chrome?.cast && (window as any).cast?.framework) {
+      initializeCast();
+    } else {
+      const existingCallback = (window as any).__onGCastApiAvailable;
+      (window as any).__onGCastApiAvailable = (isAvailable: boolean) => {
+        if (existingCallback) existingCallback(isAvailable);
+        if (isAvailable) {
+          initializeCast();
+        }
+      };
+    }
+  }, []);
+
+  const handleStartCast = async () => {
+    try {
+      const castContext = (window as any).cast?.framework?.CastContext.getInstance();
+      if (!castContext) {
+        showToast("Cast API not available.");
+        return;
+      }
+      
+      let session = castContext.getCurrentSession();
+      if (!session) {
+        await castContext.requestSession();
+        session = castContext.getCurrentSession();
+      }
+      
+      if (session) {
+        showToast("Connected to TV!");
+      }
+    } catch (err) {
+      console.error("Failed to request Cast session:", err);
+      showToast("Connection failed.");
+    }
+  };
+
+  const handleStopCast = () => {
+    try {
+      const castContext = (window as any).cast?.framework?.CastContext.getInstance();
+      if (castContext) {
+        castContext.endCurrentSession(true);
+        setIsCasting(false);
+        setCastDeviceName("");
+        showToast("Casting stopped");
+      }
+    } catch (e) {
+      console.warn("Failed to stop cast session:", e);
+    }
+  };
+
+  const handleCastPlayPause = () => {
+    try {
+      const session = (window as any).cast?.framework?.CastContext.getInstance()?.getCurrentSession();
+      const mediaSession = session?.getSessionObj()?.media?.[0];
+      if (mediaSession) {
+        if (isPlaying) {
+          mediaSession.pause(null, () => setIsPlaying(false), (err: any) => console.error(err));
+        } else {
+          mediaSession.play(null, () => setIsPlaying(true), (err: any) => console.error(err));
+        }
+      }
+    } catch (e) {
+      console.warn("Error toggling cast playback:", e);
+    }
+  };
+
+  // Automatically cast stream when casting is active and stream URL resolves
+  useEffect(() => {
+    if (isCasting && anivexaStreamUrl) {
+      const castContext = (window as any).cast?.framework?.CastContext.getInstance();
+      const session = castContext?.getCurrentSession();
+      if (session) {
+        let contentType = 'video/mp4';
+        if (anivexaStreamUrl.includes('.m3u8')) {
+          contentType = 'application/x-mpegURL';
+        }
+        
+        const mediaInfo = new (window as any).chrome.cast.media.MediaInfo(
+          anivexaStreamUrl,
+          contentType
+        );
+        
+        const metadata = new (window as any).chrome.cast.media.GenericMediaMetadata();
+        metadata.title = title || "MovieVerse Video";
+        metadata.subtitle = `Streaming via MovieVerse`;
+        metadata.images = [{ url: "https://placehold.co/1080x1920" }];
+        mediaInfo.metadata = metadata;
+        
+        const request = new (window as any).chrome.cast.media.LoadRequest(mediaInfo);
+        const video = videoRef.current;
+        const currentTime = video ? video.currentTime : playerCurrentTime;
+        if (currentTime > 0) {
+          request.currentTime = currentTime;
+        }
+        
+        session.loadMedia(request).then(
+          () => {
+            console.log('Media loaded successfully on Chromecast from Player');
+            showToast(`Casting to ${castDeviceName || 'TV'}`);
+            setIsPlaying(true);
+            if (video) {
+              video.pause();
+            }
+          },
+          (e: any) => {
+            console.warn('Failed to load Cast media from Player:', e);
+            showToast("Failed to cast stream to TV.");
+          }
+        );
+      }
+    }
+  }, [anivexaStreamUrl, isCasting, castDeviceName, title]);
 
   // Synchronize VidEasy server based on selected audio language
   useEffect(() => {
@@ -2093,6 +2263,38 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
           transform: isMirrored ? 'scaleX(-1)' : 'none',
         }}
       >
+        {/* Chromecast Casting Active Overlay */}
+        {isCasting && (
+          <div className="absolute inset-0 bg-black/90 backdrop-blur-xl z-30 flex flex-col items-center justify-center p-8 select-none">
+            <div className="w-20 h-20 rounded-full bg-white/5 border border-white/10 flex items-center justify-center mb-6 shadow-inner animate-[pulse_3s_infinite]">
+              <Cast size={38} strokeWidth={1.5} className="text-zinc-300" />
+            </div>
+            
+            <h3 className="text-lg sm:text-xl font-normal text-white mb-2 tracking-wide">Casting to TV</h3>
+            <p className="text-zinc-400 text-xs text-center max-w-sm mb-8 leading-relaxed font-light">
+              Playing on <span className="text-white font-medium">{castDeviceName || "Chromecast Device"}</span>. Use the controls below or disconnect to resume playback here.
+            </p>
+            
+            <div className="flex items-center gap-5">
+              <button 
+                onClick={handleCastPlayPause}
+                className="w-12 h-12 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 flex items-center justify-center text-white active:scale-95 transition-all"
+                title={isPlaying ? "Pause" : "Play"}
+              >
+                {isPlaying ? <Pause size={18} fill="white" strokeWidth={1.5} /> : <Play size={18} className="ml-0.5" fill="white" strokeWidth={1.5} />}
+              </button>
+              
+              <button 
+                onClick={handleStopCast}
+                className="px-5 py-2.5 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 text-zinc-300 hover:text-white text-xs font-normal transition-all active:scale-95 flex items-center gap-2"
+              >
+                <Cast size={12} strokeWidth={1.5} />
+                <span>Disconnect</span>
+              </button>
+            </div>
+          </div>
+        )}
+
         {(selectedProviderId === 'videasy_adfree' || selectedProviderId === 'cinepro_core' || selectedProviderId.startsWith('encdec')) && !fallbackToIframe ? (
             <div className="w-full h-full absolute inset-0 bg-zinc-950 z-0 flex items-center justify-center">
               {anivexaLoading && !anivexaStreamUrl && (
@@ -2538,35 +2740,35 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                         <Settings size={24} />
                       </button>
 
-                      {/* Settings Panel Container */}
+                        {/* Settings Panel Container */}
                       {isSettingsOpen && (
                         <div 
                           data-controls
                           onClick={(e) => e.stopPropagation()}
-                          className="absolute bottom-12 right-0 bg-[#0c0c0e]/95 backdrop-blur-xl border border-white/10 rounded-2xl p-4 shadow-2xl z-[60] flex flex-col gap-3 min-w-[280px] max-h-[380px] overflow-y-auto custom-scrollbar transition-all duration-200 ease-out origin-bottom-right text-left"
+                          className="absolute bottom-12 right-0 bg-[#08080a]/95 backdrop-blur-xl border border-white/10 rounded-2xl p-5 shadow-2xl z-[60] flex flex-col gap-3.5 min-w-[300px] max-h-[420px] overflow-y-auto custom-scrollbar transition-all duration-200 ease-out origin-bottom-right text-left select-none"
                         >
                           {/* 1. Main Menu View */}
                           {settingsView === 'main' && (
-                            <div className="flex flex-col gap-3">
+                            <div className="flex flex-col gap-2">
                               {/* Header */}
-                              <div className="flex items-center justify-between border-b border-white/5 pb-2 mb-1">
-                                <span className="text-[11px] font-bold text-white uppercase tracking-wider">Settings</span>
+                              <div className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest block px-2 pb-2 mb-1 border-b border-white/10">
+                                Settings
                               </div>
 
                               {/* SOURCES SECTION */}
-                              <div className="flex flex-col gap-1">
-                                <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-wider block px-1 mb-1">Sources</span>
+                              <div className="flex flex-col border-b border-white/10 pb-2 mb-1.5">
+                                <span className="text-[9px] font-semibold text-zinc-500 uppercase tracking-widest block px-2 mb-1">Sources</span>
                                 
                                 {/* Provider Row */}
                                 <button
                                   onClick={() => setSettingsView('providers')}
-                                  className="w-full py-2 px-2.5 rounded-xl text-xs font-semibold text-zinc-300 hover:text-white hover:bg-white/5 flex items-center justify-between transition-colors"
+                                  className="w-full py-2 px-3 rounded-xl text-xs text-zinc-300 hover:text-white hover:bg-white/5 flex items-center justify-between transition-all"
                                 >
-                                  <div className="flex items-center gap-2">
+                                  <div className="flex items-center gap-2.5">
                                     <Tv size={14} className="text-zinc-400" />
                                     <span>Provider</span>
                                   </div>
-                                  <div className="flex items-center gap-1 text-[11px] text-zinc-500">
+                                  <div className="flex items-center gap-1.5 text-[11px] text-zinc-500">
                                     <span>{PROVIDERS.find(p => p.id === selectedProviderId)?.name || 'Default'}</span>
                                     <ChevronRight size={12} />
                                   </div>
@@ -2576,13 +2778,13 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                                 {(((selectedProviderId.startsWith('encdec') || selectedProviderId === 'cinepro_core') && encDecServers.length > 0) || (selectedProviderId === 'videasy_adfree')) && (
                                   <button
                                     onClick={() => setSettingsView('servers')}
-                                    className="w-full py-2 px-2.5 rounded-xl text-xs font-semibold text-zinc-300 hover:text-white hover:bg-white/5 flex items-center justify-between transition-colors"
+                                    className="w-full py-2 px-3 rounded-xl text-xs text-zinc-300 hover:text-white hover:bg-white/5 flex items-center justify-between transition-all"
                                   >
-                                    <div className="flex items-center gap-2">
+                                    <div className="flex items-center gap-2.5">
                                       <Sliders size={14} className="text-zinc-400" />
                                       <span>Server</span>
                                     </div>
-                                    <div className="flex items-center gap-1 text-[11px] text-zinc-500">
+                                    <div className="flex items-center gap-1.5 text-[11px] text-zinc-500">
                                       <span>
                                         {selectedProviderId === 'videasy_adfree' ? selectedVideasyServer : (selectedEncDecServer || 'Auto')}
                                       </span>
@@ -2595,13 +2797,13 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                                 {customQualities.length > 0 && (
                                   <button
                                     onClick={() => setSettingsView('quality')}
-                                    className="w-full py-2 px-2.5 rounded-xl text-xs font-semibold text-zinc-300 hover:text-white hover:bg-white/5 flex items-center justify-between transition-colors"
+                                    className="w-full py-2 px-3 rounded-xl text-xs text-zinc-300 hover:text-white hover:bg-white/5 flex items-center justify-between transition-all"
                                   >
-                                    <div className="flex items-center gap-2">
+                                    <div className="flex items-center gap-2.5">
                                       <Sliders size={14} className="text-zinc-400" />
                                       <span>Quality</span>
                                     </div>
-                                    <div className="flex items-center gap-1 text-[11px] text-zinc-500">
+                                    <div className="flex items-center gap-1.5 text-[11px] text-zinc-500">
                                       <span>{selectedQuality}</span>
                                       <ChevronRight size={12} />
                                     </div>
@@ -2610,20 +2812,20 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                               </div>
 
                               {/* AUDIO & SUBTITLES SECTION */}
-                              <div className="flex flex-col gap-1 border-t border-white/5 pt-2">
-                                <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-wider block px-1 mb-1">Audio & Subtitles</span>
+                              <div className="flex flex-col border-b border-white/10 pb-2 mb-1.5">
+                                <span className="text-[9px] font-semibold text-zinc-500 uppercase tracking-widest block px-2 mb-1">Subtitles & Audio</span>
                                 
-                                {/* Audio Language Row (Hidden for iframe players) */}
+                                {/* Audio Language Row */}
                                 {!isIframeCustomControls && (
                                   <button
                                     onClick={() => setSettingsView('language')}
-                                    className="w-full py-2 px-2.5 rounded-xl text-xs font-semibold text-zinc-300 hover:text-white hover:bg-white/5 flex items-center justify-between transition-colors"
+                                    className="w-full py-2 px-3 rounded-xl text-xs text-zinc-300 hover:text-white hover:bg-white/5 flex items-center justify-between transition-all"
                                   >
-                                    <div className="flex items-center gap-2">
+                                    <div className="flex items-center gap-2.5">
                                       <Languages size={14} className="text-zinc-400" />
                                       <span>Audio Dub</span>
                                     </div>
-                                    <div className="flex items-center gap-1 text-[11px] text-zinc-500">
+                                    <div className="flex items-center gap-1.5 text-[11px] text-zinc-500">
                                       <span>{audioLanguage}</span>
                                       <ChevronRight size={12} />
                                     </div>
@@ -2633,34 +2835,46 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                                 {/* Subtitles Row */}
                                 <button
                                   onClick={() => setSettingsView('subtitles')}
-                                  className="w-full py-2 px-2.5 rounded-xl text-xs font-semibold text-zinc-300 hover:text-white hover:bg-white/5 flex items-center justify-between transition-colors"
+                                  className="w-full py-2 px-3 rounded-xl text-xs text-zinc-300 hover:text-white hover:bg-white/5 flex items-center justify-between transition-all"
                                 >
-                                  <div className="flex items-center gap-2">
+                                  <div className="flex items-center gap-2.5">
                                     <Subtitles size={14} className="text-zinc-400" />
                                     <span>Subtitles</span>
                                   </div>
-                                  <div className="flex items-center gap-1 text-[11px] text-zinc-500 max-w-[140px] truncate">
+                                  <div className="flex items-center gap-1.5 text-[11px] text-zinc-500 max-w-[140px] truncate">
                                     <span className="truncate">{subtitleLanguage}</span>
                                     <ChevronRight size={12} />
                                   </div>
                                 </button>
+
+                                {/* Subtitle Styling Link */}
+                                <button
+                                  onClick={() => setSettingsView('subtitle-styling')}
+                                  className="w-full py-2 px-3 rounded-xl text-xs text-zinc-300 hover:text-white hover:bg-white/5 flex items-center justify-between transition-all"
+                                >
+                                  <div className="flex items-center gap-2.5">
+                                    <Sliders size={14} className="text-zinc-400" />
+                                    <span>Subtitle Settings</span>
+                                  </div>
+                                  <ChevronRight size={12} className="text-zinc-500" />
+                                </button>
                               </div>
 
                               {/* PLAYBACK & VIDEO SECTION */}
-                              <div className="flex flex-col gap-1 border-t border-white/5 pt-2">
-                                <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-wider block px-1 mb-1">Playback & Video</span>
+                              <div className="flex flex-col">
+                                <span className="text-[9px] font-semibold text-zinc-500 uppercase tracking-widest block px-2 mb-1">Playback & Video</span>
 
                                 {/* Speed Row */}
                                 <button
                                   onClick={() => setSettingsView('speed')}
-                                  className="w-full py-2 px-2.5 rounded-xl text-xs font-semibold text-zinc-300 hover:text-white hover:bg-white/5 flex items-center justify-between transition-colors"
+                                  className="w-full py-2 px-3 rounded-xl text-xs text-zinc-300 hover:text-white hover:bg-white/5 flex items-center justify-between transition-all"
                                 >
-                                  <div className="flex items-center gap-2">
+                                  <div className="flex items-center gap-2.5">
                                     <Zap size={14} className="text-zinc-400" />
-                                    <span>Speed</span>
+                                    <span>Playback speed</span>
                                   </div>
-                                  <div className="flex items-center gap-1 text-[11px] text-zinc-500">
-                                    <span>{playbackSpeed === 1.0 ? 'Normal' : `${playbackSpeed}x`}</span>
+                                  <div className="flex items-center gap-1.5 text-[11px] text-zinc-500">
+                                    <span>{playbackSpeed === 1.0 ? '1x' : `${playbackSpeed}x`}</span>
                                     <ChevronRight size={12} />
                                   </div>
                                 </button>
@@ -2668,13 +2882,13 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                                 {/* Aspect Ratio Row */}
                                 <button
                                   onClick={() => setSettingsView('aspectRatio')}
-                                  className="w-full py-2 px-2.5 rounded-xl text-xs font-semibold text-zinc-300 hover:text-white hover:bg-white/5 flex items-center justify-between transition-colors"
+                                  className="w-full py-2 px-3 rounded-xl text-xs text-zinc-300 hover:text-white hover:bg-white/5 flex items-center justify-between transition-all"
                                 >
-                                  <div className="flex items-center gap-2">
+                                  <div className="flex items-center gap-2.5">
                                     <Maximize size={14} className="text-zinc-400" />
                                     <span>Aspect Ratio</span>
                                   </div>
-                                  <div className="flex items-center gap-1 text-[11px] text-zinc-500">
+                                  <div className="flex items-center gap-1.5 text-[11px] text-zinc-500">
                                     <span>
                                       {aspectRatio === 'contain' ? 'Original' : aspectRatio === 'cover' ? '16:9' : 'Stretch'}
                                     </span>
@@ -2685,13 +2899,13 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                                 {/* Brightness Row */}
                                 <button
                                   onClick={() => setSettingsView('brightness')}
-                                  className="w-full py-2 px-2.5 rounded-xl text-xs font-semibold text-zinc-300 hover:text-white hover:bg-white/5 flex items-center justify-between transition-colors"
+                                  className="w-full py-2 px-3 rounded-xl text-xs text-zinc-300 hover:text-white hover:bg-white/5 flex items-center justify-between transition-all"
                                 >
-                                  <div className="flex items-center gap-2">
+                                  <div className="flex items-center gap-2.5">
                                     <Sun size={14} className="text-zinc-400" />
                                     <span>Brightness</span>
                                   </div>
-                                  <div className="flex items-center gap-1 text-[11px] text-zinc-500">
+                                  <div className="flex items-center gap-1.5 text-[11px] text-zinc-500">
                                     <span>{brightness}%</span>
                                     <ChevronRight size={12} />
                                   </div>
@@ -2700,14 +2914,35 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                                 {/* Mirror Row */}
                                 <button
                                   onClick={() => setSettingsView('mirror')}
-                                  className="w-full py-2 px-2.5 rounded-xl text-xs font-semibold text-zinc-300 hover:text-white hover:bg-white/5 flex items-center justify-between transition-colors"
+                                  className="w-full py-2 px-3 rounded-xl text-xs text-zinc-300 hover:text-white hover:bg-white/5 flex items-center justify-between transition-all"
                                 >
-                                  <div className="flex items-center gap-2">
+                                  <div className="flex items-center gap-2.5">
                                     <FlipHorizontal size={14} className="text-zinc-400" />
                                     <span>Mirror</span>
                                   </div>
-                                  <div className="flex items-center gap-1 text-[11px] text-zinc-500">
+                                  <div className="flex items-center gap-1.5 text-[11px] text-zinc-500">
                                     <span>{isMirrored ? 'On' : 'Off'}</span>
+                                    <ChevronRight size={12} />
+                                  </div>
+                                </button>
+
+                                {/* Chromecast Row */}
+                                <button
+                                  onClick={() => {
+                                    if (isCasting) {
+                                      handleStopCast();
+                                    } else {
+                                      handleStartCast();
+                                    }
+                                  }}
+                                  className="w-full py-2 px-3 rounded-xl text-xs text-zinc-300 hover:text-white hover:bg-white/5 flex items-center justify-between transition-all"
+                                >
+                                  <div className="flex items-center gap-2.5">
+                                    <Cast size={14} className="text-zinc-400" />
+                                    <span>Chromecast</span>
+                                  </div>
+                                  <div className="flex items-center gap-1.5 text-[11px] text-zinc-500">
+                                    <span>{isCasting ? (castDeviceName || 'Connected') : 'Off'}</span>
                                     <ChevronRight size={12} />
                                   </div>
                                 </button>
@@ -2720,12 +2955,14 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                             <div className="flex flex-col gap-2">
                               <button 
                                 onClick={() => setSettingsView('main')}
-                                className="flex items-center gap-1.5 border-b border-white/5 pb-2 mb-1 text-zinc-400 hover:text-white transition-colors"
+                                className="flex items-center gap-2 px-2 pb-2.5 mb-2 border-b border-white/10 text-zinc-400 hover:text-white transition-colors"
                               >
                                 <ChevronLeft size={16} />
-                                <span className="text-[11px] font-bold uppercase tracking-wider">Providers</span>
+                                <Tv size={14} className="text-zinc-400" />
+                                <span className="text-[10px] font-bold uppercase tracking-wider">Providers</span>
                               </button>
-                              <div className="space-y-1">
+                              
+                              <div className="flex flex-col gap-0.5 max-h-[240px] overflow-y-auto custom-scrollbar pr-1">
                                 {PROVIDERS.filter(p => (!isWatchParty || p.supportsPostMessage) && (isAnime || (p.id !== 'vidnest_animepahe' && p.id !== 'anikai'))).map((prov) => {
                                   const isActive = selectedProviderId === prov.id;
                                   return (
@@ -2741,14 +2978,12 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                                         }
                                         setSettingsView('main');
                                       }}
-                                      className={`w-full py-2 px-3 rounded-xl text-xs font-semibold transition-all border flex items-center justify-between ${
-                                        isActive 
-                                          ? 'bg-red-600/10 text-red-500 border-red-500/20 font-bold' 
-                                          : 'bg-white/5 text-zinc-300 border-white/5 hover:border-white/10 hover:bg-white/10'
+                                      className={`w-full py-2.5 px-3 rounded-xl text-xs flex items-center justify-between transition-all hover:bg-white/5 ${
+                                        isActive ? 'text-white bg-white/5' : 'text-zinc-400'
                                       }`}
                                     >
                                       <span>{prov.name}</span>
-                                      {isActive && <Check size={12} />}
+                                      {isActive && <Check size={12} className="text-white" />}
                                     </button>
                                   );
                                 })}
@@ -2761,23 +2996,22 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                             <div className="flex flex-col gap-2">
                               <button 
                                 onClick={() => setSettingsView('main')}
-                                className="flex items-center gap-1.5 border-b border-white/5 pb-2 mb-1 text-zinc-400 hover:text-white transition-colors"
+                                className="flex items-center gap-2 px-2 pb-2.5 mb-2 border-b border-white/10 text-zinc-400 hover:text-white transition-colors"
                               >
                                 <ChevronLeft size={16} />
-                                <span className="text-[11px] font-bold uppercase tracking-wider">Servers</span>
+                                <Sliders size={14} className="text-zinc-400" />
+                                <span className="text-[10px] font-bold uppercase tracking-wider">Servers</span>
                               </button>
                               
-                              {selectedProviderId === 'videasy_adfree' && (
-                                <div className="grid grid-cols-2 gap-1.5 max-h-[220px] overflow-y-auto custom-scrollbar pr-1">
-                                  {['Hydrogen', 'Neon', 'Lithium', 'Oxygen', 'Vyse (English)', 'Fade (Hindi)', 'Omen (Spanish)', 'Raze (Portuguese)', 'Killjoy (German)', 'Jett', 'Tejo', 'Sage', 'Breach'].map((srv) => {
+                              <div className="flex flex-col gap-0.5 max-h-[240px] overflow-y-auto custom-scrollbar pr-1">
+                                {selectedProviderId === 'videasy_adfree' && (
+                                  ['Hydrogen', 'Neon', 'Lithium', 'Oxygen', 'Vyse (English)', 'Fade (Hindi)', 'Omen (Spanish)', 'Raze (Portuguese)', 'Killjoy (German)', 'Jett', 'Tejo', 'Sage', 'Breach'].map((srv) => {
                                     const isActive = selectedVideasyServer === srv;
                                     return (
                                       <button
                                         key={srv}
                                         onClick={() => {
                                           setSelectedVideasyServer(srv);
-                                          
-                                          // Sync audio language state
                                           if (srv === 'Fade (Hindi)') {
                                             setAudioLanguage('Hindi');
                                             localStorage.setItem('movieverse_preferred_audio_language', 'Hindi');
@@ -2790,38 +3024,25 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                                           } else if (srv === 'Killjoy (German)') {
                                             setAudioLanguage('German');
                                             localStorage.setItem('movieverse_preferred_audio_language', 'German');
-                                          } else if (
-                                            srv === 'Vyse (English)' ||
-                                            srv === 'Hydrogen' ||
-                                            srv === 'Neon' ||
-                                            srv === 'Lithium' ||
-                                            srv === 'Oxygen' ||
-                                            srv === 'Jett' ||
-                                            srv === 'Tejo' ||
-                                            srv === 'Sage' ||
-                                            srv === 'Breach'
-                                          ) {
+                                          } else {
                                             setAudioLanguage('English');
                                             localStorage.setItem('movieverse_preferred_audio_language', 'English');
                                           }
                                           setSettingsView('main');
                                         }}
-                                        className={`py-1.5 px-2 rounded-xl text-[11px] font-semibold text-center transition-all border ${
-                                          isActive 
-                                            ? 'bg-red-600/10 text-red-500 border-red-500/20' 
-                                            : 'bg-white/5 text-zinc-300 border-white/5 hover:border-white/10 hover:bg-white/10'
+                                        className={`w-full py-2.5 px-3 rounded-xl text-xs flex items-center justify-between transition-all hover:bg-white/5 ${
+                                          isActive ? 'text-white bg-white/5' : 'text-zinc-400'
                                         }`}
                                       >
-                                        {srv}
+                                        <span>{srv}</span>
+                                        {isActive && <Check size={12} className="text-white" />}
                                       </button>
                                     );
-                                  })}
-                                </div>
-                              )}
+                                  })
+                                )}
 
-                              {(selectedProviderId.startsWith('encdec') || selectedProviderId === 'cinepro_core') && encDecServers.length > 0 && (
-                                <div className="grid grid-cols-2 gap-1.5">
-                                  {encDecServers.map((srv) => {
+                                {(selectedProviderId.startsWith('encdec') || selectedProviderId === 'cinepro_core') && encDecServers.length > 0 && (
+                                  encDecServers.map((srv) => {
                                     const isActive = selectedEncDecServer === srv;
                                     return (
                                       <button
@@ -2830,18 +3051,17 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                                           setSelectedEncDecServer(srv);
                                           setSettingsView('main');
                                         }}
-                                        className={`py-1.5 px-2 rounded-xl text-[11px] font-semibold text-center transition-all border ${
-                                          isActive 
-                                            ? 'bg-red-600/10 text-red-500 border-red-500/20' 
-                                            : 'bg-white/5 text-zinc-300 border-white/5 hover:border-white/10 hover:bg-white/10'
+                                        className={`w-full py-2.5 px-3 rounded-xl text-xs flex items-center justify-between transition-all hover:bg-white/5 ${
+                                          isActive ? 'text-white bg-white/5' : 'text-zinc-400'
                                         }`}
                                       >
-                                        {srv}
+                                        <span>{srv}</span>
+                                        {isActive && <Check size={12} className="text-white" />}
                                       </button>
                                     );
-                                  })}
-                                </div>
-                              )}
+                                  })
+                                )}
+                              </div>
                             </div>
                           )}
 
@@ -2850,13 +3070,14 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                             <div className="flex flex-col gap-2">
                               <button 
                                 onClick={() => setSettingsView('main')}
-                                className="flex items-center gap-1.5 border-b border-white/5 pb-2 mb-1 text-zinc-400 hover:text-white transition-colors"
+                                className="flex items-center gap-2 px-2 pb-2.5 mb-2 border-b border-white/10 text-zinc-400 hover:text-white transition-colors"
                               >
                                 <ChevronLeft size={16} />
-                                <span className="text-[11px] font-bold uppercase tracking-wider">Quality</span>
+                                <Sliders size={14} className="text-zinc-400" />
+                                <span className="text-[10px] font-bold uppercase tracking-wider">Quality</span>
                               </button>
                               
-                              <div className="grid grid-cols-2 gap-1.5">
+                              <div className="flex flex-col gap-0.5 max-h-[240px] overflow-y-auto custom-scrollbar pr-1">
                                 {customQualities.map((q) => {
                                   const isActive = selectedQuality === q.quality;
                                   return (
@@ -2869,13 +3090,12 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                                         }
                                         setSettingsView('main');
                                       }}
-                                      className={`py-1.5 px-2 rounded-xl text-xs font-semibold text-center transition-all border ${
-                                        isActive 
-                                          ? 'bg-red-600/10 text-red-500 border-red-500/20' 
-                                          : 'bg-white/5 text-zinc-300 border-white/5 hover:border-white/10 hover:bg-white/10'
+                                      className={`w-full py-2.5 px-3 rounded-xl text-xs flex items-center justify-between transition-all hover:bg-white/5 ${
+                                        isActive ? 'text-white bg-white/5' : 'text-zinc-400'
                                       }`}
                                     >
-                                      {q.quality}
+                                      <span>{q.quality}</span>
+                                      {isActive && <Check size={12} className="text-white" />}
                                     </button>
                                   );
                                 })}
@@ -2888,22 +3108,26 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                             <div className="flex flex-col gap-2">
                               <button 
                                 onClick={() => setSettingsView('main')}
-                                className="flex items-center gap-1.5 border-b border-white/5 pb-2 mb-1 text-zinc-400 hover:text-white transition-colors"
+                                className="flex items-center gap-2 px-2 pb-2.5 mb-2 border-b border-white/10 text-zinc-400 hover:text-white transition-colors"
                               >
                                 <ChevronLeft size={16} />
-                                <span className="text-[11px] font-bold uppercase tracking-wider">Subtitles</span>
+                                <Subtitles size={14} className="text-zinc-400" />
+                                <span className="text-[10px] font-bold uppercase tracking-wider">Subtitles</span>
                               </button>
 
-                              {/* Customize Subtitles Button */}
+                              {/* Customize Subtitles Link */}
                               <button
                                 onClick={() => setSettingsView('subtitle-styling')}
-                                className="w-full py-1.5 px-2.5 rounded-xl text-[10px] font-bold bg-[#E50914] text-white hover:bg-red-700 flex items-center justify-center gap-1.5 transition-colors mb-1 shadow-md"
+                                className="w-full py-2.5 px-3 rounded-xl text-xs text-zinc-300 hover:text-white hover:bg-white/5 flex items-center justify-between transition-all border border-white/5 hover:border-white/10 mb-1"
                               >
-                                <Sliders size={12} />
-                                <span>Customize Style & Size</span>
+                                <div className="flex items-center gap-2.5">
+                                  <Sliders size={14} className="text-zinc-400" />
+                                  <span>Subtitle Settings</span>
+                                </div>
+                                <ChevronRight size={12} className="text-zinc-500" />
                               </button>
 
-                              <div className="space-y-1 max-h-[220px] overflow-y-auto custom-scrollbar pr-1">
+                              <div className="flex flex-col gap-0.5 max-h-[200px] overflow-y-auto custom-scrollbar pr-1">
                                 {/* None */}
                                 <button
                                   onClick={() => {
@@ -2920,14 +3144,12 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                                     }
                                     setSettingsView('main');
                                   }}
-                                  className={`w-full text-left py-2 px-3 rounded-xl text-xs font-semibold transition-all border flex items-center justify-between ${
-                                    subtitleLanguage === 'None'
-                                      ? 'bg-red-600/10 text-red-500 border-red-500/20'
-                                      : 'bg-white/5 text-zinc-300 border-white/5 hover:border-white/10 hover:bg-white/10'
+                                  className={`w-full py-2.5 px-3 rounded-xl text-xs flex items-center justify-between transition-all hover:bg-white/5 ${
+                                    subtitleLanguage === 'None' ? 'text-white bg-white/5' : 'text-zinc-400'
                                   }`}
                                 >
                                   <span>None</span>
-                                  {subtitleLanguage === 'None' && <Check size={12} />}
+                                  {subtitleLanguage === 'None' && <Check size={12} className="text-white" />}
                                 </button>
 
                                 {/* Native subtitle tracks */}
@@ -2953,24 +3175,22 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                                           }
                                           setSettingsView('main');
                                         }}
-                                        className={`w-full text-left py-2 px-3 rounded-xl text-xs font-semibold transition-all border flex items-center justify-between ${
-                                          isActive
-                                            ? 'bg-red-600/10 text-red-500 border-red-500/20'
-                                            : 'bg-white/5 text-zinc-300 border-white/5 hover:border-white/10 hover:bg-white/10'
+                                        className={`w-full py-2.5 px-3 rounded-xl text-xs flex items-center justify-between transition-all hover:bg-white/5 ${
+                                          isActive ? 'text-white bg-white/5' : 'text-zinc-400'
                                         }`}
                                       >
                                         <span>{label}</span>
-                                        {isActive && <Check size={12} />}
+                                        {isActive && <Check size={12} className="text-white" />}
                                       </button>
                                     );
                                   })
                                 )}
 
-                                {/* OpenSubtitles section at bottom */}
+                                {/* OpenSubtitles section */}
                                 {anivexaSubtitles && anivexaSubtitles.some(s => s.isOS) && (
                                   <>
-                                    <div className="flex items-center justify-between border-t border-white/5 pt-2 mt-1 mb-1">
-                                      <span className="text-[10px] font-bold text-amber-500/80 uppercase tracking-wider">OpenSubtitles</span>
+                                    <div className="text-[9px] font-semibold text-zinc-500 uppercase tracking-widest px-3 pt-2 pb-1 border-t border-white/5 mt-1 mb-1">
+                                      OpenSubtitles
                                     </div>
                                     {anivexaSubtitles.map((sub, idx) => {
                                       if (!sub.isOS) return null;
@@ -2988,238 +3208,182 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                                             if (videoRef.current) {
                                               const tracks = videoRef.current.textTracks;
                                               for (let i = 0; i < tracks.length; i++) {
-                                                tracks[i].mode = i === idx ? 'showing' : 'disabled';
+                                                tracks[i].mode = 'disabled';
                                               }
                                             }
                                             setSettingsView('main');
                                           }}
-                                          className={`w-full text-left py-2 px-3 rounded-xl text-xs font-semibold transition-all border flex items-center justify-between ${
-                                            isActive
-                                              ? 'bg-red-600/10 text-red-500 border-red-500/20'
-                                              : 'bg-white/5 text-zinc-300 border-white/5 hover:border-white/10 hover:bg-white/10'
+                                          className={`w-full py-2.5 px-3 rounded-xl text-xs flex items-center justify-between transition-all hover:bg-white/5 ${
+                                            isActive ? 'text-white bg-white/5' : 'text-zinc-400'
                                           }`}
                                         >
                                           <span>{label}</span>
-                                          {isActive && <Check size={12} />}
+                                          {isActive && <Check size={12} className="text-white" />}
                                         </button>
                                       );
                                     })}
                                   </>
                                 )}
-                                
-                                {/* Fallback if absolutely no subtitles loaded */}
-                                {(!anivexaSubtitles || anivexaSubtitles.length === 0) && (
-                                  <div className="text-[10px] text-zinc-500 text-center py-4 italic">
-                                    No subtitles found.
-                                  </div>
-                                )}
                               </div>
                             </div>
                           )}
 
-                          {/* 2k. Subtitle Customization Sub-view */}
+                          {/* 2e. Subtitle Styling Sub-view */}
                           {settingsView === 'subtitle-styling' && (
-                            <div className="flex flex-col gap-3 min-w-[260px]">
+                            <div className="flex flex-col gap-2.5 min-w-[280px]">
                               <button 
                                 onClick={() => setSettingsView('subtitles')}
-                                className="flex items-center gap-1.5 border-b border-white/5 pb-2 mb-1 text-zinc-400 hover:text-white transition-colors"
+                                className="flex items-center gap-2 px-2 pb-2.5 mb-1.5 border-b border-white/10 text-zinc-400 hover:text-white transition-colors"
                               >
                                 <ChevronLeft size={16} />
-                                <span className="text-[11px] font-bold uppercase tracking-wider">Subtitle Options</span>
+                                <Sliders size={14} className="text-zinc-400" />
+                                <span className="text-[10px] font-bold uppercase tracking-wider">Subtitle Style</span>
                               </button>
 
-                              {/* Size Selector */}
-                              <div className="flex flex-col gap-1">
-                                <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-wider block px-1">Text Size</span>
-                                <div className="grid grid-cols-4 gap-1">
-                                  {[
-                                    { label: 'Small', val: 'small' },
-                                    { label: 'Normal', val: 'medium' },
-                                    { label: 'Large', val: 'large' },
-                                    { label: 'Extra', val: 'xlarge' }
-                                  ].map((opt) => (
-                                    <button
-                                      key={opt.val}
-                                      onClick={() => {
-                                        setSubSize(opt.val as any);
-                                        localStorage.setItem('movieverse_subtitle_size', opt.val);
-                                      }}
-                                      className={`py-1 rounded-lg text-[9px] font-bold text-center border transition-all ${
-                                        subSize === opt.val
-                                          ? 'bg-red-600/10 text-red-500 border-red-500/20'
-                                          : 'bg-white/5 text-zinc-300 border-white/5 hover:border-white/10 hover:bg-white/10'
-                                      }`}
-                                    >
-                                      {opt.label}
-                                    </button>
-                                  ))}
-                                </div>
-                              </div>
-
-                              {/* Color Selector */}
-                              <div className="flex flex-col gap-1">
-                                <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-wider block px-1">Text Color</span>
-                                <div className="grid grid-cols-4 gap-1">
-                                  {[
-                                    { label: 'White', val: 'white', colorCode: '#ffffff' },
-                                    { label: 'Yellow', val: 'yellow', colorCode: '#facc15' },
-                                    { label: 'Cyan', val: 'cyan', colorCode: '#22d3ee' },
-                                    { label: 'Green', val: 'green', colorCode: '#4ade80' }
-                                  ].map((opt) => (
-                                    <button
-                                      key={opt.val}
-                                      onClick={() => {
-                                        setSubColor(opt.val as any);
-                                        localStorage.setItem('movieverse_subtitle_color', opt.val);
-                                      }}
-                                      className={`py-1 rounded-lg text-[9px] font-bold text-center border transition-all flex items-center justify-center gap-1 ${
-                                        subColor === opt.val
-                                          ? 'bg-red-600/10 text-red-500 border-red-500/20'
-                                          : 'bg-white/5 text-zinc-300 border-white/5 hover:border-white/10 hover:bg-white/10'
-                                      }`}
-                                    >
-                                      <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: opt.colorCode }} />
-                                      <span>{opt.label}</span>
-                                    </button>
-                                  ))}
-                                </div>
-                              </div>
-
-                              {/* Background Selector */}
-                              <div className="flex flex-col gap-1">
-                                <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-wider block px-1">Background</span>
-                                <div className="grid grid-cols-3 gap-1">
-                                  {[
-                                    { label: 'None', val: 'none' },
-                                    { label: 'Shadowed', val: 'translucent' },
-                                    { label: 'Solid', val: 'solid' }
-                                  ].map((opt) => (
-                                    <button
-                                      key={opt.val}
-                                      onClick={() => {
-                                        setSubBg(opt.val as any);
-                                        localStorage.setItem('movieverse_subtitle_background', opt.val);
-                                      }}
-                                      className={`py-1 rounded-lg text-[9px] font-bold text-center border transition-all ${
-                                        subBg === opt.val
-                                          ? 'bg-red-600/10 text-red-500 border-red-500/20'
-                                          : 'bg-white/5 text-zinc-300 border-white/5 hover:border-white/10 hover:bg-white/10'
-                                      }`}
-                                    >
-                                      {opt.label}
-                                    </button>
-                                  ))}
-                                </div>
-                              </div>
-
-                              {/* Edge Style Selector */}
-                              <div className="flex flex-col gap-1">
-                                <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-wider block px-1">Edge Style</span>
-                                <div className="grid grid-cols-3 gap-1">
-                                  {[
-                                    { label: 'Shadow', val: 'drop-shadow' },
-                                    { label: 'Outline', val: 'outline' },
-                                    { label: 'None', val: 'none' }
-                                  ].map((opt) => (
-                                    <button
-                                      key={opt.val}
-                                      onClick={() => {
-                                        setSubShadow(opt.val as any);
-                                        localStorage.setItem('movieverse_subtitle_shadow', opt.val);
-                                      }}
-                                      className={`py-1 rounded-lg text-[9px] font-bold text-center border transition-all ${
-                                        subShadow === opt.val
-                                          ? 'bg-red-600/10 text-red-500 border-red-500/20'
-                                          : 'bg-white/5 text-zinc-300 border-white/5 hover:border-white/10 hover:bg-white/10'
-                                      }`}
-                                    >
-                                      {opt.label}
-                                    </button>
-                                  ))}
-                                </div>
-                              </div>
-
-                              {/* Capitalization Selector */}
-                              <div className="flex flex-col gap-1">
-                                <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-wider block px-1">Capitalization</span>
-                                <div className="grid grid-cols-2 gap-1">
-                                  {[
-                                    { label: 'Smart Casing', val: 'smart' },
-                                    { label: 'As In File', val: 'as-is' }
-                                  ].map((opt) => (
-                                    <button
-                                      key={opt.val}
-                                      onClick={() => {
-                                        setSubCasing(opt.val as any);
-                                        localStorage.setItem('movieverse_subtitle_casing', opt.val);
-                                      }}
-                                      className={`py-1 rounded-lg text-[9px] font-bold text-center border transition-all ${
-                                        subCasing === opt.val
-                                          ? 'bg-red-600/10 text-red-500 border-red-500/20'
-                                          : 'bg-white/5 text-zinc-300 border-white/5 hover:border-white/10 hover:bg-white/10'
-                                      }`}
-                                    >
-                                      {opt.label}
-                                    </button>
-                                  ))}
-                                </div>
-                              </div>
-
-                              {/* Delay Control */}
-                              <div className="flex flex-col gap-1 border-t border-white/5 pt-2">
-                                <div className="flex items-center justify-between px-1">
-                                  <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-wider">Subtitle Sync / Delay</span>
-                                  <span className="text-[10px] font-mono text-zinc-300 font-bold">
-                                    {subDelay === 0 ? 'Synced' : subDelay > 0 ? `+${subDelay.toFixed(1)}s (Delay)` : `${subDelay.toFixed(1)}s (Early)`}
-                                  </span>
-                                </div>
-                                <div className="flex items-center gap-2 mt-1">
-                                  <button
-                                    onClick={() => {
-                                      const next = parseFloat((subDelay - 0.5).toFixed(1));
-                                      setSubDelay(next);
-                                      localStorage.setItem('movieverse_subtitle_delay', next.toString());
+                              <div className="flex flex-col gap-3.5">
+                                {/* Size */}
+                                <div className="flex justify-between items-center gap-2 px-2">
+                                  <span className="text-xs text-zinc-300 font-normal">Text Size</span>
+                                  <select
+                                    value={subSize}
+                                    onChange={(e) => {
+                                      setSubSize(e.target.value as any);
+                                      localStorage.setItem('movieverse_subtitle_size', e.target.value);
                                     }}
-                                    className="flex-1 py-1 bg-white/5 hover:bg-white/10 text-white rounded-lg text-[10px] font-bold border border-white/5 text-center active:scale-95 transition-all"
+                                    className="bg-[#08080a] border border-white/10 text-white rounded-lg px-2 py-1 text-xs font-normal focus:outline-none cursor-pointer"
                                   >
-                                    -0.5s (Earlier)
-                                  </button>
-                                  <button
-                                    onClick={() => {
-                                      setSubDelay(0);
-                                      localStorage.removeItem('movieverse_subtitle_delay');
+                                    <option value="small">Small</option>
+                                    <option value="medium">Normal</option>
+                                    <option value="large">Large</option>
+                                    <option value="xlarge">Extra Large</option>
+                                  </select>
+                                </div>
+
+                                {/* Color */}
+                                <div className="flex justify-between items-center gap-2 px-2">
+                                  <span className="text-xs text-zinc-300 font-normal">Text Color</span>
+                                  <select
+                                    value={subColor}
+                                    onChange={(e) => {
+                                      setSubColor(e.target.value as any);
+                                      localStorage.setItem('movieverse_subtitle_color', e.target.value);
                                     }}
-                                    className="px-3 py-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white rounded-lg text-[10px] font-bold border border-zinc-700/50 text-center active:scale-95 transition-all"
+                                    className="bg-[#08080a] border border-white/10 text-white rounded-lg px-2 py-1 text-xs font-normal focus:outline-none cursor-pointer"
                                   >
-                                    Reset
-                                  </button>
-                                  <button
-                                    onClick={() => {
-                                      const next = parseFloat((subDelay + 0.5).toFixed(1));
-                                      setSubDelay(next);
-                                      localStorage.setItem('movieverse_subtitle_delay', next.toString());
+                                    <option value="white">White</option>
+                                    <option value="yellow">Yellow</option>
+                                    <option value="cyan">Cyan</option>
+                                    <option value="green">Green</option>
+                                  </select>
+                                </div>
+
+                                {/* Background */}
+                                <div className="flex justify-between items-center gap-2 px-2">
+                                  <span className="text-xs text-zinc-300 font-normal">Background</span>
+                                  <select
+                                    value={subBg}
+                                    onChange={(e) => {
+                                      setSubBg(e.target.value as any);
+                                      localStorage.setItem('movieverse_subtitle_background', e.target.value);
                                     }}
-                                    className="flex-1 py-1 bg-white/5 hover:bg-white/10 text-white rounded-lg text-[10px] font-bold border border-white/5 text-center active:scale-95 transition-all"
+                                    className="bg-[#08080a] border border-white/10 text-white rounded-lg px-2 py-1 text-xs font-normal focus:outline-none cursor-pointer"
                                   >
-                                    +0.5s (Later)
-                                  </button>
+                                    <option value="none">None</option>
+                                    <option value="translucent">Shadowed</option>
+                                    <option value="solid">Solid</option>
+                                  </select>
+                                </div>
+
+                                {/* Edge Style */}
+                                <div className="flex justify-between items-center gap-2 px-2">
+                                  <span className="text-xs text-zinc-300 font-normal">Edge Style</span>
+                                  <select
+                                    value={subShadow}
+                                    onChange={(e) => {
+                                      setSubShadow(e.target.value as any);
+                                      localStorage.setItem('movieverse_subtitle_shadow', e.target.value);
+                                    }}
+                                    className="bg-[#08080a] border border-white/10 text-white rounded-lg px-2 py-1 text-xs font-normal focus:outline-none cursor-pointer"
+                                  >
+                                    <option value="drop-shadow">Shadow</option>
+                                    <option value="outline">Outline</option>
+                                    <option value="none">None</option>
+                                  </select>
+                                </div>
+
+                                {/* Casing */}
+                                <div className="flex justify-between items-center gap-2 px-2">
+                                  <span className="text-xs text-zinc-300 font-normal">Casing</span>
+                                  <select
+                                    value={subCasing}
+                                    onChange={(e) => {
+                                      setSubCasing(e.target.value as any);
+                                      localStorage.setItem('movieverse_subtitle_casing', e.target.value);
+                                    }}
+                                    className="bg-[#08080a] border border-white/10 text-white rounded-lg px-2 py-1 text-xs font-normal focus:outline-none cursor-pointer"
+                                  >
+                                    <option value="smart">Smart Casing</option>
+                                    <option value="as-is">As In File</option>
+                                  </select>
+                                </div>
+
+                                {/* Delay Control */}
+                                <div className="flex flex-col gap-2 border-t border-white/10 pt-3 px-2">
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider">Sync / Delay</span>
+                                    <span className="text-xs font-mono text-zinc-300">
+                                      {subDelay === 0 ? 'Synced' : subDelay > 0 ? `+${subDelay.toFixed(1)}s` : `${subDelay.toFixed(1)}s`}
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center gap-2 mt-1">
+                                    <button
+                                      onClick={() => {
+                                        const next = parseFloat((subDelay - 0.5).toFixed(1));
+                                        setSubDelay(next);
+                                        localStorage.setItem('movieverse_subtitle_delay', next.toString());
+                                      }}
+                                      className="flex-1 py-1.5 bg-white/5 hover:bg-white/10 text-white rounded-lg text-xs font-normal border border-white/5 text-center active:scale-95 transition-all"
+                                    >
+                                      -0.5s
+                                    </button>
+                                    <button
+                                      onClick={() => {
+                                        setSubDelay(0);
+                                        localStorage.removeItem('movieverse_subtitle_delay');
+                                      }}
+                                      className="px-4 py-1.5 bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-white rounded-lg text-xs font-normal border border-white/5 text-center active:scale-95 transition-all"
+                                    >
+                                      Reset
+                                    </button>
+                                    <button
+                                      onClick={() => {
+                                        const next = parseFloat((subDelay + 0.5).toFixed(1));
+                                        setSubDelay(next);
+                                        localStorage.setItem('movieverse_subtitle_delay', next.toString());
+                                      }}
+                                      className="flex-1 py-1.5 bg-white/5 hover:bg-white/10 text-white rounded-lg text-xs font-normal border border-white/5 text-center active:scale-95 transition-all"
+                                    >
+                                      +0.5s
+                                    </button>
+                                  </div>
                                 </div>
                               </div>
                             </div>
                           )}
 
-                          {/* 2e. Audio Language Sub-view */}
+                          {/* 2f. Audio Language Sub-view */}
                           {settingsView === 'language' && (
                             <div className="flex flex-col gap-2">
                               <button 
                                 onClick={() => setSettingsView('main')}
-                                className="flex items-center gap-1.5 border-b border-white/5 pb-2 mb-1 text-zinc-400 hover:text-white transition-colors"
+                                className="flex items-center gap-2 px-2 pb-2.5 mb-2 border-b border-white/10 text-zinc-400 hover:text-white transition-colors"
                               >
                                 <ChevronLeft size={16} />
-                                <span className="text-[11px] font-bold uppercase tracking-wider">Audio Language</span>
+                                <Languages size={14} className="text-zinc-400" />
+                                <span className="text-[10px] font-bold uppercase tracking-wider">Audio Language</span>
                               </button>
                               
-                              <div className="space-y-1 max-h-[220px] overflow-y-auto custom-scrollbar pr-1">
+                              <div className="flex flex-col gap-0.5 max-h-[240px] overflow-y-auto custom-scrollbar pr-1">
                                 {['English', 'Hindi', 'Spanish', 'Japanese', 'French', 'German', 'Portuguese', 'Russian'].map(lang => {
                                   const isActive = audioLanguage.toLowerCase() === lang.toLowerCase();
                                   const isEnabled = !useCustomControls || !hlsManifestLoaded || detectedAudioLanguages.includes(lang) || isActive;
@@ -3247,16 +3411,12 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                                         }
                                         setSettingsView('main');
                                       }}
-                                      className={`w-full text-left py-2 px-3 rounded-xl text-xs font-semibold transition-all border flex items-center justify-between ${
-                                        isActive
-                                          ? 'bg-red-600/10 text-red-500 border-red-500/20'
-                                          : !isEnabled
-                                            ? 'opacity-40 cursor-not-allowed bg-black/20 text-zinc-600 border-transparent'
-                                            : 'bg-white/5 text-zinc-300 border-white/5 hover:border-white/10 hover:bg-white/10'
+                                      className={`w-full py-2.5 px-3 rounded-xl text-xs flex items-center justify-between transition-all hover:bg-white/5 ${
+                                        isActive ? 'text-white bg-white/5' : !isEnabled ? 'opacity-30 cursor-not-allowed text-zinc-600' : 'text-zinc-400'
                                       }`}
                                     >
                                       <span>{lang}</span>
-                                      {isActive && <Check size={12} />}
+                                      {isActive && <Check size={12} className="text-white" />}
                                     </button>
                                   );
                                 })}
@@ -3264,18 +3424,19 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                             </div>
                           )}
 
-                          {/* 2f. Speed Sub-view */}
+                          {/* 2g. Speed Sub-view */}
                           {settingsView === 'speed' && (
                             <div className="flex flex-col gap-2">
                               <button 
                                 onClick={() => setSettingsView('main')}
-                                className="flex items-center gap-1.5 border-b border-white/5 pb-2 mb-1 text-zinc-400 hover:text-white transition-colors"
+                                className="flex items-center gap-2 px-2 pb-2.5 mb-2 border-b border-white/10 text-zinc-400 hover:text-white transition-colors"
                               >
                                 <ChevronLeft size={16} />
-                                <span className="text-[11px] font-bold uppercase tracking-wider">Playback Speed</span>
+                                <Zap size={14} className="text-zinc-400" />
+                                <span className="text-[10px] font-bold uppercase tracking-wider">Playback Speed</span>
                               </button>
                               
-                              <div className="space-y-1">
+                              <div className="flex flex-col gap-0.5">
                                 {[0.5, 1.0, 1.25, 1.5, 2.0].map((speed) => {
                                   const isActive = playbackSpeed === speed;
                                   return (
@@ -3285,14 +3446,12 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                                         changePlaybackSpeed(speed);
                                         setSettingsView('main');
                                       }}
-                                      className={`w-full py-2 px-3 rounded-xl text-xs font-semibold transition-all border flex items-center justify-between ${
-                                        isActive 
-                                          ? 'bg-red-600/10 text-red-500 border-red-500/20 font-bold' 
-                                          : 'bg-white/5 text-zinc-300 border-white/5 hover:border-white/10 hover:bg-white/10'
+                                      className={`w-full py-2.5 px-3 rounded-xl text-xs flex items-center justify-between transition-all hover:bg-white/5 ${
+                                        isActive ? 'text-white bg-white/5' : 'text-zinc-400'
                                       }`}
                                     >
-                                      <span>{speed === 1.0 ? 'Normal' : `${speed}x`}</span>
-                                      {isActive && <Check size={12} />}
+                                      <span>{speed === 1.0 ? '1x (Normal)' : `${speed}x`}</span>
+                                      {isActive && <Check size={12} className="text-white" />}
                                     </button>
                                   );
                                 })}
@@ -3300,18 +3459,19 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                             </div>
                           )}
 
-                          {/* 2g. Aspect Ratio Sub-view */}
+                          {/* 2h. Aspect Ratio Sub-view */}
                           {settingsView === 'aspectRatio' && (
                             <div className="flex flex-col gap-2">
                               <button 
                                 onClick={() => setSettingsView('main')}
-                                className="flex items-center gap-1.5 border-b border-white/5 pb-2 mb-1 text-zinc-400 hover:text-white transition-colors"
+                                className="flex items-center gap-2 px-2 pb-2.5 mb-2 border-b border-white/10 text-zinc-400 hover:text-white transition-colors"
                               >
                                 <ChevronLeft size={16} />
-                                <span className="text-[11px] font-bold uppercase tracking-wider">Aspect Ratio</span>
+                                <Maximize size={14} className="text-zinc-400" />
+                                <span className="text-[10px] font-bold uppercase tracking-wider">Aspect Ratio</span>
                               </button>
                               
-                              <div className="space-y-1">
+                              <div className="flex flex-col gap-0.5">
                                 {[
                                   { id: 'contain', label: 'Original' },
                                   { id: 'cover', label: '16:9' },
@@ -3325,14 +3485,12 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                                         setAspectRatio(opt.id as any);
                                         setSettingsView('main');
                                       }}
-                                      className={`w-full py-2 px-3 rounded-xl text-xs font-semibold transition-all border flex items-center justify-between ${
-                                        isActive 
-                                          ? 'bg-red-600/10 text-red-500 border-red-500/20 font-bold' 
-                                          : 'bg-white/5 text-zinc-300 border-white/5 hover:border-white/10 hover:bg-white/10'
+                                      className={`w-full py-2.5 px-3 rounded-xl text-xs flex items-center justify-between transition-all hover:bg-white/5 ${
+                                        isActive ? 'text-white bg-white/5' : 'text-zinc-400'
                                       }`}
                                     >
                                       <span>{opt.label}</span>
-                                      {isActive && <Check size={12} />}
+                                      {isActive && <Check size={12} className="text-white" />}
                                     </button>
                                   );
                                 })}
@@ -3340,18 +3498,19 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                             </div>
                           )}
 
-                          {/* 2h. Brightness Sub-view */}
+                          {/* 2i. Brightness Sub-view */}
                           {settingsView === 'brightness' && (
                             <div className="flex flex-col gap-2">
                               <button 
                                 onClick={() => setSettingsView('main')}
-                                className="flex items-center gap-1.5 border-b border-white/5 pb-2 mb-1 text-zinc-400 hover:text-white transition-colors"
+                                className="flex items-center gap-2 px-2 pb-2.5 mb-2 border-b border-white/10 text-zinc-400 hover:text-white transition-colors"
                               >
                                 <ChevronLeft size={16} />
-                                <span className="text-[11px] font-bold uppercase tracking-wider">Brightness</span>
+                                <Sun size={14} className="text-zinc-400" />
+                                <span className="text-[10px] font-bold uppercase tracking-wider">Brightness</span>
                               </button>
                               
-                              <div className="space-y-1">
+                              <div className="flex flex-col gap-0.5">
                                 {[50, 75, 100, 125, 150].map((val) => {
                                   const isActive = brightness === val;
                                   return (
@@ -3361,14 +3520,12 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                                         setBrightness(val);
                                         setSettingsView('main');
                                       }}
-                                      className={`w-full py-2 px-3 rounded-xl text-xs font-semibold transition-all border flex items-center justify-between ${
-                                        isActive 
-                                          ? 'bg-red-600/10 text-red-500 border-red-500/20 font-bold' 
-                                          : 'bg-white/5 text-zinc-300 border-white/5 hover:border-white/10 hover:bg-white/10'
+                                      className={`w-full py-2.5 px-3 rounded-xl text-xs flex items-center justify-between transition-all hover:bg-white/5 ${
+                                        isActive ? 'text-white bg-white/5' : 'text-zinc-400'
                                       }`}
                                     >
                                       <span>{val === 100 ? '100% (Normal)' : `${val}%`}</span>
-                                      {isActive && <Check size={12} />}
+                                      {isActive && <Check size={12} className="text-white" />}
                                     </button>
                                   );
                                 })}
@@ -3376,18 +3533,19 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                             </div>
                           )}
 
-                          {/* 2i. Mirror Sub-view */}
+                          {/* 2j. Mirror Sub-view */}
                           {settingsView === 'mirror' && (
                             <div className="flex flex-col gap-2">
                               <button 
                                 onClick={() => setSettingsView('main')}
-                                className="flex items-center gap-1.5 border-b border-white/5 pb-2 mb-1 text-zinc-400 hover:text-white transition-colors"
+                                className="flex items-center gap-2 px-2 pb-2.5 mb-2 border-b border-white/10 text-zinc-400 hover:text-white transition-colors"
                               >
                                 <ChevronLeft size={16} />
-                                <span className="text-[11px] font-bold uppercase tracking-wider">Mirror</span>
+                                <FlipHorizontal size={14} className="text-zinc-400" />
+                                <span className="text-[10px] font-bold uppercase tracking-wider">Mirror</span>
                               </button>
                               
-                              <div className="space-y-1">
+                              <div className="flex flex-col gap-0.5">
                                 {[
                                   { value: false, label: 'Off' },
                                   { value: true, label: 'On' }
@@ -3400,14 +3558,12 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                                         setIsMirrored(opt.value);
                                         setSettingsView('main');
                                       }}
-                                      className={`w-full py-2 px-3 rounded-xl text-xs font-semibold transition-all border flex items-center justify-between ${
-                                        isActive 
-                                          ? 'bg-red-600/10 text-red-500 border-red-500/20 font-bold' 
-                                          : 'bg-white/5 text-zinc-300 border-white/5 hover:border-white/10 hover:bg-white/10'
+                                      className={`w-full py-2.5 px-3 rounded-xl text-xs flex items-center justify-between transition-all hover:bg-white/5 ${
+                                        isActive ? 'text-white bg-white/5' : 'text-zinc-400'
                                       }`}
                                     >
                                       <span>{opt.label}</span>
-                                      {isActive && <Check size={12} />}
+                                      {isActive && <Check size={12} className="text-white" />}
                                     </button>
                                   );
                                 })}
