@@ -161,7 +161,9 @@ export const MusicPage: React.FC<MusicPageProps> = ({ isAuthenticated, disableEn
   const [loadingPlaylistId, setLoadingPlaylistId] = useState<string | null>(null);
   const [loadingMixId, setLoadingMixId] = useState<string | null>(null);
   const [visualizerMode, setVisualizerMode] = useState<'circular' | 'bars' | 'none'>('circular');
-  const [mobileActiveView, setMobileActiveView] = useState<'player' | 'lyrics'>('player');
+  const [mobileActiveView, setMobileActiveView] = useState<'player' | 'lyrics' | 'queue'>('player');
+  const [playingSource, setPlayingSource] = useState<{ type: 'album' | 'playlist' | 'radio' | 'favorites' | 'history' | 'queue'; id: string; name: string } | null>(null);
+  const [desktopRightPanel, setDesktopRightPanel] = useState<'lyrics' | 'queue'>('lyrics');
 
   // Refs
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -173,6 +175,19 @@ export const MusicPage: React.FC<MusicPageProps> = ({ isAuthenticated, disableEn
   const activeLyricRef = useRef<HTMLParagraphElement | null>(null);
   const desktopLyricsContainerRef = useRef<HTMLDivElement | null>(null);
   const mobileLyricsContainerRef = useRef<HTMLDivElement | null>(null);
+  const searchContainerRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (searchContainerRef.current && !searchContainerRef.current.contains(event.target as Node)) {
+        setShowSuggestions(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   const activeLyricIndex = duration > 0 ? Math.floor((currentTime / duration) * lyricsText.length) : -1;
 
@@ -724,7 +739,7 @@ export const MusicPage: React.FC<MusicPageProps> = ({ isAuthenticated, disableEn
   };
 
   // Play Playlist feed mix
-  const playPlaylistFeed = async (query: string, id: string) => {
+  const playPlaylistFeed = async (query: string, id: string, name?: string) => {
     setLoadingPlaylistId(id);
     try {
       const res = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(query)}&entity=song&limit=25`);
@@ -748,7 +763,7 @@ export const MusicPage: React.FC<MusicPageProps> = ({ isAuthenticated, disableEn
         appleMusicUrl: item.trackViewUrl
       }));
       if (mappedTracks.length > 0) {
-        selectAndPlay(mappedTracks[0], mappedTracks);
+        selectAndPlay(mappedTracks[0], mappedTracks, { type: 'playlist', id, name: name || "Mix Feed" });
       }
     } catch (e) {
       console.error("Failed to play feed", e);
@@ -891,11 +906,21 @@ export const MusicPage: React.FC<MusicPageProps> = ({ isAuthenticated, disableEn
     }
   };
 
-  const selectAndPlay = (track: Track, newQueue: Track[]) => {
+  const selectAndPlay = (
+    track: Track, 
+    newQueue: Track[], 
+    source?: { type: 'album' | 'playlist' | 'radio' | 'favorites' | 'history' | 'queue'; id: string; name: string }
+  ) => {
     setCurrentTrack(track);
     setQueue(newQueue);
     setIsPlaying(true);
     setupAnalyser();
+
+    if (source) {
+      setPlayingSource(source);
+    } else if (!playingSource) {
+      setPlayingSource({ type: 'radio', id: 'radio', name: 'Recommended Radio' });
+    }
 
     if (audioRef.current) {
       audioRef.current.currentTime = 0;
@@ -919,13 +944,48 @@ export const MusicPage: React.FC<MusicPageProps> = ({ isAuthenticated, disableEn
     }
   };
 
-  const playEntireList = (tracksList: Track[], shuffleList = false) => {
+  const playEntireList = (
+    tracksList: Track[], 
+    shuffleList = false,
+    source?: { type: 'album' | 'playlist' | 'radio' | 'favorites' | 'history' | 'queue'; id: string; name: string }
+  ) => {
     if (tracksList.length === 0) return;
     let targetList = [...tracksList];
     if (shuffleList) {
       targetList = targetList.sort(() => Math.random() - 0.5);
     }
-    selectAndPlay(targetList[0], targetList);
+    selectAndPlay(targetList[0], targetList, source);
+  };
+
+  const navigateToSource = (source: { type: 'album' | 'playlist' | 'radio' | 'favorites' | 'history' | 'queue'; id: string; name: string }) => {
+    if (source.type === 'album') {
+      loadAlbumDetails({
+        id: source.id,
+        name: source.name,
+        artistName: '',
+        artworkUrl: '',
+        releaseDate: '',
+        trackCount: 0
+      });
+    } else if (source.type === 'playlist') {
+      const pl = playlists.find(p => p.id === source.id);
+      if (pl) {
+        setSelectedPlaylist(pl);
+        setActiveTab('playlist');
+      } else {
+        const allMixes = [...DYNAMIC_PLAYLISTS, ...BOLLYWOOD_PLAYLISTS];
+        const mix = allMixes.find(m => m.id === source.id);
+        if (mix) {
+          playPlaylistFeed(mix.query, mix.id);
+        }
+      }
+    } else if (source.type === 'favorites') {
+      setActiveTab('library');
+      setLibrarySubTab('songs');
+    } else if (source.type === 'history') {
+      setActiveTab('library');
+      setLibrarySubTab('history');
+    }
   };
 
   const skipNext = () => {
@@ -1185,17 +1245,21 @@ export const MusicPage: React.FC<MusicPageProps> = ({ isAuthenticated, disableEn
   }, [searchTracks, filterExplicit, filterGenre, filterYear]);
 
   return (
-    <div className={`relative min-h-screen pb-36 pt-4 px-4 md:px-12 max-w-7xl mx-auto select-none font-sans text-zinc-350 text-left bg-zinc-950 overflow-hidden ${disableEntryAnimation ? '' : 'animate-in fade-in slide-in-from-bottom-4'}`}>
+    <div className={`relative min-h-screen pb-36 pt-4 px-4 md:px-12 max-w-7xl mx-auto select-none font-sans text-zinc-350 text-left bg-transparent overflow-hidden ${disableEntryAnimation ? '' : 'animate-in fade-in slide-in-from-bottom-4'}`}>
       
       {/* Dynamic cover art backdrop blur */}
-      {currentTrack && (
-        <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
+      <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
+        {currentTrack ? (
           <div 
             className="absolute -inset-[50%] bg-cover bg-center filter blur-[120px] opacity-[0.25] saturate-150 transition-all duration-1000 scale-110"
             style={{ backgroundImage: `url(${currentTrack.coverUrl})` }}
           />
-        </div>
-      )}
+        ) : (
+          <div 
+            className="absolute -inset-[50%] bg-gradient-to-tr from-[#271212]/30 via-[#180f2b]/20 to-[#030303]/10 filter blur-[100px] opacity-[0.35] scale-110"
+          />
+        )}
+      </div>
 
       {/* Top Header menu */}
       <div className="relative z-10 mb-8 border-b border-zinc-900 pb-5">
@@ -1234,7 +1298,7 @@ export const MusicPage: React.FC<MusicPageProps> = ({ isAuthenticated, disableEn
       </div>
 
       {/* Search Input bar */}
-      <div className="relative z-10 mb-8 max-w-xl">
+      <div ref={searchContainerRef} className="relative z-[35] mb-8 max-w-xl">
         <form onSubmit={handleSearch} className="relative">
           <input
             type="text"
@@ -1269,6 +1333,7 @@ export const MusicPage: React.FC<MusicPageProps> = ({ isAuthenticated, disableEn
                 onClick={() => {
                   setSearchQuery(sugg);
                   handleSearch(undefined, sugg);
+                  setShowSuggestions(false);
                 }}
                 className="w-full text-left px-4 py-2.5 hover:bg-white/5 text-xs text-zinc-300 hover:text-white flex items-center gap-2 border-b border-white/5 last:border-0 border-none"
               >
@@ -1335,7 +1400,7 @@ export const MusicPage: React.FC<MusicPageProps> = ({ isAuthenticated, disableEn
                   return (
                     <div
                       key={mix.id}
-                      onClick={() => !isLoading && playPlaylistFeed(mix.query, mix.id)}
+                      onClick={() => !isLoading && playPlaylistFeed(mix.query, mix.id, mix.name)}
                       className="group cursor-pointer bg-zinc-900/10 hover:bg-zinc-900/30 border border-white/5 hover:border-white/10 rounded-2xl p-3 transition-all select-none text-left"
                     >
                       <div className="relative aspect-square w-full rounded-2xl overflow-hidden bg-zinc-805 shadow-md">
@@ -2501,24 +2566,45 @@ export const MusicPage: React.FC<MusicPageProps> = ({ isAuthenticated, disableEn
                 </div>
               )}
 
-              <div className="flex gap-2">
+              <div className="flex flex-col gap-2">
+                <button
+                  onClick={() => {
+                    setQueue(prev => {
+                      const currentIdx = prev.findIndex(t => t.id === (currentTrack?.id || ''));
+                      const updated = [...prev];
+                      if (currentIdx !== -1) {
+                        updated.splice(currentIdx + 1, 0, selectedSong);
+                      } else {
+                        updated.push(selectedSong);
+                      }
+                      return updated;
+                    });
+                    alert(`Added "${selectedSong.title}" to play next!`);
+                    setSelectedSong(null);
+                  }}
+                  className="w-full py-2 rounded-xl bg-green-500 text-black font-bold text-xs hover:scale-[1.01] transition-transform border-none cursor-pointer text-center"
+                >
+                  Play Next (Add to Queue)
+                </button>
+
                 <button
                   onClick={() => {
                     toggleFavoriteSong(selectedSong);
                     setSelectedSong(null);
                   }}
-                  className="flex-1 py-2 rounded-xl bg-zinc-800 text-white font-semibold text-xs hover:bg-zinc-750 transition-colors border-none cursor-pointer"
+                  className="w-full py-2 rounded-xl bg-zinc-800 hover:bg-zinc-750 text-white font-semibold text-xs border-none cursor-pointer text-center"
                 >
-                  {favSongs.some(t => t.id === selectedSong.id) ? '♥ Favorited' : '♥ Save to Favorites'}
+                  {favSongs.some(t => t.id === selectedSong.id) ? '♥ Remove from Favorites' : '♥ Save to Favorites'}
                 </button>
+
                 {selectedSong.appleMusicUrl && (
                   <a
                     href={selectedSong.appleMusicUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex-1 py-2 bg-green-500 text-black font-semibold text-xs rounded-xl flex items-center justify-center hover:scale-105 active:scale-95 transition-transform text-center decoration-none"
+                    className="w-full py-2 bg-zinc-900 border border-white/5 hover:bg-zinc-850 text-zinc-350 hover:text-white font-semibold text-xs rounded-xl flex items-center justify-center text-center transition-colors select-none decoration-none"
                   >
-                    <span>Apple Music</span>
+                    <span>Open in Apple Music</span>
                   </a>
                 )}
               </div>
@@ -2631,6 +2717,18 @@ export const MusicPage: React.FC<MusicPageProps> = ({ isAuthenticated, disableEn
               className="w-20 h-1 bg-zinc-800 accent-white rounded-full cursor-pointer"
             />
             <button
+              onClick={() => {
+                if (!isPlayerExpanded) {
+                  setIsPlayerExpanded(true);
+                }
+                setDesktopRightPanel(desktopRightPanel === 'queue' ? 'lyrics' : 'queue');
+              }}
+              className={`text-zinc-400 hover:text-white transition-colors ml-1 border-none bg-transparent cursor-pointer ${isPlayerExpanded && desktopRightPanel === 'queue' ? 'text-green-500' : ''}`}
+              title="Play Queue"
+            >
+              <ListMusic size={14} />
+            </button>
+            <button
               onClick={() => setIsPlayerExpanded(true)}
               className="text-zinc-400 hover:text-white transition-colors ml-1 border-none bg-transparent cursor-pointer"
               title="Fullscreen lyrics & visualizer"
@@ -2685,10 +2783,22 @@ export const MusicPage: React.FC<MusicPageProps> = ({ isAuthenticated, disableEn
             
             {/* Desktop Left: Cover, Visualizer & Controls */}
             <div className="w-[45%] flex flex-col justify-between py-4 h-full">
-              {/* Top part: Album name / Category */}
+              {/* Top part: Album name / Source name */}
               <div className="text-left">
                 <span className="text-[10px] text-green-400 font-semibold tracking-wider uppercase">NOW PLAYING</span>
-                <h3 className="text-lg font-semibold text-white truncate mt-1">{currentTrack.album || "Single"}</h3>
+                {playingSource ? (
+                  <button
+                    onClick={() => {
+                      setIsPlayerExpanded(false);
+                      navigateToSource(playingSource);
+                    }}
+                    className="text-lg font-semibold text-white truncate mt-1 hover:underline cursor-pointer block border-none bg-transparent pl-0 text-left w-full"
+                  >
+                    {playingSource.type === 'favorites' ? 'Favorite Songs' : `${playingSource.type.toUpperCase()}: ${playingSource.name}`}
+                  </button>
+                ) : (
+                  <h3 className="text-lg font-semibold text-white truncate mt-1">{currentTrack.album || "Single"}</h3>
+                )}
               </div>
 
               {/* Center: Visualizer Canvas & Artwork */}
@@ -2827,34 +2937,157 @@ export const MusicPage: React.FC<MusicPageProps> = ({ isAuthenticated, disableEn
               </div>
             </div>
 
-            {/* Desktop Right: Scrollable Lyrics */}
-            <div className="w-[55%] flex flex-col h-full border-l border-white/5 pl-8">
-              <h3 className="text-[10px] font-semibold text-zinc-555 uppercase tracking-widest mb-6 flex items-center gap-1.5">
-                <ListMusic size={14} /> Timed Lyrics
-              </h3>
+            {/* Desktop Right Panel: Tabs for Timed Lyrics or Play Queue */}
+            <div className="w-[55%] flex flex-col h-full border-l border-white/5 pl-8 text-left">
+              <div className="flex items-center gap-6 mb-6 pb-2 border-b border-white/5">
+                <button
+                  onClick={() => setDesktopRightPanel('lyrics')}
+                  className={`text-[10px] font-bold uppercase tracking-widest border-none bg-transparent cursor-pointer pb-2 transition-colors relative ${desktopRightPanel === 'lyrics' ? 'text-white' : 'text-zinc-500 hover:text-zinc-350'}`}
+                >
+                  Timed Lyrics
+                  {desktopRightPanel === 'lyrics' && <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-green-500 rounded-full" />}
+                </button>
+                <button
+                  onClick={() => setDesktopRightPanel('queue')}
+                  className={`text-[10px] font-bold uppercase tracking-widest border-none bg-transparent cursor-pointer pb-2 transition-colors relative ${desktopRightPanel === 'queue' ? 'text-white' : 'text-zinc-500 hover:text-zinc-350'}`}
+                >
+                  Play Queue
+                  {desktopRightPanel === 'queue' && <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-green-500 rounded-full" />}
+                </button>
+              </div>
               
-              {lyricsLoading ? (
-                <div className="flex-1 flex items-center justify-center">
-                  <Loader2 className="animate-spin text-green-500" size={20} />
-                </div>
+              {desktopRightPanel === 'lyrics' ? (
+                /* Lyrics view */
+                lyricsLoading ? (
+                  <div className="flex-1 flex items-center justify-center">
+                    <Loader2 className="animate-spin text-green-500" size={20} />
+                  </div>
+                ) : (
+                  <div ref={desktopLyricsContainerRef} className="relative flex-1 overflow-y-auto space-y-6 pr-4 custom-scrollbar scroll-smooth h-[calc(100%-60px)] pb-10">
+                    {lyricsText.map((line, idx) => {
+                      const isActive = idx === activeLyricIndex;
+                      return (
+                        <p
+                          key={idx}
+                          ref={isActive ? activeLyricRef : null}
+                          className={`text-xl md:text-2xl font-bold tracking-tight leading-snug transition-all duration-500 select-text ${
+                            isActive
+                              ? 'text-green-400 scale-[1.02] origin-left'
+                              : 'text-white/20 hover:text-white/40'
+                          }`}
+                        >
+                          {line}
+                        </p>
+                      );
+                    })}
+                  </div>
+                )
               ) : (
-                <div ref={desktopLyricsContainerRef} className="relative flex-1 overflow-y-auto space-y-6 pr-4 custom-scrollbar scroll-smooth h-[calc(100%-40px)]">
-                  {lyricsText.map((line, idx) => {
-                    const isActive = idx === activeLyricIndex;
-                    return (
-                      <p
-                        key={idx}
-                        ref={isActive ? activeLyricRef : null}
-                        className={`text-xl md:text-2xl font-bold tracking-tight leading-snug transition-all duration-500 select-text ${
-                          isActive
-                            ? 'text-green-400 scale-[1.02] origin-left'
-                            : 'text-white/20 hover:text-white/40'
-                        }`}
+                /* Queue view */
+                <div className="flex-1 flex flex-col h-[calc(100%-60px)] pb-6 overflow-hidden">
+                  <span className="text-[10px] text-zinc-500 font-semibold uppercase tracking-wider mb-2 block">Now Playing</span>
+                  <div className="flex items-center gap-3 bg-white/5 p-3 rounded-xl border border-white/5 mb-6">
+                    <img src={currentTrack.coverUrl} className="w-10 h-10 rounded-lg object-cover shadow" alt="" />
+                    <div className="flex-1 min-w-0">
+                      <h4 className="text-xs font-semibold text-white truncate">{currentTrack.title}</h4>
+                      <p className="text-[10px] text-zinc-450 truncate mt-0.5 font-medium">{currentTrack.artist}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-[10px] text-zinc-500 font-semibold uppercase tracking-wider">Next Up ({queue.length > 0 ? queue.length - queue.findIndex(t => t.id === currentTrack.id) - 1 : 0})</span>
+                    {queue.length > 0 && (
+                      <button
+                        onClick={() => {
+                          const idx = queue.findIndex(t => t.id === currentTrack.id);
+                          if (idx !== -1) {
+                            setQueue(queue.slice(0, idx + 1));
+                          }
+                        }}
+                        className="text-[10px] text-zinc-500 hover:text-white transition-colors border-none bg-transparent cursor-pointer font-semibold"
                       >
-                        {line}
-                      </p>
-                    );
-                  })}
+                        Clear queue
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="flex-1 overflow-y-auto space-y-2 pr-2 custom-scrollbar">
+                    {(() => {
+                      const idx = queue.findIndex(t => t.id === currentTrack.id);
+                      const upcoming = idx !== -1 ? queue.slice(idx + 1) : [];
+                      
+                      if (upcoming.length === 0) {
+                        return (
+                          <div className="text-center py-10 text-zinc-650 text-xs font-medium">
+                            Queue is empty. Add songs from Search or Albums!
+                          </div>
+                        );
+                      }
+                      
+                      return upcoming.map((track, i) => {
+                        const queueIdx = idx + 1 + i;
+                        return (
+                          <div
+                            key={track.id}
+                            className="group flex items-center gap-3 bg-zinc-900/10 hover:bg-zinc-900/30 border border-white/5 hover:border-white/10 rounded-xl p-2.5 transition-all text-xs"
+                          >
+                            <img src={track.coverUrl} className="w-8 h-8 rounded object-cover" alt="" />
+                            <div className="flex-1 min-w-0">
+                              <h4 className="font-semibold text-white truncate">{track.title}</h4>
+                              <p className="text-[9px] text-zinc-500 truncate mt-0.5">{track.artist}</p>
+                            </div>
+                            <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <button
+                                onClick={() => {
+                                  if (queueIdx > idx + 1) {
+                                    setQueue(prev => {
+                                      const arr = [...prev];
+                                      const temp = arr[queueIdx];
+                                      arr[queueIdx] = arr[queueIdx - 1];
+                                      arr[queueIdx - 1] = temp;
+                                      return arr;
+                                    });
+                                  }
+                                }}
+                                className="p-1 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-white border-none cursor-pointer disabled:opacity-30"
+                                disabled={queueIdx === idx + 1}
+                                title="Move up"
+                              >
+                                ▲
+                              </button>
+                              <button
+                                onClick={() => {
+                                  if (queueIdx < queue.length - 1) {
+                                    setQueue(prev => {
+                                      const arr = [...prev];
+                                      const temp = arr[queueIdx];
+                                      arr[queueIdx] = arr[queueIdx + 1];
+                                      arr[queueIdx + 1] = temp;
+                                      return arr;
+                                    });
+                                  }
+                                }}
+                                className="p-1 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-white border-none cursor-pointer disabled:opacity-30"
+                                disabled={queueIdx === queue.length - 1}
+                                title="Move down"
+                              >
+                                ▼
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setQueue(prev => prev.filter((_, qIndex) => qIndex !== queueIdx));
+                                }}
+                                className="p-1 rounded bg-zinc-800 hover:bg-red-500 hover:text-white text-zinc-400 border-none cursor-pointer"
+                                title="Remove from queue"
+                              >
+                                <X size={10} />
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      });
+                    })()}
+                  </div>
                 </div>
               )}
             </div>
@@ -2862,35 +3095,56 @@ export const MusicPage: React.FC<MusicPageProps> = ({ isAuthenticated, disableEn
           </div>
 
           {/* ======================================================== */}
-          {/* MOBILE LAYOUT (Toggle Player/Lyrics) */}
+          {/* MOBILE LAYOUT (Toggle Player/Lyrics/Queue) */}
           {/* ======================================================== */}
           <div className="flex md:hidden flex-col w-full h-full justify-between relative z-10">
             
             {/* Mobile Top Bar */}
-            <div className="flex items-center justify-between pb-3 border-b border-white/5">
-              <button
-                onClick={() => setIsPlayerExpanded(false)}
-                className="p-1.5 rounded-full bg-white/5 text-white border-none cursor-pointer animate-[pulse_3s_infinite]"
-              >
-                <ChevronDown size={16} />
-              </button>
-              <div className="text-center min-w-0 px-4 flex-1">
-                <p className="text-[9px] text-zinc-500 font-semibold tracking-wider uppercase leading-none">NOW PLAYING</p>
-                <p className="text-xs text-white font-semibold truncate mt-1 leading-none">{currentTrack.title}</p>
+            <div className="flex flex-col gap-3 pb-3 border-b border-white/5">
+              <div className="flex items-center justify-between">
+                <button
+                  onClick={() => setIsPlayerExpanded(false)}
+                  className="p-1.5 rounded-full bg-white/5 text-white border-none cursor-pointer"
+                >
+                  <ChevronDown size={16} />
+                </button>
+                <div className="text-center min-w-0 px-4 flex-1">
+                  {playingSource ? (
+                    <button
+                      onClick={() => {
+                        setIsPlayerExpanded(false);
+                        navigateToSource(playingSource);
+                      }}
+                      className="text-[8px] text-green-400 font-bold tracking-wider uppercase leading-none hover:underline cursor-pointer border-none bg-transparent"
+                    >
+                      {playingSource.type === 'favorites' ? 'Playing favorites' : `FROM ${playingSource.type.toUpperCase()}: ${playingSource.name}`}
+                    </button>
+                  ) : (
+                    <p className="text-[8px] text-zinc-550 font-semibold tracking-wider uppercase leading-none">NOW PLAYING</p>
+                  )}
+                  <p className="text-xs text-white font-semibold truncate mt-1 leading-none">{currentTrack.title}</p>
+                </div>
+                <div className="w-8" />
               </div>
-              <button
-                onClick={() => setMobileActiveView(mobileActiveView === 'player' ? 'lyrics' : 'player')}
-                className={`p-2 rounded-full border-none cursor-pointer transition-colors ${mobileActiveView === 'lyrics' ? 'bg-green-500 text-black shadow' : 'bg-white/5 text-white'}`}
-                title={mobileActiveView === 'player' ? "Show Lyrics" : "Show Visualizer"}
-              >
-                {mobileActiveView === 'player' ? <ListMusic size={16} /> : <Music size={16} />}
-              </button>
+              
+              {/* Tabs selector */}
+              <div className="flex bg-zinc-900/60 p-0.5 rounded-xl text-[10px] font-semibold border border-white/5 mx-auto">
+                {(['player', 'lyrics', 'queue'] as const).map(view => (
+                  <button
+                    key={view}
+                    onClick={() => setMobileActiveView(view)}
+                    className={`px-4 py-1.5 rounded-lg transition-all border-none cursor-pointer capitalize ${mobileActiveView === view ? 'bg-zinc-800 text-white font-bold' : 'text-zinc-500'}`}
+                  >
+                    {view === 'player' ? 'canvas' : view}
+                  </button>
+                ))}
+              </div>
             </div>
 
             {/* Mobile Center: conditional content */}
             <div className="flex-1 my-4 flex items-center justify-center overflow-hidden min-h-[280px]">
               
-              {mobileActiveView === 'player' ? (
+              {mobileActiveView === 'player' && (
                 /* Visualizer/Art view */
                 <div className="relative w-full h-full flex flex-col items-center justify-center">
                   <div className="relative w-[200px] h-[200px] flex items-center justify-center">
@@ -2914,7 +3168,9 @@ export const MusicPage: React.FC<MusicPageProps> = ({ isAuthenticated, disableEn
                     )}
                   </div>
                 </div>
-              ) : (
+              )}
+
+              {mobileActiveView === 'lyrics' && (
                 /* Lyrics view */
                 <div className="w-full h-full flex flex-col pl-2 text-left py-2">
                   {lyricsLoading ? (
@@ -2922,14 +3178,14 @@ export const MusicPage: React.FC<MusicPageProps> = ({ isAuthenticated, disableEn
                       <Loader2 className="animate-spin text-green-500" size={20} />
                     </div>
                   ) : (
-                    <div ref={mobileLyricsContainerRef} className="relative flex-1 overflow-y-auto space-y-4 pr-2 custom-scrollbar scroll-smooth h-full">
+                    <div ref={mobileLyricsContainerRef} className="relative flex-1 overflow-y-auto space-y-4 pr-2 custom-scrollbar scroll-smooth h-full pb-6">
                       {lyricsText.map((line, idx) => {
                         const isActive = idx === activeLyricIndex;
                         return (
                           <p
                             key={idx}
                             ref={isActive ? activeLyricRef : null}
-                            className={`text-lg font-semibold tracking-tight leading-snug transition-all duration-350 ${
+                            className={`text-lg font-bold tracking-tight leading-snug transition-all duration-350 ${
                               isActive
                                 ? 'text-green-400 scale-[1.01] origin-left'
                                 : 'text-white/20 hover:text-white/40'
@@ -2944,6 +3200,77 @@ export const MusicPage: React.FC<MusicPageProps> = ({ isAuthenticated, disableEn
                 </div>
               )}
 
+              {mobileActiveView === 'queue' && (
+                /* Queue view */
+                <div className="w-full h-full flex flex-col text-left py-2 overflow-hidden px-1">
+                  <span className="text-[9px] text-zinc-550 font-bold uppercase tracking-wider mb-2 block">Now Playing</span>
+                  <div className="flex items-center gap-3 bg-white/5 p-2.5 rounded-xl border border-white/5 mb-4 shrink-0">
+                    <img src={currentTrack.coverUrl} className="w-8 h-8 rounded-lg object-cover" alt="" />
+                    <div className="flex-1 min-w-0">
+                      <h4 className="text-xs font-semibold text-white truncate">{currentTrack.title}</h4>
+                      <p className="text-[9px] text-zinc-450 truncate mt-0.5">{currentTrack.artist}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between mb-2 shrink-0">
+                    <span className="text-[9px] text-zinc-555 font-bold uppercase tracking-wider">Next Up ({queue.length > 0 ? queue.length - queue.findIndex(t => t.id === currentTrack.id) - 1 : 0})</span>
+                    {queue.length > 0 && (
+                      <button
+                        onClick={() => {
+                          const idx = queue.findIndex(t => t.id === currentTrack.id);
+                          if (idx !== -1) {
+                            setQueue(queue.slice(0, idx + 1));
+                          }
+                        }}
+                        className="text-[9px] text-zinc-500 hover:text-white transition-colors border-none bg-transparent cursor-pointer font-bold"
+                      >
+                        Clear
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="flex-1 overflow-y-auto space-y-2 pr-2 custom-scrollbar">
+                    {(() => {
+                      const idx = queue.findIndex(t => t.id === currentTrack.id);
+                      const upcoming = idx !== -1 ? queue.slice(idx + 1) : [];
+                      
+                      if (upcoming.length === 0) {
+                        return (
+                          <div className="text-center py-10 text-zinc-650 text-xs">
+                            Queue is empty.
+                          </div>
+                        );
+                      }
+                      
+                      return upcoming.map((track, i) => {
+                        const queueIdx = idx + 1 + i;
+                        return (
+                          <div
+                            key={track.id}
+                            className="flex items-center gap-3 bg-zinc-900/10 border border-white/5 rounded-xl p-2 transition-all text-xs"
+                          >
+                            <img src={track.coverUrl} className="w-8 h-8 rounded object-cover" alt="" />
+                            <div className="flex-1 min-w-0">
+                              <h4 className="font-semibold text-white truncate">{track.title}</h4>
+                              <p className="text-[9px] text-zinc-500 truncate mt-0.5">{track.artist}</p>
+                            </div>
+                            <button
+                              onClick={() => {
+                                setQueue(prev => prev.filter((_, qIndex) => qIndex !== queueIdx));
+                              }}
+                              className="p-1 rounded bg-zinc-800 text-zinc-400 border-none cursor-pointer"
+                              title="Remove"
+                            >
+                              <X size={10} />
+                            </button>
+                          </div>
+                        );
+                      });
+                    })()}
+                  </div>
+                </div>
+              )}
+
             </div>
 
             {/* Mobile Bottom Control Panel */}
@@ -2952,7 +3279,7 @@ export const MusicPage: React.FC<MusicPageProps> = ({ isAuthenticated, disableEn
               <div className="flex items-center justify-between">
                 <div className="min-w-0 text-left">
                   <h3 className="text-sm font-semibold text-white truncate">{currentTrack.title}</h3>
-                  <p className="text-[10px] text-zinc-500 truncate mt-0.5 font-medium">{currentTrack.artist}</p>
+                  <p className="text-[10px] text-zinc-555 truncate mt-0.5 font-medium">{currentTrack.artist}</p>
                 </div>
                 <button
                   onClick={() => toggleFavoriteSong(currentTrack)}

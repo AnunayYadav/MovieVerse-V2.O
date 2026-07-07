@@ -4051,9 +4051,12 @@ export default function App() {
             )}
 
             {!(activeWatchPartyRoom && watchPartyMovie) && selectedCategory !== "Multiverse" && (
-                <nav className={`fixed top-0 left-0 right-0 z-[60] h-16 flex items-center justify-center px-4 md:px-6 transition-all duration-500 ${(hasHeroBanner && !isScrolled)
-                        ? 'bg-gradient-to-b from-black/85 via-black/25 to-transparent border-transparent backdrop-blur-none'
-                        : 'bg-black/90 backdrop-blur-xl border-b border-white/5'
+                <nav className={`fixed top-0 left-0 right-0 z-[60] h-16 flex items-center justify-center px-4 md:px-6 transition-all duration-500 ${
+                        selectedCategory === "Music"
+                            ? 'bg-zinc-950/40 backdrop-blur-xl border-b border-white/5'
+                            : (hasHeroBanner && !isScrolled)
+                                ? 'bg-gradient-to-b from-black/85 via-black/25 to-transparent border-transparent backdrop-blur-none'
+                                : 'bg-black/90 backdrop-blur-xl border-b border-white/5'
                     }`}>
                     <div className="flex items-center justify-between w-full max-w-7xl">
                         <div className="flex items-center gap-4 md:gap-8">
@@ -4104,9 +4107,9 @@ export default function App() {
                                     </TvFocusButton>
 
                                     <div className={`absolute top-full left-1/2 -translate-x-1/2 w-[360px] h-[18px] bg-transparent z-[55] transition-opacity duration-200 ${isBrowseOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`} />
-                                    <div className={`absolute top-[calc(100%+0.5rem)] left-1/2 -translate-x-1/2 w-[360px] bg-gradient-to-b from-[#18181b]/98 to-[#0c0c0d]/98 backdrop-blur-2xl border border-white/5 rounded-2xl shadow-[0_24px_50px_rgba(0,0,0,0.85)] p-4 grid grid-cols-3 gap-3 z-[60] transition-all duration-200 transform origin-top select-none ${isBrowseOpen ? 'opacity-100 scale-100 translate-y-0 pointer-events-auto' : 'opacity-0 scale-95 -translate-y-2 pointer-events-none'}`}>
+                                    <div className={`absolute top-[calc(100%+0.5rem)] left-1/2 -translate-x-1/2 w-[360px] bg-zinc-950/80 backdrop-blur-3xl border border-white/[0.08] rounded-2xl shadow-[0_24px_50px_rgba(0,0,0,0.85)] p-4 grid grid-cols-3 gap-3 z-[60] transition-all duration-200 transform origin-top select-none ${isBrowseOpen ? 'opacity-100 scale-100 translate-y-0 pointer-events-auto' : 'opacity-0 scale-95 -translate-y-2 pointer-events-none'}`}>
                                         {/* Popover Arrow */}
-                                        <div className="absolute -top-1 w-2.5 h-2.5 rotate-45 bg-[#18181b] border-t border-l border-white/5 left-1/2 -translate-x-1/2 z-[-1]" />
+                                        <div className="absolute -top-1 w-2.5 h-2.5 rotate-45 bg-[#0a0a0c] border-t border-l border-white/[0.08] left-1/2 -translate-x-1/2 z-[-1]" />
 
                                         {browseOptions.map(opt => {
                                             const isActive = selectedCategory === opt.id ||
@@ -4120,7 +4123,7 @@ export default function App() {
                                                 >
                                                     <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all duration-300 ${isActive
                                                             ? 'bg-gradient-to-br from-red-500 to-rose-600 border border-red-400/20 text-white shadow-[0_8px_20px_rgba(239,68,68,0.35)] scale-105'
-                                                            : 'bg-zinc-900/60 border border-zinc-800/40 text-zinc-400 group-hover:bg-zinc-800/80 group-hover:border-zinc-700/60 group-hover:text-white group-hover:scale-105 group-hover:shadow-[0_8px_20px_rgba(0,0,0,0.4)]'
+                                                            : 'bg-white/[0.03] border border-white/[0.06] text-zinc-400 group-hover:bg-white/10 group-hover:border-white/15 group-hover:text-white group-hover:scale-105 group-hover:shadow-[0_8px_20px_rgba(0,0,0,0.4)]'
                                                         }`}>
                                                         <opt.icon size={22} className="transition-transform duration-300 group-hover:scale-110" />
                                                     </div>
