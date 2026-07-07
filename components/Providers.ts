@@ -1,4 +1,4 @@
-export interface Provider {
+  export interface Provider {
   id: string;
   name: string;
   getMovieUrl: (tmdbId: number, color: string, progress?: number, isAnime?: boolean, anilistId?: number | null, animeLanguage?: string, language?: string, subtitle?: string) => string;
@@ -37,7 +37,7 @@ export const getSubtitleCode = (sub: string, format: 'name' | 'iso') => {
 export const PROVIDERS: Provider[] = [
   {
     id: 'videasy_adfree',
-    name: 'VidEasy (HLS Ad-Free)',
+    name: 'VidEasy',
     getMovieUrl: (tmdbId, color, progress) => {
       const colorParam = color ? color.replace('#', '') : 'EF4444';
       const progressParam = progress && progress > 0 ? `&progress=${Math.floor(progress)}` : '';
@@ -49,13 +49,6 @@ export const PROVIDERS: Provider[] = [
       return `https://player.videasy.net/tv/${tmdbId}/${season}/${episode}?nextEpisode=true&autoplayNextEpisode=true&episodeSelector=true&overlay=false&color=${colorParam}&autoplay=true${progressParam}`;
     },
     supportsPostMessage: false
-  },
-  {
-    id: 'encdec_vidlink',
-    name: 'VidLink (HLS Ad-Free)',
-    getMovieUrl: () => '',
-    getTvUrl: () => '',
-    supportsPostMessage: true
   },
   {
     id: 'megaplay',
@@ -108,21 +101,8 @@ export const PROVIDERS: Provider[] = [
     supportsPostMessage: true
   },
   {
-    id: 'vidnest',
-    name: 'VidNest',
-    getMovieUrl: (tmdbId, color, progress, isAnime, anilistId, animeLanguage = 'sub') => 
-      isAnime && anilistId
-        ? `https://vidnest.fun/anime/${anilistId}/1/${animeLanguage}`
-        : `https://vidnest.fun/movie/${tmdbId}${progress && progress > 0 ? `?startAt=${Math.floor(progress)}` : ''}`,
-    getTvUrl: (tmdbId, season, episode, color, progress, isAnime, anilistId, animeLanguage = 'sub') => 
-      isAnime && anilistId
-        ? `https://vidnest.fun/anime/${anilistId}/${episode}/${animeLanguage}`
-        : `https://vidnest.fun/tv/${tmdbId}/${season}/${episode}${progress && progress > 0 ? `?progress=${Math.floor(progress)}` : ''}`,
-    supportsPostMessage: false
-  },
-  {
     id: 'vidnest_animepahe',
-    name: 'VidNest AnimePahe',
+    name: 'AnimePahe',
     getMovieUrl: (tmdbId, color, progress, isAnime, anilistId, animeLanguage = 'sub') => 
       isAnime && anilistId
         ? `https://vidnest.fun/animepahe/${anilistId}/1/${animeLanguage}`

@@ -2357,7 +2357,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                   ) : (
                     <button
                       onClick={() => {
-                        setSelectedProviderId(isAnime ? 'vidnest' : 'cinesrc');
+                        setSelectedProviderId(isAnime ? 'vidnest_animepahe' : 'cinesrc');
                       }}
                       className="px-5 py-2.5 bg-white/10 hover:bg-white/15 text-white font-bold text-xs uppercase tracking-wider rounded-xl transition-all border border-white/10 backdrop-blur-md active:scale-95 shadow-xl"
                     >
