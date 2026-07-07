@@ -89,6 +89,39 @@ function formatSubtitleCaps(text: string): string {
   }
   return text;
 }
+function formatCueTime(seconds: number): string {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = Math.floor(seconds % 60);
+  const ms = Math.floor((seconds % 1) * 10);
+  const timeStr = `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}.${ms}`;
+  return h > 0 ? `${h}:${timeStr}` : timeStr;
+}
+
+function parseTimeString(str: string): number | null {
+  const clean = str.trim();
+  if (!clean) return null;
+  if (/^\d+(\.\d+)?$/.test(clean)) {
+    return parseFloat(clean);
+  }
+  const parts = clean.split(':');
+  if (parts.length === 2) {
+    const min = parseFloat(parts[0]);
+    const sec = parseFloat(parts[1]);
+    if (!isNaN(min) && !isNaN(sec)) {
+      return min * 60 + sec;
+    }
+  }
+  if (parts.length === 3) {
+    const hr = parseFloat(parts[0]);
+    const min = parseFloat(parts[1]);
+    const sec = parseFloat(parts[2]);
+    if (!isNaN(hr) && !isNaN(min) && !isNaN(sec)) {
+      return hr * 3600 + min * 60 + sec;
+    }
+  }
+  return null;
+}
 
 interface MoviePlayerProps {
   tmdbId: number;
@@ -430,6 +463,11 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     }
     return 0;
   });
+
+  // Timeline editor states
+  const [selectedTimelineCueIndex, setSelectedTimelineCueIndex] = useState<number | null>(null);
+  const [timelineSearchQuery, setTimelineSearchQuery] = useState<string>('');
+  const [timelineInputVal, setTimelineInputVal] = useState<string>('');
 
   // Chromecast states
   const [isCasting, setIsCasting] = useState(false);
@@ -3366,8 +3404,172 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                                       +0.5s
                                     </button>
                                   </div>
+                                  
+                                  <button
+                                    onClick={() => {
+                                      setSettingsView('subtitle-timeline');
+                                      setSelectedTimelineCueIndex(null);
+                                      setTimelineSearchQuery('');
+                                      setTimelineInputVal('');
+                                    }}
+                                    className="w-full mt-1.5 py-1.5 px-2.5 rounded-lg border border-white/5 hover:border-white/10 bg-white/5 hover:bg-white/10 text-white text-[10px] font-normal flex items-center justify-between transition-all"
+                                  >
+                                    <span className="text-zinc-400">Timeline Editor (Align line-by-line)</span>
+                                    <ChevronRight size={12} className="text-zinc-500" />
+                                  </button>
                                 </div>
                               </div>
+                            </div>
+                          )}
+
+                          {/* 2e-alt. Subtitle Timeline Editor Sub-view */}
+                          {settingsView === 'subtitle-timeline' && (
+                            <div className="flex flex-col gap-2.5 min-w-[280px]">
+                              <button 
+                                onClick={() => setSettingsView('subtitle-styling')}
+                                className="flex items-center gap-2 px-2 pb-2.5 mb-1.5 border-b border-white/10 text-zinc-400 hover:text-white transition-colors"
+                              >
+                                <ChevronLeft size={16} />
+                                <Sliders size={14} className="text-zinc-400" />
+                                <span className="text-[10px] font-bold uppercase tracking-wider">Timeline Editor</span>
+                              </button>
+
+                              {activeSubtitleCues.length === 0 ? (
+                                <div className="text-[11px] text-zinc-500 text-center py-6 italic">
+                                  No parsed subtitles available to edit. Ensure subtitles are enabled.
+                                </div>
+                              ) : (
+                                <div className="flex flex-col gap-3">
+                                  {/* Explanation banner */}
+                                  <p className="text-[10px] text-zinc-400 leading-normal font-light px-2">
+                                    Click any line below when you hear it. Aligning one line syncs the entire file.
+                                  </p>
+
+                                  {/* Search Box */}
+                                  <div className="px-2">
+                                    <input 
+                                      type="text" 
+                                      placeholder="Search subtitle text..."
+                                      value={timelineSearchQuery}
+                                      onChange={(e) => setTimelineSearchQuery(e.target.value)}
+                                      className="w-full bg-[#08080a] border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-white placeholder-zinc-600 focus:outline-none"
+                                    />
+                                  </div>
+
+                                  {/* Subtitle Cue List */}
+                                  <div className="flex flex-col gap-1 max-h-[160px] overflow-y-auto custom-scrollbar pr-1">
+                                    {(() => {
+                                      let filteredCues = activeSubtitleCues.map((cue, index) => ({ cue, index }));
+                                      if (timelineSearchQuery.trim()) {
+                                        const query = timelineSearchQuery.toLowerCase();
+                                        filteredCues = filteredCues.filter(item => item.cue.text.toLowerCase().includes(query));
+                                      } else {
+                                        const currentPlayTime = playerCurrentTime - subDelay;
+                                        let closestIdx = 0;
+                                        let minDiff = Infinity;
+                                        for (let i = 0; i < activeSubtitleCues.length; i++) {
+                                          const diff = Math.abs(activeSubtitleCues[i].start - currentPlayTime);
+                                          if (diff < minDiff) {
+                                            minDiff = diff;
+                                            closestIdx = i;
+                                          }
+                                        }
+                                        const startIdx = Math.max(0, closestIdx - 15);
+                                        const endIdx = Math.min(activeSubtitleCues.length, closestIdx + 15);
+                                        filteredCues = filteredCues.slice(startIdx, endIdx);
+                                      }
+
+                                      if (filteredCues.length === 0) {
+                                        return <div className="text-[10px] text-zinc-600 text-center py-4">No matching lines found.</div>;
+                                      }
+
+                                      return filteredCues.map(({ cue, index }) => {
+                                        const isSelected = selectedTimelineCueIndex === index;
+                                        const isActiveNow = playerCurrentTime - subDelay >= cue.start && playerCurrentTime - subDelay <= cue.end;
+                                        return (
+                                          <div key={index} className="flex flex-col gap-1">
+                                            <button
+                                              onClick={() => {
+                                                if (isSelected) {
+                                                  setSelectedTimelineCueIndex(null);
+                                                } else {
+                                                  setSelectedTimelineCueIndex(index);
+                                                  setTimelineInputVal(formatCueTime(playerCurrentTime));
+                                                }
+                                              }}
+                                              className={`w-full text-left py-2 px-2.5 rounded-xl text-xs transition-all hover:bg-white/5 border ${
+                                                isActiveNow 
+                                                  ? 'border-white/20 bg-white/5 text-white' 
+                                                  : isSelected
+                                                    ? 'border-white/10 bg-white/5 text-white'
+                                                    : 'border-transparent text-zinc-400'
+                                              }`}
+                                            >
+                                              <div className="flex justify-between items-center text-[10px] text-zinc-500 font-mono mb-0.5">
+                                                <span>{formatCueTime(cue.start)} &rarr; {formatCueTime(cue.end)}</span>
+                                                {isActiveNow && <span className="text-white text-[9px] uppercase tracking-wider font-sans">Active</span>}
+                                              </div>
+                                              <p className="line-clamp-2 leading-relaxed">{cue.text}</p>
+                                            </button>
+
+                                            {isSelected && (
+                                              <div className="bg-white/[0.02] border border-white/5 rounded-xl p-3 mx-1 my-1 flex flex-col gap-2.5 animate-in fade-in duration-200">
+                                                <div className="text-[10px] text-zinc-500 font-semibold uppercase tracking-wider">
+                                                  Sync Timing for this dialogue:
+                                                </div>
+                                                
+                                                <div className="flex items-center gap-2">
+                                                  <input 
+                                                    type="text" 
+                                                    value={timelineInputVal}
+                                                    onChange={(e) => setTimelineInputVal(e.target.value)}
+                                                    placeholder="MM:SS.S (e.g. 01:25.5)"
+                                                    className="flex-1 bg-[#08080a] border border-white/10 rounded-lg px-2 py-1 text-xs text-white font-mono focus:outline-none"
+                                                  />
+                                                  
+                                                  <button
+                                                    onClick={() => setTimelineInputVal(formatCueTime(playerCurrentTime))}
+                                                    className="px-2.5 py-1 bg-white/5 hover:bg-white/10 text-white rounded-lg text-[10px] font-normal border border-white/5 transition-colors"
+                                                  >
+                                                    Use TV Time
+                                                  </button>
+                                                </div>
+
+                                                <div className="flex items-center gap-2 mt-1">
+                                                  <button
+                                                    onClick={() => {
+                                                      const newTime = parseTimeString(timelineInputVal);
+                                                      if (newTime !== null) {
+                                                        const diff = parseFloat((newTime - cue.start).toFixed(1));
+                                                        setSubDelay(diff);
+                                                        localStorage.setItem('movieverse_subtitle_delay', diff.toString());
+                                                        showToast(`Synced! Global offset set to ${diff > 0 ? `+${diff}` : diff}s`);
+                                                        setSelectedTimelineCueIndex(null);
+                                                      } else {
+                                                        showToast("Invalid format. Use MM:SS.S or seconds.");
+                                                      }
+                                                    }}
+                                                    className="flex-1 py-1.5 bg-zinc-900 hover:bg-zinc-800 text-white rounded-lg text-[10px] font-normal border border-white/5 transition-all text-center active:scale-95"
+                                                  >
+                                                    Apply Global Sync
+                                                  </button>
+                                                  
+                                                  <button
+                                                    onClick={() => setSelectedTimelineCueIndex(null)}
+                                                    className="px-3 py-1.5 bg-black hover:bg-zinc-950 text-zinc-400 rounded-lg text-[10px] font-normal border border-white/5 transition-all text-center active:scale-95"
+                                                  >
+                                                    Cancel
+                                                  </button>
+                                                </div>
+                                              </div>
+                                            )}
+                                          </div>
+                                        );
+                                      });
+                                    })()}
+                                  </div>
+                                </div>
+                              )}
                             </div>
                           )}
 
