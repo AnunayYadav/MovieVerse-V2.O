@@ -17,7 +17,7 @@ const isTV = typeof window !== 'undefined' && (
 );
 
 const MoviePlayer = React.lazy(() => import('./MoviePlayer').then(module => ({ default: module.MoviePlayer })));
-import { PROVIDERS } from './Providers';
+import { PROVIDERS, getFilteredProviders } from './Providers';
 
 const LANGUAGES_FULL_MAP: Record<string, string> = {
     en: "English",
@@ -1972,7 +1972,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
 
                                                 {isProviderDropdownOpen && (
                                                     <div className="absolute left-0 top-full mt-2 w-52 bg-[#121212] border border-white/10 rounded-lg shadow-xl py-1 z-50 animate-in fade-in slide-in-from-top-1 duration-200">
-                                                        {PROVIDERS.filter(p => isAnime || (p.id !== 'vidnest_animepahe' && p.id !== 'anikai')).map((prov) => (
+                                                        {getFilteredProviders(isAnime).map((prov) => (
                                                             <TvFocusButton
                                                                 key={prov.id}
                                                                 onClick={() => {
@@ -2050,7 +2050,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
 
                                         {isMobileProviderDropdownOpen && (
                                             <div className="absolute left-0 top-full mt-2 w-48 bg-[#121212] border border-white/10 rounded-lg shadow-xl py-1 z-50 animate-in fade-in slide-in-from-top-1 duration-200">
-                                                {PROVIDERS.filter(p => isAnime || (p.id !== 'vidnest_animepahe' && p.id !== 'anikai')).map((prov) => (
+                                                {getFilteredProviders(isAnime).map((prov) => (
                                                     <TvFocusButton
                                                         key={prov.id}
                                                         onClick={() => {

@@ -4,7 +4,7 @@ import Hls from 'hls.js';
 import { TvFocusButton } from '../tvNavigation';
 import { pause, resume } from '@noriginmedia/norigin-spatial-navigation';
 import { TMDB_BASE_URL, TMDB_IMAGE_BASE } from './Shared';
-import { Provider, PROVIDERS, getSubtitleCode, getAudioCode } from './Providers';
+import { Provider, PROVIDERS, getSubtitleCode, getAudioCode, getFilteredProviders } from './Providers';
 
 interface SubtitleCue {
   start: number;
@@ -324,6 +324,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   const [encDecServers, setEncDecServers] = useState<string[]>([]);
   const [selectedEncDecServer, setSelectedEncDecServer] = useState<string>('');
   const [selectedVideasyServer, setSelectedVideasyServer] = useState('Hydrogen');
+  const [useMegaplayBackup, setUseMegaplayBackup] = useState(false);
 
   useEffect(() => {
     if (providerId) {
@@ -389,7 +390,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   const isCineSrcCustom = selectedProviderId === 'cinesrc';
   const isVidFastCustom = selectedProviderId === 'vidfast';
   const isIframeCustomControls = isCineSrcCustom || isVidFastCustom;
-  const useCustomControls = (selectedProviderId === 'videasy_adfree' || selectedProviderId.startsWith('encdec') || isIframeCustomControls) && !(selectedProviderId === 'videasy_adfree' && fallbackToNativeVideasy) && !fallbackToIframe;
+  const useCustomControls = (selectedProviderId.startsWith('encdec') || isIframeCustomControls) && !fallbackToIframe;
   const isPlayingRef = useRef(false);
   const isSeekingRef = useRef(false);
   const playerDurationRef = useRef(0);
@@ -938,15 +939,8 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   const handleQualityChange = (qualityName: string) => {
     const matched = customQualities.find(s => s.quality === qualityName);
     const getProxiedUrl = (url: string) => {
-      if ((selectedProviderId === 'videasy_adfree' || selectedProviderId.startsWith('encdec')) && url && url.startsWith('http')) {
-        let ref = '';
-        if (selectedProviderId === 'videasy_adfree') {
-          ref = 'https://player.videasy.to/';
-        } else if (selectedProviderId === 'encdec_hexa') {
-          ref = 'https://hexa.su/';
-        }
-        const refererParam = ref ? `&referer=${encodeURIComponent(ref)}` : '';
-        return `/api/m3u8-proxy?url=${encodeURIComponent(url)}${refererParam}`;
+      if (selectedProviderId.startsWith('encdec') && url && url.startsWith('http')) {
+        return `/api/m3u8-proxy?url=${encodeURIComponent(url)}`;
       }
       return url;
     };
@@ -1081,7 +1075,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
 
   // Fetch streaming sources for videasy_adfree and encdec
   useEffect(() => {
-    if (selectedProviderId !== 'videasy_adfree' && !selectedProviderId.startsWith('encdec')) return;
+    if (!selectedProviderId.startsWith('encdec')) return;
 
     let isMounted = true;
     const fetchDecryptedStream = async () => {
@@ -1176,15 +1170,8 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
 
           setSelectedQuality(matchedSource.quality || matchedSource.label || 'Default');
           const getProxiedUrl = (url: string) => {
-            if ((selectedProviderId === 'videasy_adfree' || selectedProviderId.startsWith('encdec')) && url && url.startsWith('http')) {
-              let ref = '';
-              if (selectedProviderId === 'videasy_adfree') {
-                ref = 'https://player.videasy.to/';
-              } else if (selectedProviderId === 'encdec_hexa') {
-                ref = 'https://hexa.su/';
-              }
-              const refererParam = ref ? `&referer=${encodeURIComponent(ref)}` : '';
-              return `/api/m3u8-proxy?url=${encodeURIComponent(url)}${refererParam}`;
+            if (selectedProviderId.startsWith('encdec') && url && url.startsWith('http')) {
+              return `/api/m3u8-proxy?url=${encodeURIComponent(url)}`;
             }
             return url;
           };
@@ -1224,7 +1211,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   }, [currentSeason, currentEpisode, onEpisodeChange]);
 
   useEffect(() => {
-    if (!isAutoplayEnabled || !hasNextEpisode || (selectedProviderId !== 'videasy_adfree' && !selectedProviderId.startsWith('encdec') && selectedProviderId !== 'cinepro_core')) return;
+    if (!isAutoplayEnabled || !hasNextEpisode || (!selectedProviderId.startsWith('encdec') && selectedProviderId !== 'cinepro_core')) return;
     
     if (playerDuration > 0 && playerCurrentTime >= playerDuration - 20 && !showNextCountdown) {
       setShowNextCountdown(true);
@@ -1712,6 +1699,21 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   const lastAudioLanguageRef = useRef<string>(audioLanguage);
   const lastSubtitleLanguageRef = useRef<string>(subtitleLanguage);
 
+  const getEmbedUrlForProvider = (providerId: string, progress: number = 0) => {
+    const isTvShow = mediaType === 'tv' || (isAnime && mediaType !== 'movie');
+    if (providerId === 'megaplay') {
+      const domain = useMegaplayBackup ? 'https://animeplay.cfd' : 'https://megaplay.buzz';
+      const lang = animeLanguage === 'dub' ? 'dub' : 'sub';
+      return isTvShow
+        ? `${domain}/stream/ani/${anilistId || tmdbId}/${currentEpisode}/${lang}`
+        : `${domain}/stream/ani/${anilistId || tmdbId}/1/${lang}`;
+    }
+    const provider = PROVIDERS.find(p => p.id === providerId) || PROVIDERS[0];
+    return isTvShow
+      ? provider.getTvUrl(tmdbId, currentSeason, currentEpisode, activeColor, progress, isAnime, anilistId, animeLanguage, audioLanguage, subtitleLanguage)
+      : provider.getMovieUrl(tmdbId, activeColor, progress, isAnime, anilistId, animeLanguage, audioLanguage, subtitleLanguage);
+  };
+
   useEffect(() => {
     const isTvShow = mediaType === 'tv' || (isAnime && mediaType !== 'movie');
     let provider = PROVIDERS.find(p => p.id === selectedProviderId) || PROVIDERS[0];
@@ -1782,10 +1784,6 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
             shouldUpdateUrl = true;
             currentProgressRef.current = forceProgress;
           }
-        } else {
-          // Fallback to reload if postMessage is not supported
-          shouldUpdateUrl = true;
-          currentProgressRef.current = forceProgress;
         }
       }
     }
@@ -1804,9 +1802,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
           ? `https://player.videasy.net/tv/${tmdbId}/${currentSeason}/${currentEpisode}?nextEpisode=true&autoplayNextEpisode=true&episodeSelector=true&overlay=false&color=${activeColor.replace('#', '')}&autoplay=true${startProgress && startProgress > 0 ? `&progress=${Math.floor(startProgress)}` : ''}`
           : `https://player.videasy.net/movie/${tmdbId}?overlay=false&color=${activeColor.replace('#', '')}&autoplay=true${startProgress && startProgress > 0 ? `&progress=${Math.floor(startProgress)}` : ''}`;
       } else {
-        newUrl = isTvShow
-          ? provider.getTvUrl(tmdbId, currentSeason, currentEpisode, activeColor, startProgress, isAnime, anilistId, animeLanguage, audioLanguage, subtitleLanguage)
-          : provider.getMovieUrl(tmdbId, activeColor, startProgress, isAnime, anilistId, animeLanguage, audioLanguage, subtitleLanguage);
+        newUrl = getEmbedUrlForProvider(selectedProviderId, startProgress);
       }
 
       if (isIframeCustomControls) {
@@ -1814,7 +1810,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
       }
       setEmbedUrl(newUrl);
     }
-  }, [tmdbId, mediaType, isAnime, currentSeason, currentEpisode, activeColor, selectedProviderId, forceProgress, isWatchParty, anilistId, animeLanguage, audioLanguage, subtitleLanguage, fallbackToNativeVideasy, useCustomControls]);
+  }, [tmdbId, mediaType, isAnime, currentSeason, currentEpisode, activeColor, selectedProviderId, forceProgress, isWatchParty, anilistId, animeLanguage, audioLanguage, subtitleLanguage, fallbackToNativeVideasy, useCustomControls, useMegaplayBackup]);
 
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
@@ -2334,7 +2330,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
           </div>
         )}
 
-        {(selectedProviderId === 'videasy_adfree' || selectedProviderId === 'cinepro_core' || selectedProviderId.startsWith('encdec')) && !fallbackToIframe ? (
+        {(selectedProviderId === 'cinepro_core' || selectedProviderId.startsWith('encdec')) && !fallbackToIframe ? (
             <div className="w-full h-full absolute inset-0 bg-zinc-950 z-0 flex items-center justify-center">
               {anivexaLoading && !anivexaStreamUrl && (
                 <div className="absolute inset-0 flex items-center justify-center bg-black z-30 animate-in fade-in duration-250">
@@ -2823,7 +2819,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                                 </button>
 
                                 {/* Server Row (Conditional) */}
-                                {(((selectedProviderId.startsWith('encdec') || selectedProviderId === 'cinepro_core') && encDecServers.length > 0) || (selectedProviderId === 'videasy_adfree')) && (
+                                {(((selectedProviderId.startsWith('encdec') || selectedProviderId === 'cinepro_core') && encDecServers.length > 0) || selectedProviderId === 'megaplay') && (
                                   <button
                                     onClick={() => setSettingsView('servers')}
                                     className="w-full py-2 px-3 rounded-xl text-xs text-zinc-300 hover:text-white hover:bg-white/5 flex items-center justify-between transition-all"
@@ -2834,7 +2830,11 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                                     </div>
                                     <div className="flex items-center gap-1.5 text-[11px] text-zinc-500">
                                       <span>
-                                        {selectedProviderId === 'videasy_adfree' ? selectedVideasyServer : (selectedEncDecServer || 'Auto')}
+                                        {selectedProviderId === 'megaplay'
+                                          ? (useMegaplayBackup ? 'Backup' : 'Primary')
+                                          : selectedProviderId === 'videasy_adfree'
+                                            ? selectedVideasyServer
+                                            : (selectedEncDecServer || 'Auto')}
                                       </span>
                                       <ChevronRight size={12} />
                                     </div>
@@ -3011,7 +3011,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                               </button>
                               
                               <div className="flex flex-col gap-0.5 max-h-[240px] overflow-y-auto custom-scrollbar pr-1">
-                                {PROVIDERS.filter(p => (!isWatchParty || p.supportsPostMessage) && (isAnime || (p.id !== 'vidnest_animepahe' && p.id !== 'anikai'))).map((prov) => {
+                                {getFilteredProviders(isAnime, isWatchParty).map((prov) => {
                                   const isActive = selectedProviderId === prov.id;
                                   return (
                                     <button
@@ -3076,6 +3076,28 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                                             setAudioLanguage('English');
                                             localStorage.setItem('movieverse_preferred_audio_language', 'English');
                                           }
+                                          setSettingsView('main');
+                                        }}
+                                        className={`w-full py-2.5 px-3 rounded-xl text-xs flex items-center justify-between transition-all hover:bg-white/5 ${
+                                          isActive ? 'text-white bg-white/5' : 'text-zinc-400'
+                                        }`}
+                                      >
+                                        <span>{srv}</span>
+                                        {isActive && <Check size={12} className="text-white" />}
+                                      </button>
+                                    );
+                                  })
+                                )}
+
+                                {selectedProviderId === 'megaplay' && (
+                                  ['Primary (megaplay.buzz)', 'Backup (animeplay.cfd)'].map((srv) => {
+                                    const isBackup = srv.includes('cfd');
+                                    const isActive = useMegaplayBackup === isBackup;
+                                    return (
+                                      <button
+                                        key={srv}
+                                        onClick={() => {
+                                          setUseMegaplayBackup(isBackup);
                                           setSettingsView('main');
                                         }}
                                         className={`w-full py-2.5 px-3 rounded-xl text-xs flex items-center justify-between transition-all hover:bg-white/5 ${
@@ -3931,7 +3953,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
             {activeTab === 'sources' && (
               <div className="space-y-2">
                 <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block mb-2 px-1">Select Source Provider</span>
-                {PROVIDERS.filter(p => (!isWatchParty || p.supportsPostMessage) && (isAnime || (p.id !== 'vidnest_animepahe' && p.id !== 'anikai'))).map((prov) => {
+                {getFilteredProviders(isAnime, isWatchParty).map((prov) => {
                   const isActive = selectedProviderId === prov.id;
                   return (
                     <button
@@ -4455,11 +4477,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                         }
                       }
                       currentProgressRef.current = 0;
-                      const isTvShow = mediaType === 'tv' || (isAnime && mediaType !== 'movie');
-                      const provider = PROVIDERS.find(p => p.id === selectedProviderId) || PROVIDERS[0];
-                      const newUrl = isTvShow
-                        ? provider.getTvUrl(tmdbId, currentSeason, currentEpisode, activeColor, 0, isAnime, anilistId, animeLanguage, audioLanguage, subtitleLanguage)
-                        : provider.getMovieUrl(tmdbId, activeColor, 0, isAnime, anilistId, animeLanguage, audioLanguage, subtitleLanguage);
+                      const newUrl = getEmbedUrlForProvider(selectedProviderId, 0);
                       setEmbedUrl(newUrl);
                       setIsDrawerOpen(false);
                     }}

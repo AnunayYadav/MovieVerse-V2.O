@@ -38,22 +38,36 @@ export const PROVIDERS: Provider[] = [
   {
     id: 'videasy_adfree',
     name: 'VidEasy (HLS Ad-Free)',
-    getMovieUrl: () => '',
-    getTvUrl: () => '',
-    supportsPostMessage: true
-  },
-  {
-    id: 'encdec_hexa',
-    name: 'EncDec - Hexa (HLS Ad-Free)',
-    getMovieUrl: () => '',
-    getTvUrl: () => '',
-    supportsPostMessage: true
+    getMovieUrl: (tmdbId, color, progress) => {
+      const colorParam = color ? color.replace('#', '') : 'EF4444';
+      const progressParam = progress && progress > 0 ? `&progress=${Math.floor(progress)}` : '';
+      return `https://player.videasy.net/movie/${tmdbId}?overlay=false&color=${colorParam}&autoplay=true${progressParam}`;
+    },
+    getTvUrl: (tmdbId, season, episode, color, progress) => {
+      const colorParam = color ? color.replace('#', '') : 'EF4444';
+      const progressParam = progress && progress > 0 ? `&progress=${Math.floor(progress)}` : '';
+      return `https://player.videasy.net/tv/${tmdbId}/${season}/${episode}?nextEpisode=true&autoplayNextEpisode=true&episodeSelector=true&overlay=false&color=${colorParam}&autoplay=true${progressParam}`;
+    },
+    supportsPostMessage: false
   },
   {
     id: 'encdec_vidlink',
     name: 'VidLink (HLS Ad-Free)',
     getMovieUrl: () => '',
     getTvUrl: () => '',
+    supportsPostMessage: true
+  },
+  {
+    id: 'megaplay',
+    name: 'MegaPlay',
+    getMovieUrl: (tmdbId, color, progress, isAnime, anilistId, animeLanguage = 'sub') => {
+      const lang = animeLanguage === 'dub' ? 'dub' : 'sub';
+      return `https://animeplay.cfd/stream/ani/${anilistId || tmdbId}/1/${lang}`;
+    },
+    getTvUrl: (tmdbId, season, episode, color, progress, isAnime, anilistId, animeLanguage = 'sub') => {
+      const lang = animeLanguage === 'dub' ? 'dub' : 'sub';
+      return `https://animeplay.cfd/stream/ani/${anilistId || tmdbId}/${episode}/${lang}`;
+    },
     supportsPostMessage: true
   },
   {
@@ -69,7 +83,6 @@ export const PROVIDERS: Provider[] = [
     },
     supportsPostMessage: false
   },
-
   {
     id: 'cinesrc',
     name: 'CineSrc',
@@ -151,3 +164,23 @@ export const PROVIDERS: Provider[] = [
     supportsPostMessage: true
   },
 ];
+
+export const getFilteredProviders = (isAnime: boolean, isWatchParty: boolean = false) => {
+  let list = PROVIDERS.filter(p => {
+    if (isWatchParty && !p.supportsPostMessage) return false;
+    if (!isAnime) {
+      return p.id !== 'vidnest_animepahe' && p.id !== 'anikai' && p.id !== 'megaplay';
+    }
+    return true;
+  });
+
+  if (isAnime) {
+    list = [...list].sort((a, b) => {
+      const aPriority = a.id === 'megaplay' ? 2 : (a.id === 'anikai' ? 1 : 0);
+      const bPriority = b.id === 'megaplay' ? 2 : (b.id === 'anikai' ? 1 : 0);
+      return bPriority - aPriority;
+    });
+  }
+
+  return list;
+};
