@@ -468,6 +468,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   const [selectedTimelineCueIndex, setSelectedTimelineCueIndex] = useState<number | null>(null);
   const [timelineSearchQuery, setTimelineSearchQuery] = useState<string>('');
   const [timelineInputVal, setTimelineInputVal] = useState<string>('');
+  const [showRemainingTime, setShowRemainingTime] = useState(false);
 
   // Chromecast states
   const [isCasting, setIsCasting] = useState(false);
@@ -2523,9 +2524,16 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                       }}
                     />
                   </div>
-                  <span className="text-white text-xs font-light tracking-wide select-none tabular-nums whitespace-nowrap ml-4 self-center opacity-85">
-                    -{formatTime(playerDuration - playerCurrentTime)}
-                  </span>
+                  <button 
+                    onClick={() => setShowRemainingTime(!showRemainingTime)}
+                    className="text-white text-xs font-light tracking-wide select-none tabular-nums whitespace-nowrap ml-4 self-center opacity-85 hover:opacity-100 transition-all active:scale-95"
+                    title={showRemainingTime ? "Switch to current time" : "Switch to remaining time"}
+                  >
+                    {showRemainingTime 
+                      ? `-${formatTime(Math.max(0, playerDuration - playerCurrentTime))} / ${formatTime(playerDuration)}`
+                      : `${formatTime(playerCurrentTime)} / ${formatTime(playerDuration)}`
+                    }
+                  </button>
                 </div>
 
                 {/* Controls row */}
