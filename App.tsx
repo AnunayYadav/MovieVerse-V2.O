@@ -4394,6 +4394,7 @@ export default function App() {
 
                     ) : selectedCategory === "Music" ? (
                         <MusicPage
+                            isAuthenticated={isAuthenticated}
                             disableEntryAnimation={isNavigatingBack}
                         />
 

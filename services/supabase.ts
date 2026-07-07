@@ -1,6 +1,6 @@
 
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { Movie, UserProfile, AppNotification, UserSettings } from '../types';
+import { Movie, UserProfile, AppNotification, UserSettings, Track, Album, Artist, Playlist } from '../types';
 import { safeEnv } from '../components/Shared';
 
 let supabaseInstance: SupabaseClient | null = null;
@@ -448,6 +448,98 @@ export const deleteWatchPartyRoom = async (roomCode: string): Promise<void> => {
         }
     } catch (e) {
         console.error("Watch party delete exception", e);
+    }
+};
+
+export const syncMusicData = async (musicData: {
+    history?: Track[];
+    favorites?: { songs?: Track[]; albums?: Album[]; artists?: Artist[] };
+    playlists?: Playlist[];
+    searchHistory?: string[];
+    preference?: 'default' | 'bollywood';
+}) => {
+    const supabase = getSupabase();
+    if (!supabase) return;
+
+    try {
+        const user = await getCurrentUserId();
+        if (!user) return;
+
+        // Fetch existing row to merge settings
+        const { data: existingData } = await supabase
+            .from('user_data')
+            .select('*')
+            .eq('id', user.id)
+            .maybeSingle();
+
+        const settings = {
+            ...(existingData?.settings || {}),
+            musicHistory: musicData.history ?? existingData?.settings?.musicHistory ?? [],
+            musicFavorites: musicData.favorites ?? existingData?.settings?.musicFavorites ?? {},
+            musicPlaylists: musicData.playlists ?? existingData?.settings?.musicPlaylists ?? [],
+            musicSearchHistory: musicData.searchHistory ?? existingData?.settings?.musicSearchHistory ?? [],
+            musicPreference: musicData.preference ?? existingData?.settings?.musicPreference ?? 'default'
+        };
+
+        const { error } = await supabase
+            .from('user_data')
+            .upsert({
+                id: user.id,
+                email: user.email,
+                watchlist: existingData?.watchlist || [],
+                favorites: existingData?.favorites || [],
+                watched: existingData?.watched || [],
+                custom_lists: existingData?.custom_lists || {},
+                profile: existingData?.profile || { name: "Guest", age: "", genres: [] },
+                search_history: existingData?.search_history || [],
+                settings: settings,
+                updated_at: new Date().toISOString()
+            });
+
+        if (error) {
+            console.error("Error upserting user music data:", error);
+        }
+    } catch (e) {
+        console.error("Music data sync exception", e);
+    }
+};
+
+export const fetchMusicData = async (): Promise<{
+    history: Track[];
+    favorites: { songs?: Track[]; albums?: Album[]; artists?: Artist[] };
+    playlists: Playlist[];
+    searchHistory: string[];
+    preference: 'default' | 'bollywood';
+} | null> => {
+    const supabase = getSupabase();
+    if (!supabase) return null;
+
+    try {
+        const user = await getCurrentUserId();
+        if (!user) return null;
+
+        const { data, error } = await supabase
+            .from('user_data')
+            .select('settings')
+            .eq('id', user.id)
+            .maybeSingle();
+
+        if (error) {
+            console.error("Error fetching music data:", error);
+            return null;
+        }
+
+        const settings = data?.settings || {};
+        return {
+            history: settings.musicHistory || [],
+            favorites: settings.musicFavorites || {},
+            playlists: settings.musicPlaylists || [],
+            searchHistory: settings.musicSearchHistory || [],
+            preference: settings.musicPreference || 'default'
+        };
+    } catch (e) {
+        console.error("Music data fetch exception", e);
+        return null;
     }
 };
 

@@ -244,8 +244,67 @@ export interface Provider {
   logo_path: string;
 }
 
+export interface Track {
+  id: string;
+  title: string;
+  artist: string;
+  artistId?: string;
+  album: string;
+  albumId?: string;
+  coverUrl: string;
+  duration: number; // in seconds
+  previewUrl: string;
+  releaseDate?: string;
+  genre?: string;
+  explicit?: boolean;
+  trackPrice?: number;
+  collectionPrice?: number;
+  currency?: string;
+  appleMusicUrl?: string;
+  copyright?: string;
+}
+
+export interface Album {
+  id: string;
+  name: string;
+  artistName: string;
+  artistId?: string;
+  artworkUrl: string;
+  releaseDate: string;
+  trackCount: number;
+  genre?: string;
+  price?: number;
+  currency?: string;
+  copyright?: string;
+  appleMusicUrl?: string;
+}
+
+export interface Artist {
+  id: string;
+  name: string;
+  artistLinkUrl?: string;
+  genre?: string;
+}
+
+export interface Playlist {
+  id: string;
+  name: string;
+  description?: string;
+  tracks: Track[];
+  createdAt: string;
+}
+
 export interface UserSettings {
     tmdbKey?: string;
+    musicHistory?: Track[];
+    musicFavorites?: {
+        songs?: Track[];
+        albums?: Album[];
+        artists?: Artist[];
+    };
+    musicPlaylists?: Playlist[];
+    musicSearchHistory?: string[];
+    musicPreference?: 'default' | 'bollywood';
 }
 
 export interface UserProfile {
