@@ -180,10 +180,66 @@ const MovieRowCard = ({
         };
     }, [movie.id]);
 
+    const enterTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const leaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    const handleMouseEnter = (e: React.MouseEvent<HTMLDivElement>) => {
+        if (leaveTimeoutRef.current) {
+            clearTimeout(leaveTimeoutRef.current);
+            leaveTimeoutRef.current = null;
+        }
+
+        if (enterTimeoutRef.current) clearTimeout(enterTimeoutRef.current);
+
+        const target = e.currentTarget;
+        enterTimeoutRef.current = setTimeout(() => {
+            const rect = target.getBoundingClientRect();
+            const scrollY = window.scrollY || window.pageYOffset;
+            const scrollX = window.scrollX || window.pageXOffset;
+            
+            const position = {
+                top: rect.top + scrollY,
+                left: rect.left + scrollX,
+                width: rect.width,
+                height: rect.height
+            };
+
+            console.log("MovieRowCard: Dispatching hover event for", movie.title || movie.name, position);
+
+            window.dispatchEvent(new CustomEvent('movie-card-hover', {
+                detail: {
+                    movie,
+                    rect: position,
+                    horizontal: true
+                }
+            }));
+        }, 400);
+    };
+
+    const handleMouseLeave = () => {
+        if (enterTimeoutRef.current) {
+            clearTimeout(enterTimeoutRef.current);
+            enterTimeoutRef.current = null;
+        }
+
+        leaveTimeoutRef.current = setTimeout(() => {
+            window.dispatchEvent(new CustomEvent('movie-card-hover-leave'));
+        }, 300);
+    };
+
+    useEffect(() => {
+        return () => {
+            if (enterTimeoutRef.current) clearTimeout(enterTimeoutRef.current);
+            if (leaveTimeoutRef.current) clearTimeout(leaveTimeoutRef.current);
+        };
+    }, []);
+
     return (
         <div
             ref={ref}
             onClick={onClick}
+            onMouseEnter={handleMouseEnter}
+            onMouseLeave={handleMouseLeave}
             className="relative w-[220px] md:w-[260px] shrink-0 aspect-[16/9] rounded-xl overflow-hidden bg-zinc-900 border border-white/5 cursor-pointer shadow-lg hover:scale-105 hover:border-white/15 transition-all duration-500 group"
         >
             <img
@@ -847,10 +903,66 @@ const ContinueWatchingCard = ({
 
     const progress = movie.play_progress || 0;
 
+    const enterTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const leaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    const handleMouseEnter = (e: React.MouseEvent<HTMLDivElement>) => {
+        if (leaveTimeoutRef.current) {
+            clearTimeout(leaveTimeoutRef.current);
+            leaveTimeoutRef.current = null;
+        }
+
+        if (enterTimeoutRef.current) clearTimeout(enterTimeoutRef.current);
+
+        const target = e.currentTarget;
+        enterTimeoutRef.current = setTimeout(() => {
+            const rect = target.getBoundingClientRect();
+            const scrollY = window.scrollY || window.pageYOffset;
+            const scrollX = window.scrollX || window.pageXOffset;
+            
+            const position = {
+                top: rect.top + scrollY,
+                left: rect.left + scrollX,
+                width: rect.width,
+                height: rect.height
+            };
+
+            console.log("ContinueWatchingCard: Dispatching hover event for", movie.title || movie.name, position);
+
+            window.dispatchEvent(new CustomEvent('movie-card-hover', {
+                detail: {
+                    movie,
+                    rect: position,
+                    horizontal: true
+                }
+            }));
+        }, 400);
+    };
+
+    const handleMouseLeave = () => {
+        if (enterTimeoutRef.current) {
+            clearTimeout(enterTimeoutRef.current);
+            enterTimeoutRef.current = null;
+        }
+
+        leaveTimeoutRef.current = setTimeout(() => {
+            window.dispatchEvent(new CustomEvent('movie-card-hover-leave'));
+        }, 300);
+    };
+
+    useEffect(() => {
+        return () => {
+            if (enterTimeoutRef.current) clearTimeout(enterTimeoutRef.current);
+            if (leaveTimeoutRef.current) clearTimeout(leaveTimeoutRef.current);
+        };
+    }, []);
+
     return (
         <div
             ref={ref}
             onClick={onClick}
+            onMouseEnter={handleMouseEnter}
+            onMouseLeave={handleMouseLeave}
             className="relative w-[220px] md:w-[260px] shrink-0 aspect-[16/9] rounded-xl overflow-hidden bg-zinc-900 border border-white/5 cursor-pointer shadow-lg hover:scale-[1.03] hover:border-white/10 transition-all duration-300 group"
         >
             <img
@@ -886,12 +998,69 @@ const TrendingMovieItem = ({ movie, idx, onMovieClick }: { movie: Movie, idx: nu
     const { ref } = useTvFocus({
         onEnterPress: () => onMovieClick(movie)
     });
+
+    const enterTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const leaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    const handleMouseEnter = (e: React.MouseEvent<HTMLDivElement>) => {
+        if (leaveTimeoutRef.current) {
+            clearTimeout(leaveTimeoutRef.current);
+            leaveTimeoutRef.current = null;
+        }
+
+        if (enterTimeoutRef.current) clearTimeout(enterTimeoutRef.current);
+
+        const target = e.currentTarget;
+        enterTimeoutRef.current = setTimeout(() => {
+            const rect = target.getBoundingClientRect();
+            const scrollY = window.scrollY || window.pageYOffset;
+            const scrollX = window.scrollX || window.pageXOffset;
+            
+            const position = {
+                top: rect.top + scrollY,
+                left: rect.left + scrollX,
+                width: rect.width,
+                height: rect.height
+            };
+
+            console.log("TrendingMovieItem: Dispatching hover event for", movie.title || movie.name, position);
+
+            window.dispatchEvent(new CustomEvent('movie-card-hover', {
+                detail: {
+                    movie,
+                    rect: position,
+                    horizontal: false
+                }
+            }));
+        }, 400);
+    };
+
+    const handleMouseLeave = () => {
+        if (enterTimeoutRef.current) {
+            clearTimeout(enterTimeoutRef.current);
+            enterTimeoutRef.current = null;
+        }
+
+        leaveTimeoutRef.current = setTimeout(() => {
+            window.dispatchEvent(new CustomEvent('movie-card-hover-leave'));
+        }, 300);
+    };
+
+    useEffect(() => {
+        return () => {
+            if (enterTimeoutRef.current) clearTimeout(enterTimeoutRef.current);
+            if (leaveTimeoutRef.current) clearTimeout(leaveTimeoutRef.current);
+        };
+    }, []);
+
     return (
         <div 
             ref={ref}
             key={movie.id} 
             className="relative shrink-0 w-[140px] md:w-[200px] flex items-end group cursor-pointer focus:outline-none select-none" 
             onClick={() => onMovieClick(movie)}
+            onMouseEnter={handleMouseEnter}
+            onMouseLeave={handleMouseLeave}
         >
             <div className="absolute -bottom-6 left-0 z-0 text-[120px] md:text-[180px] font-black leading-none select-none pointer-events-none transition-all duration-700 transform group-hover:scale-105 opacity-70 group-hover:opacity-95"
                 style={{ color: '#000', WebkitTextStroke: '1.5px rgba(255,255,255,0.3)', transform: 'translateX(-25%)', fontFamily: 'Inter, sans-serif' }}>
