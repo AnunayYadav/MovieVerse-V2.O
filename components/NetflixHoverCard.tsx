@@ -96,6 +96,87 @@ export const NetflixHoverCard: React.FC<NetflixHoverCardProps> = ({
         return () => clearTimeout(timer);
     }, [videoKey]);
 
+    const isAnime = useMemo(() => {
+        const genresList = movie.genres || [];
+        const genreIds = movie.genre_ids || [];
+        return genresList.some((g: any) => g.name === 'Animation') || genreIds.includes(16);
+    }, [movie]);
+
+    const [nextAiringEpisode, setNextAiringEpisode] = useState<any | null>(null);
+
+    useEffect(() => {
+        if (!isAnime || !movie.id) {
+            setNextAiringEpisode(null);
+            return;
+        }
+
+        let active = true;
+        const title = movie.name || movie.original_name || movie.title || movie.original_title;
+        if (!title) return;
+
+        const cleanTitle = title.replace(/\s*\(?(Dub|Sub|TV|Movie|uncensored|censored|season\s*\d+|part\s*\d+)\)?\s*$/i, '').trim();
+        const cachedId = localStorage.getItem(`movieverse_anilist_map_${movie.id}`);
+        const variables: any = {};
+        let query = "";
+
+        if (cachedId) {
+            variables.id = parseInt(cachedId, 10);
+            query = `
+              query ($id: Int) {
+                Media(id: $id, type: ANIME) {
+                  id
+                  nextAiringEpisode {
+                    airingAt
+                    timeUntilAiring
+                    episode
+                  }
+                }
+              }
+            `;
+        } else {
+            variables.search = cleanTitle;
+            query = `
+              query ($search: String) {
+                Media(search: $search, type: ANIME) {
+                  id
+                  nextAiringEpisode {
+                    airingAt
+                    timeUntilAiring
+                    episode
+                  }
+                }
+              }
+            `;
+        }
+
+        fetch('/api/anilist', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+            body: JSON.stringify({ query, variables })
+        })
+        .then(res => res.json())
+        .then(json => {
+            if (!active) return;
+            const media = json?.data?.Media;
+            if (media) {
+                if (media.id && !cachedId) {
+                    localStorage.setItem(`movieverse_anilist_map_${movie.id}`, media.id.toString());
+                }
+                setNextAiringEpisode(media.nextAiringEpisode || null);
+            } else {
+                setNextAiringEpisode(null);
+            }
+        })
+        .catch(err => {
+            console.error("Error fetching hover card next episode:", err);
+            setNextAiringEpisode(null);
+        });
+
+        return () => {
+            active = false;
+        };
+    }, [movie, isAnime]);
+
     // Format metadata
     const matchPercentage = useMemo(() => {
         return Math.min(100, Math.max(65, Math.round((movie.vote_average || 7) * 10 + 8)));
@@ -256,7 +337,60 @@ export const NetflixHoverCard: React.FC<NetflixHoverCardProps> = ({
                         </React.Fragment>
                     ))}
                 </div>
+
+                {/* Next Airing Episode Release details */}
+                {nextAiringEpisode && (
+                    <div className="mt-2.5 p-2 bg-red-500/5 border border-red-500/10 rounded-lg flex items-center justify-between gap-2.5">
+                        <div className="flex flex-col">
+                            <span className="text-[8px] font-extrabold text-red-500 uppercase tracking-wider">Next Release</span>
+                            <span className="text-white text-[10px] font-bold">
+                                Episode {nextAiringEpisode.episode}
+                            </span>
+                        </div>
+                        <div className="text-[9px] text-red-400 font-extrabold bg-red-500/10 px-2 py-0.5 rounded-md">
+                            <AiringCountdown airingAt={nextAiringEpisode.airingAt} />
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
+    );
+};
+
+interface AiringCountdownProps {
+    airingAt: number;
+}
+
+const AiringCountdown: React.FC<AiringCountdownProps> = ({ airingAt }) => {
+    const [timeLeft, setTimeLeft] = useState('');
+
+    useEffect(() => {
+        const updateTimer = () => {
+            const diff = airingAt * 1000 - Date.now();
+            if (diff <= 0) {
+                setTimeLeft('Airing Now');
+                return;
+            }
+            const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+            const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+
+            const parts = [];
+            if (days > 0) parts.push(`${days}d`);
+            if (hours > 0) parts.push(`${hours}h`);
+            parts.push(`${minutes}m`);
+
+            setTimeLeft(parts.join(' '));
+        };
+
+        updateTimer();
+        const interval = setInterval(updateTimer, 60000);
+        return () => clearInterval(interval);
+    }, [airingAt]);
+
+    return (
+        <span className="text-[9px] font-bold tracking-wider block text-red-500">
+            {timeLeft}
+        </span>
     );
 };
