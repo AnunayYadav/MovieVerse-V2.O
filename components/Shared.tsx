@@ -301,8 +301,8 @@ const MarqueeMovieCard = ({
     }, [movie.id]);
 
     const backdropUrl = movie.backdrop_path 
-        ? `${TMDB_IMAGE_BASE}${movie.backdrop_path}` 
-        : (movie.poster_path ? `${TMDB_IMAGE_BASE}${movie.poster_path}` : `https://placehold.co/600x338?text=${encodeURIComponent(movie.title || movie.name || 'No Image')}`);
+        ? (movie.backdrop_path.startsWith('http') ? movie.backdrop_path : `${TMDB_IMAGE_BASE}${movie.backdrop_path}`) 
+        : (movie.poster_path ? (movie.poster_path.startsWith('http') ? movie.poster_path : `${TMDB_IMAGE_BASE}${movie.poster_path}`) : `https://placehold.co/600x338?text=${encodeURIComponent(movie.title || movie.name || 'No Image')}`);
 
     return (
         <div 
@@ -438,11 +438,11 @@ export const MovieCard = React.memo(React.forwardRef<HTMLDivElement, MovieCardPr
 
     const posterUrl = horizontal
       ? (movie.backdrop_path 
-          ? `https://image.tmdb.org/t/p/w500${movie.backdrop_path}`
-          : (movie.poster_path ? `https://image.tmdb.org/t/p/w500${movie.poster_path}` : `https://placehold.co/600x338/111/444?text=${encodeURIComponent(movie.title || movie.name || "Movie")}`))
+          ? (movie.backdrop_path.startsWith('http') ? movie.backdrop_path : `https://image.tmdb.org/t/p/w500${movie.backdrop_path}`)
+          : (movie.poster_path ? (movie.poster_path.startsWith('http') ? movie.poster_path : `https://image.tmdb.org/t/p/w500${movie.poster_path}`) : `https://placehold.co/600x338/111/444?text=${encodeURIComponent(movie.title || movie.name || "Movie")}`))
       : (movie.poster_path 
-          ? `https://image.tmdb.org/t/p/w500${movie.poster_path}`
-          : (movie.backdrop_path ? `https://image.tmdb.org/t/p/w500${movie.backdrop_path}` : `https://placehold.co/320x480/111/444?text=${encodeURIComponent(movie.title || movie.name || "Movie")}`));
+          ? (movie.poster_path.startsWith('http') ? movie.poster_path : `https://image.tmdb.org/t/p/w500${movie.poster_path}`)
+          : (movie.backdrop_path ? (movie.backdrop_path.startsWith('http') ? movie.backdrop_path : `https://image.tmdb.org/t/p/w500${movie.backdrop_path}`) : `https://placehold.co/320x480/111/444?text=${encodeURIComponent(movie.title || movie.name || "Movie")}`));
 
     const rating = movie.vote_average;
     const year = (movie.release_date || movie.first_air_date || "").split('-')[0];
