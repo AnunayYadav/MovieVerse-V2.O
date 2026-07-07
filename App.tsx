@@ -3322,6 +3322,26 @@ export default function App() {
             let results = data.results || [];
             if (selectedCategory !== "People") {
                 if (endpoint.includes("/search/multi")) results = results.filter((m: any) => m.media_type === 'movie' || m.media_type === 'tv');
+                if (searchQuery) {
+                    const seasonPattern = /\s*[:\-]?\s*\(?(season\s*\d+|part\s*\d+|\d+(st|nd|rd|th)\s*season)\)?\s*$/i;
+                    results = results.filter((m: any) => {
+                        const name = m.name || m.title || '';
+                        if (seasonPattern.test(name)) {
+                            const baseTitle = name.replace(seasonPattern, '').trim().toLowerCase();
+                            if (baseTitle) {
+                                const hasMasterShow = results.some((other: any) => {
+                                    if (other.id === m.id) return false;
+                                    const otherName = (other.name || other.title || '').toLowerCase();
+                                    return otherName === baseTitle || otherName.replace(seasonPattern, '').trim().toLowerCase() === baseTitle;
+                                });
+                                if (hasMasterShow) {
+                                    return false;
+                                }
+                            }
+                        }
+                        return true;
+                    });
+                }
                 results = results.filter((m: any) => {
                     if (!m.poster_path) return false;
                     if (m.adult === true) return false;

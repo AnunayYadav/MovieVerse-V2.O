@@ -1265,38 +1265,54 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
       return;
     }
 
+    const fetchAniList = (searchTerm: string): Promise<number | null> => {
+      return fetch('https://graphql.anilist.co', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          query: `
+            query ($search: String) {
+              Media(search: $search, type: ANIME) {
+                id
+              }
+            }
+          `,
+          variables: { search: searchTerm }
+        })
+      })
+        .then(res => {
+          if (!res.ok) throw new Error(`AniList error status ${res.status}`);
+          return res.json();
+        })
+        .then(json => json?.data?.Media?.id || null)
+        .catch(() => null);
+    };
+
     setAnilistLoading(true);
     const cleanTitle = title.replace(/\s*\(?(Dub|Sub|TV|Movie|uncensored|censored|season\s*\d+|part\s*\d+)\)?\s*$/i, '').trim();
     const searchTitle = currentSeason > 1 ? `${cleanTitle} Season ${currentSeason}` : cleanTitle;
-    fetch('https://graphql.anilist.co', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        query: `
-          query ($search: String) {
-            Media(search: $search, type: ANIME) {
-              id
-            }
+
+    fetchAniList(searchTitle).then(id => {
+      if (id) {
+        localStorage.setItem(cacheKey, id.toString());
+        setAnilistId(id);
+        setAnilistLoading(false);
+      } else if (searchTitle !== cleanTitle) {
+        // Fallback: Retry with cleanTitle if season-specific search failed
+        fetchAniList(cleanTitle).then(fallbackId => {
+          if (fallbackId) {
+            localStorage.setItem(cacheKey, fallbackId.toString());
+            setAnilistId(fallbackId);
+          } else {
+            console.warn(`Could not find AniList ID for title: "${cleanTitle}"`);
           }
-        `,
-        variables: { search: searchTitle }
-      })
-    })
-      .then(res => res.json())
-      .then(json => {
-        const id = json?.data?.Media?.id;
-        if (id) {
-          localStorage.setItem(cacheKey, id.toString());
-          setAnilistId(id);
-        } else {
-          console.warn(`Could not find AniList ID for title: "${searchTitle}"`);
-        }
+          setAnilistLoading(false);
+        });
+      } else {
+        console.warn(`Could not find AniList ID for title: "${searchTitle}"`);
         setAnilistLoading(false);
-      })
-      .catch(err => {
-        console.error("Error fetching AniList mapping:", err);
-        setAnilistLoading(false);
-      });
+      }
+    });
   }, [tmdbId, isAnime, title, currentSeason]);
 
   useEffect(() => {
@@ -1816,7 +1832,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
       }
       setEmbedUrl(newUrl);
     }
-  }, [tmdbId, mediaType, isAnime, currentSeason, currentEpisode, activeColor, selectedProviderId, forceProgress, isWatchParty, anilistId, animeLanguage, audioLanguage, subtitleLanguage, fallbackToNativeVideasy, useCustomControls, useMegaplayBackup]);
+  }, [tmdbId, mediaType, isAnime, title, currentSeason, currentEpisode, activeColor, selectedProviderId, forceProgress, isWatchParty, anilistId, animeLanguage, audioLanguage, subtitleLanguage, fallbackToNativeVideasy, useCustomControls, useMegaplayBackup]);
 
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
