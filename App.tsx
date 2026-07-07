@@ -1505,7 +1505,6 @@ export default function App() {
         // parts[0] is always '' (before leading /), so parts[1] is the first segment
 
         // Reset all sub-filters to clean state before parsing path
-        setSearchQuery("");
         setCurrentCollection(null);
         setTmdbCollectionId(null);
         setActiveKeyword(null);
@@ -1516,6 +1515,7 @@ export default function App() {
         setSelectedDramaSlug(null);
 
 
+        let searchQueryToSelect = "";
         let category = selectedCategoryRef.current || "All";
         let movieToSelect: Movie | null = null;
         let watchPartyRoomId: string | null = null;
@@ -1682,6 +1682,12 @@ export default function App() {
                 category = "Collection";
                 customCollectionKey = key;
             }
+        } else if (path.startsWith('/search/')) {
+            category = "All";
+            const query = parts[2];
+            if (query) {
+                searchQueryToSelect = decodeURIComponent(query);
+            }
         }
 
         setSelectedCategory(category);
@@ -1714,6 +1720,8 @@ export default function App() {
         setIsWatching(watching);
         setWatchSeason(season);
         setWatchEpisode(episode);
+        setSearchQuery(searchQueryToSelect);
+        setSearchInput(searchQueryToSelect);
         } catch (error) {
             console.error("Error in syncStateFromPath:", error);
         } finally {
@@ -1773,6 +1781,8 @@ export default function App() {
                 } else {
                     newPath = `/${type}/${selectedMovie.id}`;
                 }
+            } else if (searchQuery) {
+                newPath = `/search/${encodeURIComponent(searchQuery)}`;
             } else if (selectedCategory === 'LiveTV') {
                 newPath = '/live-tv';
             } else if (selectedCategory === 'Awards') {
