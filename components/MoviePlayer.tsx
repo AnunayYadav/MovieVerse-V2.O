@@ -80,6 +80,16 @@ function parseSubtitles(text: string): SubtitleCue[] {
   return cues;
 }
 
+function formatSubtitleCaps(text: string): string {
+  const hasLetters = /[a-zA-Z]/.test(text);
+  if (hasLetters && text === text.toUpperCase()) {
+    return text
+      .toLowerCase()
+      .replace(/(^\s*|[\(\[\{\-.!?]\s*)([a-z])/g, (match, p1, p2) => p1 + p2.toUpperCase());
+  }
+  return text;
+}
+
 interface MoviePlayerProps {
   tmdbId: number;
   imdbId?: string;
@@ -369,7 +379,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   const [showNextCountdown, setShowNextCountdown] = useState(false);
   const [nextCountdownTime, setNextCountdownTime] = useState(15);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [settingsView, setSettingsView] = useState<'main' | 'subtitles' | 'language' | 'speed' | 'providers' | 'servers' | 'quality' | 'aspectRatio' | 'brightness' | 'mirror'>('main');
+  const [settingsView, setSettingsView] = useState<'main' | 'subtitles' | 'language' | 'speed' | 'providers' | 'servers' | 'quality' | 'aspectRatio' | 'brightness' | 'mirror' | 'subtitle-styling'>('main');
   const [activeSubtitleCues, setActiveSubtitleCues] = useState<any[]>([]);
   const [currentSubtitleText, setCurrentSubtitleText] = useState<string>('');
   const [aspectRatio, setAspectRatio] = useState<'contain' | 'cover' | 'fill'>('contain');
@@ -381,6 +391,45 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   const [isAutoplayEnabled, setIsAutoplayEnabled] = useState(true);
   const [detectedAudioLanguages, setDetectedAudioLanguages] = useState<string[]>([]);
   const [hlsManifestLoaded, setHlsManifestLoaded] = useState(false);
+
+  // Subtitle Customization states
+  const [subSize, setSubSize] = useState<'small' | 'medium' | 'large' | 'xlarge'>(() => {
+    if (typeof window !== 'undefined') {
+      return (localStorage.getItem('movieverse_subtitle_size') as any) || 'medium';
+    }
+    return 'medium';
+  });
+  const [subColor, setSubColor] = useState<'white' | 'yellow' | 'cyan' | 'green'>(() => {
+    if (typeof window !== 'undefined') {
+      return (localStorage.getItem('movieverse_subtitle_color') as any) || 'white';
+    }
+    return 'white';
+  });
+  const [subBg, setSubBg] = useState<'none' | 'translucent' | 'solid'>(() => {
+    if (typeof window !== 'undefined') {
+      return (localStorage.getItem('movieverse_subtitle_background') as any) || 'none';
+    }
+    return 'none';
+  });
+  const [subShadow, setSubShadow] = useState<'drop-shadow' | 'outline' | 'none'>(() => {
+    if (typeof window !== 'undefined') {
+      return (localStorage.getItem('movieverse_subtitle_shadow') as any) || 'drop-shadow';
+    }
+    return 'drop-shadow';
+  });
+  const [subCasing, setSubCasing] = useState<'smart' | 'as-is'>(() => {
+    if (typeof window !== 'undefined') {
+      return (localStorage.getItem('movieverse_subtitle_casing') as any) || 'smart';
+    }
+    return 'smart';
+  });
+  const [subDelay, setSubDelay] = useState<number>(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('movieverse_subtitle_delay');
+      return stored ? parseFloat(stored) : 0;
+    }
+    return 0;
+  });
 
   // Synchronize VidEasy server based on selected audio language
   useEffect(() => {
@@ -734,7 +783,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
           track.label.toLowerCase() === subtitleLanguage.toLowerCase() ||
           track.language.toLowerCase() === getSubtitleCode(subtitleLanguage, 'iso').toLowerCase()
         );
-        track.mode = isMatch ? 'showing' : 'hidden';
+        track.mode = isMatch ? (useCustomControls ? 'hidden' : 'showing') : 'disabled';
       }
     };
 
@@ -744,11 +793,11 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     return () => {
       video.textTracks.removeEventListener('addtrack', syncTracks);
     };
-  }, [subtitleLanguage, anivexaSubtitles, anivexaStreamUrl]);
+  }, [subtitleLanguage, anivexaSubtitles, anivexaStreamUrl, useCustomControls]);
 
-  // Load & Parse WebVTT subtitle cues when a subtitle language is selected for iframe players
+  // Load & Parse WebVTT subtitle cues when a subtitle language is selected
   useEffect(() => {
-    if (!isIframeCustomControls || subtitleLanguage === 'None') {
+    if (!useCustomControls || subtitleLanguage === 'None') {
       setActiveSubtitleCues([]);
       setCurrentSubtitleText('');
       return;
@@ -791,24 +840,25 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     return () => {
       isMounted = false;
     };
-  }, [subtitleLanguage, anivexaSubtitles, isIframeCustomControls]);
+  }, [subtitleLanguage, anivexaSubtitles, useCustomControls]);
 
   // Synchronize subtitle text overlay with current playback time
   useEffect(() => {
-    if (!isIframeCustomControls || activeSubtitleCues.length === 0) {
+    if (!useCustomControls || activeSubtitleCues.length === 0) {
       setCurrentSubtitleText('');
       return;
     }
     
-    const time = playerCurrentTime;
+    const time = playerCurrentTime - subDelay;
     const activeCue = activeSubtitleCues.find(cue => time >= cue.start && time <= cue.end);
     
     if (activeCue) {
-      setCurrentSubtitleText(activeCue.text);
+      const text = subCasing === 'smart' ? formatSubtitleCaps(activeCue.text) : activeCue.text;
+      setCurrentSubtitleText(text);
     } else {
       setCurrentSubtitleText('');
     }
-  }, [playerCurrentTime, activeSubtitleCues, isIframeCustomControls]);
+  }, [playerCurrentTime, activeSubtitleCues, useCustomControls, subDelay, subCasing]);
 
   // Reset EncDec server states when provider or movie/episode changes
   // Reset EncDec server states when provider or movie/episode changes
@@ -1487,7 +1537,9 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
       shouldUpdateUrl = true;
       lastAudioLanguageRef.current = audioLanguage;
     } else if (lastSubtitleLanguageRef.current !== subtitleLanguage) {
-      shouldUpdateUrl = true;
+      if (!useCustomControls) {
+        shouldUpdateUrl = true;
+      }
       lastSubtitleLanguageRef.current = subtitleLanguage;
     } else if (forceProgress !== undefined) {
       // External seek/sync (like Watch Party seek)
@@ -1553,7 +1605,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
       }
       setEmbedUrl(newUrl);
     }
-  }, [tmdbId, mediaType, isAnime, currentSeason, currentEpisode, activeColor, selectedProviderId, forceProgress, isWatchParty, anilistId, animeLanguage, audioLanguage, subtitleLanguage, fallbackToNativeVideasy]);
+  }, [tmdbId, mediaType, isAnime, currentSeason, currentEpisode, activeColor, selectedProviderId, forceProgress, isWatchParty, anilistId, animeLanguage, audioLanguage, subtitleLanguage, fallbackToNativeVideasy, useCustomControls]);
 
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
@@ -1984,13 +2036,47 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     >
       <style>{`
         video::cue {
-          background: transparent !important;
-          background-color: transparent !important;
-          color: #ffffff !important;
-          text-shadow: 0px 0px 4px rgba(0, 0, 0, 0.9), 0px 0px 4px rgba(0, 0, 0, 0.9), 1px 1px 2px rgba(0, 0, 0, 0.8), -1px -1px 2px rgba(0, 0, 0, 0.8) !important;
-          font-family: "Helvetica Neue", Helvetica, Arial, sans-serif !important;
+          background: ${
+            subBg === 'none' 
+              ? 'transparent !important' 
+              : subBg === 'translucent' 
+                ? 'rgba(0,0,0,0.4) !important' 
+                : 'rgba(0,0,0,0.9) !important'
+          };
+          background-color: ${
+            subBg === 'none' 
+              ? 'transparent !important' 
+              : subBg === 'translucent' 
+                ? 'rgba(0,0,0,0.4) !important' 
+                : 'rgba(0,0,0,0.9) !important'
+          };
+          color: ${
+            subColor === 'white' 
+              ? '#ffffff !important' 
+              : subColor === 'yellow' 
+                ? '#facc15 !important' 
+                : subColor === 'cyan' 
+                  ? '#22d3ee !important' 
+                  : '#4ade80 !important'
+          };
+          text-shadow: ${
+            subShadow === 'none' 
+              ? 'none !important' 
+              : subShadow === 'drop-shadow'
+                ? '0px 2px 4px rgba(0, 0, 0, 0.8), 0px 0px 2px rgba(0, 0, 0, 0.8) !important'
+                : '1px 1px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 2px 2px 0 #000, -2px -2px 0 #000 !important'
+          };
+          font-family: "Netflix Sans", "Helvetica Neue", Helvetica, Arial, sans-serif !important;
           font-weight: 500 !important;
-          font-size: 1.18em !important;
+          font-size: ${
+            subSize === 'small' 
+              ? '0.9em !important' 
+              : subSize === 'medium' 
+                ? '1.18em !important' 
+                : subSize === 'large' 
+                  ? '1.4em !important' 
+                  : '1.7em !important'
+          };
         }
         video::-webkit-media-text-track-container {
           transform: translateY(-40px) !important;
@@ -2083,17 +2169,44 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
             )
         )}
 
-        {/* Custom subtitle overlay for iframe players */}
-        {isIframeCustomControls && currentSubtitleText && (
+        {/* Custom subtitle overlay */}
+        {useCustomControls && currentSubtitleText && (
           <div 
             className={`absolute left-1/2 -translate-x-1/2 transition-all duration-300 pointer-events-none z-20 flex justify-center text-center px-4 w-full max-w-[85%] sm:max-w-[70%] md:max-w-[60%] ${
               showControls ? 'bottom-28' : 'bottom-12'
             }`}
           >
             <span 
-              className="bg-black/85 px-4 py-2 rounded-xl text-white font-semibold text-base sm:text-lg md:text-xl lg:text-2xl leading-relaxed tracking-wide select-none shadow-[0_4px_24px_rgba(0,0,0,0.8)] border border-white/5 break-words whitespace-pre-wrap"
+              className={`${
+                subBg === 'none' 
+                  ? 'bg-transparent border-none' 
+                  : subBg === 'translucent' 
+                    ? 'bg-black/40 px-4 py-2 rounded-xl border border-white/5 shadow-[0_4px_24px_rgba(0,0,0,0.4)]' 
+                    : 'bg-black/90 px-4 py-2 rounded-xl border border-white/5 shadow-[0_4px_24px_rgba(0,0,0,0.8)]'
+              } ${
+                subColor === 'white' 
+                  ? 'text-white' 
+                  : subColor === 'yellow' 
+                    ? 'text-yellow-400' 
+                    : subColor === 'cyan' 
+                      ? 'text-cyan-400' 
+                      : 'text-green-400'
+              } ${
+                subSize === 'small' 
+                  ? 'text-sm sm:text-base md:text-lg lg:text-xl font-medium' 
+                  : subSize === 'medium' 
+                    ? 'text-base sm:text-lg md:text-xl lg:text-2xl font-semibold' 
+                    : subSize === 'large' 
+                      ? 'text-lg sm:text-xl md:text-2xl lg:text-3xl font-semibold' 
+                      : 'text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold'
+              } leading-relaxed tracking-wide select-none break-words whitespace-pre-wrap`}
               style={{
-                textShadow: '0 2px 4px rgba(0, 0, 0, 0.9), 0px 0px 2px rgba(0,0,0,0.9)'
+                fontFamily: '"Netflix Sans", "Inter", "Outfit", "Helvetica Neue", Helvetica, Arial, sans-serif',
+                textShadow: subShadow === 'none'
+                  ? 'none'
+                  : subShadow === 'drop-shadow'
+                    ? '0 2px 4px rgba(0,0,0,0.8), 0 0 2px rgba(0,0,0,0.8)'
+                    : '1px 1px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 2px 2px 0 #000, -2px -2px 0 #000',
               }}
             >
               {currentSubtitleText}
@@ -2781,6 +2894,15 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                                 <span className="text-[11px] font-bold uppercase tracking-wider">Subtitles</span>
                               </button>
 
+                              {/* Customize Subtitles Button */}
+                              <button
+                                onClick={() => setSettingsView('subtitle-styling')}
+                                className="w-full py-1.5 px-2.5 rounded-xl text-[10px] font-bold bg-[#E50914] text-white hover:bg-red-700 flex items-center justify-center gap-1.5 transition-colors mb-1 shadow-md"
+                              >
+                                <Sliders size={12} />
+                                <span>Customize Style & Size</span>
+                              </button>
+
                               <div className="space-y-1 max-h-[220px] overflow-y-auto custom-scrollbar pr-1">
                                 {/* None */}
                                 <button
@@ -2891,6 +3013,197 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                                     No subtitles found.
                                   </div>
                                 )}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* 2k. Subtitle Customization Sub-view */}
+                          {settingsView === 'subtitle-styling' && (
+                            <div className="flex flex-col gap-3 min-w-[260px]">
+                              <button 
+                                onClick={() => setSettingsView('subtitles')}
+                                className="flex items-center gap-1.5 border-b border-white/5 pb-2 mb-1 text-zinc-400 hover:text-white transition-colors"
+                              >
+                                <ChevronLeft size={16} />
+                                <span className="text-[11px] font-bold uppercase tracking-wider">Subtitle Options</span>
+                              </button>
+
+                              {/* Size Selector */}
+                              <div className="flex flex-col gap-1">
+                                <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-wider block px-1">Text Size</span>
+                                <div className="grid grid-cols-4 gap-1">
+                                  {[
+                                    { label: 'Small', val: 'small' },
+                                    { label: 'Normal', val: 'medium' },
+                                    { label: 'Large', val: 'large' },
+                                    { label: 'Extra', val: 'xlarge' }
+                                  ].map((opt) => (
+                                    <button
+                                      key={opt.val}
+                                      onClick={() => {
+                                        setSubSize(opt.val as any);
+                                        localStorage.setItem('movieverse_subtitle_size', opt.val);
+                                      }}
+                                      className={`py-1 rounded-lg text-[9px] font-bold text-center border transition-all ${
+                                        subSize === opt.val
+                                          ? 'bg-red-600/10 text-red-500 border-red-500/20'
+                                          : 'bg-white/5 text-zinc-300 border-white/5 hover:border-white/10 hover:bg-white/10'
+                                      }`}
+                                    >
+                                      {opt.label}
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+
+                              {/* Color Selector */}
+                              <div className="flex flex-col gap-1">
+                                <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-wider block px-1">Text Color</span>
+                                <div className="grid grid-cols-4 gap-1">
+                                  {[
+                                    { label: 'White', val: 'white', colorCode: '#ffffff' },
+                                    { label: 'Yellow', val: 'yellow', colorCode: '#facc15' },
+                                    { label: 'Cyan', val: 'cyan', colorCode: '#22d3ee' },
+                                    { label: 'Green', val: 'green', colorCode: '#4ade80' }
+                                  ].map((opt) => (
+                                    <button
+                                      key={opt.val}
+                                      onClick={() => {
+                                        setSubColor(opt.val as any);
+                                        localStorage.setItem('movieverse_subtitle_color', opt.val);
+                                      }}
+                                      className={`py-1 rounded-lg text-[9px] font-bold text-center border transition-all flex items-center justify-center gap-1 ${
+                                        subColor === opt.val
+                                          ? 'bg-red-600/10 text-red-500 border-red-500/20'
+                                          : 'bg-white/5 text-zinc-300 border-white/5 hover:border-white/10 hover:bg-white/10'
+                                      }`}
+                                    >
+                                      <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: opt.colorCode }} />
+                                      <span>{opt.label}</span>
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+
+                              {/* Background Selector */}
+                              <div className="flex flex-col gap-1">
+                                <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-wider block px-1">Background</span>
+                                <div className="grid grid-cols-3 gap-1">
+                                  {[
+                                    { label: 'None', val: 'none' },
+                                    { label: 'Shadowed', val: 'translucent' },
+                                    { label: 'Solid', val: 'solid' }
+                                  ].map((opt) => (
+                                    <button
+                                      key={opt.val}
+                                      onClick={() => {
+                                        setSubBg(opt.val as any);
+                                        localStorage.setItem('movieverse_subtitle_background', opt.val);
+                                      }}
+                                      className={`py-1 rounded-lg text-[9px] font-bold text-center border transition-all ${
+                                        subBg === opt.val
+                                          ? 'bg-red-600/10 text-red-500 border-red-500/20'
+                                          : 'bg-white/5 text-zinc-300 border-white/5 hover:border-white/10 hover:bg-white/10'
+                                      }`}
+                                    >
+                                      {opt.label}
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+
+                              {/* Edge Style Selector */}
+                              <div className="flex flex-col gap-1">
+                                <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-wider block px-1">Edge Style</span>
+                                <div className="grid grid-cols-3 gap-1">
+                                  {[
+                                    { label: 'Shadow', val: 'drop-shadow' },
+                                    { label: 'Outline', val: 'outline' },
+                                    { label: 'None', val: 'none' }
+                                  ].map((opt) => (
+                                    <button
+                                      key={opt.val}
+                                      onClick={() => {
+                                        setSubShadow(opt.val as any);
+                                        localStorage.setItem('movieverse_subtitle_shadow', opt.val);
+                                      }}
+                                      className={`py-1 rounded-lg text-[9px] font-bold text-center border transition-all ${
+                                        subShadow === opt.val
+                                          ? 'bg-red-600/10 text-red-500 border-red-500/20'
+                                          : 'bg-white/5 text-zinc-300 border-white/5 hover:border-white/10 hover:bg-white/10'
+                                      }`}
+                                    >
+                                      {opt.label}
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+
+                              {/* Capitalization Selector */}
+                              <div className="flex flex-col gap-1">
+                                <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-wider block px-1">Capitalization</span>
+                                <div className="grid grid-cols-2 gap-1">
+                                  {[
+                                    { label: 'Smart Casing', val: 'smart' },
+                                    { label: 'As In File', val: 'as-is' }
+                                  ].map((opt) => (
+                                    <button
+                                      key={opt.val}
+                                      onClick={() => {
+                                        setSubCasing(opt.val as any);
+                                        localStorage.setItem('movieverse_subtitle_casing', opt.val);
+                                      }}
+                                      className={`py-1 rounded-lg text-[9px] font-bold text-center border transition-all ${
+                                        subCasing === opt.val
+                                          ? 'bg-red-600/10 text-red-500 border-red-500/20'
+                                          : 'bg-white/5 text-zinc-300 border-white/5 hover:border-white/10 hover:bg-white/10'
+                                      }`}
+                                    >
+                                      {opt.label}
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+
+                              {/* Delay Control */}
+                              <div className="flex flex-col gap-1 border-t border-white/5 pt-2">
+                                <div className="flex items-center justify-between px-1">
+                                  <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-wider">Subtitle Sync / Delay</span>
+                                  <span className="text-[10px] font-mono text-zinc-300 font-bold">
+                                    {subDelay === 0 ? 'Synced' : subDelay > 0 ? `+${subDelay.toFixed(1)}s (Delay)` : `${subDelay.toFixed(1)}s (Early)`}
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-2 mt-1">
+                                  <button
+                                    onClick={() => {
+                                      const next = Math.max(-10, subDelay - 0.5);
+                                      setSubDelay(next);
+                                      localStorage.setItem('movieverse_subtitle_delay', next.toString());
+                                    }}
+                                    className="flex-1 py-1 bg-white/5 hover:bg-white/10 text-white rounded-lg text-[10px] font-bold border border-white/5 text-center active:scale-95 transition-all"
+                                  >
+                                    -0.5s (Earlier)
+                                  </button>
+                                  <button
+                                    onClick={() => {
+                                      setSubDelay(0);
+                                      localStorage.removeItem('movieverse_subtitle_delay');
+                                    }}
+                                    className="px-3 py-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white rounded-lg text-[10px] font-bold border border-zinc-700/50 text-center active:scale-95 transition-all"
+                                  >
+                                    Reset
+                                  </button>
+                                  <button
+                                    onClick={() => {
+                                      const next = Math.min(10, subDelay + 0.5);
+                                      setSubDelay(next);
+                                      localStorage.setItem('movieverse_subtitle_delay', next.toString());
+                                    }}
+                                    className="flex-1 py-1 bg-white/5 hover:bg-white/10 text-white rounded-lg text-[10px] font-bold border border-white/5 text-center active:scale-95 transition-all"
+                                  >
+                                    +0.5s (Later)
+                                  </button>
+                                </div>
                               </div>
                             </div>
                           )}
@@ -3633,6 +3946,129 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                       ))}
                     </select>
                     <ChevronDown size={14} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none" />
+                  </div>
+                </div>
+
+                {/* Subtitles Customization (Size, Color, Bg, Edge, Case, Delay) */}
+                <div className="border-t border-white/5 pt-4 space-y-3.5">
+                  <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block px-1">
+                    Subtitle Customization
+                  </span>
+
+                  {/* Size select */}
+                  <div className="flex justify-between items-center gap-2 px-1">
+                    <span className="text-[10px] text-zinc-400 font-semibold">Size</span>
+                    <select
+                      value={subSize}
+                      onChange={(e) => {
+                        setSubSize(e.target.value as any);
+                        localStorage.setItem('movieverse_subtitle_size', e.target.value);
+                      }}
+                      className="bg-[#141417] border border-white/10 rounded-lg px-2 py-1 text-white text-[10px] font-bold focus:outline-none cursor-pointer"
+                    >
+                      <option value="small">Small</option>
+                      <option value="medium">Normal</option>
+                      <option value="large">Large</option>
+                      <option value="xlarge">Extra Large</option>
+                    </select>
+                  </div>
+
+                  {/* Color select */}
+                  <div className="flex justify-between items-center gap-2 px-1">
+                    <span className="text-[10px] text-zinc-400 font-semibold">Color</span>
+                    <select
+                      value={subColor}
+                      onChange={(e) => {
+                        setSubColor(e.target.value as any);
+                        localStorage.setItem('movieverse_subtitle_color', e.target.value);
+                      }}
+                      className="bg-[#141417] border border-white/10 rounded-lg px-2 py-1 text-white text-[10px] font-bold focus:outline-none cursor-pointer"
+                    >
+                      <option value="white">White</option>
+                      <option value="yellow">Yellow</option>
+                      <option value="cyan">Cyan</option>
+                      <option value="green">Green</option>
+                    </select>
+                  </div>
+
+                  {/* Background select */}
+                  <div className="flex justify-between items-center gap-2 px-1">
+                    <span className="text-[10px] text-zinc-400 font-semibold">Background</span>
+                    <select
+                      value={subBg}
+                      onChange={(e) => {
+                        setSubBg(e.target.value as any);
+                        localStorage.setItem('movieverse_subtitle_background', e.target.value);
+                      }}
+                      className="bg-[#141417] border border-white/10 rounded-lg px-2 py-1 text-white text-[10px] font-bold focus:outline-none cursor-pointer"
+                    >
+                      <option value="none">None</option>
+                      <option value="translucent">Shadowed</option>
+                      <option value="solid">Solid</option>
+                    </select>
+                  </div>
+
+                  {/* Edge Style select */}
+                  <div className="flex justify-between items-center gap-2 px-1">
+                    <span className="text-[10px] text-zinc-400 font-semibold">Edge Style</span>
+                    <select
+                      value={subShadow}
+                      onChange={(e) => {
+                        setSubShadow(e.target.value as any);
+                        localStorage.setItem('movieverse_subtitle_shadow', e.target.value);
+                      }}
+                      className="bg-[#141417] border border-white/10 rounded-lg px-2 py-1 text-white text-[10px] font-bold focus:outline-none cursor-pointer"
+                    >
+                      <option value="drop-shadow">Shadow</option>
+                      <option value="outline">Outline</option>
+                      <option value="none">None</option>
+                    </select>
+                  </div>
+
+                  {/* Casing select */}
+                  <div className="flex justify-between items-center gap-2 px-1">
+                    <span className="text-[10px] text-zinc-400 font-semibold">Casing</span>
+                    <select
+                      value={subCasing}
+                      onChange={(e) => {
+                        setSubCasing(e.target.value as any);
+                        localStorage.setItem('movieverse_subtitle_casing', e.target.value);
+                      }}
+                      className="bg-[#141417] border border-white/10 rounded-lg px-2 py-1 text-white text-[10px] font-bold focus:outline-none cursor-pointer"
+                    >
+                      <option value="smart">Smart Casing</option>
+                      <option value="as-is">As In File</option>
+                    </select>
+                  </div>
+
+                  {/* Delay adjust */}
+                  <div className="flex justify-between items-center gap-2 px-1">
+                    <span className="text-[10px] text-zinc-400 font-semibold">Sync / Delay</span>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        onClick={() => {
+                          const next = Math.max(-10, subDelay - 0.5);
+                          setSubDelay(next);
+                          localStorage.setItem('movieverse_subtitle_delay', next.toString());
+                        }}
+                        className="w-6 h-6 rounded bg-white/5 text-white flex items-center justify-center font-bold text-xs hover:bg-white/10 border border-white/5 active:scale-90 transition-transform"
+                      >
+                        -
+                      </button>
+                      <span className="text-[10px] font-mono font-bold text-zinc-300 w-12 text-center select-all">
+                        {subDelay > 0 ? `+${subDelay.toFixed(1)}s` : `${subDelay.toFixed(1)}s`}
+                      </span>
+                      <button
+                        onClick={() => {
+                          const next = Math.min(10, subDelay + 0.5);
+                          setSubDelay(next);
+                          localStorage.setItem('movieverse_subtitle_delay', next.toString());
+                        }}
+                        className="w-6 h-6 rounded bg-white/5 text-white flex items-center justify-center font-bold text-xs hover:bg-white/10 border border-white/5 active:scale-90 transition-transform"
+                      >
+                        +
+                      </button>
+                    </div>
                   </div>
                 </div>
 
