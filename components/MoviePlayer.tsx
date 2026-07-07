@@ -1258,7 +1258,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
       return;
     }
 
-    const cacheKey = `movieverse_anilist_map_${tmdbId}`;
+    const cacheKey = `movieverse_anilist_map_${tmdbId}_s${currentSeason}`;
     const cachedId = localStorage.getItem(cacheKey);
     if (cachedId) {
       setAnilistId(parseInt(cachedId, 10));
@@ -1266,7 +1266,8 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     }
 
     setAnilistLoading(true);
-    const cleanTitle = title.replace(/\s*\(?(Dub|Sub|TV|Movie|uncensored|censored)\)?\s*$/i, '').trim();
+    const cleanTitle = title.replace(/\s*\(?(Dub|Sub|TV|Movie|uncensored|censored|season\s*\d+|part\s*\d+)\)?\s*$/i, '').trim();
+    const searchTitle = currentSeason > 1 ? `${cleanTitle} Season ${currentSeason}` : cleanTitle;
     fetch('https://graphql.anilist.co', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -1278,7 +1279,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
             }
           }
         `,
-        variables: { search: cleanTitle }
+        variables: { search: searchTitle }
       })
     })
       .then(res => res.json())
@@ -1288,7 +1289,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
           localStorage.setItem(cacheKey, id.toString());
           setAnilistId(id);
         } else {
-          console.warn(`Could not find AniList ID for title: "${cleanTitle}"`);
+          console.warn(`Could not find AniList ID for title: "${searchTitle}"`);
         }
         setAnilistLoading(false);
       })
@@ -1296,7 +1297,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
         console.error("Error fetching AniList mapping:", err);
         setAnilistLoading(false);
       });
-  }, [tmdbId, isAnime, title]);
+  }, [tmdbId, isAnime, title, currentSeason]);
 
   useEffect(() => {
     setCurrentSeason(initialSeason);
@@ -1709,9 +1710,14 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
         : `${domain}/stream/ani/${anilistId || tmdbId}/1/${lang}`;
     }
     const provider = PROVIDERS.find(p => p.id === providerId) || PROVIDERS[0];
-    return isTvShow
+    let url = isTvShow
       ? provider.getTvUrl(tmdbId, currentSeason, currentEpisode, activeColor, progress, isAnime, anilistId, animeLanguage, audioLanguage, subtitleLanguage)
       : provider.getMovieUrl(tmdbId, activeColor, progress, isAnime, anilistId, animeLanguage, audioLanguage, subtitleLanguage);
+
+    if (providerId === 'anikai' && title) {
+      url += `&title=${encodeURIComponent(title)}`;
+    }
+    return url;
   };
 
   useEffect(() => {
