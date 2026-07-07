@@ -171,6 +171,8 @@ export const MusicPage: React.FC<MusicPageProps> = ({ isAuthenticated, disableEn
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const animationFrameRef = useRef<number | null>(null);
   const activeLyricRef = useRef<HTMLParagraphElement | null>(null);
+  const desktopLyricsContainerRef = useRef<HTMLDivElement | null>(null);
+  const mobileLyricsContainerRef = useRef<HTMLDivElement | null>(null);
 
   const activeLyricIndex = duration > 0 ? Math.floor((currentTime / duration) * lyricsText.length) : -1;
 
@@ -267,13 +269,22 @@ export const MusicPage: React.FC<MusicPageProps> = ({ isAuthenticated, disableEn
     fetchRecommendations();
   }, [musicPreference]);
 
-  // Scroll timed lyrics
+  // Scroll timed lyrics within their containers only (preventing window scrolling)
   useEffect(() => {
+    const scrollContainer = (container: HTMLDivElement | null, element: HTMLParagraphElement | null) => {
+      if (container && element) {
+        const elementOffsetTop = element.offsetTop;
+        const containerHeight = container.clientHeight;
+        container.scrollTo({
+          top: elementOffsetTop - (containerHeight / 2) + (element.clientHeight / 2),
+          behavior: 'smooth'
+        });
+      }
+    };
+
     if (activeLyricRef.current) {
-      activeLyricRef.current.scrollIntoView({
-        behavior: 'smooth',
-        block: 'center'
-      });
+      scrollContainer(desktopLyricsContainerRef.current, activeLyricRef.current);
+      scrollContainer(mobileLyricsContainerRef.current, activeLyricRef.current);
     }
   }, [activeLyricIndex]);
 
@@ -761,8 +772,7 @@ export const MusicPage: React.FC<MusicPageProps> = ({ isAuthenticated, disableEn
       animationFrameRef.current = requestAnimationFrame(draw);
       analyser.getByteFrequencyData(dataArray);
 
-      ctx.fillStyle = 'rgba(9, 9, 11, 0.25)'; 
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
 
       if (visualizerMode === 'circular') {
         const centerX = canvas.width / 2;
@@ -2828,7 +2838,7 @@ export const MusicPage: React.FC<MusicPageProps> = ({ isAuthenticated, disableEn
                   <Loader2 className="animate-spin text-green-500" size={20} />
                 </div>
               ) : (
-                <div className="flex-1 overflow-y-auto space-y-6 pr-4 custom-scrollbar scroll-smooth h-[calc(100%-40px)]">
+                <div ref={desktopLyricsContainerRef} className="relative flex-1 overflow-y-auto space-y-6 pr-4 custom-scrollbar scroll-smooth h-[calc(100%-40px)]">
                   {lyricsText.map((line, idx) => {
                     const isActive = idx === activeLyricIndex;
                     return (
@@ -2912,7 +2922,7 @@ export const MusicPage: React.FC<MusicPageProps> = ({ isAuthenticated, disableEn
                       <Loader2 className="animate-spin text-green-500" size={20} />
                     </div>
                   ) : (
-                    <div className="flex-1 overflow-y-auto space-y-4 pr-2 custom-scrollbar scroll-smooth h-full">
+                    <div ref={mobileLyricsContainerRef} className="relative flex-1 overflow-y-auto space-y-4 pr-2 custom-scrollbar scroll-smooth h-full">
                       {lyricsText.map((line, idx) => {
                         const isActive = idx === activeLyricIndex;
                         return (
