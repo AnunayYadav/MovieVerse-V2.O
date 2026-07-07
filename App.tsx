@@ -241,7 +241,7 @@ const MovieRowCard = ({
             className="relative w-[220px] md:w-[260px] shrink-0 aspect-[16/9] rounded-xl overflow-hidden bg-zinc-900 border border-white/5 cursor-pointer shadow-lg hover:scale-105 hover:border-white/15 transition-all duration-500 group"
         >
             <img
-                src={movie.backdrop_path ? (movie.backdrop_path.startsWith('http') ? movie.backdrop_path : `https://image.tmdb.org/t/p/w500${movie.backdrop_path}`) : (movie.poster_path ? (movie.poster_path.startsWith('http') ? movie.poster_path : `https://image.tmdb.org/t/p/w500${movie.poster_path}`) : `https://placehold.co/600x338?text=${encodeURIComponent(movie.title || movie.name || 'No Image')}`)}
+                src={movie.backdrop_path ? `https://image.tmdb.org/t/p/w500${movie.backdrop_path}` : (movie.poster_path ? `https://image.tmdb.org/t/p/w500${movie.poster_path}` : `https://placehold.co/600x338?text=${encodeURIComponent(movie.title || movie.name || 'No Image')}`)}
                 alt={movie.title || movie.name}
                 className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
                 loading="lazy"
@@ -355,7 +355,7 @@ const ComingSoonCard = ({
                 onClick={() => setSelectedMovie(movie)}
             >
                 <img
-                    src={movie.backdrop_path ? (movie.backdrop_path.startsWith('http') ? movie.backdrop_path : `${TMDB_BACKDROP_BASE}${movie.backdrop_path}`) : (movie.poster_path ? (movie.poster_path.startsWith('http') ? movie.poster_path : `${TMDB_IMAGE_BASE}${movie.poster_path}`) : "https://placehold.co/600x338/111/FFF?text=No+Preview")}
+                    src={movie.backdrop_path ? `${TMDB_BACKDROP_BASE}${movie.backdrop_path}` : (movie.poster_path ? `${TMDB_IMAGE_BASE}${movie.poster_path}` : "https://placehold.co/600x338/111/FFF?text=No+Preview")}
                     alt={movie.title}
                     className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
                     loading="lazy"
@@ -962,7 +962,7 @@ const ContinueWatchingCard = ({
             className="relative w-[220px] md:w-[260px] shrink-0 aspect-[16/9] rounded-xl overflow-hidden bg-zinc-900 border border-white/5 cursor-pointer shadow-lg hover:scale-[1.03] hover:border-white/10 transition-all duration-300 group"
         >
             <img
-                src={movie.backdrop_path ? (movie.backdrop_path.startsWith('http') ? movie.backdrop_path : `https://image.tmdb.org/t/p/w500${movie.backdrop_path}`) : (movie.poster_path ? (movie.poster_path.startsWith('http') ? movie.poster_path : `https://image.tmdb.org/t/p/w300${movie.poster_path}`) : "https://placehold.co/600x338?text=No+Preview")}
+                src={movie.backdrop_path ? `https://image.tmdb.org/t/p/w500${movie.backdrop_path}` : (movie.poster_path ? `https://image.tmdb.org/t/p/w300${movie.poster_path}` : "https://placehold.co/600x338?text=No+Preview")}
                 alt={movie.title || movie.name}
                 className="w-full h-full object-cover"
                 loading="lazy"
@@ -1195,9 +1195,9 @@ const GenreCard = ({
                     const randomIndex = Math.floor(Math.random() * Math.min(5, results.length));
                     const movie = results[randomIndex];
                     if (movie.backdrop_path) {
-                        setBackdropUrl(movie.backdrop_path.startsWith('http') ? movie.backdrop_path : `https://image.tmdb.org/t/p/w500${movie.backdrop_path}`);
+                        setBackdropUrl(`https://image.tmdb.org/t/p/w500${movie.backdrop_path}`);
                     } else if (movie.poster_path) {
-                        setBackdropUrl(movie.poster_path.startsWith('http') ? movie.poster_path : `https://image.tmdb.org/t/p/w500${movie.poster_path}`);
+                        setBackdropUrl(`https://image.tmdb.org/t/p/w500${movie.poster_path}`);
                     }
                 }
             })
@@ -4939,7 +4939,7 @@ export default function App() {
                                             {/* Backdrop Background */}
                                             <div className="absolute inset-0">
                                                 <img
-                                                    src={featuredMovie.backdrop_path ? (featuredMovie.backdrop_path.startsWith('http') ? featuredMovie.backdrop_path : `${TMDB_BACKDROP_BASE}${featuredMovie.backdrop_path}`) : (featuredMovie.poster_path ? (featuredMovie.poster_path.startsWith('http') ? featuredMovie.poster_path : `${TMDB_IMAGE_BASE}${featuredMovie.poster_path}`) : 'https://placehold.co/1200x600')}
+                                                    src={featuredMovie.backdrop_path ? `${TMDB_BACKDROP_BASE}${featuredMovie.backdrop_path}` : `${TMDB_IMAGE_BASE}${featuredMovie.poster_path}`}
                                                     alt={featuredMovie.title || featuredMovie.name}
                                                     className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105"
                                                 />

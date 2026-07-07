@@ -424,11 +424,6 @@ export const MoviePage: React.FC<MoviePageProps> = ({
     onCharacterClick
 }) => {
     const resolvedMediaType = movie.media_type === 'tv' || (!movie.release_date && movie.first_air_date) ? 'tv' : 'movie';
-    const getImageUrl = (path: string | null | undefined, fallback: string = "https://placehold.co/300x450") => {
-        if (!path) return fallback;
-        if (path.startsWith('http')) return path;
-        return `${TMDB_IMAGE_BASE}${path}`;
-    };
     const onPlayStateChangeRef = useRef(onPlayStateChange);
     const isInitialMountRef = useRef(true);
     const tabChangedByUserRef = useRef(false);
@@ -781,7 +776,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
         }));
     };
 
-    const isAnime = !!(movie.isAnime || ((details?.genres || movie?.genres)?.some((g: any) => g.id === 16) && (details?.original_language || movie?.original_language) === 'ja'));
+    const isAnime = !!((details?.genres || movie?.genres)?.some((g: any) => g.id === 16) && (details?.original_language || movie?.original_language) === 'ja');
 
     const isDrama = !!(
       ((details?.original_language || movie?.original_language) === 'ko' || 
@@ -1407,219 +1402,40 @@ export const MoviePage: React.FC<MoviePageProps> = ({
         setCollection(null);
         hasCenteredTimeline.current = null;
         
-        if (movie.isAnime) {
-            let active = true;
-            const query = `
-              query ($id: Int) {
-                Media(id: $id, type: ANIME) {
-                  id
-                  title {
-                    english
-                    romaji
-                    userPreferred
-                  }
-                  coverImage {
-                    extraLarge
-                    large
-                  }
-                  bannerImage
-                  description
-                  averageScore
-                  genres
-                  season
-                  seasonYear
-                  episodes
-                  status
-                  synonyms
-                  studios(isMain: true) {
-                    nodes {
-                      name
-                    }
-                  }
-                  relations {
-                    edges {
-                      relationType
-                      node {
-                        id
-                        title {
-                          english
-                          romaji
-                          userPreferred
-                        }
-                        type
-                        format
-                        coverImage {
-                          large
-                        }
-                        bannerImage
-                      }
-                    }
-                  }
-                  characters(sort: [ROLE, RELEVANCE], page: 1, perPage: 12) {
-                    edges {
-                      role
-                      node {
-                        id
-                        name {
-                          userPreferred
-                        }
-                        image {
-                          large
-                        }
-                      }
-                      voiceActors(language: JAPANESE) {
-                        id
-                        name {
-                          userPreferred
-                        }
-                        image {
-                          large
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-            `;
-            
-            fetch('/api/anilist', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-                body: JSON.stringify({ query, variables: { id: movie.id } })
-            })
+        const type = resolvedMediaType;
+        
+        fetch(`${TMDB_BASE_URL}/${type}/${movie.id}?api_key=${apiKey}&append_to_response=credits,reviews,videos,release_dates,watch/providers,external_ids,similar,images,content_ratings,seasons,keywords`)
             .then(res => {
-                if (!res.ok) throw new Error();
+                if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
                 return res.json();
             })
-            .then(json => {
-                if (!active) return;
-                const media = json?.data?.Media;
-                if (!media) {
-                    setLoading(false);
-                    return;
+            .then(data => {
+                setDetails(data);
+                if (data.belongs_to_collection?.id) {
+                    fetch(`${TMDB_BASE_URL}/collection/${data.belongs_to_collection.id}?api_key=${apiKey}`)
+                        .then(res => {
+                            if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+                            return res.json();
+                        })
+                        .then(colData => {
+                            if (colData.parts) {
+                                colData.parts.sort((a: Movie, b: Movie) => {
+                                    return new Date(a.release_date || '9999').getTime() - new Date(b.release_date || '9999').getTime();
+                                });
+                            }
+                            setCollection(colData);
+                        })
+                        .catch(err => console.error("Collection fetch error", err));
                 }
-                
-                const cast = (media.characters?.edges || []).map((edge: any) => ({
-                    id: edge.node.id,
-                    name: edge.node.name?.userPreferred || 'Unknown',
-                    character: edge.role === 'MAIN' ? `Main: ${edge.node.name?.userPreferred}` : edge.node.name?.userPreferred,
-                    profile_path: edge.node.image?.large || null,
-                    voice_actor: edge.voiceActors?.[0] ? {
-                        id: edge.voiceActors[0].id,
-                        name: edge.voiceActors[0].name?.userPreferred,
-                        profile_path: edge.voiceActors[0].image?.large
-                    } : null
-                }));
-                
-                const animeRelations = (media.relations?.edges || [])
-                    .filter((edge: any) => edge.node?.type === 'ANIME' && edge.node?.format !== 'MUSIC')
-                    .map((edge: any) => edge.node);
-                    
-                const allSeasons = [
-                    {
-                        id: media.id,
-                        title: media.title.english || media.title.romaji || media.title.userPreferred,
-                        cover_path: media.coverImage.extraLarge || media.coverImage.large,
-                        season_number: 1
-                    }
-                ];
-                
-                let nextSeasonNum = 2;
-                animeRelations.forEach((rel: any) => {
-                    allSeasons.push({
-                        id: rel.id,
-                        title: rel.title.english || rel.title.romaji || rel.title.userPreferred,
-                        cover_path: rel.coverImage?.large || null,
-                        season_number: nextSeasonNum++
-                    });
-                });
-                
-                const virtualSeasons = allSeasons.map(s => ({
-                    id: s.id,
-                    name: s.title,
-                    season_number: s.season_number,
-                    episode_count: media.id === s.id ? (media.episodes || 0) : 0,
-                    poster_path: s.cover_path
-                }));
-
-                const studiosList = media.studios?.nodes || [];
-                const mainStudio = studiosList[0]?.name || 'Unknown Studio';
-                
-                const mockDetails: any = {
-                    id: media.id,
-                    isAnime: true,
-                    title: media.title.english || media.title.romaji || media.title.userPreferred,
-                    name: media.title.english || media.title.romaji || media.title.userPreferred,
-                    overview: media.description ? media.description.replace(/<[^>]*>/g, '') : '',
-                    backdrop_path: media.bannerImage || media.coverImage?.extraLarge || null,
-                    poster_path: media.coverImage?.extraLarge || media.coverImage?.large || null,
-                    vote_average: media.averageScore ? media.averageScore / 10 : 7.0,
-                    vote_count: 100,
-                    genres: media.genres ? media.genres.map((g: string) => ({ id: 16, name: g })) : [],
-                    status: media.status || 'FINISHED',
-                    seasons: virtualSeasons,
-                    credits: { cast },
-                    tagline: mainStudio,
-                    production_companies: studiosList.map((s: any, idx: number) => ({
-                        id: idx + 9999,
-                        name: s.name,
-                        logo_path: null,
-                        origin_country: ''
-                    }))
-                };
-                
-                setDetails(mockDetails);
                 setLoading(false);
-                
-                const activeSeason = virtualSeasons.find(s => s.id === media.id);
-                if (activeSeason) {
-                    setSelectedSeason(activeSeason.season_number);
+                if (data.seasons && data.seasons.length > 0) {
+                    if (!movie.last_watched_data?.season && !(movie as any).initial_season) {
+                        const firstSeason = data.seasons.find((s: Season) => s.season_number === 1) || data.seasons[0];
+                        setSelectedSeason(firstSeason.season_number);
+                    }
                 }
             })
-            .catch(err => {
-                console.error("Error fetching AniList details:", err);
-                setLoading(false);
-            });
-            
-            return () => {
-                active = false;
-            };
-        } else {
-            const type = resolvedMediaType;
-            
-            fetch(`${TMDB_BASE_URL}/${type}/${movie.id}?api_key=${apiKey}&append_to_response=credits,reviews,videos,release_dates,watch/providers,external_ids,similar,images,content_ratings,seasons,keywords`)
-                .then(res => {
-                    if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-                    return res.json();
-                })
-                .then(data => {
-                    setDetails(data);
-                    if (data.belongs_to_collection?.id) {
-                        fetch(`${TMDB_BASE_URL}/collection/${data.belongs_to_collection.id}?api_key=${apiKey}`)
-                            .then(res => {
-                                if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-                                return res.json();
-                            })
-                            .then(colData => {
-                                if (colData.parts) {
-                                    colData.parts.sort((a: Movie, b: Movie) => {
-                                        return new Date(a.release_date || '9999').getTime() - new Date(b.release_date || '9999').getTime();
-                                    });
-                                }
-                                setCollection(colData);
-                            })
-                            .catch(err => console.error("Collection fetch error", err));
-                    }
-                    setLoading(false);
-                    if (data.seasons && data.seasons.length > 0) {
-                        if (!movie.last_watched_data?.season && !(movie as any).initial_season) {
-                            const firstSeason = data.seasons.find((s: Season) => s.season_number === 1) || data.seasons[0];
-                            setSelectedSeason(firstSeason.season_number);
-                        }
-                    }
-                })
-                .catch(() => setLoading(false));
-        }
+            .catch(() => setLoading(false));
 
         // On initial mount, RESPECT the props (initialShowPlayer, activeTabProp)
         // so that URL-driven state like /tv/123/watch/1/3 or /tv/123/seasons works.
@@ -1642,71 +1458,31 @@ export const MoviePage: React.FC<MoviePageProps> = ({
 
     useEffect(() => {
         const isTvShow = movie.media_type === 'tv' || !!(details && details.first_air_date);
-        if (!isTvShow || !movie.id || activeTab !== 'seasons') return;
+        if (!isTvShow || !apiKey || !movie.id || activeTab !== 'seasons') return;
         
         let isMounted = true;
         setEpisodesLoading(true);
         
-        if (movie.isAnime) {
-            fetch(`/api/anime?action=episodes&anilistId=${movie.id}`)
-                .then(res => {
-                    if (!res.ok) throw new Error();
-                    return res.json();
-                })
-                .then(data => {
-                    if (isMounted) {
-                        const mappedEpisodes = (data.episodes || []).map((ep: any) => ({
-                            id: ep.id,
-                            episode_number: ep.number,
-                            name: ep.title || `Episode ${ep.number}`,
-                            overview: ep.description || '',
-                            still_path: ep.image || null,
-                            air_date: ep.airDate || ''
-                        }));
-                        setEpisodes(mappedEpisodes);
-                        
-                        // Update the active season's episode count dynamically
-                        if (details && details.seasons) {
-                            const current = details.seasons.find(s => s.season_number === selectedSeason);
-                            if (current && current.episode_count === 0) {
-                                current.episode_count = mappedEpisodes.length;
-                            }
-                        }
-                    }
-                })
-                .catch(err => {
-                    console.error("Error fetching AniList episodes:", err);
-                    if (isMounted) setEpisodes([]);
-                })
-                .finally(() => {
-                    if (isMounted) setEpisodesLoading(false);
-                });
-        } else {
-            if (!apiKey) {
-                setEpisodesLoading(false);
-                return;
-            }
-            fetch(`${TMDB_BASE_URL}/tv/${movie.id}/season/${selectedSeason}?api_key=${apiKey}`)
-                .then(res => {
-                    if (!res.ok) throw new Error();
-                    return res.json();
-                })
-                .then(data => {
-                    if (isMounted) {
-                        setEpisodes(data.episodes || []);
-                    }
-                })
-                .catch(err => {
-                    console.error("Error fetching season details", err);
-                    if (isMounted) setEpisodes([]);
-                })
-                .finally(() => { 
-                    if (isMounted) setEpisodesLoading(false); 
-                });
-        }
+        fetch(`${TMDB_BASE_URL}/tv/${movie.id}/season/${selectedSeason}?api_key=${apiKey}`)
+            .then(res => {
+                if (!res.ok) throw new Error();
+                return res.json();
+            })
+            .then(data => {
+                if (isMounted) {
+                    setEpisodes(data.episodes || []);
+                }
+            })
+            .catch(err => {
+                console.error("Error fetching season details", err);
+                if (isMounted) setEpisodes([]);
+            })
+            .finally(() => { 
+                if (isMounted) setEpisodesLoading(false); 
+            });
             
         return () => { isMounted = false; };
-    }, [movie.id, selectedSeason, apiKey, activeTab, details, movie.isAnime]);
+    }, [movie.id, selectedSeason, apiKey, activeTab, details]);
 
     useEffect(() => {
         if (!timelineContainerRef.current || !activeTimelineItemRef.current || hasCenteredTimeline.current === movie.id) return;
@@ -3047,8 +2823,8 @@ export const MoviePage: React.FC<MoviePageProps> = ({
 
                                                         return filtered.map((episode) => {
                                                             const epThumbnail = episode.still_path 
-                                                                ? getImageUrl(episode.still_path, "https://placehold.co/320x180") 
-                                                                : getImageUrl(displayData.backdrop_path, "https://placehold.co/320x180");
+                                                                ? `${TMDB_IMAGE_BASE}${episode.still_path}` 
+                                                                : (displayData.backdrop_path ? `${TMDB_IMAGE_BASE}${displayData.backdrop_path}` : "https://placehold.co/320x180");
                                                             
                                                             const epRuntime = episode.runtime 
                                                                 ? `${episode.runtime} min` 
@@ -3591,7 +3367,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                             <div className="space-y-5 animate-in fade-in duration-300">
                                 <div className="bg-white/5 border border-white/5 rounded-2xl p-4 flex items-center gap-3.5 text-left">
                                     <img 
-                                        src={getImageUrl(displayData.poster_path)} 
+                                        src={displayData.poster_path ? `${TMDB_IMAGE_BASE}${displayData.poster_path}` : "https://placehold.co/300x450"} 
                                         className="w-12 h-18 object-cover rounded-md border border-white/10 shadow-md animate-in fade-in"
                                         alt={title}
                                     />
@@ -3646,7 +3422,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
 
                                 <div className="bg-white/5 border border-white/5 rounded-2xl p-4 flex flex-col items-center gap-3">
                                     <img 
-                                        src={getImageUrl(displayData.poster_path)} 
+                                        src={displayData.poster_path ? `${TMDB_IMAGE_BASE}${displayData.poster_path}` : "https://placehold.co/300x450"} 
                                         className="w-20 h-30 object-cover rounded-lg border border-white/10 shadow-lg"
                                         alt={title}
                                     />
@@ -3784,7 +3560,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                     {/* Movie/Show Poster Preview */}
                                     <div className="bg-white/5 border border-white/5 rounded-2xl p-4 flex items-center gap-3.5 text-left">
                                         <img 
-                                            src={getImageUrl(displayData.poster_path)} 
+                                            src={displayData.poster_path ? `${TMDB_IMAGE_BASE}${displayData.poster_path}` : "https://placehold.co/300x450"} 
                                             className="w-12 h-18 object-cover rounded-md border border-white/10 shadow-md animate-in fade-in"
                                             alt={title}
                                         />
