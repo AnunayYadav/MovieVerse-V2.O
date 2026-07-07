@@ -204,8 +204,6 @@ const MovieRowCard = ({
                 height: rect.height
             };
 
-            console.log("MovieRowCard: Dispatching hover event for", movie.title || movie.name, position);
-
             window.dispatchEvent(new CustomEvent('movie-card-hover', {
                 detail: {
                     movie,
@@ -927,8 +925,6 @@ const ContinueWatchingCard = ({
                 height: rect.height
             };
 
-            console.log("ContinueWatchingCard: Dispatching hover event for", movie.title || movie.name, position);
-
             window.dispatchEvent(new CustomEvent('movie-card-hover', {
                 detail: {
                     movie,
@@ -1022,8 +1018,6 @@ const TrendingMovieItem = ({ movie, idx, onMovieClick }: { movie: Movie, idx: nu
                 width: rect.width,
                 height: rect.height
             };
-
-            console.log("TrendingMovieItem: Dispatching hover event for", movie.title || movie.name, position);
 
             window.dispatchEvent(new CustomEvent('movie-card-hover', {
                 detail: {
@@ -1436,7 +1430,6 @@ export default function App() {
     useEffect(() => {
         const handleHover = (e: Event) => {
             const customEvent = e as CustomEvent;
-            console.log("App: Received movie-card-hover event for", customEvent.detail?.movie?.title || customEvent.detail?.movie?.name, customEvent.detail?.rect);
             isMouseOverHoverCard.current = false;
             if (hoverLeaveTimeoutRef.current) {
                 clearTimeout(hoverLeaveTimeoutRef.current);
@@ -1446,7 +1439,6 @@ export default function App() {
         };
 
         const handleLeave = () => {
-            console.log("App: Received movie-card-hover-leave event, isMouseOverHoverCard:", isMouseOverHoverCard.current);
             if (isMouseOverHoverCard.current) {
                 return;
             }
@@ -5513,7 +5505,7 @@ export default function App() {
                     isWatched={watched.some(m => m.id === hoveredMovieInfo.movie.id)}
                     onToggleWatchlist={(m) => toggleList(watchlist, setWatchlist, 'movieverse_watchlist', m)}
                     onToggleWatched={handleToggleWatched}
-                    onPlay={handlePlayMovieFromHover}
+                    onPlay={setSelectedMovie}
                     onDetailClick={setSelectedMovie}
                     onMouseEnter={handleHoverCardEnter}
                     onMouseLeave={handleHoverCardLeave}

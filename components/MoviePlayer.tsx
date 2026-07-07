@@ -1702,7 +1702,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   const getEmbedUrlForProvider = (providerId: string, progress: number = 0) => {
     const isTvShow = mediaType === 'tv' || (isAnime && mediaType !== 'movie');
     if (providerId === 'megaplay') {
-      const domain = useMegaplayBackup ? 'https://animeplay.cfd' : 'https://megaplay.buzz';
+      const domain = useMegaplayBackup ? 'https://megaplay.buzz' : 'https://animeplay.cfd';
       const lang = animeLanguage === 'dub' ? 'dub' : 'sub';
       return isTvShow
         ? `${domain}/stream/ani/${anilistId || tmdbId}/${currentEpisode}/${lang}`
@@ -3090,8 +3090,8 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                                 )}
 
                                 {selectedProviderId === 'megaplay' && (
-                                  ['Primary (megaplay.buzz)', 'Backup (animeplay.cfd)'].map((srv) => {
-                                    const isBackup = srv.includes('cfd');
+                                  ['Primary (animeplay.cfd)', 'Backup (megaplay.buzz)'].map((srv) => {
+                                    const isBackup = srv.includes('buzz');
                                     const isActive = useMegaplayBackup === isBackup;
                                     return (
                                       <button

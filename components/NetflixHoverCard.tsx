@@ -149,10 +149,16 @@ export const NetflixHoverCard: React.FC<NetflixHoverCardProps> = ({
 
                 {/* Auto-playing preview trailer */}
                 {showVideo && videoKey && (
-                    <div className="absolute inset-0 w-full h-full pointer-events-none scale-[1.3] animate-in fade-in duration-500">
+                    <div className="absolute inset-0 w-full h-full pointer-events-none overflow-hidden animate-in fade-in duration-500">
                         <iframe
                             src={`https://www.youtube.com/embed/${videoKey}?autoplay=1&mute=${isMuted ? 1 : 0}&controls=0&loop=1&playlist=${videoKey}&showinfo=0&rel=0&iv_load_policy=3&modestbranding=1&playsinline=1&enablejsapi=1`}
-                            className="w-full h-full"
+                            style={{
+                                position: 'absolute',
+                                top: '-20%',
+                                left: '-20%',
+                                width: '140%',
+                                height: '140%'
+                            }}
                             title="Trailer preview"
                             frameBorder="0"
                             allow="autoplay; encrypted-media; gyroscope"

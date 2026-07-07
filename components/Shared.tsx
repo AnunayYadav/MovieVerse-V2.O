@@ -476,8 +476,6 @@ export const MovieCard = React.memo(React.forwardRef<HTMLDivElement, MovieCardPr
                 height: rect.height
             };
 
-            console.log("MovieCard: Dispatching hover event for", movie.title || movie.name, position);
-
             window.dispatchEvent(new CustomEvent('movie-card-hover', {
                 detail: {
                     movie,
