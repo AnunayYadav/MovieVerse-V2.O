@@ -1,10 +1,84 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
-import { X, Tv, ChevronLeft, ChevronRight, Check, ListVideo, Sliders, ChevronDown, Info, RefreshCw, Palette, Copy, Play, Pause, Volume2, VolumeX, Maximize, Loader2, AlertTriangle, Settings, Subtitles, ArrowLeft, RotateCcw, RotateCw, SkipForward, MessageSquare, Search, Languages, Zap } from 'lucide-react';
+import { X, Tv, ChevronLeft, ChevronRight, Check, ListVideo, Sliders, ChevronDown, Info, RefreshCw, Palette, Copy, Play, Pause, Volume2, VolumeX, Maximize, Loader2, AlertTriangle, Settings, Subtitles, ArrowLeft, RotateCcw, RotateCw, SkipForward, MessageSquare, Search, Languages, Zap, Sun, FlipHorizontal } from 'lucide-react';
 import Hls from 'hls.js';
 import { TvFocusButton } from '../tvNavigation';
 import { pause, resume } from '@noriginmedia/norigin-spatial-navigation';
 import { TMDB_BASE_URL, TMDB_IMAGE_BASE } from './Shared';
 import { Provider, PROVIDERS, getSubtitleCode, getAudioCode } from './Providers';
+
+interface SubtitleCue {
+  start: number;
+  end: number;
+  text: string;
+}
+
+function parseSubtitles(text: string): SubtitleCue[] {
+  const cues: SubtitleCue[] = [];
+  const cleanText = text.replace(/^WEBVTT[^\n]*\r?\n/, '');
+  const blocks = cleanText.split(/\r?\n\r?\n/);
+  
+  const timeRegex = /(\d{1,2}):(\d{2}):(\d{2})[.,](\d{3})\s*-->\s*(\d{1,2}):(\d{2}):(\d{2})[.,](\d{3})/;
+  const timeRegexShort = /(\d{2}):(\d{2})[.,](\d{3})\s*-->\s*(\d{2}):(\d{2})[.,](\d{3})/;
+
+  for (const block of blocks) {
+    const lines = block.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+    if (lines.length < 2) continue;
+    
+    let timeLineIdx = -1;
+    let match = null;
+    let isShort = false;
+    
+    for (let i = 0; i < Math.min(3, lines.length); i++) {
+      if (lines[i].includes('-->')) {
+        timeLineIdx = i;
+        match = lines[i].match(timeRegex);
+        if (!match) {
+          match = lines[i].match(timeRegexShort);
+          if (match) isShort = true;
+        }
+        break;
+      }
+    }
+    
+    if (timeLineIdx === -1 || !match) continue;
+    
+    let start = 0;
+    let end = 0;
+    
+    if (isShort) {
+      const startMin = parseInt(match[1], 10);
+      const startSec = parseInt(match[2], 10);
+      const startMs = parseInt(match[3], 10);
+      
+      const endMin = parseInt(match[4], 10);
+      const endSec = parseInt(match[5], 10);
+      const endMs = parseInt(match[6], 10);
+      
+      start = startMin * 60 + startSec + startMs / 1000;
+      end = endMin * 60 + endSec + endMs / 1000;
+    } else {
+      const startHr = parseInt(match[1], 10);
+      const startMin = parseInt(match[2], 10);
+      const startSec = parseInt(match[3], 10);
+      const startMs = parseInt(match[4], 10);
+      
+      const endHr = parseInt(match[5], 10);
+      const endMin = parseInt(match[6], 10);
+      const endSec = parseInt(match[7], 10);
+      const endMs = parseInt(match[8], 10);
+      
+      start = startHr * 3600 + startMin * 60 + startSec + startMs / 1000;
+      end = endHr * 3600 + endMin * 60 + endSec + endMs / 1000;
+    }
+    
+    const cueLines = lines.slice(timeLineIdx + 1);
+    const cueText = cueLines.join('\n').replace(/<[^>]*>/g, '');
+    
+    cues.push({ start, end, text: cueText });
+  }
+  
+  return cues;
+}
 
 interface MoviePlayerProps {
   tmdbId: number;
@@ -294,10 +368,13 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   const [overlayFeedback, setOverlayFeedback] = useState<{ text: string; icon: string; visible: boolean }>({ text: '', icon: '', visible: false });
   const [showNextCountdown, setShowNextCountdown] = useState(false);
   const [nextCountdownTime, setNextCountdownTime] = useState(15);
-  const [isQualityMenuOpen, setIsQualityMenuOpen] = useState(false);
-  const [isSpeedMenuOpen, setIsSpeedMenuOpen] = useState(false);
-  const [isSubtitleMenuOpen, setIsSubtitleMenuOpen] = useState(false);
-  const [isLanguageMenuOpen, setIsLanguageMenuOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [settingsView, setSettingsView] = useState<'main' | 'subtitles' | 'language' | 'speed' | 'providers' | 'servers' | 'quality' | 'aspectRatio' | 'brightness' | 'mirror'>('main');
+  const [activeSubtitleCues, setActiveSubtitleCues] = useState<any[]>([]);
+  const [currentSubtitleText, setCurrentSubtitleText] = useState<string>('');
+  const [aspectRatio, setAspectRatio] = useState<'contain' | 'cover' | 'fill'>('contain');
+  const [brightness, setBrightness] = useState<number>(100);
+  const [isMirrored, setIsMirrored] = useState<boolean>(false);
   const [isBuffering, setIsBuffering] = useState(false);
   const [isEpisodesOverlayOpen, setIsEpisodesOverlayOpen] = useState(false);
   const [episodeSearchQuery, setEpisodeSearchQuery] = useState('');
@@ -669,6 +746,70 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     };
   }, [subtitleLanguage, anivexaSubtitles, anivexaStreamUrl]);
 
+  // Load & Parse WebVTT subtitle cues when a subtitle language is selected for iframe players
+  useEffect(() => {
+    if (!isIframeCustomControls || subtitleLanguage === 'None') {
+      setActiveSubtitleCues([]);
+      setCurrentSubtitleText('');
+      return;
+    }
+
+    const matchedSub = anivexaSubtitles.find(
+      (s) => (s.label || s.language || s.lang || '').toLowerCase() === subtitleLanguage.toLowerCase()
+    );
+
+    if (!matchedSub || !matchedSub.url) {
+      setActiveSubtitleCues([]);
+      setCurrentSubtitleText('');
+      return;
+    }
+
+    let isMounted = true;
+    const loadAndParse = async () => {
+      try {
+        const fetchUrl = matchedSub.url.startsWith('http') 
+          ? `/api/subtitles?url=${encodeURIComponent(matchedSub.url)}` 
+          : matchedSub.url;
+          
+        const res = await fetch(fetchUrl);
+        if (!res.ok) throw new Error('Failed to load subtitle file');
+        const text = await res.text();
+        if (isMounted) {
+          const cues = parseSubtitles(text);
+          setActiveSubtitleCues(cues);
+        }
+      } catch (err) {
+        console.warn('Error loading or parsing subtitles:', err);
+        if (isMounted) {
+          setActiveSubtitleCues([]);
+          setCurrentSubtitleText('');
+        }
+      }
+    };
+
+    loadAndParse();
+    return () => {
+      isMounted = false;
+    };
+  }, [subtitleLanguage, anivexaSubtitles, isIframeCustomControls]);
+
+  // Synchronize subtitle text overlay with current playback time
+  useEffect(() => {
+    if (!isIframeCustomControls || activeSubtitleCues.length === 0) {
+      setCurrentSubtitleText('');
+      return;
+    }
+    
+    const time = playerCurrentTime;
+    const activeCue = activeSubtitleCues.find(cue => time >= cue.start && time <= cue.end);
+    
+    if (activeCue) {
+      setCurrentSubtitleText(activeCue.text);
+    } else {
+      setCurrentSubtitleText('');
+    }
+  }, [playerCurrentTime, activeSubtitleCues, isIframeCustomControls]);
+
   // Reset EncDec server states when provider or movie/episode changes
   // Reset EncDec server states when provider or movie/episode changes
   useEffect(() => {
@@ -979,10 +1120,8 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
 
   const closeAllMenus = useCallback(() => {
     setIsEpisodesOverlayOpen(false);
-    setIsSubtitleMenuOpen(false);
-    setIsSpeedMenuOpen(false);
-    setIsQualityMenuOpen(false);
-    setIsLanguageMenuOpen(false);
+    setIsSettingsOpen(false);
+    setSettingsView('main');
   }, []);
 
   const togglePlayback = useCallback(() => {
@@ -1146,39 +1285,30 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   const resetControlsTimeout = useCallback(() => {
     setShowControls(true);
     if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
-    if (isDrawerOpen || isEpisodesOverlayOpen || isSubtitleMenuOpen || isSpeedMenuOpen || isQualityMenuOpen || isLanguageMenuOpen) return;
+    if (isDrawerOpen || isEpisodesOverlayOpen || isSettingsOpen) return;
     controlsTimeoutRef.current = setTimeout(() => {
       if (isPlayingRef.current) setShowControls(false);
     }, 3000);
-  }, [isDrawerOpen, isEpisodesOverlayOpen, isSubtitleMenuOpen, isSpeedMenuOpen, isQualityMenuOpen, isLanguageMenuOpen]);
+  }, [isDrawerOpen, isEpisodesOverlayOpen, isSettingsOpen]);
 
   // Keep controls open when overlay or drawer is active
   useEffect(() => {
-    if (isDrawerOpen || isEpisodesOverlayOpen || isSubtitleMenuOpen || isSpeedMenuOpen || isQualityMenuOpen || isLanguageMenuOpen) {
+    if (isDrawerOpen || isEpisodesOverlayOpen || isSettingsOpen) {
       setShowControls(true);
       if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
     }
-  }, [isDrawerOpen, isEpisodesOverlayOpen, isSubtitleMenuOpen, isSpeedMenuOpen, isQualityMenuOpen, isLanguageMenuOpen]);
+  }, [isDrawerOpen, isEpisodesOverlayOpen, isSettingsOpen]);
 
-  // Close playback speed menu on clicking outside
+  // Close settings menu on clicking outside
   useEffect(() => {
-    if (!isSpeedMenuOpen) return;
-    const handleCloseMenus = () => {
-      setIsSpeedMenuOpen(false);
+    if (!isSettingsOpen) return;
+    const handleCloseSettings = () => {
+      setIsSettingsOpen(false);
+      setSettingsView('main');
     };
-    window.addEventListener('click', handleCloseMenus);
-    return () => window.removeEventListener('click', handleCloseMenus);
-  }, [isSpeedMenuOpen]);
-
-  // Close language menu on clicking outside
-  useEffect(() => {
-    if (!isLanguageMenuOpen) return;
-    const handleCloseMenus = () => {
-      setIsLanguageMenuOpen(false);
-    };
-    window.addEventListener('click', handleCloseMenus);
-    return () => window.removeEventListener('click', handleCloseMenus);
-  }, [isLanguageMenuOpen]);
+    window.addEventListener('click', handleCloseSettings);
+    return () => window.removeEventListener('click', handleCloseSettings);
+  }, [isSettingsOpen]);
 
   const handleProgressBarMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -1870,7 +2000,13 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
           transform: translateY(-100px) !important;
         }
       `}</style>
-      <div className="flex-1 relative w-full h-full z-0 overflow-hidden bg-black">
+      <div 
+        className="flex-1 relative w-full h-full z-0 overflow-hidden bg-black"
+        style={{
+          filter: `brightness(${brightness}%)`,
+          transform: isMirrored ? 'scaleX(-1)' : 'none',
+        }}
+      >
         {(selectedProviderId === 'videasy_adfree' || selectedProviderId === 'cinepro_core' || selectedProviderId.startsWith('encdec')) && !fallbackToIframe ? (
             <div className="w-full h-full absolute inset-0 bg-zinc-950 z-0 flex items-center justify-center">
               {anivexaLoading && !anivexaStreamUrl && (
@@ -1910,7 +2046,10 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
               {anivexaStreamUrl && (
                 <video
                   ref={videoRef}
-                  className="w-full h-full object-contain"
+                  className="w-full h-full transition-all duration-300"
+                  style={{
+                    objectFit: aspectRatio
+                  }}
                   playsInline
                   crossOrigin="anonymous"
                 >
@@ -1932,13 +2071,34 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                   ref={iframeRef}
                   src={embedUrl}
                   onLoad={handleIframeLoad}
-                  className="w-full h-full absolute inset-0 bg-black z-0"
+                  className="w-full h-full absolute inset-0 bg-black z-0 transition-all duration-300"
+                  style={{
+                    objectFit: aspectRatio
+                  }}
                   title="Media Player"
                   frameBorder="0"
                   allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
                   allowFullScreen
               />
             )
+        )}
+
+        {/* Custom subtitle overlay for iframe players */}
+        {isIframeCustomControls && currentSubtitleText && (
+          <div 
+            className={`absolute left-1/2 -translate-x-1/2 transition-all duration-300 pointer-events-none z-20 flex justify-center text-center px-4 w-full max-w-[85%] sm:max-w-[70%] md:max-w-[60%] ${
+              showControls ? 'bottom-28' : 'bottom-12'
+            }`}
+          >
+            <span 
+              className="bg-black/85 px-4 py-2 rounded-xl text-white font-semibold text-base sm:text-lg md:text-xl lg:text-2xl leading-relaxed tracking-wide select-none shadow-[0_4px_24px_rgba(0,0,0,0.8)] border border-white/5 break-words whitespace-pre-wrap"
+              style={{
+                textShadow: '0 2px 4px rgba(0, 0, 0, 0.9), 0px 0px 2px rgba(0,0,0,0.9)'
+              }}
+            >
+              {currentSubtitleText}
+            </span>
+          </div>
         )}
 
         {/* Custom Controls Overlay for PostMessage providers */}
@@ -1950,7 +2110,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
             onMouseMove={resetControlsTimeout}
             onTouchStart={resetControlsTimeout}
             onMouseLeave={() => {
-              if (isDrawerOpen || isEpisodesOverlayOpen || isSubtitleMenuOpen || isSpeedMenuOpen || isQualityMenuOpen) return;
+              if (isDrawerOpen || isEpisodesOverlayOpen || isSettingsOpen) return;
               if (isPlayingRef.current) setShowControls(false);
             }}
             onClick={handleOverlayClick}
@@ -2249,410 +2409,700 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                       </div>
                     </div>
 
+                    {/* Settings Menu Button & Popup */}
                     <div className="relative flex items-center justify-center">
                       <button 
                         onClick={(e) => {
                           e.stopPropagation();
-                          const next = !isSubtitleMenuOpen;
+                          const next = !isSettingsOpen;
                           closeAllMenus();
-                          setIsSubtitleMenuOpen(next);
+                          setIsSettingsOpen(next);
+                          setSettingsView('main');
                         }} 
-                        className={`p-2 transition-transform active:scale-90 ${isSubtitleMenuOpen ? 'text-red-500 hover:text-red-600' : 'text-white/95 hover:text-white'}`}
-                        title="Subtitles & Audio"
+                        className={`p-2 transition-all duration-200 active:scale-95 hover:rotate-45 ${isSettingsOpen ? 'text-red-500 hover:text-red-600' : 'text-white/95 hover:text-white'}`}
+                        title="Settings"
                       >
-                        <Subtitles size={24} />
+                        <Settings size={24} />
                       </button>
 
-                      <div 
-                        data-controls
-                        className={`absolute bottom-12 right-0 bg-[#0c0c0e] border border-white/10 rounded-2xl p-4 shadow-2xl z-[60] flex flex-col gap-2 min-w-[220px] max-h-[300px] overflow-y-auto custom-scrollbar transition-all duration-200 ease-out origin-bottom-right ${
-                          isSubtitleMenuOpen 
-                            ? 'opacity-100 translate-y-0 scale-100 pointer-events-auto' 
-                            : 'opacity-0 translate-y-4 scale-95 pointer-events-none'
-                        } text-left`}
-                      >
-                        <div className="flex items-center justify-between border-b border-white/5 pb-2 mb-1">
-                          <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">Subtitles</span>
-                        </div>
-
-                        <button
-                          onClick={() => {
-                            setSubtitleLanguage('None');
-                            localStorage.setItem('movieverse_preferred_subtitle_language', 'None');
-                            closeAllMenus();
-                          }}
-                          className={`w-full text-left py-2 px-3 rounded-lg text-xs font-semibold transition-all border flex items-center justify-between ${
-                            subtitleLanguage === 'None'
-                              ? 'bg-red-600/10 text-red-500 border-red-500/20'
-                              : 'bg-white/5 text-zinc-300 border-white/5 hover:border-white/10 hover:bg-white/10'
-                          }`}
+                      {/* Settings Panel Container */}
+                      {isSettingsOpen && (
+                        <div 
+                          data-controls
+                          onClick={(e) => e.stopPropagation()}
+                          className="absolute bottom-12 right-0 bg-[#0c0c0e]/95 backdrop-blur-xl border border-white/10 rounded-2xl p-4 shadow-2xl z-[60] flex flex-col gap-3 min-w-[280px] max-h-[380px] overflow-y-auto custom-scrollbar transition-all duration-200 ease-out origin-bottom-right text-left"
                         >
-                          <span>None</span>
-                          {subtitleLanguage === 'None' && <Check size={12} />}
-                        </button>
+                          {/* 1. Main Menu View */}
+                          {settingsView === 'main' && (
+                            <div className="flex flex-col gap-3">
+                              {/* Header */}
+                              <div className="flex items-center justify-between border-b border-white/5 pb-2 mb-1">
+                                <span className="text-[11px] font-bold text-white uppercase tracking-wider">Settings</span>
+                              </div>
 
-                        {/* Render native subtitle tracks (non-OpenSubtitles) */}
-                        {anivexaSubtitles && anivexaSubtitles.some(s => !s.isOS) && (
-                          anivexaSubtitles.map((sub, idx) => {
-                            if (sub.isOS) return null;
-                            const label = sub.label || sub.language || sub.lang || `Track ${idx + 1}`;
-                            const isActive = subtitleLanguage === label;
-                            return (
-                              <button
-                                key={`native-${idx}`}
-                                onClick={() => {
-                                  setSubtitleLanguage(label);
-                                  localStorage.setItem('movieverse_preferred_subtitle_language', label);
-                                  if (videoRef.current) {
-                                    const tracks = videoRef.current.textTracks;
-                                    for (let i = 0; i < tracks.length; i++) {
-                                      tracks[i].mode = i === idx ? 'showing' : 'disabled';
-                                    }
-                                  }
-                                  closeAllMenus();
-                                }}
-                                className={`w-full text-left py-2 px-3 rounded-lg text-xs font-semibold transition-all border flex items-center justify-between ${
-                                  isActive
-                                    ? 'bg-red-600/10 text-red-500 border-red-500/20'
-                                    : 'bg-white/5 text-zinc-300 border-white/5 hover:border-white/10 hover:bg-white/10'
-                                }`}
-                              >
-                                <span>{label}</span>
-                                {isActive && <Check size={12} />}
-                              </button>
-                            );
-                          })
-                        )}
-
-                        {/* OpenSubtitles section at bottom */}
-                        {anivexaSubtitles && anivexaSubtitles.some(s => s.isOS) && (
-                          <>
-                            <div className="flex items-center justify-between border-t border-white/5 pt-2 mt-1 mb-1">
-                              <span className="text-[10px] font-bold text-amber-500/80 uppercase tracking-wider">OpenSubtitles</span>
-                            </div>
-                            {anivexaSubtitles.map((sub, idx) => {
-                              if (!sub.isOS) return null;
-                              const label = sub.label || sub.language || sub.lang || `Track ${idx + 1}`;
-                              const isActive = subtitleLanguage === label;
-                              return (
+                              {/* SOURCES SECTION */}
+                              <div className="flex flex-col gap-1">
+                                <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-wider block px-1 mb-1">Sources</span>
+                                
+                                {/* Provider Row */}
                                 <button
-                                  key={`os-${idx}`}
+                                  onClick={() => setSettingsView('providers')}
+                                  className="w-full py-2 px-2.5 rounded-xl text-xs font-semibold text-zinc-300 hover:text-white hover:bg-white/5 flex items-center justify-between transition-colors"
+                                >
+                                  <div className="flex items-center gap-2">
+                                    <Tv size={14} className="text-zinc-400" />
+                                    <span>Provider</span>
+                                  </div>
+                                  <div className="flex items-center gap-1 text-[11px] text-zinc-500">
+                                    <span>{PROVIDERS.find(p => p.id === selectedProviderId)?.name || 'Default'}</span>
+                                    <ChevronRight size={12} />
+                                  </div>
+                                </button>
+
+                                {/* Server Row (Conditional) */}
+                                {(((selectedProviderId.startsWith('encdec') || selectedProviderId === 'cinepro_core') && encDecServers.length > 0) || (selectedProviderId === 'videasy_adfree')) && (
+                                  <button
+                                    onClick={() => setSettingsView('servers')}
+                                    className="w-full py-2 px-2.5 rounded-xl text-xs font-semibold text-zinc-300 hover:text-white hover:bg-white/5 flex items-center justify-between transition-colors"
+                                  >
+                                    <div className="flex items-center gap-2">
+                                      <Sliders size={14} className="text-zinc-400" />
+                                      <span>Server</span>
+                                    </div>
+                                    <div className="flex items-center gap-1 text-[11px] text-zinc-500">
+                                      <span>
+                                        {selectedProviderId === 'videasy_adfree' ? selectedVideasyServer : (selectedEncDecServer || 'Auto')}
+                                      </span>
+                                      <ChevronRight size={12} />
+                                    </div>
+                                  </button>
+                                )}
+
+                                {/* Quality Row (Conditional) */}
+                                {customQualities.length > 0 && (
+                                  <button
+                                    onClick={() => setSettingsView('quality')}
+                                    className="w-full py-2 px-2.5 rounded-xl text-xs font-semibold text-zinc-300 hover:text-white hover:bg-white/5 flex items-center justify-between transition-colors"
+                                  >
+                                    <div className="flex items-center gap-2">
+                                      <Sliders size={14} className="text-zinc-400" />
+                                      <span>Quality</span>
+                                    </div>
+                                    <div className="flex items-center gap-1 text-[11px] text-zinc-500">
+                                      <span>{selectedQuality}</span>
+                                      <ChevronRight size={12} />
+                                    </div>
+                                  </button>
+                                )}
+                              </div>
+
+                              {/* AUDIO & SUBTITLES SECTION */}
+                              <div className="flex flex-col gap-1 border-t border-white/5 pt-2">
+                                <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-wider block px-1 mb-1">Audio & Subtitles</span>
+                                
+                                {/* Audio Language Row (Hidden for iframe players) */}
+                                {!isIframeCustomControls && (
+                                  <button
+                                    onClick={() => setSettingsView('language')}
+                                    className="w-full py-2 px-2.5 rounded-xl text-xs font-semibold text-zinc-300 hover:text-white hover:bg-white/5 flex items-center justify-between transition-colors"
+                                  >
+                                    <div className="flex items-center gap-2">
+                                      <Languages size={14} className="text-zinc-400" />
+                                      <span>Audio Dub</span>
+                                    </div>
+                                    <div className="flex items-center gap-1 text-[11px] text-zinc-500">
+                                      <span>{audioLanguage}</span>
+                                      <ChevronRight size={12} />
+                                    </div>
+                                  </button>
+                                )}
+
+                                {/* Subtitles Row */}
+                                <button
+                                  onClick={() => setSettingsView('subtitles')}
+                                  className="w-full py-2 px-2.5 rounded-xl text-xs font-semibold text-zinc-300 hover:text-white hover:bg-white/5 flex items-center justify-between transition-colors"
+                                >
+                                  <div className="flex items-center gap-2">
+                                    <Subtitles size={14} className="text-zinc-400" />
+                                    <span>Subtitles</span>
+                                  </div>
+                                  <div className="flex items-center gap-1 text-[11px] text-zinc-500 max-w-[140px] truncate">
+                                    <span className="truncate">{subtitleLanguage}</span>
+                                    <ChevronRight size={12} />
+                                  </div>
+                                </button>
+                              </div>
+
+                              {/* PLAYBACK & VIDEO SECTION */}
+                              <div className="flex flex-col gap-1 border-t border-white/5 pt-2">
+                                <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-wider block px-1 mb-1">Playback & Video</span>
+
+                                {/* Speed Row */}
+                                <button
+                                  onClick={() => setSettingsView('speed')}
+                                  className="w-full py-2 px-2.5 rounded-xl text-xs font-semibold text-zinc-300 hover:text-white hover:bg-white/5 flex items-center justify-between transition-colors"
+                                >
+                                  <div className="flex items-center gap-2">
+                                    <Zap size={14} className="text-zinc-400" />
+                                    <span>Speed</span>
+                                  </div>
+                                  <div className="flex items-center gap-1 text-[11px] text-zinc-500">
+                                    <span>{playbackSpeed === 1.0 ? 'Normal' : `${playbackSpeed}x`}</span>
+                                    <ChevronRight size={12} />
+                                  </div>
+                                </button>
+
+                                {/* Aspect Ratio Row */}
+                                <button
+                                  onClick={() => setSettingsView('aspectRatio')}
+                                  className="w-full py-2 px-2.5 rounded-xl text-xs font-semibold text-zinc-300 hover:text-white hover:bg-white/5 flex items-center justify-between transition-colors"
+                                >
+                                  <div className="flex items-center gap-2">
+                                    <Maximize size={14} className="text-zinc-400" />
+                                    <span>Aspect Ratio</span>
+                                  </div>
+                                  <div className="flex items-center gap-1 text-[11px] text-zinc-500">
+                                    <span>
+                                      {aspectRatio === 'contain' ? 'Original' : aspectRatio === 'cover' ? '16:9' : 'Stretch'}
+                                    </span>
+                                    <ChevronRight size={12} />
+                                  </div>
+                                </button>
+
+                                {/* Brightness Row */}
+                                <button
+                                  onClick={() => setSettingsView('brightness')}
+                                  className="w-full py-2 px-2.5 rounded-xl text-xs font-semibold text-zinc-300 hover:text-white hover:bg-white/5 flex items-center justify-between transition-colors"
+                                >
+                                  <div className="flex items-center gap-2">
+                                    <Sun size={14} className="text-zinc-400" />
+                                    <span>Brightness</span>
+                                  </div>
+                                  <div className="flex items-center gap-1 text-[11px] text-zinc-500">
+                                    <span>{brightness}%</span>
+                                    <ChevronRight size={12} />
+                                  </div>
+                                </button>
+
+                                {/* Mirror Row */}
+                                <button
+                                  onClick={() => setSettingsView('mirror')}
+                                  className="w-full py-2 px-2.5 rounded-xl text-xs font-semibold text-zinc-300 hover:text-white hover:bg-white/5 flex items-center justify-between transition-colors"
+                                >
+                                  <div className="flex items-center gap-2">
+                                    <FlipHorizontal size={14} className="text-zinc-400" />
+                                    <span>Mirror</span>
+                                  </div>
+                                  <div className="flex items-center gap-1 text-[11px] text-zinc-500">
+                                    <span>{isMirrored ? 'On' : 'Off'}</span>
+                                    <ChevronRight size={12} />
+                                  </div>
+                                </button>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* 2a. Provider Selection Sub-view */}
+                          {settingsView === 'providers' && (
+                            <div className="flex flex-col gap-2">
+                              <button 
+                                onClick={() => setSettingsView('main')}
+                                className="flex items-center gap-1.5 border-b border-white/5 pb-2 mb-1 text-zinc-400 hover:text-white transition-colors"
+                              >
+                                <ChevronLeft size={16} />
+                                <span className="text-[11px] font-bold uppercase tracking-wider">Providers</span>
+                              </button>
+                              <div className="space-y-1">
+                                {PROVIDERS.filter(p => (!isWatchParty || p.supportsPostMessage) && (isAnime || (p.id !== 'vidnest_animepahe' && p.id !== 'anikai'))).map((prov) => {
+                                  const isActive = selectedProviderId === prov.id;
+                                  return (
+                                    <button
+                                      key={prov.id}
+                                      onClick={() => {
+                                        setSelectedProviderId(prov.id);
+                                        if (onProviderChange) {
+                                          onProviderChange(prov.id);
+                                        }
+                                        if (typeof window !== 'undefined') {
+                                          localStorage.setItem('movieverse_preferred_provider', prov.id);
+                                        }
+                                        setSettingsView('main');
+                                      }}
+                                      className={`w-full py-2 px-3 rounded-xl text-xs font-semibold transition-all border flex items-center justify-between ${
+                                        isActive 
+                                          ? 'bg-red-600/10 text-red-500 border-red-500/20 font-bold' 
+                                          : 'bg-white/5 text-zinc-300 border-white/5 hover:border-white/10 hover:bg-white/10'
+                                      }`}
+                                    >
+                                      <span>{prov.name}</span>
+                                      {isActive && <Check size={12} />}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* 2b. Server Selection Sub-view */}
+                          {settingsView === 'servers' && (
+                            <div className="flex flex-col gap-2">
+                              <button 
+                                onClick={() => setSettingsView('main')}
+                                className="flex items-center gap-1.5 border-b border-white/5 pb-2 mb-1 text-zinc-400 hover:text-white transition-colors"
+                              >
+                                <ChevronLeft size={16} />
+                                <span className="text-[11px] font-bold uppercase tracking-wider">Servers</span>
+                              </button>
+                              
+                              {selectedProviderId === 'videasy_adfree' && (
+                                <div className="grid grid-cols-2 gap-1.5 max-h-[220px] overflow-y-auto custom-scrollbar pr-1">
+                                  {['Hydrogen', 'Neon', 'Lithium', 'Oxygen', 'Vyse (English)', 'Fade (Hindi)', 'Omen (Spanish)', 'Raze (Portuguese)', 'Killjoy (German)', 'Jett', 'Tejo', 'Sage', 'Breach'].map((srv) => {
+                                    const isActive = selectedVideasyServer === srv;
+                                    return (
+                                      <button
+                                        key={srv}
+                                        onClick={() => {
+                                          setSelectedVideasyServer(srv);
+                                          
+                                          // Sync audio language state
+                                          if (srv === 'Fade (Hindi)') {
+                                            setAudioLanguage('Hindi');
+                                            localStorage.setItem('movieverse_preferred_audio_language', 'Hindi');
+                                          } else if (srv === 'Omen (Spanish)') {
+                                            setAudioLanguage('Spanish');
+                                            localStorage.setItem('movieverse_preferred_audio_language', 'Spanish');
+                                          } else if (srv === 'Raze (Portuguese)') {
+                                            setAudioLanguage('Portuguese');
+                                            localStorage.setItem('movieverse_preferred_audio_language', 'Portuguese');
+                                          } else if (srv === 'Killjoy (German)') {
+                                            setAudioLanguage('German');
+                                            localStorage.setItem('movieverse_preferred_audio_language', 'German');
+                                          } else if (
+                                            srv === 'Vyse (English)' ||
+                                            srv === 'Hydrogen' ||
+                                            srv === 'Neon' ||
+                                            srv === 'Lithium' ||
+                                            srv === 'Oxygen' ||
+                                            srv === 'Jett' ||
+                                            srv === 'Tejo' ||
+                                            srv === 'Sage' ||
+                                            srv === 'Breach'
+                                          ) {
+                                            setAudioLanguage('English');
+                                            localStorage.setItem('movieverse_preferred_audio_language', 'English');
+                                          }
+                                          setSettingsView('main');
+                                        }}
+                                        className={`py-1.5 px-2 rounded-xl text-[11px] font-semibold text-center transition-all border ${
+                                          isActive 
+                                            ? 'bg-red-600/10 text-red-500 border-red-500/20' 
+                                            : 'bg-white/5 text-zinc-300 border-white/5 hover:border-white/10 hover:bg-white/10'
+                                        }`}
+                                      >
+                                        {srv}
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              )}
+
+                              {(selectedProviderId.startsWith('encdec') || selectedProviderId === 'cinepro_core') && encDecServers.length > 0 && (
+                                <div className="grid grid-cols-2 gap-1.5">
+                                  {encDecServers.map((srv) => {
+                                    const isActive = selectedEncDecServer === srv;
+                                    return (
+                                      <button
+                                        key={srv}
+                                        onClick={() => {
+                                          setSelectedEncDecServer(srv);
+                                          setSettingsView('main');
+                                        }}
+                                        className={`py-1.5 px-2 rounded-xl text-[11px] font-semibold text-center transition-all border ${
+                                          isActive 
+                                            ? 'bg-red-600/10 text-red-500 border-red-500/20' 
+                                            : 'bg-white/5 text-zinc-300 border-white/5 hover:border-white/10 hover:bg-white/10'
+                                        }`}
+                                      >
+                                        {srv}
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          {/* 2c. Quality Sub-view */}
+                          {settingsView === 'quality' && (
+                            <div className="flex flex-col gap-2">
+                              <button 
+                                onClick={() => setSettingsView('main')}
+                                className="flex items-center gap-1.5 border-b border-white/5 pb-2 mb-1 text-zinc-400 hover:text-white transition-colors"
+                              >
+                                <ChevronLeft size={16} />
+                                <span className="text-[11px] font-bold uppercase tracking-wider">Quality</span>
+                              </button>
+                              
+                              <div className="grid grid-cols-2 gap-1.5">
+                                {customQualities.map((q) => {
+                                  const isActive = selectedQuality === q.quality;
+                                  return (
+                                    <button
+                                      key={q.quality}
+                                      onClick={() => {
+                                        handleQualityChange(q.quality);
+                                        if (q.index !== undefined && hlsRef.current) {
+                                          hlsRef.current.currentLevel = q.index;
+                                        }
+                                        setSettingsView('main');
+                                      }}
+                                      className={`py-1.5 px-2 rounded-xl text-xs font-semibold text-center transition-all border ${
+                                        isActive 
+                                          ? 'bg-red-600/10 text-red-500 border-red-500/20' 
+                                          : 'bg-white/5 text-zinc-300 border-white/5 hover:border-white/10 hover:bg-white/10'
+                                      }`}
+                                    >
+                                      {q.quality}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* 2d. Subtitles Sub-view */}
+                          {settingsView === 'subtitles' && (
+                            <div className="flex flex-col gap-2">
+                              <button 
+                                onClick={() => setSettingsView('main')}
+                                className="flex items-center gap-1.5 border-b border-white/5 pb-2 mb-1 text-zinc-400 hover:text-white transition-colors"
+                              >
+                                <ChevronLeft size={16} />
+                                <span className="text-[11px] font-bold uppercase tracking-wider">Subtitles</span>
+                              </button>
+
+                              <div className="space-y-1 max-h-[220px] overflow-y-auto custom-scrollbar pr-1">
+                                {/* None */}
+                                <button
                                   onClick={() => {
-                                    setSubtitleLanguage(label);
-                                    localStorage.setItem('movieverse_preferred_subtitle_language', label);
+                                    setSubtitleLanguage('None');
+                                    localStorage.setItem('movieverse_preferred_subtitle_language', 'None');
+                                    if (selectedProviderId === 'cinesrc') {
+                                      sendCineSrcCommand('setSubtitle', ['None']);
+                                    }
                                     if (videoRef.current) {
                                       const tracks = videoRef.current.textTracks;
                                       for (let i = 0; i < tracks.length; i++) {
-                                        tracks[i].mode = i === idx ? 'showing' : 'disabled';
+                                        tracks[i].mode = 'disabled';
                                       }
                                     }
-                                    closeAllMenus();
+                                    setSettingsView('main');
                                   }}
-                                  className={`w-full text-left py-2 px-3 rounded-lg text-xs font-semibold transition-all border flex items-center justify-between ${
-                                    isActive
+                                  className={`w-full text-left py-2 px-3 rounded-xl text-xs font-semibold transition-all border flex items-center justify-between ${
+                                    subtitleLanguage === 'None'
                                       ? 'bg-red-600/10 text-red-500 border-red-500/20'
                                       : 'bg-white/5 text-zinc-300 border-white/5 hover:border-white/10 hover:bg-white/10'
                                   }`}
                                 >
-                                  <span>{label}</span>
-                                  {isActive && <Check size={12} />}
+                                  <span>None</span>
+                                  {subtitleLanguage === 'None' && <Check size={12} />}
                                 </button>
-                              );
-                            })}
-                          </>
-                        )}
-                      </div>
-                    </div>
 
-                    {/* Audio Language Selector - hidden for iframe providers (CineSrc/VidFast handle audio internally) */}
-                    {!isIframeCustomControls && (
-                    <div className="relative flex items-center justify-center">
-                      <button 
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          const next = !isLanguageMenuOpen;
-                          closeAllMenus();
-                          setIsLanguageMenuOpen(next);
-                        }} 
-                        className={`p-2 transition-transform active:scale-90 ${isLanguageMenuOpen ? 'text-red-500 hover:text-red-600' : 'text-white/95 hover:text-white'}`}
-                        title="Audio Language"
-                      >
-                        <Languages size={24} />
-                      </button>
+                                {/* Native subtitle tracks */}
+                                {anivexaSubtitles && anivexaSubtitles.some(s => !s.isOS) && (
+                                  anivexaSubtitles.map((sub, idx) => {
+                                    if (sub.isOS) return null;
+                                    const label = sub.label || sub.language || sub.lang || `Track ${idx + 1}`;
+                                    const isActive = subtitleLanguage === label;
+                                    return (
+                                      <button
+                                        key={`native-${idx}`}
+                                        onClick={() => {
+                                          setSubtitleLanguage(label);
+                                          localStorage.setItem('movieverse_preferred_subtitle_language', label);
+                                          if (selectedProviderId === 'cinesrc') {
+                                            sendCineSrcCommand('setSubtitle', [label]);
+                                          }
+                                          if (videoRef.current) {
+                                            const tracks = videoRef.current.textTracks;
+                                            for (let i = 0; i < tracks.length; i++) {
+                                              tracks[i].mode = i === idx ? 'showing' : 'disabled';
+                                            }
+                                          }
+                                          setSettingsView('main');
+                                        }}
+                                        className={`w-full text-left py-2 px-3 rounded-xl text-xs font-semibold transition-all border flex items-center justify-between ${
+                                          isActive
+                                            ? 'bg-red-600/10 text-red-500 border-red-500/20'
+                                            : 'bg-white/5 text-zinc-300 border-white/5 hover:border-white/10 hover:bg-white/10'
+                                        }`}
+                                      >
+                                        <span>{label}</span>
+                                        {isActive && <Check size={12} />}
+                                      </button>
+                                    );
+                                  })
+                                )}
 
-                      <div 
-                        data-controls
-                        className={`absolute bottom-12 right-0 bg-[#0c0c0e] border border-white/10 rounded-2xl p-4 shadow-2xl z-[60] flex flex-col gap-2 min-w-[180px] max-h-[300px] overflow-y-auto custom-scrollbar transition-all duration-200 ease-out origin-bottom-right ${
-                          isLanguageMenuOpen 
-                            ? 'opacity-100 translate-y-0 scale-100 pointer-events-auto' 
-                            : 'opacity-0 translate-y-4 scale-95 pointer-events-none'
-                        } text-left`}
-                      >
-                        <div className="flex items-center justify-between border-b border-white/5 pb-2 mb-1">
-                          <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">Audio Language</span>
+                                {/* OpenSubtitles section at bottom */}
+                                {anivexaSubtitles && anivexaSubtitles.some(s => s.isOS) && (
+                                  <>
+                                    <div className="flex items-center justify-between border-t border-white/5 pt-2 mt-1 mb-1">
+                                      <span className="text-[10px] font-bold text-amber-500/80 uppercase tracking-wider">OpenSubtitles</span>
+                                    </div>
+                                    {anivexaSubtitles.map((sub, idx) => {
+                                      if (!sub.isOS) return null;
+                                      const label = sub.label || sub.language || sub.lang || `Track ${idx + 1}`;
+                                      const isActive = subtitleLanguage === label;
+                                      return (
+                                        <button
+                                          key={`os-${idx}`}
+                                          onClick={() => {
+                                            setSubtitleLanguage(label);
+                                            localStorage.setItem('movieverse_preferred_subtitle_language', label);
+                                            if (selectedProviderId === 'cinesrc') {
+                                              sendCineSrcCommand('setSubtitle', [label]);
+                                            }
+                                            if (videoRef.current) {
+                                              const tracks = videoRef.current.textTracks;
+                                              for (let i = 0; i < tracks.length; i++) {
+                                                tracks[i].mode = i === idx ? 'showing' : 'disabled';
+                                              }
+                                            }
+                                            setSettingsView('main');
+                                          }}
+                                          className={`w-full text-left py-2 px-3 rounded-xl text-xs font-semibold transition-all border flex items-center justify-between ${
+                                            isActive
+                                              ? 'bg-red-600/10 text-red-500 border-red-500/20'
+                                              : 'bg-white/5 text-zinc-300 border-white/5 hover:border-white/10 hover:bg-white/10'
+                                          }`}
+                                        >
+                                          <span>{label}</span>
+                                          {isActive && <Check size={12} />}
+                                        </button>
+                                      );
+                                    })}
+                                  </>
+                                )}
+                                
+                                {/* Fallback if absolutely no subtitles loaded */}
+                                {(!anivexaSubtitles || anivexaSubtitles.length === 0) && (
+                                  <div className="text-[10px] text-zinc-500 text-center py-4 italic">
+                                    No subtitles found.
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* 2e. Audio Language Sub-view */}
+                          {settingsView === 'language' && (
+                            <div className="flex flex-col gap-2">
+                              <button 
+                                onClick={() => setSettingsView('main')}
+                                className="flex items-center gap-1.5 border-b border-white/5 pb-2 mb-1 text-zinc-400 hover:text-white transition-colors"
+                              >
+                                <ChevronLeft size={16} />
+                                <span className="text-[11px] font-bold uppercase tracking-wider">Audio Language</span>
+                              </button>
+                              
+                              <div className="space-y-1 max-h-[220px] overflow-y-auto custom-scrollbar pr-1">
+                                {['English', 'Hindi', 'Spanish', 'Japanese', 'French', 'German', 'Portuguese', 'Russian'].map(lang => {
+                                  const isActive = audioLanguage.toLowerCase() === lang.toLowerCase();
+                                  const isEnabled = !useCustomControls || !hlsManifestLoaded || detectedAudioLanguages.includes(lang) || isActive;
+                                  return (
+                                    <button
+                                      key={lang}
+                                      disabled={!isEnabled}
+                                      onClick={() => {
+                                        if (!isEnabled) return;
+                                        setAudioLanguage(lang);
+                                        localStorage.setItem('movieverse_preferred_audio_language', lang);
+                                        if (selectedProviderId === 'cinesrc') {
+                                          sendCineSrcCommand('setLanguage', [lang]);
+                                          sendCineSrcCommand('setAudio', [lang]);
+                                        }
+
+                                        if (hlsRef.current) {
+                                          const tracks = hlsRef.current.audioTracks || [];
+                                          const trackIndex = getAudioTrackIndexForLanguage(tracks, lang);
+                                          if (trackIndex !== -1) {
+                                            hlsRef.current.audioTrack = trackIndex;
+                                          }
+                                        } else if (videoRef.current) {
+                                          switchNativeAudioTrack(videoRef.current, lang);
+                                        }
+                                        setSettingsView('main');
+                                      }}
+                                      className={`w-full text-left py-2 px-3 rounded-xl text-xs font-semibold transition-all border flex items-center justify-between ${
+                                        isActive
+                                          ? 'bg-red-600/10 text-red-500 border-red-500/20'
+                                          : !isEnabled
+                                            ? 'opacity-40 cursor-not-allowed bg-black/20 text-zinc-600 border-transparent'
+                                            : 'bg-white/5 text-zinc-300 border-white/5 hover:border-white/10 hover:bg-white/10'
+                                      }`}
+                                    >
+                                      <span>{lang}</span>
+                                      {isActive && <Check size={12} />}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* 2f. Speed Sub-view */}
+                          {settingsView === 'speed' && (
+                            <div className="flex flex-col gap-2">
+                              <button 
+                                onClick={() => setSettingsView('main')}
+                                className="flex items-center gap-1.5 border-b border-white/5 pb-2 mb-1 text-zinc-400 hover:text-white transition-colors"
+                              >
+                                <ChevronLeft size={16} />
+                                <span className="text-[11px] font-bold uppercase tracking-wider">Playback Speed</span>
+                              </button>
+                              
+                              <div className="space-y-1">
+                                {[0.5, 1.0, 1.25, 1.5, 2.0].map((speed) => {
+                                  const isActive = playbackSpeed === speed;
+                                  return (
+                                    <button
+                                      key={speed}
+                                      onClick={() => {
+                                        changePlaybackSpeed(speed);
+                                        setSettingsView('main');
+                                      }}
+                                      className={`w-full py-2 px-3 rounded-xl text-xs font-semibold transition-all border flex items-center justify-between ${
+                                        isActive 
+                                          ? 'bg-red-600/10 text-red-500 border-red-500/20 font-bold' 
+                                          : 'bg-white/5 text-zinc-300 border-white/5 hover:border-white/10 hover:bg-white/10'
+                                      }`}
+                                    >
+                                      <span>{speed === 1.0 ? 'Normal' : `${speed}x`}</span>
+                                      {isActive && <Check size={12} />}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* 2g. Aspect Ratio Sub-view */}
+                          {settingsView === 'aspectRatio' && (
+                            <div className="flex flex-col gap-2">
+                              <button 
+                                onClick={() => setSettingsView('main')}
+                                className="flex items-center gap-1.5 border-b border-white/5 pb-2 mb-1 text-zinc-400 hover:text-white transition-colors"
+                              >
+                                <ChevronLeft size={16} />
+                                <span className="text-[11px] font-bold uppercase tracking-wider">Aspect Ratio</span>
+                              </button>
+                              
+                              <div className="space-y-1">
+                                {[
+                                  { id: 'contain', label: 'Original' },
+                                  { id: 'cover', label: '16:9' },
+                                  { id: 'fill', label: 'Stretch' }
+                                ].map((opt) => {
+                                  const isActive = aspectRatio === opt.id;
+                                  return (
+                                    <button
+                                      key={opt.id}
+                                      onClick={() => {
+                                        setAspectRatio(opt.id as any);
+                                        setSettingsView('main');
+                                      }}
+                                      className={`w-full py-2 px-3 rounded-xl text-xs font-semibold transition-all border flex items-center justify-between ${
+                                        isActive 
+                                          ? 'bg-red-600/10 text-red-500 border-red-500/20 font-bold' 
+                                          : 'bg-white/5 text-zinc-300 border-white/5 hover:border-white/10 hover:bg-white/10'
+                                      }`}
+                                    >
+                                      <span>{opt.label}</span>
+                                      {isActive && <Check size={12} />}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* 2h. Brightness Sub-view */}
+                          {settingsView === 'brightness' && (
+                            <div className="flex flex-col gap-2">
+                              <button 
+                                onClick={() => setSettingsView('main')}
+                                className="flex items-center gap-1.5 border-b border-white/5 pb-2 mb-1 text-zinc-400 hover:text-white transition-colors"
+                              >
+                                <ChevronLeft size={16} />
+                                <span className="text-[11px] font-bold uppercase tracking-wider">Brightness</span>
+                              </button>
+                              
+                              <div className="space-y-1">
+                                {[50, 75, 100, 125, 150].map((val) => {
+                                  const isActive = brightness === val;
+                                  return (
+                                    <button
+                                      key={val}
+                                      onClick={() => {
+                                        setBrightness(val);
+                                        setSettingsView('main');
+                                      }}
+                                      className={`w-full py-2 px-3 rounded-xl text-xs font-semibold transition-all border flex items-center justify-between ${
+                                        isActive 
+                                          ? 'bg-red-600/10 text-red-500 border-red-500/20 font-bold' 
+                                          : 'bg-white/5 text-zinc-300 border-white/5 hover:border-white/10 hover:bg-white/10'
+                                      }`}
+                                    >
+                                      <span>{val === 100 ? '100% (Normal)' : `${val}%`}</span>
+                                      {isActive && <Check size={12} />}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* 2i. Mirror Sub-view */}
+                          {settingsView === 'mirror' && (
+                            <div className="flex flex-col gap-2">
+                              <button 
+                                onClick={() => setSettingsView('main')}
+                                className="flex items-center gap-1.5 border-b border-white/5 pb-2 mb-1 text-zinc-400 hover:text-white transition-colors"
+                              >
+                                <ChevronLeft size={16} />
+                                <span className="text-[11px] font-bold uppercase tracking-wider">Mirror</span>
+                              </button>
+                              
+                              <div className="space-y-1">
+                                {[
+                                  { value: false, label: 'Off' },
+                                  { value: true, label: 'On' }
+                                ].map((opt) => {
+                                  const isActive = isMirrored === opt.value;
+                                  return (
+                                    <button
+                                      key={opt.label}
+                                      onClick={() => {
+                                        setIsMirrored(opt.value);
+                                        setSettingsView('main');
+                                      }}
+                                      className={`w-full py-2 px-3 rounded-xl text-xs font-semibold transition-all border flex items-center justify-between ${
+                                        isActive 
+                                          ? 'bg-red-600/10 text-red-500 border-red-500/20 font-bold' 
+                                          : 'bg-white/5 text-zinc-300 border-white/5 hover:border-white/10 hover:bg-white/10'
+                                      }`}
+                                    >
+                                      <span>{opt.label}</span>
+                                      {isActive && <Check size={12} />}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
                         </div>
-
-                        {['English', 'Hindi', 'Spanish', 'Japanese', 'French', 'German', 'Portuguese', 'Russian'].map(lang => {
-                          const isActive = audioLanguage.toLowerCase() === lang.toLowerCase();
-                          const isEnabled = !useCustomControls || !hlsManifestLoaded || detectedAudioLanguages.includes(lang) || isActive;
-                          return (
-                            <button
-                              key={lang}
-                              disabled={!isEnabled}
-                              onClick={() => {
-                                if (!isEnabled) return;
-                                setAudioLanguage(lang);
-                                localStorage.setItem('movieverse_preferred_audio_language', lang);
-
-                                // Set active audio track in Hls.js
-                                if (hlsRef.current) {
-                                  const tracks = hlsRef.current.audioTracks || [];
-                                  const trackIndex = getAudioTrackIndexForLanguage(tracks, lang);
-                                  if (trackIndex !== -1) {
-                                    hlsRef.current.audioTrack = trackIndex;
-                                  }
-                                } else if (videoRef.current) {
-                                  // Set active audio track in HTML5 video natively
-                                  switchNativeAudioTrack(videoRef.current, lang);
-                                }
-
-                                closeAllMenus();
-                              }}
-                              className={`w-full text-left py-2 px-3 rounded-lg text-xs font-semibold transition-all border flex items-center justify-between ${
-                                isActive
-                                  ? 'bg-red-600/10 text-red-500 border-red-500/20'
-                                  : !isEnabled
-                                    ? 'opacity-40 cursor-not-allowed bg-black/20 text-zinc-600 border-transparent'
-                                    : 'bg-white/5 text-zinc-300 border-white/5 hover:border-white/10 hover:bg-white/10'
-                              }`}
-                            >
-                              <span>{lang}</span>
-                              {isActive && <Check size={12} />}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                    )}
-
-                    <div className="relative flex items-center justify-center">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          const next = !isSpeedMenuOpen;
-                          closeAllMenus();
-                          setIsSpeedMenuOpen(next);
-                        }}
-                        className={`px-3 py-1.5 text-xs font-extrabold border rounded-xl transition-all whitespace-nowrap active:scale-90 self-center flex items-center justify-center h-10 min-w-[44px] ${
-                          isSpeedMenuOpen 
-                            ? 'text-red-500 border-red-500/30 bg-red-600/10 shadow-[0_0_15px_rgba(239,68,68,0.15)]' 
-                            : 'text-white/90 hover:text-white border-white/10 hover:border-white/25 bg-white/5 hover:bg-white/10'
-                        }`}
-                        title="Playback Speed"
-                      >
-                        {playbackSpeed === 1.0 ? '1.0x' : `${playbackSpeed}x`}
-                      </button>
-
-                      <div 
-                        data-controls
-                        className={`absolute bottom-12 left-1/2 -translate-x-1/2 bg-[#0c0c0e] border border-white/10 rounded-xl p-1 shadow-2xl z-[60] flex flex-col gap-0.5 min-w-[70px] transition-all duration-200 ease-out origin-bottom ${
-                          isSpeedMenuOpen 
-                            ? 'opacity-100 translate-y-0 scale-100 pointer-events-auto' 
-                            : 'opacity-0 translate-y-4 scale-95 pointer-events-none'
-                        }`}
-                      >
-                        {[0.5, 1.0, 1.25, 1.5, 2.0].map((speed) => {
-                          const isActive = playbackSpeed === speed;
-                          return (
-                            <button
-                              key={speed}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                changePlaybackSpeed(speed);
-                                closeAllMenus();
-                              }}
-                              className={`w-full text-center py-1.5 px-3 rounded-lg text-[10px] font-semibold transition-colors ${
-                                isActive ? 'bg-red-600 text-white' : 'text-zinc-400 hover:bg-white/5 hover:text-white'
-                              }`}
-                            >
-                              {speed === 1.0 ? '1.0x' : `${speed}x`}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-
-                    <div className="relative flex items-center justify-center">
-                      <button 
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          const next = !isQualityMenuOpen;
-                          closeAllMenus();
-                          setIsQualityMenuOpen(next);
-                        }} 
-                        className={`p-2 transition-transform active:scale-90 ${isQualityMenuOpen ? 'text-red-500 hover:text-red-600' : 'text-white/95 hover:text-white'}`}
-                        title="Providers & Quality"
-                      >
-                        <Sliders size={24} />
-                      </button>
-
-                      <div 
-                        data-controls
-                        className={`absolute bottom-12 right-0 bg-[#0c0c0e] border border-white/10 rounded-2xl p-4 shadow-2xl z-[60] flex flex-col gap-3 min-w-[240px] max-h-[350px] overflow-y-auto custom-scrollbar transition-all duration-200 ease-out origin-bottom-right ${
-                          isQualityMenuOpen 
-                            ? 'opacity-100 translate-y-0 scale-100 pointer-events-auto' 
-                            : 'opacity-0 translate-y-4 scale-95 pointer-events-none'
-                        } text-left`}
-                      >
-                        <div>
-                          <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block mb-2 px-1">Select Source Provider</span>
-                          <div className="space-y-1">
-                             {PROVIDERS.filter(p => (!isWatchParty || p.supportsPostMessage) && (isAnime || (p.id !== 'vidnest_animepahe' && p.id !== 'anikai'))).map((prov) => {
-                              const isActive = selectedProviderId === prov.id;
-                              return (
-                                <button
-                                  key={prov.id}
-                                  onClick={() => {
-                                    setSelectedProviderId(prov.id);
-                                    if (onProviderChange) {
-                                      onProviderChange(prov.id);
-                                    }
-                                    if (typeof window !== 'undefined') {
-                                      localStorage.setItem('movieverse_preferred_provider', prov.id);
-                                    }
-                                    closeAllMenus();
-                                  }}
-                                  className={`w-full py-2 px-3 rounded-lg text-xs font-semibold transition-all border flex items-center justify-between ${
-                                    isActive 
-                                      ? 'bg-red-600/10 text-red-500 border-red-500/20 font-bold' 
-                                      : 'bg-white/5 text-zinc-300 border-white/5 hover:border-white/10 hover:bg-white/10'
-                                  }`}
-                                >
-                                  <span>{prov.name}</span>
-                                  {isActive && <Check size={12} />}
-                                </button>
-                              );
-                            })}
-                          </div>
-                        </div>
-
-                        {(selectedProviderId.startsWith('encdec') || selectedProviderId === 'cinepro_core') && encDecServers.length > 0 && (
-                          <div className="border-t border-white/5 pt-2.5">
-                            <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block mb-2 px-1">
-                              {selectedProviderId === 'cinepro_core' ? 'Select Provider' : 'Select Source Server'}
-                            </span>
-                            <div className="grid grid-cols-2 gap-1.5">
-                              {encDecServers.map((srv) => {
-                                const isActive = selectedEncDecServer === srv;
-                                return (
-                                  <button
-                                    key={srv}
-                                    onClick={() => {
-                                      setSelectedEncDecServer(srv);
-                                      closeAllMenus();
-                                    }}
-                                    className={`py-1.5 px-2 rounded-lg text-[11px] font-semibold text-center transition-all border ${
-                                      isActive 
-                                        ? 'bg-red-600/10 text-red-500 border-red-500/20' 
-                                        : 'bg-white/5 text-zinc-300 border-white/5 hover:border-white/10 hover:bg-white/10'
-                                    }`}
-                                  >
-                                    {srv}
-                                  </button>
-                                );
-                              })}
-                            </div>
-                          </div>
-                        )}
-
-                        {selectedProviderId === 'videasy_adfree' && (
-                          <div className="border-t border-white/5 pt-2.5">
-                            <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block mb-2 px-1">
-                              Select Source Server
-                            </span>
-                             <div className="grid grid-cols-2 gap-1.5 max-h-[140px] overflow-y-auto custom-scrollbar pr-1">
-                              {['Hydrogen', 'Neon', 'Lithium', 'Oxygen', 'Vyse (English)', 'Fade (Hindi)', 'Omen (Spanish)', 'Raze (Portuguese)', 'Killjoy (German)', 'Jett', 'Tejo', 'Sage', 'Breach'].map((srv) => {
-                                const isActive = selectedVideasyServer === srv;
-                                return (
-                                  <button
-                                    key={srv}
-                                    onClick={() => {
-                                      setSelectedVideasyServer(srv);
-                                      
-                                      // Sync audio language state
-                                      if (srv === 'Fade (Hindi)') {
-                                        setAudioLanguage('Hindi');
-                                        localStorage.setItem('movieverse_preferred_audio_language', 'Hindi');
-                                      } else if (srv === 'Omen (Spanish)') {
-                                        setAudioLanguage('Spanish');
-                                        localStorage.setItem('movieverse_preferred_audio_language', 'Spanish');
-                                      } else if (srv === 'Raze (Portuguese)') {
-                                        setAudioLanguage('Portuguese');
-                                        localStorage.setItem('movieverse_preferred_audio_language', 'Portuguese');
-                                      } else if (srv === 'Killjoy (German)') {
-                                        setAudioLanguage('German');
-                                        localStorage.setItem('movieverse_preferred_audio_language', 'German');
-                                      } else if (
-                                        srv === 'Vyse (English)' ||
-                                        srv === 'Hydrogen' ||
-                                        srv === 'Neon' ||
-                                        srv === 'Lithium' ||
-                                        srv === 'Oxygen' ||
-                                        srv === 'Jett' ||
-                                        srv === 'Tejo' ||
-                                        srv === 'Sage' ||
-                                        srv === 'Breach'
-                                      ) {
-                                        setAudioLanguage('English');
-                                        localStorage.setItem('movieverse_preferred_audio_language', 'English');
-                                      }
-                                      
-                                      closeAllMenus();
-                                    }}
-                                    className={`py-1.5 px-2 rounded-lg text-[11px] font-semibold text-center transition-all border ${
-                                      isActive 
-                                        ? 'bg-red-600/10 text-red-500 border-red-500/20' 
-                                        : 'bg-white/5 text-zinc-300 border-white/5 hover:border-white/10 hover:bg-white/10'
-                                    }`}
-                                  >
-                                    {srv}
-                                  </button>
-                                );
-                              })}
-                            </div>
-                          </div>
-                        )}
-
-                        {customQualities.length > 0 && (
-                          <div className="border-t border-white/5 pt-2.5">
-                            <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block mb-2 px-1">Select Quality</span>
-                            <div className="grid grid-cols-2 gap-1.5">
-                              {customQualities.map((q) => {
-                                const isActive = selectedQuality === q.quality;
-                                return (
-                                  <button
-                                    key={q.quality}
-                                    onClick={() => {
-                                      handleQualityChange(q.quality);
-                                      if (q.index !== undefined && hlsRef.current) {
-                                        hlsRef.current.currentLevel = q.index;
-                                      }
-                                      closeAllMenus();
-                                    }}
-                                    className={`py-1.5 px-2 rounded-lg text-xs font-semibold text-center transition-all border ${
-                                      isActive 
-                                        ? 'bg-red-600/10 text-red-500 border-red-500/20' 
-                                        : 'bg-white/5 text-zinc-300 border-white/5 hover:border-white/10 hover:bg-white/10'
-                                    }`}
-                                  >
-                                    {q.quality}
-                                  </button>
-                                );
-                              })}
-                            </div>
-                          </div>
-                        )}
-                      </div>
+                      )}
                     </div>
 
                     <button onClick={toggleFullscreen} className="p-2 text-white/95 hover:text-white transition-transform active:scale-90" title="Fullscreen">
