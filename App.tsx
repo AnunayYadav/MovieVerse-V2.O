@@ -912,7 +912,7 @@ const RankingRow = ({ title, items, icon: Icon, onMovieClick }: { title: string,
                 {title}
             </h3>
         </div>
-        <div className="flex gap-4 md:gap-8 overflow-x-auto pb-6 pt-2 px-2 hide-scrollbar scroll-smooth">
+        <div className="flex gap-4 md:gap-8 overflow-x-auto overflow-y-hidden pb-6 pt-2 px-2 hide-scrollbar scroll-smooth">
             {items.map((movie, idx) => (
                 <TrendingMovieItem 
                     key={movie.id}
@@ -1492,7 +1492,8 @@ export default function App() {
         if (isSyncingPath.current) return;
         isSyncingPath.current = true;
 
-        const prevIdx = currentHistoryIdxRef.current;
+        try {
+            const prevIdx = currentHistoryIdxRef.current;
         const newIdx = window.history.state?.idx || 0;
         const isBack = newIdx < prevIdx;
         setIsNavigatingBack(isBack);
@@ -1713,13 +1714,16 @@ export default function App() {
         setIsWatching(watching);
         setWatchSeason(season);
         setWatchEpisode(episode);
-
-        // Keep isSyncingPath active across the full React batch to prevent
-        // the state→URL effect from firing before all state updates settle.
-        // setTimeout(0) runs after the current React commit phase.
-        setTimeout(() => {
-            isSyncingPath.current = false;
-        }, 0);
+        } catch (error) {
+            console.error("Error in syncStateFromPath:", error);
+        } finally {
+            // Keep isSyncingPath active across the full React batch to prevent
+            // the state→URL effect from firing before all state updates settle.
+            // setTimeout(0) runs after the current React commit phase.
+            setTimeout(() => {
+                isSyncingPath.current = false;
+            }, 0);
+        }
     }, [apiKey]);
 
     useEffect(() => {
@@ -1824,7 +1828,7 @@ export default function App() {
                 newPath = `/custom-collection/${currentCollection}`;
             }
 
-            const isPushing = window.location.pathname !== newPath && lastPushedPathRef.current !== newPath;
+            const isPushing = window.location.pathname !== newPath;
             if (isPushing) {
                 lastPushedPathRef.current = newPath;
                 const newIdx = (window.history.state?.idx || 0) + 1;

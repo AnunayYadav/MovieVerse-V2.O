@@ -2404,8 +2404,10 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                   }}
                   title="Media Player"
                   frameBorder="0"
-                  allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
-                  allowFullScreen
+                  allow="autoplay; encrypted-media; gyroscope; picture-in-picture; fullscreen; clipboard-write; screen-wake-lock; web-share"
+                  allowFullScreen={true}
+                  webkitallowfullscreen="true"
+                  mozallowfullscreen="true"
               />
             )
         )}

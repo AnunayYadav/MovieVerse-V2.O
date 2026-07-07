@@ -3531,7 +3531,10 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                 <iframe 
                                     src={activeDownloadUrl} 
                                     className="w-full flex-1 rounded-2xl bg-black border border-white/5 shadow-inner"
-                                    allow="autoplay; encrypted-media; fullscreen"
+                                    allow="autoplay; encrypted-media; gyroscope; picture-in-picture; fullscreen"
+                                    allowFullScreen={true}
+                                    webkitallowfullscreen="true"
+                                    mozallowfullscreen="true"
                                     title="Downloader Interface"
                                 />
                             </div>
