@@ -451,12 +451,66 @@ export const MovieCard = React.memo(React.forwardRef<HTMLDivElement, MovieCardPr
     // Progress Bar Logic
     const progress = movie.play_progress || 0;
     const showProgress = progress > 0 && progress < 98; 
+
+    const enterTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+    const leaveTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    const handleMouseEnter = (e: React.MouseEvent<HTMLDivElement>) => {
+        if (leaveTimeoutRef.current) {
+            clearTimeout(leaveTimeoutRef.current);
+            leaveTimeoutRef.current = null;
+        }
+
+        if (enterTimeoutRef.current) clearTimeout(enterTimeoutRef.current);
+
+        const target = e.currentTarget;
+        enterTimeoutRef.current = setTimeout(() => {
+            const rect = target.getBoundingClientRect();
+            const scrollY = window.scrollY || window.pageYOffset;
+            const scrollX = window.scrollX || window.pageXOffset;
+            
+            const position = {
+                top: rect.top + scrollY,
+                left: rect.left + scrollX,
+                width: rect.width,
+                height: rect.height
+            };
+
+            window.dispatchEvent(new CustomEvent('movie-card-hover', {
+                detail: {
+                    movie,
+                    rect: position,
+                    horizontal
+                }
+            }));
+        }, 400);
+    };
+
+    const handleMouseLeave = () => {
+        if (enterTimeoutRef.current) {
+            clearTimeout(enterTimeoutRef.current);
+            enterTimeoutRef.current = null;
+        }
+
+        leaveTimeoutRef.current = setTimeout(() => {
+            window.dispatchEvent(new CustomEvent('movie-card-hover-leave'));
+        }, 300);
+    };
+
+    React.useEffect(() => {
+        return () => {
+            if (enterTimeoutRef.current) clearTimeout(enterTimeoutRef.current);
+            if (leaveTimeoutRef.current) clearTimeout(leaveTimeoutRef.current);
+        };
+    }, []);
   
     return (
       <div 
         ref={combinedRef}
         className={`group relative ${horizontal ? 'w-full aspect-[16/9]' : 'shrink-0 w-[140px] sm:w-[170px] aspect-[2/3]'} rounded-xl overflow-hidden cursor-pointer transition-all duration-500 ease-[cubic-bezier(0.33,1,0.68,1)] hover:z-20 hover:scale-[1.03] hover:shadow-[0_10px_40px_rgba(0,0,0,0.5)] border border-white/5 hover:border-red-500/50 font-sans select-none`}
         onClick={() => onClick(movie)}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
       >
         <div className="w-full h-full relative bg-white/5">
           <img 

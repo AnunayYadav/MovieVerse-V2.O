@@ -4,6 +4,7 @@ import { Search, Film, Menu, TrendingUp, Tv, Ghost, Calendar, Star, X, Sparkles,
 import { Movie, UserProfile, GENRES_MAP, GENRES_LIST, INDIAN_LANGUAGES, MaturityRating, Keyword } from './types';
 import { LogoLoader, MovieSkeleton, MovieCard, PersonCard, TMDB_BASE_URL, TMDB_BACKDROP_BASE, TMDB_IMAGE_BASE, getTmdbKey, BrandLogo, getMovieVerseRating, tvFetch } from './components/Shared';
 import { MoviePage } from './components/MovieDetails';
+import { NetflixHoverCard } from './components/NetflixHoverCard';
 import { PersonPage, NotificationModal, ComparisonModal, ExpandedCategoryModal, CharacterPage } from './components/Modals';
 import { SettingsPage } from './components/SettingsModal';
 import { getSearchSuggestions } from './services/gemini';
@@ -1233,6 +1234,59 @@ export default function App() {
 
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+
+    const [hoveredMovieInfo, setHoveredMovieInfo] = useState<{ movie: Movie; rect: { top: number; left: number; width: number; height: number; }; horizontal?: boolean; } | null>(null);
+    const hoverLeaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    const handleHoverCardEnter = () => {
+        if (hoverLeaveTimeoutRef.current) {
+            clearTimeout(hoverLeaveTimeoutRef.current);
+            hoverLeaveTimeoutRef.current = null;
+        }
+    };
+
+    const handleHoverCardLeave = () => {
+        if (hoverLeaveTimeoutRef.current) clearTimeout(hoverLeaveTimeoutRef.current);
+        hoverLeaveTimeoutRef.current = setTimeout(() => {
+            setHoveredMovieInfo(null);
+        }, 300);
+    };
+
+    const handlePlayMovieFromHover = (movie: Movie) => {
+        setSelectedMovie(movie);
+        if (movie.first_air_date || movie.name) {
+            setWatchSeason(1);
+            setWatchEpisode(1);
+        }
+        setIsWatching(true);
+    };
+
+    useEffect(() => {
+        const handleHover = (e: Event) => {
+            const customEvent = e as CustomEvent;
+            if (hoverLeaveTimeoutRef.current) {
+                clearTimeout(hoverLeaveTimeoutRef.current);
+                hoverLeaveTimeoutRef.current = null;
+            }
+            setHoveredMovieInfo(customEvent.detail);
+        };
+
+        const handleLeave = () => {
+            if (hoverLeaveTimeoutRef.current) clearTimeout(hoverLeaveTimeoutRef.current);
+            hoverLeaveTimeoutRef.current = setTimeout(() => {
+                setHoveredMovieInfo(null);
+            }, 300);
+        };
+
+        window.addEventListener('movie-card-hover', handleHover);
+        window.addEventListener('movie-card-hover-leave', handleLeave);
+
+        return () => {
+            window.removeEventListener('movie-card-hover', handleHover);
+            window.removeEventListener('movie-card-hover-leave', handleLeave);
+            if (hoverLeaveTimeoutRef.current) clearTimeout(hoverLeaveTimeoutRef.current);
+        };
+    }, []);
     const [page, setPage] = useState(1);
     const [hasMore, setHasMore] = useState(true);
 
@@ -5271,6 +5325,22 @@ export default function App() {
                         })}
                     </div>
                 </div>
+
+            {hoveredMovieInfo && (
+                <NetflixHoverCard
+                    movie={hoveredMovieInfo.movie}
+                    rect={hoveredMovieInfo.rect}
+                    apiKey={apiKey}
+                    isWatchlisted={watchlist.some(m => m.id === hoveredMovieInfo.movie.id)}
+                    isWatched={watched.some(m => m.id === hoveredMovieInfo.movie.id)}
+                    onToggleWatchlist={(m) => toggleList(watchlist, setWatchlist, 'movieverse_watchlist', m)}
+                    onToggleWatched={handleToggleWatched}
+                    onPlay={handlePlayMovieFromHover}
+                    onDetailClick={setSelectedMovie}
+                    onMouseEnter={handleHoverCardEnter}
+                    onMouseLeave={handleHoverCardLeave}
+                />
+            )}
 
             {!apiKey && loading && <div className="fixed inset-0 z-[100] bg-black"><LogoLoader /></div>}
         </div>
