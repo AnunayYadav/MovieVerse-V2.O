@@ -3047,8 +3047,8 @@ export const MoviePage: React.FC<MoviePageProps> = ({
 
                                                         return filtered.map((episode) => {
                                                             const epThumbnail = episode.still_path 
-                                                                ? `${TMDB_IMAGE_BASE}${episode.still_path}` 
-                                                                : (displayData.backdrop_path ? `${TMDB_IMAGE_BASE}${displayData.backdrop_path}` : "https://placehold.co/320x180");
+                                                                ? getImageUrl(episode.still_path, "https://placehold.co/320x180") 
+                                                                : getImageUrl(displayData.backdrop_path, "https://placehold.co/320x180");
                                                             
                                                             const epRuntime = episode.runtime 
                                                                 ? `${episode.runtime} min` 

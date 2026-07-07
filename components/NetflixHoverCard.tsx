@@ -248,8 +248,8 @@ export const NetflixHoverCard: React.FC<NetflixHoverCardProps> = ({
 
     const backdropUrl = useMemo(() => {
         return movie.backdrop_path 
-            ? `https://image.tmdb.org/t/p/w780${movie.backdrop_path}`
-            : (movie.poster_path ? `https://image.tmdb.org/t/p/w500${movie.poster_path}` : "https://placehold.co/600x338/111/444?text=MovieVerse");
+            ? (movie.backdrop_path.startsWith('http') ? movie.backdrop_path : `https://image.tmdb.org/t/p/w780${movie.backdrop_path}`)
+            : (movie.poster_path ? (movie.poster_path.startsWith('http') ? movie.poster_path : `https://image.tmdb.org/t/p/w500${movie.poster_path}`) : "https://placehold.co/600x338/111/444?text=MovieVerse");
     }, [movie.backdrop_path, movie.poster_path]);
 
     return (

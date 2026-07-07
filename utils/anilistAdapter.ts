@@ -14,7 +14,7 @@ export function mapAnilistToTmdbShape(media: any): Movie {
     media_type: isMovie ? 'movie' : 'tv',
     isAnime: true,
     overview: media.description ? media.description.replace(/<[^>]*>/g, '') : '', // strip HTML tags
-    poster_path: media.coverImage?.extraLarge || media.coverImage?.large || null,
+    poster_path: media.bannerImage || media.coverImage?.extraLarge || media.coverImage?.large || null,
     backdrop_path: media.bannerImage || media.coverImage?.extraLarge || null,
     vote_average: media.averageScore ? media.averageScore / 10 : 7.0,
     vote_count: 100, // placeholder
