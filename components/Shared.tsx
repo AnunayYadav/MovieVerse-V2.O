@@ -476,6 +476,8 @@ export const MovieCard = React.memo(React.forwardRef<HTMLDivElement, MovieCardPr
                 height: rect.height
             };
 
+            console.log("MovieCard: Dispatching hover event for", movie.title || movie.name, position);
+
             window.dispatchEvent(new CustomEvent('movie-card-hover', {
                 detail: {
                     movie,
@@ -487,12 +489,14 @@ export const MovieCard = React.memo(React.forwardRef<HTMLDivElement, MovieCardPr
     };
 
     const handleMouseLeave = () => {
+        console.log("MovieCard: Triggered mouse leave");
         if (enterTimeoutRef.current) {
             clearTimeout(enterTimeoutRef.current);
             enterTimeoutRef.current = null;
         }
 
         leaveTimeoutRef.current = setTimeout(() => {
+            console.log("MovieCard: Dispatching leave event");
             window.dispatchEvent(new CustomEvent('movie-card-hover-leave'));
         }, 300);
     };

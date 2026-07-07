@@ -1264,6 +1264,7 @@ export default function App() {
     useEffect(() => {
         const handleHover = (e: Event) => {
             const customEvent = e as CustomEvent;
+            console.log("App: Received movie-card-hover event for", customEvent.detail?.movie?.title || customEvent.detail?.movie?.name, customEvent.detail?.rect);
             if (hoverLeaveTimeoutRef.current) {
                 clearTimeout(hoverLeaveTimeoutRef.current);
                 hoverLeaveTimeoutRef.current = null;
@@ -1272,6 +1273,7 @@ export default function App() {
         };
 
         const handleLeave = () => {
+            console.log("App: Received movie-card-hover-leave event");
             if (hoverLeaveTimeoutRef.current) clearTimeout(hoverLeaveTimeoutRef.current);
             hoverLeaveTimeoutRef.current = setTimeout(() => {
                 setHoveredMovieInfo(null);
