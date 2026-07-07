@@ -14,6 +14,7 @@ interface NetflixHoverCardProps {
     onDetailClick: (m: Movie) => void;
     onMouseEnter: () => void;
     onMouseLeave: () => void;
+    horizontal?: boolean;
 }
 
 export const NetflixHoverCard: React.FC<NetflixHoverCardProps> = ({
@@ -27,7 +28,8 @@ export const NetflixHoverCard: React.FC<NetflixHoverCardProps> = ({
     onPlay,
     onDetailClick,
     onMouseEnter,
-    onMouseLeave
+    onMouseLeave,
+    horizontal = false
 }) => {
     const [videoKey, setVideoKey] = useState<string | null>(null);
     const [showVideo, setShowVideo] = useState(false);
@@ -35,8 +37,8 @@ export const NetflixHoverCard: React.FC<NetflixHoverCardProps> = ({
     const cardRef = useRef<HTMLDivElement>(null);
 
     // Calculate dimensions
-    const width = rect.width * 1.5;
-    const height = width * 1.4;
+    const width = rect.width * 1.3; // reduced from 1.5 to 1.3
+    const height = width * (horizontal ? 1.25 : 1.35); // reduced from 1.4
 
     // Center the hover box relative to the original card
     let left = rect.left - (width - rect.width) / 2;

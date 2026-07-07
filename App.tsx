@@ -1406,8 +1406,10 @@ export default function App() {
 
     const [hoveredMovieInfo, setHoveredMovieInfo] = useState<{ movie: Movie; rect: { top: number; left: number; width: number; height: number; }; horizontal?: boolean; } | null>(null);
     const hoverLeaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const isMouseOverHoverCard = useRef(false);
 
     const handleHoverCardEnter = () => {
+        isMouseOverHoverCard.current = true;
         if (hoverLeaveTimeoutRef.current) {
             clearTimeout(hoverLeaveTimeoutRef.current);
             hoverLeaveTimeoutRef.current = null;
@@ -1415,6 +1417,7 @@ export default function App() {
     };
 
     const handleHoverCardLeave = () => {
+        isMouseOverHoverCard.current = false;
         if (hoverLeaveTimeoutRef.current) clearTimeout(hoverLeaveTimeoutRef.current);
         hoverLeaveTimeoutRef.current = setTimeout(() => {
             setHoveredMovieInfo(null);
@@ -1434,6 +1437,7 @@ export default function App() {
         const handleHover = (e: Event) => {
             const customEvent = e as CustomEvent;
             console.log("App: Received movie-card-hover event for", customEvent.detail?.movie?.title || customEvent.detail?.movie?.name, customEvent.detail?.rect);
+            isMouseOverHoverCard.current = false;
             if (hoverLeaveTimeoutRef.current) {
                 clearTimeout(hoverLeaveTimeoutRef.current);
                 hoverLeaveTimeoutRef.current = null;
@@ -1442,7 +1446,10 @@ export default function App() {
         };
 
         const handleLeave = () => {
-            console.log("App: Received movie-card-hover-leave event");
+            console.log("App: Received movie-card-hover-leave event, isMouseOverHoverCard:", isMouseOverHoverCard.current);
+            if (isMouseOverHoverCard.current) {
+                return;
+            }
             if (hoverLeaveTimeoutRef.current) clearTimeout(hoverLeaveTimeoutRef.current);
             hoverLeaveTimeoutRef.current = setTimeout(() => {
                 setHoveredMovieInfo(null);
@@ -5510,6 +5517,7 @@ export default function App() {
                     onDetailClick={setSelectedMovie}
                     onMouseEnter={handleHoverCardEnter}
                     onMouseLeave={handleHoverCardLeave}
+                    horizontal={hoveredMovieInfo.horizontal}
                 />
             )}
 
