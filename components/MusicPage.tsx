@@ -161,6 +161,7 @@ export const MusicPage: React.FC<MusicPageProps> = ({ isAuthenticated, disableEn
   const [loadingPlaylistId, setLoadingPlaylistId] = useState<string | null>(null);
   const [loadingMixId, setLoadingMixId] = useState<string | null>(null);
   const [visualizerMode, setVisualizerMode] = useState<'circular' | 'bars' | 'none'>('circular');
+  const [mobileActiveView, setMobileActiveView] = useState<'player' | 'lyrics'>('player');
 
   // Refs
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -1303,7 +1304,7 @@ export const MusicPage: React.FC<MusicPageProps> = ({ isAuthenticated, disableEn
             {/* Top Mixes grid */}
             <div className="space-y-4">
               <div className="flex justify-between items-center">
-                <h3 className="text-base font-semibold text-white">Your top mixes</h3>
+                <h3 className="text-base font-semibold text-white font-medium">Your top mixes</h3>
                 {musicPreference === 'bollywood' && (
                   <button 
                     onClick={() => {
@@ -1353,7 +1354,7 @@ export const MusicPage: React.FC<MusicPageProps> = ({ isAuthenticated, disableEn
             {/* Recommended for You / For You */}
             {localRecommendations.length > 0 && (
               <div className="space-y-4">
-                <h3 className="text-base font-semibold text-white">Recommended for you</h3>
+                <h3 className="text-base font-semibold text-white font-medium">Recommended for you</h3>
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4">
                   {localRecommendations.map(track => (
                     <div
@@ -1371,7 +1372,7 @@ export const MusicPage: React.FC<MusicPageProps> = ({ isAuthenticated, disableEn
                       </div>
                       <div className="mt-2.5 px-0.5">
                         <h4 className="text-xs font-medium text-white truncate">{track.title}</h4>
-                        <p className="text-[10px] text-zinc-500 truncate mt-0.5 font-medium">{track.artist}</p>
+                        <p className="text-[10px] text-zinc-550 truncate mt-0.5 font-medium">{track.artist}</p>
                       </div>
                     </div>
                   ))}
@@ -1382,7 +1383,7 @@ export const MusicPage: React.FC<MusicPageProps> = ({ isAuthenticated, disableEn
             {/* Trending / Recommended hits */}
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <h3 className="text-base font-semibold text-white">Trending Hits</h3>
+                <h3 className="text-base font-semibold text-white font-medium">Trending Hits</h3>
                 <button 
                   onClick={() => playEntireList(recommendedSongs, true)}
                   className="flex items-center gap-1.5 px-3 py-1 bg-white/5 hover:bg-white/10 rounded-full text-[10px] font-semibold text-white border-none transition-colors cursor-pointer"
@@ -1451,7 +1452,7 @@ export const MusicPage: React.FC<MusicPageProps> = ({ isAuthenticated, disableEn
                         className="aspect-square w-full rounded-2xl object-cover shadow-md mb-2.5"
                       />
                       <h4 className="text-xs font-semibold text-white truncate">{album.name}</h4>
-                      <p className="text-[10px] text-zinc-550 truncate mt-0.5 font-medium">{album.artistName}</p>
+                      <p className="text-[10px] text-zinc-555 truncate mt-0.5 font-medium">{album.artistName}</p>
                     </div>
                   ))}
                 </div>
@@ -1595,7 +1596,7 @@ export const MusicPage: React.FC<MusicPageProps> = ({ isAuthenticated, disableEn
                               localStorage.setItem('movieverse_music_search_history', JSON.stringify(updated));
                               triggerSync({ searchHistory: updated });
                             }}
-                            className="text-zinc-550 hover:text-white border-none bg-transparent cursor-pointer"
+                            className="text-zinc-555 hover:text-white border-none bg-transparent cursor-pointer"
                           >
                             <X size={12} />
                           </button>
@@ -1618,7 +1619,7 @@ export const MusicPage: React.FC<MusicPageProps> = ({ isAuthenticated, disableEn
                               className="group hover:bg-white/5 transition-colors border-b border-white/5 last:border-0 cursor-pointer"
                               onClick={() => selectAndPlay(track, filteredSearchTracks)}
                             >
-                              <td className="p-3 w-10 text-center text-zinc-550 font-semibold group-hover:text-white">
+                              <td className="p-3 w-10 text-center text-zinc-555 font-semibold group-hover:text-white">
                                 {currentTrack?.id === track.id && isPlaying ? (
                                   <span className="text-green-500">▶</span>
                                 ) : (
@@ -1682,7 +1683,7 @@ export const MusicPage: React.FC<MusicPageProps> = ({ isAuthenticated, disableEn
                             className="aspect-square w-full rounded-2xl object-cover shadow-md mb-2.5"
                           />
                           <h4 className="text-xs font-semibold text-white truncate">{album.name}</h4>
-                          <p className="text-[10px] text-zinc-550 truncate mt-0.5 font-medium">{album.artistName}</p>
+                          <p className="text-[10px] text-zinc-555 truncate mt-0.5 font-medium">{album.artistName}</p>
                         </div>
                       ))}
                     </div>
@@ -1701,10 +1702,10 @@ export const MusicPage: React.FC<MusicPageProps> = ({ isAuthenticated, disableEn
                           className="group cursor-pointer bg-zinc-900/10 hover:bg-zinc-900/30 border border-white/5 hover:border-white/10 rounded-2xl p-4 transition-all text-center select-none"
                         >
                           <div className="w-16 h-16 rounded-full bg-zinc-800 mx-auto flex items-center justify-center mb-3 shadow-md border border-white/5 overflow-hidden">
-                            <Disc size={28} className="text-zinc-500" />
+                            <Disc size={28} className="text-zinc-550" />
                           </div>
                           <h4 className="text-xs font-semibold text-white truncate">{art.name}</h4>
-                          <p className="text-[9px] text-zinc-550 truncate mt-0.5 capitalize font-medium">{art.genre || 'Artist'}</p>
+                          <p className="text-[9px] text-zinc-555 truncate mt-0.5 capitalize font-medium">{art.genre || 'Artist'}</p>
                         </div>
                       ))}
                     </div>
@@ -1761,7 +1762,7 @@ export const MusicPage: React.FC<MusicPageProps> = ({ isAuthenticated, disableEn
                             className="group hover:bg-white/5 transition-colors border-b border-white/5 last:border-0 cursor-pointer"
                             onClick={() => selectAndPlay(track, favSongs)}
                           >
-                            <td className="p-3 w-10 text-center text-zinc-550 font-semibold group-hover:text-white">{idx + 1}</td>
+                            <td className="p-3 w-10 text-center text-zinc-555 font-semibold group-hover:text-white">{idx + 1}</td>
                             <td className="p-3">
                               <div className="flex items-center gap-3">
                                 <img src={track.coverUrl} className="w-10 h-10 rounded-xl object-cover shadow" alt="" />
@@ -1777,7 +1778,7 @@ export const MusicPage: React.FC<MusicPageProps> = ({ isAuthenticated, disableEn
                               </div>
                             </td>
                             <td className="p-3 text-zinc-400 truncate hidden md:table-cell font-medium">{track.album}</td>
-                            <td className="p-3 text-right text-zinc-550 hidden sm:table-cell font-semibold">{formatTime(track.duration)}</td>
+                            <td className="p-3 text-right text-zinc-555 hidden sm:table-cell font-semibold">{formatTime(track.duration)}</td>
                             <td className="p-3 w-12 text-center" onClick={(e) => e.stopPropagation()}>
                               <button
                                 onClick={() => toggleFavoriteSong(track)}
@@ -1855,7 +1856,7 @@ export const MusicPage: React.FC<MusicPageProps> = ({ isAuthenticated, disableEn
                         className="group cursor-pointer bg-zinc-900/10 hover:bg-zinc-900/30 border border-white/5 hover:border-white/10 rounded-2xl p-4 transition-all text-center select-none relative"
                       >
                         <div className="w-16 h-16 rounded-full bg-zinc-805 mx-auto flex items-center justify-center mb-3 shadow-md border border-white/5 overflow-hidden">
-                          <Disc size={28} className="text-zinc-500" />
+                          <Disc size={28} className="text-zinc-555" />
                         </div>
                         <h4 className="text-xs font-semibold text-white truncate">{art.name}</h4>
                         <p className="text-[9px] text-zinc-555 truncate mt-0.5 capitalize font-medium">{art.genre || 'Artist'}</p>
@@ -1875,7 +1876,7 @@ export const MusicPage: React.FC<MusicPageProps> = ({ isAuthenticated, disableEn
                 ) : (
                   <div className="text-center py-20 border border-white/5 rounded-2xl bg-zinc-900/10">
                     <Music className="mx-auto text-zinc-700 mb-3" size={28} />
-                    <p className="text-xs text-zinc-500">No saved artists yet. Lookup and follow your top talent!</p>
+                    <p className="text-xs text-zinc-555 font-medium">No saved artists yet. Lookup and follow your top talent!</p>
                   </div>
                 )}
               </div>
@@ -1965,7 +1966,7 @@ export const MusicPage: React.FC<MusicPageProps> = ({ isAuthenticated, disableEn
                             className="group hover:bg-white/5 transition-colors border-b border-white/5 last:border-0 cursor-pointer"
                             onClick={() => selectAndPlay(track, recentlyPlayed)}
                           >
-                            <td className="p-3 w-10 text-center text-zinc-550 font-semibold group-hover:text-white">{idx + 1}</td>
+                            <td className="p-3 w-10 text-center text-zinc-555 font-semibold group-hover:text-white">{idx + 1}</td>
                             <td className="p-3">
                               <div className="flex items-center gap-3">
                                 <img src={track.coverUrl} className="w-10 h-10 rounded-xl object-cover shadow" alt="" />
@@ -1981,7 +1982,7 @@ export const MusicPage: React.FC<MusicPageProps> = ({ isAuthenticated, disableEn
                               </div>
                             </td>
                             <td className="p-3 text-zinc-400 truncate hidden md:table-cell font-medium">{track.album}</td>
-                            <td className="p-3 text-right text-zinc-550 hidden sm:table-cell font-semibold">{formatTime(track.duration)}</td>
+                            <td className="p-3 text-right text-zinc-555 hidden sm:table-cell font-semibold">{formatTime(track.duration)}</td>
                             <td className="p-3 w-12 text-center" onClick={(e) => e.stopPropagation()}>
                               <button
                                 onClick={() => toggleFavoriteSong(track)}
@@ -2032,7 +2033,7 @@ export const MusicPage: React.FC<MusicPageProps> = ({ isAuthenticated, disableEn
               <div className="flex-1 space-y-2 text-center sm:text-left">
                 <span className="text-[10px] text-green-400 font-semibold tracking-wider uppercase">CUSTOM PLAYLIST</span>
                 <h2 className="text-2xl md:text-3xl font-semibold text-white leading-none">{selectedPlaylist.name}</h2>
-                <p className="text-zinc-500 text-xs">{selectedPlaylist.description || "No description provided."}</p>
+                <p className="text-zinc-550 text-xs font-medium">{selectedPlaylist.description || "No description provided."}</p>
                 <p className="text-zinc-500 text-[10px] font-medium">{selectedPlaylist.tracks.length} tracks</p>
 
                 <div className="flex items-center justify-center sm:justify-start gap-2 pt-2">
@@ -2045,14 +2046,14 @@ export const MusicPage: React.FC<MusicPageProps> = ({ isAuthenticated, disableEn
                   </button>
                   <button
                     onClick={() => generatePlaylistShareLink(selectedPlaylist)}
-                    className="p-2 rounded-full bg-zinc-900 border border-white/5 text-zinc-400 hover:text-white hover:scale-105 active:scale-95 transition-transform cursor-pointer"
+                    className="p-2 rounded-full bg-zinc-900 border border-white/5 text-zinc-450 hover:text-white hover:scale-105 active:scale-95 transition-transform cursor-pointer"
                     title="Share Playlist Link"
                   >
                     <Share2 size={14} />
                   </button>
                   <button
                     onClick={() => deletePlaylist(selectedPlaylist.id)}
-                    className="p-2 rounded-full bg-zinc-900 border border-white/5 text-zinc-400 hover:text-red-500 hover:scale-105 active:scale-95 transition-transform cursor-pointer"
+                    className="p-2 rounded-full bg-zinc-900 border border-white/5 text-zinc-450 hover:text-red-500 hover:scale-105 active:scale-95 transition-transform cursor-pointer"
                     title="Delete Playlist"
                   >
                     <Trash2 size={14} />
@@ -2085,7 +2086,7 @@ export const MusicPage: React.FC<MusicPageProps> = ({ isAuthenticated, disableEn
                           <div className="flex items-center justify-end gap-1.5">
                             <button
                               onClick={() => reorderPlaylistTrack(selectedPlaylist.id, index, 'up')}
-                              className="p-1 rounded bg-zinc-805 hover:bg-zinc-800 text-zinc-450 hover:text-white border-none cursor-pointer"
+                              className="p-1 rounded bg-zinc-805 hover:bg-zinc-800 text-zinc-455 hover:text-white border-none cursor-pointer"
                               title="Move Up"
                               disabled={index === 0}
                             >
@@ -2093,7 +2094,7 @@ export const MusicPage: React.FC<MusicPageProps> = ({ isAuthenticated, disableEn
                             </button>
                             <button
                               onClick={() => reorderPlaylistTrack(selectedPlaylist.id, index, 'down')}
-                              className="p-1 rounded bg-zinc-805 hover:bg-zinc-800 text-zinc-450 hover:text-white border-none cursor-pointer"
+                              className="p-1 rounded bg-zinc-805 hover:bg-zinc-800 text-zinc-455 hover:text-white border-none cursor-pointer"
                               title="Move Down"
                               disabled={index === selectedPlaylist.tracks.length - 1}
                             >
@@ -2101,7 +2102,7 @@ export const MusicPage: React.FC<MusicPageProps> = ({ isAuthenticated, disableEn
                             </button>
                             <button
                               onClick={() => removeTrackFromPlaylist(track.id, selectedPlaylist.id)}
-                              className="p-1.5 rounded-full text-zinc-500 hover:text-red-500 transition-colors border-none bg-transparent cursor-pointer"
+                              className="p-1.5 rounded-full text-zinc-550 hover:text-red-500 transition-colors border-none bg-transparent cursor-pointer"
                               title="Remove track"
                             >
                               <Trash2 size={12} />
@@ -2116,7 +2117,7 @@ export const MusicPage: React.FC<MusicPageProps> = ({ isAuthenticated, disableEn
             ) : (
               <div className="text-center py-16 border border-white/5 rounded-2xl bg-zinc-900/10">
                 <Music className="mx-auto text-zinc-700 mb-3" size={24} />
-                <p className="text-xs text-zinc-500">This playlist is empty. Add songs to it from search results!</p>
+                <p className="text-xs text-zinc-505 font-medium">This playlist is empty. Add songs to it from search results!</p>
               </div>
             )}
 
@@ -2199,7 +2200,7 @@ export const MusicPage: React.FC<MusicPageProps> = ({ isAuthenticated, disableEn
                           <p className="font-semibold text-white text-xs">{track.title}</p>
                           <p className="text-[10px] text-zinc-550 mt-0.5 font-medium">{track.artist}</p>
                         </td>
-                        <td className="p-3 text-right text-zinc-550 hidden sm:table-cell font-semibold">{formatTime(track.duration)}</td>
+                        <td className="p-3 text-right text-zinc-555 hidden sm:table-cell font-semibold">{formatTime(track.duration)}</td>
                         <td className="p-3 w-12 text-center" onClick={(e) => e.stopPropagation()}>
                           <div className="flex items-center justify-end gap-1.5">
                             <button
@@ -2297,7 +2298,7 @@ export const MusicPage: React.FC<MusicPageProps> = ({ isAuthenticated, disableEn
                                   <p className="text-[10px] text-zinc-550 truncate mt-0.5 font-medium">{track.artist}</p>
                                 </div>
                               </td>
-                              <td className="p-3 text-right text-zinc-550 font-semibold">{formatTime(track.duration)}</td>
+                              <td className="p-3 text-right text-zinc-555 font-semibold">{formatTime(track.duration)}</td>
                             </tr>
                           ))}
                         </tbody>
@@ -2414,12 +2415,12 @@ export const MusicPage: React.FC<MusicPageProps> = ({ isAuthenticated, disableEn
                             className="aspect-square w-full rounded-2xl object-cover shadow mb-2"
                           />
                           <h4 className="text-xs font-semibold text-white truncate">{album.name}</h4>
-                          <p className="text-[10px] text-zinc-550 truncate mt-0.5 font-medium">{album.artistName}</p>
+                          <p className="text-[10px] text-zinc-555 truncate mt-0.5 font-medium">{album.artistName}</p>
                         </div>
                       ))}
                     </div>
                   ) : (
-                    <p className="text-xs text-zinc-500">No albums located.</p>
+                    <p className="text-xs text-zinc-505 font-medium">No albums located.</p>
                   )}
                 </div>
               </div>
@@ -2441,7 +2442,7 @@ export const MusicPage: React.FC<MusicPageProps> = ({ isAuthenticated, disableEn
               <h3 className="text-xs font-semibold text-white">Song details</h3>
               <button 
                 onClick={() => setSelectedSong(null)}
-                className="text-zinc-500 hover:text-white p-1 rounded-full hover:bg-white/5 border-none bg-transparent cursor-pointer font-semibold"
+                className="text-zinc-505 hover:text-white p-1 rounded-full hover:bg-white/5 border-none bg-transparent cursor-pointer font-semibold"
               >
                 <X size={16} />
               </button>
@@ -2452,7 +2453,7 @@ export const MusicPage: React.FC<MusicPageProps> = ({ isAuthenticated, disableEn
               <div className="min-w-0">
                 <h4 className="font-semibold text-white text-sm truncate">{selectedSong.title}</h4>
                 <p className="text-[11px] text-zinc-400 truncate mt-0.5">By {selectedSong.artist}</p>
-                <p className="text-[10px] text-zinc-500 truncate mt-0.5">Album: {selectedSong.album}</p>
+                <p className="text-[10px] text-zinc-550 truncate mt-0.5">Album: {selectedSong.album}</p>
               </div>
             </div>
 
@@ -2555,7 +2556,7 @@ export const MusicPage: React.FC<MusicPageProps> = ({ isAuthenticated, disableEn
             <div className="flex items-center gap-5">
               <button
                 onClick={() => setIsShuffle(!isShuffle)}
-                className={`p-1 transition-colors border-none bg-transparent cursor-pointer ${isShuffle ? 'text-green-500' : 'text-zinc-500 hover:text-white'}`}
+                className={`p-1 transition-colors border-none bg-transparent cursor-pointer ${isShuffle ? 'text-green-500' : 'text-zinc-550 hover:text-white'}`}
                 title="Shuffle"
               >
                 <Shuffle size={12} />
@@ -2574,7 +2575,7 @@ export const MusicPage: React.FC<MusicPageProps> = ({ isAuthenticated, disableEn
               </button>
               <button
                 onClick={() => setIsRepeat(!isRepeat)}
-                className={`p-1 transition-colors border-none bg-transparent cursor-pointer ${isRepeat ? 'text-green-500' : 'text-zinc-500 hover:text-white'}`}
+                className={`p-1 transition-colors border-none bg-transparent cursor-pointer ${isRepeat ? 'text-green-500' : 'text-zinc-550 hover:text-white'}`}
                 title="Repeat"
               >
                 <Repeat size={12} />
@@ -2649,9 +2650,9 @@ export const MusicPage: React.FC<MusicPageProps> = ({ isAuthenticated, disableEn
 
       {/* Fullscreen Lyrics & Circular Wave Visualizer Overlay */}
       {isPlayerExpanded && currentTrack && (
-        <div className="fixed inset-0 z-[120] bg-zinc-950 flex flex-col md:flex-row p-6 md:p-12 overflow-y-auto animate-in fade-in zoom-in-95 duration-300 text-left">
+        <div className="fixed inset-0 z-[120] bg-zinc-950 flex flex-col md:flex-row p-6 md:p-12 overflow-hidden animate-in fade-in zoom-in-95 duration-300 text-left select-none">
           
-          {/* Color blur overlay in overlay */}
+          {/* Color blur overlay in background */}
           <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
             <div 
               className="absolute -inset-[50%] bg-cover bg-center filter blur-[130px] opacity-[0.35] saturate-150 transition-all duration-1000 scale-125"
@@ -2659,60 +2660,300 @@ export const MusicPage: React.FC<MusicPageProps> = ({ isAuthenticated, disableEn
             />
           </div>
 
+          {/* Close button (Absolute on mobile, part of header or top-right) */}
           <button
             onClick={() => setIsPlayerExpanded(false)}
-            className="absolute top-6 right-6 p-2 rounded-full bg-white/5 border border-white/10 hover:bg-white/10 transition-colors text-white z-50 shadow-md cursor-pointer"
+            className="absolute top-6 right-6 p-2 rounded-full bg-white/5 border border-white/10 hover:bg-white/10 transition-colors text-white z-50 shadow-md cursor-pointer hidden md:block"
           >
             <ChevronDown size={18} />
           </button>
- 
-          {/* Left Panel: Cover Art & Circular Visualizer */}
-          <div className="relative z-10 flex-1 flex flex-col items-center justify-between min-h-[480px] select-none text-center py-6">
-            
-            {/* Visualizer and Disk Container */}
-            <div className="relative w-full h-[320px] flex items-center justify-center mt-4">
-              {/* Visualizer Canvas */}
-              {visualizerMode !== 'none' && (
-                <canvas
-                  ref={canvasRef}
-                  width="400"
-                  height="400"
-                  className="absolute pointer-events-none w-[280px] h-[280px] md:w-[400px] md:h-[400px]"
-                />
-              )}
 
-              {/* Glowing Vinyl Cover Art */}
-              {visualizerMode !== 'bars' && (
-                <div className="relative z-20 w-[210px] h-[210px] md:w-[280px] md:h-[280px] rounded-full overflow-hidden shadow-2xl border-[5px] border-zinc-900 bg-black flex items-center justify-center">
-                  <img
-                    src={currentTrack.coverUrl}
-                    alt=""
-                    className={`w-full h-full object-cover rounded-full ${isPlaying ? 'animate-[spin_25s_linear_infinite]' : ''}`}
+          {/* ======================================================== */}
+          {/* DESKTOP LAYOUT (Side-by-Side) */}
+          {/* ======================================================== */}
+          <div className="hidden md:flex flex-row w-full h-full gap-12 relative z-10">
+            
+            {/* Desktop Left: Cover, Visualizer & Controls */}
+            <div className="w-[45%] flex flex-col justify-between py-4 h-full">
+              {/* Top part: Album name / Category */}
+              <div className="text-left">
+                <span className="text-[10px] text-green-400 font-semibold tracking-wider uppercase">NOW PLAYING</span>
+                <h3 className="text-lg font-semibold text-white truncate mt-1">{currentTrack.album || "Single"}</h3>
+              </div>
+
+              {/* Center: Visualizer Canvas & Artwork */}
+              <div className="relative w-full h-[280px] flex items-center justify-center my-6">
+                {visualizerMode !== 'none' && (
+                  <canvas
+                    ref={canvasRef}
+                    width="350"
+                    height="350"
+                    className="absolute pointer-events-none w-[260px] h-[260px]"
                   />
-                  <div className="absolute w-10 h-10 rounded-full bg-zinc-950 border-4 border-zinc-900 z-30 flex items-center justify-center">
-                    <div className="w-2.5 h-2.5 rounded-full bg-green-500 shadow-md" />
+                )}
+                {visualizerMode !== 'bars' && (
+                  <div className="relative z-20 w-[180px] h-[180px] rounded-full overflow-hidden shadow-2xl border-[5px] border-zinc-900 bg-black flex items-center justify-center">
+                    <img
+                      src={currentTrack.coverUrl}
+                      alt=""
+                      className={`w-full h-full object-cover rounded-full ${isPlaying ? 'animate-[spin_25s_linear_infinite]' : ''}`}
+                    />
+                    <div className="absolute w-8 h-8 rounded-full bg-zinc-950 border-4 border-zinc-900 z-30 flex items-center justify-center">
+                      <div className="w-2 h-2 rounded-full bg-green-500 shadow-md" />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Bottom: Song Info & Controls */}
+              <div className="space-y-4">
+                {/* Title & Artist */}
+                <div className="text-left">
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-xl font-semibold text-white truncate">{currentTrack.title}</h2>
+                    {currentTrack.explicit && (
+                      <span className="px-1 py-0.5 bg-zinc-805 text-[8px] rounded text-zinc-400 font-extrabold scale-90 select-none">E</span>
+                    )}
+                  </div>
+                  <p className="text-zinc-400 text-xs mt-1">{currentTrack.artist}</p>
+                </div>
+
+                {/* Scrubber */}
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between text-[9px] text-zinc-500 font-semibold mb-1">
+                    <span>{formatTime(currentTime)}</span>
+                    <span>{formatTime(duration)}</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0"
+                    max={duration || 100}
+                    value={currentTime}
+                    onChange={(e) => {
+                      if (audioRef.current) {
+                        audioRef.current.currentTime = parseFloat(e.target.value);
+                      }
+                    }}
+                    className="w-full accent-white h-[3px] rounded-full cursor-pointer bg-zinc-850 hover:bg-zinc-700"
+                  />
+                </div>
+
+                {/* Playback Controls */}
+                <div className="flex items-center justify-between px-2">
+                  <button
+                    onClick={() => setIsShuffle(!isShuffle)}
+                    className={`p-1.5 transition-colors border-none bg-transparent cursor-pointer ${isShuffle ? 'text-green-500' : 'text-zinc-550 hover:text-white'}`}
+                  >
+                    <Shuffle size={14} />
+                  </button>
+
+                  <div className="flex items-center gap-4">
+                    <button onClick={skipPrevious} className="text-zinc-400 hover:text-white transition-colors border-none bg-transparent cursor-pointer">
+                      <SkipBack size={18} fill="currentColor" />
+                    </button>
+                    <button
+                      onClick={togglePlay}
+                      className="w-10 h-10 rounded-full bg-white hover:scale-105 active:scale-95 text-black flex items-center justify-center shadow-lg transition-transform border-none cursor-pointer"
+                    >
+                      {isPlaying ? <Pause size={16} fill="currentColor" /> : <Play size={16} fill="currentColor" className="ml-0.5" />}
+                    </button>
+                    <button onClick={skipNext} className="text-zinc-400 hover:text-white transition-colors border-none bg-transparent cursor-pointer">
+                      <SkipForward size={18} fill="currentColor" />
+                    </button>
+                  </div>
+
+                  <button
+                    onClick={() => setIsRepeat(!isRepeat)}
+                    className={`p-1.5 transition-colors border-none bg-transparent cursor-pointer ${isRepeat ? 'text-green-500' : 'text-zinc-555 hover:text-white'}`}
+                  >
+                    <Repeat size={14} />
+                  </button>
+                </div>
+
+                {/* Sub Controls: Heart, Visualizer Mode, Volume */}
+                <div className="flex items-center justify-between border-t border-white/5 pt-4">
+                  <button
+                    onClick={() => toggleFavoriteSong(currentTrack)}
+                    className={`p-1.5 rounded-full transition-colors border-none bg-transparent cursor-pointer ${favSongs.some(t => t.id === currentTrack.id) ? 'text-green-500' : 'text-zinc-500 hover:text-white'}`}
+                  >
+                    <Heart size={16} fill={favSongs.some(t => t.id === currentTrack.id) ? "currentColor" : "none"} />
+                  </button>
+
+                  {/* Visualizer Mode selector */}
+                  <div className="flex bg-zinc-900/60 p-0.5 rounded-full text-[10px] font-semibold border border-white/5">
+                    {(['circular', 'bars', 'none'] as const).map(mode => (
+                      <button
+                        key={mode}
+                        onClick={() => setVisualizerMode(mode)}
+                        className={`px-3 py-1 rounded-full transition-all border-none cursor-pointer capitalize ${visualizerMode === mode ? 'bg-zinc-805 text-white font-semibold' : 'text-zinc-500 hover:text-white'}`}
+                      >
+                        {mode === 'none' ? 'off' : mode}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Volume Slider control */}
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setIsMuted(!isMuted)}
+                      className="text-zinc-400 hover:text-white transition-colors border-none bg-transparent cursor-pointer"
+                    >
+                      {isMuted ? <VolumeX size={14} /> : <Volume2 size={14} />}
+                    </button>
+                    <input
+                      type="range"
+                      min="0"
+                      max="1"
+                      step="0.01"
+                      value={volume}
+                      onChange={(e) => {
+                        setVolume(parseFloat(e.target.value));
+                        setIsMuted(false);
+                      }}
+                      className="w-16 h-[3px] bg-zinc-855 accent-white rounded-full cursor-pointer"
+                    />
                   </div>
                 </div>
-              )}
+              </div>
             </div>
 
-            {/* Track Info */}
-            <div className="w-full max-w-lg space-y-1.5 mt-4">
-              <h3 className="text-xl md:text-2xl font-semibold text-white tracking-tight leading-tight">{currentTrack.title}</h3>
-              <p className="text-zinc-400 text-xs font-medium">{currentTrack.artist}</p>
-              {currentTrack.album && (
-                <p className="text-zinc-650 text-[10px] uppercase tracking-wider">{currentTrack.album}</p>
-              )}
-            </div>
-
-            {/* Controls & Scrubber */}
-            <div className="w-full max-w-md px-6 space-y-5 mt-4">
-              {/* Scrubber */}
-              <div className="space-y-1">
-                <div className="flex items-center justify-between text-[9px] text-zinc-500 font-semibold mb-1">
-                  <span>{formatTime(currentTime)}</span>
-                  <span>{formatTime(duration)}</span>
+            {/* Desktop Right: Scrollable Lyrics */}
+            <div className="w-[55%] flex flex-col h-full border-l border-white/5 pl-8">
+              <h3 className="text-[10px] font-semibold text-zinc-555 uppercase tracking-widest mb-6 flex items-center gap-1.5">
+                <ListMusic size={14} /> Timed Lyrics
+              </h3>
+              
+              {lyricsLoading ? (
+                <div className="flex-1 flex items-center justify-center">
+                  <Loader2 className="animate-spin text-green-500" size={20} />
                 </div>
+              ) : (
+                <div className="flex-1 overflow-y-auto space-y-6 pr-4 custom-scrollbar scroll-smooth h-[calc(100%-40px)]">
+                  {lyricsText.map((line, idx) => {
+                    const isActive = idx === activeLyricIndex;
+                    return (
+                      <p
+                        key={idx}
+                        ref={isActive ? activeLyricRef : null}
+                        className={`text-xl md:text-2xl font-bold tracking-tight leading-snug transition-all duration-500 select-text ${
+                          isActive
+                            ? 'text-green-400 scale-[1.02] origin-left'
+                            : 'text-white/20 hover:text-white/40'
+                        }`}
+                      >
+                        {line}
+                      </p>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+          </div>
+
+          {/* ======================================================== */}
+          {/* MOBILE LAYOUT (Toggle Player/Lyrics) */}
+          {/* ======================================================== */}
+          <div className="flex md:hidden flex-col w-full h-full justify-between relative z-10">
+            
+            {/* Mobile Top Bar */}
+            <div className="flex items-center justify-between pb-3 border-b border-white/5">
+              <button
+                onClick={() => setIsPlayerExpanded(false)}
+                className="p-1.5 rounded-full bg-white/5 text-white border-none cursor-pointer animate-[pulse_3s_infinite]"
+              >
+                <ChevronDown size={16} />
+              </button>
+              <div className="text-center min-w-0 px-4 flex-1">
+                <p className="text-[9px] text-zinc-500 font-semibold tracking-wider uppercase leading-none">NOW PLAYING</p>
+                <p className="text-xs text-white font-semibold truncate mt-1 leading-none">{currentTrack.title}</p>
+              </div>
+              <button
+                onClick={() => setMobileActiveView(mobileActiveView === 'player' ? 'lyrics' : 'player')}
+                className={`p-2 rounded-full border-none cursor-pointer transition-colors ${mobileActiveView === 'lyrics' ? 'bg-green-500 text-black shadow' : 'bg-white/5 text-white'}`}
+                title={mobileActiveView === 'player' ? "Show Lyrics" : "Show Visualizer"}
+              >
+                {mobileActiveView === 'player' ? <ListMusic size={16} /> : <Music size={16} />}
+              </button>
+            </div>
+
+            {/* Mobile Center: conditional content */}
+            <div className="flex-1 my-4 flex items-center justify-center overflow-hidden min-h-[280px]">
+              
+              {mobileActiveView === 'player' ? (
+                /* Visualizer/Art view */
+                <div className="relative w-full h-full flex flex-col items-center justify-center">
+                  <div className="relative w-[200px] h-[200px] flex items-center justify-center">
+                    {visualizerMode !== 'none' && (
+                      <canvas
+                        ref={canvasRef}
+                        width="300"
+                        height="300"
+                        className="absolute pointer-events-none w-[200px] h-[200px]"
+                      />
+                    )}
+                    {visualizerMode !== 'bars' && (
+                      <div className="relative z-20 w-[130px] h-[130px] rounded-full overflow-hidden shadow-2xl border-4 border-zinc-900 bg-black flex items-center justify-center">
+                        <img
+                          src={currentTrack.coverUrl}
+                          alt=""
+                          className={`w-full h-full object-cover rounded-full ${isPlaying ? 'animate-[spin_25s_linear_infinite]' : ''}`}
+                        />
+                        <div className="absolute w-5 h-5 rounded-full bg-zinc-950 border-2 border-zinc-900 z-30" />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                /* Lyrics view */
+                <div className="w-full h-full flex flex-col pl-2 text-left py-2">
+                  {lyricsLoading ? (
+                    <div className="flex-1 flex items-center justify-center">
+                      <Loader2 className="animate-spin text-green-500" size={20} />
+                    </div>
+                  ) : (
+                    <div className="flex-1 overflow-y-auto space-y-4 pr-2 custom-scrollbar scroll-smooth h-full">
+                      {lyricsText.map((line, idx) => {
+                        const isActive = idx === activeLyricIndex;
+                        return (
+                          <p
+                            key={idx}
+                            ref={isActive ? activeLyricRef : null}
+                            className={`text-lg font-semibold tracking-tight leading-snug transition-all duration-350 ${
+                              isActive
+                                ? 'text-green-400 scale-[1.01] origin-left'
+                                : 'text-white/20 hover:text-white/40'
+                            }`}
+                          >
+                            {line}
+                          </p>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+
+            </div>
+
+            {/* Mobile Bottom Control Panel */}
+            <div className="space-y-4 bg-zinc-950/40 p-3.5 rounded-2xl border border-white/5 backdrop-blur-md">
+              {/* Song details (Title, artist & heart) */}
+              <div className="flex items-center justify-between">
+                <div className="min-w-0 text-left">
+                  <h3 className="text-sm font-semibold text-white truncate">{currentTrack.title}</h3>
+                  <p className="text-[10px] text-zinc-500 truncate mt-0.5 font-medium">{currentTrack.artist}</p>
+                </div>
+                <button
+                  onClick={() => toggleFavoriteSong(currentTrack)}
+                  className={`p-1.5 rounded-full transition-colors border-none bg-transparent cursor-pointer ${favSongs.some(t => t.id === currentTrack.id) ? 'text-green-500' : 'text-zinc-550 hover:text-white'}`}
+                >
+                  <Heart size={16} fill={favSongs.some(t => t.id === currentTrack.id) ? "currentColor" : "none"} />
+                </button>
+              </div>
+
+              {/* Scrubber */}
+              <div className="space-y-0.5">
                 <input
                   type="range"
                   min="0"
@@ -2723,83 +2964,65 @@ export const MusicPage: React.FC<MusicPageProps> = ({ isAuthenticated, disableEn
                       audioRef.current.currentTime = parseFloat(e.target.value);
                     }
                   }}
-                  className="w-full accent-white h-[3px] rounded-full cursor-pointer bg-zinc-800"
+                  className="w-full accent-white h-[3px] rounded-full cursor-pointer bg-zinc-850"
                 />
+                <div className="flex items-center justify-between text-[8px] text-zinc-500 font-semibold mt-0.5">
+                  <span>{formatTime(currentTime)}</span>
+                  <span>{formatTime(duration)}</span>
+                </div>
               </div>
 
-              {/* Main Playback Control Bar */}
-              <div className="flex items-center justify-between gap-2">
+              {/* Playback Buttons */}
+              <div className="flex items-center justify-between px-2">
                 <button
                   onClick={() => setIsShuffle(!isShuffle)}
-                  className={`p-2 transition-colors border-none bg-transparent cursor-pointer ${isShuffle ? 'text-green-500' : 'text-zinc-500 hover:text-white'}`}
+                  className={`p-1.5 border-none bg-transparent cursor-pointer ${isShuffle ? 'text-green-500' : 'text-zinc-550 hover:text-white'}`}
                 >
-                  <Shuffle size={16} />
+                  <Shuffle size={14} />
                 </button>
-                
-                <div className="flex items-center gap-5">
-                  <button onClick={skipPrevious} className="text-zinc-400 hover:text-white transition-colors border-none bg-transparent cursor-pointer">
-                    <SkipBack size={20} fill="currentColor" />
+
+                <div className="flex items-center gap-4">
+                  <button onClick={skipPrevious} className="text-zinc-400 hover:text-white border-none bg-transparent cursor-pointer">
+                    <SkipBack size={18} fill="currentColor" />
                   </button>
-                  
                   <button
                     onClick={togglePlay}
-                    className="w-12 h-12 rounded-full bg-white hover:scale-105 active:scale-95 text-black flex items-center justify-center shadow-lg transition-transform border-none cursor-pointer"
+                    className="w-10 h-10 rounded-full bg-white text-black flex items-center justify-center shadow border-none cursor-pointer hover:scale-105 active:scale-95 transition-transform"
                   >
-                    {isPlaying ? <Pause size={20} fill="currentColor" /> : <Play size={20} fill="currentColor" className="ml-0.5" />}
+                    {isPlaying ? <Pause size={16} fill="currentColor" /> : <Play size={16} fill="currentColor" className="ml-0.5" />}
                   </button>
-                  
-                  <button onClick={skipNext} className="text-zinc-400 hover:text-white transition-colors border-none bg-transparent cursor-pointer">
-                    <SkipForward size={20} fill="currentColor" />
+                  <button onClick={skipNext} className="text-zinc-400 hover:text-white border-none bg-transparent cursor-pointer">
+                    <SkipForward size={18} fill="currentColor" />
                   </button>
                 </div>
 
                 <button
                   onClick={() => setIsRepeat(!isRepeat)}
-                  className={`p-2 transition-colors border-none bg-transparent cursor-pointer ${isRepeat ? 'text-green-500' : 'text-zinc-500 hover:text-white'}`}
+                  className={`p-1.5 border-none bg-transparent cursor-pointer ${isRepeat ? 'text-green-500' : 'text-zinc-555 hover:text-white'}`}
                 >
-                  <Repeat size={16} />
+                  <Repeat size={14} />
                 </button>
               </div>
 
-              {/* Sub Controls row */}
-              <div className="flex items-center justify-between border-t border-white/5 pt-4">
-                <button
-                  onClick={() => toggleFavoriteSong(currentTrack)}
-                  className={`p-2 rounded-full transition-colors border-none bg-transparent cursor-pointer ${favSongs.some(t => t.id === currentTrack.id) ? 'text-green-500' : 'text-zinc-500 hover:text-white'}`}
-                >
-                  <Heart size={16} fill={favSongs.some(t => t.id === currentTrack.id) ? "currentColor" : "none"} />
-                </button>
-
-                {/* Visualizer Mode selector */}
-                <div className="flex bg-zinc-900 border border-white/5 p-0.5 rounded-lg text-[9px] font-semibold">
-                  <button
-                    onClick={() => setVisualizerMode('circular')}
-                    className={`px-2 py-0.5 rounded transition-all border-none cursor-pointer ${visualizerMode === 'circular' ? 'bg-zinc-800 text-white' : 'text-zinc-500 hover:text-white'}`}
-                  >
-                    Circular
-                  </button>
-                  <button
-                    onClick={() => setVisualizerMode('bars')}
-                    className={`px-2 py-0.5 rounded transition-all border-none cursor-pointer ${visualizerMode === 'bars' ? 'bg-zinc-800 text-white' : 'text-zinc-500 hover:text-white'}`}
-                  >
-                    Bars
-                  </button>
-                  <button
-                    onClick={() => setVisualizerMode('none')}
-                    className={`px-2 py-0.5 rounded transition-all border-none cursor-pointer ${visualizerMode === 'none' ? 'bg-zinc-800 text-white' : 'text-zinc-500 hover:text-white'}`}
-                  >
-                    Off
-                  </button>
+              {/* Settings row: Visualizer Toggle & Volume slider */}
+              <div className="flex items-center justify-between border-t border-white/5 pt-3">
+                
+                {/* Visualizer Selector */}
+                <div className="flex bg-zinc-900/60 p-0.5 rounded-full text-[9px] font-semibold border border-white/5">
+                  {(['circular', 'bars', 'none'] as const).map(mode => (
+                    <button
+                      key={mode}
+                      onClick={() => setVisualizerMode(mode)}
+                      className={`px-2.5 py-1 rounded-full transition-all border-none cursor-pointer capitalize ${visualizerMode === mode ? 'bg-zinc-805 text-white font-semibold' : 'text-zinc-550'}`}
+                    >
+                      {mode === 'none' ? 'off' : mode}
+                    </button>
+                  ))}
                 </div>
 
-                {/* Volume Slider control */}
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => setIsMuted(!isMuted)}
-                    className="text-zinc-400 hover:text-white transition-colors border-none bg-transparent cursor-pointer"
-                  >
-                    {isMuted ? <VolumeX size={14} /> : <Volume2 size={14} />}
-                  </button>
+                {/* Volume slider */}
+                <div className="flex items-center gap-1.5">
+                  <Volume2 size={12} className="text-zinc-500" />
                   <input
                     type="range"
                     min="0"
@@ -2810,45 +3033,16 @@ export const MusicPage: React.FC<MusicPageProps> = ({ isAuthenticated, disableEn
                       setVolume(parseFloat(e.target.value));
                       setIsMuted(false);
                     }}
-                    className="w-16 h-[3px] bg-zinc-800 accent-white rounded-full cursor-pointer"
+                    className="w-16 h-[2px] bg-zinc-850 accent-white rounded-full cursor-pointer"
                   />
                 </div>
+
               </div>
 
             </div>
+
           </div>
-  
-          {/* Right Panel: Scrollable Karaoke Lyrics */}
-          <div className="relative z-10 flex-1 flex flex-col border-t md:border-t-0 md:border-l border-white/5 pt-8 md:pt-0 md:pl-10">
-            <h3 className="text-[10px] font-semibold text-zinc-500 uppercase tracking-widest mb-6 flex items-center gap-1.5">
-              <ListMusic size={14} /> Timed Lyrics
-            </h3>
-  
-            {lyricsLoading ? (
-              <div className="flex-1 flex items-center justify-center">
-                <Loader2 className="animate-spin text-green-500" size={20} />
-              </div>
-            ) : (
-              <div className="flex-1 overflow-y-auto space-y-6 max-h-[380px] md:max-h-[500px] pr-4 custom-scrollbar scroll-smooth">
-                {lyricsText.map((line, idx) => {
-                  const isActive = idx === activeLyricIndex;
-                  return (
-                    <p
-                      key={idx}
-                      ref={isActive ? activeLyricRef : null}
-                      className={`text-xl md:text-2xl font-bold tracking-tight leading-snug transition-all duration-500 select-text ${
-                        isActive
-                          ? 'text-green-400 scale-[1.02] origin-left'
-                          : 'text-white/20 hover:text-white/40'
-                      }`}
-                    >
-                      {line}
-                    </p>
-                  );
-                })}
-              </div>
-            )}
-          </div>
+
         </div>
       )}
 
