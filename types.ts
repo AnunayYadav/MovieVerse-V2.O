@@ -16,6 +16,7 @@ export interface Movie {
   genre_ids?: number[];
   genres?: Genre[];
   media_type?: 'movie' | 'tv' | 'person';
+  isAnime?: boolean;
   original_language?: string;
   origin_country?: string[];
   runtime?: number;

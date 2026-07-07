@@ -1259,100 +1259,135 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     }
 
     let active = true;
-    const cacheKey = `movieverse_anilist_map_${tmdbId}_s${currentSeason}`;
-    const cachedId = localStorage.getItem(cacheKey);
-    if (cachedId) {
-      setAnilistId(parseInt(cachedId, 10));
+
+    // For native AniList items, tmdbId IS the AniList ID already.
+    // We detect this via localStorage flag set by the AniList adapter flow.
+    const nativeKey = `movieverse_anilist_native_${tmdbId}`;
+    const isNativeAnilist = localStorage.getItem(nativeKey) === 'true';
+    if (isNativeAnilist) {
+      setAnilistId(tmdbId);
       return;
     }
 
-    const fetchMediaInfo = (id: number | null, search: string | null): Promise<any | null> => {
-      const variables: any = {};
-      let query = "";
-      if (id) {
-        variables.id = id;
-        query = `
-          query ($id: Int) {
-            Media(id: $id, type: ANIME) {
-              id
-              relations {
-                edges {
-                  relationType
-                  node {
-                    id
-                    type
-                  }
-                }
-              }
-            }
+    // Try a quick AniList ID lookup to see if tmdbId is actually an AniList ID
+    const tryNativeFirst = async () => {
+      try {
+        const res = await fetch('/api/anilist', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+          body: JSON.stringify({ query: `query($id:Int){Media(id:$id,type:ANIME){id}}`, variables: { id: tmdbId } })
+        });
+        const json = await res.json();
+        if (json?.data?.Media?.id === tmdbId) {
+          localStorage.setItem(nativeKey, 'true');
+          if (active) {
+            setAnilistId(tmdbId);
+            setAnilistLoading(false);
           }
-        `;
-      } else {
-        variables.search = search;
-        query = `
-          query ($search: String) {
-            Media(search: $search, type: ANIME) {
-              id
-              relations {
-                edges {
-                  relationType
-                  node {
-                    id
-                    type
-                  }
-                }
-              }
-            }
-          }
-        `;
-      }
-      return fetch('https://graphql.anilist.co', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query, variables })
-      })
-        .then(res => {
-          if (!res.ok) throw new Error("API failed");
-          return res.json();
-        })
-        .then(json => json?.data?.Media || null)
-        .catch(() => null);
-    };
-
-    setAnilistLoading(true);
-    const cleanTitle = title.replace(/\s*\(?(Dub|Sub|TV|Movie|uncensored|censored|season\s*\d+|part\s*\d+)\)?\s*$/i, '').trim();
-
-    const resolveId = async () => {
-      let media = await fetchMediaInfo(null, cleanTitle);
-      if (!media) return null;
-
-      let currentId = media.id;
-      for (let s = 2; s <= currentSeason; s++) {
-        const edges = media.relations?.edges || [];
-        const sequelEdge = edges.find((e: any) => e.relationType === 'SEQUEL' && e.node?.type === 'ANIME');
-        if (sequelEdge?.node?.id) {
-          currentId = sequelEdge.node.id;
-          if (s < currentSeason) {
-            media = await fetchMediaInfo(currentId, null);
-            if (!media) break;
-          }
-        } else {
-          break;
+          return; // Done — it's a native AniList ID
         }
+      } catch {}
+
+      // Not a native AniList ID — fall through to TMDB title search resolution
+      if (!active) return;
+
+      const cacheKey = `movieverse_anilist_map_${tmdbId}_s${currentSeason}`;
+      const cachedId = localStorage.getItem(cacheKey);
+      if (cachedId) {
+        setAnilistId(parseInt(cachedId, 10));
+        return;
       }
-      return currentId;
+
+      const fetchMediaInfo = (id: number | null, search: string | null): Promise<any | null> => {
+        const variables: any = {};
+        let query = "";
+        if (id) {
+          variables.id = id;
+          query = `
+            query ($id: Int) {
+              Media(id: $id, type: ANIME) {
+                id
+                relations {
+                  edges {
+                    relationType
+                    node {
+                      id
+                      type
+                    }
+                  }
+                }
+              }
+            }
+          `;
+        } else {
+          variables.search = search;
+          query = `
+            query ($search: String) {
+              Media(search: $search, type: ANIME) {
+                id
+                relations {
+                  edges {
+                    relationType
+                    node {
+                      id
+                      type
+                    }
+                  }
+                }
+              }
+            }
+          `;
+        }
+        return fetch('https://graphql.anilist.co', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query, variables })
+        })
+          .then(res => {
+            if (!res.ok) throw new Error("API failed");
+            return res.json();
+          })
+          .then(json => json?.data?.Media || null)
+          .catch(() => null);
+      };
+
+      setAnilistLoading(true);
+      const cleanTitle = title.replace(/\s*\(?(Dub|Sub|TV|Movie|uncensored|censored|season\s*\d+|part\s*\d+)\)?\s*$/i, '').trim();
+
+      const resolveId = async () => {
+        let media = await fetchMediaInfo(null, cleanTitle);
+        if (!media) return null;
+
+        let currentId = media.id;
+        for (let s = 2; s <= currentSeason; s++) {
+          const edges = media.relations?.edges || [];
+          const sequelEdge = edges.find((e: any) => e.relationType === 'SEQUEL' && e.node?.type === 'ANIME');
+          if (sequelEdge?.node?.id) {
+            currentId = sequelEdge.node.id;
+            if (s < currentSeason) {
+              media = await fetchMediaInfo(currentId, null);
+              if (!media) break;
+            }
+          } else {
+            break;
+          }
+        }
+        return currentId;
+      };
+
+      resolveId().then(id => {
+        if (!active) return;
+        if (id) {
+          localStorage.setItem(cacheKey, id.toString());
+          setAnilistId(id);
+        } else {
+          console.warn(`Could not resolve AniList ID for ${cleanTitle} Season ${currentSeason}`);
+        }
+        setAnilistLoading(false);
+      });
     };
 
-    resolveId().then(id => {
-      if (!active) return;
-      if (id) {
-        localStorage.setItem(cacheKey, id.toString());
-        setAnilistId(id);
-      } else {
-        console.warn(`Could not resolve AniList ID for ${cleanTitle} Season ${currentSeason}`);
-      }
-      setAnilistLoading(false);
-    });
+    tryNativeFirst();
 
     return () => {
       active = false;
@@ -1372,7 +1407,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   }, [color]);
 
   useEffect(() => {
-    if (mediaType === 'tv' && tmdbId) {
+    if (mediaType === 'tv' && tmdbId && !isAnime) {
       fetch(`${TMDB_BASE_URL}/tv/${tmdbId}?api_key=${apiKey}`)
         .then(res => res.json())
         .then(data => {
@@ -1382,10 +1417,10 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
         })
         .catch(err => console.error("Error fetching tv show details:", err));
     }
-  }, [tmdbId, mediaType, apiKey]);
+  }, [tmdbId, mediaType, apiKey, isAnime]);
 
   useEffect(() => {
-    if (mediaType === 'tv' && tmdbId && currentSeason) {
+    if (mediaType === 'tv' && tmdbId && currentSeason && !isAnime) {
       setEpisodesLoading(true);
       fetch(`${TMDB_BASE_URL}/tv/${tmdbId}/season/${currentSeason}?api_key=${apiKey}`)
         .then(res => res.json())
@@ -1400,7 +1435,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
           setEpisodesLoading(false);
         });
     }
-  }, [tmdbId, mediaType, currentSeason, apiKey]);
+  }, [tmdbId, mediaType, currentSeason, apiKey, isAnime]);
   
 
 
