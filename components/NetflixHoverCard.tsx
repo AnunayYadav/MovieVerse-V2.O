@@ -116,44 +116,61 @@ export const NetflixHoverCard: React.FC<NetflixHoverCardProps> = ({
 
         const cleanTitle = title.replace(/\s*\(?(Dub|Sub|TV|Movie|uncensored|censored|season\s*\d+|part\s*\d+)\)?\s*$/i, '').trim();
         const cachedId = localStorage.getItem(`movieverse_anilist_map_${movie.id}`);
-        const variables: any = {};
-        let query = "";
 
-        if (cachedId) {
-            variables.id = parseInt(cachedId, 10);
-            query = `
-              query ($id: Int) {
-                Media(id: $id, type: ANIME) {
-                  id
-                  nextAiringEpisode {
-                    airingAt
-                    timeUntilAiring
-                    episode
+        const fetchMediaInfo = (id: number | null, search: string | null): Promise<any | null> => {
+            const variables: any = {};
+            let query = "";
+            if (id) {
+                variables.id = id;
+                query = `
+                  query ($id: Int) {
+                    Media(id: $id, type: ANIME) {
+                      id
+                      nextAiringEpisode {
+                        airingAt
+                        timeUntilAiring
+                        episode
+                      }
+                      relations {
+                        edges {
+                          relationType
+                          node {
+                            id
+                            type
+                          }
+                        }
+                      }
+                    }
                   }
-                }
-              }
-            `;
-        } else {
-            variables.search = cleanTitle;
-            query = `
-              query ($search: String) {
-                Media(search: $search, type: ANIME) {
-                  id
-                  nextAiringEpisode {
-                    airingAt
-                    timeUntilAiring
-                    episode
+                `;
+            } else {
+                variables.search = search;
+                query = `
+                  query ($search: String) {
+                    Media(search: $search, type: ANIME) {
+                      id
+                      nextAiringEpisode {
+                        airingAt
+                        timeUntilAiring
+                        episode
+                      }
+                      relations {
+                        edges {
+                          relationType
+                          node {
+                            id
+                            type
+                          }
+                        }
+                      }
+                    }
                   }
-                }
-              }
-            `;
-        }
-
-        const fetchAniListInfo = (q: string, vars: any): Promise<any> => {
+                `;
+            }
             return fetch('/api/anilist', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-                body: JSON.stringify({ query: q, variables: vars })
+                body: JSON.stringify({ query, variables })
             })
             .then(res => {
                 if (!res.ok) throw new Error("API failed");
@@ -163,35 +180,42 @@ export const NetflixHoverCard: React.FC<NetflixHoverCardProps> = ({
             .catch(() => null);
         };
 
-        setNextAiringEpisode(null);
-        fetchAniListInfo(query, variables).then(media => {
-            if (!active) return;
-            if (media) {
-                if (media.id && !cachedId) {
-                    localStorage.setItem(`movieverse_anilist_map_${movie.id}`, media.id.toString());
+        const resolveAiringEpisode = async () => {
+            if (cachedId) {
+                const cachedMedia = await fetchMediaInfo(parseInt(cachedId, 10), null);
+                if (cachedMedia?.nextAiringEpisode) {
+                    return cachedMedia;
                 }
-                setNextAiringEpisode(media.nextAiringEpisode || null);
-            } else if (!cachedId && query.includes('$search')) {
-                // Retry with fallback cleanTitle query
-                const fallbackQuery = `
-                  query ($search: String) {
-                    Media(search: $search, type: ANIME) {
-                      id
-                      nextAiringEpisode {
-                        airingAt
-                        timeUntilAiring
-                        episode
-                      }
-                    }
-                  }
-                `;
-                fetchAniListInfo(fallbackQuery, { search: cleanTitle }).then(fallbackMedia => {
-                    if (!active) return;
-                    if (fallbackMedia) {
-                        localStorage.setItem(`movieverse_anilist_map_${movie.id}`, fallbackMedia.id.toString());
-                        setNextAiringEpisode(fallbackMedia.nextAiringEpisode || null);
-                    }
-                });
+            }
+
+            // Loop to traverse sequel relations starting from the clean search title
+            let media = await fetchMediaInfo(null, cleanTitle);
+            if (!media) return null;
+
+            for (let i = 0; i < 5; i++) {
+                if (media.nextAiringEpisode) {
+                    return media;
+                }
+                const edges = media.relations?.edges || [];
+                const sequelEdge = edges.find((e: any) => e.relationType === 'SEQUEL' && e.node?.type === 'ANIME');
+                if (sequelEdge?.node?.id) {
+                    media = await fetchMediaInfo(sequelEdge.node.id, null);
+                    if (!media) break;
+                } else {
+                    break;
+                }
+            }
+            return media; // Return whichever last node we reached if nothing was actively airing
+        };
+
+        setNextAiringEpisode(null);
+        resolveAiringEpisode().then(matchedMedia => {
+            if (!active) return;
+            if (matchedMedia) {
+                if (matchedMedia.id && !cachedId) {
+                    localStorage.setItem(`movieverse_anilist_map_${movie.id}`, matchedMedia.id.toString());
+                }
+                setNextAiringEpisode(matchedMedia.nextAiringEpisode);
             }
         });
 

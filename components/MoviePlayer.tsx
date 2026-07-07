@@ -1258,6 +1258,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
       return;
     }
 
+    let active = true;
     const cacheKey = `movieverse_anilist_map_${tmdbId}_s${currentSeason}`;
     const cachedId = localStorage.getItem(cacheKey);
     if (cachedId) {
@@ -1265,54 +1266,97 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
       return;
     }
 
-    const fetchAniList = (searchTerm: string): Promise<number | null> => {
+    const fetchMediaInfo = (id: number | null, search: string | null): Promise<any | null> => {
+      const variables: any = {};
+      let query = "";
+      if (id) {
+        variables.id = id;
+        query = `
+          query ($id: Int) {
+            Media(id: $id, type: ANIME) {
+              id
+              relations {
+                edges {
+                  relationType
+                  node {
+                    id
+                    type
+                  }
+                }
+              }
+            }
+          }
+        `;
+      } else {
+        variables.search = search;
+        query = `
+          query ($search: String) {
+            Media(search: $search, type: ANIME) {
+              id
+              relations {
+                edges {
+                  relationType
+                  node {
+                    id
+                    type
+                  }
+                }
+              }
+            }
+          }
+        `;
+      }
       return fetch('https://graphql.anilist.co', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          query: `
-            query ($search: String) {
-              Media(search: $search, type: ANIME) {
-                id
-              }
-            }
-          `,
-          variables: { search: searchTerm }
-        })
+        body: JSON.stringify({ query, variables })
       })
         .then(res => {
-          if (!res.ok) throw new Error(`AniList error status ${res.status}`);
+          if (!res.ok) throw new Error("API failed");
           return res.json();
         })
-        .then(json => json?.data?.Media?.id || null)
+        .then(json => json?.data?.Media || null)
         .catch(() => null);
     };
 
     setAnilistLoading(true);
     const cleanTitle = title.replace(/\s*\(?(Dub|Sub|TV|Movie|uncensored|censored|season\s*\d+|part\s*\d+)\)?\s*$/i, '').trim();
-    const searchTitle = currentSeason > 1 ? `${cleanTitle} Season ${currentSeason}` : cleanTitle;
 
-    fetchAniList(searchTitle).then(id => {
+    const resolveId = async () => {
+      let media = await fetchMediaInfo(null, cleanTitle);
+      if (!media) return null;
+
+      let currentId = media.id;
+      for (let s = 2; s <= currentSeason; s++) {
+        const edges = media.relations?.edges || [];
+        const sequelEdge = edges.find((e: any) => e.relationType === 'SEQUEL' && e.node?.type === 'ANIME');
+        if (sequelEdge?.node?.id) {
+          currentId = sequelEdge.node.id;
+          if (s < currentSeason) {
+            media = await fetchMediaInfo(currentId, null);
+            if (!media) break;
+          }
+        } else {
+          break;
+        }
+      }
+      return currentId;
+    };
+
+    resolveId().then(id => {
+      if (!active) return;
       if (id) {
         localStorage.setItem(cacheKey, id.toString());
         setAnilistId(id);
-        setAnilistLoading(false);
-      } else if (searchTitle !== cleanTitle) {
-        // Fallback: Retry with cleanTitle if season-specific search failed
-        fetchAniList(cleanTitle).then(fallbackId => {
-          if (fallbackId) {
-            localStorage.setItem(cacheKey, fallbackId.toString());
-            setAnilistId(fallbackId);
-          } else {
-            console.warn(`Could not find AniList ID for title: "${cleanTitle}"`);
-          }
-          setAnilistLoading(false);
-        });
       } else {
-        console.warn(`Could not find AniList ID for title: "${searchTitle}"`);
-        setAnilistLoading(false);
+        console.warn(`Could not resolve AniList ID for ${cleanTitle} Season ${currentSeason}`);
       }
+      setAnilistLoading(false);
     });
+
+    return () => {
+      active = false;
+    };
   }, [tmdbId, isAnime, title, currentSeason]);
 
   useEffect(() => {
