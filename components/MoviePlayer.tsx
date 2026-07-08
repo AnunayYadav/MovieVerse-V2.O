@@ -301,6 +301,17 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
 
   const [anilistId, setAnilistId] = useState<number | null>(null);
   const [anilistLoading, setAnilistLoading] = useState(false);
+
+  // Anime season map: AniList entries representing each season
+  interface AnimeSeasonEntry {
+    anilistId: number;
+    malId: number | null;
+    episodes: number;
+    title: string;
+    format: string;
+  }
+  const [animeSeasonMap, setAnimeSeasonMap] = useState<AnimeSeasonEntry[]>([]);
+  const [animeEpisodesLoading, setAnimeEpisodesLoading] = useState(false);
   const [animeLanguage, setAnimeLanguage] = useState(() => {
     if (typeof window !== 'undefined') {
       return localStorage.getItem('movieverse_anime_language') || 'sub';
@@ -1252,35 +1263,58 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     };
   }, [showNextCountdown, playNextEpisode]);
 
+  // ── AniList: Build full anime season map (sequel chain) ──────────────────
   useEffect(() => {
     if (!isAnime || !title) {
       setAnilistId(null);
+      setAnimeSeasonMap([]);
       return;
     }
 
     let active = true;
-    const cacheKey = `movieverse_anilist_map_${tmdbId}_s${currentSeason}`;
-    const cachedId = localStorage.getItem(cacheKey);
-    if (cachedId) {
-      setAnilistId(parseInt(cachedId, 10));
-      return;
+    const cacheKey = `movieverse_anilist_seasonmap_${tmdbId}`;
+    const cached = localStorage.getItem(cacheKey);
+    if (cached) {
+      try {
+        const parsed: AnimeSeasonEntry[] = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setAnimeSeasonMap(parsed);
+          const idx = Math.min(currentSeason - 1, parsed.length - 1);
+          setAnilistId(parsed[idx].anilistId);
+          return;
+        }
+      } catch {}
     }
 
-    const fetchMediaInfo = (id: number | null, search: string | null): Promise<any | null> => {
-      const variables: any = {};
-      let query = "";
+    const fetchMediaFull = (id: number | null, search: string | null): Promise<any | null> => {
+      const variables: any = { type: 'ANIME' };
+      let queryStr = '';
       if (id) {
         variables.id = id;
-        query = `
+        queryStr = `
           query ($id: Int) {
             Media(id: $id, type: ANIME) {
               id
+              idMal
+              episodes
+              format
+              title { romaji english }
               relations {
                 edges {
                   relationType
                   node {
                     id
+                    idMal
+                    episodes
+                    format
                     type
+                    title { romaji english }
+                    relations {
+                      edges {
+                        relationType
+                        node { id idMal episodes format type title { romaji english } }
+                      }
+                    }
                   }
                 }
               }
@@ -1289,16 +1323,30 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
         `;
       } else {
         variables.search = search;
-        query = `
+        queryStr = `
           query ($search: String) {
             Media(search: $search, type: ANIME) {
               id
+              idMal
+              episodes
+              format
+              title { romaji english }
               relations {
                 edges {
                   relationType
                   node {
                     id
+                    idMal
+                    episodes
+                    format
                     type
+                    title { romaji english }
+                    relations {
+                      edges {
+                        relationType
+                        node { id idMal episodes format type title { romaji english } }
+                      }
+                    }
                   }
                 }
               }
@@ -1309,10 +1357,10 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
       return fetch('https://graphql.anilist.co', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query, variables })
+        body: JSON.stringify({ query: queryStr, variables })
       })
         .then(res => {
-          if (!res.ok) throw new Error("API failed");
+          if (!res.ok) throw new Error('AniList API failed');
           return res.json();
         })
         .then(json => json?.data?.Media || null)
@@ -1322,42 +1370,80 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     setAnilistLoading(true);
     const cleanTitle = title.replace(/\s*\(?(Dub|Sub|TV|Movie|uncensored|censored|season\s*\d+|part\s*\d+)\)?\s*$/i, '').trim();
 
-    const resolveId = async () => {
-      let media = await fetchMediaInfo(null, cleanTitle);
-      if (!media) return null;
+    const buildSeasonMap = async (): Promise<AnimeSeasonEntry[]> => {
+      const root = await fetchMediaFull(null, cleanTitle);
+      if (!root) return [];
 
-      let currentId = media.id;
-      for (let s = 2; s <= currentSeason; s++) {
-        const edges = media.relations?.edges || [];
-        const sequelEdge = edges.find((e: any) => e.relationType === 'SEQUEL' && e.node?.type === 'ANIME');
-        if (sequelEdge?.node?.id) {
-          currentId = sequelEdge.node.id;
-          if (s < currentSeason) {
-            media = await fetchMediaInfo(currentId, null);
-            if (!media) break;
-          }
-        } else {
-          break;
-        }
+      // Walk the full PREQUEL chain to find the very first entry
+      let firstEntry = root;
+      const visited = new Set<number>([root.id]);
+      let current = root;
+      while (true) {
+        const edges = current.relations?.edges || [];
+        const prequelEdge = edges.find((e: any) => e.relationType === 'PREQUEL' && e.node?.type === 'ANIME');
+        if (prequelEdge?.node?.id && !visited.has(prequelEdge.node.id)) {
+          visited.add(prequelEdge.node.id);
+          const prev = await fetchMediaFull(prequelEdge.node.id, null);
+          if (prev) {
+            firstEntry = prev;
+            current = prev;
+          } else break;
+        } else break;
       }
-      return currentId;
+
+      // Now walk SEQUEL chain from the first entry, collecting TV/TV_SHORT entries
+      const seasonEntries: AnimeSeasonEntry[] = [];
+      const isTvFormat = (f: string) => f === 'TV' || f === 'TV_SHORT';
+
+      const addEntry = (media: any) => {
+        if (media && isTvFormat(media.format)) {
+          seasonEntries.push({
+            anilistId: media.id,
+            malId: media.idMal || null,
+            episodes: media.episodes || 0,
+            title: media.title?.english || media.title?.romaji || `Season ${seasonEntries.length + 1}`,
+            format: media.format,
+          });
+        }
+      };
+
+      addEntry(firstEntry);
+      visited.clear();
+      visited.add(firstEntry.id);
+      current = firstEntry;
+
+      // Walk forward through sequels
+      for (let i = 0; i < 30; i++) { // Safety limit
+        const edges = current.relations?.edges || [];
+        const sequelEdge = edges.find((e: any) => e.relationType === 'SEQUEL' && e.node?.type === 'ANIME');
+        if (!sequelEdge?.node?.id || visited.has(sequelEdge.node.id)) break;
+        
+        visited.add(sequelEdge.node.id);
+        const next = await fetchMediaFull(sequelEdge.node.id, null);
+        if (!next) break;
+        addEntry(next);
+        current = next;
+      }
+
+      return seasonEntries;
     };
 
-    resolveId().then(id => {
+    buildSeasonMap().then(entries => {
       if (!active) return;
-      if (id) {
-        localStorage.setItem(cacheKey, id.toString());
-        setAnilistId(id);
+      if (entries.length > 0) {
+        setAnimeSeasonMap(entries);
+        localStorage.setItem(cacheKey, JSON.stringify(entries));
+        const idx = Math.min(currentSeason - 1, entries.length - 1);
+        setAnilistId(entries[idx].anilistId);
       } else {
-        console.warn(`Could not resolve AniList ID for ${cleanTitle} Season ${currentSeason}`);
+        // Fallback: single entry from search
+        console.warn(`Could not build season map for ${cleanTitle}`);
       }
       setAnilistLoading(false);
     });
 
-    return () => {
-      active = false;
-    };
-  }, [tmdbId, isAnime, title, currentSeason]);
+    return () => { active = false; };
+  }, [tmdbId, isAnime, title]);
 
   useEffect(() => {
     setCurrentSeason(initialSeason);
@@ -1371,36 +1457,116 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     setActiveColor(color);
   }, [color]);
 
+  // ── Update anilistId when currentSeason changes and animeSeasonMap is available ──
+  useEffect(() => {
+    if (isAnime && animeSeasonMap.length > 0) {
+      const idx = Math.min(currentSeason - 1, animeSeasonMap.length - 1);
+      setAnilistId(animeSeasonMap[idx].anilistId);
+    }
+  }, [currentSeason, animeSeasonMap, isAnime]);
+
+  // ── Fetch seasons: Use anime season map for anime, TMDB for non-anime ──
   useEffect(() => {
     if (mediaType === 'tv' && tmdbId) {
-      fetch(`${TMDB_BASE_URL}/tv/${tmdbId}?api_key=${apiKey}`)
-        .then(res => res.json())
-        .then(data => {
-          if (data && data.seasons) {
-            setSeasons(data.seasons.filter((s: any) => s.season_number > 0));
-          }
-        })
-        .catch(err => console.error("Error fetching tv show details:", err));
+      if (isAnime && animeSeasonMap.length > 0) {
+        // Use AniList entries as seasons
+        const animeSeasons = animeSeasonMap.map((entry, idx) => ({
+          id: entry.anilistId,
+          season_number: idx + 1,
+          name: entry.title,
+          episode_count: entry.episodes,
+          _malId: entry.malId,
+          _anilistId: entry.anilistId,
+        }));
+        setSeasons(animeSeasons);
+      } else {
+        // Non-anime: use TMDB seasons
+        fetch(`${TMDB_BASE_URL}/tv/${tmdbId}?api_key=${apiKey}`)
+          .then(res => res.json())
+          .then(data => {
+            if (data && data.seasons) {
+              setSeasons(data.seasons.filter((s: any) => s.season_number > 0));
+            }
+          })
+          .catch(err => console.error("Error fetching tv show details:", err));
+      }
     }
-  }, [tmdbId, mediaType, apiKey]);
+  }, [tmdbId, mediaType, apiKey, isAnime, animeSeasonMap]);
 
+  // ── Fetch episodes: Use Jikan+Kitsu for anime, TMDB for non-anime ──
   useEffect(() => {
     if (mediaType === 'tv' && tmdbId && currentSeason) {
-      setEpisodesLoading(true);
-      fetch(`${TMDB_BASE_URL}/tv/${tmdbId}/season/${currentSeason}?api_key=${apiKey}`)
-        .then(res => res.json())
-        .then(data => {
-          if (data && data.episodes) {
-            setEpisodes(data.episodes);
-          }
-          setEpisodesLoading(false);
-        })
-        .catch(err => {
-          console.error("Error fetching episodes:", err);
-          setEpisodesLoading(false);
-        });
+      if (isAnime && animeSeasonMap.length > 0) {
+        const idx = Math.min(currentSeason - 1, animeSeasonMap.length - 1);
+        const entry = animeSeasonMap[idx];
+        
+        if (entry.malId) {
+          setEpisodesLoading(true);
+          setAnimeEpisodesLoading(true);
+          fetch(`/api/anime?action=mal-episodes&malId=${entry.malId}`)
+            .then(res => res.json())
+            .then(data => {
+              if (data?.episodes && data.episodes.length > 0) {
+                setEpisodes(data.episodes);
+              } else {
+                // Fallback: generate placeholder episodes from episode count
+                const placeholders = Array.from({ length: entry.episodes || 12 }, (_, i) => ({
+                  episode_number: i + 1,
+                  name: `Episode ${i + 1}`,
+                  overview: '',
+                  still_path: null,
+                  air_date: '',
+                }));
+                setEpisodes(placeholders);
+              }
+              setEpisodesLoading(false);
+              setAnimeEpisodesLoading(false);
+            })
+            .catch(err => {
+              console.error('Error fetching anime episodes:', err);
+              // Fallback to TMDB
+              fetch(`${TMDB_BASE_URL}/tv/${tmdbId}/season/${currentSeason}?api_key=${apiKey}`)
+                .then(res => res.json())
+                .then(data => {
+                  if (data?.episodes) setEpisodes(data.episodes);
+                  setEpisodesLoading(false);
+                  setAnimeEpisodesLoading(false);
+                })
+                .catch(() => {
+                  setEpisodesLoading(false);
+                  setAnimeEpisodesLoading(false);
+                });
+            });
+        } else {
+          // No MAL ID: fallback to TMDB
+          setEpisodesLoading(true);
+          fetch(`${TMDB_BASE_URL}/tv/${tmdbId}/season/${currentSeason}?api_key=${apiKey}`)
+            .then(res => res.json())
+            .then(data => {
+              if (data?.episodes) setEpisodes(data.episodes);
+              setEpisodesLoading(false);
+            })
+            .catch(err => {
+              console.error('Error fetching episodes:', err);
+              setEpisodesLoading(false);
+            });
+        }
+      } else {
+        // Non-anime: use TMDB episodes
+        setEpisodesLoading(true);
+        fetch(`${TMDB_BASE_URL}/tv/${tmdbId}/season/${currentSeason}?api_key=${apiKey}`)
+          .then(res => res.json())
+          .then(data => {
+            if (data?.episodes) setEpisodes(data.episodes);
+            setEpisodesLoading(false);
+          })
+          .catch(err => {
+            console.error('Error fetching episodes:', err);
+            setEpisodesLoading(false);
+          });
+      }
     }
-  }, [tmdbId, mediaType, currentSeason, apiKey]);
+  }, [tmdbId, mediaType, currentSeason, apiKey, isAnime, animeSeasonMap]);
   
 
 
@@ -1776,6 +1942,10 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
 
     if (providerId === 'anikai' && title) {
       url += `&title=${encodeURIComponent(title)}`;
+      // When we have the anime season map, send mappedEpisode to bypass TMDB absolute episode calculation
+      if (isAnime && animeSeasonMap.length > 0) {
+        url += `&mappedEpisode=${currentEpisode}`;
+      }
     }
     return url;
   };
@@ -2679,17 +2849,17 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                                   e.stopPropagation();
                                   setIsSeasonDropdownOpen(!isSeasonDropdownOpen);
                                 }}
-                                className="flex items-center gap-1 px-2 py-1 bg-zinc-900 border border-zinc-800 text-white rounded-lg text-[10px] font-semibold cursor-pointer hover:bg-zinc-800 transition-colors"
+                                className="flex items-center gap-1 px-2 py-1 bg-zinc-900 border border-zinc-800 text-white rounded-lg text-[10px] font-semibold cursor-pointer hover:bg-zinc-800 transition-colors max-w-[140px]"
                               >
-                                <span>
+                                <span className="truncate">
                                   {seasons.find(s => s.season_number === currentSeason)?.name || `S${currentSeason}`}
                                 </span>
-                                <ChevronDown size={10} className="text-red-500" />
+                                <ChevronDown size={10} className="text-red-500 shrink-0" />
                               </button>
 
                               {isSeasonDropdownOpen && (
                                 <div 
-                                  className="absolute left-0 mt-1.5 w-32 bg-zinc-900 border border-zinc-800 rounded-lg shadow-2xl p-1 z-[70] max-h-36 overflow-y-auto custom-scrollbar animate-in fade-in duration-100"
+                                  className={`absolute left-0 mt-1.5 bg-zinc-900 border border-zinc-800 rounded-lg shadow-2xl p-1 z-[70] max-h-36 overflow-y-auto custom-scrollbar animate-in fade-in duration-100 ${isAnime && animeSeasonMap.length > 0 ? 'w-52' : 'w-32'}`}
                                 >
                                   {seasons.map((s) => {
                                     const isSel = s.season_number === currentSeason;
@@ -2769,12 +2939,14 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                               return filtered.map((ep: any) => {
                                 const isCurrent = ep.episode_number === currentEpisode;
                                 const epThumb = ep.still_path 
-                                  ? `${TMDB_IMAGE_BASE}${ep.still_path}` 
-                                  : "https://placehold.co/320x180";
+                                  ? (ep.still_path.startsWith('http') ? ep.still_path : `${TMDB_IMAGE_BASE}${ep.still_path}`)
+                                  : "https://placehold.co/320x180/111/333?text=" + ep.episode_number;
+                                const isFiller = ep.filler === true;
+                                const isRecap = ep.recap === true;
 
                                 return (
                                   <div
-                                    key={ep.id}
+                                    key={ep.episode_number}
                                     onClick={() => {
                                       setCurrentEpisode(ep.episode_number);
                                       if (onEpisodeChange) {
@@ -2782,7 +2954,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                                       }
                                       closeAllMenus();
                                     }}
-                                    className={`w-full text-left rounded-xl border flex gap-3 transition-all duration-200 cursor-pointer overflow-hidden p-2 group/card ${
+                                    className={`w-full text-left rounded-xl border flex gap-3 transition-all duration-200 cursor-pointer overflow-hidden p-2 group/card ${isFiller ? 'opacity-60 ' : ''}${
                                       isCurrent 
                                         ? 'border-white bg-zinc-900/60 shadow-md scale-[1.01]' 
                                         : 'border-white/5 bg-zinc-900/20 hover:border-white/20 hover:bg-zinc-900/40'
@@ -2798,6 +2970,11 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                                           <Play size={10} fill="black" className="text-black ml-0.5" />
                                         </div>
                                       </div>
+                                      {(isFiller || isRecap) && (
+                                        <div className="absolute top-1 left-1 px-1.5 py-0.5 rounded text-[7px] font-bold uppercase tracking-wider bg-black/70 text-yellow-400">
+                                          {isFiller ? 'Filler' : 'Recap'}
+                                        </div>
+                                      )}
                                     </div>
 
                                     {/* Right: details */}
@@ -4220,8 +4397,8 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                       {episodes.map((ep) => {
                         const isCurrent = ep.episode_number === currentEpisode;
                         const epThumb = ep.still_path 
-                          ? `${TMDB_IMAGE_BASE}${ep.still_path}` 
-                          : "https://placehold.co/320x180";
+                          ? (ep.still_path.startsWith('http') ? ep.still_path : `${TMDB_IMAGE_BASE}${ep.still_path}`)
+                          : "https://placehold.co/320x180/111/333?text=" + ep.episode_number;
                         return (
                           <button
                             key={ep.id}

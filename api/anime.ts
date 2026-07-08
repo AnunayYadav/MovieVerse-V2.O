@@ -10,6 +10,136 @@ const ANIKAI_BASE = 'https://www3.anikai.cc';
 
 const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 
+// ── Jikan (MAL) Episode Fetching ──────────────────────────────────────────────
+
+async function fetchJikanEpisodes(malId: number): Promise<any[]> {
+  const allEpisodes: any[] = [];
+  let page = 1;
+  let hasNext = true;
+
+  while (hasNext) {
+    try {
+      const res = await fetch(`https://api.jikan.moe/v4/anime/${malId}/episodes?page=${page}`);
+      if (!res.ok) break;
+      const json = await res.json();
+      const data = json?.data;
+      if (!Array.isArray(data) || data.length === 0) break;
+      allEpisodes.push(...data);
+      hasNext = json?.pagination?.has_next_page === true;
+      page++;
+      if (hasNext) await new Promise(r => setTimeout(r, 400));
+    } catch {
+      break;
+    }
+  }
+
+  return allEpisodes;
+}
+
+// ── Kitsu Episode Fetching ────────────────────────────────────────────────────
+
+async function resolveKitsuAnimeId(malId: number): Promise<string | null> {
+  try {
+    const url = `https://kitsu.io/api/edge/mappings?filter[externalSite]=myanimelist/anime&filter[externalId]=${malId}&include=item&fields[anime]=id`;
+    const res = await fetch(url, {
+      headers: { 'Accept': 'application/vnd.api+json' }
+    });
+    if (!res.ok) return null;
+    const json = await res.json();
+    const included = json?.included;
+    if (Array.isArray(included) && included.length > 0) {
+      return included[0].id;
+    }
+    const data = json?.data;
+    if (Array.isArray(data) && data.length > 0) {
+      return data[0]?.relationships?.item?.data?.id || null;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+async function fetchKitsuEpisodes(kitsuAnimeId: string): Promise<any[]> {
+  const allEpisodes: any[] = [];
+  let offset = 0;
+  const limit = 20;
+  let hasMore = true;
+
+  while (hasMore) {
+    try {
+      const url = `https://kitsu.io/api/edge/episodes?filter[mediaType]=Anime&filter[mediaId]=${kitsuAnimeId}&page[limit]=${limit}&page[offset]=${offset}&fields[episodes]=canonicalTitle,synopsis,thumbnail,number,seasonNumber,airdate,length`;
+      const res = await fetch(url, {
+        headers: { 'Accept': 'application/vnd.api+json' }
+      });
+      if (!res.ok) break;
+      const json = await res.json();
+      const data = json?.data;
+      if (!Array.isArray(data) || data.length === 0) break;
+      allEpisodes.push(...data);
+      hasMore = data.length === limit;
+      offset += limit;
+    } catch {
+      break;
+    }
+  }
+
+  return allEpisodes;
+}
+
+// ── Merge Jikan + Kitsu Episodes ──────────────────────────────────────────────
+
+function mergeEpisodes(jikanEps: any[], kitsuEps: any[]) {
+  const kitsuMap = new Map<number, any>();
+  for (const ep of kitsuEps) {
+    const num = ep?.attributes?.number;
+    if (num != null) {
+      kitsuMap.set(num, ep.attributes);
+    }
+  }
+
+  if (jikanEps.length > 0) {
+    return jikanEps.map(jep => {
+      const epNum = jep.mal_id;
+      const kitsu = kitsuMap.get(epNum);
+      return {
+        episode_number: epNum,
+        name: jep.title || kitsu?.canonicalTitle || `Episode ${epNum}`,
+        name_japanese: jep.title_japanese || undefined,
+        name_romanji: jep.title_romanji?.trim() || undefined,
+        overview: kitsu?.synopsis || '',
+        still_path: kitsu?.thumbnail?.original || null,
+        air_date: jep.aired ? jep.aired.split('T')[0] : (kitsu?.airdate || ''),
+        score: jep.score || undefined,
+        filler: jep.filler === true,
+        recap: jep.recap === true,
+        runtime: kitsu?.length || undefined,
+      };
+    });
+  }
+
+  if (kitsuEps.length > 0) {
+    return kitsuEps
+      .map(ep => {
+        const attr = ep.attributes;
+        return {
+          episode_number: attr.number || 0,
+          name: attr.canonicalTitle || `Episode ${attr.number || '?'}`,
+          overview: attr.synopsis || '',
+          still_path: attr.thumbnail?.original || null,
+          air_date: attr.airdate || '',
+          filler: false,
+          recap: false,
+          runtime: attr.length || undefined,
+        };
+      })
+      .filter(ep => ep.episode_number > 0)
+      .sort((a, b) => a.episode_number - b.episode_number);
+  }
+
+  return [];
+}
+
 function getSeasonDescriptors(seasonNum: number) {
   const rom = ["", "i", "ii", "iii", "iv", "v", "vi", "vii", "viii", "ix", "x"];
   const ord = ["", "1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th", "9th", "10th"];
@@ -287,7 +417,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(200).end();
   }
 
-  const { provider, action, tmdbId, mediaType, season, episode, anilistId, title, lang, episodeId } = req.query;
+  const { provider, action, tmdbId, mediaType, season, episode, anilistId, title, lang, episodeId, mappedEpisode } = req.query;
 
   // Resolve clean title if missing or provided
   let cleanTitle = '';
@@ -299,7 +429,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   let seasonName = '';
   let seasonEpisodeCount = 0;
-  let absoluteEpisode = episode ? parseInt(String(episode), 10) : 1;
+  // If mappedEpisode is provided, the client already did the AniList mapping — use it directly
+  let absoluteEpisode = mappedEpisode ? parseInt(String(mappedEpisode), 10) : (episode ? parseInt(String(episode), 10) : 1);
 
   if (tmdbId) {
     try {
@@ -314,7 +445,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             : (tmdbData.name || tmdbData.original_name);
         }
 
-        if (typeStr === 'tv') {
+        // Only compute absolute episode from TMDB if mappedEpisode was NOT provided
+        if (typeStr === 'tv' && !mappedEpisode) {
           const seasonNum = season ? parseInt(String(season), 10) : 1;
           const seasons = tmdbData.seasons || [];
           let prevEpisodesSum = 0;
@@ -357,8 +489,35 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
   }
 
+  // 2. Route to MAL Episodes (Jikan + Kitsu merge)
+  if (action === 'mal-episodes') {
+    const { malId } = req.query;
+    if (!malId || typeof malId !== 'string') {
+      return res.status(400).json({ error: 'malId parameter is required' });
+    }
+    const malIdNum = parseInt(malId, 10);
+    if (isNaN(malIdNum)) {
+      return res.status(400).json({ error: 'malId must be a valid integer' });
+    }
+    try {
+      const [jikanEps, kitsuAnimeId] = await Promise.all([
+        fetchJikanEpisodes(malIdNum),
+        resolveKitsuAnimeId(malIdNum),
+      ]);
+      let kitsuEps: any[] = [];
+      if (kitsuAnimeId) {
+        kitsuEps = await fetchKitsuEpisodes(kitsuAnimeId);
+      }
+      const episodes = mergeEpisodes(jikanEps, kitsuEps);
+      res.setHeader('Cache-Control', 's-maxage=86400, stale-while-revalidate=3600');
+      return res.status(200).json({ episodes, source: jikanEps.length > 0 ? 'jikan+kitsu' : kitsuEps.length > 0 ? 'kitsu' : 'none' });
+    } catch (error: any) {
+      console.error('mal-episodes error:', error);
+      return res.status(500).json({ error: error.message || 'Internal Server Error' });
+    }
+  }
 
-  // 4. Default: Consumet AniList Meta logic
+  // 3. Default: Consumet AniList Meta logic
   if (!action || typeof action !== 'string') {
     return res.status(400).json({ error: 'Action or provider parameter is required' });
   }
