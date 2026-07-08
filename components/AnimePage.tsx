@@ -1704,7 +1704,7 @@ export const AnimeCard: React.FC<AnimeCardProps> = ({ anime, apiKey, onAnimeClic
 
       {/* Details below poster */}
       <div className="flex flex-col px-1">
-        <h4 className="text-xs md:text-sm font-bold text-zinc-100 line-clamp-1 group-hover:text-red-500 transition-colors duration-300 leading-tight">
+        <h4 className="text-xs md:text-sm font-medium text-zinc-200 line-clamp-2 group-hover:text-red-500 transition-colors duration-300 leading-snug min-h-[32px] md:min-h-[40px]">
           {title}
         </h4>
         <div className="flex items-center justify-between mt-1 text-[9px] text-zinc-400 font-semibold font-sans">
@@ -1967,9 +1967,6 @@ interface AiringCardProps {
 
 export const AiringCard: React.FC<AiringCardProps> = ({ item, apiKey, onAnimeClick, titleLanguage }) => {
   const [backdropUrl, setBackdropUrl] = useState<string | null>(null);
-  const [logoUrl, setLogoUrl] = useState<string | null>(null);
-  const [logoLoading, setLogoLoading] = useState(true);
-
   const { ref } = useTvFocus({
     onEnterPress: () => onAnimeClick(item.media)
   });
@@ -1985,182 +1982,42 @@ export const AiringCard: React.FC<AiringCardProps> = ({ item, apiKey, onAnimeCli
   };
 
   const title = getAnimeTitle(item.media, titleLanguage);
-
-  useEffect(() => {
-    let isMounted = true;
-    
-    const resolveTmdbAndLogo = async () => {
-      const matchCacheKey = `movieverse_anilist_tmdb_match_${item.media.id}`;
-      const logoCacheKey = `movieverse_anime_logo_${item.media.id}`;
-      
-      const cachedMatch = localStorage.getItem(matchCacheKey);
-      const cachedLogo = localStorage.getItem(logoCacheKey);
-      
-      let tmdbId: number | null = null;
-      let mediaType: string | null = null;
-      let backdropPath: string | null = null;
-      
-      if (cachedMatch) {
-        try {
-          const parsed = JSON.parse(cachedMatch);
-          tmdbId = parsed.id;
-          mediaType = parsed.mediaType;
-          backdropPath = parsed.backdropPath;
-        } catch (_) {}
-      }
-      
-      if (!tmdbId && apiKey) {
-        const titlesToTry = [
-          item.media.title.english,
-          item.media.title.romaji,
-          item.media.title.userPreferred
-        ].filter((t): t is string => typeof t === 'string' && t.length > 0);
-        
-        for (const searchTitle of titlesToTry) {
-          const cleanTitle = searchTitle.replace(/\s*\(?(Dub|Sub|TV|Movie|uncensored|censored|season\s*\d+|part\s*\d+)\)?\s*$/i, '').trim();
-          
-          try {
-            const res = await fetch(`${TMDB_BASE_URL}/search/tv?api_key=${apiKey}&query=${encodeURIComponent(cleanTitle)}`);
-            const data = await res.json();
-            if (data && data.results && data.results.length > 0) {
-              const match = data.results.find((m: any) => 
-                m.genre_ids?.includes(16) && m.original_language === 'ja'
-              ) || data.results.find((m: any) => 
-                m.genre_ids?.includes(16)
-              ) || data.results[0];
-              
-              if (match) {
-                tmdbId = match.id;
-                mediaType = 'tv';
-                backdropPath = match.backdrop_path;
-                break;
-              }
-            }
-          } catch (e) {}
-          
-          try {
-            const res = await fetch(`${TMDB_BASE_URL}/search/movie?api_key=${apiKey}&query=${encodeURIComponent(cleanTitle)}`);
-            const data = await res.json();
-            if (data && data.results && data.results.length > 0) {
-              const match = data.results.find((m: any) => 
-                m.genre_ids?.includes(16) && m.original_language === 'ja'
-              ) || data.results.find((m: any) => 
-                m.genre_ids?.includes(16)
-              ) || data.results[0];
-              
-              if (match) {
-                tmdbId = match.id;
-                mediaType = 'movie';
-                backdropPath = match.backdrop_path;
-                break;
-              }
-            }
-          } catch (e) {}
-        }
-        
-        if (tmdbId && mediaType) {
-          localStorage.setItem(matchCacheKey, JSON.stringify({ id: tmdbId, mediaType, backdropPath }));
-        }
-      }
-      
-      if (!isMounted) return;
-      
-      if (tmdbId && mediaType) {
-        if (backdropPath) {
-          if (backdropPath.startsWith('http')) {
-            setBackdropUrl(backdropPath);
-          } else {
-            setBackdropUrl(`https://image.tmdb.org/t/p/w500${backdropPath}`);
-          }
-        } else {
-          setBackdropUrl(item.media.bannerImage || item.media.coverImage.extraLarge || item.media.coverImage.large);
-        }
-        
-        if (cachedLogo !== null) {
-          setLogoUrl(cachedLogo || null);
-          setLogoLoading(false);
-        } else if (apiKey) {
-          try {
-            const res = await fetch(`${TMDB_BASE_URL}/${mediaType}/${tmdbId}/images?api_key=${apiKey}`);
-            const data = await res.json();
-            const logo = data.logos?.find((l: any) => l.iso_639_1 === 'en') || data.logos?.[0];
-            if (logo && isMounted) {
-              const logoPath = `https://image.tmdb.org/t/p/w300${logo.file_path}`;
-              setLogoUrl(logoPath);
-              localStorage.setItem(logoCacheKey, logoPath);
-            } else if (isMounted) {
-              setLogoUrl(null);
-              localStorage.setItem(logoCacheKey, '');
-            }
-          } catch (e) {
-            if (isMounted) {
-              setLogoUrl(null);
-              localStorage.setItem(logoCacheKey, '');
-            }
-          } finally {
-            if (isMounted) setLogoLoading(false);
-          }
-        } else {
-          setLogoLoading(false);
-        }
-      } else {
-        setBackdropUrl(item.media.bannerImage || item.media.coverImage.extraLarge || item.media.coverImage.large);
-        setLogoLoading(false);
-      }
-    };
-    
-    resolveTmdbAndLogo();
-    return () => { isMounted = false; };
-  }, [item.media.id, apiKey]);
-
+  const posterUrl = item.media.coverImage.extraLarge || item.media.coverImage.large || item.media.coverImage.medium;
   const airTime = new Date(item.airingAt * 1000).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 
   return (
     <div
       ref={ref}
       onClick={() => onAnimeClick(item.media)}
-      className="group relative shrink-0 w-[220px] md:w-[260px] aspect-[16/9] rounded-2xl overflow-hidden cursor-pointer bg-zinc-950 border border-white/5 hover:border-red-500/35 hover:shadow-[0_4px_15px_rgba(239,68,68,0.15)] hover:scale-[1.02] transition-all duration-500"
+      className="group flex flex-col gap-2 shrink-0 w-[140px] md:w-[170px] cursor-pointer select-none text-left"
     >
-      <img
-        src={backdropUrl || "https://placehold.co/600x338/111/444?text=Loading..."}
-        alt={title}
-        loading="lazy"
-        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-        referrerPolicy="no-referrer"
-      />
+      {/* Vertical Poster Container */}
+      <div className="relative w-full aspect-[2/3] rounded-xl overflow-hidden bg-zinc-900 border border-white/5 group-hover:border-red-500/50 group-hover:shadow-[0_0_20px_rgba(239,68,68,0.25)] group-hover:scale-[1.03] transition-all duration-500">
+        <img
+          src={posterUrl || "https://placehold.co/300x450/111/444?text=Loading..."}
+          alt={title}
+          loading="lazy"
+          className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+          referrerPolicy="no-referrer"
+        />
 
-      {/* Modern gradient overlay */}
-      <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/45 to-transparent opacity-90 transition-opacity duration-300 pointer-events-none" />
-
-      {/* Episode Badge */}
-      <div className="absolute top-2 left-2 bg-red-600/90 text-[9px] font-semibold text-white px-2 py-0.5 rounded shadow-sm">
-        Ep {item.episode}
-      </div>
-
-      {/* Air Time Badge */}
-      <div className="absolute top-2 right-2 bg-black/60 backdrop-blur-sm text-[9px] font-semibold text-white/90 px-2 py-0.5 rounded border border-white/5 shadow-sm">
-        {airTime}
-      </div>
-
-      {/* Details (Clean typography, font-medium/semibold, no heavy font-black or font-extrabold) */}
-      <div className="absolute inset-0 p-3.5 flex flex-col justify-end text-left select-none pointer-events-none">
-        <div className="min-h-[22px] flex items-end">
-          {!logoLoading && logoUrl ? (
-            <img
-              src={logoUrl}
-              alt={title}
-              className="max-h-[22px] max-w-[85%] object-contain drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)] transition-transform duration-300 origin-left group-hover:scale-[1.02]"
-              loading="lazy"
-              referrerPolicy="no-referrer"
-            />
-          ) : (
-            <h4 className="text-xs sm:text-sm font-semibold text-white line-clamp-1 group-hover:text-red-500 transition-colors duration-300">
-              {title}
-            </h4>
-          )}
+        {/* Episode Badge */}
+        <div className="absolute top-2 left-2 bg-red-600/90 text-[9px] font-bold text-white px-1.5 py-0.5 rounded shadow-md z-10 font-sans">
+          Ep {item.episode}
         </div>
-        
-        <div className="mt-1 flex items-center justify-between text-[9px] font-normal text-zinc-400">
+
+        {/* Air Time Badge */}
+        <div className="absolute top-2 right-2 bg-black/75 backdrop-blur-md text-[9px] font-bold text-white/90 px-1.5 py-0.5 rounded border border-white/5 shadow-md z-10 font-sans">
+          {airTime}
+        </div>
+      </div>
+
+      {/* Details below poster */}
+      <div className="flex flex-col px-1">
+        <h4 className="text-xs md:text-sm font-medium text-zinc-200 line-clamp-2 group-hover:text-red-500 transition-colors duration-300 leading-snug min-h-[32px] md:min-h-[40px]">
+          {title}
+        </h4>
+        <div className="mt-1 flex items-center justify-between text-[9px] font-semibold text-zinc-400 font-sans">
           <AiringCountdown airingAt={item.airingAt} />
         </div>
       </div>

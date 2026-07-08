@@ -1434,6 +1434,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                   genres
                   startDate { year month day }
                   trailer { id site }
+                  nextAiringEpisode { episode }
                 }
               }
             `;
@@ -1463,12 +1464,12 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                         first_air_date: media.startDate?.year ? `${media.startDate.year}-${String(media.startDate.month || 1).padStart(2, '0')}-${String(media.startDate.day || 1).padStart(2, '0')}` : '',
                         release_date: media.startDate?.year ? `${media.startDate.year}-${String(media.startDate.month || 1).padStart(2, '0')}-${String(media.startDate.day || 1).padStart(2, '0')}` : '',
                         number_of_seasons: 1,
-                        number_of_episodes: media.episodes || 1,
+                        number_of_episodes: media.episodes || (media.nextAiringEpisode ? media.nextAiringEpisode.episode - 1 : null),
                         seasons: [{
                             id: media.id,
                             season_number: 1,
                             name: media.title.english || media.title.userPreferred,
-                            episode_count: media.episodes || 1,
+                            episode_count: media.episodes || (media.nextAiringEpisode ? media.nextAiringEpisode.episode - 1 : null),
                             air_date: media.startDate?.year ? `${media.startDate.year}-01-01` : ''
                         }],
                         isAnimeDirect: true,
@@ -1546,7 +1547,22 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                 .then(res => res.json())
                 .then(data => {
                     if (isMounted) {
-                        setEpisodes(data.episodes || []);
+                        const fetchedEpisodes = data.episodes || [];
+                        setEpisodes(fetchedEpisodes);
+                        // Update the season's episode_count with the actual fetched count
+                        if (fetchedEpisodes.length > 0 && details) {
+                            setDetails((prev: any) => {
+                                if (!prev || !prev.seasons) return prev;
+                                return {
+                                    ...prev,
+                                    number_of_episodes: fetchedEpisodes.length,
+                                    seasons: prev.seasons.map((s: any) => ({
+                                        ...s,
+                                        episode_count: fetchedEpisodes.length
+                                    }))
+                                };
+                            });
+                        }
                     }
                 })
                 .catch(err => {
@@ -2840,7 +2856,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                                 {displayData.seasons?.find(s => s.season_number === selectedSeason)?.name || `Season ${selectedSeason}`} 
                                                                 {(() => {
                                                                     const s = displayData.seasons?.find(s => s.season_number === selectedSeason);
-                                                                    return s ? ` (${s.episode_count} Ep)` : '';
+                                                                    return s && s.episode_count ? ` (${s.episode_count} Ep)` : '';
                                                                 })()}
                                                             </span>
                                                             <ChevronDown size={14} className={`text-gray-400 transition-transform duration-300 ${isDropdownOpen ? 'rotate-180 text-white' : ''}`} />
@@ -2865,7 +2881,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                                         >
                                                                             <span className="truncate">{s.name}</span>
                                                                             <span className={`text-[10px] shrink-0 ${isActive ? 'text-white/80' : 'text-zinc-500'}`}>
-                                                                                {s.episode_count} Ep
+                                                                                {s.episode_count ? `${s.episode_count} Ep` : ''}
                                                                             </span>
                                                                         </TvFocusButton>
                                                                     );
@@ -2920,8 +2936,10 @@ export const MoviePage: React.FC<MoviePageProps> = ({
 
                                                         return filtered.map((episode) => {
                                                             const epThumbnail = episode.still_path 
-                                                                ? `${TMDB_IMAGE_BASE}${episode.still_path}` 
-                                                                : (displayData.backdrop_path ? `${TMDB_IMAGE_BASE}${displayData.backdrop_path}` : "https://placehold.co/320x180");
+                                                                ? (episode.still_path.startsWith('http') ? episode.still_path : `${TMDB_IMAGE_BASE}${episode.still_path}`)
+                                                                : (displayData.backdrop_path 
+                                                                    ? (displayData.backdrop_path.startsWith('http') ? displayData.backdrop_path : `${TMDB_IMAGE_BASE}${displayData.backdrop_path}`) 
+                                                                    : "https://placehold.co/320x180");
                                                             
                                                             const epRuntime = episode.runtime 
                                                                 ? `${episode.runtime} min` 
