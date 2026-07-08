@@ -2970,6 +2970,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                                             alt={episode.name} 
                                                                             className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" 
                                                                             loading="lazy"
+                                                                            referrerPolicy="no-referrer"
                                                                         />
                                                                         <div className="absolute bottom-1 left-1 px-1 rounded bg-black/85 text-[8px] sm:text-[10px] font-black text-white z-10 border border-white/5 shadow">
                                                                             {episode.episode_number}
@@ -3083,7 +3084,9 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                     {mdlEpisodes.map((episode, idx) => {
                                                         const epThumbnail = episode.image 
                                                             ? episode.image 
-                                                            : (displayData.backdrop_path ? `${TMDB_IMAGE_BASE}${displayData.backdrop_path}` : "https://images.unsplash.com/photo-1574375927938-d5a98e8edd85?q=80&w=400");
+                                                            : (displayData.backdrop_path 
+                                                                ? (displayData.backdrop_path.startsWith('http') ? displayData.backdrop_path : `${TMDB_IMAGE_BASE}${displayData.backdrop_path}`) 
+                                                                : "https://images.unsplash.com/photo-1574375927938-d5a98e8edd85?q=80&w=400");
                                                         
                                                         return (
                                                             <div 
@@ -3097,6 +3100,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                                         alt={episode.title || `Episode ${episode.episode_number}`} 
                                                                         className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" 
                                                                         loading="lazy"
+                                                                        referrerPolicy="no-referrer"
                                                                     />
                                                                     <div className="absolute bottom-1 left-1 px-1 rounded bg-black/85 text-[8px] sm:text-[10px] font-black text-white z-10 border border-white/5 shadow">
                                                                         {episode.episode_number}
