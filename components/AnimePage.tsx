@@ -45,6 +45,7 @@ export interface AniListMedia {
   averageScore: number | null;
   popularity: number;
   genres: string[];
+  format?: string | null;
   trailer?: {
     id: string;
     site: string;
@@ -165,7 +166,8 @@ export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick, sear
       duration: null,
       averageScore: null,
       popularity: 0,
-      genres: ['Action']
+      genres: ['Action'],
+      format: 'TV'
     };
     handleAnimeClick(mockMedia);
   };
@@ -314,6 +316,7 @@ export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick, sear
           averageScore
           popularity
           genres
+          format
           trailer {
             id
             site
@@ -948,6 +951,7 @@ export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick, sear
                     averageScore
                     popularity
                     genres
+                    format
                     trailer {
                       id
                       site
@@ -1002,6 +1006,7 @@ export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick, sear
                   averageScore
                   popularity
                   genres
+                  format
                   trailer {
                     id
                     site
@@ -1642,10 +1647,6 @@ export interface AnimeCardProps {
 }
 
 export const AnimeCard: React.FC<AnimeCardProps> = ({ anime, apiKey, onAnimeClick, titleLanguage }) => {
-  const [backdropUrl, setBackdropUrl] = useState<string | null>(null);
-  const [logoUrl, setLogoUrl] = useState<string | null>(null);
-  const [logoLoading, setLogoLoading] = useState(true);
-
   const { ref } = useTvFocus({
     onEnterPress: () => onAnimeClick(anime)
   });
@@ -1662,149 +1663,10 @@ export const AnimeCard: React.FC<AnimeCardProps> = ({ anime, apiKey, onAnimeClic
 
   const title = getAnimeTitle(anime, titleLanguage);
 
-  // Background resolver for each card's TMDB match & logo
-  useEffect(() => {
-    let isMounted = true;
-    
-    const resolveTmdbAndLogo = async () => {
-      const matchCacheKey = `movieverse_anilist_tmdb_match_${anime.id}`;
-      const logoCacheKey = `movieverse_anime_logo_${anime.id}`;
-      
-      const cachedMatch = localStorage.getItem(matchCacheKey);
-      const cachedLogo = localStorage.getItem(logoCacheKey);
-      
-      let tmdbId: number | null = null;
-      let mediaType: string | null = null;
-      let backdropPath: string | null = null;
-      
-      if (cachedMatch) {
-        try {
-          const parsed = JSON.parse(cachedMatch);
-          tmdbId = parsed.id;
-          mediaType = parsed.mediaType;
-          backdropPath = parsed.backdropPath;
-        } catch (_) {}
-      }
-      
-      // Search TMDB to map ID if not cached
-      if (!tmdbId && apiKey) {
-        const titlesToTry = [
-          anime.title.english,
-          anime.title.romaji,
-          anime.title.userPreferred
-        ].filter((t): t is string => typeof t === 'string' && t.length > 0);
-        
-        for (const searchTitle of titlesToTry) {
-          const cleanTitle = searchTitle.replace(/\s*\(?(Dub|Sub|TV|Movie|uncensored|censored|season\s*\d+|part\s*\d+)\)?\s*$/i, '').trim();
-          
-          // Try TV search
-          try {
-            const res = await fetch(`${TMDB_BASE_URL}/search/tv?api_key=${apiKey}&query=${encodeURIComponent(cleanTitle)}`);
-            const data = await res.json();
-            if (data && data.results && data.results.length > 0) {
-              const match = data.results.find((item: any) => 
-                item.genre_ids?.includes(16) && item.original_language === 'ja'
-              ) || data.results.find((item: any) => 
-                item.genre_ids?.includes(16)
-              ) || data.results[0];
-              
-              if (match) {
-                tmdbId = match.id;
-                mediaType = 'tv';
-                backdropPath = match.backdrop_path;
-                break;
-              }
-            }
-          } catch (e) {
-            console.error("TV search failed for AnimeCard resolver:", cleanTitle, e);
-          }
-          
-          // Try Movie search
-          try {
-            const res = await fetch(`${TMDB_BASE_URL}/search/movie?api_key=${apiKey}&query=${encodeURIComponent(cleanTitle)}`);
-            const data = await res.json();
-            if (data && data.results && data.results.length > 0) {
-              const match = data.results.find((item: any) => 
-                item.genre_ids?.includes(16) && item.original_language === 'ja'
-              ) || data.results.find((item: any) => 
-                item.genre_ids?.includes(16)
-              ) || data.results[0];
-              
-              if (match) {
-                tmdbId = match.id;
-                mediaType = 'movie';
-                backdropPath = match.backdrop_path;
-                break;
-              }
-            }
-          } catch (e) {
-            console.error("Movie search failed for AnimeCard resolver:", cleanTitle, e);
-          }
-        }
-        
-        if (tmdbId && mediaType) {
-          localStorage.setItem(matchCacheKey, JSON.stringify({ id: tmdbId, mediaType, backdropPath: anime.bannerImage || backdropPath }));
-        }
-      }
-      
-      if (!isMounted) return;
-      
-      if (tmdbId && mediaType) {
-        // Set backdrop URL (prefer TMDB landscape backdrop)
-        if (backdropPath) {
-          if (backdropPath.startsWith('http')) {
-            setBackdropUrl(backdropPath);
-          } else {
-            setBackdropUrl(`https://image.tmdb.org/t/p/w500${backdropPath}`);
-          }
-        } else {
-          setBackdropUrl(anime.bannerImage || anime.coverImage.extraLarge || anime.coverImage.large);
-        }
-        
-        // Fetch Title Logo
-        if (cachedLogo !== null) {
-          setLogoUrl(cachedLogo || null);
-          setLogoLoading(false);
-        } else if (apiKey) {
-          try {
-            const res = await fetch(`${TMDB_BASE_URL}/${mediaType}/${tmdbId}/images?api_key=${apiKey}`);
-            const data = await res.json();
-            const logo = data.logos?.find((l: any) => l.iso_639_1 === 'en') || data.logos?.[0];
-            if (logo && isMounted) {
-              const logoPath = `https://image.tmdb.org/t/p/w300${logo.file_path}`;
-              setLogoUrl(logoPath);
-              localStorage.setItem(logoCacheKey, logoPath);
-            } else if (isMounted) {
-              setLogoUrl(null);
-              localStorage.setItem(logoCacheKey, '');
-            }
-          } catch (e) {
-            console.error("Logo fetch failed for AnimeCard:", e);
-            if (isMounted) {
-              setLogoUrl(null);
-              localStorage.setItem(logoCacheKey, '');
-            }
-          } finally {
-            if (isMounted) {
-              setLogoLoading(false);
-            }
-          }
-        } else {
-          setLogoLoading(false);
-        }
-      } else {
-        // Match failed, use AniList landscape images as fallback
-        setBackdropUrl(anime.bannerImage || anime.coverImage.extraLarge || anime.coverImage.large);
-        setLogoLoading(false);
-      }
-    };
-    
-    resolveTmdbAndLogo();
-    
-    return () => {
-      isMounted = false;
-    };
-  }, [anime.id, apiKey]);
+  // Direct AniList artwork resolver (No TMDB matching)
+  const backdropUrl = anime.bannerImage || anime.coverImage.extraLarge || anime.coverImage.large;
+  const logoUrl = null;
+  const logoLoading = false;
 
   return (
     <div
