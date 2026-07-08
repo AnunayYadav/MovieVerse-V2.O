@@ -1161,171 +1161,21 @@ export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick, sear
 
   // TMDB ID Resolver and Click Handler
   const handleAnimeClick = async (anime: AniListMedia) => {
-    const matchCacheKey = `movieverse_anilist_tmdb_match_${anime.id}`;
-    const cachedMatch = localStorage.getItem(matchCacheKey);
-    
-    if (cachedMatch) {
-      try {
-        const parsed = JSON.parse(cachedMatch);
-        if (parsed && parsed.id && parsed.mediaType) {
-          const hasResolvedSeason = parsed.initial_season !== undefined;
-          
-          if (hasResolvedSeason) {
-            onMovieClick({
-              id: parsed.id,
-              media_type: parsed.mediaType,
-              title: getAnimeTitle(anime),
-              name: getAnimeTitle(anime),
-              overview: anime.description || '',
-              poster_path: null,
-              backdrop_path: parsed.backdropPath || anime.bannerImage || anime.coverImage?.large,
-              vote_average: anime.averageScore ? anime.averageScore / 10 : 0,
-              vote_count: 100,
-              popularity: anime.popularity,
-              initial_season: parsed.initial_season
-            } as any);
-            return;
-          } else {
-            // It has resolved TMDB ID but no season. Resolve the season!
-            let resolvedSeason = 1;
-            if (parsed.mediaType === 'tv') {
-              try {
-                const detailRes = await fetch(`${TMDB_BASE_URL}/tv/${parsed.id}?api_key=${apiKey}`);
-                const detailData = await detailRes.json();
-                if (detailData && detailData.seasons) {
-                  resolvedSeason = matchAniListToTmdbSeason(anime, detailData.seasons);
-                }
-              } catch (e) {
-                console.error("Failed to fetch TV details for season matching:", e);
-              }
-            }
-            
-            const resolvedBackdrop = anime.bannerImage || parsed.backdropPath || anime.coverImage?.large;
-            
-            localStorage.setItem(matchCacheKey, JSON.stringify({
-              id: parsed.id,
-              mediaType: parsed.mediaType,
-              backdropPath: resolvedBackdrop,
-              initial_season: resolvedSeason
-            }));
-
-            onMovieClick({
-              id: parsed.id,
-              media_type: parsed.mediaType,
-              title: getAnimeTitle(anime),
-              name: getAnimeTitle(anime),
-              overview: anime.description || '',
-              poster_path: null,
-              backdrop_path: resolvedBackdrop,
-              vote_average: anime.averageScore ? anime.averageScore / 10 : 0,
-              vote_count: 100,
-              popularity: anime.popularity,
-              initial_season: resolvedSeason
-            } as any);
-            return;
-          }
-        }
-      } catch (_) {}
-    }
-
-    const titlesToTry = [
-      anime.title.english,
-      anime.title.romaji,
-      anime.title.userPreferred,
-      anime.title.native
-    ].filter((t): t is string => typeof t === 'string' && t.length > 0);
-
-    const displayName = getAnimeTitle(anime);
-    setMatchingStatus({ isActive: true, title: displayName, error: null });
-
-    let matchedItem: any = null;
-
-    for (const title of titlesToTry) {
-      const cleanTitle = title.replace(/\s*\(?(Dub|Sub|TV|Movie|uncensored|censored|season\s*\d+|part\s*\d+)\)?\s*$/i, '').trim();
-      
-      // 1. Search TMDB TV shows
-      try {
-        const res = await fetch(`${TMDB_BASE_URL}/search/tv?api_key=${apiKey}&query=${encodeURIComponent(cleanTitle)}`);
-        const data = await res.json();
-        
-        if (data && data.results && data.results.length > 0) {
-          const match = data.results.find((item: any) => 
-            item.genre_ids?.includes(16) && item.original_language === 'ja'
-          ) || data.results.find((item: any) => 
-            item.genre_ids?.includes(16)
-          ) || data.results[0];
-
-          if (match) {
-            matchedItem = { ...match, media_type: 'tv', title: match.name || match.original_name };
-            break;
-          }
-        }
-      } catch (e) {
-        console.error("TMDB TV search match failed:", e);
-      }
-
-      // 2. Search TMDB Movies
-      try {
-        const res = await fetch(`${TMDB_BASE_URL}/search/movie?api_key=${apiKey}&query=${encodeURIComponent(cleanTitle)}`);
-        const data = await res.json();
-        
-        if (data && data.results && data.results.length > 0) {
-          const match = data.results.find((item: any) => 
-            item.genre_ids?.includes(16) && item.original_language === 'ja'
-          ) || data.results.find((item: any) => 
-            item.genre_ids?.includes(16)
-          ) || data.results[0];
-
-          if (match) {
-            matchedItem = { ...match, media_type: 'movie', title: match.title || match.original_title };
-            break;
-          }
-        }
-      } catch (e) {
-        console.error("TMDB Movie search match failed:", e);
-      }
-    }
-
-    if (matchedItem) {
-      let resolvedSeason = 1;
-      if (matchedItem.media_type === 'tv') {
-        try {
-          const detailRes = await fetch(`${TMDB_BASE_URL}/tv/${matchedItem.id}?api_key=${apiKey}`);
-          const detailData = await detailRes.json();
-          if (detailData && detailData.seasons) {
-            resolvedSeason = matchAniListToTmdbSeason(anime, detailData.seasons);
-          }
-        } catch (e) {
-          console.error("Failed to fetch TV details for season matching:", e);
-        }
-      }
-
-      setMatchingStatus({ isActive: false, title: '', error: null });
-      
-      const cacheKey = `movieverse_anilist_map_${matchedItem.id}`;
-      localStorage.setItem(cacheKey, anime.id.toString());
-      
-      const finalBackdrop = anime.bannerImage || matchedItem.backdrop_path || anime.coverImage?.large;
-
-      // Save to cache so subsequent clicks don't re-fetch
-      localStorage.setItem(matchCacheKey, JSON.stringify({
-        id: matchedItem.id,
-        mediaType: matchedItem.media_type,
-        backdropPath: finalBackdrop,
-        initial_season: resolvedSeason
-      }));
-
-      onMovieClick({
-        ...matchedItem,
-        backdrop_path: finalBackdrop,
-        initial_season: resolvedSeason
-      });
-    } else {
-      setMatchingStatus(prev => ({
-        ...prev,
-        error: `Could not link "${displayName}" to a streaming source on MovieVerse. Please try searching for it using the global search.`
-      }));
-    }
+    const isMovie = anime.format === 'MOVIE' || anime.format === 'OVA' || anime.format === 'SPECIAL' ? 'movie' : 'tv';
+    onMovieClick({
+      id: anime.id,
+      media_type: isMovie,
+      title: getAnimeTitle(anime),
+      name: getAnimeTitle(anime),
+      overview: anime.description || '',
+      poster_path: anime.coverImage?.large,
+      backdrop_path: anime.bannerImage || anime.coverImage?.large,
+      vote_average: anime.averageScore ? anime.averageScore / 10 : 0,
+      vote_count: anime.popularity || 100,
+      popularity: anime.popularity,
+      isAnimeDirect: true,
+      initial_season: 1
+    } as any);
   };
 
   const cleanDescription = (htmlStr: string | null) => {

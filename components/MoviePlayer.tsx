@@ -129,6 +129,7 @@ interface MoviePlayerProps {
   onClose: () => void;
   mediaType: string;
   isAnime: boolean;
+  isAnimeDirect?: boolean;
   initialSeason?: number;
   initialEpisode?: number;
   apiKey: string;
@@ -239,7 +240,7 @@ const switchNativeAudioTrack = (video: HTMLVideoElement, lang: string) => {
 };
 
 export const MoviePlayer: React.FC<MoviePlayerProps> = ({ 
-  tmdbId, onClose, mediaType, isAnime, initialSeason = 1, initialEpisode = 1, onProgress, color = 'EF4444', forceProgress, title, providerId, isWatchParty = false, playState = 'play', onProviderChange, onEpisodeChange, apiKey
+  tmdbId, onClose, mediaType, isAnime, isAnimeDirect, initialSeason = 1, initialEpisode = 1, onProgress, color = 'EF4444', forceProgress, title, providerId, isWatchParty = false, playState = 'play', onProviderChange, onEpisodeChange, apiKey
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -1371,7 +1372,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     const cleanTitle = title.replace(/\s*\(?(Dub|Sub|TV|Movie|uncensored|censored|season\s*\d+|part\s*\d+)\)?\s*$/i, '').trim();
 
     const buildSeasonMap = async (): Promise<AnimeSeasonEntry[]> => {
-      const root = await fetchMediaFull(null, cleanTitle);
+      const root = isAnimeDirect ? await fetchMediaFull(tmdbId, null) : await fetchMediaFull(null, cleanTitle);
       if (!root) return [];
 
       // Walk the full PREQUEL chain to find the very first entry

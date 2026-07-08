@@ -547,7 +547,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
             return;
         }
 
-        const isAnimeLocal = (details.genres?.some((g: any) => g.id === 16) && details.original_language === 'ja');
+        const isAnimeLocal = (details as any).isAnimeDirect || (details.genres?.some((g: any) => g.id === 16) && details.original_language === 'ja');
         if (!isAnimeLocal) {
             setNextAiringEpisode(null);
             setAnimeCharacters([]);
@@ -565,7 +565,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
         setCharactersError(null);
 
         // Check if there is a cached map
-        const cachedId = localStorage.getItem(`movieverse_anilist_map_${details.id}`);
+        const cachedId = (details as any).isAnimeDirect ? details.id.toString() : localStorage.getItem(`movieverse_anilist_map_${details.id}`);
         const variables: any = {};
         let query = "";
 
@@ -776,7 +776,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
         }));
     };
 
-    const isAnime = !!((details?.genres || movie?.genres)?.some((g: any) => g.id === 16) && (details?.original_language || movie?.original_language) === 'ja');
+    const isAnime = !!((movie as any).isAnimeDirect || (details as any)?.isAnimeDirect || ((details?.genres || movie?.genres)?.some((g: any) => g.id === 16) && (details?.original_language || movie?.original_language) === 'ja'));
 
     const isDrama = !!(
       ((details?.original_language || movie?.original_language) === 'ko' || 
@@ -1403,39 +1403,117 @@ export const MoviePage: React.FC<MoviePageProps> = ({
         hasCenteredTimeline.current = null;
         
         const type = resolvedMediaType;
-        
-        fetch(`${TMDB_BASE_URL}/${type}/${movie.id}?api_key=${apiKey}&append_to_response=credits,reviews,videos,release_dates,watch/providers,external_ids,similar,images,content_ratings,seasons,keywords`)
-            .then(res => {
-                if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-                return res.json();
+
+        if ((movie as any).isAnimeDirect) {
+            // Fetch from AniList directly
+            const query = `
+              query ($id: Int) {
+                Media(id: $id, type: ANIME) {
+                  id
+                  idMal
+                  title {
+                    userPreferred
+                    english
+                    romaji
+                    native
+                  }
+                  coverImage {
+                    extraLarge
+                    large
+                    color
+                  }
+                  bannerImage
+                  description
+                  season
+                  seasonYear
+                  status
+                  episodes
+                  duration
+                  averageScore
+                  popularity
+                  genres
+                  startDate { year month day }
+                  trailer { id site }
+                }
+              }
+            `;
+            fetch('/api/anilist', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                body: JSON.stringify({ query, variables: { id: movie.id } })
             })
-            .then(data => {
-                setDetails(data);
-                if (data.belongs_to_collection?.id) {
-                    fetch(`${TMDB_BASE_URL}/collection/${data.belongs_to_collection.id}?api_key=${apiKey}`)
-                        .then(res => {
-                            if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-                            return res.json();
-                        })
-                        .then(colData => {
-                            if (colData.parts) {
-                                colData.parts.sort((a: Movie, b: Movie) => {
-                                    return new Date(a.release_date || '9999').getTime() - new Date(b.release_date || '9999').getTime();
-                                });
-                            }
-                            setCollection(colData);
-                        })
-                        .catch(err => console.error("Collection fetch error", err));
+            .then(res => res.json())
+            .then(json => {
+                const media = json?.data?.Media;
+                if (media) {
+                    const mappedDetails: any = {
+                        id: media.id,
+                        idMal: media.idMal,
+                        name: media.title.english || media.title.userPreferred,
+                        original_name: media.title.romaji,
+                        title: media.title.english || media.title.userPreferred,
+                        original_title: media.title.romaji,
+                        overview: media.description?.replace(/<\/?[^>]+(>|$)/g, "") || '',
+                        backdrop_path: media.bannerImage || media.coverImage?.extraLarge || media.coverImage?.large,
+                        poster_path: media.coverImage?.large || media.coverImage?.extraLarge,
+                        genres: media.genres?.map((g: string, idx: number) => ({ id: idx, name: g })) || [],
+                        vote_average: media.averageScore ? media.averageScore / 10 : 0,
+                        vote_count: media.popularity || 100,
+                        popularity: media.popularity || 0,
+                        first_air_date: media.startDate?.year ? `${media.startDate.year}-${String(media.startDate.month || 1).padStart(2, '0')}-${String(media.startDate.day || 1).padStart(2, '0')}` : '',
+                        release_date: media.startDate?.year ? `${media.startDate.year}-${String(media.startDate.month || 1).padStart(2, '0')}-${String(media.startDate.day || 1).padStart(2, '0')}` : '',
+                        number_of_seasons: 1,
+                        number_of_episodes: media.episodes || 1,
+                        seasons: [{
+                            id: media.id,
+                            season_number: 1,
+                            name: media.title.english || media.title.userPreferred,
+                            episode_count: media.episodes || 1,
+                            air_date: media.startDate?.year ? `${media.startDate.year}-01-01` : ''
+                        }],
+                        isAnimeDirect: true,
+                        original_language: 'ja'
+                    };
+                    setDetails(mappedDetails);
+                    setAniListId(media.id);
                 }
                 setLoading(false);
-                if (data.seasons && data.seasons.length > 0) {
-                    if (!movie.last_watched_data?.season && !(movie as any).initial_season) {
-                        const firstSeason = data.seasons.find((s: Season) => s.season_number === 1) || data.seasons[0];
-                        setSelectedSeason(firstSeason.season_number);
-                    }
-                }
             })
             .catch(() => setLoading(false));
+        } else {
+            fetch(`${TMDB_BASE_URL}/${type}/${movie.id}?api_key=${apiKey}&append_to_response=credits,reviews,videos,release_dates,watch/providers,external_ids,similar,images,content_ratings,seasons,keywords`)
+                .then(res => {
+                    if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+                    return res.json();
+                })
+                .then(data => {
+                    setDetails(data);
+                    if (data.belongs_to_collection?.id) {
+                        fetch(`${TMDB_BASE_URL}/collection/${data.belongs_to_collection.id}?api_key=${apiKey}`)
+                            .then(res => {
+                                if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+                                return res.json();
+                            })
+                            .then(colData => {
+                                if (colData.parts) {
+                                    colData.parts.sort((a: Movie, b: Movie) => {
+                                        return new Date(a.release_date || '9999').getTime() - new Date(b.release_date || '9999').getTime();
+                                    });
+                                }
+                                setCollection(colData);
+                            })
+                            .catch(err => console.error("Collection fetch error", err));
+                    }
+                    setLoading(false);
+                    if (data.seasons && data.seasons.length > 0) {
+                        if (!movie.last_watched_data?.season && !(movie as any).initial_season) {
+                            const firstSeason = data.seasons.find((s: Season) => s.season_number === 1) || data.seasons[0];
+                            setSelectedSeason(firstSeason.season_number);
+                        }
+                    }
+                })
+                .catch(() => setLoading(false));
+        }
 
         // On initial mount, RESPECT the props (initialShowPlayer, activeTabProp)
         // so that URL-driven state like /tv/123/watch/1/3 or /tv/123/seasons works.
@@ -1458,28 +1536,47 @@ export const MoviePage: React.FC<MoviePageProps> = ({
 
     useEffect(() => {
         const isTvShow = movie.media_type === 'tv' || !!(details && details.first_air_date);
-        if (!isTvShow || !apiKey || !movie.id || activeTab !== 'seasons') return;
+        if (!isTvShow || !movie.id || activeTab !== 'seasons') return;
         
         let isMounted = true;
         setEpisodesLoading(true);
-        
-        fetch(`${TMDB_BASE_URL}/tv/${movie.id}/season/${selectedSeason}?api_key=${apiKey}`)
-            .then(res => {
-                if (!res.ok) throw new Error();
-                return res.json();
-            })
-            .then(data => {
-                if (isMounted) {
-                    setEpisodes(data.episodes || []);
-                }
-            })
-            .catch(err => {
-                console.error("Error fetching season details", err);
-                if (isMounted) setEpisodes([]);
-            })
-            .finally(() => { 
-                if (isMounted) setEpisodesLoading(false); 
-            });
+
+        if ((movie as any).isAnimeDirect && details && (details as any).idMal) {
+            fetch(`/api/anime?action=mal-episodes&malId=${(details as any).idMal}`)
+                .then(res => res.json())
+                .then(data => {
+                    if (isMounted) {
+                        setEpisodes(data.episodes || []);
+                    }
+                })
+                .catch(err => {
+                    console.error("Error fetching MAL anime episodes", err);
+                    if (isMounted) setEpisodes([]);
+                })
+                .finally(() => {
+                    if (isMounted) setEpisodesLoading(false);
+                });
+        } else if (!((movie as any).isAnimeDirect) && apiKey) {
+            fetch(`${TMDB_BASE_URL}/tv/${movie.id}/season/${selectedSeason}?api_key=${apiKey}`)
+                .then(res => {
+                    if (!res.ok) throw new Error();
+                    return res.json();
+                })
+                .then(data => {
+                    if (isMounted) {
+                        setEpisodes(data.episodes || []);
+                    }
+                })
+                .catch(err => {
+                    console.error("Error fetching season details", err);
+                    if (isMounted) setEpisodes([]);
+                })
+                .finally(() => { 
+                    if (isMounted) setEpisodesLoading(false); 
+                });
+        } else {
+            setEpisodesLoading(false);
+        }
             
         return () => { isMounted = false; };
     }, [movie.id, selectedSeason, apiKey, activeTab, details]);
@@ -3305,6 +3402,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                 }} 
                                 mediaType={isTv ? 'tv' : 'movie'} 
                                 isAnime={isAnime || false} 
+                                isAnimeDirect={(movie as any).isAnimeDirect || (details as any)?.isAnimeDirect} 
                                 apiKey={apiKey} 
                                 onProgress={handlePlayerProgress} 
                                 initialSeason={playParams.season}
