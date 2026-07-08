@@ -1342,7 +1342,7 @@ export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick, sear
               <p className="text-zinc-500 text-xs md:text-sm max-w-sm">No titles matched your search query. Check for typos or try searching general key words.</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6">
               {searchResults.map((anime) => (
                 <AnimeCard key={anime.id} anime={anime} apiKey={apiKey} onAnimeClick={handleAnimeClick} titleLanguage={titleLanguage} />
               ))}
@@ -1360,7 +1360,11 @@ export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick, sear
               </div>
               <div className="flex gap-5 overflow-hidden">
                 {[...Array(6)].map((_, i) => (
-                  <div key={i} className="w-[220px] md:w-[260px] shrink-0 aspect-[16/9] bg-zinc-900 border border-white/5 rounded-xl animate-pulse"></div>
+                  <div key={i} className="flex flex-col gap-2 shrink-0 w-[140px] md:w-[170px]">
+                    <div className="w-full aspect-[2/3] bg-zinc-900 border border-white/5 rounded-xl animate-pulse"></div>
+                    <div className="h-3 w-3/4 bg-zinc-900 rounded animate-pulse"></div>
+                    <div className="h-2 w-1/2 bg-zinc-900 rounded animate-pulse"></div>
+                  </div>
                 ))}
               </div>
             </div>
@@ -1663,65 +1667,51 @@ export const AnimeCard: React.FC<AnimeCardProps> = ({ anime, apiKey, onAnimeClic
 
   const title = getAnimeTitle(anime, titleLanguage);
 
-  // Direct AniList artwork resolver (No TMDB matching)
-  const backdropUrl = anime.bannerImage || anime.coverImage.extraLarge || anime.coverImage.large;
-  const logoUrl = null;
-  const logoLoading = false;
+  // Use AniList cover image for vertical poster
+  const posterUrl = anime.coverImage.extraLarge || anime.coverImage.large || anime.coverImage.medium;
 
   return (
     <div
       ref={ref}
       onClick={() => onAnimeClick(anime)}
-      className="group relative shrink-0 w-[220px] md:w-[260px] aspect-[16/9] rounded-xl overflow-hidden cursor-pointer bg-zinc-900 border border-white/5 hover:border-red-500/50 hover:shadow-[0_0_20px_rgba(239,68,68,0.25)] hover:scale-[1.03] transition-all duration-500 select-none"
+      className="group flex flex-col gap-2 shrink-0 w-[140px] md:w-[170px] cursor-pointer select-none text-left"
     >
-      <img
-        src={backdropUrl || anime.bannerImage || anime.coverImage.extraLarge || anime.coverImage.large || "https://placehold.co/600x338/111/444?text=Loading..."}
-        alt={title}
-        loading="lazy"
-        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-        referrerPolicy="no-referrer"
-      />
+      {/* Vertical Poster Container */}
+      <div className="relative w-full aspect-[2/3] rounded-xl overflow-hidden bg-zinc-900 border border-white/5 group-hover:border-red-500/50 group-hover:shadow-[0_0_20px_rgba(239,68,68,0.25)] group-hover:scale-[1.03] transition-all duration-500">
+        <img
+          src={posterUrl || "https://placehold.co/300x450/111/444?text=Loading..."}
+          alt={title}
+          loading="lazy"
+          className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+          referrerPolicy="no-referrer"
+        />
 
-      {/* Glassmorphic Gradient Overlay */}
-      <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/45 to-transparent opacity-85 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
-
-      {/* Rating Badge */}
-      {anime.averageScore && (
-        <div className="absolute top-2 left-2 bg-black/75 backdrop-blur-md text-[9px] font-bold text-white px-1.5 py-0.5 rounded shadow-md border border-white/5 flex items-center gap-0.5 z-10 font-sans">
-          <Star size={9} fill="currentColor" className="text-yellow-400" />
-          {(anime.averageScore / 10).toFixed(1)}
-        </div>
-      )}
-
-      {/* Episode / Status Badge */}
-      {anime.episodes && (
-        <div className="absolute top-2 right-2 bg-red-600/90 backdrop-blur-sm text-[8px] font-bold text-white px-1.5 py-0.5 rounded shadow-md z-10 font-sans">
-          {anime.episodes} Ep
-        </div>
-      )}
-
-      {/* Content Details Overlay */}
-      <div className="absolute inset-0 p-3 flex flex-col justify-end text-left select-none pointer-events-none">
-        <div className="min-h-[35px] flex items-end">
-          {!logoLoading && logoUrl ? (
-            <img
-              src={logoUrl}
-              alt={title}
-              className="max-h-[32px] max-w-[85%] object-contain drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)] group-hover:scale-105 transition-transform duration-300 origin-left"
-            />
-          ) : (
-            <h4 className="text-sm font-bold text-white line-clamp-1 group-hover:text-red-500 transition-colors duration-300 drop-shadow-md leading-tight">
-              {title}
-            </h4>
-          )}
-        </div>
-
-        {/* Hover Expanded Info */}
-        <div className="max-h-0 overflow-hidden group-hover:max-h-12 group-hover:mt-1.5 transition-all duration-500 ease-out opacity-0 group-hover:opacity-100 flex flex-col gap-1 z-10">
-          <div className="flex items-center justify-between text-[9px] text-zinc-300 font-semibold font-sans">
-            <span>{anime.seasonYear || anime.season || 'TBA'}</span>
-            <span className="uppercase text-[8px] px-1 rounded bg-white/10">{anime.status.replace('_', ' ')}</span>
+        {/* Rating Badge */}
+        {anime.averageScore && (
+          <div className="absolute top-2 left-2 bg-black/75 backdrop-blur-md text-[9px] font-bold text-white px-1.5 py-0.5 rounded shadow-md border border-white/5 flex items-center gap-0.5 z-10 font-sans">
+            <Star size={9} fill="currentColor" className="text-yellow-400" />
+            {(anime.averageScore / 10).toFixed(1)}
           </div>
+        )}
+
+        {/* Episode / Status Badge */}
+        {anime.episodes && (
+          <div className="absolute top-2 right-2 bg-red-600/90 backdrop-blur-sm text-[8px] font-bold text-white px-1.5 py-0.5 rounded shadow-md z-10 font-sans">
+            {anime.episodes} Ep
+          </div>
+        )}
+      </div>
+
+      {/* Details below poster */}
+      <div className="flex flex-col px-1">
+        <h4 className="text-xs md:text-sm font-bold text-zinc-100 line-clamp-1 group-hover:text-red-500 transition-colors duration-300 leading-tight">
+          {title}
+        </h4>
+        <div className="flex items-center justify-between mt-1 text-[9px] text-zinc-400 font-semibold font-sans">
+          <span>{anime.seasonYear || anime.season || 'TBA'}</span>
+          <span className="uppercase text-[8px] px-1 py-0.2 rounded bg-white/5 text-zinc-300 border border-white/5">
+            {anime.status.replace('_', ' ')}
+          </span>
         </div>
       </div>
     </div>
