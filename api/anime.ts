@@ -458,7 +458,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // If mappedEpisode is provided, the client already did the AniList mapping — use it directly
   let absoluteEpisode = mappedEpisode ? parseInt(String(mappedEpisode), 10) : (episode ? parseInt(String(episode), 10) : 1);
 
-  if (tmdbId) {
+  const isAnimeRequest = provider === 'anikai' || !!anilistId || action === 'mal-episodes' || action === 'episodes';
+
+  if (tmdbId && !isAnimeRequest) {
     try {
       const apiKey = process.env.VITE_TMDB_API_KEY || 'fe42b660a036f4d6a2bfeb4d0f523ce9';
       const typeStr = mediaType === 'tv' ? 'tv' : 'movie';
