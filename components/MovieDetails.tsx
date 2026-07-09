@@ -461,6 +461,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
     const [socialActivitiesLoading, setSocialActivitiesLoading] = useState(false);
     const [socialRecommendations, setSocialRecommendations] = useState<any[]>([]);
     const [socialRecommendationsLoading, setSocialRecommendationsLoading] = useState(false);
+    const [socialRelations, setSocialRelations] = useState<any[]>([]);
     const [socialPostText, setSocialPostText] = useState("");
     const [aniListReviews, setAniListReviews] = useState<any[]>([]);
     const [aniListReviewsLoading, setAniListReviewsLoading] = useState(false);
@@ -1073,14 +1074,32 @@ export const MoviePage: React.FC<MoviePageProps> = ({
 
     useEffect(() => {
       if (aniListId) {
-        // Fetch recommendations
+        // Fetch recommendations & relations
         const fetchRecommendations = async () => {
           setSocialRecommendationsLoading(true);
           try {
             const q = `
               query ($mediaId: Int) {
                 Media(id: $mediaId) {
-                  recommendations(page: 1, perPage: 6, sort: RATING_DESC) {
+                  relations {
+                    edges {
+                      relationType
+                      node {
+                        id
+                        type
+                        format
+                        title {
+                          userPreferred
+                          english
+                          romaji
+                          native
+                        }
+                        coverImage { large }
+                        startDate { year }
+                      }
+                    }
+                  }
+                  recommendations(page: 1, perPage: 12, sort: RATING_DESC) {
                     nodes {
                       id
                       rating
@@ -1108,8 +1127,9 @@ export const MoviePage: React.FC<MoviePageProps> = ({
             });
             const json = await res.json();
             setSocialRecommendations(json.data?.Media?.recommendations?.nodes || []);
+            setSocialRelations(json.data?.Media?.relations?.edges || []);
           } catch (e) {
-            console.error("Failed to fetch recommendations:", e);
+            console.error("Failed to fetch recommendations and relations:", e);
           } finally {
             setSocialRecommendationsLoading(false);
           }
@@ -2494,13 +2514,151 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                     </div>
                                 </div>
 
+                                {/* More Seasons & Movies */}
+                                {isAnime && (() => {
+                                    const seasonsAndMovies = socialRelations.filter(edge => {
+                                        const type = edge.relationType;
+                                        const format = edge.node?.format;
+                                        if (['PREQUEL', 'SEQUEL', 'PARENT'].includes(type)) return true;
+                                        if ((format === 'TV' || format === 'MOVIE') && !['SIDE_STORY', 'SPIN_OFF', 'SUMMARY'].includes(type)) return true;
+                                        return false;
+                                    });
+
+                                    if (seasonsAndMovies.length === 0) return null;
+
+                                    return (
+                                        <div className="space-y-3 text-left">
+                                            <h3 className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest flex items-center gap-1.5 border-b border-white/5 pb-2">
+                                                <Layers size={12} className="text-red-500 animate-pulse" />
+                                                <span>More Seasons & Movies</span>
+                                            </h3>
+                                            <div className="flex overflow-x-auto gap-4 pb-4 custom-scrollbar pr-1 select-none scroll-smooth">
+                                                {seasonsAndMovies.map((rel, index) => {
+                                                    const title = rel.node?.title?.english || rel.node?.title?.userPreferred;
+                                                    const poster = rel.node?.coverImage?.large;
+                                                    const format = rel.node?.format;
+                                                    const year = rel.node?.startDate?.year;
+                                                    const isMovie = format === 'MOVIE';
+
+                                                    return (
+                                                        <div 
+                                                            key={`season-${rel.node?.id}-${index}`}
+                                                            onClick={() => {
+                                                                onSwitchMovie({
+                                                                    id: rel.node?.id,
+                                                                    title,
+                                                                    poster_path: poster,
+                                                                    media_type: isMovie ? 'movie' : 'tv',
+                                                                    isAnimeDirect: true,
+                                                                    isExternalImage: true
+                                                                });
+                                                            }}
+                                                            className="w-[140px] md:w-[160px] shrink-0 flex flex-col gap-2 cursor-pointer group transition-all duration-300"
+                                                        >
+                                                            <div className="relative aspect-[2/3] w-full rounded-xl overflow-hidden border border-white/5 bg-zinc-900 shadow-md">
+                                                                <img 
+                                                                    src={poster || "https://placehold.co/90x135"} 
+                                                                    alt={title}
+                                                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                                                />
+                                                            </div>
+                                                            <div className="flex flex-col min-w-0 text-left mt-1">
+                                                                <h4 className="font-semibold text-xs text-zinc-300 group-hover:text-red-500 transition-colors line-clamp-2 leading-tight h-8">{title}</h4>
+                                                                <div className="flex items-center gap-1.5 mt-1 text-[9px] text-zinc-500 font-medium">
+                                                                    <span className="px-1 py-0.5 rounded text-[8px] font-bold bg-white/5 text-zinc-400 border border-white/5 uppercase">
+                                                                        {format || 'TV'}
+                                                                    </span>
+                                                                    {year && (
+                                                                        <span>• {year}</span>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    );
+                                })()}
+
+                                {/* Side Stories & Spin-offs */}
+                                {isAnime && (() => {
+                                    const seasonsAndMovies = socialRelations.filter(edge => {
+                                        const type = edge.relationType;
+                                        const format = edge.node?.format;
+                                        if (['PREQUEL', 'SEQUEL', 'PARENT'].includes(type)) return true;
+                                        if ((format === 'TV' || format === 'MOVIE') && !['SIDE_STORY', 'SPIN_OFF', 'SUMMARY'].includes(type)) return true;
+                                        return false;
+                                    });
+
+                                    const sideStoriesAndSpinoffs = socialRelations.filter(edge => {
+                                        return !seasonsAndMovies.includes(edge);
+                                    });
+
+                                    if (sideStoriesAndSpinoffs.length === 0) return null;
+
+                                    return (
+                                        <div className="space-y-3 text-left">
+                                            <h3 className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest flex items-center gap-1.5 border-b border-white/5 pb-2">
+                                                <Tv size={12} className="text-blue-500" />
+                                                <span>Side Stories & Spin-offs</span>
+                                            </h3>
+                                            <div className="flex overflow-x-auto gap-4 pb-4 custom-scrollbar pr-1 select-none scroll-smooth">
+                                                {sideStoriesAndSpinoffs.map((rel, index) => {
+                                                    const title = rel.node?.title?.english || rel.node?.title?.userPreferred;
+                                                    const poster = rel.node?.coverImage?.large;
+                                                    const format = rel.node?.format;
+                                                    const year = rel.node?.startDate?.year;
+                                                    const isMovie = format === 'MOVIE';
+
+                                                    return (
+                                                        <div 
+                                                            key={`side-${rel.node?.id}-${index}`}
+                                                            onClick={() => {
+                                                                onSwitchMovie({
+                                                                    id: rel.node?.id,
+                                                                    title,
+                                                                    poster_path: poster,
+                                                                    media_type: isMovie ? 'movie' : 'tv',
+                                                                    isAnimeDirect: true,
+                                                                    isExternalImage: true
+                                                                });
+                                                            }}
+                                                            className="w-[140px] md:w-[160px] shrink-0 flex flex-col gap-2 cursor-pointer group transition-all duration-300"
+                                                        >
+                                                            <div className="relative aspect-[2/3] w-full rounded-xl overflow-hidden border border-white/5 bg-zinc-900 shadow-md">
+                                                                <img 
+                                                                    src={poster || "https://placehold.co/90x135"} 
+                                                                    alt={title}
+                                                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                                                />
+                                                            </div>
+                                                            <div className="flex flex-col min-w-0 text-left mt-1">
+                                                                <h4 className="font-semibold text-xs text-zinc-300 group-hover:text-red-500 transition-colors line-clamp-2 leading-tight h-8">{title}</h4>
+                                                                <div className="flex items-center gap-1.5 mt-1 text-[9px] text-zinc-500 font-medium">
+                                                                    <span className="px-1 py-0.5 rounded text-[8px] font-bold bg-white/5 text-zinc-400 border border-white/5 uppercase">
+                                                                        {format || 'TV'}
+                                                                    </span>
+                                                                    {year && (
+                                                                        <span>• {year}</span>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    );
+                                })()}
+
                                 {/* Recommendations (Moved below controls) */}
-                                <div className="p-5 bg-[#0b0b0d]/40 backdrop-blur-md border border-white/5 rounded-2xl space-y-4 text-left shadow-sm">
+                                <div className="space-y-3 text-left">
                                     <h3 className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest flex items-center gap-1.5 border-b border-white/5 pb-2">
                                         <Sparkles size={12} className="text-yellow-500 animate-pulse" fill="currentColor" />
                                         <span>Recommended</span>
                                     </h3>
-                                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 max-h-[350px] overflow-y-auto custom-scrollbar pr-1 select-none">
+                                    <div className="flex overflow-x-auto gap-4 pb-4 custom-scrollbar pr-1 select-none scroll-smooth">
                                         {(() => {
                                             let recs: any[] = [];
                                             if (isAnime && socialRecommendations.length > 0) {
@@ -2528,7 +2686,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
 
                                             if (recs.length === 0) {
                                                 return (
-                                                    <div className="col-span-full text-center py-8 text-zinc-500 text-xs">
+                                                    <div className="text-zinc-500 text-xs py-2">
                                                         No recommendations.
                                                     </div>
                                                 );
@@ -2543,7 +2701,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
 
                                                 return (
                                                     <div 
-                                                        key={`${sim.id}-${index}`}
+                                                        key={`sim-${sim.id}-${index}`}
                                                         onClick={() => {
                                                             if (sim.isAnimeDirect || isAnime) {
                                                                 onSwitchMovie({ ...sim, media_type: 'tv', isAnimeDirect: true });
@@ -2551,9 +2709,9 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                                 onSwitchMovie(sim);
                                                             }
                                                         }}
-                                                        className="flex flex-col gap-2 p-2 rounded-xl hover:bg-white/5 cursor-pointer group transition-all duration-300"
+                                                        className="w-[140px] md:w-[160px] shrink-0 flex flex-col gap-2 cursor-pointer group transition-all duration-300"
                                                     >
-                                                        <div className="relative aspect-[2/3] w-full rounded-lg overflow-hidden border border-white/5 bg-zinc-900 shadow-md">
+                                                        <div className="relative aspect-[2/3] w-full rounded-xl overflow-hidden border border-white/5 bg-zinc-900 shadow-md">
                                                             <img 
                                                                 src={posterSrc} 
                                                                 alt={simTitle}
@@ -2561,7 +2719,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                             />
                                                         </div>
                                                         <div className="flex flex-col min-w-0 text-left mt-1">
-                                                            <h4 className="font-semibold text-xs text-zinc-300 group-hover:text-red-500 transition-colors line-clamp-1 leading-snug">{simTitle}</h4>
+                                                            <h4 className="font-semibold text-xs text-zinc-300 group-hover:text-red-500 transition-colors line-clamp-2 leading-tight h-8">{simTitle}</h4>
                                                             <div className="flex items-center gap-1.5 mt-1 text-[9px] text-zinc-500 font-medium">
                                                                 <span className="px-1 py-0.5 rounded text-[8px] font-bold bg-white/5 text-zinc-400 border border-white/5">
                                                                     {sim.media_type || resolvedMediaType}

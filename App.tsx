@@ -1725,273 +1725,277 @@ export default function App() {
     const lastPushedPathRef = useRef<string>(window.location.pathname);
 
     const syncStateFromPath = useCallback(async () => {
-        if (isSyncingPath.current) return;
-        isSyncingPath.current = true;
+        const syncPath = window.location.pathname || '/';
 
         try {
             const prevIdx = currentHistoryIdxRef.current;
-        const newIdx = window.history.state?.idx || 0;
-        const isBack = newIdx < prevIdx;
-        setIsNavigatingBack(isBack);
-        currentHistoryIdxRef.current = newIdx;
+            const newIdx = window.history.state?.idx || 0;
+            const isBack = newIdx < prevIdx;
+            setIsNavigatingBack(isBack);
+            currentHistoryIdxRef.current = newIdx;
 
-        const path = window.location.pathname || '/';
-        lastPushedPathRef.current = path;
-        const parts = path.split('/');
-        // parts[0] is always '' (before leading /), so parts[1] is the first segment
+            const path = window.location.pathname || '/';
+            lastPushedPathRef.current = path;
+            const parts = path.split('/');
+            // parts[0] is always '' (before leading /), so parts[1] is the first segment
 
-        // Reset all sub-filters to clean state before parsing path
-        setCurrentCollection(null);
-        setTmdbCollectionId(null);
-        setActiveKeyword(null);
-        setActiveCountry(null);
-        setIsSidebarOpen(false);
-        setSelectedMangaId(null);
-        setActiveMangaChapterId(null);
-        setSelectedDramaSlug(null);
+            // Reset all sub-filters to clean state before parsing path
+            setCurrentCollection(null);
+            setTmdbCollectionId(null);
+            setActiveKeyword(null);
+            setActiveCountry(null);
+            setIsSidebarOpen(false);
+            setSelectedMangaId(null);
+            setActiveMangaChapterId(null);
+            setSelectedDramaSlug(null);
 
+            let searchQueryToSelect = "";
+            let category = selectedCategoryRef.current || "All";
+            let movieToSelect: Movie | null = null;
+            let watchPartyRoomId: string | null = null;
+            let keywordToSelect: Keyword | null = null;
+            let collectionIdToSelect: number | null = null;
+            let countryToSelect: { code: string, name: string } | null = null;
+            let customCollectionKey: string | null = null;
+            let personIdToSelect: number | null = null;
+            let characterIdToSelect: number | null = null;
+            let mangaIdToSelect: string | null = null;
+            let mangaChapterIdToSelect: string | null = null;
+            let dramaSlugToSelect: string | null = null;
 
-        let searchQueryToSelect = "";
-        let category = selectedCategoryRef.current || "All";
-        let movieToSelect: Movie | null = null;
-        let watchPartyRoomId: string | null = null;
-        let keywordToSelect: Keyword | null = null;
-        let collectionIdToSelect: number | null = null;
-        let countryToSelect: { code: string, name: string } | null = null;
-        let customCollectionKey: string | null = null;
-        let personIdToSelect: number | null = null;
-        let characterIdToSelect: number | null = null;
-        let mangaIdToSelect: string | null = null;
-        let mangaChapterIdToSelect: string | null = null;
-        let dramaSlugToSelect: string | null = null;
+            // Details-related states to sync
+            let detailsTab = "overview";
+            let showCast = false;
+            let showCrew = false;
+            let watching = false;
+            let season = 1;
+            let episode = 1;
 
-
-        // Details-related states to sync
-        let detailsTab = "overview";
-        let showCast = false;
-        let showCrew = false;
-        let watching = false;
-        let season = 1;
-        let episode = 1;
-
-        if (path === '/' || path === '') {
-            category = "All";
-        } else if (path === '/music' || path === '/browse/music') {
-            category = "Music";
-        } else if (path === '/anime' || path === '/explore') {
-            category = "Anime";
-        } else if (path === '/manga' || path === '/browse/manga') {
-            category = "Manga";
-        } else if (path === '/live-tv') {
-        } else if (path === '/dramas' || path === '/browse/dramas') {
-            category = "Dramas";
-        } else if (path.startsWith('/drama/')) {
-            category = "Dramas";
-            const dramaSlug = parts[2];
-            if (dramaSlug) {
-                dramaSlugToSelect = dramaSlug;
-                if (dramaSlug.startsWith('tmdb-')) {
-                    const parsedId = parseInt(dramaSlug.replace('tmdb-', ''), 10);
-                    movieToSelect = { id: parsedId, media_type: 'tv' } as any;
+            if (path === '/' || path === '') {
+                category = "All";
+            } else if (path === '/music' || path === '/browse/music') {
+                category = "Music";
+            } else if (path === '/anime' || path === '/explore') {
+                category = "Anime";
+            } else if (path === '/manga' || path === '/browse/manga') {
+                category = "Manga";
+            } else if (path === '/live-tv') {
+            } else if (path === '/dramas' || path === '/browse/dramas') {
+                category = "Dramas";
+            } else if (path.startsWith('/drama/')) {
+                category = "Dramas";
+                const dramaSlug = parts[2];
+                if (dramaSlug) {
+                    dramaSlugToSelect = dramaSlug;
+                    if (dramaSlug.startsWith('tmdb-')) {
+                        const parsedId = parseInt(dramaSlug.replace('tmdb-', ''), 10);
+                        movieToSelect = { id: parsedId, media_type: 'tv' } as any;
+                    }
                 }
-            }
-        } else if (path.startsWith('/manga/')) {
-            category = "Manga";
-            const mangaId = parts[2];
-            if (mangaId) {
-                mangaIdToSelect = mangaId;
-                if (parts[3] === 'chapter') {
-                    mangaChapterIdToSelect = parts[4] || null;
+            } else if (path.startsWith('/manga/')) {
+                category = "Manga";
+                const mangaId = parts[2];
+                if (mangaId) {
+                    mangaIdToSelect = mangaId;
+                    if (parts[3] === 'chapter') {
+                        mangaChapterIdToSelect = parts[4] || null;
+                    }
                 }
-            }
 
-        } else if (path.startsWith('/browse/')) {
-            const sub = parts[2];
-            if (sub === 'awards') category = "Awards";
-            else if (sub === 'anime') category = "Anime";
-            else if (sub === 'anime-forum') category = "AnimeCommunity";
-            else if (sub === 'family') category = "Family";
-            else if (sub === 'tv-shows') category = "TV Shows";
-            else if (sub === 'coming') category = "Coming";
-            else if (sub === 'categories') category = "Categories";
-            else if (sub === 'franchise') category = "Franchise";
-        } else if (path.startsWith('/library/')) {
-            const sub = parts[2];
-            if (sub === 'watchlist') category = "Watchlist";
-            else if (sub === 'favorites') category = "Favorites";
-            else if (sub === 'history') category = "History";
-        } else if (path.startsWith('/character/')) {
-            const characterIdStr = parts[2];
-            const characterId = parseInt(characterIdStr, 10);
-            if (!isNaN(characterId)) {
-                characterIdToSelect = characterId;
-            }
-        } else if (path.startsWith('/person/')) {
-            const personIdStr = parts[2];
-            const personId = parseInt(personIdStr, 10);
-            if (!isNaN(personId)) {
-                personIdToSelect = personId;
-            }
-        } else if (path.startsWith('/movie/') || path.startsWith('/tv/') || path.startsWith('/anime/')) {
-            const isTv = path.startsWith('/tv/');
-            const isAnime = path.startsWith('/anime/');
-            const movieIdStr = parts[2];
-            const movieId = parseInt(movieIdStr, 10);
-            if (!isNaN(movieId)) {
-                if (isAnime) {
-                    const currentMovie = selectedMovieRef.current;
-                    if (currentMovie && currentMovie.id === movieId) {
-                        movieToSelect = currentMovie;
-                    } else {
-                        let data: any = null;
-                        let type: 'tv' | 'movie' = 'tv';
-                        try {
-                            const res = await fetch(`${TMDB_BASE_URL}/tv/${movieId}?api_key=${apiKey}`);
-                            if (res.ok) {
-                                data = await res.json();
-                                type = 'tv';
-                            }
-                        } catch (e) {}
-                        
-                        if (!data || !data.id) {
+            } else if (path.startsWith('/browse/')) {
+                const sub = parts[2];
+                if (sub === 'awards') category = "Awards";
+                else if (sub === 'anime') category = "Anime";
+                else if (sub === 'anime-forum') category = "AnimeCommunity";
+                else if (sub === 'family') category = "Family";
+                else if (sub === 'tv-shows') category = "TV Shows";
+                else if (sub === 'coming') category = "Coming";
+                else if (sub === 'categories') category = "Categories";
+                else if (sub === 'franchise') category = "Franchise";
+            } else if (path.startsWith('/library/')) {
+                const sub = parts[2];
+                if (sub === 'watchlist') category = "Watchlist";
+                else if (sub === 'favorites') category = "Favorites";
+                else if (sub === 'history') category = "History";
+            } else if (path.startsWith('/character/')) {
+                const characterIdStr = parts[2];
+                const characterId = parseInt(characterIdStr, 10);
+                if (!isNaN(characterId)) {
+                    characterIdToSelect = characterId;
+                }
+            } else if (path.startsWith('/person/')) {
+                const personIdStr = parts[2];
+                const personId = parseInt(personIdStr, 10);
+                if (!isNaN(personId)) {
+                    personIdToSelect = personId;
+                }
+            } else if (path.startsWith('/movie/') || path.startsWith('/tv/') || path.startsWith('/anime/')) {
+                const isTv = path.startsWith('/tv/');
+                const isAnime = path.startsWith('/anime/');
+                const movieIdStr = parts[2];
+                const movieId = parseInt(movieIdStr, 10);
+                if (!isNaN(movieId)) {
+                    if (isAnime) {
+                        const currentMovie = selectedMovieRef.current;
+                        if (currentMovie && currentMovie.id === movieId) {
+                            movieToSelect = currentMovie;
+                        } else {
+                            let data: any = null;
+                            let type: 'tv' | 'movie' = 'tv';
                             try {
-                                const res = await fetch(`${TMDB_BASE_URL}/movie/${movieId}?api_key=${apiKey}`);
+                                const res = await fetch(`${TMDB_BASE_URL}/tv/${movieId}?api_key=${apiKey}`);
+                                if (window.location.pathname !== syncPath) return;
                                 if (res.ok) {
                                     data = await res.json();
-                                    type = 'movie';
+                                    type = 'tv';
                                 }
                             } catch (e) {}
-                        }
+                            
+                            if (!data || !data.id) {
+                                try {
+                                    const res = await fetch(`${TMDB_BASE_URL}/movie/${movieId}?api_key=${apiKey}`);
+                                    if (window.location.pathname !== syncPath) return;
+                                    if (res.ok) {
+                                        data = await res.json();
+                                        type = 'movie';
+                                    }
+                                } catch (e) {}
+                            }
 
-                        if (data && data.id) {
-                            movieToSelect = { ...data, media_type: type };
-                        } else {
-                            movieToSelect = { id: movieId, isAnimeDirect: true, media_type: 'tv' } as any;
-                        }
-                    }
-                } else {
-                    const currentMovie = selectedMovieRef.current;
-                    const currentMovieType = currentMovie ? (currentMovie.media_type === 'tv' || (!currentMovie.release_date && currentMovie.first_air_date) ? 'tv' : 'movie') : null;
-                    const targetType = isTv ? 'tv' : 'movie';
-                    if (currentMovie && currentMovie.id === movieId && currentMovieType === targetType) {
-                        movieToSelect = currentMovie;
-                    } else {
-                        try {
-                            const type = isTv ? 'tv' : 'movie';
-                            const res = await fetch(`${TMDB_BASE_URL}/${type}/${movieId}?api_key=${apiKey}`);
-                            const data = await res.json();
                             if (data && data.id) {
                                 movieToSelect = { ...data, media_type: type };
+                            } else {
+                                movieToSelect = { id: movieId, isAnimeDirect: true, media_type: 'tv' } as any;
                             }
-                        } catch (e) {
-                            console.error("Failed to fetch movie details from path", e);
                         }
-                    }
-                }
-            }
-
-            // Parse details path segments
-            const action = parts[3];
-            if (action === 'watch') {
-                watching = true;
-                if ((isTv || isAnime) && parts[4] && parts[5]) {
-                    season = parseInt(parts[4], 10) || 1;
-                    episode = parseInt(parts[5], 10) || 1;
-                }
-            } else if (action === 'cast') {
-                showCast = true;
-            } else if (action === 'crew') {
-                showCrew = true;
-            } else if (['reviews', 'media', 'seasons', 'social', 'characters', 'similar'].includes(action)) {
-                detailsTab = action;
-            }
-        } else if (path.startsWith('/watch-party/')) {
-            const roomId = parts[2];
-            if (roomId) {
-                try {
-                    const room = await getWatchPartyRoom(roomId);
-                    if (room) {
-                        watchPartyRoomId = room.id;
-                        setWatchPartyHostId(room.host_id);
-                        setWatchPartyParams({ season: room.season || 1, episode: room.episode || 1 });
-                        if (room.movie_id) {
-                            const res = await fetch(`${TMDB_BASE_URL}/movie/${room.movie_id}?api_key=${apiKey}`);
-                            const mData = await res.json();
-                            if (mData && mData.id) {
-                                movieToSelect = mData;
+                    } else {
+                        const currentMovie = selectedMovieRef.current;
+                        const currentMovieType = currentMovie ? (currentMovie.media_type === 'tv' || (!currentMovie.release_date && currentMovie.first_air_date) ? 'tv' : 'movie') : null;
+                        const targetType = isTv ? 'tv' : 'movie';
+                        if (currentMovie && currentMovie.id === movieId && currentMovieType === targetType) {
+                            movieToSelect = currentMovie;
+                        } else {
+                            try {
+                                const type = isTv ? 'tv' : 'movie';
+                                const res = await fetch(`${TMDB_BASE_URL}/${type}/${movieId}?api_key=${apiKey}`);
+                                if (window.location.pathname !== syncPath) return;
+                                const data = await res.json();
+                                if (data && data.id) {
+                                    movieToSelect = { ...data, media_type: type };
+                                }
+                            } catch (e) {
+                                console.error("Failed to fetch movie details from path", e);
                             }
                         }
                     }
-                } catch (e) {
-                    console.error("Failed to sync watch party from path", e);
+                }
+
+                // Parse details path segments
+                const action = parts[3];
+                if (action === 'watch') {
+                    watching = true;
+                    if ((isTv || isAnime) && parts[4] && parts[5]) {
+                        season = parseInt(parts[4], 10) || 1;
+                        episode = parseInt(parts[5], 10) || 1;
+                    }
+                } else if (action === 'cast') {
+                    showCast = true;
+                } else if (action === 'crew') {
+                    showCrew = true;
+                } else if (['reviews', 'media', 'seasons', 'social', 'characters', 'similar'].includes(action)) {
+                    detailsTab = action;
+                }
+            } else if (path.startsWith('/watch-party/')) {
+                const roomId = parts[2];
+                if (roomId) {
+                    try {
+                        const room = await getWatchPartyRoom(roomId);
+                        if (window.location.pathname !== syncPath) return;
+                        if (room) {
+                            watchPartyRoomId = room.id;
+                            setWatchPartyHostId(room.host_id);
+                            setWatchPartyParams({ season: room.season || 1, episode: room.episode || 1 });
+                            if (room.movie_id) {
+                                const res = await fetch(`${TMDB_BASE_URL}/movie/${room.movie_id}?api_key=${apiKey}`);
+                                if (window.location.pathname !== syncPath) return;
+                                const mData = await res.json();
+                                if (mData && mData.id) {
+                                    movieToSelect = mData;
+                                }
+                            }
+                        }
+                    } catch (e) {
+                        console.error("Failed to sync watch party from path", e);
+                    }
+                }
+            } else if (path.startsWith('/keyword/')) {
+                const keywordIdStr = parts[2];
+                const keywordId = parseInt(keywordIdStr, 10);
+                if (!isNaN(keywordId)) {
+                    category = "Deep Dive";
+                    keywordToSelect = { id: keywordId, name: parts[3] ? decodeURIComponent(parts[3]) : `Keyword ${keywordId}` };
+                }
+            } else if (path.startsWith('/collection/')) {
+                const collIdStr = parts[2];
+                const collId = parseInt(collIdStr, 10);
+                if (!isNaN(collId)) {
+                    category = "Deep Dive";
+                    collectionIdToSelect = collId;
+                }
+            } else if (path.startsWith('/country/')) {
+                const code = parts[2];
+                if (code) {
+                    category = "Countries";
+                    countryToSelect = { code, name: parts[3] ? decodeURIComponent(parts[3]) : code };
+                }
+            } else if (path.startsWith('/custom-collection/')) {
+                const key = parts[2];
+                if (key) {
+                    category = "Collection";
+                    customCollectionKey = key;
+                }
+            } else if (path.startsWith('/search/')) {
+                category = "All";
+                const query = parts[2];
+                if (query) {
+                    searchQueryToSelect = decodeURIComponent(query);
                 }
             }
-        } else if (path.startsWith('/keyword/')) {
-            const keywordIdStr = parts[2];
-            const keywordId = parseInt(keywordIdStr, 10);
-            if (!isNaN(keywordId)) {
-                category = "Deep Dive";
-                keywordToSelect = { id: keywordId, name: parts[3] ? decodeURIComponent(parts[3]) : `Keyword ${keywordId}` };
-            }
-        } else if (path.startsWith('/collection/')) {
-            const collIdStr = parts[2];
-            const collId = parseInt(collIdStr, 10);
-            if (!isNaN(collId)) {
-                category = "Deep Dive";
-                collectionIdToSelect = collId;
-            }
-        } else if (path.startsWith('/country/')) {
-            const code = parts[2];
-            if (code) {
-                category = "Countries";
-                countryToSelect = { code, name: parts[3] ? decodeURIComponent(parts[3]) : code };
-            }
-        } else if (path.startsWith('/custom-collection/')) {
-            const key = parts[2];
-            if (key) {
-                category = "Collection";
-                customCollectionKey = key;
-            }
-        } else if (path.startsWith('/search/')) {
-            category = "All";
-            const query = parts[2];
-            if (query) {
-                searchQueryToSelect = decodeURIComponent(query);
-            }
-        }
 
-        setSelectedCategory(category);
-        setSelectedMovie(movieToSelect);
-        setActiveWatchPartyRoom(watchPartyRoomId);
-        setActiveKeyword(keywordToSelect);
-        setTmdbCollectionId(collectionIdToSelect);
-        setActiveCountry(countryToSelect);
-        setCurrentCollection(customCollectionKey);
-        setSelectedPersonId(personIdToSelect);
-        setSelectedMangaId(mangaIdToSelect);
-        setActiveMangaChapterId(mangaChapterIdToSelect);
-        setSelectedDramaSlug(dramaSlugToSelect);
-        setSelectedCharacterId(characterIdToSelect);
+            if (window.location.pathname !== syncPath) return;
 
+            isSyncingPath.current = true;
+            setSelectedCategory(category);
+            setSelectedMovie(movieToSelect);
+            setActiveWatchPartyRoom(watchPartyRoomId);
+            setActiveKeyword(keywordToSelect);
+            setTmdbCollectionId(collectionIdToSelect);
+            setActiveCountry(countryToSelect);
+            setCurrentCollection(customCollectionKey);
+            setSelectedPersonId(personIdToSelect);
+            setSelectedMangaId(mangaIdToSelect);
+            setActiveMangaChapterId(mangaChapterIdToSelect);
+            setSelectedDramaSlug(dramaSlugToSelect);
+            setSelectedCharacterId(characterIdToSelect);
 
-        if (movieToSelect) {
-            setModalHistory([{ type: 'movie', data: movieToSelect }]);
-        } else if (personIdToSelect) {
-            setModalHistory([{ type: 'person', data: personIdToSelect }]);
-        } else if (characterIdToSelect) {
-            setModalHistory([{ type: 'character', data: characterIdToSelect }]);
-        } else {
-            setModalHistory([]);
-        }
+            if (movieToSelect) {
+                setModalHistory([{ type: 'movie', data: movieToSelect }]);
+            } else if (personIdToSelect) {
+                setModalHistory([{ type: 'person', data: personIdToSelect }]);
+            } else if (characterIdToSelect) {
+                setModalHistory([{ type: 'character', data: characterIdToSelect }]);
+            } else {
+                setModalHistory([]);
+            }
 
-        setActiveDetailsTab(detailsTab);
-        setShowDetailsCast(showCast);
-        setShowDetailsCrew(showCrew);
-        setIsWatching(watching);
-        setWatchSeason(season);
-        setWatchEpisode(episode);
-        setSearchQuery(searchQueryToSelect);
-        setSearchInput(searchQueryToSelect);
+            setActiveDetailsTab(detailsTab);
+            setShowDetailsCast(showCast);
+            setShowDetailsCrew(showCrew);
+            setIsWatching(watching);
+            setWatchSeason(season);
+            setWatchEpisode(episode);
+            setSearchQuery(searchQueryToSelect);
+            setSearchInput(searchQueryToSelect);
         } catch (error) {
             console.error("Error in syncStateFromPath:", error);
         } finally {
