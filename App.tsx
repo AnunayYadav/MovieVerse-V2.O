@@ -1376,9 +1376,87 @@ export default function App() {
     const [searchQuery, setSearchQuery] = useState("");
     const [isAiSearchActive, setIsAiSearchActive] = useState(false);
     const [searchInput, setSearchInput] = useState("");
-    const [searchSuggestions, setSearchSuggestions] = useState<string[]>([]);
+    const [searchSuggestions, setSearchSuggestions] = useState<any[]>([]);
     const [showSuggestions, setShowSuggestions] = useState(false);
+    const [loadingSuggestions, setLoadingSuggestions] = useState(false);
     const [searchHistory, setSearchHistory] = useState<string[]>([]);
+    const [selectedCategory, setSelectedCategory] = useState("All");
+
+    useEffect(() => {
+        if (!searchInput.trim() || searchInput.trim().length < 2) {
+            setSearchSuggestions([]);
+            return;
+        }
+
+        const delayDebounce = setTimeout(async () => {
+            setLoadingSuggestions(true);
+            try {
+                if (selectedCategory === 'Anime') {
+                    const query = `
+                      query ($search: String) {
+                        Page(page: 1, perPage: 6) {
+                          media(search: $search, type: ANIME) {
+                            id
+                            title {
+                              english
+                              userPreferred
+                              romaji
+                            }
+                            coverImage {
+                              large
+                            }
+                            format
+                            startDate { year }
+                          }
+                        }
+                      }
+                    `;
+                    const res = await window.fetch('/api/anilist', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ query, variables: { search: searchInput } })
+                    });
+                    const json = await res.json();
+                    const list = json?.data?.Page?.media || [];
+                    const items = list.map((m: any) => ({
+                        id: m.id,
+                        title: m.title.english || m.title.userPreferred || m.title.romaji,
+                        poster: m.coverImage?.large || '',
+                        type: 'anime',
+                        year: m.startDate?.year || '',
+                        isAnimeDirect: true,
+                        media_type: m.format === 'MOVIE' ? 'movie' : 'tv',
+                        originalItem: m
+                    }));
+                    setSearchSuggestions(items);
+                } else {
+                    const res = await window.fetch(`${TMDB_BASE_URL}/search/multi?api_key=${apiKey}&query=${encodeURIComponent(searchInput)}&language=en-US&page=1&include_adult=false`);
+                    if (res.ok) {
+                        const json = await res.json();
+                        const list = (json.results || []).slice(0, 6);
+                        const items = list
+                            .filter((m: any) => m.media_type === 'movie' || m.media_type === 'tv')
+                            .map((m: any) => ({
+                                id: m.id,
+                                title: m.title || m.name || m.original_title || m.original_name,
+                                poster: m.poster_path ? `${TMDB_IMAGE_BASE}${m.poster_path}` : '',
+                                type: m.media_type,
+                                year: (m.release_date || m.first_air_date || '').split('-')[0] || '',
+                                media_type: m.media_type,
+                                originalItem: m
+                            }));
+                        setSearchSuggestions(items);
+                    }
+                }
+            } catch (err) {
+                console.error("Error fetching search suggestions", err);
+            } finally {
+                setLoadingSuggestions(false);
+            }
+        }, 300);
+
+        return () => clearTimeout(delayDebounce);
+    }, [searchInput, selectedCategory, apiKey]);
 
     const [loading, setLoading] = useState(false);
     const [fetchError, setFetchError] = useState(false);
@@ -1472,7 +1550,6 @@ export default function App() {
     const [page, setPage] = useState(1);
     const [hasMore, setHasMore] = useState(true);
 
-    const [selectedCategory, setSelectedCategory] = useState("All");
     const [sortOption, setSortOption] = useState("popularity.desc");
     const [appRegion, setAppRegion] = useState("US");
 
@@ -1726,6 +1803,7 @@ export default function App() {
 
     const syncStateFromPath = useCallback(async () => {
         const syncPath = window.location.pathname || '/';
+        isSyncingPath.current = true;
 
         try {
             const prevIdx = currentHistoryIdxRef.current;
@@ -1964,7 +2042,6 @@ export default function App() {
 
             if (window.location.pathname !== syncPath) return;
 
-            isSyncingPath.current = true;
             setSelectedCategory(category);
             setSelectedMovie(movieToSelect);
             setActiveWatchPartyRoom(watchPartyRoomId);
@@ -2016,132 +2093,115 @@ export default function App() {
         }
     }, [isAuthenticated, syncStateFromPath]);
 
-    // Debounced URL sync: coalesces multiple rapid state changes into a single pushState call.
-    // This prevents URL flickering when React batches multiple setState calls.
+    // Synchronous URL sync: aligns pathname with app state on render commit.
     useEffect(() => {
         if (authChecking || !isAuthenticated) return;
         if (isSyncingPath.current) return;
 
-        // Cancel any pending URL push from a previous render
-        if (urlPushTimerRef.current) {
-            clearTimeout(urlPushTimerRef.current);
+        let newPath = '/';
+        if (activeWatchPartyRoom) {
+            newPath = `/watch-party/${activeWatchPartyRoom}`;
+        } else if (selectedCharacterId) {
+            newPath = `/character/${selectedCharacterId}`;
+        } else if (selectedPersonId) {
+            newPath = `/person/${selectedPersonId}`;
+        } else if (selectedMovie) {
+            const isAnime = !!((selectedMovie as any).isAnimeDirect || (selectedMovie.genres?.some((g: any) => g.id === 16) && (selectedMovie.original_language === 'ja' || (selectedMovie as any).original_language === 'ja')));
+            const type = isAnime ? 'anime' : (selectedMovie.media_type === 'tv' || (!selectedMovie.release_date && selectedMovie.first_air_date) ? 'tv' : 'movie');
+            if (isWatching) {
+                if (type === 'anime') {
+                    newPath = `/anime/${selectedMovie.id}/watch/${watchSeason}/${watchEpisode}`;
+                } else if (type === 'tv') {
+                    newPath = `/tv/${selectedMovie.id}/watch/${watchSeason}/${watchEpisode}`;
+                } else {
+                    newPath = `/movie/${selectedMovie.id}/watch`;
+                }
+            } else if (showDetailsCast) {
+                newPath = `/${type}/${selectedMovie.id}/cast`;
+            } else if (showDetailsCrew) {
+                newPath = `/${type}/${selectedMovie.id}/crew`;
+            } else if (activeDetailsTab !== 'overview') {
+                newPath = `/${type}/${selectedMovie.id}/${activeDetailsTab}`;
+            } else {
+                newPath = `/${type}/${selectedMovie.id}`;
+            }
+        } else if (searchQuery) {
+            newPath = `/search/${encodeURIComponent(searchQuery)}`;
+        } else if (selectedCategory === 'LiveTV') {
+            newPath = '/live-tv';
+        } else if (selectedCategory === 'Awards') {
+            newPath = '/browse/awards';
+        } else if (selectedCategory === 'Anime') {
+            newPath = '/anime';
+        } else if (selectedCategory === 'AnimeCommunity') {
+            newPath = '/browse/anime-forum';
+        } else if (selectedCategory === 'Family') {
+            newPath = '/browse/family';
+        } else if (selectedCategory === 'TV Shows') {
+            newPath = '/browse/tv-shows';
+        } else if (selectedCategory === 'Coming') {
+            newPath = '/browse/coming';
+        } else if (selectedCategory === 'Categories') {
+            newPath = '/browse/categories';
+        } else if (selectedCategory === 'Franchise') {
+            newPath = '/browse/franchise';
+        } else if (selectedCategory === 'Watchlist') {
+            newPath = '/library/watchlist';
+        } else if (selectedCategory === 'Favorites') {
+            newPath = '/library/favorites';
+        } else if (selectedCategory === 'History') {
+            newPath = '/library/history';
+        } else if (selectedCategory === 'Deep Dive' && activeKeyword) {
+            newPath = `/keyword/${activeKeyword.id}/${encodeURIComponent(activeKeyword.name)}`;
+        } else if (selectedCategory === 'Deep Dive' && tmdbCollectionId) {
+            newPath = `/collection/${tmdbCollectionId}`;
+        } else if (selectedCategory === 'Countries' && activeCountry) {
+            newPath = `/country/${activeCountry.code}/${encodeURIComponent(activeCountry.name)}`;
+        } else if (selectedCategory === 'Manga') {
+            if (selectedMangaId) {
+                if (activeMangaChapterId) {
+                    newPath = `/manga/${selectedMangaId}/chapter/${activeMangaChapterId}`;
+                } else {
+                    newPath = `/manga/${selectedMangaId}`;
+                }
+            } else {
+                newPath = '/manga';
+            }
+
+        } else if (selectedCategory === 'Dramas') {
+            if (selectedDramaSlug) {
+                newPath = `/drama/${selectedDramaSlug}`;
+            } else {
+                newPath = '/browse/dramas';
+            }
+
+        } else if (selectedCategory === 'Music') {
+            newPath = '/music';
+
+        } else if (selectedCategory === 'Collection' && currentCollection) {
+            newPath = `/custom-collection/${currentCollection}`;
         }
 
-        urlPushTimerRef.current = setTimeout(() => {
-            // Re-check the guard inside the timeout — state may have been synced in the meantime
-            if (isSyncingPath.current) return;
+        const isPushing = window.location.pathname !== newPath;
+        if (isPushing) {
+            lastPushedPathRef.current = newPath;
+            const newIdx = (window.history.state?.idx || 0) + 1;
+            history.pushState({ idx: newIdx }, '', newPath);
+            currentHistoryIdxRef.current = newIdx;
+            setIsNavigatingBack(false);
+        }
 
-            let newPath = '/';
-            if (activeWatchPartyRoom) {
-                newPath = `/watch-party/${activeWatchPartyRoom}`;
-            } else if (selectedCharacterId) {
-                newPath = `/character/${selectedCharacterId}`;
-            } else if (selectedPersonId) {
-                newPath = `/person/${selectedPersonId}`;
-            } else if (selectedMovie) {
-                const isAnime = !!((selectedMovie as any).isAnimeDirect || (selectedMovie.genres?.some((g: any) => g.id === 16) && (selectedMovie.original_language === 'ja' || (selectedMovie as any).original_language === 'ja')));
-                const type = isAnime ? 'anime' : (selectedMovie.media_type === 'tv' || (!selectedMovie.release_date && selectedMovie.first_air_date) ? 'tv' : 'movie');
-                if (isWatching) {
-                    if (type === 'anime') {
-                        newPath = `/anime/${selectedMovie.id}/watch/${watchSeason}/${watchEpisode}`;
-                    } else if (type === 'tv') {
-                        newPath = `/tv/${selectedMovie.id}/watch/${watchSeason}/${watchEpisode}`;
-                    } else {
-                        newPath = `/movie/${selectedMovie.id}/watch`;
-                    }
-                } else if (showDetailsCast) {
-                    newPath = `/${type}/${selectedMovie.id}/cast`;
-                } else if (showDetailsCrew) {
-                    newPath = `/${type}/${selectedMovie.id}/crew`;
-                } else if (activeDetailsTab !== 'overview') {
-                    newPath = `/${type}/${selectedMovie.id}/${activeDetailsTab}`;
-                } else {
-                    newPath = `/${type}/${selectedMovie.id}`;
-                }
-            } else if (searchQuery) {
-                newPath = `/search/${encodeURIComponent(searchQuery)}`;
-            } else if (selectedCategory === 'LiveTV') {
-                newPath = '/live-tv';
-            } else if (selectedCategory === 'Awards') {
-                newPath = '/browse/awards';
-            } else if (selectedCategory === 'Anime') {
-                newPath = '/anime';
-            } else if (selectedCategory === 'AnimeCommunity') {
-                newPath = '/browse/anime-forum';
-            } else if (selectedCategory === 'Family') {
-                newPath = '/browse/family';
-            } else if (selectedCategory === 'TV Shows') {
-                newPath = '/browse/tv-shows';
-            } else if (selectedCategory === 'Coming') {
-                newPath = '/browse/coming';
-            } else if (selectedCategory === 'Categories') {
-                newPath = '/browse/categories';
-            } else if (selectedCategory === 'Franchise') {
-                newPath = '/browse/franchise';
-            } else if (selectedCategory === 'Watchlist') {
-                newPath = '/library/watchlist';
-            } else if (selectedCategory === 'Favorites') {
-                newPath = '/library/favorites';
-            } else if (selectedCategory === 'History') {
-                newPath = '/library/history';
-            } else if (selectedCategory === 'Deep Dive' && activeKeyword) {
-                newPath = `/keyword/${activeKeyword.id}/${encodeURIComponent(activeKeyword.name)}`;
-            } else if (selectedCategory === 'Deep Dive' && tmdbCollectionId) {
-                newPath = `/collection/${tmdbCollectionId}`;
-            } else if (selectedCategory === 'Countries' && activeCountry) {
-                newPath = `/country/${activeCountry.code}/${encodeURIComponent(activeCountry.name)}`;
-            } else if (selectedCategory === 'Manga') {
-                if (selectedMangaId) {
-                    if (activeMangaChapterId) {
-                        newPath = `/manga/${selectedMangaId}/chapter/${activeMangaChapterId}`;
-                    } else {
-                        newPath = `/manga/${selectedMangaId}`;
-                    }
-                } else {
-                    newPath = '/manga';
-                }
-
-            } else if (selectedCategory === 'Dramas') {
-                if (selectedDramaSlug) {
-                    newPath = `/drama/${selectedDramaSlug}`;
-                } else {
-                    newPath = '/browse/dramas';
-                }
-
-            } else if (selectedCategory === 'Music') {
-                newPath = '/music';
-
-            } else if (selectedCategory === 'Collection' && currentCollection) {
-                newPath = `/custom-collection/${currentCollection}`;
+        const finalIdx = window.history.state?.idx || 0;
+        if (selectedMovie) {
+            if (movieDetailsStartIdxRef.current === null) {
+                movieDetailsStartIdxRef.current = finalIdx;
             }
-
-            const isPushing = window.location.pathname !== newPath;
-            if (isPushing) {
-                lastPushedPathRef.current = newPath;
-                const newIdx = (window.history.state?.idx || 0) + 1;
-                history.pushState({ idx: newIdx }, '', newPath);
-                currentHistoryIdxRef.current = newIdx;
-                setIsNavigatingBack(false);
+        }
+        if (selectedCategory === 'Manga' && selectedMangaId) {
+            if (mangaDetailsStartIdxRef.current === null) {
+                mangaDetailsStartIdxRef.current = finalIdx;
             }
-
-            const finalIdx = window.history.state?.idx || 0;
-            if (selectedMovie) {
-                if (movieDetailsStartIdxRef.current === null) {
-                    movieDetailsStartIdxRef.current = finalIdx;
-                }
-            }
-            if (selectedCategory === 'Manga' && selectedMangaId) {
-                if (mangaDetailsStartIdxRef.current === null) {
-                    mangaDetailsStartIdxRef.current = finalIdx;
-                }
-            }
-        }, 0);
-
-        return () => {
-            if (urlPushTimerRef.current) {
-                clearTimeout(urlPushTimerRef.current);
-            }
-        };
+        }
     }, [selectedCategory, selectedMovie, selectedPersonId, selectedCharacterId, activeWatchPartyRoom, activeKeyword, tmdbCollectionId, activeCountry, currentCollection, isWatching, watchSeason, watchEpisode, showDetailsCast, showDetailsCrew, activeDetailsTab, selectedMangaId, activeMangaChapterId, selectedDramaSlug]);
 
 
@@ -4280,9 +4340,67 @@ export default function App() {
                                 className={`w-full bg-[#1a1a1a] border border-zinc-900 focus:border-zinc-800 rounded-xl py-2.5 pl-10 pr-4 text-sm focus:outline-none transition-all ${isAiSearchActive ? (loading ? "ai-search-glow-loading" : "ai-search-glow") : ""}`}
                                 value={searchInput}
                                 onChange={(e) => setSearchInput(e.target.value)}
+                                onFocus={() => setShowSuggestions(true)}
+                                onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
                                 onKeyDown={(e) => e.key === 'Enter' && handleSearchSubmit(searchInput)}
                             />
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={16} />
+
+                            {showSuggestions && searchInput.trim().length >= 2 && (
+                                <div className="absolute left-0 right-0 mt-2 bg-[#0c0c0e]/95 backdrop-blur-2xl border border-white/10 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.8)] overflow-hidden z-[150] animate-in fade-in slide-in-from-top-2 duration-200 w-full text-left">
+                                    {loadingSuggestions ? (
+                                        <div className="p-4 flex items-center justify-center text-zinc-400 gap-2 text-xs">
+                                            <Loader2 className="animate-spin text-red-600 animate-duration-1000" size={14} />
+                                            <span>Searching...</span>
+                                        </div>
+                                    ) : searchSuggestions.length === 0 ? (
+                                        <div className="p-4 text-center text-zinc-500 text-xs">
+                                            No matches found
+                                        </div>
+                                    ) : (
+                                        <div className="py-1 max-h-64 overflow-y-auto custom-scrollbar">
+                                            {searchSuggestions.map((item) => (
+                                                <div
+                                                    key={item.id}
+                                                    onClick={() => {
+                                                        if (item.type === 'anime') {
+                                                            setSelectedMovie({
+                                                                id: item.id,
+                                                                title: item.title,
+                                                                name: item.title,
+                                                                poster_path: item.poster,
+                                                                isAnimeDirect: true,
+                                                                media_type: item.media_type
+                                                            } as any);
+                                                        } else {
+                                                            setSelectedMovie(item.originalItem);
+                                                        }
+                                                        setSearchInput('');
+                                                        setSearchSuggestions([]);
+                                                        setShowSuggestions(false);
+                                                        setIsSidebarOpen(false);
+                                                    }}
+                                                    className="flex items-center gap-3 px-4 py-2.5 hover:bg-white/5 cursor-pointer transition-colors border-b border-white/[0.03] last:border-b-0"
+                                                >
+                                                    <div className="w-8 h-11 bg-zinc-800 rounded-lg overflow-hidden shrink-0 shadow-md">
+                                                        {item.poster ? (
+                                                            <img src={item.poster} alt="" className="w-full h-full object-cover" />
+                                                        ) : (
+                                                            <div className="w-full h-full flex items-center justify-center text-[8px] text-zinc-600">No Img</div>
+                                                        )}
+                                                    </div>
+                                                    <div className="min-w-0 flex-1">
+                                                        <p className="text-xs font-bold text-zinc-100 truncate">{item.title}</p>
+                                                        <p className="text-[10px] text-zinc-500 font-medium mt-0.5 capitalize">
+                                                            {item.type === 'tv' ? 'TV Show' : item.type} {item.year ? `• ${item.year}` : ''}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
                         </div>
 
                         <div className="space-y-6 overflow-y-auto custom-scrollbar flex-1 -mx-2 px-2">
@@ -4472,6 +4590,61 @@ export default function App() {
                                 >
                                     <Sparkles size={14} className={isAiSearchActive ? 'animate-pulse' : ''} />
                                 </button>
+
+                                {showSuggestions && searchInput.trim().length >= 2 && (
+                                    <div className="absolute left-0 right-0 mt-2 bg-[#0c0c0e]/95 backdrop-blur-2xl border border-white/10 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.8)] overflow-hidden z-[150] animate-in fade-in slide-in-from-top-2 duration-200 w-full text-left">
+                                        {loadingSuggestions ? (
+                                            <div className="p-4 flex items-center justify-center text-zinc-400 gap-2 text-xs">
+                                                <Loader2 className="animate-spin text-red-600 animate-duration-1000" size={14} />
+                                                <span>Searching...</span>
+                                            </div>
+                                        ) : searchSuggestions.length === 0 ? (
+                                            <div className="p-4 text-center text-zinc-500 text-xs">
+                                                No matches found
+                                            </div>
+                                        ) : (
+                                            <div className="py-1 max-h-80 overflow-y-auto custom-scrollbar">
+                                                {searchSuggestions.map((item) => (
+                                                    <div
+                                                        key={item.id}
+                                                        onClick={() => {
+                                                            if (item.type === 'anime') {
+                                                                setSelectedMovie({
+                                                                    id: item.id,
+                                                                    title: item.title,
+                                                                    name: item.title,
+                                                                    poster_path: item.poster,
+                                                                    isAnimeDirect: true,
+                                                                    media_type: item.media_type
+                                                                } as any);
+                                                            } else {
+                                                                setSelectedMovie(item.originalItem);
+                                                            }
+                                                            setSearchInput('');
+                                                            setSearchSuggestions([]);
+                                                            setShowSuggestions(false);
+                                                        }}
+                                                        className="flex items-center gap-3 px-4 py-2.5 hover:bg-white/5 cursor-pointer transition-colors border-b border-white/[0.03] last:border-b-0"
+                                                    >
+                                                        <div className="w-8 h-11 bg-zinc-800 rounded-lg overflow-hidden shrink-0 shadow-md">
+                                                            {item.poster ? (
+                                                                <img src={item.poster} alt="" className="w-full h-full object-cover" />
+                                                            ) : (
+                                                                <div className="w-full h-full flex items-center justify-center text-[8px] text-zinc-600">No Img</div>
+                                                            )}
+                                                        </div>
+                                                        <div className="min-w-0 flex-1">
+                                                            <p className="text-xs font-bold text-zinc-100 truncate">{item.title}</p>
+                                                            <p className="text-[10px] text-zinc-500 font-medium mt-0.5 capitalize">
+                                                                {item.type === 'tv' ? 'TV Show' : item.type} {item.year ? `• ${item.year}` : ''}
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
                             </div>
 
                             <div className="flex items-center gap-3">
