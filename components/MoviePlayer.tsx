@@ -1435,7 +1435,15 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
       if (entries.length > 0) {
         setAnimeSeasonMap(entries);
         localStorage.setItem(cacheKey, JSON.stringify(entries));
-        const idx = Math.min(currentSeason - 1, entries.length - 1);
+        
+        let idx = Math.min(currentSeason - 1, entries.length - 1);
+        if (isAnimeDirect) {
+          const foundIdx = entries.findIndex(e => e.anilistId === tmdbId);
+          if (foundIdx !== -1) {
+            idx = foundIdx;
+            setCurrentSeason(foundIdx + 1);
+          }
+        }
         setAnilistId(entries[idx].anilistId);
       } else {
         // Fallback: single entry from search
