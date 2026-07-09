@@ -151,23 +151,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
       return res.status(200).send(rewrittenManifest);
     } else {
-      // It is a binary chunk (segment, encryption key, etc.). Stream it back directly.
-      res.status(response.status);
-      for (const [key, value] of response.headers.entries()) {
-        if (['content-type', 'content-length', 'accept-ranges', 'content-range', 'cache-control'].includes(key.toLowerCase())) {
-          res.setHeader(key, value);
-        }
-      }
-      res.setHeader('Access-Control-Allow-Origin', '*');
-
-      const reader = response.body?.getReader();
-      if (reader) {
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          res.write(value);
-        }
-      }
+      // It is a binary chunk (segment, encryption key, etc.).
+      // To drastically reduce Vercel Fast Origin Transfer bandwidth and active CPU time,
+      // we redirect the browser to the direct CDN URL instead of proxying the binary data.
+      res.writeHead(302, { 'Location': targetUrl });
       return res.end();
     }
   } catch (error: any) {
