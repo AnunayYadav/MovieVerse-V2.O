@@ -1282,6 +1282,9 @@ export const MoviePage: React.FC<MoviePageProps> = ({
 
     useEffect(() => { setActiveTab(activeTabProp); }, [activeTabProp]);
     useEffect(() => {
+        const isUrlDriven = typeof window !== 'undefined' && window.location.pathname.includes('/watch');
+        if (!isUrlDriven) return;
+
         setPlayParams(initialPlayParams);
         if (initialPlayParams.season) {
             setSelectedSeason(initialPlayParams.season);
