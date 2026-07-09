@@ -1832,26 +1832,60 @@ export default function App() {
             if (!isNaN(personId)) {
                 personIdToSelect = personId;
             }
-        } else if (path.startsWith('/movie/') || path.startsWith('/tv/')) {
+        } else if (path.startsWith('/movie/') || path.startsWith('/tv/') || path.startsWith('/anime/')) {
             const isTv = path.startsWith('/tv/');
+            const isAnime = path.startsWith('/anime/');
             const movieIdStr = parts[2];
             const movieId = parseInt(movieIdStr, 10);
             if (!isNaN(movieId)) {
-                const currentMovie = selectedMovieRef.current;
-                const currentMovieType = currentMovie ? (currentMovie.media_type === 'tv' || (!currentMovie.release_date && currentMovie.first_air_date) ? 'tv' : 'movie') : null;
-                const targetType = isTv ? 'tv' : 'movie';
-                if (currentMovie && currentMovie.id === movieId && currentMovieType === targetType) {
-                    movieToSelect = currentMovie;
-                } else {
-                    try {
-                        const type = isTv ? 'tv' : 'movie';
-                        const res = await fetch(`${TMDB_BASE_URL}/${type}/${movieId}?api_key=${apiKey}`);
-                        const data = await res.json();
+                if (isAnime) {
+                    const currentMovie = selectedMovieRef.current;
+                    if (currentMovie && currentMovie.id === movieId) {
+                        movieToSelect = currentMovie;
+                    } else {
+                        let data: any = null;
+                        let type: 'tv' | 'movie' = 'tv';
+                        try {
+                            const res = await fetch(`${TMDB_BASE_URL}/tv/${movieId}?api_key=${apiKey}`);
+                            if (res.ok) {
+                                data = await res.json();
+                                type = 'tv';
+                            }
+                        } catch (e) {}
+                        
+                        if (!data || !data.id) {
+                            try {
+                                const res = await fetch(`${TMDB_BASE_URL}/movie/${movieId}?api_key=${apiKey}`);
+                                if (res.ok) {
+                                    data = await res.json();
+                                    type = 'movie';
+                                }
+                            } catch (e) {}
+                        }
+
                         if (data && data.id) {
                             movieToSelect = { ...data, media_type: type };
+                        } else {
+                            movieToSelect = { id: movieId, isAnimeDirect: true, media_type: 'tv' } as any;
                         }
-                    } catch (e) {
-                        console.error("Failed to fetch movie details from path", e);
+                    }
+                } else {
+                    const currentMovie = selectedMovieRef.current;
+                    const currentMovieType = currentMovie ? (currentMovie.media_type === 'tv' || (!currentMovie.release_date && currentMovie.first_air_date) ? 'tv' : 'movie') : null;
+                    const targetType = isTv ? 'tv' : 'movie';
+                    if (currentMovie && currentMovie.id === movieId && currentMovieType === targetType) {
+                        movieToSelect = currentMovie;
+                    } else {
+                        try {
+                            const type = isTv ? 'tv' : 'movie';
+                            const res = await fetch(`${TMDB_BASE_URL}/${type}/${movieId}?api_key=${apiKey}`);
+                            const data = await res.json();
+                            if (data && data.id) {
+                                movieToSelect = { ...data, media_type: type };
+                            }
+                        } catch (e) {
+                            console.error("Failed to fetch movie details from path", e);
+                        }
                     }
                 }
             }
@@ -1860,7 +1894,7 @@ export default function App() {
             const action = parts[3];
             if (action === 'watch') {
                 watching = true;
-                if (isTv && parts[4] && parts[5]) {
+                if ((isTv || isAnime) && parts[4] && parts[5]) {
                     season = parseInt(parts[4], 10) || 1;
                     episode = parseInt(parts[5], 10) || 1;
                 }
@@ -2001,9 +2035,12 @@ export default function App() {
             } else if (selectedPersonId) {
                 newPath = `/person/${selectedPersonId}`;
             } else if (selectedMovie) {
-                const type = selectedMovie.media_type === 'tv' || (!selectedMovie.release_date && selectedMovie.first_air_date) ? 'tv' : 'movie';
+                const isAnime = !!((selectedMovie as any).isAnimeDirect || (selectedMovie.genres?.some((g: any) => g.id === 16) && (selectedMovie.original_language === 'ja' || (selectedMovie as any).original_language === 'ja')));
+                const type = isAnime ? 'anime' : (selectedMovie.media_type === 'tv' || (!selectedMovie.release_date && selectedMovie.first_air_date) ? 'tv' : 'movie');
                 if (isWatching) {
-                    if (type === 'tv') {
+                    if (type === 'anime') {
+                        newPath = `/anime/${selectedMovie.id}/watch/${watchSeason}/${watchEpisode}`;
+                    } else if (type === 'tv') {
                         newPath = `/tv/${selectedMovie.id}/watch/${watchSeason}/${watchEpisode}`;
                     } else {
                         newPath = `/movie/${selectedMovie.id}/watch`;

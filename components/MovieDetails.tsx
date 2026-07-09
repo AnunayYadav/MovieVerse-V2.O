@@ -539,6 +539,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
     const [animeRelations, setAnimeRelations] = useState<any[]>([]);
     const [matchingRelationId, setMatchingRelationId] = useState<number | null>(null);
     const lastFetchedAnimeRef = useRef<string | null>(null);
+    const lastFetchedEpisodesRef = useRef<string | null>(null);
 
     useEffect(() => {
         if (!details) {
@@ -1296,7 +1297,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
     };
 
     const handleShare = () => {
-        const type = resolvedMediaType;
+        const type = isAnime ? 'anime' : resolvedMediaType;
         const shareUrl = `${window.location.origin}/${type}/${movie.id}`;
         navigator.clipboard.writeText(shareUrl)
             .then(() => {
@@ -1724,6 +1725,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
         setVideoLoaded(false); 
         setIsMuted(true); 
         setEpisodes([]);
+        lastFetchedEpisodesRef.current = null;
         setEpisodeSearch("");
         setExpandedReviews({});
     }, [movie.id, apiKey, resolvedMediaType]);
@@ -1733,12 +1735,16 @@ export const MoviePage: React.FC<MoviePageProps> = ({
     useEffect(() => {
         const isTvShow = movie.media_type === 'tv' || !!(details && details.first_air_date);
         if (!isTvShow || !movie.id || activeTab !== 'seasons') return;
-        
-        const currentKey = `${movie.id}-${selectedSeason}`;
-        if (lastFetchedAnimeRef.current === currentKey) {
+        if ((movie as any).isAnimeDirect && !details) {
+            setEpisodesLoading(true);
             return;
         }
-        lastFetchedAnimeRef.current = currentKey;
+        
+        const currentKey = `${movie.id}-${selectedSeason}`;
+        if (lastFetchedEpisodesRef.current === currentKey) {
+            return;
+        }
+        lastFetchedEpisodesRef.current = currentKey;
 
         let isMounted = true;
         setEpisodesLoading(true);
