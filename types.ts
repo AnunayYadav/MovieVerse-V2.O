@@ -41,6 +41,7 @@ export interface Movie {
       duration?: number;
       updated_at?: number;
   };
+  isAnimeDirect?: boolean;
 }
 
 export interface Genre {
@@ -140,6 +141,15 @@ export interface MovieDetails extends Movie {
   };
   networks?: Network[];
   type?: string;
+  idMal?: number;
+  studio?: string;
+  format?: string;
+  source?: string;
+  season?: string | number;
+  seasonYear?: number;
+  averageScore?: number;
+  duration?: number;
+  isAnimeDirect?: boolean;
 }
 
 export interface Review {

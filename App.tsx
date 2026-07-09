@@ -150,6 +150,10 @@ const MovieRowCard = ({
 
     useEffect(() => {
         let isMounted = true;
+        if ((movie as any).isAnimeDirect) {
+            setLogoLoading(false);
+            return;
+        }
         const key = getTmdbKey();
         if (!key) {
             setLogoLoading(false);
@@ -318,6 +322,10 @@ const ComingSoonCard = ({
 
     useEffect(() => {
         let isMounted = true;
+        if ((movie as any).isAnimeDirect) {
+            setLogoLoading(false);
+            return;
+        }
         if (!apiKey || !movie.id) {
             setLogoLoading(false);
             return;
@@ -869,6 +877,10 @@ const ContinueWatchingCard = ({
 
     useEffect(() => {
         let isMounted = true;
+        if ((movie as any).isAnimeDirect) {
+            setLogoLoading(false);
+            return;
+        }
         const key = getTmdbKey();
         if (!key) {
             setLogoLoading(false);
