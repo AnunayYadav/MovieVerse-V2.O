@@ -2328,38 +2328,37 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                 {loading && !details ? (
                     <MovieDetailsSkeleton />
                 ) : showPlayer ? (
-                    <div className="max-w-7xl mx-auto w-full px-4 py-6 md:p-10 relative z-20 flex flex-col gap-8 animate-in fade-in duration-500 select-none">
-                        {/* Floating glassmorphic header bar */}
-                        <div className="bg-[#0b0b0d]/80 backdrop-blur-xl border border-white/10 rounded-2xl p-4 flex items-center justify-between shadow-2xl relative overflow-hidden group">
-                            <div className="absolute -top-12 -left-12 w-24 h-24 rounded-full blur-[60px] opacity-10 bg-red-600 pointer-events-none transition-all duration-1000 group-hover:opacity-20" />
-                            <div className="flex items-center gap-3 relative z-10">
+                    <div className="max-w-7xl mx-auto w-full px-4 py-6 md:py-8 relative z-20 flex flex-col gap-6 animate-in fade-in duration-300 select-none">
+                        {/* Minimalist Floating Header */}
+                        <div className="bg-[#0b0b0d]/60 backdrop-blur-xl border border-white/5 rounded-2xl p-4 flex items-center justify-between shadow-lg relative overflow-hidden">
+                            <div className="flex items-center gap-3">
                                 <TvFocusButton 
                                     onClick={() => onPlayStateChangeRef.current?.(false)} 
-                                    className="flex items-center gap-2 px-5 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-full text-white/90 hover:text-white transition-all text-xs font-extrabold hover:scale-105 active:scale-95 shadow-md"
+                                    className="flex items-center gap-2 px-4 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-full text-zinc-300 hover:text-white transition-all text-xs font-medium hover:scale-105 active:scale-95 shadow-sm"
                                 >
-                                    <ArrowLeft size={16} /> Back to Details
+                                    <ArrowLeft size={14} /> Back to Details
                                 </TvFocusButton>
                             </div>
-                            <div className="text-right relative z-10">
-                                <h2 className="font-black text-sm sm:text-base text-white tracking-wide">{displayData.title || displayData.name}</h2>
+                            <div className="text-right">
+                                <h2 className="font-bold text-sm md:text-base text-zinc-100 tracking-tight">{displayData.title || displayData.name}</h2>
                                 {isTv && (
-                                    <p className="text-[10px] text-red-500 font-black uppercase tracking-widest mt-0.5">Season {playParams.season} • Episode {playParams.episode}</p>
+                                    <p className="text-[10px] text-zinc-500 font-medium tracking-wide mt-0.5">Season {playParams.season} • Episode {playParams.episode}</p>
                                 )}
                             </div>
                         </div>
 
-                        {/* Main Watch Grid */}
-                        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-                            {/* Left Area (Player + Servers + Options) */}
-                            <div className="lg:col-span-3 flex flex-col gap-6">
-                                {/* Player Container with premium neon shadow */}
-                                <div className="relative aspect-video w-full bg-black rounded-3xl overflow-hidden shadow-[0_25px_60px_-15px_rgba(239,68,68,0.25)] border border-red-600/10 z-20 transition-all duration-500 hover:border-red-600/30">
+                        {/* Main Grid */}
+                        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                            {/* Left Column (Player & Controls) */}
+                            <div className="lg:col-span-3 flex flex-col gap-5">
+                                {/* Player Container */}
+                                <div className="relative aspect-video w-full bg-black rounded-2xl overflow-hidden shadow-2xl border border-white/5 z-20">
                                     {(() => {
                                         const hasResume = movie.last_watched_data && movie.last_watched_data.current_time && movie.last_watched_data.current_time > 0;
                                         const isCurrentResumable = hasResume && (!isTv || (movie.last_watched_data.season === playParams.season && movie.last_watched_data.episode === playParams.episode));
                                         const resumeTime = isCurrentResumable ? (movie.last_watched_data?.current_time || 0) : 0;
                                         return (
-                                            <Suspense fallback={<div className="w-full h-full flex items-center justify-center bg-black"><Loader2 className="animate-spin text-red-600" size={40}/></div>}>
+                                            <Suspense fallback={<div className="w-full h-full flex items-center justify-center bg-black"><Loader2 className="animate-spin text-red-600" size={32}/></div>}>
                                                 <MoviePlayer 
                                                     tmdbId={displayData.id} 
                                                     onClose={() => {
@@ -2390,108 +2389,111 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                     })()}
                                 </div>
 
-                                {/* Custom Toggles and Actions Panel */}
-                                <div className="flex flex-wrap items-center justify-between gap-4 p-5 bg-[#0b0b0d]/80 backdrop-blur-xl border border-white/5 rounded-3xl text-xs select-none shadow-xl">
-                                    {/* Inline custom iOS-style slider toggles */}
-                                    <div className="flex flex-wrap items-center gap-6">
-                                        {/* Auto Play Switch */}
-                                        <div 
-                                            onClick={() => setAutoPlayChecked(!autoPlayChecked)} 
-                                            className="flex items-center gap-3 cursor-pointer group"
-                                        >
-                                            <div className={`w-8.5 h-4.5 rounded-full p-0.5 transition-colors duration-300 flex items-center ${autoPlayChecked ? 'bg-red-600 shadow-[0_0_8px_rgba(220,38,38,0.3)]' : 'bg-zinc-800'}`}>
-                                                <div className={`w-3.5 h-3.5 rounded-full bg-white shadow-md transform transition-transform duration-300 ${autoPlayChecked ? 'translate-x-4' : 'translate-x-0'}`} />
-                                            </div>
-                                            <span className="text-zinc-400 group-hover:text-white transition-colors font-bold text-[11px] tracking-wide">Auto Play</span>
-                                        </div>
-
-                                        {/* Auto Next Switch */}
-                                        <div 
-                                            onClick={() => setAutoNextChecked(!autoNextChecked)} 
-                                            className="flex items-center gap-3 cursor-pointer group"
-                                        >
-                                            <div className={`w-8.5 h-4.5 rounded-full p-0.5 transition-colors duration-300 flex items-center ${autoNextChecked ? 'bg-red-600 shadow-[0_0_8px_rgba(220,38,38,0.3)]' : 'bg-zinc-800'}`}>
-                                                <div className={`w-3.5 h-3.5 rounded-full bg-white shadow-md transform transition-transform duration-300 ${autoNextChecked ? 'translate-x-4' : 'translate-x-0'}`} />
-                                            </div>
-                                            <span className="text-zinc-400 group-hover:text-white transition-colors font-bold text-[11px] tracking-wide">Auto Next</span>
-                                        </div>
-
-                                        {/* Auto Skip Switch */}
-                                        <div 
-                                            onClick={() => setAutoSkipChecked(!autoSkipChecked)} 
-                                            className="flex items-center gap-3 cursor-pointer group"
-                                        >
-                                            <div className={`w-8.5 h-4.5 rounded-full p-0.5 transition-colors duration-300 flex items-center ${autoSkipChecked ? 'bg-red-600 shadow-[0_0_8px_rgba(220,38,38,0.3)]' : 'bg-zinc-800'}`}>
-                                                <div className={`w-3.5 h-3.5 rounded-full bg-white shadow-md transform transition-transform duration-300 ${autoSkipChecked ? 'translate-x-4' : 'translate-x-0'}`} />
-                                            </div>
-                                            <span className="text-zinc-400 group-hover:text-white transition-colors font-bold text-[11px] tracking-wide">Auto Skip</span>
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <TvFocusButton 
-                                            onClick={() => onToggleWatchlist(displayData)} 
-                                            className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-full text-zinc-300 hover:text-white transition-all text-xs font-bold shadow-md active:scale-95"
-                                        >
-                                            <Bookmark size={13} fill={isWatchlisted ? "currentColor" : "none"} className={isWatchlisted ? "text-red-500 animate-pulse" : ""} />
-                                            <span>{isWatchlisted ? "Bookmarked" : "Add Bookmark"}</span>
-                                        </TvFocusButton>
-                                    </div>
-                                </div>
-
-                                {/* Premium Glowing Warning/Disclaimer Message */}
-                                <div className="flex items-start gap-3.5 p-4.5 bg-red-500/5 backdrop-blur-md border border-red-500/10 rounded-2xl text-[11px] text-zinc-400 leading-relaxed text-left shadow-lg">
-                                    <AlertCircle size={18} className="text-red-500 shrink-0 mt-0.5" />
-                                    <div>
-                                        <p className="font-extrabold text-zinc-200">Please bookmark <span className="text-red-500">movieverse.fit</span> to stay updated about our domains. Thank you!</p>
-                                        <p className="mt-1 text-zinc-400">You are watching <span className="text-zinc-200 font-bold">Episode {playParams.episode}</span>. If the current server doesn't work, please try other servers beside.</p>
-                                    </div>
-                                </div>
-
-                                {/* Server Selector Grid */}
-                                <div className="p-6 bg-[#0b0b0d]/80 backdrop-blur-xl border border-white/5 rounded-3xl space-y-5 text-left shadow-xl relative overflow-hidden group">
-                                    <div className="absolute -top-20 -right-20 w-40 h-40 rounded-full blur-[80px] opacity-[0.03] bg-red-600 pointer-events-none group-hover:opacity-[0.07] transition-all duration-1000" />
-                                    <h3 className="text-xs font-black text-white/95 uppercase tracking-[0.2em] flex items-center gap-2 border-b border-white/5 pb-3">
-                                        <Tv size={14} className="text-red-500" />
-                                        <span>Select Server / Provider</span>
+                                {/* Server / Provider selector (Directly below player!) */}
+                                <div className="p-5 bg-[#0b0b0d]/40 backdrop-blur-md border border-white/5 rounded-2xl space-y-4 text-left shadow-sm">
+                                    <h3 className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest flex items-center gap-1.5 border-b border-white/5 pb-2">
+                                        <Tv size={12} className="text-zinc-500" />
+                                        <span>Servers</span>
                                     </h3>
-                                    <div className="flex flex-wrap gap-2.5">
+                                    <div className="flex flex-wrap gap-2">
                                         {getFilteredProviders(isAnime, false, isAnimeDirect).map((prov) => (
                                             <TvFocusButton
                                                 key={prov.id}
                                                 onClick={() => handleProviderChange(prov.id)}
-                                                className={`px-4.5 py-2.5 rounded-xl text-xs font-black transition-all border duration-300 flex items-center gap-2 active:scale-95 ${
+                                                className={`px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all border duration-200 flex items-center gap-1.5 active:scale-95 ${
                                                     selectedProviderId === prov.id 
-                                                        ? 'bg-red-600 text-white border-red-500 shadow-[0_0_15px_rgba(239,68,68,0.4)] scale-105' 
+                                                        ? 'bg-red-600 text-white border-red-600 shadow-sm' 
                                                         : 'bg-white/5 text-zinc-400 border-white/5 hover:border-white/10 hover:bg-white/10 hover:text-white'
                                                 }`}
                                             >
                                                 <span>{prov.name}</span>
-                                                {selectedProviderId === prov.id && <Check size={12} className="text-white" />}
+                                                {selectedProviderId === prov.id && <Check size={11} className="text-white" />}
                                             </TvFocusButton>
                                         ))}
                                     </div>
                                 </div>
 
-                                {/* Seasons & Episodes Selector with square frosted glass cards */}
+                                {/* Options and Toggles Bar */}
+                                <div className="flex flex-wrap items-center justify-between gap-4 py-3 border-t border-b border-white/5 text-xs select-none">
+                                    {/* Slider Toggles */}
+                                    <div className="flex flex-wrap items-center gap-5">
+                                        {/* Auto Play Switch */}
+                                        <div 
+                                            onClick={() => setAutoPlayChecked(!autoPlayChecked)} 
+                                            className="flex items-center gap-2.5 cursor-pointer group"
+                                        >
+                                            <div className={`relative w-7 h-4 rounded-full transition-colors duration-200 ${autoPlayChecked ? 'bg-red-600' : 'bg-white/10'}`}>
+                                                <div className={`absolute top-0.5 left-0.5 w-3 h-3 rounded-full bg-white transition-transform duration-200 ${autoPlayChecked ? 'translate-x-3' : 'translate-x-0'}`} />
+                                            </div>
+                                            <span className="text-zinc-400 group-hover:text-zinc-200 transition-colors text-[11px] font-medium">Auto Play</span>
+                                        </div>
+
+                                        {/* Auto Next Switch */}
+                                        <div 
+                                            onClick={() => setAutoNextChecked(!autoNextChecked)} 
+                                            className="flex items-center gap-2.5 cursor-pointer group"
+                                        >
+                                            <div className={`relative w-7 h-4 rounded-full transition-colors duration-200 ${autoNextChecked ? 'bg-red-600' : 'bg-white/10'}`}>
+                                                <div className={`absolute top-0.5 left-0.5 w-3 h-3 rounded-full bg-white transition-transform duration-200 ${autoNextChecked ? 'translate-x-3' : 'translate-x-0'}`} />
+                                            </div>
+                                            <span className="text-zinc-400 group-hover:text-zinc-200 transition-colors text-[11px] font-medium">Auto Next</span>
+                                        </div>
+
+                                        {/* Auto Skip Switch */}
+                                        <div 
+                                            onClick={() => setAutoSkipChecked(!autoSkipChecked)} 
+                                            className="flex items-center gap-2.5 cursor-pointer group"
+                                        >
+                                            <div className={`relative w-7 h-4 rounded-full transition-colors duration-200 ${autoSkipChecked ? 'bg-red-600' : 'bg-white/10'}`}>
+                                                <div className={`absolute top-0.5 left-0.5 w-3 h-3 rounded-full bg-white transition-transform duration-200 ${autoSkipChecked ? 'translate-x-3' : 'translate-x-0'}`} />
+                                            </div>
+                                            <span className="text-zinc-400 group-hover:text-zinc-200 transition-colors text-[11px] font-medium">Auto Skip</span>
+                                        </div>
+                                    </div>
+
+                                    {/* Action Buttons */}
+                                    <div className="flex items-center gap-2">
+                                        <TvFocusButton 
+                                            onClick={() => {
+                                                setDownloadSeason(playParams.season);
+                                                setDownloadEpisode(playParams.episode);
+                                                setShowDownloadModal(true);
+                                            }}
+                                            className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-full text-zinc-300 hover:text-white transition-all text-xs font-medium active:scale-95"
+                                        >
+                                            <Download size={13} />
+                                            <span>Download</span>
+                                        </TvFocusButton>
+                                        <TvFocusButton 
+                                            onClick={() => onToggleWatchlist(displayData)} 
+                                            className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-full text-zinc-300 hover:text-white transition-all text-xs font-medium active:scale-95"
+                                        >
+                                            <Bookmark size={13} fill={isWatchlisted ? "currentColor" : "none"} className={isWatchlisted ? "text-red-500" : ""} />
+                                            <span>{isWatchlisted ? "Bookmarked" : "Bookmark"}</span>
+                                        </TvFocusButton>
+                                    </div>
+                                </div>
+
+                                {/* Seasons & Episodes list (for TV shows/Anime) */}
                                 {isTv && (
-                                    <div className="p-6 bg-[#0b0b0d]/80 backdrop-blur-xl border border-white/5 rounded-3xl space-y-6 text-left shadow-xl relative overflow-hidden">
-                                        <div className="flex items-center justify-between border-b border-white/5 pb-4">
-                                            <h3 className="text-xs font-black text-white/95 uppercase tracking-[0.2em] flex items-center gap-2">
-                                                <Clapperboard size={14} className="text-red-500" />
-                                                <span>Episodes Selector</span>
+                                    <div className="p-5 bg-[#0b0b0d]/40 backdrop-blur-md border border-white/5 rounded-2xl space-y-4 text-left shadow-sm">
+                                        <div className="flex items-center justify-between border-b border-white/5 pb-2">
+                                            <h3 className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest flex items-center gap-1.5">
+                                                <Clapperboard size={12} className="text-zinc-500" />
+                                                <span>Episodes</span>
                                             </h3>
                                             {/* Custom Seasons Dropdown */}
                                             {details?.seasons && details.seasons.length > 1 && (
                                                 <div className="relative" ref={dropdownRef}>
                                                     <TvFocusButton 
                                                         onClick={() => setIsDropdownOpen(!isDropdownOpen)} 
-                                                        className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 border border-white/10 hover:border-white/20 hover:bg-white/10 text-xs text-white font-extrabold transition-all"
+                                                        className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-white/5 border border-white/10 hover:border-white/20 hover:bg-white/10 text-xs text-zinc-300 font-medium transition-all"
                                                     >
                                                         <span>Season {selectedSeason}</span>
-                                                        <ChevronDown size={14} className={`transition-transform duration-300 ${isDropdownOpen ? 'rotate-180' : ''}`} />
+                                                        <ChevronDown size={12} className={`transition-transform duration-200 ${isDropdownOpen ? 'rotate-180' : ''}`} />
                                                     </TvFocusButton>
                                                     {isDropdownOpen && (
-                                                        <div className="absolute right-0 top-full mt-2 w-48 bg-[#121215] border border-white/10 rounded-xl shadow-2xl py-1 z-50 animate-in fade-in slide-in-from-top-2 duration-200 overflow-hidden">
+                                                        <div className="absolute right-0 top-full mt-1.5 w-40 bg-[#121215] border border-white/10 rounded-xl shadow-2xl py-1 z-50 animate-in fade-in slide-in-from-top-1 duration-150 overflow-hidden">
                                                             {details.seasons
                                                                 .filter(s => s.season_number > 0)
                                                                 .map((s) => (
@@ -2501,14 +2503,14 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                                             setSelectedSeason(s.season_number);
                                                                             setIsDropdownOpen(false);
                                                                         }}
-                                                                        className={`w-full text-left px-4 py-2.5 text-xs font-extrabold transition-colors flex items-center justify-between ${
+                                                                        className={`w-full text-left px-3.5 py-2 text-xs font-medium transition-colors flex items-center justify-between ${
                                                                             selectedSeason === s.season_number 
-                                                                                ? 'bg-red-600 text-white font-black' 
+                                                                                ? 'bg-red-600 text-white font-semibold' 
                                                                                 : 'text-zinc-400 hover:bg-white/5 hover:text-white'
                                                                         }`}
                                                                     >
                                                                         <span>Season {s.season_number}</span>
-                                                                        {selectedSeason === s.season_number && <Check size={12} />}
+                                                                        {selectedSeason === s.season_number && <Check size={11} />}
                                                                     </TvFocusButton>
                                                                 ))
                                                             }
@@ -2518,10 +2520,10 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                             )}
                                         </div>
 
-                                        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3 max-h-[350px] overflow-y-auto custom-scrollbar pr-2 select-none">
+                                        <div className="grid grid-cols-6 sm:grid-cols-8 md:grid-cols-10 lg:grid-cols-12 gap-2 max-h-[250px] overflow-y-auto custom-scrollbar pr-1 select-none">
                                             {episodesLoading ? (
-                                                <div className="col-span-full py-12 flex items-center justify-center">
-                                                    <Loader2 className="animate-spin text-red-600" size={24} />
+                                                <div className="col-span-full py-8 flex items-center justify-center">
+                                                    <Loader2 className="animate-spin text-zinc-600" size={20} />
                                                 </div>
                                             ) : episodes.length > 0 ? (
                                                 episodes.map((ep) => {
@@ -2533,20 +2535,20 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                                 setPlayParams({ season: selectedSeason, episode: ep.episode_number });
                                                                 onPlayStateChangeRef.current?.(true, selectedSeason, ep.episode_number);
                                                             }}
-                                                            className={`flex flex-col items-center justify-center p-3 rounded-2xl border text-center transition-all duration-300 hover:scale-105 active:scale-95 cursor-pointer ${
+                                                            className={`flex items-center justify-center h-8.5 rounded-lg border text-center text-xs font-medium transition-all duration-200 active:scale-95 cursor-pointer ${
                                                                 isCurrentEp
-                                                                    ? 'bg-red-600/10 border-red-500 text-white font-extrabold shadow-[0_0_20px_rgba(239,68,68,0.2)]'
-                                                                    : 'bg-white/5 border-white/5 hover:border-white/10 text-zinc-400 hover:text-white hover:bg-white/10'
+                                                                    ? 'bg-red-600 border-red-600 text-white font-semibold shadow-sm'
+                                                                    : 'bg-white/5 border-white/5 hover:border-white/10 text-zinc-400 hover:text-white'
                                                             }`}
+                                                            title={ep.name || `Episode ${ep.episode_number}`}
                                                         >
-                                                            <span className="text-sm font-black">{ep.episode_number}</span>
-                                                            <span className="text-[10px] text-zinc-500 mt-1 truncate max-w-full font-medium" title={ep.name || `Episode ${ep.episode_number}`}>{ep.name || `Ep ${ep.episode_number}`}</span>
+                                                            {ep.episode_number}
                                                         </TvFocusButton>
                                                     );
                                                 })
                                             ) : (
-                                                <div className="col-span-full text-center py-12 text-zinc-500 text-xs">
-                                                    No episodes found.
+                                                <div className="col-span-full text-center py-8 text-zinc-500 text-xs">
+                                                    No episodes.
                                                 </div>
                                             )}
                                         </div>
@@ -2554,15 +2556,15 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                 )}
                             </div>
 
-                            {/* Right Area (Recommended Sidebar Redesigned) */}
-                            <div className="lg:col-span-1 flex flex-col gap-6 text-left">
-                                <div className="p-6 bg-[#0b0b0d]/80 backdrop-blur-xl border border-white/5 rounded-3xl space-y-5 flex flex-col h-[650px] overflow-hidden shadow-xl">
-                                    <h3 className="text-xs font-black text-white/95 uppercase tracking-[0.2em] flex items-center gap-2 border-b border-white/5 pb-3">
-                                        <Sparkles size={14} className="text-yellow-500 animate-pulse" fill="currentColor" />
+                            {/* Right Column (Recommended Sidebar) */}
+                            <div className="lg:col-span-1 flex flex-col gap-5 text-left">
+                                <div className="p-5 bg-[#0b0b0d]/40 backdrop-blur-md border border-white/5 rounded-2xl space-y-4 flex flex-col h-[550px] overflow-hidden shadow-sm">
+                                    <h3 className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest flex items-center gap-1.5 border-b border-white/5 pb-2">
+                                        <Sparkles size={12} className="text-yellow-500" fill="currentColor" />
                                         <span>Recommended</span>
                                     </h3>
 
-                                    <div className="flex-1 overflow-y-auto custom-scrollbar space-y-3.5 pr-1 select-none">
+                                    <div className="flex-1 overflow-y-auto custom-scrollbar space-y-3 pr-1 select-none">
                                         {/* Similar / Recommended results */}
                                         {(() => {
                                             let recs: any[] = [];
@@ -2591,7 +2593,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
 
                                             if (recs.length === 0) {
                                                 return (
-                                                    <div className="text-center py-12 text-zinc-500 text-xs">
+                                                    <div className="text-center py-8 text-zinc-500 text-xs">
                                                         No recommendations.
                                                     </div>
                                                 );
@@ -2614,19 +2616,19 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                                 onSwitchMovie(sim);
                                                             }
                                                         }}
-                                                        className="flex items-center gap-3.5 p-2 rounded-2xl hover:bg-white/5 cursor-pointer group transition-all duration-300 hover:translate-x-1"
+                                                        className="flex items-center gap-3 p-1.5 rounded-xl hover:bg-white/5 cursor-pointer group transition-all duration-200"
                                                     >
-                                                        <div className="relative aspect-[2/3] w-12 rounded-xl overflow-hidden border border-white/5 shrink-0 bg-zinc-900 shadow-md">
+                                                        <div className="relative aspect-[2/3] w-10.5 rounded-lg overflow-hidden border border-white/5 shrink-0 bg-zinc-900 shadow-sm">
                                                             <img 
                                                                 src={posterSrc} 
                                                                 alt={simTitle}
-                                                                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                                                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                                                             />
                                                         </div>
                                                         <div className="flex flex-col min-w-0">
-                                                            <h4 className="font-extrabold text-[11px] text-zinc-300 group-hover:text-red-500 transition-colors line-clamp-2 leading-snug">{simTitle}</h4>
-                                                            <div className="flex items-center gap-2 mt-1.5">
-                                                                <span className="px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider bg-red-600/10 text-red-500 border border-red-500/10">
+                                                            <h4 className="font-semibold text-xs text-zinc-300 group-hover:text-red-500 transition-colors line-clamp-1 leading-snug">{simTitle}</h4>
+                                                            <div className="flex items-center gap-1.5 mt-1 text-[9px] text-zinc-500 font-medium">
+                                                                <span className="px-1 py-0.5 rounded text-[8px] font-bold bg-white/5 text-zinc-400 border border-white/5">
                                                                     {sim.media_type || resolvedMediaType}
                                                                 </span>
                                                                 {simYear && (
