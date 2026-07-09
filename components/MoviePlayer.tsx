@@ -2004,9 +2004,16 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
 
     if (providerId === 'anikai' && title) {
       url += `&title=${encodeURIComponent(title)}`;
-      // When we have the anime season map, send mappedEpisode to bypass TMDB absolute episode calculation
+      // When we have the anime season map, send the true absolute episode number to bypass TMDB absolute episode calculation
       if (isAnime && animeSeasonMap.length > 0) {
-        url += `&mappedEpisode=${currentEpisode}`;
+        let sum = 0;
+        for (let i = 0; i < currentSeason - 1; i++) {
+          if (animeSeasonMap[i]) {
+            sum += animeSeasonMap[i].episodes || 0;
+          }
+        }
+        const absEp = sum + currentEpisode;
+        url += `&mappedEpisode=${absEp}`;
       }
     }
     return url;

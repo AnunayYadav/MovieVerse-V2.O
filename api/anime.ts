@@ -294,6 +294,15 @@ function findBestMatch(
       }
     }
 
+    // For season > 1, penalize entries that do not match the target season or parent season descriptors
+    if (seasonNum > 1) {
+      const acceptableDescriptors = [...targetSeasonDescriptors, ...getSeasonDescriptors(seasonNum - 1)];
+      const hasAcceptableSeason = acceptableDescriptors.some(desc => itemLower.includes(desc));
+      if (!hasAcceptableSeason) {
+        score -= 20;
+      }
+    }
+
     if (score > bestScore) {
       bestScore = score;
       bestItem = item;
@@ -310,7 +319,8 @@ async function resolveAnikai(
   lang: any,
   seasonName: string,
   seasonEpisodeCount: number,
-  absoluteEpisode: number
+  absoluteEpisode: number,
+  prequelEpisodes: number = 0
 ) {
   const seasonNum = season ? parseInt(String(season), 10) : 1;
   const initialEpNum = episode ? parseInt(String(episode), 10) : 1;
@@ -361,7 +371,7 @@ async function resolveAnikai(
       
     let hasOtherSeason = false;
     for (let s = 1; s <= 10; s++) {
-      if (s !== seasonNum) {
+      if (s !== seasonNum && s !== (seasonNum - 1)) { // Allow parent season mapping in validation
         const otherDescriptors = getSeasonDescriptors(s);
         if (otherDescriptors.some(desc => itemLower.includes(desc))) {
           hasOtherSeason = true;
@@ -370,8 +380,17 @@ async function resolveAnikai(
       }
     }
     
-    if (hasOtherSeason || (!hasTargetSeason && !isExactMatch && bestMatch.totalEpisodes < 36)) {
+    // Also check parent season mapping
+    const prevSeasonNum = seasonNum - 1;
+    const prevDescriptors = getSeasonDescriptors(prevSeasonNum);
+    const hasParentSeason = prevDescriptors.some(desc => itemLower.includes(desc));
+
+    if (hasOtherSeason || (!hasTargetSeason && !hasParentSeason && !isExactMatch && bestMatch.totalEpisodes < 36)) {
       throw new Error(`Matched entry "${bestMatch.name}" does not correspond to Season ${seasonNum}.`);
+    }
+
+    if (absoluteEpisode > bestMatch.totalEpisodes && bestMatch.totalEpisodes > 0) {
+      throw new Error(`Matched entry "${bestMatch.name}" has only ${bestMatch.totalEpisodes} episodes, but absolute episode ${absoluteEpisode} was requested.`);
     }
   }
 
@@ -405,7 +424,14 @@ async function resolveAnikai(
     // Check if it has a small/matching number of total episodes
     const isSmallEpisodeCount = seasonEpisodeCount > 0 && bestMatch.totalEpisodes > 0 && bestMatch.totalEpisodes <= seasonEpisodeCount + 5;
     
-    if (isSeasonalMatch || isSmallEpisodeCount) {
+    // Support playing split-cour parent entries (e.g. Season 3 entry matched when Season 4 is requested)
+    const prevSeasonNum = seasonNum - 1;
+    const prevDescriptors = getSeasonDescriptors(prevSeasonNum);
+    const matchedPrevSeason = prevDescriptors.some(desc => itemLower.includes(desc));
+
+    if (matchedPrevSeason && prequelEpisodes > 0 && !isSeasonalMatch) {
+      epNum = initialEpNum + prequelEpisodes;
+    } else if (isSeasonalMatch || isSmallEpisodeCount) {
       // Seasonal entry, use the requested episode number as is
       epNum = initialEpNum;
     } else {
@@ -538,6 +564,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     } catch {}
   }
 
+  let prequelEpisodes = 0;
   // If title was not resolved by TMDB, or if tmdbId is actually an AniList ID, resolve via AniList
   if (!cleanTitle && (anilistId || tmdbId)) {
     const targetId = anilistId ? String(anilistId) : String(tmdbId);
@@ -553,6 +580,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             episodes
             format
             status
+            relations {
+              edges {
+                relationType
+                node {
+                  id
+                  episodes
+                }
+              }
+            }
           }
         }
       `;
@@ -568,6 +604,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           cleanTitle = media.title.english || media.title.userPreferred || media.title.romaji;
           if (!mappedEpisode) {
             absoluteEpisode = episode ? parseInt(String(episode), 10) : 1;
+          }
+          const prequelEdge = media.relations?.edges?.find((e: any) => e.relationType === 'PREQUEL');
+          if (prequelEdge?.node?.episodes) {
+            prequelEpisodes = parseInt(String(prequelEdge.node.episodes), 10) || 0;
           }
         }
       }
@@ -589,7 +629,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         lang,
         seasonName,
         seasonEpisodeCount,
-        absoluteEpisode
+        absoluteEpisode,
+        prequelEpisodes
       );
       res.writeHead(302, { Location: embedUrl });
       return res.end();
