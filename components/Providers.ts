@@ -145,9 +145,12 @@ export const PROVIDERS: Provider[] = [
   },
 ];
 
-export const getFilteredProviders = (isAnime: boolean, isWatchParty: boolean = false) => {
+export const getFilteredProviders = (isAnime: boolean, isWatchParty: boolean = false, isAnimeDirect: boolean = false) => {
   let list = PROVIDERS.filter(p => {
     if (isWatchParty && !p.supportsPostMessage) return false;
+    if (isAnimeDirect) {
+      return p.id === 'megaplay' || p.id === 'anikai' || p.id === 'vidnest_animepahe';
+    }
     if (!isAnime) {
       return p.id !== 'vidnest_animepahe' && p.id !== 'anikai' && p.id !== 'megaplay';
     }

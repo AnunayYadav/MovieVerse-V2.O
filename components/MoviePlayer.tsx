@@ -1281,7 +1281,15 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
         const parsed: AnimeSeasonEntry[] = JSON.parse(cached);
         if (Array.isArray(parsed) && parsed.length > 0) {
           setAnimeSeasonMap(parsed);
-          const idx = Math.min(currentSeason - 1, parsed.length - 1);
+          
+          let idx = Math.min(currentSeason - 1, parsed.length - 1);
+          if (isAnimeDirect) {
+            const foundIdx = parsed.findIndex(e => e.anilistId === tmdbId);
+            if (foundIdx !== -1) {
+              idx = foundIdx;
+              setCurrentSeason(foundIdx + 1);
+            }
+          }
           setAnilistId(parsed[idx].anilistId);
           return;
         }
@@ -1371,10 +1379,12 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
 
     setAnilistLoading(true);
     const cleanTitle = title.replace(/\s*\(?(Dub|Sub|TV|Movie|uncensored|censored|season\s*\d+|part\s*\d+)\)?\s*$/i, '').trim();
+    let rootMedia: any = null;
 
     const buildSeasonMap = async (): Promise<AnimeSeasonEntry[]> => {
       const root = isAnimeDirect ? await fetchMediaFull(tmdbId, null) : await fetchMediaFull(null, cleanTitle);
       if (!root) return [];
+      rootMedia = root;
 
       // Walk the full PREQUEL chain to find the very first entry
       let firstEntry = root;
@@ -1448,6 +1458,17 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
       } else {
         // Fallback: single entry from search
         console.warn(`Could not build season map for ${cleanTitle}`);
+        if (isAnimeDirect && rootMedia) {
+          const singleEntry = [{
+            anilistId: tmdbId,
+            malId: rootMedia.idMal || null,
+            episodes: rootMedia.episodes || 0,
+            title: title || 'Anime',
+            format: rootMedia.format || 'TV',
+          }];
+          setAnimeSeasonMap(singleEntry);
+          setAnilistId(tmdbId);
+        }
       }
       setAnilistLoading(false);
     });
@@ -3289,7 +3310,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                               </button>
                               
                               <div className="flex flex-col gap-0.5 max-h-[240px] overflow-y-auto custom-scrollbar pr-1">
-                                {getFilteredProviders(isAnime, isWatchParty).map((prov) => {
+                                {getFilteredProviders(isAnime, isWatchParty, isAnimeDirect).map((prov) => {
                                   const isActive = selectedProviderId === prov.id;
                                   return (
                                     <button
@@ -4231,7 +4252,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
             {activeTab === 'sources' && (
               <div className="space-y-2">
                 <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block mb-2 px-1">Select Source Provider</span>
-                {getFilteredProviders(isAnime, isWatchParty).map((prov) => {
+                {getFilteredProviders(isAnime, isWatchParty, isAnimeDirect).map((prov) => {
                   const isActive = selectedProviderId === prov.id;
                   return (
                     <button

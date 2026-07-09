@@ -446,6 +446,8 @@ export const MoviePage: React.FC<MoviePageProps> = ({
 
     const isAnime = !!((movie as any).isAnimeDirect || (details as any)?.isAnimeDirect || ((details?.genres || movie?.genres)?.some((g: any) => g.id === 16) && (details?.original_language || movie?.original_language) === 'ja'));
 
+    const isAnimeDirect = !!((movie as any).isAnimeDirect || (details as any)?.isAnimeDirect);
+
     const isDrama = !!(
       !isAnime &&
       ((details?.original_language || movie?.original_language) === 'ko' || 
@@ -2370,7 +2372,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
 
                                                 {isProviderDropdownOpen && (
                                                     <div className="absolute left-0 top-full mt-2 w-52 bg-[#121212] border border-white/10 rounded-lg shadow-xl py-1 z-50 animate-in fade-in slide-in-from-top-1 duration-200">
-                                                        {getFilteredProviders(isAnime).map((prov) => (
+                                                        {getFilteredProviders(isAnime, false, isAnimeDirect).map((prov) => (
                                                             <TvFocusButton
                                                                 key={prov.id}
                                                                 onClick={() => {
@@ -2448,7 +2450,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
 
                                         {isMobileProviderDropdownOpen && (
                                             <div className="absolute left-0 top-full mt-2 w-48 bg-[#121212] border border-white/10 rounded-lg shadow-xl py-1 z-50 animate-in fade-in slide-in-from-top-1 duration-200">
-                                                {getFilteredProviders(isAnime).map((prov) => (
+                                                {getFilteredProviders(isAnime, false, isAnimeDirect).map((prov) => (
                                                     <TvFocusButton
                                                         key={prov.id}
                                                         onClick={() => {
