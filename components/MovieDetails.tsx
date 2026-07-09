@@ -542,6 +542,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
 
     useEffect(() => {
         if (!details) {
+            lastFetchedAnimeRef.current = null;
             setNextAiringEpisode(null);
             setAnimeCharacters([]);
             setAnimeRelations([]);
@@ -551,12 +552,18 @@ export const MoviePage: React.FC<MoviePageProps> = ({
 
         const isAnimeLocal = (details as any).isAnimeDirect || (details.genres?.some((g: any) => g.id === 16) && details.original_language === 'ja');
         if (!isAnimeLocal) {
+            lastFetchedAnimeRef.current = null;
             setNextAiringEpisode(null);
             setAnimeCharacters([]);
             setAnimeRelations([]);
             setAniListId(null);
             return;
         }
+
+        if (lastFetchedAnimeRef.current === details.id.toString()) {
+            return; // Prevent duplicate fetch / infinite loop
+        }
+        lastFetchedAnimeRef.current = details.id.toString();
 
         const title = details.name || details.original_name || details.title || details.original_title;
         if (!title) return;
@@ -855,7 +862,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
             setCharactersError(err.message || "Failed to load anime characters");
             setCharactersLoading(false);
         });
-    }, [details]);
+    }, [details?.id]);
 
     const handleVoiceActorClick = useCallback(async (e: React.MouseEvent, vaName: string) => {
         e.stopPropagation();
@@ -2525,9 +2532,9 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                             <div className="mb-10">
                                                 <h3 className="text-xl font-bold text-white mb-6">Top Cast</h3>
                                                 <div className="flex overflow-x-auto gap-6 pb-4 hide-scrollbar">
-                                                    {displayData.credits?.cast?.slice(0, 10).map((person) => (
-                                                        <TvFocusButton key={person.id} onClick={() => onPersonClick(person.id)} className="flex flex-col items-center text-center group cursor-pointer shrink-0 w-24 bg-transparent p-0 border border-transparent">
-                                                            <div className="w-20 h-20 md:w-24 md:h-24 rounded-full overflow-hidden mb-3 border-2 border-transparent transition-all shadow-lg"><img src={person.profile_path ? `${TMDB_IMAGE_BASE}${person.profile_path}` : `https://ui-avatars.com/api/?name=${person.name}&background=333&color=fff`} alt={person.name} className="w-full h-full object-cover"/></div>
+                                                     {displayData.credits?.cast?.slice(0, 10).map((person) => (
+                                                         <TvFocusButton key={person.id} onClick={() => onPersonClick(person.id)} className="flex flex-col items-center text-center group cursor-pointer shrink-0 w-24 bg-transparent p-0 border border-transparent">
+                                                             <div className="w-20 h-20 md:w-24 md:h-24 rounded-full overflow-hidden mb-3 border-2 border-transparent transition-all shadow-lg"><img src={person.profile_path ? (person.profile_path.startsWith('http') ? person.profile_path : `${TMDB_IMAGE_BASE}${person.profile_path}`) : `https://ui-avatars.com/api/?name=${person.name}&background=333&color=fff`} alt={person.name} className="w-full h-full object-cover"/></div>
                                                             <h4 className="text-xs md:text-sm font-bold text-white leading-tight mb-1 line-clamp-2">{person.name}</h4>
                                                             <p className="text-[10px] md:text-xs text-gray-500 line-clamp-1">{person.character}</p>
                                                         </TvFocusButton>
@@ -2538,8 +2545,8 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                             <div>
                                                 <h3 className="text-xl font-bold text-white mb-6">Crew</h3>
                                                 <div className="flex overflow-x-auto gap-6 pb-4 hide-scrollbar">
-                                                    {displayData.credits?.crew?.slice(0, 5).map((person) => (
-                                                        <TvFocusButton key={`${person.id}-${person.job}`} onClick={() => onPersonClick(person.id)} className="flex flex-col items-center text-center shrink-0 w-20 cursor-pointer group bg-transparent p-0 border border-transparent"><div className="w-16 h-16 md:w-20 md:h-20 rounded-full overflow-hidden mb-3 bg-white/5 transition-all duration-500 border border-transparent"><img src={person.profile_path ? `${TMDB_IMAGE_BASE}${person.profile_path}` : `https://ui-avatars.com/api/?name=${person.name}&background=333&color=fff`} alt={person.name} className="w-full h-full object-cover"/></div><h4 className="text-xs font-bold text-white leading-tight mb-1 line-clamp-2">{person.name}</h4><p className="text-[10px] text-gray-500 line-clamp-1">{person.job}</p></TvFocusButton>
+                                                     {displayData.credits?.crew?.slice(0, 5).map((person) => (
+                                                         <TvFocusButton key={`${person.id}-${person.job}`} onClick={() => onPersonClick(person.id)} className="flex flex-col items-center text-center shrink-0 w-20 cursor-pointer group bg-transparent p-0 border border-transparent"><div className="w-16 h-16 md:w-20 md:h-20 rounded-full overflow-hidden mb-3 bg-white/5 transition-all duration-500 border border-transparent"><img src={person.profile_path ? (person.profile_path.startsWith('http') ? person.profile_path : `${TMDB_IMAGE_BASE}${person.profile_path}`) : `https://ui-avatars.com/api/?name=${person.name}&background=333&color=fff`} alt={person.name} className="w-full h-full object-cover"/></div><h4 className="text-xs font-bold text-white leading-tight mb-1 line-clamp-2">{person.name}</h4><p className="text-[10px] text-gray-500 line-clamp-1">{person.job}</p></TvFocusButton>
                                                     ))}
                                                     <TvFocusButton onClick={() => setShowFullCrew(true)} className="flex flex-col items-center justify-center shrink-0 w-20 h-20 rounded-full bg-white/5 hover:bg-white/10 border border-transparent transition-all group"><ChevronRight size={20} className="text-gray-400 group-hover:text-white mb-1"/><span className="text-[10px] font-bold text-gray-400 group-hover:text-white">View All</span></TvFocusButton>
                                                 </div>

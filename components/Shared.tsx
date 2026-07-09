@@ -588,7 +588,7 @@ export const PersonCard = React.memo(React.forwardRef<HTMLDivElement, PersonCard
     };
 
     const imageUrl = person.profile_path 
-      ? `${TMDB_IMAGE_BASE}${person.profile_path}`
+      ? (person.profile_path.startsWith('http') ? person.profile_path : `${TMDB_IMAGE_BASE}${person.profile_path}`)
       : `https://placehold.co/500x750/111/444?text=${encodeURIComponent(person.name || "Person")}`;
 
     return (

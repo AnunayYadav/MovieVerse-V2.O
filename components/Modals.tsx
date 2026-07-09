@@ -33,7 +33,7 @@ export const FullCreditsModal: React.FC<FullCreditsModalProps> = ({ isOpen, onCl
                         <div key={`${person.id}-${idx}`} onClick={() => { onClose(); onPersonClick(person.id); }} className="flex flex-col items-center text-center p-4 bg-white/5 rounded-xl border border-white/5 hover:bg-white/10 transition-colors cursor-pointer group">
                             <div className="w-20 h-20 rounded-full overflow-hidden mb-3 border-2 border-transparent group-hover:border-white/30 transition-all">
                                 <img 
-                                    src={person.profile_path ? `${TMDB_IMAGE_BASE}${person.profile_path}` : `https://ui-avatars.com/api/?name=${person.name}&background=333&color=fff`} 
+                                    src={person.profile_path ? (person.profile_path.startsWith('http') ? person.profile_path : `${TMDB_IMAGE_BASE}${person.profile_path}`) : `https://ui-avatars.com/api/?name=${person.name}&background=333&color=fff`} 
                                     alt={person.name} 
                                     className="w-full h-full object-cover"
                                 />
@@ -733,7 +733,7 @@ export const PersonPage: React.FC<PersonPageProps> = ({ personId, onClose, apiKe
                      <div className="absolute bottom-6 left-6 md:left-12 flex flex-col md:flex-row items-center md:items-end gap-6 z-10 w-[calc(100%-3rem)] md:w-[calc(100%-6rem)]">
                          <div className="w-28 h-28 md:w-36 md:h-36 rounded-2xl overflow-hidden border-4 border-white/10 shadow-2xl bg-zinc-900 shrink-0 transform hover:scale-[1.02] transition-transform duration-500 shadow-black/80">
                              <img 
-                                 src={details.profile_path ? `${TMDB_IMAGE_BASE}${details.profile_path}` : `https://ui-avatars.com/api/?name=${details.name}&background=333&color=fff`} 
+                                 src={details.profile_path ? (details.profile_path.startsWith('http') ? details.profile_path : `${TMDB_IMAGE_BASE}${details.profile_path}`) : `https://ui-avatars.com/api/?name=${details.name}&background=333&color=fff`} 
                                  alt={details.name} 
                                  className="w-full h-full object-cover"
                              />
