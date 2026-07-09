@@ -64,30 +64,53 @@ async function resolveKitsuAnimeId(malId: number): Promise<string | null> {
 }
 
 async function fetchKitsuEpisodes(kitsuAnimeId: string): Promise<any[]> {
-  const allEpisodes: any[] = [];
-  let offset = 0;
   const limit = 20;
-  let hasMore = true;
+  try {
+    const firstPageUrl = `https://kitsu.io/api/edge/episodes?filter[mediaType]=Anime&filter[mediaId]=${kitsuAnimeId}&page[limit]=${limit}&page[offset]=0&fields[episodes]=canonicalTitle,synopsis,thumbnail,number,seasonNumber,airdate,length`;
+    const firstPageRes = await fetch(firstPageUrl, {
+      headers: { 'Accept': 'application/vnd.api+json' }
+    });
+    if (!firstPageRes.ok) return [];
 
-  while (hasMore) {
-    try {
-      const url = `https://kitsu.io/api/edge/episodes?filter[mediaType]=Anime&filter[mediaId]=${kitsuAnimeId}&page[limit]=${limit}&page[offset]=${offset}&fields[episodes]=canonicalTitle,synopsis,thumbnail,number,seasonNumber,airdate,length`;
-      const res = await fetch(url, {
-        headers: { 'Accept': 'application/vnd.api+json' }
-      });
-      if (!res.ok) break;
-      const json = await res.json();
-      const data = json?.data;
-      if (!Array.isArray(data) || data.length === 0) break;
-      allEpisodes.push(...data);
-      hasMore = data.length === limit;
-      offset += limit;
-    } catch {
-      break;
+    const firstPageJson = await firstPageRes.json();
+    const firstPageData = firstPageJson?.data || [];
+    const totalCount = firstPageJson?.meta?.count || firstPageData.length;
+
+    if (totalCount <= limit) {
+      return firstPageData;
     }
-  }
 
-  return allEpisodes;
+    const allEpisodes = [...firstPageData];
+    const offsets: number[] = [];
+    for (let offset = limit; offset < totalCount; offset += limit) {
+      if (offset >= 500) break; // Cap at 500 episodes to prevent excessive network requests
+      offsets.push(offset);
+    }
+
+    const promises = offsets.map(async (offsetVal) => {
+      try {
+        const url = `https://kitsu.io/api/edge/episodes?filter[mediaType]=Anime&filter[mediaId]=${kitsuAnimeId}&page[limit]=${limit}&page[offset]=${offsetVal}&fields[episodes]=canonicalTitle,synopsis,thumbnail,number,seasonNumber,airdate,length`;
+        const res = await fetch(url, {
+          headers: { 'Accept': 'application/vnd.api+json' }
+        });
+        if (!res.ok) return [];
+        const json = await res.json();
+        return json?.data || [];
+      } catch {
+        return [];
+      }
+    });
+
+    const remainingPagesResults = await Promise.all(promises);
+    for (const pageData of remainingPagesResults) {
+      allEpisodes.push(...pageData);
+    }
+
+    return allEpisodes;
+  } catch (err) {
+    console.error("Error fetching Kitsu episodes:", err);
+    return [];
+  }
 }
 
 // ── Merge Jikan + Kitsu Episodes ──────────────────────────────────────────────

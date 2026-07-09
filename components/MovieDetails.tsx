@@ -1787,79 +1787,75 @@ export const MoviePage: React.FC<MoviePageProps> = ({
         setEpisodesLoading(true);
 
         if ((movie as any).isAnimeDirect && details) {
-            const fetchMalFallback = () => {
-                if ((details as any).idMal) {
-                    fetch(`/api/anime?action=mal-episodes&malId=${(details as any).idMal}`)
-                        .then(res => res.json())
-                        .then(data => {
-                            if (isMounted) {
-                                const fetchedEpisodes = data.episodes || [];
+            const fetchConsumetFallback = () => {
+                fetch(`/api/anime?action=episodes&anilistId=${details.id}`)
+                    .then(res => res.json())
+                    .then(data => {
+                        if (isMounted) {
+                            const fetchedEpisodes = (data.episodes || []).map((ep: any) => ({
+                                episode_number: ep.number,
+                                name: ep.title || `Episode ${ep.number}`,
+                                overview: ep.description || '',
+                                still_path: ep.image || null,
+                                air_date: ep.airdate || '',
+                                id: ep.id
+                            }));
+                            if (fetchedEpisodes.length > 0) {
                                 setEpisodes(fetchedEpisodes);
-                                if (fetchedEpisodes.length > 0) {
-                                    setDetails((prev: any) => {
-                                        if (!prev || !prev.seasons) return prev;
-                                        return {
-                                            ...prev,
-                                            number_of_episodes: fetchedEpisodes.length,
-                                            seasons: prev.seasons.map((s: any) => ({
-                                                ...s,
-                                                episode_count: fetchedEpisodes.length
-                                            }))
-                                        };
-                                    });
-                                }
+                                setDetails((prev: any) => {
+                                    if (!prev || !prev.seasons) return prev;
+                                    return {
+                                        ...prev,
+                                        number_of_episodes: fetchedEpisodes.length,
+                                        seasons: prev.seasons.map((s: any) => ({
+                                            ...s,
+                                            episode_count: fetchedEpisodes.length
+                                        }))
+                                    };
+                                });
                             }
-                        })
-                        .catch(err => {
-                            console.error("Error fetching MAL anime episodes", err);
-                            if (isMounted) setEpisodes([]);
-                        })
-                        .finally(() => {
-                            if (isMounted) setEpisodesLoading(false);
-                        });
-                } else {
-                    if (isMounted) {
-                        setEpisodes([]);
-                        setEpisodesLoading(false);
-                    }
-                }
+                        }
+                    })
+                    .catch(err => {
+                        console.error("Error fetching Consumet fallback episodes", err);
+                    })
+                    .finally(() => {
+                        if (isMounted) setEpisodesLoading(false);
+                    });
             };
 
-            fetch(`/api/anime?action=episodes&anilistId=${details.id}`)
-                .then(res => res.json())
-                .then(data => {
-                    if (isMounted) {
-                        const fetchedEpisodes = (data.episodes || []).map((ep: any) => ({
-                            episode_number: ep.number,
-                            name: ep.title || `Episode ${ep.number}`,
-                            overview: ep.description || '',
-                            still_path: ep.image || null,
-                            air_date: ep.airdate || '',
-                            id: ep.id
-                        }));
-                        if (fetchedEpisodes.length > 0) {
-                            setEpisodes(fetchedEpisodes);
-                            setDetails((prev: any) => {
-                                if (!prev || !prev.seasons) return prev;
-                                return {
-                                    ...prev,
-                                    number_of_episodes: fetchedEpisodes.length,
-                                    seasons: prev.seasons.map((s: any) => ({
-                                        ...s,
-                                        episode_count: fetchedEpisodes.length
-                                    }))
-                                };
-                            });
-                            setEpisodesLoading(false);
-                        } else {
-                            fetchMalFallback();
+            if ((details as any).idMal) {
+                fetch(`/api/anime?action=mal-episodes&malId=${(details as any).idMal}`)
+                    .then(res => res.json())
+                    .then(data => {
+                        if (isMounted) {
+                            const fetchedEpisodes = data.episodes || [];
+                            if (fetchedEpisodes.length > 0) {
+                                setEpisodes(fetchedEpisodes);
+                                setDetails((prev: any) => {
+                                    if (!prev || !prev.seasons) return prev;
+                                    return {
+                                        ...prev,
+                                        number_of_episodes: fetchedEpisodes.length,
+                                        seasons: prev.seasons.map((s: any) => ({
+                                            ...s,
+                                            episode_count: fetchedEpisodes.length
+                                        }))
+                                    };
+                                });
+                                setEpisodesLoading(false);
+                            } else {
+                                fetchConsumetFallback();
+                            }
                         }
-                    }
-                })
-                .catch(err => {
-                    console.error("Error fetching Consumet episodes", err);
-                    fetchMalFallback();
-                });
+                    })
+                    .catch(err => {
+                        console.error("Error fetching MAL anime episodes", err);
+                        fetchConsumetFallback();
+                    });
+            } else {
+                fetchConsumetFallback();
+            }
         } else if (!((movie as any).isAnimeDirect) && apiKey) {
             fetch(`${TMDB_BASE_URL}/tv/${movie.id}/season/${selectedSeason}?api_key=${apiKey}`)
                 .then(res => {
