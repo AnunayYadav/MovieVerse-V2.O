@@ -244,6 +244,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const lastFetchedAnimeRef = useRef<string | null>(null);
   const [embedUrl, setEmbedUrl] = useState('');
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'sources' | 'episodes' | 'settings' | 'subtitles'>('sources');
@@ -1494,64 +1495,98 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     }
   }, [tmdbId, mediaType, apiKey, isAnime, animeSeasonMap]);
 
-  // ── Fetch episodes: Use Jikan+Kitsu for anime, TMDB for non-anime ──
+  // ── Fetch episodes: Use Consumet-first, then Jikan/MAL, then TMDB ──
   useEffect(() => {
     if (mediaType === 'tv' && tmdbId && currentSeason) {
+      const currentKey = `${tmdbId}-${currentSeason}`;
+      if (lastFetchedAnimeRef.current === currentKey) {
+        return;
+      }
+      lastFetchedAnimeRef.current = currentKey;
+
       if (isAnime && animeSeasonMap.length > 0) {
         const idx = Math.min(currentSeason - 1, animeSeasonMap.length - 1);
         const entry = animeSeasonMap[idx];
         
-        if (entry.malId) {
-          setEpisodesLoading(true);
-          setAnimeEpisodesLoading(true);
-          fetch(`/api/anime?action=mal-episodes&malId=${entry.malId}`)
-            .then(res => res.json())
-            .then(data => {
-              if (data?.episodes && data.episodes.length > 0) {
-                setEpisodes(data.episodes);
-              } else {
-                // Fallback: generate placeholder episodes from episode count
-                const placeholders = Array.from({ length: entry.episodes || 12 }, (_, i) => ({
-                  episode_number: i + 1,
-                  name: `Episode ${i + 1}`,
-                  overview: '',
-                  still_path: null,
-                  air_date: '',
-                }));
-                setEpisodes(placeholders);
-              }
+        setEpisodesLoading(true);
+        setAnimeEpisodesLoading(true);
+
+        const fetchMalFallbackInPlayer = () => {
+          if (entry.malId) {
+            fetch(`/api/anime?action=mal-episodes&malId=${entry.malId}`)
+              .then(res => res.json())
+              .then(data => {
+                if (data?.episodes && data.episodes.length > 0) {
+                  setEpisodes(data.episodes);
+                } else {
+                  // Fallback: generate placeholder episodes from episode count
+                  const placeholders = Array.from({ length: entry.episodes || 12 }, (_, i) => ({
+                    episode_number: i + 1,
+                    name: `Episode ${i + 1}`,
+                    overview: '',
+                    still_path: null,
+                    air_date: '',
+                  }));
+                  setEpisodes(placeholders);
+                }
+                setEpisodesLoading(false);
+                setAnimeEpisodesLoading(false);
+              })
+              .catch(err => {
+                console.error('Error fetching anime episodes fallback:', err);
+                // Fallback to TMDB
+                fetch(`${TMDB_BASE_URL}/tv/${tmdbId}/season/${currentSeason}?api_key=${apiKey}`)
+                  .then(res => res.json())
+                  .then(data => {
+                    if (data?.episodes) setEpisodes(data.episodes);
+                    setEpisodesLoading(false);
+                    setAnimeEpisodesLoading(false);
+                  })
+                  .catch(() => {
+                    setEpisodesLoading(false);
+                    setAnimeEpisodesLoading(false);
+                  });
+              });
+          } else {
+            // No MAL ID: fallback to TMDB
+            fetch(`${TMDB_BASE_URL}/tv/${tmdbId}/season/${currentSeason}?api_key=${apiKey}`)
+              .then(res => res.json())
+              .then(data => {
+                if (data?.episodes) setEpisodes(data.episodes);
+                setEpisodesLoading(false);
+                setAnimeEpisodesLoading(false);
+              })
+              .catch(err => {
+                console.error('Error fetching episodes:', err);
+                setEpisodesLoading(false);
+                setAnimeEpisodesLoading(false);
+              });
+          }
+        };
+
+        fetch(`/api/anime?action=episodes&anilistId=${entry.anilistId}`)
+          .then(res => res.json())
+          .then(data => {
+            if (data?.episodes && data.episodes.length > 0) {
+              const mapped = data.episodes.map((ep: any) => ({
+                episode_number: ep.number,
+                name: ep.title || `Episode ${ep.number}`,
+                overview: ep.description || '',
+                still_path: ep.image || null,
+                air_date: ep.airdate || '',
+                id: ep.id
+              }));
+              setEpisodes(mapped);
               setEpisodesLoading(false);
               setAnimeEpisodesLoading(false);
-            })
-            .catch(err => {
-              console.error('Error fetching anime episodes:', err);
-              // Fallback to TMDB
-              fetch(`${TMDB_BASE_URL}/tv/${tmdbId}/season/${currentSeason}?api_key=${apiKey}`)
-                .then(res => res.json())
-                .then(data => {
-                  if (data?.episodes) setEpisodes(data.episodes);
-                  setEpisodesLoading(false);
-                  setAnimeEpisodesLoading(false);
-                })
-                .catch(() => {
-                  setEpisodesLoading(false);
-                  setAnimeEpisodesLoading(false);
-                });
-            });
-        } else {
-          // No MAL ID: fallback to TMDB
-          setEpisodesLoading(true);
-          fetch(`${TMDB_BASE_URL}/tv/${tmdbId}/season/${currentSeason}?api_key=${apiKey}`)
-            .then(res => res.json())
-            .then(data => {
-              if (data?.episodes) setEpisodes(data.episodes);
-              setEpisodesLoading(false);
-            })
-            .catch(err => {
-              console.error('Error fetching episodes:', err);
-              setEpisodesLoading(false);
-            });
-        }
+            } else {
+              fetchMalFallbackInPlayer();
+            }
+          })
+          .catch(err => {
+            console.error("Error fetching Consumet episodes in player:", err);
+            fetchMalFallbackInPlayer();
+          });
       } else {
         // Non-anime: use TMDB episodes
         setEpisodesLoading(true);

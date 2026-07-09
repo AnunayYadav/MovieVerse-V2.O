@@ -533,10 +533,12 @@ export const MoviePage: React.FC<MoviePageProps> = ({
     // Next Airing Episode and Characters for Anime
     const [nextAiringEpisode, setNextAiringEpisode] = useState<any | null>(null);
     const [animeCharacters, setAnimeCharacters] = useState<any[]>([]);
+    const [animeStaff, setAnimeStaff] = useState<any[]>([]);
     const [charactersLoading, setCharactersLoading] = useState(false);
     const [charactersError, setCharactersError] = useState<string | null>(null);
     const [animeRelations, setAnimeRelations] = useState<any[]>([]);
     const [matchingRelationId, setMatchingRelationId] = useState<number | null>(null);
+    const lastFetchedAnimeRef = useRef<string | null>(null);
 
     useEffect(() => {
         if (!details) {
@@ -576,6 +578,16 @@ export const MoviePage: React.FC<MoviePageProps> = ({
               query ($id: Int) {
                 Media(id: $id, type: ANIME) {
                   id
+                  idMal
+                  format
+                  source
+                  season
+                  seasonYear
+                  averageScore
+                  popularity
+                  duration
+                  status
+                  studios(isMain: true) { edges { node { name } } }
                   nextAiringEpisode {
                     airingAt
                     timeUntilAiring
@@ -604,6 +616,20 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                         image {
                           large
                           medium
+                        }
+                      }
+                    }
+                  }
+                  staff(perPage: 12) {
+                    edges {
+                      role
+                      node {
+                        id
+                        name {
+                          userPreferred
+                        }
+                        image {
+                          large
                         }
                       }
                     }
@@ -640,6 +666,16 @@ export const MoviePage: React.FC<MoviePageProps> = ({
               query ($search: String) {
                 Media(search: $search, type: ANIME) {
                   id
+                  idMal
+                  format
+                  source
+                  season
+                  seasonYear
+                  averageScore
+                  popularity
+                  duration
+                  status
+                  studios(isMain: true) { edges { node { name } } }
                   nextAiringEpisode {
                     airingAt
                     timeUntilAiring
@@ -668,6 +704,20 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                         image {
                           large
                           medium
+                        }
+                      }
+                    }
+                  }
+                  staff(perPage: 12) {
+                    edges {
+                      role
+                      node {
+                        id
+                        name {
+                          userPreferred
+                        }
+                        image {
+                          large
                         }
                       }
                     }
@@ -727,14 +777,70 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                     setAnimeCharacters([]);
                 }
 
+                if (media.staff?.edges) {
+                    setAnimeStaff(media.staff.edges);
+                } else {
+                    setAnimeStaff([]);
+                }
+
                 if (media.relations?.edges) {
                     setAnimeRelations(media.relations.edges);
                 } else {
                     setAnimeRelations([]);
                 }
+
+                // Enrich details
+                setDetails((prev: any) => {
+                    if (!prev) return prev;
+                    
+                    // Map voice actors to cast
+                    const cast = (media.characters?.edges || []).map((edge: any) => {
+                        const voiceActor = edge.voiceActors?.[0];
+                        const charNode = edge.node;
+                        return {
+                            id: voiceActor?.id || charNode.id,
+                            name: voiceActor?.name?.userPreferred || voiceActor?.name?.full || charNode.name.userPreferred || 'Unknown Actor',
+                            character: charNode.name.userPreferred || charNode.name.full || 'Character',
+                            profile_path: voiceActor?.image?.large || charNode.image.large || null,
+                            isAnimeCharacter: true,
+                            characterId: charNode.id
+                        };
+                    });
+
+                    // Map staff to crew
+                    const crew = (media.staff?.edges || []).map((edge: any) => {
+                        const staffNode = edge.node;
+                        return {
+                            id: staffNode.id,
+                            name: staffNode.name.userPreferred || staffNode.name.full || 'Unknown Staff',
+                            job: edge.role || 'Staff',
+                            profile_path: staffNode.image?.large || null
+                        };
+                    });
+
+                    return {
+                        ...prev,
+                        idMal: prev.idMal || media.idMal,
+                        status: prev.status || media.status,
+                        format: prev.format || media.format,
+                        source: prev.source || media.source,
+                        studio: prev.studio || media.studios?.edges?.[0]?.node?.name,
+                        season: prev.season || media.season,
+                        seasonYear: prev.seasonYear || media.seasonYear,
+                        averageScore: prev.averageScore || media.averageScore,
+                        popularity: prev.popularity || media.popularity,
+                        duration: prev.duration || media.duration,
+                        credits: {
+                            ...prev.credits,
+                            cast: prev.credits?.cast?.length ? prev.credits.cast : cast,
+                            crew: prev.credits?.crew?.length ? prev.credits.crew : crew
+                        }
+                    };
+                });
             } else {
                 setNextAiringEpisode(null);
                 setAnimeCharacters([]);
+                setAnimeStaff([]);
                 setAnimeRelations([]);
                 setAniListId(null);
             }
@@ -744,6 +850,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
             console.error("Error fetching AniList anime details:", err);
             setNextAiringEpisode(null);
             setAnimeCharacters([]);
+            setAnimeStaff([]);
             setAnimeRelations([]);
             setCharactersError(err.message || "Failed to load anime characters");
             setCharactersLoading(false);
@@ -779,11 +886,11 @@ export const MoviePage: React.FC<MoviePageProps> = ({
     const isAnime = !!((movie as any).isAnimeDirect || (details as any)?.isAnimeDirect || ((details?.genres || movie?.genres)?.some((g: any) => g.id === 16) && (details?.original_language || movie?.original_language) === 'ja'));
 
     const isDrama = !!(
+      !isAnime &&
       ((details?.original_language || movie?.original_language) === 'ko' || 
        (details?.original_language || movie?.original_language) === 'zh' || 
        (details?.original_language || movie?.original_language) === 'ja' || 
-       (details?.original_language || movie?.original_language) === 'th') &&
-      !(details?.genres || movie?.genres)?.some((g: any) => g.id === 16)
+       (details?.original_language || movie?.original_language) === 'th')
     );
 
     // Fetch MyDramaList details for Asian Dramas
@@ -1435,6 +1542,50 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                   startDate { year month day }
                   trailer { id site }
                   nextAiringEpisode { episode }
+                  format
+                  source
+                  studios(isMain: true) { edges { node { name } } }
+                  characters(sort: [ROLE, RELEVANCE, ID], perPage: 18) {
+                    edges {
+                      role
+                      node {
+                        id
+                        name {
+                          userPreferred
+                          full
+                        }
+                        image {
+                          large
+                          medium
+                        }
+                      }
+                      voiceActors(language: JAPANESE) {
+                        id
+                        name {
+                          userPreferred
+                          full
+                        }
+                        image {
+                          large
+                          medium
+                        }
+                      }
+                    }
+                  }
+                  staff(perPage: 12) {
+                    edges {
+                      role
+                      node {
+                        id
+                        name {
+                          userPreferred
+                        }
+                        image {
+                          large
+                        }
+                      }
+                    }
+                  }
                 }
               }
             `;
@@ -1447,6 +1598,31 @@ export const MoviePage: React.FC<MoviePageProps> = ({
             .then(json => {
                 const media = json?.data?.Media;
                 if (media) {
+                    // Map voice actors to cast
+                    const cast = (media.characters?.edges || []).map((edge: any) => {
+                        const voiceActor = edge.voiceActors?.[0];
+                        const charNode = edge.node;
+                        return {
+                            id: voiceActor?.id || charNode.id,
+                            name: voiceActor?.name?.userPreferred || voiceActor?.name?.full || charNode.name.userPreferred || 'Unknown Actor',
+                            character: charNode.name.userPreferred || charNode.name.full || 'Character',
+                            profile_path: voiceActor?.image?.large || charNode.image.large || null,
+                            isAnimeCharacter: true,
+                            characterId: charNode.id
+                        };
+                    });
+
+                    // Map staff to crew
+                    const crew = (media.staff?.edges || []).map((edge: any) => {
+                        const staffNode = edge.node;
+                        return {
+                            id: staffNode.id,
+                            name: staffNode.name.userPreferred || staffNode.name.full || 'Unknown Staff',
+                            job: edge.role || 'Staff',
+                            profile_path: staffNode.image?.large || null
+                        };
+                    });
+
                     const mappedDetails: any = {
                         id: media.id,
                         idMal: media.idMal,
@@ -1473,7 +1649,19 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                             air_date: media.startDate?.year ? `${media.startDate.year}-01-01` : ''
                         }],
                         isAnimeDirect: true,
-                        original_language: 'ja'
+                        original_language: 'ja',
+                        status: media.status,
+                        format: media.format,
+                        source: media.source,
+                        studio: media.studios?.edges?.[0]?.node?.name,
+                        season: media.season,
+                        seasonYear: media.seasonYear,
+                        averageScore: media.averageScore,
+                        duration: media.duration,
+                        credits: {
+                            cast,
+                            crew
+                        }
                     };
                     setDetails(mappedDetails);
                     setAniListId(media.id);
@@ -1539,18 +1727,68 @@ export const MoviePage: React.FC<MoviePageProps> = ({
         const isTvShow = movie.media_type === 'tv' || !!(details && details.first_air_date);
         if (!isTvShow || !movie.id || activeTab !== 'seasons') return;
         
+        const currentKey = `${movie.id}-${selectedSeason}`;
+        if (lastFetchedAnimeRef.current === currentKey) {
+            return;
+        }
+        lastFetchedAnimeRef.current = currentKey;
+
         let isMounted = true;
         setEpisodesLoading(true);
 
-        if ((movie as any).isAnimeDirect && details && (details as any).idMal) {
-            fetch(`/api/anime?action=mal-episodes&malId=${(details as any).idMal}`)
+        if ((movie as any).isAnimeDirect && details) {
+            const fetchMalFallback = () => {
+                if ((details as any).idMal) {
+                    fetch(`/api/anime?action=mal-episodes&malId=${(details as any).idMal}`)
+                        .then(res => res.json())
+                        .then(data => {
+                            if (isMounted) {
+                                const fetchedEpisodes = data.episodes || [];
+                                setEpisodes(fetchedEpisodes);
+                                if (fetchedEpisodes.length > 0) {
+                                    setDetails((prev: any) => {
+                                        if (!prev || !prev.seasons) return prev;
+                                        return {
+                                            ...prev,
+                                            number_of_episodes: fetchedEpisodes.length,
+                                            seasons: prev.seasons.map((s: any) => ({
+                                                ...s,
+                                                episode_count: fetchedEpisodes.length
+                                            }))
+                                        };
+                                    });
+                                }
+                            }
+                        })
+                        .catch(err => {
+                            console.error("Error fetching MAL anime episodes", err);
+                            if (isMounted) setEpisodes([]);
+                        })
+                        .finally(() => {
+                            if (isMounted) setEpisodesLoading(false);
+                        });
+                } else {
+                    if (isMounted) {
+                        setEpisodes([]);
+                        setEpisodesLoading(false);
+                    }
+                }
+            };
+
+            fetch(`/api/anime?action=episodes&anilistId=${details.id}`)
                 .then(res => res.json())
                 .then(data => {
                     if (isMounted) {
-                        const fetchedEpisodes = data.episodes || [];
-                        setEpisodes(fetchedEpisodes);
-                        // Update the season's episode_count with the actual fetched count
-                        if (fetchedEpisodes.length > 0 && details) {
+                        const fetchedEpisodes = (data.episodes || []).map((ep: any) => ({
+                            episode_number: ep.number,
+                            name: ep.title || `Episode ${ep.number}`,
+                            overview: ep.description || '',
+                            still_path: ep.image || null,
+                            air_date: ep.airdate || '',
+                            id: ep.id
+                        }));
+                        if (fetchedEpisodes.length > 0) {
+                            setEpisodes(fetchedEpisodes);
                             setDetails((prev: any) => {
                                 if (!prev || !prev.seasons) return prev;
                                 return {
@@ -1562,15 +1800,15 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                     }))
                                 };
                             });
+                            setEpisodesLoading(false);
+                        } else {
+                            fetchMalFallback();
                         }
                     }
                 })
                 .catch(err => {
-                    console.error("Error fetching MAL anime episodes", err);
-                    if (isMounted) setEpisodes([]);
-                })
-                .finally(() => {
-                    if (isMounted) setEpisodesLoading(false);
+                    console.error("Error fetching Consumet episodes", err);
+                    fetchMalFallback();
                 });
         } else if (!((movie as any).isAnimeDirect) && apiKey) {
             fetch(`${TMDB_BASE_URL}/tv/${movie.id}/season/${selectedSeason}?api_key=${apiKey}`)
@@ -3245,24 +3483,51 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                         </h3>
 
                                         <div className="grid grid-cols-2 gap-4 pb-4">
-                                            {director && (
-                                                <div className="space-y-1">
-                                                    <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1.5"><PenTool size={10}/> Director</p>
-                                                    <p className="text-white font-bold text-sm truncate">{director.name}</p>
-                                                </div>
+                                            {isAnime ? (
+                                                <>
+                                                    {displayData.studio && (
+                                                        <div className="space-y-1">
+                                                            <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1.5"><Tv size={10}/> Studio</p>
+                                                            <p className="text-white font-bold text-sm truncate">{displayData.studio}</p>
+                                                        </div>
+                                                    )}
+                                                    <div className="space-y-1">
+                                                        <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1.5"><Check size={10}/> Status</p>
+                                                        <p className={`text-sm font-bold ${displayData.status === 'FINISHED' || displayData.status === 'Released' ? 'text-green-400' : 'text-white'}`}>
+                                                            {displayData.status === 'FINISHED' ? 'Finished' : displayData.status === 'RELEASING' ? 'Releasing' : displayData.status === 'NOT_YET_RELEASED' ? 'Upcoming' : (displayData.status || 'N/A')}
+                                                        </p>
+                                                    </div>
+                                                    <div className="space-y-1 pt-2 border-t border-white/5">
+                                                        <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1.5"><Layers size={10}/> Format</p>
+                                                        <p className="text-white font-bold text-sm">{displayData.format || 'N/A'}</p>
+                                                    </div>
+                                                    <div className="space-y-1 pt-2 border-t border-white/5">
+                                                        <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1.5"><BookOpen size={10}/> Source</p>
+                                                        <p className="text-white font-bold text-sm">{displayData.source ? displayData.source.replace('_', ' ') : 'N/A'}</p>
+                                                    </div>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    {director && (
+                                                        <div className="space-y-1">
+                                                            <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1.5"><PenTool size={10}/> Director</p>
+                                                            <p className="text-white font-bold text-sm truncate">{director.name}</p>
+                                                        </div>
+                                                    )}
+                                                    <div className="space-y-1">
+                                                        <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1.5"><Check size={10}/> Status</p>
+                                                        <p className={`text-sm font-bold ${displayData.status === 'Released' ? 'text-green-400' : 'text-white'}`}>{displayData.status}</p>
+                                                    </div>
+                                                    <div className="space-y-1 pt-2 border-t border-white/5">
+                                                        <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1.5"><DollarSign size={10}/> Budget</p>
+                                                        <p className="text-white font-bold text-sm">{formatCurrency(displayData.budget, appRegion)}</p>
+                                                    </div>
+                                                    <div className="space-y-1 pt-2 border-t border-white/5">
+                                                        <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1.5"><Trophy size={10}/> Revenue</p>
+                                                        <p className="text-green-400 font-bold text-sm">{formatCurrency(displayData.revenue, appRegion)}</p>
+                                                    </div>
+                                                </>
                                             )}
-                                            <div className="space-y-1">
-                                                <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1.5"><Check size={10}/> Status</p>
-                                                <p className={`text-sm font-bold ${displayData.status === 'Released' ? 'text-green-400' : 'text-white'}`}>{displayData.status}</p>
-                                            </div>
-                                            <div className="space-y-1 pt-2 border-t border-white/5">
-                                                <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1.5"><DollarSign size={10}/> Budget</p>
-                                                <p className="text-white font-bold text-sm">{formatCurrency(displayData.budget, appRegion)}</p>
-                                            </div>
-                                            <div className="space-y-1 pt-2 border-t border-white/5">
-                                                <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1.5"><Trophy size={10}/> Revenue</p>
-                                                <p className="text-green-400 font-bold text-sm">{formatCurrency(displayData.revenue, appRegion)}</p>
-                                            </div>
                                         </div>
 
                                         <div className="pt-4 border-t border-white/5 space-y-3">
@@ -3288,6 +3553,12 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                             <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1.5"><Languages size={12}/> Original Language</span>
                                                             <span className="text-[10px] bg-red-600/10 border border-red-500/20 px-2 py-0.5 rounded text-red-400 font-bold uppercase tracking-widest">{originalLangFull}</span>
                                                         </div>
+                                                        {isAnime && displayData.season && (
+                                                            <div className="flex items-center justify-between">
+                                                                <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1.5"><Calendar size={12}/> Season</span>
+                                                                <span className="text-[10px] bg-blue-600/10 border border-blue-500/20 px-2 py-0.5 rounded text-blue-400 font-bold uppercase tracking-widest">{displayData.season} {displayData.seasonYear}</span>
+                                                            </div>
+                                                        )}
                                                         {productionCountries.length > 0 && (
                                                             <div className="flex items-center justify-between">
                                                                 <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1.5"><Globe size={12}/> Origin Country</span>

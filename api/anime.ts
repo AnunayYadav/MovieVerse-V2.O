@@ -13,27 +13,30 @@ const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36
 // ── Jikan (MAL) Episode Fetching ──────────────────────────────────────────────
 
 async function fetchJikanEpisodes(malId: number): Promise<any[]> {
-  const allEpisodes: any[] = [];
-  let page = 1;
-  let hasNext = true;
+  try {
+    const res = await fetch(`https://api.jikan.moe/v4/anime/${malId}/episodes?page=1`);
+    if (!res.ok) return [];
+    const json = await res.json();
+    const page1Data = json?.data || [];
+    const hasNext = json?.pagination?.has_next_page === true;
 
-  while (hasNext) {
-    try {
-      const res = await fetch(`https://api.jikan.moe/v4/anime/${malId}/episodes?page=${page}`);
-      if (!res.ok) break;
-      const json = await res.json();
-      const data = json?.data;
-      if (!Array.isArray(data) || data.length === 0) break;
-      allEpisodes.push(...data);
-      hasNext = json?.pagination?.has_next_page === true;
-      page++;
-      if (hasNext) await new Promise(r => setTimeout(r, 400));
-    } catch {
-      break;
+    if (hasNext) {
+      try {
+        const res2 = await fetch(`https://api.jikan.moe/v4/anime/${malId}/episodes?page=2`);
+        if (res2.ok) {
+          const json2 = await res2.json();
+          const page2Data = json2?.data || [];
+          return [...page1Data, ...page2Data];
+        }
+      } catch (err) {
+        console.error("Failed to fetch Jikan page 2:", err);
+      }
     }
+    return page1Data;
+  } catch (err) {
+    console.error("Error fetching Jikan episodes:", err);
+    return [];
   }
-
-  return allEpisodes;
 }
 
 // ── Kitsu Episode Fetching ────────────────────────────────────────────────────
@@ -464,6 +467,44 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
       }
     } catch {}
+  }
+
+  // If title was not resolved by TMDB, or if tmdbId is actually an AniList ID, resolve via AniList
+  if (!cleanTitle && (anilistId || tmdbId)) {
+    const targetId = anilistId ? String(anilistId) : String(tmdbId);
+    try {
+      const query = `
+        query ($id: Int) {
+          Media(id: $id, type: ANIME) {
+            title {
+              english
+              romaji
+              userPreferred
+            }
+            episodes
+            format
+            status
+          }
+        }
+      `;
+      const resAni = await fetch('https://graphql.anilist.co', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify({ query, variables: { id: parseInt(targetId, 10) } })
+      });
+      if (resAni.ok) {
+        const aniData = await resAni.json();
+        const media = aniData?.data?.Media;
+        if (media) {
+          cleanTitle = media.title.english || media.title.userPreferred || media.title.romaji;
+          if (!mappedEpisode) {
+            absoluteEpisode = episode ? parseInt(String(episode), 10) : 1;
+          }
+        }
+      }
+    } catch (err) {
+      console.error("Failed AniList lookup in api/anime.ts:", err);
+    }
   }
 
   // 1. Route to Anikai Scraper
