@@ -177,6 +177,23 @@ function getSeasonDescriptors(seasonNum: number) {
     `part ${seasonNum}`,
     `part ${rom[seasonNum]}` || "",
   ].filter(Boolean);
+
+  // Support split-cour season naming conventions (e.g., Season N on AniList is Season N-1 Part 2 on other sites)
+  if (seasonNum > 1) {
+    const prevSeason = seasonNum - 1;
+    descriptors.push(
+      `season ${prevSeason} part 2`,
+      `${ord[prevSeason]} season part 2`,
+      `season ${prevSeason} cour 2`,
+      `${ord[prevSeason]} season cour 2`,
+      `season ${prevSeason} part ii`,
+      `${ord[prevSeason]} season part ii`,
+      `s${prevSeason} part 2`,
+      `s${prevSeason} cour 2`,
+      `s${prevSeason} part ii`,
+      `s${prevSeason} cour ii`
+    );
+  }
   
   return descriptors;
 }
@@ -198,15 +215,15 @@ function findBestMatch(
 
   const targetSeasonDescriptors = getSeasonDescriptors(seasonNum);
   
-  // Get descriptors for other seasons (1 to 10, excluding target)
+  // Get descriptors for other seasons (1 to 10, excluding target and split-cour parent)
   const otherSeasonDescriptors: string[] = [];
   for (let s = 1; s <= 10; s++) {
-    if (s !== seasonNum) {
+    if (s !== seasonNum && s !== (seasonNum - 1)) {
       otherSeasonDescriptors.push(...getSeasonDescriptors(s));
     }
   }
 
-  let bestItem = searchItems[0];
+  let bestItem: any = searchItems[0];
   let bestScore = -9999;
 
   for (const item of searchItems) {
@@ -266,9 +283,9 @@ function findBestMatch(
         }
       }
     } else {
-      // For season > 1, penalize standalone number suffixes of other seasons > 1
+      // For season > 1, penalize standalone number suffixes of other seasons > 1 (excluding prevSeason)
       for (let s = 2; s <= 10; s++) {
-        if (s !== seasonNum) {
+        if (s !== seasonNum && s !== (seasonNum - 1)) {
           const numPattern = new RegExp(`\\b${s}\\b`);
           if (numPattern.test(itemLower)) {
             score -= 10;
@@ -329,6 +346,33 @@ async function resolveAnikai(
   const bestMatch = findBestMatch(searchItems, cleanTitle, seasonNum, seasonName);
   if (!bestMatch) {
     throw new Error(`No match found on Anikai.`);
+  }
+
+  // Verify matched entry corresponds to the requested season
+  if (seasonNum > 1) {
+    const itemLower = bestMatch.name.toLowerCase();
+    const cleanTitleLower = cleanTitle.toLowerCase();
+    
+    const targetSeasonDescriptors = getSeasonDescriptors(seasonNum);
+    const hasTargetSeason = targetSeasonDescriptors.some(desc => itemLower.includes(desc));
+    
+    const isExactMatch = cleanTitleLower === itemLower || 
+      cleanTitleLower.replace(/[^a-z0-9]+/g, '') === itemLower.replace(/[^a-z0-9]+/g, '');
+      
+    let hasOtherSeason = false;
+    for (let s = 1; s <= 10; s++) {
+      if (s !== seasonNum) {
+        const otherDescriptors = getSeasonDescriptors(s);
+        if (otherDescriptors.some(desc => itemLower.includes(desc))) {
+          hasOtherSeason = true;
+          break;
+        }
+      }
+    }
+    
+    if (hasOtherSeason || (!hasTargetSeason && !isExactMatch && bestMatch.totalEpisodes < 36)) {
+      throw new Error(`Matched entry "${bestMatch.name}" does not correspond to Season ${seasonNum}.`);
+    }
   }
 
   // Determine whether to play seasonal episode or absolute episode

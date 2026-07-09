@@ -2267,7 +2267,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                 }
 
                 // Handle Peachify & VidFast PLAYER_EVENTs / MEDIA_DATAs
-                if (event.origin === 'https://peachify.pro' || event.origin === 'https://vidfast.pro' || parsed.type === 'PLAYER_EVENT' || parsed.type === 'MEDIA_DATA') {
+                if (event.origin === 'https://peachify.pro' || event.origin === 'https://vidfast.vc' || parsed.type === 'PLAYER_EVENT' || parsed.type === 'MEDIA_DATA') {
                     const type = parsed.type;
                     const data = parsed.data;
                     if (type === 'MEDIA_DATA') {
