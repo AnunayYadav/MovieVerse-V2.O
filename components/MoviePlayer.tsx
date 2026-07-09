@@ -1288,6 +1288,9 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
             if (foundIdx !== -1) {
               idx = foundIdx;
               setCurrentSeason(foundIdx + 1);
+              if (onEpisodeChange) {
+                onEpisodeChange(foundIdx + 1, currentEpisode);
+              }
             }
           }
           setAnilistId(parsed[idx].anilistId);
@@ -1452,6 +1455,9 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
           if (foundIdx !== -1) {
             idx = foundIdx;
             setCurrentSeason(foundIdx + 1);
+            if (onEpisodeChange) {
+              onEpisodeChange(foundIdx + 1, currentEpisode);
+            }
           }
         }
         setAnilistId(entries[idx].anilistId);
