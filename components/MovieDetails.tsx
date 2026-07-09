@@ -478,6 +478,16 @@ export const MoviePage: React.FC<MoviePageProps> = ({
     // Custom Seasons Dropdown State
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const [isCastApiAvailable, setIsCastApiAvailable] = useState(false);
+    const [isDimmed, setIsDimmed] = useState(false);
+    const [autoPlayChecked, setAutoPlayChecked] = useState(true);
+    const [autoNextChecked, setAutoNextChecked] = useState(true);
+    const [autoSkipChecked, setAutoSkipChecked] = useState(false);
+
+    useEffect(() => {
+        if (showPlayer && playParams.season) {
+            setSelectedSeason(playParams.season);
+        }
+    }, [showPlayer, playParams.season]);
     const [castDeviceName, setCastDeviceName] = useState("");
     const [isCasting, setIsCasting] = useState(false);
     const [showCastModal, setShowCastModal] = useState(false);
@@ -1776,7 +1786,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
 
     useEffect(() => {
         const isTvShow = movie.media_type === 'tv' || !!(details && details.first_air_date);
-        if (!isTvShow || !movie.id || activeTab !== 'seasons') return;
+        if (!isTvShow || !movie.id || (activeTab !== 'seasons' && !showPlayer)) return;
         if ((movie as any).isAnimeDirect && !details) {
             setEpisodesLoading(true);
             return;
@@ -1884,7 +1894,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
         }
             
         return () => { isMounted = false; };
-    }, [movie.id, selectedSeason, apiKey, activeTab, details]);
+    }, [movie.id, selectedSeason, apiKey, activeTab, details, showPlayer]);
 
     useEffect(() => {
         if (!timelineContainerRef.current || !activeTimelineItemRef.current || hasCenteredTimeline.current === movie.id) return;
@@ -2316,8 +2326,330 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                     </TvFocusButton>
                 )}
                 
+                {/* Dim overlay */}
+                {showPlayer && isDimmed && (
+                    <div className="fixed inset-0 bg-black/95 z-[150] pointer-events-none transition-all duration-300 animate-in fade-in" />
+                )}
+
                 {loading && !details ? (
                     <MovieDetailsSkeleton />
+                ) : showPlayer ? (
+                    <div className="max-w-7xl mx-auto w-full px-4 py-6 md:p-10 relative z-20 flex flex-col gap-6">
+                        {/* Header / Navigation */}
+                        <div className="flex items-center justify-between pb-4 border-b border-white/10 select-none">
+                            <div className="flex items-center gap-3">
+                                <TvFocusButton 
+                                    onClick={() => onPlayStateChangeRef.current?.(false)} 
+                                    className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/5 rounded-full text-white/90 hover:text-white transition-all text-xs font-bold"
+                                >
+                                    <ArrowLeft size={16} /> Back to Details
+                                </TvFocusButton>
+                            </div>
+                            <div className="text-right">
+                                <h2 className="font-extrabold text-sm sm:text-base text-white">{displayData.title || displayData.name}</h2>
+                                {isTv && (
+                                    <p className="text-[11px] text-gray-500 font-medium">Season {playParams.season} • Episode {playParams.episode}</p>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Main Watch Grid */}
+                        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+                            {/* Left Area (Player + Servers + Options) */}
+                            <div className="lg:col-span-3 flex flex-col gap-6">
+                                {/* Player Container */}
+                                <div className={`relative aspect-video w-full bg-black rounded-2xl overflow-hidden shadow-2xl border border-white/5 ${isDimmed ? 'z-[160]' : 'z-20'}`}>
+                                    {(() => {
+                                        const hasResume = movie.last_watched_data && movie.last_watched_data.current_time && movie.last_watched_data.current_time > 0;
+                                        const isCurrentResumable = hasResume && (!isTv || (movie.last_watched_data.season === playParams.season && movie.last_watched_data.episode === playParams.episode));
+                                        const resumeTime = isCurrentResumable ? (movie.last_watched_data?.current_time || 0) : 0;
+                                        return (
+                                            <Suspense fallback={<div className="w-full h-full flex items-center justify-center bg-black"><Loader2 className="animate-spin text-red-600" size={40}/></div>}>
+                                                <MoviePlayer 
+                                                    tmdbId={displayData.id} 
+                                                    onClose={() => {
+                                                        if (isCasting) {
+                                                            handleStopCasting();
+                                                        }
+                                                        onPlayStateChangeRef.current?.(false);
+                                                    }} 
+                                                    mediaType={isTv ? 'tv' : 'movie'} 
+                                                    isAnime={isAnime || false} 
+                                                    isAnimeDirect={(movie as any).isAnimeDirect || (details as any)?.isAnimeDirect} 
+                                                    apiKey={apiKey} 
+                                                    onProgress={handlePlayerProgress} 
+                                                    initialSeason={playParams.season}
+                                                    initialEpisode={playParams.episode}
+                                                    color="EF4444"
+                                                    title={displayData.title || displayData.name}
+                                                    forceProgress={resumeTime}
+                                                    providerId={selectedProviderId}
+                                                    onProviderChange={handleProviderChange}
+                                                    onEpisodeChange={(season, episode) => {
+                                                        setPlayParams({ season, episode });
+                                                        onPlayStateChangeRef.current?.(true, season, episode);
+                                                    }}
+                                                />
+                                            </Suspense>
+                                        );
+                                    })()}
+                                </div>
+
+                                {/* Watch Page Options/Toggles Bar */}
+                                <div className="flex flex-wrap items-center justify-between gap-4 p-4 bg-[#0b0b0d]/70 backdrop-blur-xl border border-white/5 rounded-2xl text-xs select-none">
+                                    <div className="flex flex-wrap items-center gap-6">
+                                        <label className="flex items-center gap-2 cursor-pointer text-gray-400 hover:text-white transition-colors">
+                                            <input 
+                                                type="checkbox" 
+                                                checked={autoPlayChecked} 
+                                                onChange={() => setAutoPlayChecked(!autoPlayChecked)} 
+                                                className="accent-red-600 w-4 h-4 rounded cursor-pointer"
+                                            />
+                                            <span>Auto Play</span>
+                                        </label>
+                                        <label className="flex items-center gap-2 cursor-pointer text-gray-400 hover:text-white transition-colors">
+                                            <input 
+                                                type="checkbox" 
+                                                checked={autoNextChecked} 
+                                                onChange={() => setAutoNextChecked(!autoNextChecked)} 
+                                                className="accent-red-600 w-4 h-4 rounded cursor-pointer"
+                                            />
+                                            <span>Auto Next</span>
+                                        </label>
+                                        <label className="flex items-center gap-2 cursor-pointer text-gray-400 hover:text-white transition-colors">
+                                            <input 
+                                                type="checkbox" 
+                                                checked={autoSkipChecked} 
+                                                onChange={() => setAutoSkipChecked(!autoSkipChecked)} 
+                                                className="accent-red-600 w-4 h-4 rounded cursor-pointer"
+                                            />
+                                            <span>Auto Skip</span>
+                                        </label>
+                                        <button 
+                                            onClick={() => setIsDimmed(!isDimmed)} 
+                                            className={`flex items-center gap-2 px-3 py-1 rounded-full border transition-all ${
+                                                isDimmed 
+                                                    ? 'bg-yellow-500/10 border-yellow-500/20 text-yellow-500 font-bold' 
+                                                    : 'bg-transparent border-white/10 text-gray-400 hover:text-white hover:border-white/20'
+                                            }`}
+                                        >
+                                            <Lightbulb size={14} fill={isDimmed ? "currentColor" : "none"} />
+                                            <span>{isDimmed ? 'Light On' : 'Light Off'}</span>
+                                        </button>
+                                    </div>
+                                    <div>
+                                        <TvFocusButton 
+                                            onClick={() => onToggleWatchlist(displayData)} 
+                                            className={`flex items-center gap-2 px-3 py-1 bg-transparent hover:bg-white/5 border border-white/10 rounded-full text-zinc-300 hover:text-white transition-all`}
+                                        >
+                                            <Bookmark size={14} fill={isWatchlisted ? "currentColor" : "none"} className={isWatchlisted ? "text-green-400" : ""} />
+                                            <span>{isWatchlisted ? "Bookmarked" : "Add Bookmark"}</span>
+                                        </TvFocusButton>
+                                    </div>
+                                </div>
+
+                                {/* Disclaimer Message */}
+                                <div className="p-4 bg-zinc-900/40 border border-zinc-800/50 rounded-2xl text-[11px] text-zinc-500 leading-relaxed text-left">
+                                    <p className="font-medium">Please bookmark <span className="text-zinc-300 font-bold">movieverse.fit</span> to stay updated about our domains. Thank you!</p>
+                                    <p className="mt-1">You are watching <span className="text-zinc-300 font-bold">Episode {playParams.episode}</span>. (If the current server doesn't work, please try other servers beside.)</p>
+                                </div>
+
+                                {/* Server Selector Grid */}
+                                <div className="p-6 bg-[#0b0b0d]/70 backdrop-blur-xl border border-white/5 rounded-3xl space-y-4 text-left">
+                                    <h3 className="text-xs font-black text-white/90 uppercase tracking-wider flex items-center gap-2">
+                                        <Tv size={14} className="text-red-500" />
+                                        <span>Select Server / Provider</span>
+                                    </h3>
+                                    <div className="flex flex-wrap gap-2.5">
+                                        {getFilteredProviders(isAnime, false, isAnimeDirect).map((prov) => (
+                                            <TvFocusButton
+                                                key={prov.id}
+                                                onClick={() => handleProviderChange(prov.id)}
+                                                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all border flex items-center gap-2 ${
+                                                    selectedProviderId === prov.id 
+                                                        ? 'bg-red-600 text-white border-red-600 shadow-md shadow-red-600/20' 
+                                                        : 'bg-zinc-900/60 text-zinc-400 border-zinc-800 hover:border-zinc-700 hover:text-white'
+                                                }`}
+                                            >
+                                                <span>{prov.name}</span>
+                                                {selectedProviderId === prov.id && <Check size={12} className="text-white" />}
+                                            </TvFocusButton>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {/* Seasons & Episodes list (for TV shows/Anime) */}
+                                {isTv && (
+                                    <div className="p-6 bg-[#0b0b0d]/70 backdrop-blur-xl border border-white/5 rounded-3xl space-y-6 text-left">
+                                        <div className="flex items-center justify-between border-b border-white/5 pb-4">
+                                            <h3 className="text-xs font-black text-white/90 uppercase tracking-wider flex items-center gap-2">
+                                                <Clapperboard size={14} className="text-red-500" />
+                                                <span>Episodes Selector</span>
+                                            </h3>
+                                            {/* Custom Seasons Dropdown */}
+                                            {details?.seasons && details.seasons.length > 1 && (
+                                                <div className="relative" ref={dropdownRef}>
+                                                    <TvFocusButton 
+                                                        onClick={() => setIsDropdownOpen(!isDropdownOpen)} 
+                                                        className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 hover:border-white/20 text-xs text-white font-bold transition-all"
+                                                    >
+                                                        <span>Season {selectedSeason}</span>
+                                                        <ChevronDown size={14} className={`transition-transform duration-300 ${isDropdownOpen ? 'rotate-180' : ''}`} />
+                                                    </TvFocusButton>
+                                                    {isDropdownOpen && (
+                                                        <div className="absolute right-0 top-full mt-2 w-48 bg-[#121212] border border-white/10 rounded-xl shadow-2xl py-1 z-50 animate-in fade-in slide-in-from-top-2 duration-200 overflow-hidden">
+                                                            {details.seasons
+                                                                .filter(s => s.season_number > 0)
+                                                                .map((s) => (
+                                                                    <TvFocusButton
+                                                                        key={s.id}
+                                                                        onClick={() => {
+                                                                            setSelectedSeason(s.season_number);
+                                                                            setIsDropdownOpen(false);
+                                                                        }}
+                                                                        className={`w-full text-left px-4 py-2.5 text-xs font-bold transition-colors flex items-center justify-between ${
+                                                                            selectedSeason === s.season_number 
+                                                                                ? 'bg-red-600 text-white' 
+                                                                                : 'text-zinc-400 hover:bg-white/5 hover:text-white'
+                                                                        }`}
+                                                                    >
+                                                                        <span>Season {s.season_number}</span>
+                                                                        {selectedSeason === s.season_number && <Check size={12} />}
+                                                                    </TvFocusButton>
+                                                                ))
+                                                            }
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 max-h-[400px] overflow-y-auto custom-scrollbar pr-2">
+                                            {episodesLoading ? (
+                                                <div className="col-span-full py-12 flex items-center justify-center">
+                                                    <Loader2 className="animate-spin text-red-600" size={24} />
+                                                </div>
+                                            ) : episodes.length > 0 ? (
+                                                episodes.map((ep) => {
+                                                    const isCurrentEp = playParams.season === selectedSeason && playParams.episode === ep.episode_number;
+                                                    return (
+                                                        <TvFocusButton
+                                                            key={ep.id}
+                                                            onClick={() => {
+                                                                setPlayParams({ season: selectedSeason, episode: ep.episode_number });
+                                                                onPlayStateChangeRef.current?.(true, selectedSeason, ep.episode_number);
+                                                            }}
+                                                            className={`flex items-center gap-3 p-3 rounded-2xl border text-left transition-all ${
+                                                                isCurrentEp
+                                                                    ? 'bg-red-600/10 border-red-500 text-white font-bold shadow-[0_0_20px_rgba(239,68,68,0.15)]'
+                                                                    : 'bg-zinc-900/40 border-white/5 hover:border-white/10 text-zinc-400 hover:text-white'
+                                                            }`}
+                                                        >
+                                                            <div className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center shrink-0 font-black text-xs">
+                                                                {ep.episode_number}
+                                                            </div>
+                                                            <div className="min-w-0 flex-1">
+                                                                <h4 className="text-xs font-bold truncate">{ep.name || `Episode ${ep.episode_number}`}</h4>
+                                                                {ep.air_date && <p className="text-[10px] text-zinc-500 mt-0.5">{ep.air_date}</p>}
+                                                            </div>
+                                                        </TvFocusButton>
+                                                    );
+                                                })
+                                            ) : (
+                                                <div className="col-span-full text-center py-12 text-zinc-500 text-xs">
+                                                    No episodes found for this season.
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Right Area (Recommended Sidebar) */}
+                            <div className="lg:col-span-1 flex flex-col gap-6 text-left">
+                                <div className="p-6 bg-[#0b0b0d]/70 backdrop-blur-xl border border-white/5 rounded-3xl space-y-4 flex flex-col h-[600px] overflow-hidden">
+                                    <h3 className="text-xs font-black text-white/90 uppercase tracking-wider flex items-center gap-2 border-b border-white/5 pb-3">
+                                        <Sparkles size={14} className="text-yellow-500" fill="currentColor" />
+                                        <span>Recommended</span>
+                                    </h3>
+
+                                    <div className="flex-1 overflow-y-auto custom-scrollbar space-y-3.5 pr-1">
+                                        {/* Similar / Recommended results */}
+                                        {(() => {
+                                            let recs: any[] = [];
+                                            if (isAnime && socialRecommendations.length > 0) {
+                                                recs = socialRecommendations.map(node => ({
+                                                    id: node.mediaRecommendation?.id,
+                                                    title: node.mediaRecommendation?.title?.english || node.mediaRecommendation?.title?.userPreferred,
+                                                    poster_path: node.mediaRecommendation?.coverImage?.large,
+                                                    media_type: 'tv',
+                                                    release_date: node.mediaRecommendation?.startDate?.year ? `${node.mediaRecommendation.startDate.year}` : '',
+                                                    isAnimeDirect: true,
+                                                    isExternalImage: true
+                                                }));
+                                            } else if (isDrama && mdlRecs.length > 0) {
+                                                recs = mdlRecs.map(rec => ({
+                                                    id: rec.id,
+                                                    title: rec.title,
+                                                    poster_path: rec.poster,
+                                                    media_type: 'tv',
+                                                    release_date: rec.year,
+                                                    isExternalImage: true
+                                                }));
+                                            } else if (displayData.similar?.results && displayData.similar.results.length > 0) {
+                                                recs = displayData.similar.results.slice(0, 15);
+                                            }
+
+                                            if (recs.length === 0) {
+                                                return (
+                                                    <div className="text-center py-12 text-zinc-500 text-xs">
+                                                        No recommendations.
+                                                    </div>
+                                                );
+                                            }
+
+                                            return recs.map((sim, index) => {
+                                                const simTitle = sim.title || sim.name;
+                                                const simYear = sim.release_date?.split('-')[0] || sim.first_air_date?.split('-')[0] || sim.year || '';
+                                                const posterSrc = sim.isExternalImage 
+                                                    ? sim.poster_path 
+                                                    : (sim.poster_path ? `${TMDB_IMAGE_BASE}${sim.poster_path}` : "https://placehold.co/90x135");
+
+                                                return (
+                                                    <div 
+                                                        key={`${sim.id}-${index}`}
+                                                        onClick={() => {
+                                                            if (sim.isAnimeDirect || isAnime) {
+                                                                onSwitchMovie({ ...sim, media_type: 'tv', isAnimeDirect: true });
+                                                            } else {
+                                                                onSwitchMovie(sim);
+                                                            }
+                                                        }}
+                                                        className="flex items-center gap-3 p-2 rounded-xl hover:bg-white/5 cursor-pointer group transition-all"
+                                                    >
+                                                        <div className="relative aspect-[2/3] w-12 rounded-lg overflow-hidden border border-white/5 shrink-0 bg-zinc-900">
+                                                            <img 
+                                                                src={posterSrc} 
+                                                                alt={simTitle}
+                                                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                                            />
+                                                        </div>
+                                                        <div className="flex flex-col min-w-0">
+                                                            <h4 className="font-bold text-xs text-zinc-300 group-hover:text-red-500 transition-colors line-clamp-2 leading-tight">{simTitle}</h4>
+                                                            <div className="flex items-center gap-2 mt-1 text-[9px] text-zinc-500 font-bold uppercase tracking-wider">
+                                                                <span>{sim.media_type || resolvedMediaType}</span>
+                                                                {simYear && <span>• {simYear}</span>}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            });
+                                        })()}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 ) : (
                     <div className="flex flex-col pb-20">
                         {/* Responsive Hero Media Container (16:9 aspect-video on mobile, 70vh height on desktop) */}
@@ -3821,42 +4153,6 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                 )}
             </div>
             {viewingImage && <ImageLightbox src={viewingImage} onClose={() => setViewingImage(null)} />}
-            {showPlayer && (() => {
-                const hasResume = movie.last_watched_data && movie.last_watched_data.current_time && movie.last_watched_data.current_time > 0;
-                const isCurrentResumable = hasResume && (!isTv || (movie.last_watched_data.season === playParams.season && movie.last_watched_data.episode === playParams.episode));
-                const resumeTime = isCurrentResumable ? (movie.last_watched_data?.current_time || 0) : 0;
-                return (
-                    <div className="fixed inset-0 z-[200] bg-black animate-in fade-in duration-500">
-                        <Suspense fallback={<div className="w-full h-full flex items-center justify-center bg-black"><Loader2 className="animate-spin text-red-600" size={40}/></div>}>
-                            <MoviePlayer 
-                                tmdbId={displayData.id} 
-                                onClose={() => {
-                                    if (isCasting) {
-                                        handleStopCasting();
-                                    }
-                                    onPlayStateChangeRef.current?.(false);
-                                }} 
-                                mediaType={isTv ? 'tv' : 'movie'} 
-                                isAnime={isAnime || false} 
-                                isAnimeDirect={(movie as any).isAnimeDirect || (details as any)?.isAnimeDirect} 
-                                apiKey={apiKey} 
-                                onProgress={handlePlayerProgress} 
-                                initialSeason={playParams.season}
-                                initialEpisode={playParams.episode}
-                                color="EF4444"
-                                title={displayData.title || displayData.name}
-                                forceProgress={resumeTime}
-                                providerId={selectedProviderId}
-                                onProviderChange={handleProviderChange}
-                                onEpisodeChange={(season, episode) => {
-                                    setPlayParams({ season, episode });
-                                    onPlayStateChangeRef.current?.(true, season, episode);
-                                }}
-                            />
-                        </Suspense>
-                    </div>
-                );
-            })()}
             <FullCreditsModal isOpen={showFullCast} onClose={() => setShowFullCast(false)} title="Full Cast" credits={displayData.credits?.cast || []} onPersonClick={onPersonClick} />
             <FullCreditsModal isOpen={showFullCrew} onClose={() => setShowFullCrew(false)} title="Full Crew" credits={displayData.credits?.crew || []} onPersonClick={onPersonClick} />
             

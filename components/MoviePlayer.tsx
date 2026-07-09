@@ -1809,11 +1809,38 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   }, [playerCurrentTime, sendPlayerCommand, useCustomControls, isCineSrcCustom, sendCineSrcCommand, isVidFastCustom]);
 
   const toggleFullscreen = useCallback(() => {
-    if (!containerRef.current) return;
-    if (document.fullscreenElement) {
-      document.exitFullscreen();
+    const container = containerRef.current;
+    const video = videoRef.current;
+    if (!container) return;
+
+    const isFS = document.fullscreenElement || 
+                 (document as any).webkitFullscreenElement || 
+                 (document as any).mozFullScreenElement || 
+                 (document as any).msFullscreenElement;
+
+    if (isFS) {
+      if (document.exitFullscreen) {
+        document.exitFullscreen();
+      } else if ((document as any).webkitExitFullscreen) {
+        (document as any).webkitExitFullscreen();
+      } else if ((document as any).mozCancelFullScreen) {
+        (document as any).mozCancelFullScreen();
+      } else if ((document as any).msExitFullscreen) {
+        (document as any).msExitFullscreen();
+      }
     } else {
-      containerRef.current.requestFullscreen();
+      if (container.requestFullscreen) {
+        container.requestFullscreen();
+      } else if ((container as any).webkitRequestFullscreen) {
+        (container as any).webkitRequestFullscreen();
+      } else if ((container as any).mozRequestFullScreen) {
+        (container as any).mozRequestFullScreen();
+      } else if ((container as any).msRequestFullscreen) {
+        (container as any).msRequestFullscreen();
+      } else if (video && (video as any).webkitEnterFullscreen) {
+        // Fallback for iOS Safari which only allows fullscreen on the video element itself
+        (video as any).webkitEnterFullscreen();
+      }
     }
   }, []);
 
@@ -2512,9 +2539,24 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
 
   // Fullscreen change listener
   useEffect(() => {
-    const onFsChange = () => setIsFullscreen(!!document.fullscreenElement);
+    const onFsChange = () => {
+      setIsFullscreen(!!(
+        document.fullscreenElement || 
+        (document as any).webkitFullscreenElement || 
+        (document as any).mozFullScreenElement || 
+        (document as any).msFullscreenElement
+      ));
+    };
     document.addEventListener('fullscreenchange', onFsChange);
-    return () => document.removeEventListener('fullscreenchange', onFsChange);
+    document.addEventListener('webkitfullscreenchange', onFsChange);
+    document.addEventListener('mozfullscreenchange', onFsChange);
+    document.addEventListener('MSFullscreenChange', onFsChange);
+    return () => {
+      document.removeEventListener('fullscreenchange', onFsChange);
+      document.removeEventListener('webkitfullscreenchange', onFsChange);
+      document.removeEventListener('mozfullscreenchange', onFsChange);
+      document.removeEventListener('MSFullscreenChange', onFsChange);
+    };
   }, []);
 
   // Cleanup controls timeout on unmount
