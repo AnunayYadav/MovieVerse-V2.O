@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, Suspense, useRef, useMemo, useCallback } from 'react';
-import { X, Info, Calendar, Clock, Star, Play, Bookmark, Heart, Share2, Clapperboard, Sparkles, Loader2, Tag, MessageCircle, Globe, Facebook, Instagram, Twitter, Film, PlayCircle, Eye, Volume2, VolumeX, Users, ArrowLeft, Lightbulb, DollarSign, Trophy, Tv, Check, Mic2, Video, PenTool, ChevronRight, ChevronDown, Search, Monitor, Plus, Layers, Shield, Building2, Languages, Headphones, Activity, Target, TrendingUp, Cast, AlertCircle, Pause, Download, PieChart as PieChartIcon, Send, BookOpen } from 'lucide-react';
+import { X, Info, Calendar, Clock, Star, Play, Bookmark, Heart, Share2, Clapperboard, Sparkles, Loader2, Tag, MessageCircle, Globe, Facebook, Instagram, Twitter, Film, PlayCircle, Eye, Volume2, VolumeX, Users, ArrowLeft, Lightbulb, DollarSign, Trophy, Tv, Check, Mic2, Video, PenTool, ChevronRight, ChevronDown, Search, Monitor, Plus, Layers, Shield, Building2, Languages, Headphones, Activity, Target, TrendingUp, Cast, AlertCircle, Pause, Download, PieChart as PieChartIcon, Send, BookOpen, Music } from 'lucide-react';
 import { Movie, MovieDetails, Season, UserProfile, Keyword, Review, CastMember, CrewMember, CollectionDetails, Genre } from '../types';
 import { TMDB_BASE_URL, TMDB_IMAGE_BASE, TMDB_BACKDROP_BASE, formatCurrency, ImageLightbox, PersonCard, MovieCard, tvFetch } from '../components/Shared';
 import { FullCreditsModal } from './Modals';
@@ -444,6 +444,16 @@ export const MoviePage: React.FC<MoviePageProps> = ({
     const [playParams, setPlayParams] = useState(initialPlayParams);
     const [expandedReviews, setExpandedReviews] = useState<Record<string, boolean>>({});
 
+    const isAnime = !!((movie as any).isAnimeDirect || (details as any)?.isAnimeDirect || ((details?.genres || movie?.genres)?.some((g: any) => g.id === 16) && (details?.original_language || movie?.original_language) === 'ja'));
+
+    const isDrama = !!(
+      !isAnime &&
+      ((details?.original_language || movie?.original_language) === 'ko' || 
+       (details?.original_language || movie?.original_language) === 'zh' || 
+       (details?.original_language || movie?.original_language) === 'ja' || 
+       (details?.original_language || movie?.original_language) === 'th')
+    );
+
     const [aniListId, setAniListId] = useState<number | null>(null);
     const [socialActivities, setSocialActivities] = useState<any[]>([]);
     const [socialActivitiesLoading, setSocialActivitiesLoading] = useState(false);
@@ -540,6 +550,8 @@ export const MoviePage: React.FC<MoviePageProps> = ({
     const [matchingRelationId, setMatchingRelationId] = useState<number | null>(null);
     const lastFetchedAnimeRef = useRef<string | null>(null);
     const lastFetchedEpisodesRef = useRef<string | null>(null);
+    const [animeThemes, setAnimeThemes] = useState<{ openings: string[], endings: string[] } | null>(null);
+    const [themesLoading, setThemesLoading] = useState(false);
 
     useEffect(() => {
         if (!details) {
@@ -864,6 +876,40 @@ export const MoviePage: React.FC<MoviePageProps> = ({
             setCharactersLoading(false);
         });
     }, [details?.id]);
+ 
+    useEffect(() => {
+        const malId = (details as any)?.idMal;
+        if (!malId || !isAnime) {
+            setAnimeThemes(null);
+            return;
+        }
+
+        let isMounted = true;
+        setThemesLoading(true);
+
+        fetch(`https://api.jikan.moe/v4/anime/${malId}/themes`)
+            .then(res => {
+                if (!res.ok) throw new Error();
+                return res.json();
+            })
+            .then(data => {
+                if (isMounted && data?.data) {
+                    setAnimeThemes({
+                        openings: data.data.openings || [],
+                        endings: data.data.endings || []
+                    });
+                }
+            })
+            .catch(err => {
+                console.error("Error fetching anime themes:", err);
+                if (isMounted) setAnimeThemes(null);
+            })
+            .finally(() => {
+                if (isMounted) setThemesLoading(false);
+            });
+
+        return () => { isMounted = false; };
+    }, [details?.idMal, isAnime]);
 
     const handleVoiceActorClick = useCallback(async (e: React.MouseEvent, vaName: string) => {
         e.stopPropagation();
@@ -890,16 +936,6 @@ export const MoviePage: React.FC<MoviePageProps> = ({
             [reviewId]: !prev[reviewId]
         }));
     };
-
-    const isAnime = !!((movie as any).isAnimeDirect || (details as any)?.isAnimeDirect || ((details?.genres || movie?.genres)?.some((g: any) => g.id === 16) && (details?.original_language || movie?.original_language) === 'ja'));
-
-    const isDrama = !!(
-      !isAnime &&
-      ((details?.original_language || movie?.original_language) === 'ko' || 
-       (details?.original_language || movie?.original_language) === 'zh' || 
-       (details?.original_language || movie?.original_language) === 'ja' || 
-       (details?.original_language || movie?.original_language) === 'th')
-    );
 
     // Fetch MyDramaList details for Asian Dramas
     useEffect(() => {
@@ -1728,6 +1764,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
         lastFetchedEpisodesRef.current = null;
         setEpisodeSearch("");
         setExpandedReviews({});
+        setAnimeThemes(null);
     }, [movie.id, apiKey, resolvedMediaType]);
 
 
@@ -2128,6 +2165,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
         ...(isAnime ? [{ id: 'social', label: 'Social' }] : []),
         ...(isTv ? [{ id: 'seasons', label: 'Seasons' }] : []),
         ...(isAnime ? [{ id: 'characters', label: 'Characters' }] : []),
+        ...(isAnime && animeThemes && (animeThemes.openings.length > 0 || animeThemes.endings.length > 0) ? [{ id: 'themes', label: 'Theme Songs' }] : []),
         ...(isDrama && mdlCast.length > 0 ? [{ id: 'mdlCast', label: 'MDL Cast' }] : []),
         ...(isDrama && mdlEpisodes.length > 0 ? [{ id: 'mdlEpisodes', label: 'Episodes' }] : []),
         ...(isAnime && sortedRelations.length > 0 ? [{ id: 'relations', label: 'Relations' }] : []),
@@ -3084,6 +3122,97 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                             );
                                                         })}
                                                     </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                                    {activeTab === 'themes' && isAnime && (
+                                        <div className="space-y-6 animate-in fade-in select-none text-left">
+                                            <div className="flex items-center gap-2 pb-3 border-b border-white/5">
+                                                <div className={`w-1 h-5 sm:h-6 ${accentBg} rounded-full`} />
+                                                <h3 className="text-sm sm:text-base md:text-lg font-bold text-white uppercase tracking-wider">Theme Songs</h3>
+                                            </div>
+
+                                            {themesLoading ? (
+                                                <div className="flex flex-col items-center justify-center py-16 gap-3">
+                                                    <Loader2 className="animate-spin text-red-500" size={24} />
+                                                    <span className="text-[10px] text-zinc-500 font-medium tracking-wider uppercase">Loading theme songs...</span>
+                                                </div>
+                                            ) : !animeThemes || (animeThemes.openings.length === 0 && animeThemes.endings.length === 0) ? (
+                                                <div className="text-zinc-500 text-xs py-3 px-1 italic">No theme songs found for this anime.</div>
+                                            ) : (
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                                    {animeThemes.openings.length > 0 && (
+                                                        <div className="space-y-4">
+                                                            <h4 className="text-xs font-black text-red-500 uppercase tracking-widest flex items-center gap-2">
+                                                                <Headphones size={12} />
+                                                                <span>Openings (OP)</span>
+                                                            </h4>
+                                                            <div className="space-y-2">
+                                                                {animeThemes.openings.map((op, idx) => (
+                                                                    <div key={idx} className="flex items-center justify-between p-3 bg-white/5 border border-white/5 rounded-xl gap-4 hover:bg-white/10 transition-colors">
+                                                                        <span className="text-xs text-zinc-300 font-medium leading-relaxed">{op}</span>
+                                                                        <div className="flex items-center gap-2 shrink-0">
+                                                                            <a
+                                                                                href={`https://www.youtube.com/results?search_query=${encodeURIComponent(op)}`}
+                                                                                target="_blank"
+                                                                                rel="noopener noreferrer"
+                                                                                className="p-1.5 bg-red-600/10 hover:bg-red-650/20 text-red-400 border border-red-500/20 rounded-lg transition-all"
+                                                                                title="Search on YouTube"
+                                                                            >
+                                                                                <Play size={12} fill="currentColor" />
+                                                                            </a>
+                                                                            <a
+                                                                                href={`https://open.spotify.com/search/${encodeURIComponent(op)}`}
+                                                                                target="_blank"
+                                                                                rel="noopener noreferrer"
+                                                                                className="p-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 rounded-lg transition-all"
+                                                                                title="Search on Spotify"
+                                                                            >
+                                                                                <Music size={12} />
+                                                                            </a>
+                                                                        </div>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    )}
+
+                                                    {animeThemes.endings.length > 0 && (
+                                                        <div className="space-y-4">
+                                                            <h4 className="text-xs font-black text-blue-500 uppercase tracking-widest flex items-center gap-2">
+                                                                <Headphones size={12} />
+                                                                <span>Endings (ED)</span>
+                                                            </h4>
+                                                            <div className="space-y-2">
+                                                                {animeThemes.endings.map((ed, idx) => (
+                                                                    <div key={idx} className="flex items-center justify-between p-3 bg-white/5 border border-white/5 rounded-xl gap-4 hover:bg-white/10 transition-colors">
+                                                                        <span className="text-xs text-zinc-300 font-medium leading-relaxed">{ed}</span>
+                                                                        <div className="flex items-center gap-2 shrink-0">
+                                                                            <a
+                                                                                href={`https://www.youtube.com/results?search_query=${encodeURIComponent(ed)}`}
+                                                                                target="_blank"
+                                                                                rel="noopener noreferrer"
+                                                                                className="p-1.5 bg-red-600/10 hover:bg-red-650/20 text-red-400 border border-red-500/20 rounded-lg transition-all"
+                                                                                title="Search on YouTube"
+                                                                            >
+                                                                                <Play size={12} fill="currentColor" />
+                                                                            </a>
+                                                                            <a
+                                                                                href={`https://open.spotify.com/search/${encodeURIComponent(ed)}`}
+                                                                                target="_blank"
+                                                                                rel="noopener noreferrer"
+                                                                                className="p-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 rounded-lg transition-all"
+                                                                                title="Search on Spotify"
+                                                                            >
+                                                                                <Music size={12} />
+                                                                            </a>
+                                                                        </div>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    )}
                                                 </div>
                                             )}
                                         </div>
