@@ -215,7 +215,7 @@ const MovieRowCard = ({
                     horizontal: true
                 }
             }));
-        }, 400);
+        }, 800);
     };
 
     const handleMouseLeave = () => {
@@ -226,7 +226,7 @@ const MovieRowCard = ({
 
         leaveTimeoutRef.current = setTimeout(() => {
             window.dispatchEvent(new CustomEvent('movie-card-hover-leave'));
-        }, 300);
+        }, 150);
     };
 
     useEffect(() => {
@@ -944,7 +944,7 @@ const ContinueWatchingCard = ({
                     horizontal: true
                 }
             }));
-        }, 400);
+        }, 800);
     };
 
     const handleMouseLeave = () => {
@@ -955,7 +955,7 @@ const ContinueWatchingCard = ({
 
         leaveTimeoutRef.current = setTimeout(() => {
             window.dispatchEvent(new CustomEvent('movie-card-hover-leave'));
-        }, 300);
+        }, 150);
     };
 
     useEffect(() => {
@@ -1038,7 +1038,7 @@ const TrendingMovieItem = ({ movie, idx, onMovieClick }: { movie: Movie, idx: nu
                     horizontal: false
                 }
             }));
-        }, 400);
+        }, 800);
     };
 
     const handleMouseLeave = () => {
@@ -1049,7 +1049,7 @@ const TrendingMovieItem = ({ movie, idx, onMovieClick }: { movie: Movie, idx: nu
 
         leaveTimeoutRef.current = setTimeout(() => {
             window.dispatchEvent(new CustomEvent('movie-card-hover-leave'));
-        }, 300);
+        }, 150);
     };
 
     useEffect(() => {
@@ -1463,6 +1463,14 @@ export default function App() {
     const [selectedMovieVal, setSelectedMovieVal] = useState<Movie | null>(null);
     const setSelectedMovie = (movie: Movie | null) => {
         setSelectedMovieVal(movie);
+        if (movie) {
+            setHoveredMovieInfo(null);
+            setIsHoverCardClosing(false);
+            if (hoverLeaveTimeoutRef.current) {
+                clearTimeout(hoverLeaveTimeoutRef.current);
+                hoverLeaveTimeoutRef.current = null;
+            }
+        }
     };
     const selectedMovie = selectedMovieVal;
     const [modalHistory, setModalHistory] = useState<Array<{ type: 'movie' | 'person'; data: any }>>([]);
@@ -1489,11 +1497,13 @@ export default function App() {
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
     const [hoveredMovieInfo, setHoveredMovieInfo] = useState<{ movie: Movie; rect: { top: number; left: number; width: number; height: number; }; horizontal?: boolean; } | null>(null);
+    const [isHoverCardClosing, setIsHoverCardClosing] = useState(false);
     const hoverLeaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const isMouseOverHoverCard = useRef(false);
 
     const handleHoverCardEnter = () => {
         isMouseOverHoverCard.current = true;
+        setIsHoverCardClosing(false);
         if (hoverLeaveTimeoutRef.current) {
             clearTimeout(hoverLeaveTimeoutRef.current);
             hoverLeaveTimeoutRef.current = null;
@@ -1502,10 +1512,12 @@ export default function App() {
 
     const handleHoverCardLeave = () => {
         isMouseOverHoverCard.current = false;
+        setIsHoverCardClosing(true);
         if (hoverLeaveTimeoutRef.current) clearTimeout(hoverLeaveTimeoutRef.current);
         hoverLeaveTimeoutRef.current = setTimeout(() => {
             setHoveredMovieInfo(null);
-        }, 300);
+            setIsHoverCardClosing(false);
+        }, 150);
     };
 
     const handlePlayMovieFromHover = (movie: Movie) => {
@@ -1526,16 +1538,19 @@ export default function App() {
                 hoverLeaveTimeoutRef.current = null;
             }
             setHoveredMovieInfo(customEvent.detail);
+            setIsHoverCardClosing(false);
         };
 
         const handleLeave = () => {
             if (isMouseOverHoverCard.current) {
                 return;
             }
+            setIsHoverCardClosing(true);
             if (hoverLeaveTimeoutRef.current) clearTimeout(hoverLeaveTimeoutRef.current);
             hoverLeaveTimeoutRef.current = setTimeout(() => {
                 setHoveredMovieInfo(null);
-            }, 300);
+                setIsHoverCardClosing(false);
+            }, 150);
         };
 
         window.addEventListener('movie-card-hover', handleHover);
@@ -1711,7 +1726,7 @@ export default function App() {
     const [watchPartyPlayerState, setWatchPartyPlayerState] = useState<'play' | 'pause'>('play');
     const [watchPartyProviderId, setWatchPartyProviderId] = useState(() => {
         if (typeof window !== 'undefined') {
-            const preferred = localStorage.getItem('movieverse_preferred_provider') || 'peachify';
+            const preferred = localStorage.getItem('movieverse_preferred_provider') || 'zxcstream';
             const prov = PROVIDERS.find(p => p.id === preferred);
             if (prov && prov.supportsPostMessage) {
                 return preferred;
@@ -3046,7 +3061,7 @@ export default function App() {
             setWatchPartyForceProgress(undefined);
             setWatchPartyGuestTime(0);
             setWatchPartyPlayerState('play');
-            const preferred = localStorage.getItem('movieverse_preferred_provider') || 'peachify';
+            const preferred = localStorage.getItem('movieverse_preferred_provider') || 'zxcstream';
             const prov = PROVIDERS.find(p => p.id === preferred);
             setWatchPartyProviderId(prov && prov.supportsPostMessage ? preferred : 'vidfast');
             setSelectedMovie(null); // Close Details modal
@@ -3094,7 +3109,7 @@ export default function App() {
                 setWatchPartyForceProgress(undefined);
             }
             setWatchPartyPlayerState(room.is_playing === false ? 'pause' : 'play');
-            const preferred = localStorage.getItem('movieverse_preferred_provider') || 'peachify';
+            const preferred = localStorage.getItem('movieverse_preferred_provider') || 'zxcstream';
             const prov = PROVIDERS.find(p => p.id === preferred);
             setWatchPartyProviderId(prov && prov.supportsPostMessage ? preferred : 'vidfast');
 
@@ -5742,7 +5757,7 @@ export default function App() {
                     </div>
                 </div>
 
-            {hoveredMovieInfo && (
+            {hoveredMovieInfo && !selectedMovie && (
                 <NetflixHoverCard
                     movie={hoveredMovieInfo.movie}
                     rect={hoveredMovieInfo.rect}
@@ -5756,6 +5771,7 @@ export default function App() {
                     onMouseEnter={handleHoverCardEnter}
                     onMouseLeave={handleHoverCardLeave}
                     horizontal={hoveredMovieInfo.horizontal}
+                    isClosing={isHoverCardClosing}
                 />
             )}
 

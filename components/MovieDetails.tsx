@@ -496,20 +496,20 @@ export const MoviePage: React.FC<MoviePageProps> = ({
     const [selectedCastProviderId, setSelectedCastProviderId] = useState(() => {
         if (typeof window !== 'undefined') {
             const key = isAnime ? 'movieverse_preferred_provider_anime' : 'movieverse_preferred_provider';
-            const defaultProvider = isAnime ? 'anikai' : 'peachify';
+            const defaultProvider = isAnime ? 'vidnest_animepahe' : 'zxcstream';
             return localStorage.getItem(key) || defaultProvider;
         }
-        return isAnime ? 'anikai' : 'peachify';
+        return isAnime ? 'vidnest_animepahe' : 'zxcstream';
     });
     const dropdownRef = useRef<HTMLDivElement>(null);
 
     const [selectedProviderId, setSelectedProviderId] = useState(() => {
         if (typeof window !== 'undefined') {
             const key = isAnime ? 'movieverse_preferred_provider_anime' : 'movieverse_preferred_provider';
-            const defaultProvider = isAnime ? 'anikai' : 'peachify';
+            const defaultProvider = isAnime ? 'vidnest_animepahe' : 'zxcstream';
             return localStorage.getItem(key) || defaultProvider;
         }
-        return isAnime ? 'anikai' : 'peachify';
+        return isAnime ? 'vidnest_animepahe' : 'zxcstream';
     });
     const [isProviderDropdownOpen, setIsProviderDropdownOpen] = useState(false);
     const [isMobileProviderDropdownOpen, setIsMobileProviderDropdownOpen] = useState(false);
@@ -536,7 +536,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
 
     useEffect(() => {
         const key = isAnime ? 'movieverse_preferred_provider_anime' : 'movieverse_preferred_provider';
-        const defaultProvider = isAnime ? 'anikai' : 'peachify';
+        const defaultProvider = isAnime ? 'vidnest_animepahe' : 'zxcstream';
         const preferred = localStorage.getItem(key) || defaultProvider;
         setSelectedProviderId(preferred);
         setSelectedCastProviderId(preferred);

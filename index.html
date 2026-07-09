@@ -89,6 +89,34 @@
       to { transform: translateY(100%); }
     }
 
+    @keyframes hoverCardEnter {
+      from {
+        opacity: 0;
+        transform: scale(0.92);
+      }
+      to {
+        opacity: 1;
+        transform: scale(1);
+      }
+    }
+    @keyframes hoverCardExit {
+      from {
+        opacity: 1;
+        transform: scale(1);
+      }
+      to {
+        opacity: 0;
+        transform: scale(0.92);
+      }
+    }
+
+    .animate-hover-enter {
+      animation: hoverCardEnter 150ms cubic-bezier(0.25, 1, 0.5, 1) forwards;
+    }
+    .animate-hover-exit {
+      animation: hoverCardExit 120ms cubic-bezier(0.25, 1, 0.5, 1) forwards;
+    }
+
     .animate-fade-in {
       animation: fadeIn 350ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
     }

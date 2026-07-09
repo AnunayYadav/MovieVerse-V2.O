@@ -15,6 +15,7 @@ interface NetflixHoverCardProps {
     onMouseEnter: () => void;
     onMouseLeave: () => void;
     horizontal?: boolean;
+    isClosing?: boolean;
 }
 
 export const NetflixHoverCard: React.FC<NetflixHoverCardProps> = ({
@@ -29,7 +30,8 @@ export const NetflixHoverCard: React.FC<NetflixHoverCardProps> = ({
     onDetailClick,
     onMouseEnter,
     onMouseLeave,
-    horizontal = false
+    horizontal = false,
+    isClosing = false
 }) => {
     const [videoKey, setVideoKey] = useState<string | null>(null);
     const [showVideo, setShowVideo] = useState(false);
@@ -264,7 +266,9 @@ export const NetflixHoverCard: React.FC<NetflixHoverCardProps> = ({
                 width: `${width}px`,
                 zIndex: 200,
             }}
-            className="bg-[#181818] border border-white/[0.08] rounded-xl overflow-hidden shadow-[0_24px_60px_rgba(0,0,0,0.9)] select-none font-sans flex flex-col text-left transition-all duration-300 transform scale-100 ease-[cubic-bezier(0.25,1,0.5,1)] hover:scale-105"
+            className={`bg-[#181818] border border-white/[0.08] rounded-xl overflow-hidden shadow-[0_24px_60px_rgba(0,0,0,0.9)] select-none font-sans flex flex-col text-left transition-all duration-300 transform ease-[cubic-bezier(0.25,1,0.5,1)] hover:scale-[1.03] ${
+                isClosing ? 'animate-hover-exit' : 'animate-hover-enter'
+            }`}
         >
             {/* Top Media preview wrapper */}
             <div className="relative w-full aspect-[16/9] bg-black overflow-hidden group">

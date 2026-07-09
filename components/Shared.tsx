@@ -483,7 +483,7 @@ export const MovieCard = React.memo(React.forwardRef<HTMLDivElement, MovieCardPr
                     horizontal
                 }
             }));
-        }, 400);
+        }, 800);
     };
 
     const handleMouseLeave = () => {
@@ -496,7 +496,7 @@ export const MovieCard = React.memo(React.forwardRef<HTMLDivElement, MovieCardPr
         leaveTimeoutRef.current = setTimeout(() => {
             console.log("MovieCard: Dispatching leave event");
             window.dispatchEvent(new CustomEvent('movie-card-hover-leave'));
-        }, 300);
+        }, 150);
     };
 
     React.useEffect(() => {

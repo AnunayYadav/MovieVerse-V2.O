@@ -278,7 +278,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   }, []);
 
   const [selectedProviderId, setSelectedProviderId] = useState(() => {
-    const defaultProvider = isAnime ? 'anikai' : (isWatchParty ? 'vidfast' : 'videasy_adfree');
+    const defaultProvider = isAnime ? 'vidnest_animepahe' : (isWatchParty ? 'vidfast' : 'zxcstream');
     if (typeof window !== 'undefined') {
       const key = isAnime ? 'movieverse_preferred_provider_anime' : 'movieverse_preferred_provider';
       let preferred = localStorage.getItem(key);
@@ -286,10 +286,10 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
         preferred = defaultProvider;
       }
       if (!isAnime && (preferred === 'vidnest_animepahe' || preferred === 'anikai')) {
-        preferred = 'videasy_adfree';
+        preferred = 'zxcstream';
       }
       if (preferred === 'encdec_animekai') {
-        preferred = 'videasy_adfree';
+        preferred = 'zxcstream';
       }
       if (isWatchParty) {
         const prov = PROVIDERS.find(p => p.id === preferred);
