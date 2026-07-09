@@ -495,17 +495,21 @@ export const MoviePage: React.FC<MoviePageProps> = ({
     const [castVolume, setCastVolume] = useState(1);
     const [selectedCastProviderId, setSelectedCastProviderId] = useState(() => {
         if (typeof window !== 'undefined') {
-            return localStorage.getItem('movieverse_preferred_provider') || 'peachify';
+            const key = isAnime ? 'movieverse_preferred_provider_anime' : 'movieverse_preferred_provider';
+            const defaultProvider = isAnime ? 'anikai' : 'peachify';
+            return localStorage.getItem(key) || defaultProvider;
         }
-        return 'peachify';
+        return isAnime ? 'anikai' : 'peachify';
     });
     const dropdownRef = useRef<HTMLDivElement>(null);
 
     const [selectedProviderId, setSelectedProviderId] = useState(() => {
         if (typeof window !== 'undefined') {
-            return localStorage.getItem('movieverse_preferred_provider') || 'peachify';
+            const key = isAnime ? 'movieverse_preferred_provider_anime' : 'movieverse_preferred_provider';
+            const defaultProvider = isAnime ? 'anikai' : 'peachify';
+            return localStorage.getItem(key) || defaultProvider;
         }
-        return 'peachify';
+        return isAnime ? 'anikai' : 'peachify';
     });
     const [isProviderDropdownOpen, setIsProviderDropdownOpen] = useState(false);
     const [isMobileProviderDropdownOpen, setIsMobileProviderDropdownOpen] = useState(false);
@@ -525,9 +529,18 @@ export const MoviePage: React.FC<MoviePageProps> = ({
         setSelectedProviderId(providerId);
         setSelectedCastProviderId(providerId);
         if (typeof window !== 'undefined') {
-            localStorage.setItem('movieverse_preferred_provider', providerId);
+            const key = isAnime ? 'movieverse_preferred_provider_anime' : 'movieverse_preferred_provider';
+            localStorage.setItem(key, providerId);
         }
     };
+
+    useEffect(() => {
+        const key = isAnime ? 'movieverse_preferred_provider_anime' : 'movieverse_preferred_provider';
+        const defaultProvider = isAnime ? 'anikai' : 'peachify';
+        const preferred = localStorage.getItem(key) || defaultProvider;
+        setSelectedProviderId(preferred);
+        setSelectedCastProviderId(preferred);
+    }, [isAnime]);
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {

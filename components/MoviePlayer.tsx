@@ -280,7 +280,8 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   const [selectedProviderId, setSelectedProviderId] = useState(() => {
     const defaultProvider = isAnime ? 'anikai' : (isWatchParty ? 'vidfast' : 'videasy_adfree');
     if (typeof window !== 'undefined') {
-      let preferred = localStorage.getItem('movieverse_preferred_provider');
+      const key = isAnime ? 'movieverse_preferred_provider_anime' : 'movieverse_preferred_provider';
+      let preferred = localStorage.getItem(key);
       if (!preferred || preferred === 'auto_select') {
         preferred = defaultProvider;
       }
@@ -3376,7 +3377,8 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                                           onProviderChange(prov.id);
                                         }
                                         if (typeof window !== 'undefined') {
-                                          localStorage.setItem('movieverse_preferred_provider', prov.id);
+                                          const key = isAnime ? 'movieverse_preferred_provider_anime' : 'movieverse_preferred_provider';
+                                          localStorage.setItem(key, prov.id);
                                         }
                                         setSettingsView('main');
                                       }}
@@ -4318,7 +4320,8 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                           onProviderChange(prov.id);
                         }
                         if (typeof window !== 'undefined') {
-                          localStorage.setItem('movieverse_preferred_provider', prov.id);
+                          const key = isAnime ? 'movieverse_preferred_provider_anime' : 'movieverse_preferred_provider';
+                          localStorage.setItem(key, prov.id);
                         }
                         setIsDrawerOpen(false);
                       }}
