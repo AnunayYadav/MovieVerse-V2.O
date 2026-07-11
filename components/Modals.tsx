@@ -13,7 +13,7 @@ interface FullCreditsModalProps {
     onClose: () => void;
     title: string;
     credits: any[];
-    onPersonClick: (id: number) => void;
+    onPersonClick: (id: number, name?: string, isAniList?: boolean) => void;
 }
 
 export const FullCreditsModal: React.FC<FullCreditsModalProps> = ({ isOpen, onClose, title, credits, onPersonClick }) => {
@@ -30,7 +30,7 @@ export const FullCreditsModal: React.FC<FullCreditsModalProps> = ({ isOpen, onCl
             <div className="flex-1 overflow-y-auto custom-scrollbar p-6">
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
                     {credits.map((person, idx) => (
-                        <div key={`${person.id}-${idx}`} onClick={() => { onClose(); onPersonClick(person.id); }} className="flex flex-col items-center text-center p-4 bg-white/5 rounded-xl border border-white/5 hover:bg-white/10 transition-colors cursor-pointer group">
+                        <div key={`${person.id}-${idx}`} onClick={() => { onClose(); onPersonClick(person.id, person.name, person.isAniListStaff); }} className="flex flex-col items-center text-center p-4 bg-white/5 rounded-xl border border-white/5 hover:bg-white/10 transition-colors cursor-pointer group">
                             <div className="w-20 h-20 rounded-full overflow-hidden mb-3 border-2 border-transparent group-hover:border-white/30 transition-all">
                                 <img 
                                     src={person.profile_path ? (person.profile_path.startsWith('http') ? person.profile_path : `${TMDB_IMAGE_BASE}${person.profile_path}`) : `https://ui-avatars.com/api/?name=${person.name}&background=333&color=fff`} 
@@ -355,13 +355,15 @@ const CharacterScrollRow = ({
 // PERSON PAGE
 interface PersonPageProps {
     personId: number;
+    personName?: string | null;
+    isAniListStaff?: boolean;
     onClose: () => void;
     apiKey: string;
     onMovieClick: (m: Movie) => void;
     onCharacterClick?: (id: number) => void;
 }
 
-export const PersonPage: React.FC<PersonPageProps> = ({ personId, onClose, apiKey, onMovieClick, onCharacterClick }) => {
+export const PersonPage: React.FC<PersonPageProps> = ({ personId, personName, isAniListStaff, onClose, apiKey, onMovieClick, onCharacterClick }) => {
     const [details, setDetails] = useState<PersonDetails | null>(null);
     const [loading, setLoading] = useState(true);
     const [isClosing, setIsClosing] = useState(false);
@@ -505,11 +507,30 @@ export const PersonPage: React.FC<PersonPageProps> = ({ personId, onClose, apiKe
     useEffect(() => {
       if (!personId || !apiKey) return;
       setLoading(true);
-      fetch(`${TMDB_BASE_URL}/person/${personId}?api_key=${apiKey}&append_to_response=combined_credits,images,external_ids`)
-        .then(res => { if (!res.ok) throw new Error("Fetch failed"); return res.json(); })
-        .then(data => { setDetails(data); setLoading(false); })
-        .catch(err => { console.error("Person fetch error", err); setLoading(false); setDetails(null); });
-    }, [personId, apiKey]);
+
+      const fetchPersonDetails = (targetId: number) => {
+          return fetch(`${TMDB_BASE_URL}/person/${targetId}?api_key=${apiKey}&append_to_response=combined_credits,images,external_ids`)
+              .then(res => { if (!res.ok) throw new Error("Fetch failed"); return res.json(); })
+              .then(data => { setDetails(data); setLoading(false); });
+      };
+
+      if (isAniListStaff && personName) {
+          fetch(`${TMDB_BASE_URL}/search/person?api_key=${apiKey}&query=${encodeURIComponent(personName)}`)
+              .then(res => res.json())
+              .then(searchData => {
+                  const tmdbPerson = searchData.results?.[0];
+                  if (tmdbPerson?.id) {
+                      return fetchPersonDetails(tmdbPerson.id);
+                  } else {
+                      throw new Error("No TMDB person found for name: " + personName);
+                  }
+              })
+              .catch(err => { console.error("Person fetch error", err); setLoading(false); setDetails(null); });
+      } else {
+          fetchPersonDetails(personId)
+              .catch(err => { console.error("Person fetch error", err); setLoading(false); setDetails(null); });
+      }
+    }, [personId, personName, isAniListStaff, apiKey]);
 
     useEffect(() => {
         if (details?.name) {
@@ -1833,6 +1854,364 @@ export const CharacterPage: React.FC<CharacterPageProps> = ({
                                         })}
                                     </div>
                                 </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            ) : null}
+        </div>
+    );
+};
+
+interface StudioPageProps {
+    studioId: number | null;
+    studioName: string | null;
+    onClose: () => void;
+    apiKey: string;
+    onMovieClick: (m: Movie) => void;
+}
+
+export const StudioPage: React.FC<StudioPageProps> = ({
+    studioId,
+    studioName,
+    onClose,
+    apiKey,
+    onMovieClick
+}) => {
+    const [details, setDetails] = useState<any | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const [isClosing, setIsClosing] = useState(false);
+    const [matchingAnimeId, setMatchingAnimeId] = useState<number | null>(null);
+
+    const handleClose = () => {
+        setIsClosing(true);
+        setTimeout(onClose, 350);
+    };
+
+    useEffect(() => {
+        if (details?.name) {
+            document.title = `${details.name} - Studio Profile - MovieVerse AI`;
+        }
+    }, [details]);
+
+    useEffect(() => {
+        if (!studioId && !studioName) return;
+        setLoading(true);
+        setError(null);
+        setIsClosing(false);
+
+        const query = `
+            query ($id: Int, $search: String) {
+                Studio(id: $id, search: $search) {
+                    id
+                    name
+                    isAnimationStudio
+                    favourites
+                    media(sort: POPULARITY_DESC, page: 1, perPage: 24) {
+                        nodes {
+                            id
+                            title {
+                                english
+                                romaji
+                                userPreferred
+                            }
+                            coverImage {
+                                large
+                            }
+                            format
+                            startDate {
+                                year
+                            }
+                            bannerImage
+                        }
+                    }
+                }
+            }
+        `;
+
+        fetch('https://graphql.anilist.co', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+            body: JSON.stringify({ query, variables: { id: studioId, search: studioName } })
+        })
+        .then(res => {
+            if (!res.ok) throw new Error("Failed to fetch studio details");
+            return res.json();
+        })
+        .then(json => {
+            const studio = json?.data?.Studio;
+            if (studio) {
+                setDetails(studio);
+            } else {
+                throw new Error("Studio not found");
+            }
+            setLoading(false);
+        })
+        .catch(err => {
+            console.error("Error fetching studio details:", err);
+            setError(err.message || "Failed to load studio details");
+            setLoading(false);
+        });
+    }, [studioId, studioName]);
+
+    const handleAnimeClick = async (mediaNode: any) => {
+        if (!mediaNode || !apiKey) return;
+        const mediaId = mediaNode.id;
+        const title = mediaNode.title?.english || mediaNode.title?.userPreferred || mediaNode.title?.romaji;
+        if (!title) return;
+
+        const matchCacheKey = `movieverse_anilist_tmdb_match_${mediaId}`;
+        const cachedMatch = localStorage.getItem(matchCacheKey);
+        if (cachedMatch) {
+            try {
+                const parsed = JSON.parse(cachedMatch);
+                if (parsed && parsed.id && parsed.mediaType) {
+                    handleClose();
+                    onMovieClick({
+                        id: parsed.id,
+                        media_type: parsed.mediaType,
+                        title: title,
+                        name: title,
+                        backdrop_path: parsed.backdropPath,
+                        initial_season: parsed.initial_season
+                    } as any);
+                    return;
+                }
+            } catch (_) {}
+        }
+
+        setMatchingAnimeId(mediaId);
+        const cleanTitle = title.replace(/\s*\(?(Dub|Sub|TV|Movie|uncensored|censored|season\s*\d+|part\s*\d+)\)?\s*$/i, '').trim();
+
+        // 1. Try TV search
+        try {
+            const res = await fetch(`${TMDB_BASE_URL}/search/tv?api_key=${apiKey}&query=${encodeURIComponent(cleanTitle)}`);
+            const data = await res.json();
+            let match = data.results?.find((item: any) => 
+                item.genre_ids?.includes(16) && item.original_language === 'ja'
+            ) || data.results?.find((item: any) => 
+                item.genre_ids?.includes(16)
+            ) || data.results?.[0];
+
+            if (match) {
+                let resolvedSeason = 1;
+                try {
+                    const detailRes = await fetch(`${TMDB_BASE_URL}/tv/${match.id}?api_key=${apiKey}`);
+                    const detailData = await detailRes.json();
+                    if (detailData && detailData.seasons) {
+                        const mockAnime = {
+                            title: mediaNode.title,
+                            seasonYear: mediaNode.startDate?.year,
+                            episodes: null
+                        };
+                        
+                        const tmdbSeasons = detailData.seasons;
+                        const activeSeasons = tmdbSeasons.filter((s: any) => s.season_number > 0);
+                        if (activeSeasons.length > 1) {
+                            const titles = [
+                                mockAnime.title.english,
+                                mockAnime.title.romaji,
+                                mockAnime.title.userPreferred
+                            ].filter((t): t is string => typeof t === 'string' && t.length > 0);
+
+                            let parsedSeasonFromTitle: number | null = null;
+                            for (const tVal of titles) {
+                                const t = tVal.toLowerCase();
+                                const match1 = t.match(/\b(?:season|part)\s*(\d+)\b/i);
+                                if (match1 && match1[1]) {
+                                    parsedSeasonFromTitle = parseInt(match1[1], 10);
+                                    break;
+                                }
+                                const match2 = t.match(/\b(\d+)(?:st|nd|rd|th)\s*(?:season|part)\b/i);
+                                if (match2 && match2[1]) {
+                                    parsedSeasonFromTitle = parseInt(match2[1], 10);
+                                    break;
+                                }
+                                if (/\bseason\s+ii\b/i.test(t) || /\bii\b/i.test(t)) {
+                                    parsedSeasonFromTitle = 2;
+                                    break;
+                                }
+                                if (/\bseason\s+iii\b/i.test(t) || /\biii\b/i.test(t)) {
+                                    parsedSeasonFromTitle = 3;
+                                    break;
+                                }
+                            }
+
+                            if (parsedSeasonFromTitle !== null) {
+                                const sMatch = activeSeasons.find((s: any) => s.season_number === parsedSeasonFromTitle);
+                                if (sMatch) resolvedSeason = sMatch.season_number;
+                            } else if (mockAnime.seasonYear) {
+                                const matchedByYear = activeSeasons.filter((s: any) => {
+                                    if (!s.air_date) return false;
+                                    const tmdbYear = new Date(s.air_date).getFullYear();
+                                    return tmdbYear === mockAnime.seasonYear;
+                                });
+                                if (matchedByYear.length > 0) {
+                                    resolvedSeason = matchedByYear[0].season_number;
+                                }
+                            }
+                        } else if (activeSeasons.length === 1) {
+                            resolvedSeason = activeSeasons[0].season_number;
+                        }
+                    }
+                } catch (e) {
+                    console.error("TV details fetch failed for studio media season matching:", e);
+                }
+
+                const backdropPath = mediaNode.bannerImage || match.backdrop_path;
+
+                localStorage.setItem(matchCacheKey, JSON.stringify({
+                    id: match.id,
+                    mediaType: 'tv',
+                    backdropPath,
+                    initial_season: resolvedSeason
+                }));
+
+                onMovieClick({
+                    id: match.id,
+                    media_type: 'tv',
+                    title: title,
+                    name: title,
+                    backdrop_path: backdropPath,
+                    initial_season: resolvedSeason
+                } as any);
+                setMatchingAnimeId(null);
+                handleClose();
+                return;
+            }
+        } catch (e) {
+            console.error("TV search failed for studio media:", e);
+        }
+
+        // 2. Try Movie search
+        try {
+            const res = await fetch(`${TMDB_BASE_URL}/search/movie?api_key=${apiKey}&query=${encodeURIComponent(cleanTitle)}`);
+            const data = await res.json();
+            let match = data.results?.find((item: any) => 
+                item.genre_ids?.includes(16) && item.original_language === 'ja'
+            ) || data.results?.find((item: any) => 
+                item.genre_ids?.includes(16)
+            ) || data.results?.[0];
+
+            if (match) {
+                const backdropPath = mediaNode.bannerImage || match.backdrop_path;
+
+                localStorage.setItem(matchCacheKey, JSON.stringify({
+                    id: match.id,
+                    mediaType: 'movie',
+                    backdropPath
+                }));
+
+                onMovieClick({
+                    id: match.id,
+                    media_type: 'movie',
+                    title: title,
+                    name: title,
+                    backdrop_path: backdropPath
+                } as any);
+                setMatchingAnimeId(null);
+                handleClose();
+                return;
+            }
+        } catch (e) {
+            console.error("Movie search failed for studio media:", e);
+        }
+
+        setMatchingAnimeId(null);
+    };
+
+    if (!studioId && !studioName) return null;
+
+    return (
+        <div className={`fixed inset-0 z-[110] bg-[#0a0a0a] overflow-y-auto custom-scrollbar select-none ${isClosing ? 'animate-slide-out-bottom' : 'animate-slide-in-bottom'}`}>
+            {loading ? (
+                <div className="h-screen flex items-center justify-center flex-col gap-4">
+                    <div className="w-20 h-20 rounded-full border-4 border-white/5 border-t-red-600 animate-spin"></div>
+                    <p className="text-gray-500 text-sm animate-pulse uppercase tracking-wider font-bold">Loading Studio Profile...</p>
+                </div>
+            ) : error ? (
+                <div className="h-screen flex flex-col items-center justify-center text-center p-6 text-zinc-400 gap-2">
+                    <AlertCircle size={40} className="text-red-500" />
+                    <h3 className="text-lg font-bold text-white">Failed to load Studio</h3>
+                    <p className="text-xs text-zinc-500 max-w-sm">{error}</p>
+                    <button onClick={handleClose} className="mt-4 px-6 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-bold uppercase rounded-lg shadow-lg active:scale-95 transition-all">Back</button>
+                </div>
+            ) : details ? (
+                <div className="w-full flex flex-col pb-20">
+                    {/* Top Header */}
+                    <div className="max-w-7xl mx-auto px-6 md:px-12 py-6 border-b border-white/5 flex items-center justify-between w-full">
+                        <button onClick={handleClose} className="flex items-center gap-2 text-zinc-400 hover:text-white transition-all text-xs font-bold uppercase tracking-wider active:scale-95 bg-white/5 hover:bg-white/10 px-4 py-2 rounded-lg border border-white/5"><ArrowLeft size={14}/> Back</button>
+                        <span className="text-zinc-500 text-xs font-black uppercase tracking-wider">Studio Profile</span>
+                    </div>
+
+                    <div className="max-w-7xl mx-auto px-6 md:px-12 py-10 flex flex-col w-full text-left font-sans">
+                        {/* Header Details */}
+                        <div className="mb-10 bg-[#121214]/60 border border-white/5 rounded-2xl p-8 flex flex-col md:flex-row md:items-center justify-between gap-6 shadow-lg">
+                            <div>
+                                <h1 className="text-3xl font-extrabold text-white tracking-tight">{details.name}</h1>
+                                <div className="flex items-center gap-3 mt-3">
+                                    {details.isAnimationStudio && (
+                                        <span className="px-3 py-1 bg-red-600/10 border border-red-500/20 text-red-400 text-[10px] font-extrabold uppercase rounded-full tracking-wider">
+                                            Animation Studio
+                                        </span>
+                                    )}
+                                </div>
+                            </div>
+                            {details.favourites !== undefined && (
+                                <div className="flex items-center gap-3 shrink-0">
+                                    <div className="px-4 py-2 bg-white/[0.02] border border-white/5 rounded-xl text-center">
+                                        <span className="text-zinc-500 text-[9px] uppercase tracking-widest block font-bold">AniList Favorites</span>
+                                        <span className="text-white text-lg font-black">{details.favourites.toLocaleString()}</span>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Works Grid */}
+                        <div className="space-y-6">
+                            <h3 className="text-lg font-bold uppercase tracking-widest text-zinc-400 border-b border-white/5 pb-3 flex items-center gap-2">
+                                <Film size={18} className="text-red-500" />
+                                <span>Produced Works ({details.media?.nodes?.length || 0})</span>
+                            </h3>
+                            {details.media?.nodes?.length > 0 ? (
+                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-6">
+                                    {details.media.nodes.map((node: any) => {
+                                        const mediaTitle = node.title?.userPreferred || node.title?.english || node.title?.romaji;
+                                        const isMatching = matchingAnimeId === node.id;
+                                        return (
+                                            <div 
+                                                key={node.id} 
+                                                onClick={() => {
+                                                    if (!isMatching) handleAnimeClick(node);
+                                                }}
+                                                className="group relative aspect-[2/3] rounded-xl overflow-hidden cursor-pointer bg-zinc-900 border border-white/5 hover:border-red-500/50 hover:scale-[1.02] transition-all duration-300 shadow-lg"
+                                            >
+                                                <img src={node.coverImage?.large} alt={mediaTitle} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" loading="lazy" />
+                                                {isMatching && (
+                                                    <div className="absolute inset-0 bg-black/60 flex items-center justify-center backdrop-blur-sm z-30">
+                                                        <Loader2 className="animate-spin text-red-600" size={20} />
+                                                    </div>
+                                                )}
+                                                <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/45 to-transparent pointer-events-none" />
+                                                <div className="absolute inset-0 p-3 flex flex-col justify-end text-left pointer-events-none">
+                                                    <h5 className="text-[11px] font-bold text-white line-clamp-2 leading-tight group-hover:text-red-500 transition-colors mb-1">{mediaTitle}</h5>
+                                                    <div className="flex items-center gap-1.5 opacity-60 text-[9px] font-bold text-zinc-300">
+                                                        <span>{node.format}</span>
+                                                        {node.startDate?.year && (
+                                                            <>
+                                                                <span>•</span>
+                                                                <span>{node.startDate.year}</span>
+                                                            </>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            ) : (
+                                <p className="text-zinc-500 text-xs italic">No works found for this studio.</p>
                             )}
                         </div>
                     </div>

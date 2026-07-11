@@ -88,7 +88,8 @@ interface MoviePageProps {
     movie: Movie;
     onClose: () => void;
     apiKey: string;
-    onPersonClick: (id: number) => void;
+    onPersonClick: (id: number, name?: string, isAniList?: boolean) => void;
+    onStudioClick: (id: number | null, name: string) => void;
     onToggleWatchlist: (m: Movie) => void;
     isWatchlisted: boolean;
     onSwitchMovie: (m: Movie) => void;
@@ -409,7 +410,7 @@ const EpisodeListItem = ({ episode, selectedSeason, isExclusive, movie, onPlaySt
 };
 
 export const MoviePage: React.FC<MoviePageProps> = ({ 
-    movie, onClose, apiKey, onPersonClick, onToggleWatchlist, isWatchlisted, 
+    movie, onClose, apiKey, onPersonClick, onStudioClick, onToggleWatchlist, isWatchlisted, 
     onSwitchMovie, onOpenListModal, onToggleFavorite, isFavorite, isWatched, onToggleWatched, userProfile,
     onKeywordClick, onCollectionClick, onCompare, appRegion = "US", onProgress, onStartWatchParty,
     initialShowPlayer = false,
@@ -632,7 +633,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                   popularity
                   duration
                   status
-                  studios(isMain: true) { edges { node { name } } }
+                  studios(isMain: true) { edges { node { id name } } }
                   nextAiringEpisode {
                     airingAt
                     timeUntilAiring
@@ -720,7 +721,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                   popularity
                   duration
                   status
-                  studios(isMain: true) { edges { node { name } } }
+                  studios(isMain: true) { edges { node { id name } } }
                   nextAiringEpisode {
                     airingAt
                     timeUntilAiring
@@ -848,7 +849,8 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                             character: charNode.name.userPreferred || charNode.name.full || 'Character',
                             profile_path: voiceActor?.image?.large || charNode.image.large || null,
                             isAnimeCharacter: true,
-                            characterId: charNode.id
+                            characterId: charNode.id,
+                            isAniListStaff: true
                         };
                     });
 
@@ -859,7 +861,8 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                             id: staffNode.id,
                             name: staffNode.name.userPreferred || staffNode.name.full || 'Unknown Staff',
                             job: edge.role || 'Staff',
-                            profile_path: staffNode.image?.large || null
+                            profile_path: staffNode.image?.large || null,
+                            isAniListStaff: true
                         };
                     });
 
@@ -870,6 +873,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                         format: prev.format || media.format,
                         source: prev.source || media.source,
                         studio: prev.studio || media.studios?.edges?.[0]?.node?.name,
+                        studioId: prev.studioId || media.studios?.edges?.[0]?.node?.id,
                         season: prev.season || media.season,
                         seasonYear: prev.seasonYear || media.seasonYear,
                         averageScore: prev.averageScore || media.averageScore,
@@ -1637,7 +1641,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                   nextAiringEpisode { episode }
                   format
                   source
-                  studios(isMain: true) { edges { node { name } } }
+                  studios(isMain: true) { edges { node { id name } } }
                   characters(sort: [ROLE, RELEVANCE, ID], perPage: 18) {
                     edges {
                       role
@@ -1701,7 +1705,8 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                             character: charNode.name.userPreferred || charNode.name.full || 'Character',
                             profile_path: voiceActor?.image?.large || charNode.image.large || null,
                             isAnimeCharacter: true,
-                            characterId: charNode.id
+                            characterId: charNode.id,
+                            isAniListStaff: true
                         };
                     });
 
@@ -1712,7 +1717,8 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                             id: staffNode.id,
                             name: staffNode.name.userPreferred || staffNode.name.full || 'Unknown Staff',
                             job: edge.role || 'Staff',
-                            profile_path: staffNode.image?.large || null
+                            profile_path: staffNode.image?.large || null,
+                            isAniListStaff: true
                         };
                     });
 
@@ -1747,6 +1753,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                         format: media.format,
                         source: media.source,
                         studio: media.studios?.edges?.[0]?.node?.name,
+                        studioId: media.studios?.edges?.[0]?.node?.id,
                         season: media.season,
                         seasonYear: media.seasonYear,
                         averageScore: media.averageScore,
@@ -2363,503 +2370,34 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                 {loading && !details ? (
                     <MovieDetailsSkeleton />
                 ) : showPlayer ? (
-                    <div className="max-w-7xl mx-auto w-full px-4 py-6 md:py-8 relative z-20 flex flex-col gap-6 animate-in fade-in duration-300 select-none">
-                        {/* Minimalist Floating Header */}
-                        <div className="bg-[#0b0b0d]/60 backdrop-blur-xl border border-white/5 rounded-2xl p-4 flex items-center justify-center shadow-lg relative overflow-hidden">
-                            <div className="text-center">
-                                <h2 className="font-bold text-sm md:text-base text-zinc-100 tracking-tight">{displayData.title || displayData.name}</h2>
-                                {isTv && (
-                                    <p className="text-[10px] text-zinc-500 font-medium tracking-wide mt-0.5">Season {playParams.season} • Episode {playParams.episode}</p>
-                                )}
-                            </div>
-                        </div>
-
-                        {/* Main Grid */}
-                        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-                            {/* Left Column (Player & Controls) */}
-                            <div className="lg:col-span-3 flex flex-col gap-6">
-                                {/* Player Container */}
-                                <div id="watch-player-container" className="relative aspect-video w-full bg-black rounded-2xl overflow-hidden shadow-2xl border border-white/5 z-20">
-                                    {(() => {
-                                        const hasResume = movie.last_watched_data && movie.last_watched_data.current_time && movie.last_watched_data.current_time > 0;
-                                        const isCurrentResumable = hasResume && (!isTv || (movie.last_watched_data.season === playParams.season && movie.last_watched_data.episode === playParams.episode));
-                                        const resumeTime = isCurrentResumable ? (movie.last_watched_data?.current_time || 0) : 0;
-                                        return (
-                                            <Suspense fallback={<div className="w-full h-full flex items-center justify-center bg-black"><Loader2 className="animate-spin text-red-600" size={32}/></div>}>
-                                                <MoviePlayer 
-                                                    tmdbId={displayData.id} 
-                                                    onClose={() => {
-                                                        if (isCasting) {
-                                                            handleStopCasting();
-                                                        }
-                                                        onPlayStateChangeRef.current?.(false);
-                                                    }} 
-                                                    mediaType={isTv ? 'tv' : 'movie'} 
-                                                    isAnime={isAnime || false} 
-                                                    isAnimeDirect={(movie as any).isAnimeDirect || (details as any)?.isAnimeDirect} 
-                                                    apiKey={apiKey} 
-                                                    onProgress={handlePlayerProgress} 
-                                                    initialSeason={playParams.season}
-                                                    initialEpisode={playParams.episode}
-                                                    color="EF4444"
-                                                    title={displayData.title || displayData.name}
-                                                    forceProgress={resumeTime}
-                                                    providerId={selectedProviderId}
-                                                    onProviderChange={handleProviderChange}
-                                                    onEpisodeChange={(season, episode) => {
-                                                        setPlayParams({ season, episode });
-                                                        onPlayStateChangeRef.current?.(true, season, episode);
-                                                    }}
-                                                />
-                                            </Suspense>
-                                        );
-                                    })()}
-                                </div>
-
-                                {/* Merged Controls Box (Servers + Toggles/Actions) */}
-                                <div className="p-5 bg-[#0b0b0d]/40 backdrop-blur-md border border-white/5 rounded-2xl space-y-5 text-left shadow-sm">
-                                    {/* Servers Selection */}
-                                    <div className="space-y-3">
-                                        <h3 className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest flex items-center gap-1.5 border-b border-white/5 pb-2">
-                                            <Tv size={12} className="text-zinc-500" />
-                                            <span>Servers</span>
-                                        </h3>
-                                        <div className="flex flex-wrap gap-2">
-                                            {getFilteredProviders(isAnime, false, isAnimeDirect).map((prov) => (
-                                                <TvFocusButton
-                                                    key={prov.id}
-                                                    onClick={() => handleProviderChange(prov.id)}
-                                                    className={`px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all border duration-200 flex items-center gap-1.5 active:scale-95 ${
-                                                        selectedProviderId === prov.id 
-                                                            ? 'bg-red-600 text-white border-red-600 shadow-sm' 
-                                                            : 'bg-white/5 text-zinc-400 border-white/5 hover:border-white/10 hover:bg-white/10 hover:text-white'
-                                                    }`}
-                                                >
-                                                    <span>{prov.name}</span>
-                                                    {selectedProviderId === prov.id && <Check size={11} className="text-white" />}
-                                                </TvFocusButton>
-                                            ))}
-                                        </div>
-                                    </div>
-
-                                    {/* Divider */}
-                                    <div className="border-t border-white/5" />
-
-                                    {/* Options & Actions */}
-                                    <div className="flex flex-wrap items-center justify-between gap-4 text-xs select-none">
-                                        {/* Slider Toggles */}
-                                        <div className="flex flex-wrap items-center gap-5">
-                                            {/* Auto Play Switch */}
-                                            <div 
-                                                onClick={() => setAutoPlayChecked(!autoPlayChecked)} 
-                                                className="flex items-center gap-2.5 cursor-pointer group"
-                                            >
-                                                <div className={`relative w-7 h-4 rounded-full transition-colors duration-200 ${autoPlayChecked ? 'bg-red-600' : 'bg-white/10'}`}>
-                                                    <div className={`absolute top-0.5 left-0.5 w-3 h-3 rounded-full bg-white transition-transform duration-200 ${autoPlayChecked ? 'translate-x-3' : 'translate-x-0'}`} />
-                                                </div>
-                                                <span className="text-zinc-400 group-hover:text-zinc-200 transition-colors text-[11px] font-medium">Auto Play</span>
-                                            </div>
-
-                                            {/* Auto Next Switch */}
-                                            <div 
-                                                onClick={() => setAutoNextChecked(!autoNextChecked)} 
-                                                className="flex items-center gap-2.5 cursor-pointer group"
-                                            >
-                                                <div className={`relative w-7 h-4 rounded-full transition-colors duration-200 ${autoNextChecked ? 'bg-red-600' : 'bg-white/10'}`}>
-                                                    <div className={`absolute top-0.5 left-0.5 w-3 h-3 rounded-full bg-white transition-transform duration-200 ${autoNextChecked ? 'translate-x-3' : 'translate-x-0'}`} />
-                                                </div>
-                                                <span className="text-zinc-400 group-hover:text-zinc-200 transition-colors text-[11px] font-medium">Auto Next</span>
-                                            </div>
-
-                                            {/* Auto Skip Switch */}
-                                            <div 
-                                                onClick={() => setAutoSkipChecked(!autoSkipChecked)} 
-                                                className="flex items-center gap-2.5 cursor-pointer group"
-                                            >
-                                                <div className={`relative w-7 h-4 rounded-full transition-colors duration-200 ${autoSkipChecked ? 'bg-red-600' : 'bg-white/10'}`}>
-                                                    <div className={`absolute top-0.5 left-0.5 w-3 h-3 rounded-full bg-white transition-transform duration-200 ${autoSkipChecked ? 'translate-x-3' : 'translate-x-0'}`} />
-                                                </div>
-                                                <span className="text-zinc-400 group-hover:text-zinc-200 transition-colors text-[11px] font-medium">Auto Skip</span>
-                                            </div>
-                                        </div>
-
-                                        {/* Action Buttons */}
-                                        <div className="flex items-center gap-2">
-                                            <TvFocusButton 
-                                                onClick={() => {
-                                                    const container = document.getElementById('watch-player-container');
-                                                    if (container) {
-                                                        if (container.requestFullscreen) {
-                                                            container.requestFullscreen();
-                                                        } else if ((container as any).webkitRequestFullscreen) {
-                                                            (container as any).webkitRequestFullscreen();
-                                                        } else if ((container as any).mozRequestFullScreen) {
-                                                            (container as any).mozRequestFullScreen();
-                                                        } else if ((container as any).msRequestFullscreen) {
-                                                            (container as any).msRequestFullscreen();
-                                                        }
-                                                    }
-                                                }}
-                                                className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-full text-zinc-300 hover:text-white transition-all text-xs font-medium active:scale-95"
-                                            >
-                                                <Maximize size={13} />
-                                                <span>Fullscreen</span>
-                                            </TvFocusButton>
-                                            <TvFocusButton 
-                                                onClick={() => {
-                                                    setDownloadSeason(playParams.season);
-                                                    setDownloadEpisode(playParams.episode);
-                                                    setShowDownloadModal(true);
-                                                }}
-                                                className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-full text-zinc-300 hover:text-white transition-all text-xs font-medium active:scale-95"
-                                            >
-                                                <Download size={13} />
-                                                <span>Download</span>
-                                            </TvFocusButton>
-                                            <TvFocusButton 
-                                                onClick={() => onToggleWatchlist(displayData)} 
-                                                className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-full text-zinc-300 hover:text-white transition-all text-xs font-medium active:scale-95"
-                                            >
-                                                <Bookmark size={13} fill={isWatchlisted ? "currentColor" : "none"} className={isWatchlisted ? "text-red-500" : ""} />
-                                                <span>{isWatchlisted ? "Bookmarked" : "Bookmark"}</span>
-                                            </TvFocusButton>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* More Seasons & Movies */}
-                                {isAnime && (() => {
-                                    const seasonsAndMovies = socialRelations.filter(edge => {
-                                        const type = edge.relationType;
-                                        const format = edge.node?.format;
-                                        if (['PREQUEL', 'SEQUEL', 'PARENT'].includes(type)) return true;
-                                        if ((format === 'TV' || format === 'MOVIE') && !['SIDE_STORY', 'SPIN_OFF', 'SUMMARY'].includes(type)) return true;
-                                        return false;
-                                    });
-
-                                    if (seasonsAndMovies.length === 0) return null;
-
-                                    return (
-                                        <div className="space-y-3 text-left">
-                                            <h3 className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest flex items-center gap-1.5 border-b border-white/5 pb-2">
-                                                <Layers size={12} className="text-red-500 animate-pulse" />
-                                                <span>More Seasons & Movies</span>
-                                            </h3>
-                                            <div className="flex overflow-x-auto gap-4 pb-4 custom-scrollbar pr-1 select-none scroll-smooth">
-                                                {seasonsAndMovies.map((rel, index) => {
-                                                    const title = rel.node?.title?.english || rel.node?.title?.userPreferred;
-                                                    const poster = rel.node?.coverImage?.large;
-                                                    const format = rel.node?.format;
-                                                    const year = rel.node?.startDate?.year;
-                                                    const isMovie = format === 'MOVIE';
-
-                                                    return (
-                                                        <div 
-                                                            key={`season-${rel.node?.id}-${index}`}
-                                                            onClick={() => {
-                                                                onSwitchMovie({
-                                                                    id: rel.node?.id,
-                                                                    title,
-                                                                    poster_path: poster,
-                                                                    media_type: isMovie ? 'movie' : 'tv',
-                                                                    isAnimeDirect: true,
-                                                                    isExternalImage: true
-                                                                });
-                                                            }}
-                                                            className="w-[140px] md:w-[160px] shrink-0 flex flex-col gap-2 cursor-pointer group transition-all duration-300"
-                                                        >
-                                                            <div className="relative aspect-[2/3] w-full rounded-xl overflow-hidden border border-white/5 bg-zinc-900 shadow-md">
-                                                                <img 
-                                                                    src={poster || "https://placehold.co/90x135"} 
-                                                                    alt={title}
-                                                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                                                                />
-                                                            </div>
-                                                            <div className="flex flex-col min-w-0 text-left mt-1">
-                                                                <h4 className="font-semibold text-xs text-zinc-300 group-hover:text-red-500 transition-colors line-clamp-2 leading-tight h-8">{title}</h4>
-                                                                <div className="flex items-center gap-1.5 mt-1 text-[9px] text-zinc-500 font-medium">
-                                                                    <span className="px-1 py-0.5 rounded text-[8px] font-bold bg-white/5 text-zinc-400 border border-white/5 uppercase">
-                                                                        {format || 'TV'}
-                                                                    </span>
-                                                                    {year && (
-                                                                        <span>• {year}</span>
-                                                                    )}
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    );
-                                                })}
-                                            </div>
-                                        </div>
-                                    );
-                                })()}
-
-                                {/* Side Stories & Spin-offs */}
-                                {isAnime && (() => {
-                                    const seasonsAndMovies = socialRelations.filter(edge => {
-                                        const type = edge.relationType;
-                                        const format = edge.node?.format;
-                                        if (['PREQUEL', 'SEQUEL', 'PARENT'].includes(type)) return true;
-                                        if ((format === 'TV' || format === 'MOVIE') && !['SIDE_STORY', 'SPIN_OFF', 'SUMMARY'].includes(type)) return true;
-                                        return false;
-                                    });
-
-                                    const sideStoriesAndSpinoffs = socialRelations.filter(edge => {
-                                        return !seasonsAndMovies.includes(edge);
-                                    });
-
-                                    if (sideStoriesAndSpinoffs.length === 0) return null;
-
-                                    return (
-                                        <div className="space-y-3 text-left">
-                                            <h3 className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest flex items-center gap-1.5 border-b border-white/5 pb-2">
-                                                <Tv size={12} className="text-blue-500" />
-                                                <span>Side Stories & Spin-offs</span>
-                                            </h3>
-                                            <div className="flex overflow-x-auto gap-4 pb-4 custom-scrollbar pr-1 select-none scroll-smooth">
-                                                {sideStoriesAndSpinoffs.map((rel, index) => {
-                                                    const title = rel.node?.title?.english || rel.node?.title?.userPreferred;
-                                                    const poster = rel.node?.coverImage?.large;
-                                                    const format = rel.node?.format;
-                                                    const year = rel.node?.startDate?.year;
-                                                    const isMovie = format === 'MOVIE';
-
-                                                    return (
-                                                        <div 
-                                                            key={`side-${rel.node?.id}-${index}`}
-                                                            onClick={() => {
-                                                                onSwitchMovie({
-                                                                    id: rel.node?.id,
-                                                                    title,
-                                                                    poster_path: poster,
-                                                                    media_type: isMovie ? 'movie' : 'tv',
-                                                                    isAnimeDirect: true,
-                                                                    isExternalImage: true
-                                                                });
-                                                            }}
-                                                            className="w-[140px] md:w-[160px] shrink-0 flex flex-col gap-2 cursor-pointer group transition-all duration-300"
-                                                        >
-                                                            <div className="relative aspect-[2/3] w-full rounded-xl overflow-hidden border border-white/5 bg-zinc-900 shadow-md">
-                                                                <img 
-                                                                    src={poster || "https://placehold.co/90x135"} 
-                                                                    alt={title}
-                                                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                                                                />
-                                                            </div>
-                                                            <div className="flex flex-col min-w-0 text-left mt-1">
-                                                                <h4 className="font-semibold text-xs text-zinc-300 group-hover:text-red-500 transition-colors line-clamp-2 leading-tight h-8">{title}</h4>
-                                                                <div className="flex items-center gap-1.5 mt-1 text-[9px] text-zinc-500 font-medium">
-                                                                    <span className="px-1 py-0.5 rounded text-[8px] font-bold bg-white/5 text-zinc-400 border border-white/5 uppercase">
-                                                                        {format || 'TV'}
-                                                                    </span>
-                                                                    {year && (
-                                                                        <span>• {year}</span>
-                                                                    )}
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    );
-                                                })}
-                                            </div>
-                                        </div>
-                                    );
-                                })()}
-
-                                {/* Recommendations (Moved below controls) */}
-                                <div className="space-y-3 text-left">
-                                    <h3 className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest flex items-center gap-1.5 border-b border-white/5 pb-2">
-                                        <Sparkles size={12} className="text-yellow-500 animate-pulse" fill="currentColor" />
-                                        <span>Recommended</span>
-                                    </h3>
-                                    <div className="flex overflow-x-auto gap-4 pb-4 custom-scrollbar pr-1 select-none scroll-smooth">
-                                        {(() => {
-                                            let recs: any[] = [];
-                                            if (isAnime && socialRecommendations.length > 0) {
-                                                recs = socialRecommendations.map(node => ({
-                                                    id: node.mediaRecommendation?.id,
-                                                    title: node.mediaRecommendation?.title?.english || node.mediaRecommendation?.title?.userPreferred,
-                                                    poster_path: node.mediaRecommendation?.coverImage?.large,
-                                                    media_type: 'tv',
-                                                    release_date: node.mediaRecommendation?.startDate?.year ? `${node.mediaRecommendation.startDate.year}` : '',
-                                                    isAnimeDirect: true,
-                                                    isExternalImage: true
-                                                }));
-                                            } else if (isDrama && mdlRecs.length > 0) {
-                                                recs = mdlRecs.map(rec => ({
-                                                    id: rec.id,
-                                                    title: rec.title,
-                                                    poster_path: rec.poster,
-                                                    media_type: 'tv',
-                                                    release_date: rec.year,
-                                                    isExternalImage: true
-                                                }));
-                                            } else if (displayData.similar?.results && displayData.similar.results.length > 0) {
-                                                recs = displayData.similar.results.slice(0, 15);
-                                            }
-
-                                            if (recs.length === 0) {
-                                                return (
-                                                    <div className="text-zinc-500 text-xs py-2">
-                                                        No recommendations.
-                                                    </div>
-                                                );
-                                            }
-
-                                            return recs.map((sim, index) => {
-                                                const simTitle = sim.title || sim.name;
-                                                const simYear = sim.release_date?.split('-')[0] || sim.first_air_date?.split('-')[0] || sim.year || '';
-                                                const posterSrc = sim.isExternalImage 
-                                                    ? sim.poster_path 
-                                                    : (sim.poster_path ? `${TMDB_IMAGE_BASE}${sim.poster_path}` : "https://placehold.co/90x135");
-
-                                                return (
-                                                    <div 
-                                                        key={`sim-${sim.id}-${index}`}
-                                                        onClick={() => {
-                                                            if (sim.isAnimeDirect || isAnime) {
-                                                                onSwitchMovie({ ...sim, media_type: 'tv', isAnimeDirect: true });
-                                                            } else {
-                                                                onSwitchMovie(sim);
-                                                            }
-                                                        }}
-                                                        className="w-[140px] md:w-[160px] shrink-0 flex flex-col gap-2 cursor-pointer group transition-all duration-300"
-                                                    >
-                                                        <div className="relative aspect-[2/3] w-full rounded-xl overflow-hidden border border-white/5 bg-zinc-900 shadow-md">
-                                                            <img 
-                                                                src={posterSrc} 
-                                                                alt={simTitle}
-                                                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                                                            />
-                                                        </div>
-                                                        <div className="flex flex-col min-w-0 text-left mt-1">
-                                                            <h4 className="font-semibold text-xs text-zinc-300 group-hover:text-red-500 transition-colors line-clamp-2 leading-tight h-8">{simTitle}</h4>
-                                                            <div className="flex items-center gap-1.5 mt-1 text-[9px] text-zinc-500 font-medium">
-                                                                <span className="px-1 py-0.5 rounded text-[8px] font-bold bg-white/5 text-zinc-400 border border-white/5">
-                                                                    {sim.media_type || resolvedMediaType}
-                                                                </span>
-                                                                {simYear && (
-                                                                    <span>• {simYear}</span>
-                                                                )}
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                );
-                                            });
-                                        })()}
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Right Column (Show Details + Seasons & Episodes Grid) */}
-                            <div className="lg:col-span-1 flex flex-col gap-5 text-left">
-                                <div className="p-5 bg-[#0b0b0d]/40 backdrop-blur-md border border-white/5 rounded-2xl space-y-4 flex flex-col shadow-sm">
-                                    {/* Small Movie Poster & Details on Top of Episode Selector */}
-                                    <div className="flex items-start gap-3.5 pb-3 border-b border-white/5">
-                                        <div className="relative aspect-[2/3] w-12 rounded-lg overflow-hidden border border-white/5 bg-zinc-900 shrink-0 shadow-md">
-                                            <img 
-                                                src={displayData.poster_path ? `${TMDB_IMAGE_BASE}${displayData.poster_path}` : "https://placehold.co/90x135"} 
-                                                alt={displayData.title || displayData.name}
-                                                className="w-full h-full object-cover"
-                                            />
-                                        </div>
-                                        <div className="min-w-0 flex-1">
-                                            <h3 className="font-bold text-xs text-zinc-100 line-clamp-2 leading-tight">{displayData.title || displayData.name}</h3>
-                                            <div className="flex items-center gap-2 mt-1">
-                                                <span className="px-1.5 py-0.5 rounded text-[8px] font-bold bg-white/5 text-zinc-400 border border-white/5 uppercase">
-                                                    {resolvedMediaType}
-                                                </span>
-                                                {releaseDate && (
-                                                    <span className="text-[9px] text-zinc-500 font-bold">
-                                                        {releaseDate.split(',')[1]?.trim() || releaseDate.split('-')[0] || releaseDate}
-                                                    </span>
-                                                )}
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {/* Seasons & Episodes Selector inside this same sidebar block */}
-                                    {isTv && (
-                                        <div className="space-y-4 pt-1">
-                                            <div className="flex items-center justify-between border-b border-white/5 pb-2">
-                                                <h3 className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest flex items-center gap-1.5">
-                                                    <Clapperboard size={12} className="text-zinc-500" />
-                                                    <span>Episodes</span>
-                                                </h3>
-                                                {/* Custom Seasons Dropdown */}
-                                                {details?.seasons && details.seasons.length > 1 && (
-                                                    <div className="relative" ref={dropdownRef}>
-                                                        <TvFocusButton 
-                                                            onClick={() => setIsDropdownOpen(!isDropdownOpen)} 
-                                                            className="flex items-center gap-1 px-2 py-1 rounded-md bg-white/5 border border-white/10 hover:bg-white/10 text-[10px] text-zinc-300 font-medium transition-all"
-                                                        >
-                                                            <span>Season {selectedSeason}</span>
-                                                            <ChevronDown size={10} className={`transition-transform duration-200 ${isDropdownOpen ? 'rotate-180' : ''}`} />
-                                                        </TvFocusButton>
-                                                        {isDropdownOpen && (
-                                                            <div className="absolute right-0 top-full mt-1.5 w-32 bg-[#121215] border border-white/10 rounded-lg shadow-2xl py-1 z-50 overflow-hidden">
-                                                                {details.seasons
-                                                                    .filter(s => s.season_number > 0)
-                                                                    .map((s) => (
-                                                                        <TvFocusButton
-                                                                            key={s.id}
-                                                                            onClick={() => {
-                                                                                setSelectedSeason(s.season_number);
-                                                                                setIsDropdownOpen(false);
-                                                                            }}
-                                                                            className={`w-full text-left px-3 py-1.5 text-[10px] font-medium transition-colors flex items-center justify-between ${
-                                                                                selectedSeason === s.season_number 
-                                                                                    ? 'bg-red-600 text-white font-semibold' 
-                                                                                    : 'text-zinc-400 hover:bg-white/5 hover:text-white'
-                                                                            }`}
-                                                                        >
-                                                                            <span>Season {s.season_number}</span>
-                                                                            {selectedSeason === s.season_number && <Check size={9} />}
-                                                                        </TvFocusButton>
-                                                                    ))
-                                                                }
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                )}
-                                            </div>
-
-                                            <div className="grid grid-cols-4 sm:grid-cols-5 gap-2 max-h-[300px] overflow-y-auto custom-scrollbar pr-1 select-none">
-                                                {episodesLoading ? (
-                                                    <div className="col-span-full py-8 flex items-center justify-center">
-                                                        <Loader2 className="animate-spin text-zinc-600" size={18} />
-                                                    </div>
-                                                ) : episodes.length > 0 ? (
-                                                    episodes.map((ep) => {
-                                                        const isCurrentEp = playParams.season === selectedSeason && playParams.episode === ep.episode_number;
-                                                        return (
-                                                            <TvFocusButton
-                                                                key={ep.id}
-                                                                onClick={() => {
-                                                                    setPlayParams({ season: selectedSeason, episode: ep.episode_number });
-                                                                    onPlayStateChangeRef.current?.(true, selectedSeason, ep.episode_number);
-                                                                }}
-                                                                className={`flex items-center justify-center aspect-square w-full rounded-lg border text-center text-xs font-semibold transition-all duration-200 active:scale-95 cursor-pointer ${
-                                                                    isCurrentEp
-                                                                        ? 'bg-red-600 border-red-600 text-white shadow-sm'
-                                                                        : 'bg-white/5 border-white/5 hover:border-white/10 text-zinc-400 hover:text-white'
-                                                                }`}
-                                                                title={ep.name || `Episode ${ep.episode_number}`}
-                                                            >
-                                                                {ep.episode_number}
-                                                            </TvFocusButton>
-                                                        );
-                                                    })
-                                                ) : (
-                                                    <div className="col-span-full text-center py-8 text-zinc-500 text-[10px]">
-                                                        No episodes.
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        </div>
+                    <div className="fixed inset-0 z-[150] bg-black animate-in fade-in duration-300 select-none">
+                        <Suspense fallback={<div className="w-full h-full flex items-center justify-center bg-black"><Loader2 className="animate-spin text-red-600" size={32}/></div>}>
+                            <MoviePlayer 
+                                tmdbId={displayData.id} 
+                                onClose={() => {
+                                    if (isCasting) {
+                                        handleStopCasting();
+                                    }
+                                    onPlayStateChangeRef.current?.(false);
+                                }} 
+                                mediaType={isTv ? 'tv' : 'movie'} 
+                                isAnime={isAnime || false} 
+                                isAnimeDirect={(movie as any).isAnimeDirect || (details as any)?.isAnimeDirect} 
+                                apiKey={apiKey} 
+                                onProgress={handlePlayerProgress} 
+                                initialSeason={playParams.season}
+                                initialEpisode={playParams.episode}
+                                color="EF4444"
+                                title={displayData.title || displayData.name}
+                                forceProgress={movie.last_watched_data && movie.last_watched_data.current_time && movie.last_watched_data.current_time > 0 && (!isTv || (movie.last_watched_data.season === playParams.season && movie.last_watched_data.episode === playParams.episode)) ? (movie.last_watched_data.current_time) : 0}
+                                providerId={selectedProviderId}
+                                onProviderChange={handleProviderChange}
+                                onEpisodeChange={(season, episode) => {
+                                    setPlayParams({ season, episode });
+                                    onPlayStateChangeRef.current?.(true, season, episode);
+                                }}
+                            />
+                        </Suspense>
                     </div>
                 ) : (
                     <div className="flex flex-col pb-20">
@@ -3121,7 +2659,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                 <h3 className="text-xl font-bold text-white mb-6">Top Cast</h3>
                                                 <div className="flex overflow-x-auto gap-6 pb-4 hide-scrollbar">
                                                      {displayData.credits?.cast?.slice(0, 10).map((person) => (
-                                                         <TvFocusButton key={person.id} onClick={() => onPersonClick(person.id)} className="flex flex-col items-center text-center group cursor-pointer shrink-0 w-24 bg-transparent p-0 border border-transparent">
+                                                         <TvFocusButton key={person.id} onClick={() => onPersonClick(person.id, person.name, person.isAniListStaff)} className="flex flex-col items-center text-center group cursor-pointer shrink-0 w-24 bg-transparent p-0 border border-transparent">
                                                              <div className="w-20 h-20 md:w-24 md:h-24 rounded-full overflow-hidden mb-3 border-2 border-transparent transition-all shadow-lg"><img src={person.profile_path ? (person.profile_path.startsWith('http') ? person.profile_path : `${TMDB_IMAGE_BASE}${person.profile_path}`) : `https://ui-avatars.com/api/?name=${person.name}&background=333&color=fff`} alt={person.name} className="w-full h-full object-cover"/></div>
                                                             <h4 className="text-xs md:text-sm font-bold text-white leading-tight mb-1 line-clamp-2">{person.name}</h4>
                                                             <p className="text-[10px] md:text-xs text-gray-500 line-clamp-1">{person.character}</p>
@@ -3134,7 +2672,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                 <h3 className="text-xl font-bold text-white mb-6">Crew</h3>
                                                 <div className="flex overflow-x-auto gap-6 pb-4 hide-scrollbar">
                                                      {displayData.credits?.crew?.slice(0, 5).map((person) => (
-                                                         <TvFocusButton key={`${person.id}-${person.job}`} onClick={() => onPersonClick(person.id)} className="flex flex-col items-center text-center shrink-0 w-20 cursor-pointer group bg-transparent p-0 border border-transparent"><div className="w-16 h-16 md:w-20 md:h-20 rounded-full overflow-hidden mb-3 bg-white/5 transition-all duration-500 border border-transparent"><img src={person.profile_path ? (person.profile_path.startsWith('http') ? person.profile_path : `${TMDB_IMAGE_BASE}${person.profile_path}`) : `https://ui-avatars.com/api/?name=${person.name}&background=333&color=fff`} alt={person.name} className="w-full h-full object-cover"/></div><h4 className="text-xs font-bold text-white leading-tight mb-1 line-clamp-2">{person.name}</h4><p className="text-[10px] text-gray-500 line-clamp-1">{person.job}</p></TvFocusButton>
+                                                         <TvFocusButton key={`${person.id}-${person.job}`} onClick={() => onPersonClick(person.id, person.name, person.isAniListStaff)} className="flex flex-col items-center text-center shrink-0 w-20 cursor-pointer group bg-transparent p-0 border border-transparent"><div className="w-16 h-16 md:w-20 md:h-20 rounded-full overflow-hidden mb-3 bg-white/5 transition-all duration-500 border border-transparent"><img src={person.profile_path ? (person.profile_path.startsWith('http') ? person.profile_path : `${TMDB_IMAGE_BASE}${person.profile_path}`) : `https://ui-avatars.com/api/?name=${person.name}&background=333&color=fff`} alt={person.name} className="w-full h-full object-cover"/></div><h4 className="text-xs font-bold text-white leading-tight mb-1 line-clamp-2">{person.name}</h4><p className="text-[10px] text-gray-500 line-clamp-1">{person.job}</p></TvFocusButton>
                                                     ))}
                                                     <TvFocusButton onClick={() => setShowFullCrew(true)} className="flex flex-col items-center justify-center shrink-0 w-20 h-20 rounded-full bg-white/5 hover:bg-white/10 border border-transparent transition-all group"><ChevronRight size={20} className="text-gray-400 group-hover:text-white mb-1"/><span className="text-[10px] font-bold text-gray-400 group-hover:text-white">View All</span></TvFocusButton>
                                                 </div>
@@ -4174,7 +3712,12 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                     {displayData.studio && (
                                                         <div className="space-y-1">
                                                             <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1.5"><Tv size={10}/> Studio</p>
-                                                            <p className="text-white font-bold text-sm truncate">{displayData.studio}</p>
+                                                            <button 
+                                                                onClick={() => onStudioClick(displayData.studioId || null, displayData.studio)}
+                                                                className="text-white hover:text-red-500 font-bold text-sm truncate bg-transparent border-0 p-0 focus:outline-none text-left transition-colors cursor-pointer block"
+                                                            >
+                                                                {displayData.studio}
+                                                            </button>
                                                         </div>
                                                     )}
                                                     <div className="space-y-1">

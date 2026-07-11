@@ -5,7 +5,7 @@ import { Movie, UserProfile, GENRES_MAP, GENRES_LIST, INDIAN_LANGUAGES, Maturity
 import { LogoLoader, MovieSkeleton, MovieCard, PersonCard, TMDB_BASE_URL, TMDB_BACKDROP_BASE, TMDB_IMAGE_BASE, getTmdbKey, BrandLogo, getMovieVerseRating, tvFetch } from './components/Shared';
 import { MoviePage } from './components/MovieDetails';
 import { NetflixHoverCard } from './components/NetflixHoverCard';
-import { PersonPage, NotificationModal, ComparisonModal, ExpandedCategoryModal, CharacterPage } from './components/Modals';
+import { PersonPage, NotificationModal, ComparisonModal, ExpandedCategoryModal, CharacterPage, StudioPage } from './components/Modals';
 import { SettingsPage } from './components/SettingsModal';
 import { getSearchSuggestions } from './services/gemini';
 import { LoginPage } from './components/LoginPage';
@@ -1598,6 +1598,10 @@ export default function App() {
 
 
     const [selectedPersonId, setSelectedPersonId] = useState<number | null>(null);
+    const [selectedPersonName, setSelectedPersonName] = useState<string | null>(null);
+    const [isPersonAniListStaff, setIsPersonAniListStaff] = useState<boolean>(false);
+    const [selectedStudioId, setSelectedStudioId] = useState<number | null>(null);
+    const [selectedStudioName, setSelectedStudioName] = useState<string | null>(null);
     const [selectedCharacterId, setSelectedCharacterId] = useState<number | null>(null);
     const [topMovies, setTopMovies] = useState<Movie[]>([]);
     const [topShows, setTopShows] = useState<Movie[]>([]);
@@ -1855,6 +1859,8 @@ export default function App() {
             let mangaIdToSelect: string | null = null;
             let mangaChapterIdToSelect: string | null = null;
             let dramaSlugToSelect: string | null = null;
+            let studioIdToSelect: number | null = null;
+            let studioNameToSelect: string | null = null;
 
             // Details-related states to sync
             let detailsTab = "overview";
@@ -2053,6 +2059,16 @@ export default function App() {
                 if (query) {
                     searchQueryToSelect = decodeURIComponent(query);
                 }
+            } else if (path.startsWith('/studio/')) {
+                const studioIdStr = parts[2];
+                const studioId = parseInt(studioIdStr, 10);
+                const studioNameStr = parts[3];
+                if (!isNaN(studioId)) {
+                    studioIdToSelect = studioId === 0 ? null : studioId;
+                }
+                if (studioNameStr) {
+                    studioNameToSelect = decodeURIComponent(studioNameStr);
+                }
             }
 
             if (window.location.pathname !== syncPath) return;
@@ -2069,6 +2085,13 @@ export default function App() {
             setActiveMangaChapterId(mangaChapterIdToSelect);
             setSelectedDramaSlug(dramaSlugToSelect);
             setSelectedCharacterId(characterIdToSelect);
+            setSelectedStudioId(studioIdToSelect);
+            setSelectedStudioName(studioNameToSelect);
+
+            if (!personIdToSelect) {
+                setSelectedPersonName(null);
+                setIsPersonAniListStaff(false);
+            }
 
             if (movieToSelect) {
                 setModalHistory([{ type: 'movie', data: movieToSelect }]);
@@ -2076,6 +2099,8 @@ export default function App() {
                 setModalHistory([{ type: 'person', data: personIdToSelect }]);
             } else if (characterIdToSelect) {
                 setModalHistory([{ type: 'character', data: characterIdToSelect }]);
+            } else if (studioIdToSelect || studioNameToSelect) {
+                setModalHistory([{ type: 'studio', data: { id: studioIdToSelect, name: studioNameToSelect } } as any]);
             } else {
                 setModalHistory([]);
             }
@@ -2217,7 +2242,7 @@ export default function App() {
                 mangaDetailsStartIdxRef.current = finalIdx;
             }
         }
-    }, [selectedCategory, selectedMovie, selectedPersonId, selectedCharacterId, activeWatchPartyRoom, activeKeyword, tmdbCollectionId, activeCountry, currentCollection, isWatching, watchSeason, watchEpisode, showDetailsCast, showDetailsCrew, activeDetailsTab, selectedMangaId, activeMangaChapterId, selectedDramaSlug]);
+    }, [selectedCategory, selectedMovie, selectedPersonId, selectedCharacterId, activeWatchPartyRoom, activeKeyword, tmdbCollectionId, activeCountry, currentCollection, isWatching, watchSeason, watchEpisode, showDetailsCast, showDetailsCrew, activeDetailsTab, selectedMangaId, activeMangaChapterId, selectedDramaSlug, searchQuery]);
 
 
     // Dedicated effect to dynamically update document.title based on the active route/state
@@ -5524,7 +5549,17 @@ export default function App() {
                         }
                     }}
                     apiKey={apiKey}
-                    onPersonClick={(id) => { setSelectedMovie(null); setSelectedPersonId(id); }}
+                    onPersonClick={(id, name, isAniList) => {
+                        setSelectedMovie(null);
+                        setSelectedPersonId(id);
+                        setSelectedPersonName(name || null);
+                        setIsPersonAniListStaff(!!isAniList);
+                    }}
+                    onStudioClick={(id, name) => {
+                        setSelectedMovie(null);
+                        setSelectedStudioId(id);
+                        setSelectedStudioName(name);
+                    }}
                     onCharacterClick={(id) => { setSelectedMovie(null); setSelectedCharacterId(id); }}
                     onToggleWatchlist={(m) => toggleList(watchlist, setWatchlist, 'movieverse_watchlist', m)}
                     isWatchlisted={watchlist.some(m => m.id === selectedMovie.id)}
@@ -5565,17 +5600,21 @@ export default function App() {
             <PersonPage 
                 key={selectedPersonId || 0} 
                 personId={selectedPersonId || 0} 
+                personName={selectedPersonName}
+                isAniListStaff={isPersonAniListStaff}
                 onClose={() => {
                     const canGoBack = window.history.state && typeof window.history.state.idx === 'number' && window.history.state.idx > 0;
                     if (canGoBack) {
                         window.history.back();
                     } else {
                         setSelectedPersonId(null);
+                        setSelectedPersonName(null);
+                        setIsPersonAniListStaff(false);
                     }
                 }}
                 apiKey={apiKey} 
-                onMovieClick={(m) => { setSelectedPersonId(null); setSelectedMovie(m); }} 
-                onCharacterClick={(id) => { setSelectedPersonId(null); setSelectedCharacterId(id); }}
+                onMovieClick={(m) => { setSelectedPersonId(null); setSelectedPersonName(null); setIsPersonAniListStaff(false); setSelectedMovie(m); }} 
+                onCharacterClick={(id) => { setSelectedPersonId(null); setSelectedPersonName(null); setIsPersonAniListStaff(false); setSelectedCharacterId(id); }}
             />
             {selectedCharacterId && (
                 <CharacterPage
@@ -5597,6 +5636,27 @@ export default function App() {
                     onPersonClick={(id) => {
                         setSelectedCharacterId(null);
                         setSelectedPersonId(id);
+                    }}
+                />
+            )}
+            {(selectedStudioId || selectedStudioName) && (
+                <StudioPage
+                    studioId={selectedStudioId}
+                    studioName={selectedStudioName}
+                    onClose={() => {
+                        const canGoBack = window.history.state && typeof window.history.state.idx === 'number' && window.history.state.idx > 0;
+                        if (canGoBack) {
+                            window.history.back();
+                        } else {
+                            setSelectedStudioId(null);
+                            setSelectedStudioName(null);
+                        }
+                    }}
+                    apiKey={apiKey}
+                    onMovieClick={(m) => {
+                        setSelectedStudioId(null);
+                        setSelectedStudioName(null);
+                        setSelectedMovie(m);
                     }}
                 />
             )}

@@ -143,6 +143,7 @@ export interface MovieDetails extends Movie {
   type?: string;
   idMal?: number;
   studio?: string;
+  studioId?: number | null;
   format?: string;
   source?: string;
   season?: string | number;
@@ -211,16 +212,20 @@ export interface CastMember {
   name: string;
   character: string;
   profile_path: string | null;
-  popularity: number;
+  popularity?: number;
+  isAniListStaff?: boolean;
+  isAnimeCharacter?: boolean;
+  characterId?: number;
 }
 
 export interface CrewMember {
   id: number;
   name: string;
   job: string;
-  department: string;
+  department?: string;
   profile_path: string | null;
-  popularity: number;
+  popularity?: number;
+  isAniListStaff?: boolean;
 }
 
 export interface VideoResult {
