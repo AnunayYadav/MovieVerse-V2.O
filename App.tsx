@@ -1383,10 +1383,6 @@ export default function App() {
     const [selectedCategory, setSelectedCategory] = useState("All");
 
     useEffect(() => {
-        if (isAiSearchActive) {
-            setSearchSuggestions([]);
-            return;
-        }
         if (!searchInput.trim() || searchInput.trim().length < 2) {
             setSearchSuggestions([]);
             return;
@@ -1460,7 +1456,7 @@ export default function App() {
         }, 300);
 
         return () => clearTimeout(delayDebounce);
-    }, [searchInput, selectedCategory, apiKey, isAiSearchActive]);
+    }, [searchInput, selectedCategory, apiKey]);
 
     const [loading, setLoading] = useState(false);
     const [fetchError, setFetchError] = useState(false);
@@ -3532,32 +3528,7 @@ export default function App() {
         const timeout = setTimeout(() => fetchMovies(1, false), searchQuery ? 800 : 300);
         return () => clearTimeout(timeout);
     }, [fetchMovies, searchQuery, selectedCategory, isAiSearchActive]);
-    useEffect(() => {
-        if (!isAiSearchActive) return;
-        if (selectedCategory === "Categories") {
-            setShowSuggestions(false);
-            return;
-        }
-        if (!searchInput.trim() || searchInput.trim().length < 2) {
-            setSearchSuggestions([]);
-            return;
-        }
 
-        const fetchSuggestions = async () => {
-            setLoadingSuggestions(true);
-            try {
-                const sugs = await getSearchSuggestions(searchInput);
-                setSearchSuggestions(sugs);
-                setShowSuggestions(true);
-            } catch (e) {
-                console.error(e);
-            } finally {
-                setLoadingSuggestions(false);
-            }
-        };
-        const timeout = setTimeout(fetchSuggestions, 600);
-        return () => clearTimeout(timeout);
-    }, [searchInput, selectedCategory, isAiSearchActive]);
     useEffect(() => {
         if (selectedCategory === "Franchise") {
             const timeout = setTimeout(() => fetchMovies(1, false), franchiseSearchQuery ? 600 : 300);
@@ -4385,72 +4356,44 @@ export default function App() {
                                         </div>
                                     ) : (
                                         <div className="py-1 max-h-64 overflow-y-auto custom-scrollbar">
-                                            {searchSuggestions.map((item, idx) => {
-                                                if (typeof item === 'string') {
-                                                    return (
-                                                        <div
-                                                            key={`sugg-mob-${idx}`}
-                                                            onClick={() => {
-                                                                setSearchInput(item);
-                                                                setSearchQuery(item);
-                                                                handleSearchSubmit(item);
-                                                                setSearchSuggestions([]);
-                                                                setShowSuggestions(false);
-                                                                setIsSidebarOpen(false);
-                                                            }}
-                                                            className="flex items-center gap-3 px-4 py-2.5 hover:bg-white/5 cursor-pointer transition-colors border-b border-white/[0.03] last:border-b-0"
-                                                        >
-                                                            <div className="w-8 h-11 bg-purple-950/30 border border-purple-500/20 rounded-lg flex items-center justify-center shrink-0 shadow-md">
-                                                                <Sparkles className="text-purple-400" size={14} />
-                                                            </div>
-                                                            <div className="min-w-0 flex-1">
-                                                                <p className="text-xs font-bold text-zinc-100 truncate">{item}</p>
-                                                                <p className="text-[10px] text-purple-400 font-medium mt-0.5 capitalize">
-                                                                    AI Search Suggestion
-                                                                </p>
-                                                            </div>
-                                                        </div>
-                                                    );
-                                                }
-                                                return (
-                                                    <div
-                                                        key={item.id}
-                                                        onClick={() => {
-                                                            if (item.type === 'anime') {
-                                                                setSelectedMovie({
-                                                                    id: item.id,
-                                                                    title: item.title,
-                                                                    name: item.title,
-                                                                    poster_path: item.poster,
-                                                                    isAnimeDirect: true,
-                                                                    media_type: item.media_type
-                                                                } as any);
-                                                            } else {
-                                                                setSelectedMovie(item.originalItem);
-                                                            }
-                                                            setSearchInput('');
-                                                            setSearchSuggestions([]);
-                                                            setShowSuggestions(false);
-                                                            setIsSidebarOpen(false);
-                                                        }}
-                                                        className="flex items-center gap-3 px-4 py-2.5 hover:bg-white/5 cursor-pointer transition-colors border-b border-white/[0.03] last:border-b-0"
-                                                    >
-                                                        <div className="w-8 h-11 bg-zinc-800 rounded-lg overflow-hidden shrink-0 shadow-md">
-                                                            {item.poster ? (
-                                                                <img src={item.poster} alt="" className="w-full h-full object-cover" />
-                                                            ) : (
-                                                                <div className="w-full h-full flex items-center justify-center text-[8px] text-zinc-600">No Img</div>
-                                                            )}
-                                                        </div>
-                                                        <div className="min-w-0 flex-1">
-                                                            <p className="text-xs font-bold text-zinc-100 truncate">{item.title}</p>
-                                                            <p className="text-[10px] text-zinc-500 font-medium mt-0.5 capitalize">
-                                                                {item.type === 'tv' ? 'TV Show' : item.type} {item.year ? `• ${item.year}` : ''}
-                                                            </p>
-                                                        </div>
+                                            {searchSuggestions.map((item) => (
+                                                <div
+                                                    key={item.id}
+                                                    onClick={() => {
+                                                        if (item.type === 'anime') {
+                                                            setSelectedMovie({
+                                                                id: item.id,
+                                                                title: item.title,
+                                                                name: item.title,
+                                                                poster_path: item.poster,
+                                                                isAnimeDirect: true,
+                                                                media_type: item.media_type
+                                                            } as any);
+                                                        } else {
+                                                            setSelectedMovie(item.originalItem);
+                                                        }
+                                                        setSearchInput('');
+                                                        setSearchSuggestions([]);
+                                                        setShowSuggestions(false);
+                                                        setIsSidebarOpen(false);
+                                                    }}
+                                                    className="flex items-center gap-3 px-4 py-2.5 hover:bg-white/5 cursor-pointer transition-colors border-b border-white/[0.03] last:border-b-0"
+                                                >
+                                                    <div className="w-8 h-11 bg-zinc-800 rounded-lg overflow-hidden shrink-0 shadow-md">
+                                                        {item.poster ? (
+                                                            <img src={item.poster} alt="" className="w-full h-full object-cover" />
+                                                        ) : (
+                                                            <div className="w-full h-full flex items-center justify-center text-[8px] text-zinc-600">No Img</div>
+                                                        )}
                                                     </div>
-                                                );
-                                            })}
+                                                    <div className="min-w-0 flex-1">
+                                                        <p className="text-xs font-bold text-zinc-100 truncate">{item.title}</p>
+                                                        <p className="text-[10px] text-zinc-500 font-medium mt-0.5 capitalize">
+                                                            {item.type === 'tv' ? 'TV Show' : item.type} {item.year ? `• ${item.year}` : ''}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            ))}
                                         </div>
                                     )}
                                 </div>
@@ -4658,70 +4601,43 @@ export default function App() {
                                             </div>
                                         ) : (
                                             <div className="py-1 max-h-80 overflow-y-auto custom-scrollbar">
-                                                {searchSuggestions.map((item, idx) => {
-                                                    if (typeof item === 'string') {
-                                                        return (
-                                                            <div
-                                                                key={`sugg-${idx}`}
-                                                                onClick={() => {
-                                                                    setSearchInput(item);
-                                                                    setSearchQuery(item);
-                                                                    handleSearchSubmit(item);
-                                                                    setSearchSuggestions([]);
-                                                                    setShowSuggestions(false);
-                                                                }}
-                                                                className="flex items-center gap-3 px-4 py-2.5 hover:bg-white/5 cursor-pointer transition-colors border-b border-white/[0.03] last:border-b-0"
-                                                            >
-                                                                <div className="w-8 h-11 bg-purple-950/30 border border-purple-500/20 rounded-lg flex items-center justify-center shrink-0 shadow-md">
-                                                                    <Sparkles className="text-purple-400" size={14} />
-                                                                </div>
-                                                                <div className="min-w-0 flex-1">
-                                                                    <p className="text-xs font-bold text-zinc-100 truncate">{item}</p>
-                                                                    <p className="text-[10px] text-purple-400 font-medium mt-0.5 capitalize">
-                                                                        AI Search Suggestion
-                                                                    </p>
-                                                                </div>
-                                                            </div>
-                                                        );
-                                                    }
-                                                    return (
-                                                        <div
-                                                            key={item.id}
-                                                            onClick={() => {
-                                                                if (item.type === 'anime') {
-                                                                    setSelectedMovie({
-                                                                        id: item.id,
-                                                                        title: item.title,
-                                                                        name: item.title,
-                                                                        poster_path: item.poster,
-                                                                        isAnimeDirect: true,
-                                                                        media_type: item.media_type
-                                                                    } as any);
-                                                                } else {
-                                                                    setSelectedMovie(item.originalItem);
-                                                                }
-                                                                setSearchInput('');
-                                                                setSearchSuggestions([]);
-                                                                setShowSuggestions(false);
-                                                            }}
-                                                            className="flex items-center gap-3 px-4 py-2.5 hover:bg-white/5 cursor-pointer transition-colors border-b border-white/[0.03] last:border-b-0"
-                                                        >
-                                                            <div className="w-8 h-11 bg-zinc-800 rounded-lg overflow-hidden shrink-0 shadow-md">
-                                                                {item.poster ? (
-                                                                    <img src={item.poster} alt="" className="w-full h-full object-cover" />
-                                                                ) : (
-                                                                    <div className="w-full h-full flex items-center justify-center text-[8px] text-zinc-600">No Img</div>
-                                                                )}
-                                                            </div>
-                                                            <div className="min-w-0 flex-1">
-                                                                <p className="text-xs font-bold text-zinc-100 truncate">{item.title}</p>
-                                                                <p className="text-[10px] text-zinc-500 font-medium mt-0.5 capitalize">
-                                                                    {item.type === 'tv' ? 'TV Show' : item.type} {item.year ? `• ${item.year}` : ''}
-                                                                </p>
-                                                            </div>
+                                                {searchSuggestions.map((item) => (
+                                                    <div
+                                                        key={item.id}
+                                                        onClick={() => {
+                                                            if (item.type === 'anime') {
+                                                                setSelectedMovie({
+                                                                    id: item.id,
+                                                                    title: item.title,
+                                                                    name: item.title,
+                                                                    poster_path: item.poster,
+                                                                    isAnimeDirect: true,
+                                                                    media_type: item.media_type
+                                                                } as any);
+                                                            } else {
+                                                                setSelectedMovie(item.originalItem);
+                                                            }
+                                                            setSearchInput('');
+                                                            setSearchSuggestions([]);
+                                                            setShowSuggestions(false);
+                                                        }}
+                                                        className="flex items-center gap-3 px-4 py-2.5 hover:bg-white/5 cursor-pointer transition-colors border-b border-white/[0.03] last:border-b-0"
+                                                    >
+                                                        <div className="w-8 h-11 bg-zinc-800 rounded-lg overflow-hidden shrink-0 shadow-md">
+                                                            {item.poster ? (
+                                                                <img src={item.poster} alt="" className="w-full h-full object-cover" />
+                                                            ) : (
+                                                                <div className="w-full h-full flex items-center justify-center text-[8px] text-zinc-600">No Img</div>
+                                                            )}
                                                         </div>
-                                                    );
-                                                })}
+                                                        <div className="min-w-0 flex-1">
+                                                            <p className="text-xs font-bold text-zinc-100 truncate">{item.title}</p>
+                                                            <p className="text-[10px] text-zinc-500 font-medium mt-0.5 capitalize">
+                                                                {item.type === 'tv' ? 'TV Show' : item.type} {item.year ? `• ${item.year}` : ''}
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                ))}
                                             </div>
                                         )}
                                     </div>
