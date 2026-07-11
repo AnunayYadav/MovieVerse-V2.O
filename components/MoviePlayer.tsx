@@ -4223,7 +4223,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
 
         {/* Premium Top Bar Overlay */}
         <div 
-          className={`absolute top-0 left-0 right-0 z-50 w-full bg-gradient-to-b from-black/90 via-black/35 to-transparent pt-8 pb-20 px-8 flex items-center transition-all duration-300 ease-out ${
+          className={`absolute top-0 left-0 right-0 z-50 w-full pt-8 pb-8 px-8 flex items-center transition-all duration-300 ease-out ${
             useCustomControls 
               ? (showControls || isDrawerOpen ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4 pointer-events-none') 
               : 'opacity-100 translate-y-0'

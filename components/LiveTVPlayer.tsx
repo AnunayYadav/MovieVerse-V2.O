@@ -233,7 +233,7 @@ export const LiveTVPlayer: React.FC<LiveTVPlayerProps> = ({ channel, onClose }) 
             onMouseLeave={handleMouseLeave}
         >
             {/* Header / Top Overlay (Cinematic Glassmorphism) */}
-            <div className={`absolute top-0 left-0 right-0 p-6 z-20 flex items-center bg-gradient-to-b from-black/95 via-black/40 to-transparent transition-all duration-300 ${showControls ? 'translate-y-0 opacity-100 pointer-events-auto' : '-translate-y-4 opacity-0 pointer-events-none'}`}>
+            <div className={`absolute top-0 left-0 right-0 p-6 z-20 flex items-center transition-all duration-300 ${showControls ? 'translate-y-0 opacity-100 pointer-events-auto' : '-translate-y-4 opacity-0 pointer-events-none'}`}>
                 <div className="flex items-center gap-4">
                     <button 
                         onClick={onClose} 

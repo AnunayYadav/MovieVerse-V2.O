@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Play, Bookmark, Eye, Check, ChevronDown, Volume2, VolumeX } from 'lucide-react';
+import { Play, Bookmark, Check, ChevronDown, Volume2, VolumeX, Heart } from 'lucide-react';
 import { Movie, GENRES_MAP } from '../types';
 
 interface NetflixHoverCardProps {
@@ -103,6 +103,27 @@ export const NetflixHoverCard: React.FC<NetflixHoverCardProps> = ({
         const genreIds = movie.genre_ids || [];
         return genresList.some((g: any) => g.name === 'Animation') || genreIds.includes(16);
     }, [movie]);
+
+    const [details, setDetails] = useState<any | null>(null);
+
+    useEffect(() => {
+        if (!movie.id || !apiKey) return;
+        let active = true;
+        const type = (movie.first_air_date || movie.name) ? 'tv' : 'movie';
+        
+        fetch(`https://api.themoviedb.org/3/${type}/${movie.id}?api_key=${apiKey}`)
+            .then(res => res.json())
+            .then(data => {
+                if (active) {
+                    setDetails(data);
+                }
+            })
+            .catch(err => console.error("Error fetching media details:", err));
+            
+        return () => {
+            active = false;
+        };
+    }, [movie.id, apiKey]);
 
     const [nextAiringEpisode, setNextAiringEpisode] = useState<any | null>(null);
 
@@ -235,30 +256,47 @@ export const NetflixHoverCard: React.FC<NetflixHoverCardProps> = ({
         return (movie.release_date || movie.first_air_date || "").split('-')[0] || movie.year || "TBA";
     }, [movie.release_date, movie.first_air_date, movie.year]);
 
-    const genres = useMemo(() => {
-        if (movie.genres && movie.genres.length > 0) {
-            return movie.genres.map(g => g.name).slice(0, 3);
-        }
-        if (movie.genre_ids && movie.genre_ids.length > 0) {
-            return movie.genre_ids
-                .map(id => Object.keys(GENRES_MAP).find(k => GENRES_MAP[k] === id))
-                .filter(Boolean)
-                .slice(0, 3) as string[];
-        }
-        return ["Movie"];
-    }, [movie.genres, movie.genre_ids]);
-
     const backdropUrl = useMemo(() => {
         return movie.backdrop_path 
             ? `https://image.tmdb.org/t/p/w780${movie.backdrop_path}`
             : (movie.poster_path ? `https://image.tmdb.org/t/p/w500${movie.poster_path}` : "https://placehold.co/600x338/111/444?text=MovieVerse");
     }, [movie.backdrop_path, movie.poster_path]);
 
+    const isTv = !!(movie.first_air_date || movie.name);
+    const typeLabel = isTv ? "TV Series" : "Movie";
+
+    const episodesOrRuntime = useMemo(() => {
+        if (isTv) {
+            const epCount = details?.number_of_episodes || (movie as any).number_of_episodes;
+            return epCount ? `${epCount} Episodes` : "12+ Episodes";
+        } else {
+            const rt = details?.runtime || movie.runtime;
+            return rt ? `${rt} min` : "120 min";
+        }
+    }, [isTv, details, movie.runtime]);
+
+    const releaseTimeLabel = useMemo(() => {
+        const dateStr = movie.release_date || movie.first_air_date;
+        if (!dateStr) return "";
+        const date = new Date(dateStr);
+        if (isNaN(date.getTime())) return "";
+        const yearVal = date.getFullYear();
+        const monthVal = date.getMonth(); // 0-indexed
+        let seasonVal = "";
+        if (monthVal >= 0 && monthVal <= 2) seasonVal = "Winter";
+        else if (monthVal >= 3 && monthVal <= 5) seasonVal = "Spring";
+        else if (monthVal >= 6 && monthVal <= 8) seasonVal = "Summer";
+        else seasonVal = "Fall";
+        
+        return `${seasonVal} ${yearVal}`;
+    }, [movie.release_date, movie.first_air_date]);
+
     return (
         <div
             ref={cardRef}
             onMouseEnter={onMouseEnter}
             onMouseLeave={onMouseLeave}
+            onClick={() => onDetailClick(movie)}
             style={{
                 position: 'absolute',
                 top: `${top}px`,
@@ -266,7 +304,7 @@ export const NetflixHoverCard: React.FC<NetflixHoverCardProps> = ({
                 width: `${width}px`,
                 zIndex: 200,
             }}
-            className={`bg-[#181818] border border-white/[0.08] rounded-xl overflow-hidden shadow-[0_24px_60px_rgba(0,0,0,0.9)] select-none font-sans flex flex-col text-left transition-all duration-300 transform ease-[cubic-bezier(0.25,1,0.5,1)] hover:scale-[1.03] ${
+            className={`bg-[#1b2230] border border-white/[0.08] rounded-2xl overflow-hidden shadow-[0_24px_60px_rgba(0,0,0,0.9)] select-none font-sans flex flex-col text-left transition-all duration-300 transform ease-[cubic-bezier(0.25,1,0.5,1)] hover:scale-[1.03] cursor-pointer ${
                 isClosing ? 'animate-hover-exit' : 'animate-hover-enter'
             }`}
         >
@@ -311,87 +349,80 @@ export const NetflixHoverCard: React.FC<NetflixHoverCardProps> = ({
             </div>
 
             {/* Bottom details info wrapper */}
-            <div className="p-4 flex flex-col gap-2.5">
+            <div className="p-4.5 flex flex-col gap-3">
+                {/* Title */}
+                <h4 className="text-sm sm:text-base font-black text-white leading-tight uppercase tracking-wide">
+                    {movie.title || movie.name}
+                </h4>
+
                 {/* Action buttons row */}
                 <div className="flex items-center gap-2">
                     <button
-                        onClick={() => onPlay(movie)}
-                        className="w-9 h-9 rounded-full bg-white text-black hover:bg-zinc-200 flex items-center justify-center transition-all active:scale-95 shadow-md cursor-pointer border-none"
+                        onClick={(e) => { e.stopPropagation(); onPlay(movie); }}
+                        className="px-5 py-2.5 rounded-xl bg-slate-200/90 hover:bg-white text-slate-900 font-extrabold flex items-center justify-center gap-1.5 flex-1 transition-all active:scale-95 shadow-md border-none text-[11px] cursor-pointer"
                         title="Watch Now"
                     >
-                        <Play size={16} fill="currentColor" className="ml-0.5" />
+                        <Play size={13} fill="currentColor" /> {isWatched ? "Rewatch" : "Play"}
+                    </button>
+
+                    {/* Favorite (Heart) */}
+                    <button
+                        onClick={(e) => { e.stopPropagation(); onToggleWatched(movie); }}
+                        className={`w-9.5 h-9.5 rounded-xl border flex items-center justify-center transition-all active:scale-95 cursor-pointer bg-white/[0.03] ${
+                            isWatched
+                                ? 'text-red-500 border-red-500/30 bg-red-500/10 hover:bg-red-500/20'
+                                : 'text-white border-white/15 hover:border-white/30 hover:bg-white/5'
+                        }`}
+                        title={isWatched ? "Mark Unwatched" : "Mark Watched"}
+                    >
+                        <Heart size={15} fill={isWatched ? "currentColor" : "none"} />
                     </button>
 
                     {/* Watchlist (Bookmark) */}
                     <button
-                        onClick={() => onToggleWatchlist(movie)}
-                        className={`w-9 h-9 rounded-full border flex items-center justify-center transition-all active:scale-95 cursor-pointer bg-zinc-900/60 ${
+                        onClick={(e) => { e.stopPropagation(); onToggleWatchlist(movie); }}
+                        className={`w-9.5 h-9.5 rounded-xl border flex items-center justify-center transition-all active:scale-95 cursor-pointer bg-white/[0.03] ${
                             isWatchlisted
-                                ? 'text-green-400 border-green-500/40 hover:bg-green-500/10'
-                                : 'text-white border-white/20 hover:border-white/40 hover:bg-white/5'
+                                ? 'text-green-400 border-green-500/30 bg-green-500/10 hover:bg-green-500/20'
+                                : 'text-white border-white/15 hover:border-white/30 hover:bg-white/5'
                         }`}
                         title={isWatchlisted ? "Remove from Watchlist" : "Add to Watchlist"}
                     >
                         <Bookmark size={15} fill={isWatchlisted ? "currentColor" : "none"} />
                     </button>
-
-                    {/* Watched (Check/Eye) */}
-                    <button
-                        onClick={() => onToggleWatched(movie)}
-                        className={`w-9 h-9 rounded-full border flex items-center justify-center transition-all active:scale-95 cursor-pointer bg-zinc-900/60 ${
-                            isWatched
-                                ? 'text-green-450 border-green-500/40 hover:bg-green-500/10'
-                                : 'text-white border-white/20 hover:border-white/40 hover:bg-white/5'
-                        }`}
-                        title={isWatched ? "Mark Unwatched" : "Mark Watched"}
-                    >
-                        {isWatched ? <Check size={16} strokeWidth={2.5} /> : <Eye size={15} />}
-                    </button>
-
-                    {/* Chevron More details info */}
-                    <button
-                        onClick={() => onDetailClick(movie)}
-                        className="w-9 h-9 rounded-full border border-white/20 hover:border-white/40 bg-zinc-900/60 hover:bg-white/5 flex items-center justify-center transition-all active:scale-95 text-white ml-auto cursor-pointer"
-                        title="More Info"
-                    >
-                        <ChevronDown size={16} />
-                    </button>
                 </div>
 
                 {/* Match score & details badges row */}
-                <div className="flex items-center gap-2 flex-wrap select-none">
-                    <span className="text-green-400 text-xs font-bold font-sans">
-                        {matchPercentage}% Match
-                    </span>
-                    <span className="text-[10px] text-zinc-300 font-bold border border-zinc-600 rounded px-1.5 py-0.2">
-                        {movie.adult ? "18+" : "PG-13"}
-                    </span>
-                    <span className="text-zinc-400 text-xs font-semibold select-none">
-                        {year}
-                    </span>
-                    <span className="text-[9px] text-zinc-400 font-black border border-white/20 rounded px-1 tracking-wider leading-none scale-90">
-                        4K
-                    </span>
+                <div className="text-[11px] text-zinc-400 font-semibold flex items-center gap-1.5 select-none flex-wrap">
+                    <span>{typeLabel}</span>
+                    <span>•</span>
+                    <span>{episodesOrRuntime}</span>
+                    {releaseTimeLabel && (
+                        <>
+                            <span>•</span>
+                            <span>{releaseTimeLabel}</span>
+                        </>
+                    )}
+                    <span>•</span>
+                    <span className="text-green-400 font-bold">{matchPercentage}% Match</span>
                 </div>
 
-                {/* Title */}
-                <h4 className="text-xs sm:text-sm font-bold text-white leading-tight">
-                    {movie.title || movie.name}
-                </h4>
-
-                {/* Genres row */}
-                <div className="flex items-center gap-1.5 flex-wrap text-[10px] text-zinc-400 mt-0.5 font-medium select-none">
-                    {genres.map((g, i) => (
-                        <React.Fragment key={g}>
-                            {i > 0 && <span className="text-zinc-700">•</span>}
-                            <span>{g}</span>
-                        </React.Fragment>
-                    ))}
-                </div>
+                {/* Description Overview */}
+                <p 
+                    className="text-[11px] text-zinc-300 font-normal leading-relaxed text-left line-clamp-3 select-none opacity-85"
+                    style={{
+                        display: '-webkit-box',
+                        WebkitLineClamp: 3,
+                        WebkitBoxOrient: 'vertical',
+                        overflow: 'hidden',
+                    }}
+                >
+                    {movie.overview || "No overview available."}
+                </p>
 
                 {/* Next Airing Episode Release details */}
                 {nextAiringEpisode && (
-                    <div className="mt-2.5 p-2 bg-red-500/5 border border-red-500/10 rounded-lg flex items-center justify-between gap-2.5">
+                    <div className="mt-1 p-2 bg-red-500/5 border border-red-500/10 rounded-xl flex items-center justify-between gap-2.5">
                         <div className="flex flex-col">
                             <span className="text-[8px] font-extrabold text-red-500 uppercase tracking-wider">Next Release</span>
                             <span className="text-white text-[10px] font-bold">
