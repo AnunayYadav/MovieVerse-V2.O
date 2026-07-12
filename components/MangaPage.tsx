@@ -230,8 +230,8 @@ const CustomSelect: React.FC<CustomSelectProps> = ({
       </button>
 
       {isOpen && (
-        <div className={`absolute z-[150] mt-1.5 w-full min-w-[180px] bg-[#0c0c0e]/95 backdrop-blur-md border border-white/10 rounded-xl shadow-[0_12px_40px_rgba(0,0,0,0.8)] py-1.5 animate-in fade-in slide-in-from-top-2 duration-200 ${alignmentClass} ${dropdownClassName}`}>
-          <div className={`overflow-y-auto custom-scrollbar ${maxHeight}`}>
+        <div className={`absolute z-[150] mt-1.5 w-full min-w-[180px] bg-[#0c0c0e]/95 backdrop-blur-md border border-white/10 rounded-xl shadow-[0_12px_40px_rgba(0,0,0,0.8)] p-1 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200 ${alignmentClass} ${dropdownClassName}`}>
+          <div className={`overflow-y-auto pr-1.5 custom-scrollbar ${maxHeight}`}>
             {options.length === 0 ? (
               <div className="px-4 py-2.5 text-xs text-zinc-500 font-medium">No options available</div>
             ) : (
@@ -246,7 +246,7 @@ const CustomSelect: React.FC<CustomSelectProps> = ({
                       onChange(opt.value);
                       setIsOpen(false);
                     }}
-                    className={`w-full text-left px-4 py-2.5 text-xs font-medium transition-all duration-150 flex items-center justify-between cursor-pointer ${isSelected
+                    className={`w-full text-left px-3 py-2 text-xs font-medium rounded-lg transition-all duration-150 flex items-center justify-between cursor-pointer ${isSelected
                         ? 'bg-red-600 text-white font-semibold'
                         : 'text-zinc-300 hover:text-white hover:bg-white/10'
                       }`}

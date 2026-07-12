@@ -161,7 +161,7 @@ Return a JSON object containing a "blocks" array. Each block must have:
 - "original_text": "original Japanese text"
 - "translated_text": "translated text in ${target_lang}"`;
 
-      const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+      const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
       const response = await fetch(geminiUrl, {
         method: 'POST',
         headers: {
