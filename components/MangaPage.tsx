@@ -162,6 +162,107 @@ export const translateAniListToManga = (aniMedia: any): MangaDexManga => {
   } as any;
 };
 
+interface CustomSelectProps {
+  value: string;
+  onChange: (val: string) => void;
+  options: { value: string; label: string; triggerLabel?: string }[];
+  icon?: React.ReactNode;
+  className?: string;
+  dropdownClassName?: string;
+  menuAlign?: 'left' | 'right' | 'center';
+  maxHeight?: string;
+}
+
+const CustomSelect: React.FC<CustomSelectProps> = ({
+  value,
+  onChange,
+  options,
+  icon,
+  className = '',
+  dropdownClassName = '',
+  menuAlign = 'left',
+  maxHeight = 'max-h-60'
+}) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const activeOptionRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    const handleOutsideClick = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    if (isOpen) {
+      document.addEventListener('mousedown', handleOutsideClick);
+    }
+    return () => document.removeEventListener('mousedown', handleOutsideClick);
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (isOpen && activeOptionRef.current) {
+      activeOptionRef.current.scrollIntoView({ block: 'nearest', behavior: 'auto' });
+    }
+  }, [isOpen]);
+
+  const selectedOption = options.find((opt) => opt.value === value) || options[0];
+  const displayLabel = selectedOption?.triggerLabel || selectedOption?.label || '';
+
+  const alignmentClass =
+    menuAlign === 'right' ? 'right-0 origin-top-right' :
+    menuAlign === 'center' ? 'left-1/2 -translate-x-1/2 origin-top' :
+    'left-0 origin-top-left';
+
+  return (
+    <div className="relative inline-block w-full text-left" ref={containerRef}>
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className={`flex items-center justify-between w-full text-white bg-white/5 border border-white/5 hover:bg-white/10 focus:border-red-600 rounded-lg transition-all focus:outline-none cursor-pointer ${className}`}
+      >
+        <div className="flex items-center gap-2 truncate pr-2">
+          {icon && <span className="shrink-0">{icon}</span>}
+          <span className="truncate">{displayLabel}</span>
+        </div>
+        <ChevronDown size={14} className={`text-zinc-400 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''} shrink-0`} />
+      </button>
+
+      {isOpen && (
+        <div className={`absolute z-[150] mt-1.5 w-full min-w-[180px] bg-[#0c0c0e]/95 backdrop-blur-md border border-white/10 rounded-xl shadow-[0_12px_40px_rgba(0,0,0,0.8)] py-1.5 animate-in fade-in slide-in-from-top-2 duration-200 ${alignmentClass} ${dropdownClassName}`}>
+          <div className={`overflow-y-auto custom-scrollbar ${maxHeight}`}>
+            {options.length === 0 ? (
+              <div className="px-4 py-2.5 text-xs text-zinc-500 font-medium">No options available</div>
+            ) : (
+              options.map((opt) => {
+                const isSelected = opt.value === value;
+                return (
+                  <button
+                    key={opt.value}
+                    ref={isSelected ? activeOptionRef : null}
+                    type="button"
+                    onClick={() => {
+                      onChange(opt.value);
+                      setIsOpen(false);
+                    }}
+                    className={`w-full text-left px-4 py-2.5 text-xs font-medium transition-all duration-150 flex items-center justify-between cursor-pointer ${
+                      isSelected
+                        ? 'bg-red-600 text-white font-semibold'
+                        : 'text-zinc-300 hover:text-white hover:bg-white/10'
+                    }`}
+                  >
+                    <span className="truncate mr-2">{opt.label}</span>
+                    {isSelected && <Check size={12} className="shrink-0" />}
+                  </button>
+                );
+              })
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 export const MangaPage: React.FC<MangaPageProps> = ({
   apiKey,
   selectedMangaId,
@@ -661,6 +762,45 @@ export const MangaPage: React.FC<MangaPageProps> = ({
   const readerScrollContainerRef = useRef<HTMLDivElement>(null);
   const [autoScrollSpeed, setAutoScrollSpeed] = useState<number>(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
+
+
+
+  const pageOptions = useMemo(() => {
+    if (readerMode === 'double') {
+      const opts = [{ value: '0', label: 'Page 1 (Cover)' }];
+      for (let i = 1; i < pages.length; i += 2) {
+        const next = Math.min(pages.length, i + 2);
+        opts.push({
+          value: String(i),
+          label: `Pages ${i + 1} - ${next}`
+        });
+      }
+      return opts;
+    } else {
+      return pages.map((_, i) => ({
+        value: String(i),
+        label: `Page ${i + 1} / ${pages.length}`
+      }));
+    }
+  }, [readerMode, pages]);
+
+  const sourceOptions = useMemo(() => [
+    { value: 'mangadex', label: 'MangaDex (Official)' },
+    { value: 'comick', label: 'ComicK (Recommended)' },
+    { value: 'mangapill', label: 'MangaPill (Mainstream)' },
+    { value: 'mangareader', label: 'MangaReader' },
+    { value: 'mangakakalot', label: 'MangaKakalot' },
+    { value: 'asurascans', label: 'AsuraScans' },
+    { value: 'weebcentral', label: 'WeebCentral' },
+    { value: 'mangahere', label: 'MangaHere' }
+  ], []);
+
+  const languageOptions = useMemo(() => {
+    return Object.entries(LANGUAGE_NAMES).map(([code, name]) => ({
+      value: code,
+      label: name as string
+    }));
+  }, []);
 
   const toggleFullscreen = useCallback(() => {
     if (!document.fullscreenElement) {
@@ -2699,6 +2839,30 @@ export const MangaPage: React.FC<MangaPageProps> = ({
     return result;
   }, [chapters, mappedMangapillChapters, readingSource]);
 
+  const sidebarChapterOptions = useMemo(() => {
+    return activeReaderChapters.map((ch) => {
+      const num = ch?.attributes?.chapter || 'Oneshot';
+      const title = ch?.attributes?.title;
+      return {
+        value: ch.id,
+        label: `Ch ${num}${title ? ` - ${title}` : ''}`,
+        triggerLabel: `Ch ${num}${title ? `: ${title.substring(0, 16)}${title.length > 16 ? '...' : ''}` : ''}`
+      };
+    });
+  }, [activeReaderChapters]);
+
+  const menuChapterOptions = useMemo(() => {
+    return activeReaderChapters.map((ch) => {
+      const num = ch?.attributes?.chapter || 'Oneshot';
+      const title = ch?.attributes?.title;
+      return {
+        value: ch.id,
+        label: `Ch ${num}${title ? ` - ${title}` : ''}`,
+        triggerLabel: `Ch ${num}`
+      };
+    });
+  }, [activeReaderChapters]);
+
   // Premium Character Details Page layout (Early Return)
   if (selectedCharacterId) {
     return (
@@ -3255,20 +3419,14 @@ export const MangaPage: React.FC<MangaPageProps> = ({
               </button>
               
               <div className="flex-1 relative">
-                <select
+                <CustomSelect
                   value={activeChapter.id}
-                  onChange={handleChapterChange}
-                  className="w-full bg-white/5 text-xs text-white hover:bg-zinc-900 focus:border-red-600 rounded-lg px-2.5 py-2 focus:outline-none transition-all font-medium cursor-pointer appearance-none"
-                >
-                  {activeReaderChapters.map((ch) => (
-                    <option key={ch.id} value={ch.id} className="bg-[#0c0c0e]">
-                      Ch {ch.attributes.chapter || 'Oneshot'}{ch.attributes.title ? `: ${ch.attributes.title.substring(0, 16)}${ch.attributes.title.length > 16 ? '...' : ''}` : ''}
-                    </option>
-                  ))}
-                </select>
-                <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-zinc-400">
-                  <ChevronDown size={14} />
-                </div>
+                  onChange={onChapterSelect}
+                  options={sidebarChapterOptions}
+                  className="px-2.5 py-2 hover:bg-zinc-900 font-medium text-xs border-white/5 rounded-lg border"
+                  dropdownClassName="w-64 max-h-60"
+                  menuAlign="left"
+                />
               </div>
 
               <button
@@ -3296,37 +3454,14 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                 </button>
 
                 <div className="flex-1 relative">
-                  <select
-                    value={activePageIdx}
-                    onChange={(e) => setActivePageIdx(parseInt(e.target.value, 10))}
-                    className="w-full bg-white/5 text-xs text-white hover:bg-zinc-900 focus:border-red-600 rounded-lg px-2.5 py-2 focus:outline-none transition-all font-normal cursor-pointer appearance-none"
-                  >
-                    {readerMode === 'double' ? (
-                      <>
-                        <option value={0}>Page 1 (Cover)</option>
-                        {(() => {
-                          const options = [];
-                          for (let i = 1; i < pages.length; i += 2) {
-                            options.push(
-                              <option key={i} value={i}>
-                                Pages {i + 1} - {Math.min(pages.length, i + 2)}
-                              </option>
-                            );
-                          }
-                          return options;
-                        })()}
-                      </>
-                    ) : (
-                      pages.map((_, i) => (
-                        <option key={i} value={i}>
-                          Page {i + 1} / {pages.length}
-                        </option>
-                      ))
-                    )}
-                  </select>
-                  <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-zinc-400">
-                    <ChevronDown size={14} />
-                  </div>
+                  <CustomSelect
+                    value={String(activePageIdx)}
+                    onChange={(val) => setActivePageIdx(parseInt(val, 10))}
+                    options={pageOptions}
+                    className="px-2.5 py-2 hover:bg-zinc-900 font-normal text-xs border-white/5 rounded-lg border"
+                    dropdownClassName="w-full max-h-60"
+                    menuAlign="left"
+                  />
                 </div>
 
                 <button
@@ -3551,21 +3686,15 @@ export const MangaPage: React.FC<MangaPageProps> = ({
           </div>
 
           {/* Center section: Chapter Selector */}
-          <div className="relative flex items-center gap-2 px-3 py-1.5 bg-white/5 border border-white/5 rounded-xl hover:bg-white/10 transition-all font-semibold cursor-pointer">
-            <LayoutList size={14} className="text-red-500 shrink-0" />
-            <select
-              value={activeChapter.id}
-              onChange={handleChapterChange}
-              className="bg-transparent text-xs text-white focus:outline-none cursor-pointer pr-4 appearance-none font-semibold"
-            >
-              {activeReaderChapters.map((ch) => (
-                <option key={ch.id} value={ch.id} className="bg-[#0c0c0e]">
-                  Ch {ch.attributes.chapter || 'Oneshot'}
-                </option>
-              ))}
-            </select>
-            <ChevronDown size={12} className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-zinc-400" />
-          </div>
+          <CustomSelect
+            value={activeChapter.id}
+            onChange={onChapterSelect}
+            options={menuChapterOptions}
+            icon={<LayoutList size={14} className="text-red-500 shrink-0" />}
+            className="px-3 py-1.5 bg-white/5 hover:bg-white/10 border-white/5 rounded-xl font-semibold border text-xs"
+            dropdownClassName="w-56 max-h-60"
+            menuAlign="center"
+          />
 
           {/* Right section: Navigation & Settings */}
           <div className="flex items-center gap-2">
@@ -4343,35 +4472,28 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                     {/* Source Selector */}
                     <div className="flex items-center gap-2">
                       <span className="text-[10px] font-medium text-zinc-500">Source</span>
-                      <select
+                      <CustomSelect
                         value={readingSource}
-                        onChange={(e) => setReadingSource(e.target.value)}
-                        className="px-3 py-1.5 rounded-lg bg-white/5 text-xs font-medium text-zinc-300 hover:text-white transition-all focus:outline-none cursor-pointer"
-                      >
-                        <option value="mangadex" className="bg-[#0c0c0e]">MangaDex (Official)</option>
-                        <option value="comick" className="bg-[#0c0c0e]">ComicK (Recommended)</option>
-                        <option value="mangapill" className="bg-[#0c0c0e]">MangaPill (Mainstream)</option>
-                        <option value="mangareader" className="bg-[#0c0c0e]">MangaReader</option>
-                        <option value="mangakakalot" className="bg-[#0c0c0e]">MangaKakalot</option>
-                        <option value="asurascans" className="bg-[#0c0c0e]">AsuraScans</option>
-                        <option value="weebcentral" className="bg-[#0c0c0e]">WeebCentral</option>
-                        <option value="mangahere" className="bg-[#0c0c0e]">MangaHere</option>
-                      </select>
+                        onChange={setReadingSource}
+                        options={sourceOptions}
+                        className="px-3 py-1.5 hover:bg-zinc-800 text-xs font-medium border-white/5 rounded-lg border shrink-0 w-44"
+                        dropdownClassName="w-44 max-h-60"
+                        menuAlign="right"
+                      />
                     </div>
 
                     {/* Language Picker */}
                     {readingSource === 'mangadex' && (
                       <div className="flex items-center gap-2">
                         <span className="text-[10px] font-medium text-zinc-500">Language</span>
-                        <select
+                        <CustomSelect
                           value={selectedLanguage}
-                          onChange={(e) => setSelectedLanguage(e.target.value)}
-                          className="px-3 py-1.5 rounded-lg bg-white/5 text-xs font-medium text-zinc-300 hover:text-white transition-all focus:outline-none cursor-pointer"
-                        >
-                          {Object.entries(LANGUAGE_NAMES).map(([code, name]) => (
-                            <option key={code} value={code} className="bg-[#0c0c0e]">{name}</option>
-                          ))}
-                        </select>
+                          onChange={setSelectedLanguage}
+                          options={languageOptions}
+                          className="px-3 py-1.5 hover:bg-zinc-800 text-xs font-medium border-white/5 rounded-lg border shrink-0 w-36"
+                          dropdownClassName="w-36 max-h-60"
+                          menuAlign="right"
+                        />
                       </div>
                     )}
 
