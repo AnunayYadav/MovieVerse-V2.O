@@ -7,7 +7,7 @@ interface Novel {
   image: string;
   author: string;
   description?: string;
-  genres?: string[];
+  genres?: (string | { name: string; slug: string })[];
   rating?: number | null;
 }
 
@@ -543,7 +543,12 @@ export function NovelPage() {
                         </span>
                       )}
                       <span>•</span>
-                      <span className="line-clamp-1">{featuredNovel.genres.slice(0, 3).join(', ')}</span>
+                      <span className="line-clamp-1">
+                        {featuredNovel.genres
+                          .slice(0, 3)
+                          .map(g => typeof g === 'object' && g !== null && 'name' in g ? (g as any).name : String(g))
+                          .join(', ')}
+                      </span>
                     </div>
                   </div>
                   <p className="text-xs text-zinc-400 line-clamp-2 md:line-clamp-3 leading-relaxed">
@@ -633,14 +638,22 @@ export function NovelPage() {
 
                   {novelDetails.genres && novelDetails.genres.length > 0 && (
                     <div className="flex flex-wrap items-center justify-center md:justify-start gap-1.5">
-                      {novelDetails.genres.map(genre => (
-                        <span 
-                          key={genre} 
-                          className="bg-white/5 border border-white/5 py-1 px-3 rounded-full text-[10px] text-zinc-300 font-medium"
-                        >
-                          {genre}
-                        </span>
-                      ))}
+                      {novelDetails.genres.map(genre => {
+                        const genreName = typeof genre === 'object' && genre !== null && 'name' in genre
+                          ? (genre as any).name
+                          : String(genre);
+                        const genreKey = typeof genre === 'object' && genre !== null && 'slug' in genre
+                          ? (genre as any).slug
+                          : String(genre);
+                        return (
+                          <span 
+                            key={genreKey} 
+                            className="bg-white/5 border border-white/5 py-1 px-3 rounded-full text-[10px] text-zinc-300 font-medium"
+                          >
+                            {genreName}
+                          </span>
+                        );
+                      })}
                     </div>
                   )}
 
