@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Search, BookOpen, ChevronLeft, ChevronRight, RefreshCcw, Loader2, AlertCircle, Settings, Heart, Bookmark, ArrowLeft, Sun, Moon, Type, AlignLeft, List, Sparkles } from 'lucide-react';
-import { TvFocusButton } from '../tvNavigation';
+import { Search, BookOpen, ChevronLeft, ChevronRight, RefreshCcw, Loader2, AlertCircle, Settings, Heart, Bookmark, ArrowLeft, Sun, Moon, Type, AlignLeft, List, Sparkles, Star, TrendingUp, Compass, Play, Info } from 'lucide-react';
 
 interface Novel {
   id: string;
@@ -22,55 +21,23 @@ interface NovelDetails extends Novel {
   chapters: Chapter[];
 }
 
-const POPULAR_NOVELS: Novel[] = [
-  {
-    id: 'the-beginning-after-the-end',
-    title: 'The Beginning After The End',
-    image: '/api/manga?action=proxy-image&provider=novelfull&url=' + encodeURIComponent('https://novelfull.com/uploads/thumbs/the-beginning-after-the-end-2811cab532-14f8bf2f465a6957391145f318f91947.jpg'),
-    author: 'TurtleMe'
-  },
-  {
-    id: 'omniscient-readers-viewpoint',
-    title: "Omniscient Reader's Viewpoint",
-    image: '/api/manga?action=proxy-image&provider=novelfull&url=' + encodeURIComponent('https://novelfull.com/uploads/thumbs/omniscient-readers-viewpoint-bc929b5831-bc929b5831.jpg'),
-    author: 'Sing Shong'
-  },
-  {
-    id: 'lord-of-the-mysteries',
-    title: 'Lord of the Mysteries',
-    image: '/api/manga?action=proxy-image&provider=novelfull&url=' + encodeURIComponent('https://novelfull.com/uploads/thumbs/lord-of-the-mysteries-4b8cb6f7b1-4b8cb6f7b1.jpg'),
-    author: 'Cuttlefish That Loves Diving'
-  },
-  {
-    id: 'martial-peak',
-    title: 'Martial Peak',
-    image: '/api/manga?action=proxy-image&provider=novelfull&url=' + encodeURIComponent('https://novelfull.com/uploads/thumbs/martial-peak-39b4dcee04-39b4dcee04.jpg'),
-    author: 'Momo'
-  },
-  {
-    id: 'shadow-slave',
-    title: 'Shadow Slave',
-    image: '/api/manga?action=proxy-image&provider=novelfull&url=' + encodeURIComponent('https://novelfull.com/uploads/thumbs/shadow-slave-3306db7c61-3306db7c61.jpg'),
-    author: 'Guiltythree'
-  },
-  {
-    id: 'warlock-of-the-magus-world',
-    title: 'Warlock of the Magus World',
-    image: '/api/manga?action=proxy-image&provider=novelfull&url=' + encodeURIComponent('https://novelfull.com/uploads/thumbs/warlock-of-the-magus-world-8c6ef028e3-8c6ef028e3.jpg'),
-    author: 'Pluto'
-  }
-];
-
 export function NovelPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<Novel[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // AniList Feed states
+  const [trendingNovels, setTrendingNovels] = useState<Novel[]>([]);
+  const [popularNovels, setPopularNovels] = useState<Novel[]>([]);
+  const [featuredNovel, setFeaturedNovel] = useState<Novel | null>(null);
+  const [feedLoading, setFeedLoading] = useState(true);
+
   // Active novel selection states
   const [selectedNovel, setSelectedNovel] = useState<Novel | null>(null);
   const [novelDetails, setNovelDetails] = useState<NovelDetails | null>(null);
   const [detailsLoading, setDetailsLoading] = useState(false);
+  const [searchingSource, setSearchingSource] = useState<string | null>(null);
 
   // Active reading states
   const [activeChapter, setActiveChapter] = useState<Chapter | null>(null);
@@ -111,6 +78,131 @@ export function NovelPage() {
       console.error('Error loading novel local storage:', err);
     }
   }, []);
+
+  // Fetch AniList Feed
+  const fetchAniListFeed = useCallback(async () => {
+    setFeedLoading(true);
+    try {
+      const query = `
+        query ($page: Int, $perPage: Int) {
+          trending: Page (page: $page, perPage: $perPage) {
+            media (type: MANGA, format: NOVEL, sort: TRENDING_DESC) {
+              id
+              title {
+                romaji
+                english
+                userPreferred
+              }
+              coverImage {
+                extraLarge
+                large
+              }
+              bannerImage
+              description
+              genres
+              averageScore
+              staff (perPage: 5) {
+                edges {
+                  role
+                  node {
+                    name {
+                      full
+                    }
+                  }
+                }
+              }
+            }
+          }
+          popular: Page (page: $page, perPage: $perPage) {
+            media (type: MANGA, format: NOVEL, sort: POPULARITY_DESC) {
+              id
+              title {
+                romaji
+                english
+                userPreferred
+              }
+              coverImage {
+                extraLarge
+                large
+              }
+              bannerImage
+              description
+              genres
+              averageScore
+              staff (perPage: 5) {
+                edges {
+                  role
+                  node {
+                    name {
+                      full
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      `;
+
+      const response = await fetch('https://graphql.anilist.co', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: JSON.stringify({
+          query: query,
+          variables: { page: 1, perPage: 12 }
+        })
+      });
+
+      if (!response.ok) throw new Error('AniList fetch failed');
+      const json = await response.json();
+      
+      const mapAniListNovel = (item: any): Novel => {
+        const title = item.title.english || item.title.romaji || item.title.userPreferred;
+        const authorEdge = item.staff?.edges?.find((e: any) => 
+          e.role?.toLowerCase().includes('story') || 
+          e.role?.toLowerCase().includes('author') || 
+          e.role?.toLowerCase().includes('original creator')
+        );
+        const author = authorEdge?.node?.name?.full || item.staff?.edges?.[0]?.node?.name?.full || 'Unknown Author';
+        
+        return {
+          id: title.toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-'),
+          title: title,
+          image: item.coverImage.extraLarge || item.coverImage.large,
+          author: author,
+          description: item.description?.replace(/<[^>]*>/g, '') || '',
+          genres: item.genres || [],
+          rating: item.averageScore ? item.averageScore / 10 : null
+        };
+      };
+
+      const trending = json.data?.trending?.media?.map(mapAniListNovel) || [];
+      const popular = json.data?.popular?.media?.map(mapAniListNovel) || [];
+
+      setTrendingNovels(trending);
+      setPopularNovels(popular);
+      
+      const featuredItem = json.data?.trending?.media?.find((m: any) => m.bannerImage) || json.data?.trending?.media?.[0];
+      if (featuredItem) {
+        setFeaturedNovel({
+          ...mapAniListNovel(featuredItem),
+          description: featuredItem.description?.replace(/<[^>]*>/g, '') || '',
+          genres: featuredItem.genres || []
+        });
+      }
+    } catch (err) {
+      console.error('Error fetching AniList feed:', err);
+    } finally {
+      setFeedLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchAniListFeed();
+  }, [fetchAniListFeed]);
 
   // Save progress when active chapter changes
   useEffect(() => {
@@ -173,7 +265,7 @@ export function NovelPage() {
     }
   };
 
-  // Info details logic
+  // Source mapping & info fetch logic
   const handleNovelSelect = async (novel: Novel) => {
     setSelectedNovel(novel);
     setNovelDetails(null);
@@ -187,7 +279,6 @@ export function NovelPage() {
       if (!res.ok) throw new Error('Failed to load novel details');
       const data = await res.json();
       
-      // Merge base novel data with fetched details
       const details: NovelDetails = {
         ...novel,
         ...data,
@@ -198,6 +289,34 @@ export function NovelPage() {
       setError(err.message || 'Failed to load details');
     } finally {
       setDetailsLoading(false);
+    }
+  };
+
+  // Safe search + direct slug fallback for AniList Feed items
+  const handleNovelSelectViaFeed = async (novel: Novel) => {
+    setSearchingSource(novel.title);
+    setError(null);
+    try {
+      const searchRes = await fetch(`/api/manga?action=search&provider=novelfull&query=${encodeURIComponent(novel.title)}`);
+      if (!searchRes.ok) throw new Error('Source search failed');
+      const searchData = await searchRes.json();
+      
+      if (searchData && searchData.length > 0) {
+        await handleNovelSelect(searchData[0]);
+      } else {
+        // Fallback: Try direct slug lookup
+        await handleNovelSelect(novel);
+      }
+    } catch (err: any) {
+      // Direct lookup fallback if search returns empty or fails
+      try {
+        await handleNovelSelect(novel);
+      } catch (innerErr) {
+        setError(`Source mapping failed. We couldn't locate a verified English translation for "${novel.title}".`);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    } finally {
+      setSearchingSource(null);
     }
   };
 
@@ -215,7 +334,6 @@ export function NovelPage() {
       const data = await res.json();
       setChapterContent(data);
 
-      // Scroll reader to top
       if (readerContainerRef.current) {
         readerContainerRef.current.scrollTop = 0;
       }
@@ -243,18 +361,17 @@ export function NovelPage() {
     }
   };
 
-  // Get current active index
   const activeChapterIndex = novelDetails && activeChapter 
     ? novelDetails.chapters.findIndex(c => c.id === activeChapter.id) 
     : -1;
 
-  // Render main novel cards
-  const renderNovelGrid = (novels: Novel[], title: string) => {
+  // Render novel cards grid
+  const renderNovelGrid = (novels: Novel[], title: string, isFeedItem = false) => {
     if (novels.length === 0) return null;
     return (
       <div className="space-y-4">
         <h3 className="text-sm font-semibold tracking-wider text-zinc-400 uppercase flex items-center gap-2">
-          <Sparkles size={16} className="text-zinc-500" />
+          {title.includes("Trending") ? <TrendingUp size={16} className="text-zinc-500" /> : <Sparkles size={16} className="text-zinc-500" />}
           {title}
         </h3>
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
@@ -262,14 +379,16 @@ export function NovelPage() {
             const isBookmarked = bookmarks.some(b => b.id === novel.id);
             const progress = readingProgress[novel.id];
             
-            // Proxy the image URL to prevent mixed content
-            const proxiedImage = `/api/manga?action=proxy-image&provider=novelfull&url=${encodeURIComponent(novel.image)}`;
+            // AniList covers can be loaded directly, NovelFull covers should be proxied
+            const proxiedImage = novel.image.startsWith('/')
+              ? `/api/manga?action=proxy-image&provider=novelfull&url=${encodeURIComponent(novel.image)}`
+              : novel.image;
 
             return (
               <div 
                 key={novel.id} 
                 className="group relative bg-zinc-900/40 border border-white/5 rounded-2xl overflow-hidden cursor-pointer hover:border-white/10 hover:bg-zinc-900/60 transition-all duration-300 transform hover:-translate-y-1"
-                onClick={() => handleNovelSelect(novel)}
+                onClick={() => isFeedItem ? handleNovelSelectViaFeed(novel) : handleNovelSelect(novel)}
               >
                 <div className="aspect-[3/4] w-full relative overflow-hidden bg-zinc-950">
                   <img 
@@ -290,7 +409,6 @@ export function NovelPage() {
                   </h4>
                   <p className="text-[10px] text-zinc-500 line-clamp-1">{novel.author}</p>
                   
-                  {/* Progress Indicator */}
                   {progress && (
                     <div className="pt-2 flex items-center gap-1.5 text-[9px] text-indigo-400 font-medium">
                       <BookOpen size={10} />
@@ -299,7 +417,6 @@ export function NovelPage() {
                   )}
                 </div>
 
-                {/* Bookmark Badge */}
                 {isBookmarked && (
                   <div className="absolute top-2 right-2 bg-indigo-600/80 backdrop-blur-md p-1.5 rounded-full border border-indigo-500/30 text-white shadow-lg">
                     <Heart size={10} fill="currentColor" />
@@ -316,13 +433,25 @@ export function NovelPage() {
   return (
     <div className="min-h-screen text-white select-none pb-20">
       
+      {/* Search and mapping feedback modal */}
+      {searchingSource && (
+        <div className="fixed inset-0 z-[100] bg-black/85 backdrop-blur-md flex flex-col items-center justify-center p-4">
+          <Loader2 className="animate-spin text-indigo-500 mb-4" size={40} />
+          <h3 className="text-sm font-semibold text-white">Indexing Novel Source</h3>
+          <p className="text-xs text-zinc-500 mt-1 max-w-xs text-center">Locating verified translation chapters for "{searchingSource}"...</p>
+        </div>
+      )}
+
       {/* ── SCREEN 1: CATALOG / SEARCH LIST ────────────────────────── */}
       {!selectedNovel && (
-        <div className="space-y-8 animate-in fade-in duration-500 px-4 md:px-12 py-6">
+        <div className="space-y-8 animate-in fade-in duration-500 px-4 md:px-12 pt-20 md:pt-24 pb-6">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
-              <h2 className="text-xl md:text-2xl font-bold tracking-tight text-white">Light Novels</h2>
-              <p className="text-xs text-zinc-500">Dive into translated web novels and immersive stories</p>
+              <h2 className="text-xl md:text-2xl font-bold tracking-tight text-white flex items-center gap-2">
+                <BookOpen className="text-indigo-500" size={24} />
+                Light Novels
+              </h2>
+              <p className="text-xs text-zinc-500">Dive into translated web novels and adaptive stories</p>
             </div>
             
             {/* Search Bar */}
@@ -346,7 +475,7 @@ export function NovelPage() {
           )}
 
           {error && !loading && (
-            <div className="bg-red-500/10 border border-red-500/20 rounded-2xl p-4 flex items-center gap-3 text-red-400 text-xs">
+            <div className="bg-red-500/10 border border-red-500/20 rounded-2xl p-4 flex items-center gap-3 text-red-400 text-xs max-w-xl">
               <AlertCircle size={18} />
               <span>{error}</span>
             </div>
@@ -355,17 +484,87 @@ export function NovelPage() {
           {/* Search Results */}
           {searchResults.length > 0 && !loading && renderNovelGrid(searchResults, "Search Results")}
 
+          {/* Premium Hero Banner (Anime Adapations adaptation featured novel) */}
+          {!feedLoading && !loading && searchResults.length === 0 && featuredNovel && (
+            <div className="relative w-full aspect-[21/9] md:aspect-[3/1] rounded-3xl overflow-hidden border border-white/5 bg-zinc-950 flex items-end p-6 md:p-12 shadow-2xl">
+              {/* Blurred background cover if banner doesn't exist */}
+              <div 
+                className="absolute inset-0 bg-cover bg-center filter blur-md opacity-25 scale-105"
+                style={{ backgroundImage: `url(${featuredNovel.image})` }}
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0a] via-black/30 to-black/10" />
+              
+              <div className="relative flex flex-col md:flex-row md:items-end gap-6 w-full z-10">
+                <img 
+                  src={featuredNovel.image} 
+                  alt={featuredNovel.title} 
+                  className="hidden md:block w-32 aspect-[3/4] object-cover rounded-2xl shadow-2xl border border-white/10"
+                />
+                <div className="space-y-4 max-w-xl text-left">
+                  <div className="space-y-2">
+                    <span className="bg-indigo-600/30 text-indigo-400 text-[10px] uppercase font-bold py-1 px-3.5 rounded-full border border-indigo-500/20 tracking-wider">
+                      Featured Novel
+                    </span>
+                    <h1 className="text-2xl md:text-3xl font-extrabold text-white tracking-tight">{featuredNovel.title}</h1>
+                    <div className="flex items-center gap-3 text-xs text-zinc-400 font-medium">
+                      {featuredNovel.rating && (
+                        <span className="text-amber-400 flex items-center gap-0.5">
+                          <Star size={12} fill="currentColor" />
+                          {featuredNovel.rating.toFixed(1)}
+                        </span>
+                      )}
+                      <span>•</span>
+                      <span className="line-clamp-1">{featuredNovel.genres.slice(0, 3).join(', ')}</span>
+                    </div>
+                  </div>
+                  <p className="text-xs text-zinc-400 line-clamp-2 md:line-clamp-3 leading-relaxed">
+                    {featuredNovel.description}
+                  </p>
+                  <div className="flex items-center gap-3">
+                    <button 
+                      onClick={() => handleNovelSelectViaFeed(featuredNovel)}
+                      className="bg-white hover:bg-zinc-200 text-zinc-950 text-xs font-bold py-2 px-5 rounded-full flex items-center gap-2 transition-all active:scale-95 shadow-lg"
+                    >
+                      <Play size={12} fill="currentColor" className="text-zinc-950" />
+                      Read Now
+                    </button>
+                    <button 
+                      onClick={() => toggleBookmark(featuredNovel)}
+                      className="bg-zinc-900/80 hover:bg-zinc-800 text-white text-xs font-bold py-2 px-5 rounded-full flex items-center gap-2 border border-white/10 transition-all active:scale-95 shadow-lg"
+                    >
+                      <Heart size={12} fill={bookmarks.some(b => b.id === featuredNovel.id) ? "currentColor" : "none"} className="text-red-500" />
+                      Bookmark
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Bookmarks Shelf */}
           {bookmarks.length > 0 && !loading && renderNovelGrid(bookmarks, "Your Library")}
 
-          {/* Popular Shelf */}
-          {!loading && searchResults.length === 0 && renderNovelGrid(POPULAR_NOVELS, "Trending Light Novels")}
+          {/* AniList Feed Loading state */}
+          {feedLoading && searchResults.length === 0 && !loading && (
+            <div className="flex flex-col items-center justify-center py-20 gap-3">
+              <Loader2 className="animate-spin text-indigo-500" size={32} />
+              <p className="text-xs text-zinc-500">Retrieving novel catalogs...</p>
+            </div>
+          )}
+
+          {/* AniList Shelves */}
+          {!feedLoading && searchResults.length === 0 && !loading && (
+            <>
+              {renderNovelGrid(trendingNovels, "Trending Light Novels", true)}
+              {renderNovelGrid(popularNovels, "All-Time Popular", true)}
+            </>
+          )}
         </div>
       )}
 
       {/* ── SCREEN 2: NOVEL DETAILS & CHAPTERS ─────────────────────── */}
       {selectedNovel && !activeChapter && (
-        <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 px-4 md:px-12 py-6 max-w-4xl mx-auto space-y-6">
+        <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 px-4 md:px-12 pt-20 md:pt-24 pb-6 max-w-4xl mx-auto space-y-6">
           <button 
             onClick={() => setSelectedNovel(null)}
             className="flex items-center gap-2 text-xs font-semibold text-zinc-400 hover:text-white transition-colors"
@@ -384,7 +583,7 @@ export function NovelPage() {
               <div className="flex flex-col md:flex-row gap-6 md:items-start">
                 <div className="w-40 aspect-[3/4] rounded-2xl overflow-hidden border border-white/5 shadow-xl bg-zinc-950 mx-auto md:mx-0 shrink-0">
                   <img 
-                    src={`/api/manga?action=proxy-image&provider=novelfull&url=${encodeURIComponent(novelDetails.image)}`} 
+                    src={novelDetails.image.startsWith('/') ? `/api/manga?action=proxy-image&provider=novelfull&url=${encodeURIComponent(novelDetails.image)}` : novelDetails.image} 
                     alt={novelDetails.title} 
                     className="w-full h-full object-cover"
                   />
@@ -398,41 +597,47 @@ export function NovelPage() {
 
                   {novelDetails.rating && (
                     <div className="flex items-center justify-center md:justify-start gap-1 text-xs text-amber-400 font-semibold">
-                      <span>★</span> {novelDetails.rating.toFixed(1)} / 5.0
+                      <Star size={14} fill="currentColor" />
+                      <span>{novelDetails.rating.toFixed(1)} / 10</span>
                     </div>
                   )}
 
-                  {novelDetails.genres && (
-                    <div className="flex flex-wrap justify-center md:justify-start gap-1.5">
-                      {novelDetails.genres.map(g => (
-                        <span key={g} className="text-[10px] bg-white/5 border border-white/5 text-zinc-400 font-medium py-0.5 px-2 rounded-full">
-                          {g}
+                  {novelDetails.genres && novelDetails.genres.length > 0 && (
+                    <div className="flex flex-wrap items-center justify-center md:justify-start gap-1.5">
+                      {novelDetails.genres.map(genre => (
+                        <span 
+                          key={genre} 
+                          className="bg-white/5 border border-white/5 py-1 px-3 rounded-full text-[10px] text-zinc-300 font-medium"
+                        >
+                          {genre}
                         </span>
                       ))}
                     </div>
                   )}
 
-                  <div className="flex justify-center md:justify-start gap-3">
-                    <button 
-                      onClick={() => {
-                        const progress = readingProgress[novelDetails.id];
-                        if (progress) {
-                          const found = novelDetails.chapters.find(c => c.id === progress.chapterId);
-                          if (found) handleChapterSelect(found);
-                        } else if (novelDetails.chapters.length > 0) {
-                          handleChapterSelect(novelDetails.chapters[0]);
-                        }
-                      }}
-                      className="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-2 px-6 rounded-full text-xs transition-all shadow-lg"
-                    >
-                      {readingProgress[novelDetails.id] ? 'Continue Reading' : 'Start Reading'}
-                    </button>
+                  <div className="flex items-center justify-center md:justify-start gap-3">
+                    {novelDetails.chapters.length > 0 && (
+                      <button 
+                        onClick={() => {
+                          const progress = readingProgress[novelDetails.id];
+                          const startChapter = progress 
+                            ? novelDetails.chapters.find(c => c.id === progress.chapterId) || novelDetails.chapters[0]
+                            : novelDetails.chapters[0];
+                          handleChapterSelect(startChapter);
+                        }}
+                        className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs py-2 px-6 rounded-full shadow-lg shadow-indigo-600/20 active:scale-95 transition-all flex items-center gap-1.5"
+                      >
+                        <BookOpen size={14} />
+                        {readingProgress[novelDetails.id] ? 'Continue Reading' : 'Start Reading'}
+                      </button>
+                    )}
 
                     <button 
                       onClick={() => toggleBookmark(novelDetails)}
-                      className="bg-zinc-900/60 border border-white/5 hover:border-white/10 hover:bg-zinc-900/80 p-2.5 rounded-full text-zinc-400 hover:text-white transition-all shadow-md"
+                      className="bg-zinc-900 border border-white/5 text-zinc-300 hover:text-white font-bold text-xs py-2 px-6 rounded-full active:scale-95 transition-all flex items-center gap-1.5"
                     >
-                      <Heart size={14} fill={bookmarks.some(b => b.id === novelDetails.id) ? "currentColor" : "none"} className={bookmarks.some(b => b.id === novelDetails.id) ? "text-indigo-500" : ""} />
+                      <Heart size={14} fill={bookmarks.some(b => b.id === novelDetails.id) ? "currentColor" : "none"} className="text-red-500" />
+                      {bookmarks.some(b => b.id === novelDetails.id) ? 'Bookmarked' : 'Add to Library'}
                     </button>
                   </div>
                 </div>
@@ -440,13 +645,13 @@ export function NovelPage() {
 
               {/* Description */}
               {novelDetails.description && (
-                <div className="space-y-2 bg-zinc-900/20 border border-white/5 p-5 rounded-2xl">
-                  <h3 className="text-xs font-semibold text-zinc-400 tracking-wider uppercase">Synopsis</h3>
-                  <p className="text-xs text-zinc-300 leading-relaxed whitespace-pre-line">{novelDetails.description}</p>
+                <div className="space-y-2 select-text border-t border-white/5 pt-6 text-left">
+                  <h3 className="text-sm font-semibold text-zinc-200">Synopsis</h3>
+                  <p className="text-xs text-zinc-400 leading-relaxed font-sans">{novelDetails.description}</p>
                 </div>
               )}
 
-              {/* Chapters List */}
+              {/* Chapter list */}
               <div className="space-y-4">
                 <div className="flex items-center justify-between border-b border-white/5 pb-2">
                   <h3 className="text-sm font-semibold text-zinc-200">Chapters ({novelDetails.chapters.length})</h3>
@@ -481,7 +686,7 @@ export function NovelPage() {
             theme === 'sepia' 
               ? 'bg-[#f4ecd8] text-[#332215]' 
               : theme === 'light' 
-                ? 'bg-zinc-55 text-zinc-900' 
+                ? 'bg-white text-zinc-900' 
                 : 'bg-[#0a0a0a] text-zinc-300'
           }`}
         >
@@ -525,38 +730,34 @@ export function NovelPage() {
                 <Settings size={16} />
               </button>
 
-              {/* Settings Dropdown Box */}
+              {/* Reader Options Settings Panel */}
               {showSettings && (
-                <div className={`absolute right-0 top-9 w-64 p-4 rounded-2xl shadow-2xl border flex flex-col gap-4 z-50 animate-in fade-in duration-200 ${
+                <div className={`absolute right-0 top-9 w-56 p-4 rounded-2xl shadow-2xl border flex flex-col gap-4 z-50 animate-in fade-in duration-200 ${
                   theme === 'sepia'
                     ? 'bg-[#ebdcb9] border-[#d2be92] text-[#5b4636]'
                     : theme === 'light'
                       ? 'bg-white border-zinc-200 text-zinc-800'
                       : 'bg-zinc-900 border-zinc-800 text-white'
                 }`}>
-                  <h4 className="text-xs font-bold border-b border-black/5 dark:border-white/5 pb-1 flex items-center gap-1">
-                    <Settings size={12} /> Reader Settings
-                  </h4>
-                  
                   {/* Theme Presets */}
-                  <div className="space-y-1.5">
-                    <span className="text-[10px] font-bold opacity-60">Color Palette</span>
-                    <div className="grid grid-cols-3 gap-1">
+                  <div className="space-y-1.5 text-left">
+                    <span className="text-[10px] uppercase font-bold tracking-wider opacity-60">Theme</span>
+                    <div className="grid grid-cols-3 gap-1.5">
                       <button 
                         onClick={() => updateTheme('dark')}
-                        className={`py-1 text-[10px] rounded-lg border flex items-center justify-center gap-1 font-medium ${theme === 'dark' ? 'bg-zinc-950 border-indigo-500 text-white' : 'bg-zinc-850 border-transparent text-zinc-400'}`}
+                        className={`py-1.5 text-[10px] rounded-lg border font-semibold ${theme === 'dark' ? 'border-indigo-500 bg-black text-white' : 'border-transparent bg-black/10'}`}
                       >
-                        <Moon size={10} /> Dark
+                        Dark
                       </button>
                       <button 
                         onClick={() => updateTheme('light')}
-                        className={`py-1 text-[10px] rounded-lg border flex items-center justify-center gap-1 font-medium ${theme === 'light' ? 'bg-zinc-100 border-indigo-500 text-zinc-900' : 'bg-zinc-200 border-transparent text-zinc-600'}`}
+                        className={`py-1.5 text-[10px] rounded-lg border font-semibold ${theme === 'light' ? 'border-indigo-500 bg-white text-zinc-900' : 'border-transparent bg-zinc-200/50'}`}
                       >
-                        <Sun size={10} /> Light
+                        Light
                       </button>
                       <button 
                         onClick={() => updateTheme('sepia')}
-                        className={`py-1 text-[10px] rounded-lg border flex items-center justify-center gap-1 font-medium ${theme === 'sepia' ? 'bg-[#f4ecd8] border-[#a5845d] text-[#5b4636]' : 'bg-[#e4d8b9] border-transparent text-[#7e6b5c]'}`}
+                        className={`py-1.5 text-[10px] rounded-lg border font-semibold ${theme === 'sepia' ? 'border-indigo-500 bg-[#ebdcb9] text-[#5b4636]' : 'border-transparent bg-[#d2be92]/20'}`}
                       >
                         Sepia
                       </button>
@@ -564,38 +765,37 @@ export function NovelPage() {
                   </div>
 
                   {/* Font Size Preset */}
-                  <div className="space-y-1.5">
-                    <span className="text-[10px] font-bold opacity-60">Font Sizing</span>
-                    <div className="flex items-center justify-between bg-black/5 dark:bg-white/5 rounded-xl p-1">
+                  <div className="space-y-1.5 text-left">
+                    <span className="text-[10px] uppercase font-bold tracking-wider opacity-60">Font Size ({fontSize}px)</span>
+                    <div className="flex items-center gap-2">
                       <button 
                         onClick={() => updateFontSize(Math.max(12, fontSize - 2))}
-                        className="p-1 px-3 text-[10px] font-bold hover:opacity-75"
+                        className="flex-1 bg-black/10 dark:bg-white/5 hover:bg-black/20 dark:hover:bg-white/10 py-1 rounded-lg text-xs font-bold"
                       >
                         A-
                       </button>
-                      <span className="text-xs font-semibold">{fontSize}px</span>
                       <button 
-                        onClick={() => updateFontSize(Math.min(28, fontSize + 2))}
-                        className="p-1 px-3 text-[10px] font-bold hover:opacity-75"
+                        onClick={() => updateFontSize(Math.min(30, fontSize + 2))}
+                        className="flex-1 bg-black/10 dark:bg-white/5 hover:bg-black/20 dark:hover:bg-white/10 py-1 rounded-lg text-xs font-bold"
                       >
                         A+
                       </button>
                     </div>
                   </div>
 
-                  {/* Font Family Selection */}
-                  <div className="space-y-1.5">
-                    <span className="text-[10px] font-bold opacity-60">Typography</span>
-                    <div className="grid grid-cols-3 gap-1">
+                  {/* Font Family preset */}
+                  <div className="space-y-1.5 text-left">
+                    <span className="text-[10px] uppercase font-bold tracking-wider opacity-60">Typography</span>
+                    <div className="grid grid-cols-3 gap-1.5">
                       <button 
-                        onClick={() => updateFontFamily('Georgia, serif')}
-                        className={`py-1 text-[10px] rounded-lg border font-serif ${fontFamily.includes('Georgia') ? 'border-indigo-500 font-bold' : 'border-transparent opacity-75'}`}
+                        onClick={() => updateFontFamily('Georgia')}
+                        className={`py-1 text-[10px] rounded-lg border font-serif ${fontFamily === 'Georgia' ? 'border-indigo-500 font-bold' : 'border-transparent opacity-75'}`}
                       >
-                        Book
+                        Serif
                       </button>
                       <button 
-                        onClick={() => updateFontFamily('system-ui, sans-serif')}
-                        className={`py-1 text-[10px] rounded-lg border font-sans ${fontFamily.includes('system-ui') ? 'border-indigo-500 font-bold' : 'border-transparent opacity-75'}`}
+                        onClick={() => updateFontFamily('system-ui')}
+                        className={`py-1 text-[10px] rounded-lg border font-sans ${fontFamily === 'system-ui' ? 'border-indigo-500 font-bold' : 'border-transparent opacity-75'}`}
                       >
                         Modern
                       </button>
