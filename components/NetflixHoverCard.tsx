@@ -2,6 +2,17 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Play, Bookmark, Check, ChevronDown, Volume2, VolumeX, Heart } from 'lucide-react';
 import { Movie, GENRES_MAP } from '../types';
 
+const formatTitle = (title: string) => {
+    if (!title) return "";
+    const isAllCaps = title === title.toUpperCase() && /[A-Z]/.test(title);
+    if (isAllCaps) {
+        return title
+            .toLowerCase()
+            .replace(/\b[a-z]/g, letter => letter.toUpperCase());
+    }
+    return title;
+};
+
 interface NetflixHoverCardProps {
     movie: Movie;
     rect: { top: number; left: number; width: number; height: number; };
@@ -349,17 +360,17 @@ export const NetflixHoverCard: React.FC<NetflixHoverCardProps> = ({
             </div>
 
             {/* Bottom details info wrapper */}
-            <div className="p-4.5 flex flex-col gap-3">
+            <div className="p-4 flex flex-col gap-3">
                 {/* Title */}
-                <h4 className="text-sm sm:text-base font-black text-white leading-tight uppercase tracking-wide">
-                    {movie.title || movie.name}
+                <h4 className="text-sm sm:text-base font-semibold text-white leading-tight tracking-normal">
+                    {formatTitle(movie.title || movie.name)}
                 </h4>
 
                 {/* Action buttons row */}
                 <div className="flex items-center gap-2">
                     <button
                         onClick={(e) => { e.stopPropagation(); onPlay(movie); }}
-                        className="px-5 py-2.5 rounded-xl bg-slate-200/90 hover:bg-white text-slate-900 font-extrabold flex items-center justify-center gap-1.5 flex-1 transition-all active:scale-95 shadow-md border-none text-[11px] cursor-pointer"
+                        className="h-9 px-4 rounded-xl bg-slate-200/90 hover:bg-white text-slate-900 font-semibold flex items-center justify-center gap-1.5 flex-1 max-w-[120px] transition-all active:scale-95 shadow-md border-none text-[11px] cursor-pointer"
                         title="Watch Now"
                     >
                         <Play size={13} fill="currentColor" /> {isWatched ? "Rewatch" : "Play"}
@@ -368,7 +379,7 @@ export const NetflixHoverCard: React.FC<NetflixHoverCardProps> = ({
                     {/* Favorite (Heart) */}
                     <button
                         onClick={(e) => { e.stopPropagation(); onToggleWatched(movie); }}
-                        className={`w-9.5 h-9.5 rounded-xl border flex items-center justify-center transition-all active:scale-95 cursor-pointer bg-white/[0.03] ${
+                        className={`w-9 h-9 rounded-xl border flex items-center justify-center transition-all active:scale-95 cursor-pointer bg-white/[0.03] ${
                             isWatched
                                 ? 'text-red-500 border-red-500/30 bg-red-500/10 hover:bg-red-500/20'
                                 : 'text-white border-white/15 hover:border-white/30 hover:bg-white/5'
@@ -381,7 +392,7 @@ export const NetflixHoverCard: React.FC<NetflixHoverCardProps> = ({
                     {/* Watchlist (Bookmark) */}
                     <button
                         onClick={(e) => { e.stopPropagation(); onToggleWatchlist(movie); }}
-                        className={`w-9.5 h-9.5 rounded-xl border flex items-center justify-center transition-all active:scale-95 cursor-pointer bg-white/[0.03] ${
+                        className={`w-9 h-9 rounded-xl border flex items-center justify-center transition-all active:scale-95 cursor-pointer bg-white/[0.03] ${
                             isWatchlisted
                                 ? 'text-green-400 border-green-500/30 bg-green-500/10 hover:bg-green-500/20'
                                 : 'text-white border-white/15 hover:border-white/30 hover:bg-white/5'
