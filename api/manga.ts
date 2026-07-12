@@ -15,7 +15,7 @@ const providers: Record<string, any> = {
   mangakakalot: new MANGA.MangaKakalot()
 };
 
-const NOVELFULL_BASE = 'https://novelfull.net';
+const RANOBES_BASE = 'https://ranobes.net';
 const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36';
 
 const BROWSER_HEADERS: Record<string, string> = {
@@ -67,102 +67,163 @@ async function novelFetch(url: string): Promise<string> {
   throw new Error(`Failed to fetch ${url}: all methods exhausted`);
 }
 
-async function scrapeNovelFullSearch(query: string) {
-  // novelfull.net has server-rendered search results (unlike .com which is JS-loaded)
-  const url = `${NOVELFULL_BASE}/search?keyword=${encodeURIComponent(query)}`;
+async function scrapeRanobesSearch(query: string) {
+  const url = `${RANOBES_BASE}/index.php?do=search&subaction=search&story=${encodeURIComponent(query)}`;
   const html = await novelFetch(url);
   const $ = cheerio.load(html);
   const results: any[] = [];
 
-  // The search results are inside .col-truyen-main.archive > .list-truyen > .row
-  // We avoid .list-side (sidebar hot novels) by targeting the .archive container
-  $('.col-truyen-main.archive .list-truyen .row, .col-truyen-main .list-truyen:not(.list-side):not(.list-cat) .row').each((_, el) => {
-    const titleEl = $(el).find('h3.truyen-title a, h3 a').first();
+  $('article.story').each((_, el) => {
+    const titleEl = $(el).find('h2.title a').first();
     const title = titleEl.text().trim();
     const href = titleEl.attr('href') || '';
-    const id = href.replace(/^\//, '').replace(/\.html$/, '');
+    const id = href.replace(/^https?:\/\/ranobes\.net\/novels\//, '').replace(/\.html$/, '');
 
-    let img = $(el).find('img').first().attr('src') || '';
-    if (img && !img.startsWith('http')) {
-      img = `${NOVELFULL_BASE}${img}`;
+    const styleAttr = $(el).find('.cover').attr('style') || '';
+    const imgMatch = styleAttr.match(/url\(['"]?([^'")]+)['"]?\)/);
+    let image = imgMatch ? imgMatch[1] : '';
+    if (image && !image.startsWith('http')) {
+      image = `${RANOBES_BASE}${image}`;
     }
 
-    const author = $(el).find('.author, span.author').first().text().trim();
+    const description = $(el).find('.cont-in > div[style*="color:"]').text().trim() || $(el).find('.cont-in').text().trim();
 
     if (id && title) {
-      results.push({ id, title, image: img, author });
+      results.push({
+        id,
+        title,
+        image,
+        author: '',
+        description
+      });
     }
   });
-
-  // Fallback: if SSR search returned 0 results, try direct slug lookup
-  if (results.length === 0) {
-    const baseSlug = query
-      .toLowerCase()
-      .replace(/[^a-z0-9\s-]/g, '')
-      .replace(/\s+/g, '-')
-      .replace(/-+/g, '-')
-      .replace(/^-|-$/g, '');
-
-    try {
-      const infoUrl = `${NOVELFULL_BASE}/${baseSlug}.html`;
-      const infoHtml = await novelFetch(infoUrl);
-      const $info = cheerio.load(infoHtml);
-      const title = $info('h3.title').text().trim();
-      if (title) {
-        let image = $info('div.book img, div.books img').first().attr('src') || '';
-        if (image && !image.startsWith('http')) image = `${NOVELFULL_BASE}${image}`;
-        const author = $info('div.info a[href*="/author/"]').first().text().trim() || '';
-        results.push({ id: baseSlug, title, image, author });
-      }
-    } catch {
-      // slug didn't resolve
-    }
-  }
 
   return results;
 }
 
-async function scrapeNovelFullInfo(novelId: string) {
-  const url = `${NOVELFULL_BASE}/${novelId}.html`;
+async function scrapeRanobesInfo(novelId: string) {
+  const url = `${RANOBES_BASE}/novels/${novelId}.html`;
   const html = await novelFetch(url);
   const $ = cheerio.load(html);
 
-  const title = $('h3.title').text().trim();
-  let image = $('div.book img, div.books img').first().attr('src') || '';
+  const title = $('h1.title').text().trim() || $('.desc .title').text().trim() || $('title').text().trim();
+  
+  let image = $('.poster img, div.book img, figure.cover img, a.highslide img').first().attr('src') || '';
   if (image && !image.startsWith('http')) {
-    image = `${NOVELFULL_BASE}${image}`;
+    image = `${RANOBES_BASE}${image}`;
   }
 
-  const description = $('div.desc-text').text().trim();
-
+  const description = $('.moreless__full').text().trim() || $('.moreless__short').text().trim() || '';
+  
   const genres: string[] = [];
-  $('div.info a[href*="/genre/"]').each((_, el) => {
+  $('a[href*="/genre/"]').each((_, el) => {
     genres.push($(el).text().trim());
   });
 
-  const author = $('div.info a[href*="/author/"]').first().text().trim() || '';
-  const rating = $('span[itemprop="ratingValue"]').text().trim();
-  const dbNovelId = $('#rating').attr('data-novel-id') || $('.rateit').attr('data-novel-id') || '';
-  
+  const author = $('a[href*="/authors/"]').first().text().trim() || $('a[href*="/author/"]').first().text().trim() || '';
+
+  const chaptersLink = $('a[href*="/chapters/"]').attr('href') || '';
+  const bookIdMatch = chaptersLink.match(/\/chapters\/(\d+)/);
+  const bookId = bookIdMatch ? bookIdMatch[1] : '';
+
   const chapters: any[] = [];
-  if (dbNovelId) {
-    const chaptersUrl = `${NOVELFULL_BASE}/ajax-chapter-option?novelId=${dbNovelId}`;
-    const chaptersHtml = await novelFetch(chaptersUrl).catch(() => '');
-    if (chaptersHtml) {
-      const $c = cheerio.load(chaptersHtml);
-      $c('option').each((_, el) => {
-        const cTitle = $c(el).text().trim();
-        const cVal = $c(el).attr('value') || '';
-        const cId = cVal.replace(/^\//, '');
-        if (cId && cTitle) {
-          chapters.push({
-            id: cId,
-            title: cTitle,
-            url: `${NOVELFULL_BASE}/${cId}`
+  if (bookId) {
+    const page1Url = `${RANOBES_BASE}/chapters/${bookId}/`;
+    const page1Html = await novelFetch(page1Url).catch(() => '');
+    if (page1Html) {
+      const match = page1Html.match(/window\.__DATA__\s*=\s*({[\s\S]*?})(?:\s*;|\s*<\/script>)/);
+      if (match) {
+        try {
+          const json = JSON.parse(match[1]);
+          const pagesCount = json.pages_count || 1;
+          const rawChapters = json.chapters || [];
+          
+          const allChaptersMap = new Map<string, any>();
+          
+          const mapChapter = (ch: any) => {
+            const linkPath = ch.link.replace(/^https?:\/\/ranobes\.net\//, '').replace(/\.html$/, '');
+            const idMatch = ch.link.match(/\/(\d+)\.html/);
+            return {
+              id: linkPath,
+              title: ch.title,
+              url: ch.link,
+              numericId: idMatch ? parseInt(idMatch[1]) : 0
+            };
+          };
+
+          rawChapters.forEach((ch: any) => {
+            const item = mapChapter(ch);
+            allChaptersMap.set(item.id, item);
           });
+
+          // Fetch pages concurrently: pages 2, 3 (latest) and pagesCount, pagesCount-1 (oldest)
+          const pagesToFetch: number[] = [];
+          for (let p = 2; p <= Math.min(3, pagesCount); p++) {
+            pagesToFetch.push(p);
+          }
+          for (let p = pagesCount; p > Math.min(3, pagesCount) && p >= pagesCount - 1; p--) {
+            if (!pagesToFetch.includes(p)) {
+              pagesToFetch.push(p);
+            }
+          }
+
+          if (pagesToFetch.length > 0) {
+            const promises = pagesToFetch.map(p =>
+              novelFetch(`${RANOBES_BASE}/chapters/${bookId}/page/${p}/`)
+                .then(chHtml => {
+                  const m = chHtml.match(/window\.__DATA__\s*=\s*({[\s\S]*?})(?:\s*;|\s*<\/script>)/);
+                  if (m) {
+                    const j = JSON.parse(m[1]);
+                    return j.chapters || [];
+                  }
+                  return [];
+                })
+                .catch(() => [])
+            );
+            const results = await Promise.all(promises);
+            results.forEach(rawChs => {
+              rawChs.forEach((ch: any) => {
+                const item = mapChapter(ch);
+                allChaptersMap.set(item.id, item);
+              });
+            });
+          }
+
+          const sorted = Array.from(allChaptersMap.values());
+          sorted.sort((a, b) => a.numericId - b.numericId);
+          
+          sorted.forEach(item => {
+            chapters.push({
+              id: item.id,
+              title: item.title,
+              url: item.url
+            });
+          });
+        } catch (e) {
+          console.error('Error parsing ranobes chapters json:', e);
         }
-      });
+      }
     }
+  }
+
+  // Fallback: If chapters list is empty, scrape chapter-item links from info page
+  if (chapters.length === 0) {
+    $('a.chapter-item').each((_, el) => {
+      const href = $(el).attr('href') || '';
+      const cTitle = $(el).text().trim() || $(el).find('.title').text().trim();
+      const linkPath = href.replace(/^https?:\/\/ranobes\.net\//, '').replace(/\.html$/, '');
+      const idMatch = href.match(/\/(\d+)\.html/);
+      if (linkPath && cTitle) {
+        chapters.push({
+          id: linkPath,
+          title: cTitle,
+          url: href,
+          numericId: idMatch ? parseInt(idMatch[1]) : 0
+        });
+      }
+    });
+    chapters.sort((a, b) => a.numericId - b.numericId);
   }
 
   return {
@@ -172,19 +233,20 @@ async function scrapeNovelFullInfo(novelId: string) {
     author,
     description,
     genres,
-    rating: rating ? parseFloat(rating) : null,
-    chapters
+    rating: null,
+    chapters: chapters.map(({ id, title, url }) => ({ id, title, url }))
   };
 }
 
-async function scrapeNovelFullChapter(chapterId: string) {
-  const url = `${NOVELFULL_BASE}/${chapterId}`;
+async function scrapeRanobesChapter(chapterId: string) {
+  const url = `${RANOBES_BASE}/${chapterId}.html`;
   const html = await novelFetch(url);
   const $ = cheerio.load(html);
 
-  const title = $('a.chapter-title').text().trim() || $('.chapter-title').text().trim() || $('h2 a.chapter-title').text().trim() || $('title').text().trim();
-  const container = $('#chapter-content');
-  container.find('script, iframe, style, .ads, .ads-holder, .social-share, .adsbygoogle').remove();
+  const title = $('.story .title, h1.title, .chapter-title').first().text().trim() || $('title').text().trim();
+  const container = $('#arrticle');
+  
+  container.find('script, iframe, style, .ads, .ads-holder, .social-share, .adsbygoogle, div[style*="display:none"]').remove();
 
   let paragraphs: string[] = [];
   container.find('p').each((_, el) => {
@@ -203,10 +265,10 @@ async function scrapeNovelFullChapter(chapterId: string) {
   paragraphs = paragraphs.filter(text => {
     const lower = text.toLowerCase();
     return (
+      !lower.includes('ranobes.net') &&
+      !lower.includes('ranobes') &&
       !lower.includes('report chapter') &&
       !lower.includes('broken links') &&
-      !lower.includes('novelfull.com') &&
-      !lower.includes('novelfull.net') &&
       !lower.includes('update faster') &&
       !lower.includes('if you find any errors') &&
       !lower.includes('translator:') &&
@@ -214,9 +276,17 @@ async function scrapeNovelFullChapter(chapterId: string) {
     );
   });
 
+  const nextHref = $('#next').attr('href') || '';
+  const prevHref = $('#prev').attr('href') || '';
+
+  const nextChapterId = nextHref.replace(/^https?:\/\/ranobes\.net\//, '').replace(/\.html$/, '');
+  const prevChapterId = prevHref.replace(/^https?:\/\/ranobes\.net\//, '').replace(/\.html$/, '');
+
   return {
     title,
-    paragraphs
+    paragraphs,
+    nextChapterId: nextChapterId || null,
+    prevChapterId: prevChapterId || null
   };
 }
 
@@ -242,12 +312,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const providerKey = typeof providerQuery === 'string' ? providerQuery.toLowerCase() : 'mangapill';
 
   try {
-    if (providerKey === 'novelfull') {
+    if (providerKey === 'novelfull' || providerKey === 'ranobes') {
       if (action === 'search') {
         if (!query || typeof query !== 'string') {
           return res.status(400).json({ error: 'Query parameter is required' });
         }
-        const results = await scrapeNovelFullSearch(query);
+        const results = await scrapeRanobesSearch(query);
         return res.status(200).json(results);
       }
 
@@ -255,7 +325,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (!id || typeof id !== 'string') {
           return res.status(400).json({ error: 'ID parameter is required' });
         }
-        const data = await scrapeNovelFullInfo(id);
+        const data = await scrapeRanobesInfo(id);
         return res.status(200).json(data);
       }
 
@@ -263,7 +333,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (!id || typeof id !== 'string') {
           return res.status(400).json({ error: 'ID parameter is required' });
         }
-        const data = await scrapeNovelFullChapter(id);
+        const data = await scrapeRanobesChapter(id);
         return res.status(200).json(data);
       }
     }
@@ -298,7 +368,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (action === 'proxy-image') {
       const imageUrl = req.query.url;
-      const refererUrl = req.query.referer || (providerKey === 'novelfull' ? NOVELFULL_BASE : provider.baseUrl);
+      const refererUrl = req.query.referer || (['novelfull', 'ranobes'].includes(providerKey) ? RANOBES_BASE : provider.baseUrl);
       if (!imageUrl || typeof imageUrl !== 'string') {
         return res.status(400).json({ error: 'URL parameter is required' });
       }

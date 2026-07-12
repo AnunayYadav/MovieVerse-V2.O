@@ -41,7 +41,7 @@ export function NovelPage() {
 
   // Active reading states
   const [activeChapter, setActiveChapter] = useState<Chapter | null>(null);
-  const [chapterContent, setChapterContent] = useState<{ title: string; paragraphs: string[] } | null>(null);
+  const [chapterContent, setChapterContent] = useState<{ title: string; paragraphs: string[]; nextChapterId?: string | null; prevChapterId?: string | null } | null>(null);
   const [chapterLoading, setChapterLoading] = useState(false);
 
   // Reading progress and bookmarks states (loaded from local storage)
@@ -254,7 +254,7 @@ export function NovelPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/manga?action=search&provider=novelfull&query=${encodeURIComponent(searchQuery)}`);
+      const res = await fetch(`/api/manga?action=search&provider=ranobes&query=${encodeURIComponent(searchQuery)}`);
       if (!res.ok) throw new Error('Search failed');
       const data = await res.json();
       setSearchResults(data);
@@ -275,7 +275,7 @@ export function NovelPage() {
     setError(null);
 
     try {
-      const res = await fetch(`/api/manga?action=info&provider=novelfull&id=${encodeURIComponent(novel.id)}`);
+      const res = await fetch(`/api/manga?action=info&provider=ranobes&id=${encodeURIComponent(novel.id)}`);
       if (!res.ok) throw new Error('Failed to load novel details');
       const data = await res.json();
       
@@ -297,7 +297,7 @@ export function NovelPage() {
     setSearchingSource(novel.title);
     setError(null);
     try {
-      const searchRes = await fetch(`/api/manga?action=search&provider=novelfull&query=${encodeURIComponent(novel.title)}`);
+      const searchRes = await fetch(`/api/manga?action=search&provider=ranobes&query=${encodeURIComponent(novel.title)}`);
       if (!searchRes.ok) throw new Error('Source search failed');
       const searchData = await searchRes.json();
       
@@ -329,7 +329,7 @@ export function NovelPage() {
     setShowChapterListDropdown(false);
 
     try {
-      const res = await fetch(`/api/manga?action=pages&provider=novelfull&id=${encodeURIComponent(chapter.id)}`);
+      const res = await fetch(`/api/manga?action=pages&provider=ranobes&id=${encodeURIComponent(chapter.id)}`);
       if (!res.ok) throw new Error('Failed to load chapter content');
       const data = await res.json();
       setChapterContent(data);
@@ -350,6 +350,19 @@ export function NovelPage() {
     const index = novelDetails.chapters.findIndex(c => c.id === activeChapter.id);
     if (index !== -1 && index < novelDetails.chapters.length - 1) {
       handleChapterSelect(novelDetails.chapters[index + 1]);
+    } else if (chapterContent?.nextChapterId) {
+      const nextId = chapterContent.nextChapterId;
+      const nextTitle = `Next Chapter`;
+      const nextChapter: Chapter = {
+        id: nextId,
+        title: nextTitle,
+        url: `https://ranobes.net/${nextId}.html`
+      };
+      setNovelDetails({
+        ...novelDetails,
+        chapters: [...novelDetails.chapters, nextChapter]
+      });
+      handleChapterSelect(nextChapter);
     }
   };
 
@@ -358,6 +371,19 @@ export function NovelPage() {
     const index = novelDetails.chapters.findIndex(c => c.id === activeChapter.id);
     if (index > 0) {
       handleChapterSelect(novelDetails.chapters[index - 1]);
+    } else if (chapterContent?.prevChapterId) {
+      const prevId = chapterContent.prevChapterId;
+      const prevTitle = `Previous Chapter`;
+      const prevChapter: Chapter = {
+        id: prevId,
+        title: prevTitle,
+        url: `https://ranobes.net/${prevId}.html`
+      };
+      setNovelDetails({
+        ...novelDetails,
+        chapters: [prevChapter, ...novelDetails.chapters]
+      });
+      handleChapterSelect(prevChapter);
     }
   };
 
@@ -379,9 +405,9 @@ export function NovelPage() {
             const isBookmarked = bookmarks.some(b => b.id === novel.id);
             const progress = readingProgress[novel.id];
             
-            // AniList covers can be loaded directly, NovelFull covers should be proxied
+            // AniList covers can be loaded directly, Ranobes covers should be proxied
             const proxiedImage = novel.image.startsWith('/')
-              ? `/api/manga?action=proxy-image&provider=novelfull&url=${encodeURIComponent(novel.image)}`
+              ? `/api/manga?action=proxy-image&provider=ranobes&url=${encodeURIComponent(novel.image)}`
               : novel.image;
 
             return (
@@ -583,7 +609,7 @@ export function NovelPage() {
               <div className="flex flex-col md:flex-row gap-6 md:items-start">
                 <div className="w-40 aspect-[3/4] rounded-2xl overflow-hidden border border-white/5 shadow-xl bg-zinc-950 mx-auto md:mx-0 shrink-0">
                   <img 
-                    src={novelDetails.image.startsWith('/') ? `/api/manga?action=proxy-image&provider=novelfull&url=${encodeURIComponent(novelDetails.image)}` : novelDetails.image} 
+                    src={novelDetails.image.startsWith('/') ? `/api/manga?action=proxy-image&provider=ranobes&url=${encodeURIComponent(novelDetails.image)}` : novelDetails.image} 
                     alt={novelDetails.title} 
                     className="w-full h-full object-cover"
                   />
