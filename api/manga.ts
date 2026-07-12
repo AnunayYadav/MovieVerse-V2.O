@@ -15,7 +15,7 @@ const providers: Record<string, any> = {
   mangakakalot: new MANGA.MangaKakalot()
 };
 
-const NOVELFULL_BASE = 'https://novelfull.com';
+const NOVELFULL_BASE = 'https://novelfull.net';
 const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36';
 
 const BROWSER_HEADERS: Record<string, string> = {
@@ -68,47 +68,54 @@ async function novelFetch(url: string): Promise<string> {
 }
 
 async function scrapeNovelFullSearch(query: string) {
-  // NovelFull search results are loaded via JavaScript AJAX, so we can't scrape
-  // them server-side. Instead, we convert the query to a slug and try to fetch
-  // the novel info page directly as a "direct lookup" search.
+  // novelfull.net has server-rendered search results (unlike .com which is JS-loaded)
+  const url = `${NOVELFULL_BASE}/search?keyword=${encodeURIComponent(query)}`;
+  const html = await novelFetch(url);
+  const $ = cheerio.load(html);
   const results: any[] = [];
 
-  // Generate candidate slugs from the query
-  const baseSlug = query
-    .toLowerCase()
-    .replace(/[^a-z0-9\s-]/g, '')
-    .replace(/\s+/g, '-')
-    .replace(/-+/g, '-')
-    .replace(/^-|-$/g, '');
+  // The search results are in .list-truyen (not .list-side) inside col-truyen-main
+  // Each result is in a .row with .truyen-title h3 > a and an img.cover
+  $('.col-truyen-main .list-truyen .row').each((_, el) => {
+    const titleEl = $(el).find('h3.truyen-title a, h3 a').first();
+    const title = titleEl.text().trim();
+    const href = titleEl.attr('href') || '';
+    const id = href.replace(/^\//, '').replace(/\.html$/, '');
 
-  // Try multiple slug variations (with and without common suffixes)
-  const slugCandidates = [baseSlug];
-  // Also try without trailing words like "novel", "light", etc.
-  const trimmed = baseSlug.replace(/-(novel|light-novel|ln|wn|web-novel)$/, '');
-  if (trimmed !== baseSlug) slugCandidates.push(trimmed);
+    let img = $(el).find('img').first().attr('src') || '';
+    if (img && !img.startsWith('http')) {
+      img = `${NOVELFULL_BASE}${img}`;
+    }
 
-  for (const slug of slugCandidates) {
+    const author = $(el).find('.author, span.author').first().text().trim();
+
+    if (id && title) {
+      results.push({ id, title, image: img, author });
+    }
+  });
+
+  // Fallback: if SSR search returned 0 results, try direct slug lookup
+  if (results.length === 0) {
+    const baseSlug = query
+      .toLowerCase()
+      .replace(/[^a-z0-9\s-]/g, '')
+      .replace(/\s+/g, '-')
+      .replace(/-+/g, '-')
+      .replace(/^-|-$/g, '');
+
     try {
-      const url = `${NOVELFULL_BASE}/${slug}.html`;
-      const html = await novelFetch(url);
-      const $ = cheerio.load(html);
-
-      const title = $('h3.title').text().trim();
-      if (!title) continue; // Not a valid novel page
-
-      let image = $('div.book img').attr('src') || '';
-      if (image && !image.startsWith('http')) {
-        image = `${NOVELFULL_BASE}${image}`;
+      const infoUrl = `${NOVELFULL_BASE}/${baseSlug}.html`;
+      const infoHtml = await novelFetch(infoUrl);
+      const $info = cheerio.load(infoHtml);
+      const title = $info('h3.title').text().trim();
+      if (title) {
+        let image = $info('div.book img, div.books img').first().attr('src') || '';
+        if (image && !image.startsWith('http')) image = `${NOVELFULL_BASE}${image}`;
+        const author = $info('div.info a[href*="/author/"]').first().text().trim() || '';
+        results.push({ id: baseSlug, title, image, author });
       }
-
-      const author = $('div.info div:contains("Author")').find('a').first().text().trim()
-        || $('div.info').text().match(/Author[:\s]*([^\n]+)/)?.[1]?.trim()
-        || '';
-
-      results.push({ id: slug, title, image, author });
-      break; // Found a match, stop trying
     } catch {
-      // Slug didn't resolve to a valid page, continue
+      // slug didn't resolve
     }
   }
 
@@ -121,7 +128,7 @@ async function scrapeNovelFullInfo(novelId: string) {
   const $ = cheerio.load(html);
 
   const title = $('h3.title').text().trim();
-  let image = $('div.book img').attr('src') || '';
+  let image = $('div.book img, div.books img').first().attr('src') || '';
   if (image && !image.startsWith('http')) {
     image = `${NOVELFULL_BASE}${image}`;
   }
@@ -133,6 +140,7 @@ async function scrapeNovelFullInfo(novelId: string) {
     genres.push($(el).text().trim());
   });
 
+  const author = $('div.info a[href*="/author/"]').first().text().trim() || '';
   const rating = $('span[itemprop="ratingValue"]').text().trim();
   const dbNovelId = $('#rating').attr('data-novel-id') || $('.rateit').attr('data-novel-id') || '';
   
@@ -161,6 +169,7 @@ async function scrapeNovelFullInfo(novelId: string) {
     id: novelId,
     title,
     image,
+    author,
     description,
     genres,
     rating: rating ? parseFloat(rating) : null,
@@ -173,7 +182,7 @@ async function scrapeNovelFullChapter(chapterId: string) {
   const html = await novelFetch(url);
   const $ = cheerio.load(html);
 
-  const title = $('.chapter-title').text().trim() || $('title').text().trim();
+  const title = $('a.chapter-title').text().trim() || $('.chapter-title').text().trim() || $('h2 a.chapter-title').text().trim() || $('title').text().trim();
   const container = $('#chapter-content');
   container.find('script, iframe, style, .ads, .ads-holder, .social-share, .adsbygoogle').remove();
 
@@ -197,8 +206,11 @@ async function scrapeNovelFullChapter(chapterId: string) {
       !lower.includes('report chapter') &&
       !lower.includes('broken links') &&
       !lower.includes('novelfull.com') &&
+      !lower.includes('novelfull.net') &&
       !lower.includes('update faster') &&
-      !lower.includes('if you find any errors')
+      !lower.includes('if you find any errors') &&
+      !lower.includes('translator:') &&
+      !lower.includes('editor:')
     );
   });
 
