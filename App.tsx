@@ -18,6 +18,7 @@ import { LiveTV } from './components/LiveTV';
 import { ExplorePage } from './components/ExplorePage';
 import { AnimePage } from './components/AnimePage';
 import { MangaPage } from './components/MangaPage';
+import { NovelPage } from './components/NovelPage';
 import { DramaPage } from './components/DramaPage';
 import { MusicPage } from './components/MusicPage';
 import { BookOpen, Drama, Music } from 'lucide-react';
@@ -4297,7 +4298,8 @@ export default function App() {
         { id: "Coming", icon: CalendarDays, label: "Coming Soon", action: () => { resetFilters(); setSelectedCategory("Coming"); } },
         { id: "Awards", icon: Award, label: "Awards", action: () => { resetFilters(); setSelectedCategory("Awards"); } },
         { id: "AnimeCommunity", icon: MessageSquare, label: "Anime Forum", action: () => { resetFilters(); setSelectedCategory("AnimeCommunity"); } },
-        { id: "Family", icon: Baby, label: "Family", action: () => { resetFilters(); setSelectedCategory("Family"); } }
+        { id: "Family", icon: Baby, label: "Family", action: () => { resetFilters(); setSelectedCategory("Family"); } },
+        { id: "Novels", icon: BookOpen, label: "Novels", action: () => { resetFilters(); setSelectedCategory("Novels"); } }
     ];
 
     if (authChecking) return <div className="fixed inset-0 bg-black flex items-center justify-center"><LogoLoader /></div>;
@@ -4538,6 +4540,10 @@ export default function App() {
                                 <TvFocusButton onClick={() => { resetFilters(); setSelectedMangaId(null); setActiveMangaChapterId(null); setSelectedCategory("Manga"); }} className={`group flex items-center gap-2 px-5 py-2 rounded-full text-xs font-semibold tracking-wide transition-all duration-300 ${selectedCategory === "Manga" ? "bg-white/10 text-white" : "text-zinc-400 hover:text-white hover:bg-white/5"}`}>
                                     <BookOpen size={15} className="transition-all duration-300 group-hover:scale-110" />
                                     <span>Manga</span>
+                                </TvFocusButton>
+                                <TvFocusButton onClick={() => { resetFilters(); setSelectedCategory("Novels"); }} className={`group flex items-center gap-2 px-5 py-2 rounded-full text-xs font-semibold tracking-wide transition-all duration-300 ${selectedCategory === "Novels" ? "bg-white/10 text-white" : "text-zinc-400 hover:text-white hover:bg-white/5"}`}>
+                                    <BookOpen size={15} className="transition-all duration-300 group-hover:scale-110" />
+                                    <span>Novels</span>
                                 </TvFocusButton>
                                 <TvFocusButton onClick={() => { resetFilters(); setSelectedDramaSlug(null); setSelectedCategory("Dramas"); }} className={`group flex items-center gap-2 px-5 py-2 rounded-full text-xs font-semibold tracking-wide transition-all duration-300 ${selectedCategory === "Dramas" ? "bg-white/10 text-white" : "text-zinc-400 hover:text-white hover:bg-white/5"}`}>
                                     <Drama size={15} className="transition-all duration-300 group-hover:scale-110" />
@@ -4884,7 +4890,8 @@ export default function App() {
                             disableEntryAnimation={isNavigatingBack}
                             profile={userProfile}
                         />
-
+                    ) : selectedCategory === "Novels" ? (
+                        <NovelPage />
                     ) : selectedCategory === "Dramas" ? (
                         <DramaPage
                             apiKey={apiKey}
@@ -5777,7 +5784,7 @@ export default function App() {
                         { id: 'Anime', label: 'Anime', icon: Ghost, action: () => { setIsBrowseOpen(false); resetFilters(); setSelectedCategory("Anime"); }, activeCondition: selectedCategory === "Anime" },
                         { id: 'Manga', label: 'Manga', icon: BookOpen, action: () => { setIsBrowseOpen(false); resetFilters(); setSelectedMangaId(null); setActiveMangaChapterId(null); setSelectedCategory("Manga"); }, activeCondition: selectedCategory === "Manga" },
                         { id: 'LiveTV', label: 'Live TV', icon: Radio, action: () => { setIsBrowseOpen(false); resetFilters(); setSelectedCategory("LiveTV"); }, activeCondition: selectedCategory === "LiveTV" },
-                        { id: 'Browse', label: 'Browse', icon: LayoutGrid, action: () => setIsBrowseOpen(!isBrowseOpen), activeCondition: isBrowseOpen || ["Categories", "Awards", "AnimeCommunity", "Family", "TV Shows", "Coming"].includes(selectedCategory) }
+                        { id: 'Browse', label: 'Browse', icon: LayoutGrid, action: () => setIsBrowseOpen(!isBrowseOpen), activeCondition: isBrowseOpen || ["Categories", "Awards", "AnimeCommunity", "Family", "TV Shows", "Coming", "Novels"].includes(selectedCategory) }
                     ].map((tab) => {
                             const Icon = tab.icon;
                             const isActive = tab.activeCondition;
