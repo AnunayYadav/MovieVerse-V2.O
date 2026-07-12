@@ -4541,10 +4541,6 @@ export default function App() {
                                     <BookOpen size={15} className="transition-all duration-300 group-hover:scale-110" />
                                     <span>Manga</span>
                                 </TvFocusButton>
-                                <TvFocusButton onClick={() => { resetFilters(); setSelectedCategory("Novels"); }} className={`group flex items-center gap-2 px-5 py-2 rounded-full text-xs font-semibold tracking-wide transition-all duration-300 ${selectedCategory === "Novels" ? "bg-white/10 text-white" : "text-zinc-400 hover:text-white hover:bg-white/5"}`}>
-                                    <BookOpen size={15} className="transition-all duration-300 group-hover:scale-110" />
-                                    <span>Novels</span>
-                                </TvFocusButton>
                                 <TvFocusButton onClick={() => { resetFilters(); setSelectedDramaSlug(null); setSelectedCategory("Dramas"); }} className={`group flex items-center gap-2 px-5 py-2 rounded-full text-xs font-semibold tracking-wide transition-all duration-300 ${selectedCategory === "Dramas" ? "bg-white/10 text-white" : "text-zinc-400 hover:text-white hover:bg-white/5"}`}>
                                     <Drama size={15} className="transition-all duration-300 group-hover:scale-110" />
                                     <span>Dramas</span>
