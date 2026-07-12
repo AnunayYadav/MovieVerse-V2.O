@@ -15,7 +15,7 @@ const providers: Record<string, any> = {
   mangakakalot: new MANGA.MangaKakalot()
 };
 
-const RANOBES_BASE = 'https://ranobes.net';
+const WUXIAWORLD_BASE = 'https://wuxiaworld.eu';
 const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36';
 
 const BROWSER_HEADERS: Record<string, string> = {
@@ -67,226 +67,72 @@ async function novelFetch(url: string): Promise<string> {
   throw new Error(`Failed to fetch ${url}: all methods exhausted`);
 }
 
-async function scrapeRanobesSearch(query: string) {
-  const url = `${RANOBES_BASE}/index.php?do=search&subaction=search&story=${encodeURIComponent(query)}`;
-  const html = await novelFetch(url);
-  const $ = cheerio.load(html);
-  const results: any[] = [];
+async function scrapeWuxiaWorldSearch(query: string) {
+  const url = `${WUXIAWORLD_BASE}/api/search/?search=${encodeURIComponent(query)}`;
+  const res = await fetch(url, { headers: BROWSER_HEADERS });
+  if (!res.ok) throw new Error(`Search failed: ${res.statusText}`);
+  const json = await res.json();
+  const rawResults = json.results || [];
 
-  $('article.story').each((_, el) => {
-    const titleEl = $(el).find('h2.title a').first();
-    const title = titleEl.text().trim();
-    const href = titleEl.attr('href') || '';
-    const id = href.replace(/^https?:\/\/ranobes\.net\/novels\//, '').replace(/\.html$/, '');
-
-    const styleAttr = $(el).find('.cover').attr('style') || '';
-    const imgMatch = styleAttr.match(/url\(['"]?([^'")]+)['"]?\)/);
-    let image = imgMatch ? imgMatch[1] : '';
-    if (image && !image.startsWith('http')) {
-      image = `${RANOBES_BASE}${image}`;
-    }
-
-    const description = $(el).find('.cont-in > div[style*="color:"]').text().trim() || $(el).find('.cont-in').text().trim();
-
-    if (id && title) {
-      results.push({
-        id,
-        title,
-        image,
-        author: '',
-        description
-      });
-    }
-  });
-
-  return results;
+  return rawResults.map((item: any) => ({
+    id: item.slug,
+    title: item.name,
+    image: item.image || '',
+    author: '',
+    description: item.description || ''
+  }));
 }
 
-async function scrapeRanobesInfo(novelId: string) {
-  const url = `${RANOBES_BASE}/novels/${novelId}.html`;
-  const html = await novelFetch(url);
-  const $ = cheerio.load(html);
+async function scrapeWuxiaWorldInfo(novelId: string) {
+  const infoUrl = `${WUXIAWORLD_BASE}/api/novels/${novelId}/`;
+  const infoRes = await fetch(infoUrl, { headers: BROWSER_HEADERS });
+  if (!infoRes.ok) throw new Error(`Failed to fetch novel details: ${infoRes.statusText}`);
+  const infoJson = await infoRes.json();
 
-  const title = $('h1.title').text().trim() || $('.desc .title').text().trim() || $('title').text().trim();
-  
-  let image = $('.poster img, div.book img, figure.cover img, a.highslide img').first().attr('src') || '';
-  if (image && !image.startsWith('http')) {
-    image = `${RANOBES_BASE}${image}`;
-  }
+  const chaptersUrl = `${WUXIAWORLD_BASE}/api/chapters/${novelId}/`;
+  const chaptersRes = await fetch(chaptersUrl, { headers: BROWSER_HEADERS });
+  if (!chaptersRes.ok) throw new Error(`Failed to fetch chapters list: ${chaptersRes.statusText}`);
+  const chaptersJson = await chaptersRes.json();
 
-  const description = $('.moreless__full').text().trim() || $('.moreless__short').text().trim() || '';
-  
-  const genres: string[] = [];
-  $('a[href*="/genre/"]').each((_, el) => {
-    genres.push($(el).text().trim());
-  });
+  const chapters = Array.isArray(chaptersJson) ? chaptersJson : [];
+  chapters.sort((a: any, b: any) => (a.index || 0) - (b.index || 0));
 
-  const author = $('a[href*="/authors/"]').first().text().trim() || $('a[href*="/author/"]').first().text().trim() || '';
-
-  const chaptersLink = $('a[href*="/chapters/"]').attr('href') || '';
-  const bookIdMatch = chaptersLink.match(/\/chapters\/(\d+)/);
-  const bookId = bookIdMatch ? bookIdMatch[1] : '';
-
-  const chapters: any[] = [];
-  if (bookId) {
-    const page1Url = `${RANOBES_BASE}/chapters/${bookId}/`;
-    const page1Html = await novelFetch(page1Url).catch(() => '');
-    if (page1Html) {
-      const match = page1Html.match(/window\.__DATA__\s*=\s*({[\s\S]*?})(?:\s*;|\s*<\/script>)/);
-      if (match) {
-        try {
-          const json = JSON.parse(match[1]);
-          const pagesCount = json.pages_count || 1;
-          const rawChapters = json.chapters || [];
-          
-          const allChaptersMap = new Map<string, any>();
-          
-          const mapChapter = (ch: any) => {
-            const linkPath = ch.link.replace(/^https?:\/\/ranobes\.net\//, '').replace(/\.html$/, '');
-            const idMatch = ch.link.match(/\/(\d+)\.html/);
-            return {
-              id: linkPath,
-              title: ch.title,
-              url: ch.link,
-              numericId: idMatch ? parseInt(idMatch[1]) : 0
-            };
-          };
-
-          rawChapters.forEach((ch: any) => {
-            const item = mapChapter(ch);
-            allChaptersMap.set(item.id, item);
-          });
-
-          // Fetch pages concurrently: pages 2, 3 (latest) and pagesCount, pagesCount-1 (oldest)
-          const pagesToFetch: number[] = [];
-          for (let p = 2; p <= Math.min(3, pagesCount); p++) {
-            pagesToFetch.push(p);
-          }
-          for (let p = pagesCount; p > Math.min(3, pagesCount) && p >= pagesCount - 1; p--) {
-            if (!pagesToFetch.includes(p)) {
-              pagesToFetch.push(p);
-            }
-          }
-
-          if (pagesToFetch.length > 0) {
-            const promises = pagesToFetch.map(p =>
-              novelFetch(`${RANOBES_BASE}/chapters/${bookId}/page/${p}/`)
-                .then(chHtml => {
-                  const m = chHtml.match(/window\.__DATA__\s*=\s*({[\s\S]*?})(?:\s*;|\s*<\/script>)/);
-                  if (m) {
-                    const j = JSON.parse(m[1]);
-                    return j.chapters || [];
-                  }
-                  return [];
-                })
-                .catch(() => [])
-            );
-            const results = await Promise.all(promises);
-            results.forEach(rawChs => {
-              rawChs.forEach((ch: any) => {
-                const item = mapChapter(ch);
-                allChaptersMap.set(item.id, item);
-              });
-            });
-          }
-
-          const sorted = Array.from(allChaptersMap.values());
-          sorted.sort((a, b) => a.numericId - b.numericId);
-          
-          sorted.forEach(item => {
-            chapters.push({
-              id: item.id,
-              title: item.title,
-              url: item.url
-            });
-          });
-        } catch (e) {
-          console.error('Error parsing ranobes chapters json:', e);
-        }
-      }
-    }
-  }
-
-  // Fallback: If chapters list is empty, scrape chapter-item links from info page
-  if (chapters.length === 0) {
-    $('a.chapter-item').each((_, el) => {
-      const href = $(el).attr('href') || '';
-      const cTitle = $(el).text().trim() || $(el).find('.title').text().trim();
-      const linkPath = href.replace(/^https?:\/\/ranobes\.net\//, '').replace(/\.html$/, '');
-      const idMatch = href.match(/\/(\d+)\.html/);
-      if (linkPath && cTitle) {
-        chapters.push({
-          id: linkPath,
-          title: cTitle,
-          url: href,
-          numericId: idMatch ? parseInt(idMatch[1]) : 0
-        });
-      }
-    });
-    chapters.sort((a, b) => a.numericId - b.numericId);
-  }
+  const genres = Array.isArray(infoJson.categories)
+    ? infoJson.categories.map((c: any) => c.name)
+    : [];
 
   return {
     id: novelId,
-    title,
-    image,
-    author,
-    description,
+    title: infoJson.name,
+    image: infoJson.image || '',
+    author: infoJson.author || '',
+    description: infoJson.description || '',
     genres,
-    rating: null,
-    chapters: chapters.map(({ id, title, url }) => ({ id, title, url }))
+    rating: infoJson.rating ? parseFloat(infoJson.rating) : null,
+    chapters: chapters.map((ch: any) => ({
+      id: ch.novSlugChapSlug,
+      title: ch.title,
+      url: `${WUXIAWORLD_BASE}/chapter/${ch.novSlugChapSlug}`
+    }))
   };
 }
 
-async function scrapeRanobesChapter(chapterId: string) {
-  const url = `${RANOBES_BASE}/${chapterId}.html`;
-  const html = await novelFetch(url);
-  const $ = cheerio.load(html);
+async function scrapeWuxiaWorldChapter(chapterId: string) {
+  const url = `${WUXIAWORLD_BASE}/api/getchapter/${chapterId}/`;
+  const res = await fetch(url, { headers: BROWSER_HEADERS });
+  if (!res.ok) throw new Error(`Failed to fetch chapter content: ${res.statusText}`);
+  const json = await res.json();
 
-  const title = $('.story .title, h1.title, .chapter-title').first().text().trim() || $('title').text().trim();
-  const container = $('#arrticle');
-  
-  container.find('script, iframe, style, .ads, .ads-holder, .social-share, .adsbygoogle, div[style*="display:none"]').remove();
-
-  let paragraphs: string[] = [];
-  container.find('p').each((_, el) => {
-    const text = $(el).text().trim();
-    if (text) paragraphs.push(text);
-  });
-
-  if (paragraphs.length === 0) {
-    const rawText = container.text();
-    paragraphs = rawText
-      .split('\n')
-      .map(p => p.trim())
-      .filter(p => p.length > 0);
-  }
-
-  paragraphs = paragraphs.filter(text => {
-    const lower = text.toLowerCase();
-    return (
-      !lower.includes('ranobes.net') &&
-      !lower.includes('ranobes') &&
-      !lower.includes('report chapter') &&
-      !lower.includes('broken links') &&
-      !lower.includes('update faster') &&
-      !lower.includes('if you find any errors') &&
-      !lower.includes('translator:') &&
-      !lower.includes('editor:')
-    );
-  });
-
-  const nextHref = $('#next').attr('href') || '';
-  const prevHref = $('#prev').attr('href') || '';
-
-  const nextChapterId = nextHref.replace(/^https?:\/\/ranobes\.net\//, '').replace(/\.html$/, '');
-  const prevChapterId = prevHref.replace(/^https?:\/\/ranobes\.net\//, '').replace(/\.html$/, '');
+  const paragraphs = (json.text || '')
+    .split('\n')
+    .map((p: string) => p.trim())
+    .filter((p: string) => p.length > 0);
 
   return {
-    title,
+    title: json.title || 'Chapter Content',
     paragraphs,
-    nextChapterId: nextChapterId || null,
-    prevChapterId: prevChapterId || null
+    nextChapterId: null,
+    prevChapterId: null
   };
 }
 
@@ -312,12 +158,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const providerKey = typeof providerQuery === 'string' ? providerQuery.toLowerCase() : 'mangapill';
 
   try {
-    if (providerKey === 'novelfull' || providerKey === 'ranobes') {
+    if (['novelfull', 'ranobes', 'wuxiaworld'].includes(providerKey)) {
       if (action === 'search') {
         if (!query || typeof query !== 'string') {
           return res.status(400).json({ error: 'Query parameter is required' });
         }
-        const results = await scrapeRanobesSearch(query);
+        const results = await scrapeWuxiaWorldSearch(query);
         return res.status(200).json(results);
       }
 
@@ -325,7 +171,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (!id || typeof id !== 'string') {
           return res.status(400).json({ error: 'ID parameter is required' });
         }
-        const data = await scrapeRanobesInfo(id);
+        const data = await scrapeWuxiaWorldInfo(id);
         return res.status(200).json(data);
       }
 
@@ -333,7 +179,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (!id || typeof id !== 'string') {
           return res.status(400).json({ error: 'ID parameter is required' });
         }
-        const data = await scrapeRanobesChapter(id);
+        const data = await scrapeWuxiaWorldChapter(id);
         return res.status(200).json(data);
       }
     }
@@ -368,7 +214,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (action === 'proxy-image') {
       const imageUrl = req.query.url;
-      const refererUrl = req.query.referer || (['novelfull', 'ranobes'].includes(providerKey) ? RANOBES_BASE : provider.baseUrl);
+      const refererUrl = req.query.referer || (['novelfull', 'ranobes', 'wuxiaworld'].includes(providerKey) ? WUXIAWORLD_BASE : provider.baseUrl);
       if (!imageUrl || typeof imageUrl !== 'string') {
         return res.status(400).json({ error: 'URL parameter is required' });
       }

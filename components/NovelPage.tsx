@@ -302,7 +302,10 @@ export function NovelPage() {
       const searchData = await searchRes.json();
       
       if (searchData && searchData.length > 0) {
-        await handleNovelSelect(searchData[0]);
+        await handleNovelSelect({
+          ...searchData[0],
+          image: searchData[0].image || novel.image
+        });
       } else {
         // Fallback: Try direct slug lookup
         await handleNovelSelect(novel);
