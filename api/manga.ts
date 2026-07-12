@@ -74,9 +74,9 @@ async function scrapeNovelFullSearch(query: string) {
   const $ = cheerio.load(html);
   const results: any[] = [];
 
-  // The search results are in .list-truyen (not .list-side) inside col-truyen-main
-  // Each result is in a .row with .truyen-title h3 > a and an img.cover
-  $('.col-truyen-main .list-truyen .row').each((_, el) => {
+  // The search results are inside .col-truyen-main.archive > .list-truyen > .row
+  // We avoid .list-side (sidebar hot novels) by targeting the .archive container
+  $('.col-truyen-main.archive .list-truyen .row, .col-truyen-main .list-truyen:not(.list-side):not(.list-cat) .row').each((_, el) => {
     const titleEl = $(el).find('h3.truyen-title a, h3 a').first();
     const title = titleEl.text().trim();
     const href = titleEl.attr('href') || '';
