@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { MANGA } from '@consumet/extensions';
 import * as cheerio from 'cheerio';
+import { execSync } from 'child_process';
 
 // Initialize and cache provider instances
 const providers: Record<string, any> = {
@@ -15,42 +16,108 @@ const providers: Record<string, any> = {
 };
 
 const NOVELFULL_BASE = 'https://novelfull.com';
-const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36';
+
+const BROWSER_HEADERS: Record<string, string> = {
+  'User-Agent': USER_AGENT,
+  'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+  'Accept-Language': 'en-US,en;q=0.9',
+  'Cache-Control': 'max-age=0',
+  'Upgrade-Insecure-Requests': '1',
+  'Sec-Fetch-Dest': 'document',
+  'Sec-Fetch-Mode': 'navigate',
+  'Sec-Fetch-Site': 'none',
+  'Sec-Fetch-User': '?1'
+};
+
+/**
+ * Fetches HTML from a URL. Tries native fetch first (works on Vercel).
+ * Falls back to curl via child_process for local dev where Node's TLS
+ * fingerprint gets blocked by Cloudflare.
+ */
+async function novelFetch(url: string): Promise<string> {
+  try {
+    const res = await fetch(url, { headers: BROWSER_HEADERS });
+    if (res.ok) {
+      return await res.text();
+    }
+    // If Cloudflare blocks us (403), fall through to curl fallback
+    if (res.status !== 403) {
+      throw new Error(`Fetch failed: ${res.status} ${res.statusText}`);
+    }
+  } catch (e: any) {
+    // Network errors also fall through to curl
+    if (e?.message && !e.message.includes('403')) {
+      console.warn('novelFetch: fetch error, trying curl fallback:', e.message);
+    }
+  }
+
+  // Fallback: use curl (available on most servers and local dev)
+  try {
+    const escapedUrl = url.replace(/'/g, "'\\''");
+    const html = execSync(
+      `curl -s -L -A '${USER_AGENT}' '${escapedUrl}'`,
+      { maxBuffer: 10 * 1024 * 1024, timeout: 15000 }
+    ).toString();
+    if (html) return html;
+  } catch {
+    // curl not available or failed
+  }
+
+  throw new Error(`Failed to fetch ${url}: all methods exhausted`);
+}
 
 async function scrapeNovelFullSearch(query: string) {
-  const url = `${NOVELFULL_BASE}/search?keyword=${encodeURIComponent(query)}`;
-  const res = await fetch(url, { headers: { 'User-Agent': USER_AGENT } });
-  if (!res.ok) throw new Error(`NovelFull fetch failed: ${res.statusText}`);
-  const html = await res.text();
-  const $ = cheerio.load(html);
+  // NovelFull search results are loaded via JavaScript AJAX, so we can't scrape
+  // them server-side. Instead, we convert the query to a slug and try to fetch
+  // the novel info page directly as a "direct lookup" search.
   const results: any[] = [];
 
-  $('div.list-novel div.row').each((_, el) => {
-    const titleEl = $(el).find('h3.novel-title a');
-    const title = titleEl.text().trim();
-    const href = titleEl.attr('href') || '';
-    const id = href.replace(/^\//, '').replace(/\.html$/, '');
+  // Generate candidate slugs from the query
+  const baseSlug = query
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '');
 
-    let img = $(el).find('div.novel-img img').attr('src') || '';
-    if (img && !img.startsWith('http')) {
-      img = `${NOVELFULL_BASE}${img}`;
+  // Try multiple slug variations (with and without common suffixes)
+  const slugCandidates = [baseSlug];
+  // Also try without trailing words like "novel", "light", etc.
+  const trimmed = baseSlug.replace(/-(novel|light-novel|ln|wn|web-novel)$/, '');
+  if (trimmed !== baseSlug) slugCandidates.push(trimmed);
+
+  for (const slug of slugCandidates) {
+    try {
+      const url = `${NOVELFULL_BASE}/${slug}.html`;
+      const html = await novelFetch(url);
+      const $ = cheerio.load(html);
+
+      const title = $('h3.title').text().trim();
+      if (!title) continue; // Not a valid novel page
+
+      let image = $('div.book img').attr('src') || '';
+      if (image && !image.startsWith('http')) {
+        image = `${NOVELFULL_BASE}${image}`;
+      }
+
+      const author = $('div.info div:contains("Author")').find('a').first().text().trim()
+        || $('div.info').text().match(/Author[:\s]*([^\n]+)/)?.[1]?.trim()
+        || '';
+
+      results.push({ id: slug, title, image, author });
+      break; // Found a match, stop trying
+    } catch {
+      // Slug didn't resolve to a valid page, continue
     }
-
-    const author = $(el).find('span.author').text().trim();
-
-    if (id && title) {
-      results.push({ id, title, image: img, author });
-    }
-  });
+  }
 
   return results;
 }
 
 async function scrapeNovelFullInfo(novelId: string) {
   const url = `${NOVELFULL_BASE}/${novelId}.html`;
-  const res = await fetch(url, { headers: { 'User-Agent': USER_AGENT } });
-  if (!res.ok) throw new Error(`NovelFull info fetch failed: ${res.statusText}`);
-  const html = await res.text();
+  const html = await novelFetch(url);
   const $ = cheerio.load(html);
 
   const title = $('h3.title').text().trim();
@@ -72,9 +139,8 @@ async function scrapeNovelFullInfo(novelId: string) {
   const chapters: any[] = [];
   if (dbNovelId) {
     const chaptersUrl = `${NOVELFULL_BASE}/ajax-chapter-option?novelId=${dbNovelId}`;
-    const chaptersRes = await fetch(chaptersUrl, { headers: { 'User-Agent': USER_AGENT } });
-    if (chaptersRes.ok) {
-      const chaptersHtml = await chaptersRes.text();
+    const chaptersHtml = await novelFetch(chaptersUrl).catch(() => '');
+    if (chaptersHtml) {
       const $c = cheerio.load(chaptersHtml);
       $c('option').each((_, el) => {
         const cTitle = $c(el).text().trim();
@@ -104,9 +170,7 @@ async function scrapeNovelFullInfo(novelId: string) {
 
 async function scrapeNovelFullChapter(chapterId: string) {
   const url = `${NOVELFULL_BASE}/${chapterId}`;
-  const res = await fetch(url, { headers: { 'User-Agent': USER_AGENT } });
-  if (!res.ok) throw new Error(`NovelFull chapter fetch failed: ${res.statusText}`);
-  const html = await res.text();
+  const html = await novelFetch(url);
   const $ = cheerio.load(html);
 
   const title = $('.chapter-title').text().trim() || $('title').text().trim();
@@ -143,6 +207,7 @@ async function scrapeNovelFullChapter(chapterId: string) {
     paragraphs
   };
 }
+
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Set CORS headers to allow cross-origin requests

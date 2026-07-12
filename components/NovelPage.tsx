@@ -26,37 +26,37 @@ const POPULAR_NOVELS: Novel[] = [
   {
     id: 'the-beginning-after-the-end',
     title: 'The Beginning After The End',
-    image: 'https://novelfull.com/uploads/thumbs/the-beginning-after-the-end-d1b8ab16c6-d1b8ab16c6.jpg',
+    image: '/api/manga?action=proxy-image&provider=novelfull&url=' + encodeURIComponent('https://novelfull.com/uploads/thumbs/the-beginning-after-the-end-2811cab532-14f8bf2f465a6957391145f318f91947.jpg'),
     author: 'TurtleMe'
   },
   {
-    id: 'classroom-of-the-elite',
-    title: 'Classroom of the Elite',
-    image: 'https://novelfull.com/uploads/thumbs/classroom-of-the-elite-e5f88461fb-e5f88461fb.jpg',
-    author: 'Syougo Kinugasa'
+    id: 'omniscient-readers-viewpoint',
+    title: "Omniscient Reader's Viewpoint",
+    image: '/api/manga?action=proxy-image&provider=novelfull&url=' + encodeURIComponent('https://novelfull.com/uploads/thumbs/omniscient-readers-viewpoint-bc929b5831-bc929b5831.jpg'),
+    author: 'Sing Shong'
   },
   {
     id: 'lord-of-the-mysteries',
     title: 'Lord of the Mysteries',
-    image: 'https://novelfull.com/uploads/thumbs/lord-of-the-mysteries-4b8cb6f7b1-4b8cb6f7b1.jpg',
+    image: '/api/manga?action=proxy-image&provider=novelfull&url=' + encodeURIComponent('https://novelfull.com/uploads/thumbs/lord-of-the-mysteries-4b8cb6f7b1-4b8cb6f7b1.jpg'),
     author: 'Cuttlefish That Loves Diving'
   },
   {
-    id: 'mushoku-tensei',
-    title: 'Mushoku Tensei',
-    image: 'https://novelfull.com/uploads/thumbs/mushoku-tensei-269f8d95eb-269f8d95eb.jpg',
-    author: 'Rifujin na Magonote'
+    id: 'martial-peak',
+    title: 'Martial Peak',
+    image: '/api/manga?action=proxy-image&provider=novelfull&url=' + encodeURIComponent('https://novelfull.com/uploads/thumbs/martial-peak-39b4dcee04-39b4dcee04.jpg'),
+    author: 'Momo'
   },
   {
     id: 'shadow-slave',
     title: 'Shadow Slave',
-    image: 'https://novelfull.com/uploads/thumbs/shadow-slave-3306db7c61-3306db7c61.jpg',
+    image: '/api/manga?action=proxy-image&provider=novelfull&url=' + encodeURIComponent('https://novelfull.com/uploads/thumbs/shadow-slave-3306db7c61-3306db7c61.jpg'),
     author: 'Guiltythree'
   },
   {
     id: 'warlock-of-the-magus-world',
     title: 'Warlock of the Magus World',
-    image: 'https://novelfull.com/uploads/thumbs/warlock-of-the-magus-world-8c6ef028e3-8c6ef028e3.jpg',
+    image: '/api/manga?action=proxy-image&provider=novelfull&url=' + encodeURIComponent('https://novelfull.com/uploads/thumbs/warlock-of-the-magus-world-8c6ef028e3-8c6ef028e3.jpg'),
     author: 'Pluto'
   }
 ];
