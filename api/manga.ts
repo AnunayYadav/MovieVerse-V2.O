@@ -30,6 +30,11 @@ const BROWSER_HEADERS: Record<string, string> = {
   'Sec-Fetch-User': '?1'
 };
 
+const API_HEADERS: Record<string, string> = {
+  'User-Agent': USER_AGENT,
+  'Accept': 'application/json'
+};
+
 /**
  * Fetches HTML from a URL. Tries native fetch first (works on Vercel).
  * Falls back to curl via child_process for local dev where Node's TLS
@@ -69,7 +74,7 @@ async function novelFetch(url: string): Promise<string> {
 
 async function scrapeWuxiaWorldSearch(query: string) {
   const url = `${WUXIAWORLD_BASE}/api/search/?search=${encodeURIComponent(query)}`;
-  const res = await fetch(url, { headers: BROWSER_HEADERS });
+  const res = await fetch(url, { headers: API_HEADERS });
   if (!res.ok) throw new Error(`Search failed: ${res.statusText}`);
   const json = await res.json();
   const rawResults = json.results || [];
@@ -85,12 +90,12 @@ async function scrapeWuxiaWorldSearch(query: string) {
 
 async function scrapeWuxiaWorldInfo(novelId: string) {
   const infoUrl = `${WUXIAWORLD_BASE}/api/novels/${novelId}/`;
-  const infoRes = await fetch(infoUrl, { headers: BROWSER_HEADERS });
+  const infoRes = await fetch(infoUrl, { headers: API_HEADERS });
   if (!infoRes.ok) throw new Error(`Failed to fetch novel details: ${infoRes.statusText}`);
   const infoJson = await infoRes.json();
 
   const chaptersUrl = `${WUXIAWORLD_BASE}/api/chapters/${novelId}/`;
-  const chaptersRes = await fetch(chaptersUrl, { headers: BROWSER_HEADERS });
+  const chaptersRes = await fetch(chaptersUrl, { headers: API_HEADERS });
   if (!chaptersRes.ok) throw new Error(`Failed to fetch chapters list: ${chaptersRes.statusText}`);
   const chaptersJson = await chaptersRes.json();
 
@@ -119,7 +124,7 @@ async function scrapeWuxiaWorldInfo(novelId: string) {
 
 async function scrapeWuxiaWorldChapter(chapterId: string) {
   const url = `${WUXIAWORLD_BASE}/api/getchapter/${chapterId}/`;
-  const res = await fetch(url, { headers: BROWSER_HEADERS });
+  const res = await fetch(url, { headers: API_HEADERS });
   if (!res.ok) throw new Error(`Failed to fetch chapter content: ${res.statusText}`);
   const json = await res.json();
 
