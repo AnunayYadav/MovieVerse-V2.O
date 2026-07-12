@@ -264,6 +264,108 @@ const CustomSelect: React.FC<CustomSelectProps> = ({
   );
 };
 
+const renderTranslatedImage = async (imageUrl: string, blocks: any[]): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        reject(new Error("Failed to get canvas context"));
+        return;
+      }
+
+      // Draw the original image
+      ctx.drawImage(img, 0, 0);
+
+      // Draw each translation block
+      blocks.forEach(block => {
+        if (!block.box_2d || !Array.isArray(block.box_2d) || block.box_2d.length < 4) return;
+        const [ymin, xmin, ymax, xmax] = block.box_2d;
+        
+        // Convert normalized coordinates (0-1000) to actual canvas pixel coordinates
+        const x = (xmin / 1000) * canvas.width;
+        const y = (ymin / 1000) * canvas.height;
+        const w = ((xmax - xmin) / 1000) * canvas.width;
+        const h = ((ymax - ymin) / 1000) * canvas.height;
+
+        // 1. Cover the old text with a clean white bubble background
+        ctx.fillStyle = "white";
+        ctx.beginPath();
+        const cx = x + w / 2;
+        const cy = y + h / 2;
+        const rx = w / 2 + 2;
+        const ry = h / 2 + 2;
+        if (ctx.ellipse) {
+          ctx.ellipse(cx, cy, rx, ry, 0, 0, 2 * Math.PI);
+        } else {
+          ctx.rect(x - 2, y - 2, w + 4, h + 4);
+        }
+        ctx.fill();
+
+        // 2. Setup text rendering style
+        ctx.fillStyle = "black";
+        // Font size scales with bubble dimensions
+        const fontSize = Math.max(11, Math.min(w * 0.16, h * 0.22, 28));
+        ctx.font = `bold ${Math.round(fontSize)}px "Comic Sans MS", "Comic Sans", "Chalkboard SE", "Impact", sans-serif`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+
+        // Word wrap translation text
+        const text = block.translated_text || "";
+        const words = text.split(/\s+/);
+        const lines: string[] = [];
+        let currentLine = "";
+
+        // Calculate wrap based on bubble width
+        const padding = w * 0.15; // 15% padding on left/right
+        const maxWidth = w - padding;
+
+        for (let n = 0; n < words.length; n++) {
+          const testLine = currentLine + (currentLine ? " " : "") + words[n];
+          const metrics = ctx.measureText(testLine);
+          if (metrics.width > maxWidth && n > 0) {
+            lines.push(currentLine);
+            currentLine = words[n];
+          } else {
+            currentLine = testLine;
+          }
+        }
+        if (currentLine) {
+          lines.push(currentLine);
+        }
+
+        // Draw the wrapped text lines centered in the bubble
+        const lineHeight = fontSize * 1.15;
+        const totalTextHeight = lines.length * lineHeight;
+        const startY = y + h / 2 - totalTextHeight / 2 + lineHeight / 2;
+
+        lines.forEach((line, index) => {
+          ctx.fillText(line, x + w / 2, startY + index * lineHeight);
+        });
+      });
+
+      canvas.toBlob((blob) => {
+        if (blob) {
+          resolve(URL.createObjectURL(blob));
+        } else {
+          reject(new Error("Failed to export canvas to blob"));
+        }
+      }, "image/png");
+    };
+    img.onerror = (err) => {
+      console.error("Failed to load image for canvas translation:", err);
+      reject(new Error("Failed to load image content for canvas translation."));
+    };
+    // Use proxy-image to bypass CORS constraints
+    const proxyUrl = `/api/manga?action=proxy-image&url=${encodeURIComponent(imageUrl)}`;
+    img.src = proxyUrl;
+  });
+};
+
 export const MangaPage: React.FC<MangaPageProps> = ({
   apiKey,
   selectedMangaId,
@@ -3360,14 +3462,15 @@ export const MangaPage: React.FC<MangaPageProps> = ({
       // Mark as translating
       setTranslatingPageIdxs(prev => ({ ...prev, [idx]: true }));
       try {
-        const formData = new FormData();
-        formData.append("image_url", url);
-        formData.append("target_lang", targetTranslateLanguage);
-        formData.append("source_lang", "Japanese");
-
-        const apiRes = await fetch("http://localhost:8000/translate-page", {
+        const apiRes = await fetch("/api/manga?action=translate", {
           method: "POST",
-          body: formData,
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            image_url: url,
+            target_lang: targetTranslateLanguage,
+          }),
         });
 
         if (!apiRes.ok) {
@@ -3375,8 +3478,13 @@ export const MangaPage: React.FC<MangaPageProps> = ({
           throw new Error(errorData.error || "Translation backend error");
         }
 
-        const translatedBlob = await apiRes.blob();
-        const localUrl = URL.createObjectURL(translatedBlob);
+        const resData = await apiRes.json();
+        if (!resData.blocks) {
+          throw new Error("Translation did not return any text blocks.");
+        }
+
+        // Render the translation on top of the original image using Canvas
+        const localUrl = await renderTranslatedImage(url, resData.blocks);
 
         // Save to cache and activate
         setTranslatedPagesCache(prev => ({ ...prev, [url]: localUrl }));
