@@ -114,12 +114,12 @@ export const getMangaTitleHelper = (manga: MangaDexManga, lang: 'english' | 'rom
   if (!manga.attributes) return "Untitled Manga";
   const titleObj = manga.attributes.title || {};
   const altTitles = manga.attributes.altTitles || [];
-  
+
   const findAltTitle = (l: string) => {
     const found = altTitles.find(t => t[l] !== undefined);
     return found ? found[l] : null;
   };
-  
+
   if (lang === 'english') {
     return titleObj.en || findAltTitle('en') || titleObj['ja-ro'] || findAltTitle('ja-ro') || Object.values(titleObj)[0] || "Untitled Manga";
   } else if (lang === 'romaji') {
@@ -171,6 +171,7 @@ interface CustomSelectProps {
   dropdownClassName?: string;
   menuAlign?: 'left' | 'right' | 'center';
   maxHeight?: string;
+  containerClassName?: string;
 }
 
 const CustomSelect: React.FC<CustomSelectProps> = ({
@@ -181,7 +182,8 @@ const CustomSelect: React.FC<CustomSelectProps> = ({
   className = '',
   dropdownClassName = '',
   menuAlign = 'left',
-  maxHeight = 'max-h-60'
+  maxHeight = 'max-h-60',
+  containerClassName = 'w-full'
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -210,11 +212,11 @@ const CustomSelect: React.FC<CustomSelectProps> = ({
 
   const alignmentClass =
     menuAlign === 'right' ? 'right-0 origin-top-right' :
-    menuAlign === 'center' ? 'left-1/2 -translate-x-1/2 origin-top' :
-    'left-0 origin-top-left';
+      menuAlign === 'center' ? 'left-1/2 -translate-x-1/2 origin-top' :
+        'left-0 origin-top-left';
 
   return (
-    <div className="relative inline-block w-full text-left" ref={containerRef}>
+    <div className={`relative inline-block text-left ${containerClassName}`} ref={containerRef}>
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
@@ -244,11 +246,10 @@ const CustomSelect: React.FC<CustomSelectProps> = ({
                       onChange(opt.value);
                       setIsOpen(false);
                     }}
-                    className={`w-full text-left px-4 py-2.5 text-xs font-medium transition-all duration-150 flex items-center justify-between cursor-pointer ${
-                      isSelected
+                    className={`w-full text-left px-4 py-2.5 text-xs font-medium transition-all duration-150 flex items-center justify-between cursor-pointer ${isSelected
                         ? 'bg-red-600 text-white font-semibold'
                         : 'text-zinc-300 hover:text-white hover:bg-white/10'
-                    }`}
+                      }`}
                   >
                     <span className="truncate mr-2">{opt.label}</span>
                     {isSelected && <Check size={12} className="shrink-0" />}
@@ -295,7 +296,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
   const [isCharacterModalClosing, setIsCharacterModalClosing] = useState(false);
   const [characterModalMediaManga, setCharacterModalMediaManga] = useState<MangaDexManga[]>([]);
   const [characterModalMediaLoading, setCharacterModalMediaLoading] = useState(false);
-  
+
   // Staff Details States
   const [selectedStaffId, setSelectedStaffId] = useState<number | null>(null);
   const [staffDetails, setStaffDetails] = useState<any | null>(null);
@@ -324,7 +325,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
   const [showTopBar, setShowTopBar] = useState(true);
   const [showBottomBar, setShowBottomBar] = useState(false);
   const lastScrollTopRef = useRef(0);
-  
+
   // Endless scroll genre rows
   const [genreRows, setGenreRows] = useState<{ genre: string; media: MangaDexManga[] }[]>([]);
   const [loadingGenreRows, setLoadingGenreRows] = useState(false);
@@ -379,7 +380,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
     const loadPersonalizedManga = async () => {
       try {
         const userEntries = await fetchAniListUserList(profile.anilistUsername, 'MANGA');
-        
+
         // 1. Planning list
         const planningList = userEntries
           .filter(e => e.status === 'PLANNING')
@@ -448,7 +449,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                 }
               }
             }
-          } catch (_) {}
+          } catch (_) { }
         }
         setMissedMangaSequels(missed);
       } catch (error) {
@@ -471,7 +472,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
         const res = await window.fetch(`https://api.jikan.moe/v4/users/${profile.malUsername}/mangalist?status=plan_to_read`);
         const json = await res.json();
         const malItems = json.data || [];
-        
+
         const mapped: MangaDexManga[] = malItems.map((item: any) => {
           const manga = item.manga;
           return {
@@ -663,7 +664,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
           return parsed.filter((p: any) => p.media?.id === aniListMangaId);
         }
       }
-    } catch (e) {}
+    } catch (e) { }
     return [];
   }, [aniListMangaId, socialActivities]);
 
@@ -673,7 +674,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
 
   const handleSocialPostSubmit = () => {
     if (!socialPostText.trim() || !aniListMangaId || !selectedManga) return;
-    
+
     let currentUser = { name: "Guest User", avatar: "" };
     try {
       const savedProfile = localStorage.getItem('movieverse_profile');
@@ -683,7 +684,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
           currentUser = { name: parsed.name, avatar: parsed.avatar };
         }
       }
-    } catch (e) {}
+    } catch (e) { }
 
     const newPost = {
       id: Date.now(),
@@ -718,7 +719,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
       const currentPosts = saved ? JSON.parse(saved) : [];
       const updated = [newPost, ...currentPosts];
       localStorage.setItem('movieverse_local_posts', JSON.stringify(updated));
-    } catch (e) {}
+    } catch (e) { }
 
     setSocialActivities(prev => [newPost, ...prev]);
     setSocialPostText("");
@@ -762,6 +763,12 @@ export const MangaPage: React.FC<MangaPageProps> = ({
   const readerScrollContainerRef = useRef<HTMLDivElement>(null);
   const [autoScrollSpeed, setAutoScrollSpeed] = useState<number>(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
+
+  // Translation States
+  const [translatedPagesCache, setTranslatedPagesCache] = useState<Record<string, string>>({});
+  const [activeTranslations, setActiveTranslations] = useState<Record<string, boolean>>({});
+  const [translatingPageIdxs, setTranslatingPageIdxs] = useState<Record<number, boolean>>({});
+  const [targetTranslateLanguage, setTargetTranslateLanguage] = useState<string>('English');
 
 
 
@@ -906,6 +913,13 @@ export const MangaPage: React.FC<MangaPageProps> = ({
     localStorage.setItem('movieverse_manga_bookmarks', JSON.stringify(newBookmarks));
   }, [selectedManga, showToast]);
 
+  useEffect(() => {
+    // Clear translation caches when active chapter changes
+    setTranslatedPagesCache({});
+    setActiveTranslations({});
+    setTranslatingPageIdxs({});
+  }, [activeChapter?.id]);
+
   // Fetch helper
   const fetchMangaDex = useCallback(async (endpoint: string) => {
     const res = await window.fetch(`/api/mangadex${endpoint}`);
@@ -918,25 +932,25 @@ export const MangaPage: React.FC<MangaPageProps> = ({
       onMangaSelect(null);
       return;
     }
-    
+
     if (id.startsWith('anilist-')) {
       const aniIdStr = id.replace('anilist-', '');
       const aniId = parseInt(aniIdStr, 10);
-      
+
       onMangaSelect(id);
-      
+
       try {
         const allItems = [...trending, ...popular, ...topRated, ...characterModalMediaManga, ...staffMedia, ...studioMedia];
         const item = allItems.find((x: any) => x.id === id) as any;
         const title = optionalTitle || item?.attributes?.title?.en || item?.attributes?.title?.['ja-ro'] || "";
-        
+
         console.log(`[AniList-to-MangaDex] Resolving MangaDex ID for AniList ID ${aniId} ("${title}")...`);
-        
+
         const searchRes = await fetchMangaDex(`/manga?title=${encodeURIComponent(title)}&limit=10&includes[]=cover_art`);
         const searchList = searchRes.data || [];
-        
+
         const match = searchList.find((m: any) => m.attributes?.links?.al === String(aniId)) || searchList[0];
-        
+
         if (match) {
           console.log(`[AniList-to-MangaDex] Resolved to MangaDex ID: ${match.id}`);
           onMangaSelect(match.id);
@@ -964,7 +978,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
       },
       body: JSON.stringify({ query, variables })
     });
-    
+
     const json = await response.json();
     if (json.errors) {
       throw new Error(json.errors[0]?.message || 'GraphQL Error');
@@ -1001,10 +1015,10 @@ export const MangaPage: React.FC<MangaPageProps> = ({
       const links = manga.attributes.links || {};
       const alId = links.al ? parseInt(links.al, 10) : null;
       const malId = links.mal ? parseInt(links.mal, 10) : null;
-      
+
       let query = '';
       let variables: any = {};
-      
+
       if (alId && !isNaN(alId)) {
         query = `
           query ($id: Int) {
@@ -1098,10 +1112,10 @@ export const MangaPage: React.FC<MangaPageProps> = ({
       const links = manga.attributes.links || {};
       const alId = links.al ? parseInt(links.al, 10) : null;
       const malId = links.mal ? parseInt(links.mal, 10) : null;
-      
+
       let query = '';
       let variables: any = {};
-      
+
       if (alId && !isNaN(alId)) {
         query = `
           query ($id: Int) {
@@ -1180,7 +1194,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
         const validNodes = nodes
           .map((n: any) => n.mediaRecommendation)
           .filter(Boolean);
-        
+
         // Translate all recommended AniList items to MangaDexManga format
         const mapped = validNodes.map((aniMedia: any) => translateAniListToManga(aniMedia));
         setRecommendations(mapped);
@@ -1201,10 +1215,10 @@ export const MangaPage: React.FC<MangaPageProps> = ({
       const links = manga.attributes.links || {};
       const alId = links.al ? parseInt(links.al, 10) : null;
       const malId = links.mal ? parseInt(links.mal, 10) : null;
-      
+
       let query = '';
       let variables: any = {};
-      
+
       if (alId && !isNaN(alId)) {
         query = `
           query ($id: Int) {
@@ -1300,10 +1314,10 @@ export const MangaPage: React.FC<MangaPageProps> = ({
       const links = manga.attributes.links || {};
       const alId = links.al ? parseInt(links.al, 10) : null;
       const malId = links.mal ? parseInt(links.mal, 10) : null;
-      
+
       let query = '';
       let variables: any = {};
-      
+
       if (alId && !isNaN(alId)) {
         query = `
           query ($id: Int) {
@@ -1650,7 +1664,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
       const searchRes = await window.fetch(`/api/manga?action=search&provider=${provider}&query=${encodeURIComponent(title)}`);
       if (!searchRes.ok) throw new Error(`Search on ${provider} failed`);
       const searchList = await searchRes.json();
-      
+
       if (!searchList || searchList.length === 0) {
         throw new Error(`No matching manga found on ${provider}`);
       }
@@ -1661,7 +1675,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
       const infoRes = await window.fetch(`/api/manga?action=info&provider=${provider}&id=${encodeURIComponent(bestMatch.id)}`);
       if (!infoRes.ok) throw new Error(`Failed to fetch chapters from ${provider}`);
       const infoData = await infoRes.json();
-      
+
       setMangapillChapters(infoData.chapters || []);
       setResolvedProvider(provider);
     } catch (err: any) {
@@ -1697,7 +1711,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
       return;
     }
     let isMounted = true;
-    
+
     const fetchSelectedMangaDetails = async () => {
       try {
         const data = await fetchMangaDex(`/manga/${selectedMangaId}?includes[]=cover_art&includes[]=author&includes[]=artist&includes[]=serialization`);
@@ -1725,17 +1739,17 @@ export const MangaPage: React.FC<MangaPageProps> = ({
       try {
         const relData = await fetchMangaDex(`/manga/${selectedMangaId}/relation`);
         const relationsList = relData.data || [];
-        
+
         // Extract related manga IDs
         const relatedIds = relationsList
           .map((rel: any) => rel.relationships?.find((r: any) => r.type === 'manga')?.id)
           .filter(Boolean);
-        
+
         if (relatedIds.length > 0) {
           // Fetch full manga details for related items in one batch!
           const batchRes = await fetchMangaDex(`/manga?limit=100&ids[]=${relatedIds.join('&ids[]=')}&includes[]=cover_art`);
           const batchMangas = batchRes.data || [];
-          
+
           // Re-map the related manga relationships with the full objects containing cover arts!
           const mappedRelations = relationsList.map((rel: any) => {
             const relManga = rel.relationships?.find((r: any) => r.type === 'manga');
@@ -1751,7 +1765,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
             }
             return rel;
           });
-          
+
           if (isMounted) {
             setRelations(mappedRelations);
           }
@@ -1780,7 +1794,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
     try {
       const title = getMangaTitle(manga);
       console.log(`[Auto-Detector] Starting search for "${title}"...`);
-      
+
       // Helper to fetch with timeout
       const fetchWithTimeout = async (url: string, ms = 3000) => {
         const controller = new AbortController();
@@ -1855,32 +1869,32 @@ export const MangaPage: React.FC<MangaPageProps> = ({
             console.log(`[Auto-Detector] No matches found for ${prov}`);
             return;
           }
-          
+
           const bestMatch = searchList[0];
           console.log(`[Auto-Detector] Found match for ${prov}: ${bestMatch.title || bestMatch.id}`);
-          
+
           const infoRes = await fetchWithTimeout(`/api/manga?action=info&provider=${prov}&id=${encodeURIComponent(bestMatch.id)}`, 3000);
           if (!infoRes.ok) {
             console.warn(`[Auto-Detector] Info request failed for ${prov}: ${infoRes.statusText}`);
             return;
           }
           const infoData = await infoRes.json();
-          
+
           const chList = infoData.chapters || [];
           if (chList.length === 0) {
             console.log(`[Auto-Detector] Provider ${prov} returned 0 chapters`);
             return;
           }
-          
+
           resolvedChaptersMap[prov] = chList;
           resolvedMangaIdMap[prov] = bestMatch.id;
-          
+
           let maxCh = 0;
           for (const ch of chList) {
             const num = parseChapterNumber(ch);
             if (num > maxCh) maxCh = num;
           }
-          
+
           console.log(`[Auto-Detector] Provider ${prov} has ${chList.length} chapters, max chapter parsed: ${maxCh}`);
 
           if (resolvedMangaIdMap[prov] && chList.length > 0) {
@@ -1898,7 +1912,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
       await Promise.all(promises);
 
       console.log(`[Auto-Detector] Final decision: ${bestProvider} with chapter ${maxChapterNum} (MangaDex had ${maxDexChapter})`);
-      
+
       if (bestProvider !== 'mangadex') {
         setResolvedProvider(bestProvider);
         setMangapillMangaId(resolvedMangaIdMap[bestProvider] || null);
@@ -1941,7 +1955,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
       setIsMenuVisible(true);
       return;
     }
-    
+
     let timer: NodeJS.Timeout;
     const handleMouseMove = () => {
       setIsMenuVisible(true);
@@ -1950,10 +1964,10 @@ export const MangaPage: React.FC<MangaPageProps> = ({
         setIsMenuVisible(false);
       }, 3000);
     };
-    
+
     window.addEventListener('mousemove', handleMouseMove);
     handleMouseMove();
-    
+
     return () => {
       window.removeEventListener('mousemove', handleMouseMove);
       clearTimeout(timer);
@@ -2122,10 +2136,10 @@ export const MangaPage: React.FC<MangaPageProps> = ({
       try {
         const data = await fetchAniList(query, { id: selectedCharacterId });
         if (!isMounted) return;
-        
+
         if (data && data.Character) {
           setCharacterDetails(data.Character);
-          
+
           const mediaNodes = data.Character.media?.edges?.map((edge: any) => edge.node) || [];
           if (mediaNodes.length > 0 && isMounted) {
             const mappedMedia = mediaNodes.map(translateAniListToManga);
@@ -2169,7 +2183,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
     setError(null);
     try {
       const ratings = getContentRatingParams();
-      
+
       // 1. Recently Uploaded Chapters (keep on MangaDex)
       const latestPromise = fetchMangaDex(`/manga?limit=12&order[latestUploadedChapter]=desc&includes[]=cover_art&availableTranslatedLanguage[]=en${ratings}`)
         .then(data => data.data || [])
@@ -2247,7 +2261,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
 
       try {
         const aniListData = await fetchAniList(aniListQuery);
-        
+
         trendingMapped = (aniListData.trending?.media || []).map(translateAniListToManga).slice(0, 12);
         popularMapped = (aniListData.popular?.media || []).map(translateAniListToManga).slice(0, 12);
         topRatedMapped = (aniListData.topRated?.media || []).map(translateAniListToManga).slice(0, 12);
@@ -2408,7 +2422,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
       try {
         const data = await fetchMangaDex(`/manga/${selectedManga.id}/feed?translatedLanguage[]=${selectedLanguage}&order[chapter]=asc&limit=100`);
         const list: MangaDexChapter[] = data.data || [];
-        
+
         // Filter unique chapters to prevent duplicate group uploads
         const unique: MangaDexChapter[] = [];
         const seen = new Set<string>();
@@ -2419,7 +2433,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
             unique.push(ch);
           }
         }
-        
+
         if (isMounted) setChapters(unique);
       } catch (e) {
         console.error("Failed to load chapters:", e);
@@ -2457,13 +2471,13 @@ export const MangaPage: React.FC<MangaPageProps> = ({
 
         const data = await fetchMangaDex(`/at-home/server/${activeChapter.id}`);
         if (!isMounted) return;
-        
+
         setChapterServerData(data);
         const baseUrl = data.baseUrl;
         const hash = data.chapter.hash;
         const fileNames = isDataSaver ? data.chapter.dataSaver : data.chapter.data;
         const folder = isDataSaver ? 'data-saver' : 'data';
-        
+
         const urls = fileNames.map((f: string) => `${baseUrl}/${folder}/${hash}/${f}`);
         setPages(urls);
       } catch (e) {
@@ -2487,7 +2501,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
     const urls = fileNames.map((f: string) => `${baseUrl}/${folder}/${hash}/${f}`);
     setPages(urls);
   }, [isDataSaver, chapterServerData, readingSource]);
- 
+
   // Prefetch all chapter pages in the background for instant loading
   useEffect(() => {
     if (pages.length === 0) return;
@@ -2782,7 +2796,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
     let result = readingSource !== 'mangadex' ? [...mappedMangapillChapters] : [...chapters];
     if (chapterFilter.trim()) {
       const q = chapterFilter.toLowerCase();
-      result = result.filter(ch => 
+      result = result.filter(ch =>
         (ch.attributes.chapter && ch.attributes.chapter.toLowerCase().includes(q)) ||
         (ch.attributes.title && ch.attributes.title.toLowerCase().includes(q))
       );
@@ -2791,7 +2805,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
       const numA = parseFloat(a.attributes.chapter || '0');
       const numB = parseFloat(b.attributes.chapter || '0');
       if (isNaN(numA) || isNaN(numB)) {
-        return chapterSort === 'asc' 
+        return chapterSort === 'asc'
           ? (a.attributes.chapter || '').localeCompare(b.attributes.chapter || '')
           : (b.attributes.chapter || '').localeCompare(a.attributes.chapter || '');
       }
@@ -2975,7 +2989,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                   <BookOpen size={16} className="text-red-500" />
                   <span>Appears In ({characterModalMediaManga.length})</span>
                 </h3>
-                
+
                 {characterModalMediaLoading ? (
                   <div className="flex items-center gap-2 py-8">
                     <Loader2 className="animate-spin text-red-500" size={20} />
@@ -3127,7 +3141,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                 {/* Biography */}
                 <div className="space-y-3.5">
                   <h3 className="text-sm font-bold uppercase tracking-widest text-zinc-400 border-b border-white/5 pb-2">Biography</h3>
-                  <div 
+                  <div
                     className="text-gray-300 leading-relaxed text-base font-light whitespace-pre-line bg-white/[0.01] p-6 rounded-2xl border border-white/[0.03] shadow-inner max-h-[400px] overflow-y-auto custom-scrollbar text-left"
                     dangerouslySetInnerHTML={{ __html: staffDetails.description || 'No biography available for this creator.' }}
                   />
@@ -3140,7 +3154,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                   <BookOpen size={16} className="text-red-500" />
                   <span>Works ({staffMedia.length})</span>
                 </h3>
-                
+
                 {staffMediaLoading ? (
                   <div className="flex items-center gap-2 py-8">
                     <Loader2 className="animate-spin text-red-500" size={20} />
@@ -3244,7 +3258,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                 <BookOpen size={18} className="text-red-500" />
                 <span>Produced Adaptations & Works ({studioMedia.length})</span>
               </h3>
-              
+
               {studioMediaLoading ? (
                 <div className="flex items-center gap-2 py-8">
                   <Loader2 className="animate-spin text-red-500" size={20} />
@@ -3327,17 +3341,65 @@ export const MangaPage: React.FC<MangaPageProps> = ({
       onChapterSelect(e.target.value);
     };
 
+    const handleTranslatePage = async (idx: number) => {
+      const url = pages[idx];
+      if (!url) return;
+
+      // Toggle off if already active
+      if (activeTranslations[url]) {
+        setActiveTranslations(prev => ({ ...prev, [url]: false }));
+        return;
+      }
+
+      // Toggle on from cache if already fetched
+      if (translatedPagesCache[url]) {
+        setActiveTranslations(prev => ({ ...prev, [url]: true }));
+        return;
+      }
+
+      // Mark as translating
+      setTranslatingPageIdxs(prev => ({ ...prev, [idx]: true }));
+      try {
+        const formData = new FormData();
+        formData.append("image_url", url);
+        formData.append("target_lang", targetTranslateLanguage);
+        formData.append("source_lang", "Japanese");
+
+        const apiRes = await fetch("http://localhost:8000/translate-page", {
+          method: "POST",
+          body: formData,
+        });
+
+        if (!apiRes.ok) {
+          const errorData = await apiRes.json().catch(() => ({}));
+          throw new Error(errorData.error || "Translation backend error");
+        }
+
+        const translatedBlob = await apiRes.blob();
+        const localUrl = URL.createObjectURL(translatedBlob);
+
+        // Save to cache and activate
+        setTranslatedPagesCache(prev => ({ ...prev, [url]: localUrl }));
+        setActiveTranslations(prev => ({ ...prev, [url]: true }));
+      } catch (err: any) {
+        console.error("Manga translation error:", err);
+        showToast(err.message || "Failed to translate page");
+      } finally {
+        setTranslatingPageIdxs(prev => ({ ...prev, [idx]: false }));
+      }
+    };
+
     const handleReaderScroll = (e: React.UIEvent<HTMLDivElement>) => {
       const container = e.currentTarget;
       if (!container) return;
 
       const { scrollTop, scrollHeight, clientHeight } = container;
       const currentScrollTop = scrollTop;
-      
+
       const isAtBottom = scrollHeight - currentScrollTop - clientHeight < 80;
       const isAtTop = currentScrollTop < 20;
       const isScrollingUp = currentScrollTop < lastScrollTopRef.current;
-      
+
       if (isAtTop) {
         setShowTopBar(true);
         setShowBottomBar(false);
@@ -3358,7 +3420,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
 
     const SidebarContent = () => (
       <div className="w-full h-full flex flex-col justify-between text-left p-5 space-y-6 overflow-y-auto custom-scrollbar select-none text-zinc-300">
-        
+
         {/* Top Header */}
         <div className="space-y-4">
           <div className="flex items-center justify-between pb-3 border-b border-white/5">
@@ -3417,7 +3479,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
               >
                 <ChevronLeft size={16} />
               </button>
-              
+
               <div className="flex-1 relative">
                 <CustomSelect
                   value={activeChapter.id}
@@ -3480,72 +3542,31 @@ export const MangaPage: React.FC<MangaPageProps> = ({
           )}
         </div>
 
-        {/* Reading Status & Stats Panel */}
+        {/* Keyboard Shortcuts Help */}
         <div className="bg-white/5 border border-white/5 rounded-xl p-4.5 space-y-4">
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Reading Progress</span>
-            <span className="text-xs font-black text-red-500">
-              {readerMode !== 'strip'
-                ? `${Math.round(((readerMode === 'double' ? Math.min(pages.length, activePageIdx + 2) : activePageIdx + 1) / (pages.length || 1)) * 100)}%`
-                : `${scrollPercent}%`
-              }
-            </span>
+          <div className="flex items-center gap-2 border-b border-white/5 pb-2">
+            <span className="w-1 h-3 bg-red-600 rounded-full inline-block"></span>
+            <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Shortcuts</span>
           </div>
-
-          {/* Progress Bar */}
-          <div className="w-full bg-white/10 h-1.5 rounded-full overflow-hidden">
-            <div 
-              className="bg-red-600 h-full rounded-full transition-all duration-300"
-              style={{ 
-                width: `${readerMode !== 'strip' 
-                  ? ((readerMode === 'double' ? Math.min(pages.length, activePageIdx + 2) : activePageIdx + 1) / (pages.length || 1)) * 100 
-                  : scrollPercent}%` 
-              }}
-            />
-          </div>
-
-          <div className="pt-2 border-t border-white/5 space-y-2">
-            <div className="flex justify-between text-[10px] text-zinc-400">
-              <span>Source Provider:</span>
-              <span className="text-white font-bold capitalize">{readingSource}</span>
+          <div className="grid grid-cols-2 gap-2 text-[10px] text-zinc-400">
+            <div className="flex items-center gap-1.5">
+              <span className="bg-zinc-800 border border-zinc-700 px-1.5 py-0.5 rounded text-[8px] font-mono text-zinc-300">↑/↓</span>
+              <span>Scroll</span>
             </div>
-            {pages.length > 0 && (
-              <div className="flex justify-between text-[10px] text-zinc-400">
-                <span>Active Page:</span>
-                <span className="text-white font-bold">
-                  {readerMode === 'single'
-                    ? `${activePageIdx + 1} / ${pages.length}`
-                    : readerMode === 'double'
-                    ? `${activePageIdx + 1}${activePageIdx + 1 < pages.length ? ` - ${activePageIdx + 2}` : ''} / ${pages.length}`
-                    : `All ${pages.length} Loaded`}
-                </span>
+            <div className="flex items-center gap-1.5">
+              <span className="bg-zinc-800 border border-zinc-700 px-1.5 py-0.5 rounded text-[8px] font-mono text-zinc-300">←/→</span>
+              <span>Pages</span>
+            </div>
+            <div className="flex items-center gap-1.5 col-span-2">
+              <span className="bg-zinc-800 border border-zinc-700 px-1.5 py-0.5 rounded text-[8px] font-mono text-zinc-300">Esc</span>
+              <span>Exit Reader</span>
+            </div>
+            {readerMode === 'strip' && (
+              <div className="flex items-center gap-1.5 col-span-2">
+                <span className="bg-zinc-800 border border-zinc-700 px-1.5 py-0.5 rounded text-[8px] font-mono text-zinc-300">A</span>
+                <span>Toggle Autoscroll</span>
               </div>
             )}
-          </div>
-
-          {/* Keyboard Shortcuts Help */}
-          <div className="pt-3 border-t border-white/5 space-y-1.5">
-            <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-wider block">Shortcuts</span>
-            <div className="grid grid-cols-2 gap-2 text-[10px] text-zinc-400">
-              <div className="flex items-center gap-1.5">
-                <span className="bg-zinc-800 border border-zinc-700 px-1.5 py-0.5 rounded text-[8px] font-mono text-zinc-300">↑/↓</span>
-                <span>Scroll</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span className="bg-zinc-800 border border-zinc-700 px-1.5 py-0.5 rounded text-[8px] font-mono text-zinc-300">←/→</span>
-                <span>Pages</span>
-              </div>
-              <div className="flex items-center gap-1.5 col-span-2">
-                <span className="bg-zinc-800 border border-zinc-700 px-1.5 py-0.5 rounded text-[8px] font-mono text-zinc-300">Esc</span>
-                <span>Exit Reader</span>
-              </div>
-              {readerMode === 'strip' && (
-                <div className="flex items-center gap-1.5 col-span-2">
-                  <span className="bg-zinc-800 border border-zinc-700 px-1.5 py-0.5 rounded text-[8px] font-mono text-zinc-300">A</span>
-                  <span>Toggle Autoscroll</span>
-                </div>
-              )}
-            </div>
           </div>
         </div>
 
@@ -3555,7 +3576,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
             <span className="w-1 h-3 bg-red-600 rounded-full inline-block"></span>
             <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Layout Settings</span>
           </div>
-          
+
           <div className="space-y-3.5 text-xs">
             <div className="flex items-center justify-between">
               <span className="font-normal text-zinc-400">View Mode</span>
@@ -3657,15 +3678,13 @@ export const MangaPage: React.FC<MangaPageProps> = ({
 
     const HorizontalMenuBar = ({ isBottom = false }: { isBottom?: boolean }) => {
       const barClass = isBottom
-        ? `fixed bottom-4 left-1/2 -translate-x-1/2 z-50 transition-all duration-300 ${
-            showBottomBar ? 'translate-y-0 opacity-100' : 'translate-y-20 opacity-0 pointer-events-none'
-          } w-[92vw] max-w-5xl`
-        : `fixed top-4 left-1/2 -translate-x-1/2 z-50 transition-all duration-300 ${
-            showTopBar && isMenuVisible ? 'translate-y-0 opacity-100' : '-translate-y-20 opacity-0 pointer-events-none'
-          } w-[92vw] max-w-5xl`;
+        ? `fixed bottom-4 left-1/2 -translate-x-1/2 z-50 transition-all duration-300 ${showBottomBar ? 'translate-y-0 opacity-100' : 'translate-y-20 opacity-0 pointer-events-none'
+        } w-[92vw] max-w-5xl`
+        : `fixed top-4 left-1/2 -translate-x-1/2 z-50 transition-all duration-300 ${showTopBar && isMenuVisible ? 'translate-y-0 opacity-100' : '-translate-y-20 opacity-0 pointer-events-none'
+        } w-[92vw] max-w-5xl`;
 
       return (
-        <div 
+        <div
           className={`${barClass} bg-zinc-950/65 border border-white/10 rounded-2xl px-4 py-2.5 flex items-center justify-between gap-4 font-sans text-xs text-zinc-300 shadow-[0_8px_32px_0_rgba(0,0,0,0.5)] backdrop-blur-md transition-all active:scale-[0.99] select-none`}
         >
           {/* Left section: Manga Title & Back button */}
@@ -3692,6 +3711,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
             options={menuChapterOptions}
             icon={<LayoutList size={14} className="text-red-500 shrink-0" />}
             className="px-3 py-1.5 bg-white/5 hover:bg-white/10 border-white/5 rounded-xl font-semibold border text-xs"
+            containerClassName="w-40 sm:w-56"
             dropdownClassName="w-56 max-h-60"
             menuAlign="center"
           />
@@ -3727,6 +3747,70 @@ export const MangaPage: React.FC<MangaPageProps> = ({
               <Bookmark size={14} />
             </button>
 
+            {/* Fullscreen button */}
+            <button
+              onClick={toggleFullscreen}
+              className="p-2 bg-white/5 border border-white/5 hover:bg-white/10 text-zinc-300 hover:text-white rounded-xl transition-all active:scale-95 shrink-0"
+              title={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
+            >
+              {isFullscreen ? <Minimize size={14} /> : <Maximize size={14} />}
+            </button>
+
+            {/* Target Language Dropdown */}
+            <CustomSelect
+              value={targetTranslateLanguage}
+              onChange={setTargetTranslateLanguage}
+              options={[
+                { value: 'English', label: 'English' },
+                { value: 'Spanish', label: 'Spanish' },
+                { value: 'French', label: 'French' },
+                { value: 'German', label: 'German' },
+                { value: 'Italian', label: 'Italian' },
+                { value: 'Portuguese', label: 'Portuguese' },
+                { value: 'Russian', label: 'Russian' },
+                { value: 'Chinese', label: 'Chinese' },
+                { value: 'Korean', label: 'Korean' },
+                { value: 'Japanese', label: 'Japanese' },
+                { value: 'Vietnamese', label: 'Vietnamese' },
+                { value: 'Indonesian', label: 'Indonesian' }
+              ]}
+              className="px-2 py-1 bg-white/5 hover:bg-white/10 border-white/5 rounded-xl font-semibold border text-[10px]"
+              containerClassName="w-24 sm:w-28 shrink-0"
+              dropdownClassName="w-28 max-h-48"
+              menuAlign="right"
+            />
+
+            {/* Translate Active Page Button */}
+            <button
+              onClick={async () => {
+                const url = pages[activePageIdx];
+                if (url) {
+                  await handleTranslatePage(activePageIdx);
+                }
+                if (readerMode === 'double' && activePageIdx + 1 < pages.length) {
+                  await handleTranslatePage(activePageIdx + 1);
+                }
+              }}
+              disabled={translatingPageIdxs[activePageIdx] || (readerMode === 'double' && translatingPageIdxs[activePageIdx + 1])}
+              className={`flex items-center gap-1.5 px-3 py-1.5 border rounded-xl transition-all active:scale-95 text-[10px] font-bold tracking-wider uppercase shrink-0 cursor-pointer ${
+                activeTranslations[pages[activePageIdx]]
+                  ? 'bg-red-600 border-red-500 text-white shadow-lg shadow-red-600/35'
+                  : 'bg-white/5 border-white/5 hover:bg-white/10 text-zinc-300'
+              }`}
+              title="Translate Current Page"
+            >
+              {translatingPageIdxs[activePageIdx] || (readerMode === 'double' && translatingPageIdxs[activePageIdx + 1]) ? (
+                <>
+                  <Loader2 className="animate-spin" size={11} />
+                  Translating...
+                </>
+              ) : activeTranslations[pages[activePageIdx]] ? (
+                'Show Original'
+              ) : (
+                'Translate'
+              )}
+            </button>
+
             {/* Settings toggler (only at top) */}
             {!isBottom && (
               <button
@@ -3744,7 +3828,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
 
     return (
       <div className={`fixed inset-0 z-[120] ${getBgClass()} flex flex-col font-sans select-none ${isReaderExiting ? 'animate-fade-out' : 'animate-fade-in'}`}>
-        
+
         {/* Top Horizontal Floating Menu Bar */}
         <HorizontalMenuBar />
 
@@ -3753,9 +3837,9 @@ export const MangaPage: React.FC<MangaPageProps> = ({
 
         {/* Main Reader Content Area */}
         <div className="flex-1 flex flex-col h-full overflow-hidden">
-          
+
           {/* Reader Body container */}
-          <div 
+          <div
             ref={readerScrollContainerRef}
             onScroll={handleReaderScroll}
             className="flex-1 overflow-y-auto custom-scrollbar pt-20 pb-4 px-4 relative flex flex-col items-center justify-start"
@@ -3776,7 +3860,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                 {pages.map((url, i) => (
                   <div key={i} className={`w-full relative overflow-hidden ${isStitchedFormat ? 'bg-transparent rounded-none min-h-0' : 'bg-zinc-950/20 rounded-xl shadow-lg min-h-0'}`}>
                     <img
-                      src={url}
+                      src={activeTranslations[url] ? translatedPagesCache[url] : url}
                       alt={`Page ${i + 1}`}
                       referrerPolicy="no-referrer"
                       className="w-full h-auto block pointer-events-none"
@@ -3794,6 +3878,22 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                         }
                       }}
                     />
+                    <button
+                      onClick={() => handleTranslatePage(i)}
+                      disabled={translatingPageIdxs[i]}
+                      className="absolute bottom-3 left-3 bg-red-600 hover:bg-red-700 disabled:bg-zinc-800 text-white font-bold text-[9px] px-2.5 py-1 rounded shadow-md backdrop-blur-sm transition-all active:scale-95 flex items-center gap-1.5 z-10 select-none cursor-pointer"
+                    >
+                      {translatingPageIdxs[i] ? (
+                        <>
+                          <Loader2 className="animate-spin" size={10} />
+                          Translating...
+                        </>
+                      ) : activeTranslations[url] ? (
+                        'Show Original'
+                      ) : (
+                        'Translate'
+                      )}
+                    </button>
                     {!isStitchedFormat && (
                       <div className="absolute bottom-3 right-3 bg-black/80 backdrop-blur-md px-2.5 py-0.5 rounded text-[10px] text-zinc-300 select-none font-medium shadow-md">
                         {i + 1} / {pages.length}
@@ -3806,7 +3906,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
               /* Single Page Mode (Slideshow) */
               <div className="flex-1 w-full flex flex-col justify-center items-center py-2 h-full">
                 <div className={`w-full ${getPageWidthClass()} flex items-center justify-between gap-2 sm:gap-6 h-full`}>
-                  
+
                   <button
                     onClick={handlePrevPage}
                     disabled={activePageIdx === 0}
@@ -3818,7 +3918,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                   <div className="flex-1 aspect-[3/4] max-h-[76vh] md:max-h-[80vh] bg-zinc-950/20 border border-white/5 rounded-2xl overflow-hidden flex items-center justify-center relative shadow-2xl">
                     <img
                       key={activePageIdx}
-                      src={pages[activePageIdx]}
+                      src={activeTranslations[pages[activePageIdx]] ? translatedPagesCache[pages[activePageIdx]] : pages[activePageIdx]}
                       alt={`Page ${activePageIdx + 1}`}
                       referrerPolicy="no-referrer"
                       className="max-h-full max-w-full object-contain pointer-events-none animate-fade-in duration-300"
@@ -3835,7 +3935,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                         }
                       }}
                     />
-                    
+
                     <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/85 backdrop-blur-md px-3.5 py-1 rounded-full text-xs text-white select-none font-medium shadow-xl">
                       {activePageIdx + 1} / {pages.length}
                     </div>
@@ -3853,7 +3953,8 @@ export const MangaPage: React.FC<MangaPageProps> = ({
             ) : (
               /* Double Page Mode (Book style) */
               <div className="flex-1 w-full flex flex-col justify-center items-center py-4 h-full relative" style={{ perspective: '1500px' }}>
-                <style dangerouslySetInnerHTML={{ __html: `
+                <style dangerouslySetInnerHTML={{
+                  __html: `
                   .manga-book-container {
                     display: flex;
                     position: relative;
@@ -3989,12 +4090,11 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                     <div className="manga-book-container">
                       {/* Sweep Shadow Effect */}
                       {isFlipping && (
-                        <div 
-                          className={`sweep-shadow ${
-                            flipDirection === 'next' 
-                              ? 'sweep-shadow-active-next' 
+                        <div
+                          className={`sweep-shadow ${flipDirection === 'next'
+                              ? 'sweep-shadow-active-next'
                               : 'sweep-shadow-active-prev'
-                          }`} 
+                            }`}
                         />
                       )}
 
@@ -4011,15 +4111,14 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                           </div>
                         </div>
                       ) : (
-                        <div 
-                          className={`manga-book-page manga-book-page-left ${
-                            isFlipping && flipDirection === 'next' ? 'flip-next-left' : isFlipping && flipDirection === 'prev' ? 'flip-prev-left' : ''
-                          }`}
+                        <div
+                          className={`manga-book-page manga-book-page-left ${isFlipping && flipDirection === 'next' ? 'flip-next-left' : isFlipping && flipDirection === 'prev' ? 'flip-prev-left' : ''
+                            }`}
                         >
                           <div className="manga-page-gradient-left" />
                           {activePageIdx + 1 < pages.length ? (
                             <img
-                              src={pages[activePageIdx + 1]}
+                              src={activeTranslations[pages[activePageIdx + 1]] ? translatedPagesCache[pages[activePageIdx + 1]] : pages[activePageIdx + 1]}
                               alt={`Page ${activePageIdx + 2}`}
                               referrerPolicy="no-referrer"
                               className="manga-page-img"
@@ -4049,14 +4148,13 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                       )}
 
                       {/* Right Page (lower index, activePageIdx) */}
-                      <div 
-                        className={`manga-book-page manga-book-page-right ${
-                          isFlipping && flipDirection === 'next' ? 'flip-next-right' : isFlipping && flipDirection === 'prev' ? 'flip-prev-right' : ''
-                        }`}
+                      <div
+                        className={`manga-book-page manga-book-page-right ${isFlipping && flipDirection === 'next' ? 'flip-next-right' : isFlipping && flipDirection === 'prev' ? 'flip-prev-right' : ''
+                          }`}
                       >
                         <div className="manga-page-gradient-right" />
                         <img
-                          src={pages[activePageIdx]}
+                          src={activeTranslations[pages[activePageIdx]] ? translatedPagesCache[pages[activePageIdx]] : pages[activePageIdx]}
                           alt={`Page ${activePageIdx + 1}`}
                           referrerPolicy="no-referrer"
                           className="manga-page-img"
@@ -4095,20 +4193,20 @@ export const MangaPage: React.FC<MangaPageProps> = ({
         </div>
 
         {/* Slide-out Settings Drawer (Desktop + Mobile Overlay) */}
-        <div 
+        <div
           className="fixed inset-0 bg-black/65 backdrop-blur-sm transition-all duration-300 ease-in-out"
-          style={{ 
-            zIndex: 140, 
-            opacity: isReaderSettingsOpen ? 1 : 0, 
+          style={{
+            zIndex: 140,
+            opacity: isReaderSettingsOpen ? 1 : 0,
             visibility: isReaderSettingsOpen ? 'visible' : 'hidden',
             pointerEvents: isReaderSettingsOpen ? 'auto' : 'none'
           }}
         >
           {/* Click outside to close */}
           <div className="absolute inset-0" onClick={() => setIsReaderSettingsOpen(false)} />
-          <div 
+          <div
             className="absolute right-0 top-0 bottom-0 w-80 border-l border-white/10 flex flex-col shadow-2xl transition-transform duration-300 ease-out"
-            style={{ 
+            style={{
               backgroundColor: '#0c0c0e',
               transform: isReaderSettingsOpen ? 'translateX(0)' : 'translateX(100%)'
             }}
@@ -4140,7 +4238,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
       <div className="min-h-screen bg-[#030303] text-white pb-16 animate-fade-in font-sans">
         {/* Backdrop Banner skeleton */}
         <div className="relative w-full h-[14vh] md:h-[18vh] bg-zinc-950/20 shimmer-bg" />
-        
+
         {/* Content Skeleton */}
         <div className="max-w-7xl mx-auto px-4 md:px-12 -mt-10 md:-mt-12 relative z-20 flex flex-col md:flex-row gap-8 text-left">
           {/* Left cover block */}
@@ -4172,7 +4270,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
   if (selectedManga) {
     return (
       <div className={`min-h-screen bg-[#030303] text-white pb-16 relative select-none font-sans ${isDetailsExiting ? 'animate-fade-out' : 'animate-fade-in'}`}>
-        
+
         {/* Backdrop Hero Banner */}
         <div className="relative w-full h-[14vh] md:h-[18vh] overflow-hidden select-none">
           <img
@@ -4182,7 +4280,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
             className="w-full h-full object-cover opacity-15 blur-xl scale-110"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-[#030303] via-[#030303]/60 to-transparent" />
-          
+
           <button
             onClick={handleCloseDetails}
             className="absolute top-4 left-4 md:left-12 flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/[0.03] hover:bg-white/[0.07] border border-white/[0.04] text-xs font-normal text-zinc-300 hover:text-white transition-all active:scale-95 z-30"
@@ -4193,7 +4291,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
 
         {/* Main Grid Content */}
         <div className="max-w-7xl mx-auto px-4 md:px-12 -mt-10 md:-mt-12 relative z-20 flex flex-col md:flex-row gap-8 pb-16 text-left">
-          
+
           {/* Left Column - Side Cover Card & Specs */}
           <div className="w-full md:w-[280px] shrink-0 flex flex-col items-center md:items-start">
             <div className="w-[180px] md:w-full aspect-[2/3] bg-zinc-900 rounded-xl overflow-hidden shadow-lg relative">
@@ -4204,7 +4302,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                 className="w-full h-full object-cover"
               />
             </div>
-            
+
             {chapters.length > 0 && (
               <button
                 onClick={() => onChapterSelect(chapters[0].id)}
@@ -4217,7 +4315,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
             {/* Technical metadata card */}
             <div className="w-full mt-6 bg-[#0c0c0e]/80 border border-white/5 rounded-xl p-5 space-y-4">
               <h4 className="text-xs font-semibold text-zinc-400 tracking-wider">Information</h4>
-              
+
               <div className="space-y-3.5 text-xs">
                 <div>
                   <span className="text-zinc-500 font-normal block mb-0.5">Author</span>
@@ -4306,7 +4404,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
               </div>
             </div>
           </div>
-          
+
           {/* Right Column - Main Info Description Tabs */}
           <div className="flex-1 min-w-0">
             <h1 className="text-3xl md:text-5xl font-extrabold text-white tracking-tight leading-tight mb-6">
@@ -4476,7 +4574,8 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                         value={readingSource}
                         onChange={setReadingSource}
                         options={sourceOptions}
-                        className="px-3 py-1.5 hover:bg-zinc-800 text-xs font-medium border-white/5 rounded-lg border shrink-0 w-44"
+                        className="px-3 py-1.5 hover:bg-zinc-800 text-xs font-medium border-white/5 rounded-lg border shrink-0 w-full"
+                        containerClassName="w-44"
                         dropdownClassName="w-44 max-h-60"
                         menuAlign="right"
                       />
@@ -4490,7 +4589,8 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                           value={selectedLanguage}
                           onChange={setSelectedLanguage}
                           options={languageOptions}
-                          className="px-3 py-1.5 hover:bg-zinc-800 text-xs font-medium border-white/5 rounded-lg border shrink-0 w-36"
+                          className="px-3 py-1.5 hover:bg-zinc-800 text-xs font-medium border-white/5 rounded-lg border shrink-0 w-full"
+                          containerClassName="w-36"
                           dropdownClassName="w-36 max-h-60"
                           menuAlign="right"
                         />
@@ -4514,7 +4614,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                   <div className="flex flex-col items-center justify-center py-16 text-zinc-500 gap-2">
                     <AlertCircle size={28} className="text-red-500/80 mb-1" />
                     <span className="text-xs font-medium">{mangapillError}</span>
-                    <button 
+                    <button
                       onClick={() => selectedManga && resolveMangaPill(selectedManga, readingSource)}
                       className="mt-2 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 hover:border-white/20 text-[10px] font-bold text-white transition-all flex items-center gap-2"
                     >
@@ -4525,8 +4625,8 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                   <div className="flex flex-col items-center justify-center py-16 gap-2">
                     <Loader2 className="animate-spin text-red-500" size={24} />
                     <span className="text-[10px] text-zinc-500 font-medium tracking-wide">
-                      {isAutoResolving 
-                        ? 'Auto-detecting best source for latest chapters...' 
+                      {isAutoResolving
+                        ? 'Auto-detecting best source for latest chapters...'
                         : (readingSource !== 'mangadex' ? `Resolving ${readingSource} source...` : 'Loading chapters...')}
                     </span>
                   </div>
@@ -4534,8 +4634,8 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                   <div className="flex flex-col items-center justify-center py-16 opacity-50 text-center">
                     <AlertCircle size={28} className="text-zinc-600 mb-2" />
                     <span className="text-xs text-zinc-500">
-                      {readingSource !== 'mangadex' 
-                        ? `No chapters found on ${readingSource}.` 
+                      {readingSource !== 'mangadex'
+                        ? `No chapters found on ${readingSource}.`
                         : `No chapters found matching filter in ${LANGUAGE_NAMES[selectedLanguage] || selectedLanguage}.`}
                     </span>
                     {readingSource === 'mangadex' && (
@@ -4609,7 +4709,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                           className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
                         />
                         <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/35 to-transparent opacity-85 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
-                        
+
                         {/* Relation Type Badge */}
                         <div className="absolute top-2 left-2 z-10">
                           <span className="px-2 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider bg-red-600/90 text-white backdrop-blur-sm shadow">
@@ -4679,7 +4779,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                 <div className="flex flex-col items-center justify-center py-16 text-zinc-500 gap-2">
                   <AlertCircle size={28} className="text-red-500/80 mb-1" />
                   <span className="text-xs font-medium">Failed to retrieve characters.</span>
-                  <button 
+                  <button
                     onClick={() => selectedManga && fetchMangaCharacters(selectedManga)}
                     className="mt-2 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 hover:border-white/20 text-[10px] font-bold text-white transition-all flex items-center gap-2"
                   >
@@ -4698,7 +4798,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                     const charName = charNode.name.userPreferred || charNode.name.full;
                     const charImage = charNode.image.large || `https://ui-avatars.com/api/?name=${encodeURIComponent(charName)}&background=333&color=fff`;
                     const charRole = edge.role === 'MAIN' ? 'Main' : 'Supporting';
-                    
+
                     return (
                       <div
                         key={charNode.id}
@@ -4712,7 +4812,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                           className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
                         />
                         <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/35 to-transparent opacity-85 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
-                        
+
                         {/* Role Badge */}
                         <div className="absolute top-2 left-2 z-10">
                           <span className={`px-2 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider ${edge.role === 'MAIN' ? 'bg-red-600/90 text-white' : 'bg-zinc-800/90 text-zinc-300'} backdrop-blur-sm shadow`}>
@@ -4751,7 +4851,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                     const staffName = staffNode.name.full;
                     const staffImage = staffNode.image.large || `https://ui-avatars.com/api/?name=${encodeURIComponent(staffName)}&background=333&color=fff`;
                     const staffRole = edge.role || 'Staff';
-                    
+
                     return (
                       <div
                         key={staffNode.id}
@@ -4765,7 +4865,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                           className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
                         />
                         <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/35 to-transparent opacity-85 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
-                        
+
                         {/* Role Badge */}
                         <div className="absolute top-2 left-2 z-10">
                           <span className="px-2 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider bg-red-600/95 text-white backdrop-blur-sm shadow">
@@ -4888,10 +4988,10 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                           <div key={act.id} className="bg-white/5 p-4 rounded-xl border border-white/5 text-left flex flex-col justify-between h-full">
                             <div>
                               <div className="flex items-center gap-2 mb-3">
-                                <img 
-                                  src={act.user?.avatar?.large || `https://ui-avatars.com/api/?name=${encodeURIComponent(act.user?.name || 'User')}&background=333&color=fff`} 
-                                  className="w-8 h-8 rounded-lg object-cover" 
-                                  alt="" 
+                                <img
+                                  src={act.user?.avatar?.large || `https://ui-avatars.com/api/?name=${encodeURIComponent(act.user?.name || 'User')}&background=333&color=fff`}
+                                  className="w-8 h-8 rounded-lg object-cover"
+                                  alt=""
                                 />
                                 <div>
                                   <h5 className="font-bold text-xs text-white leading-tight">{act.user?.name}</h5>
@@ -4922,8 +5022,8 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                     <h4 className="font-semibold text-xs sm:text-sm text-zinc-300 uppercase tracking-wider">Fans Also Recommended</h4>
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4">
                       {socialRecommendations.map((node) => (
-                        <div 
-                          key={node.id} 
+                        <div
+                          key={node.id}
                           onClick={() => {
                             if (node.mediaRecommendation?.id) {
                               const recTitle = node.mediaRecommendation.title?.english || node.mediaRecommendation.title?.userPreferred || "";
@@ -5087,7 +5187,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
       ) : (
         // Category rows
         <div className="space-y-4">
-          
+
           {/* Section Header with Language Selector Dropdown */}
           <div className="flex items-center justify-between px-4 md:px-12 py-4 border-b border-white/5 mb-6 select-none">
             <div className="flex items-center gap-3">
@@ -5096,16 +5196,15 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                 Manga Catalog
               </h2>
             </div>
-            
+
             <div className="flex items-center gap-3">
               {/* NSFW Content Toggle Button */}
               <button
                 onClick={() => setIncludeNsfw(prev => !prev)}
-                className={`flex items-center gap-2 px-4 py-2 border rounded-full text-xs font-bold transition-all active:scale-95 shadow-lg backdrop-blur-md ${
-                  includeNsfw
+                className={`flex items-center gap-2 px-4 py-2 border rounded-full text-xs font-bold transition-all active:scale-95 shadow-lg backdrop-blur-md ${includeNsfw
                     ? 'bg-red-600/20 border-red-500/40 text-red-400 hover:bg-red-600/30'
                     : 'bg-white/5 border-white/15 text-gray-400 hover:bg-white/10'
-                }`}
+                  }`}
                 title="Toggle Explicit/NSFW content"
               >
                 <AlertTriangle size={14} className={includeNsfw ? 'text-red-400 animate-pulse' : 'text-zinc-500'} />
@@ -5113,47 +5212,46 @@ export const MangaPage: React.FC<MangaPageProps> = ({
               </button>
 
               <div className="relative group shrink-0">
-              <button 
-                onClick={() => setIsLangDropdownOpen(!isLangDropdownOpen)} 
-                className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/15 hover:border-white/25 rounded-full text-xs font-bold text-gray-200 transition-all active:scale-95 min-w-[130px] justify-between shadow-lg backdrop-blur-md"
-              >
-                <div className="flex items-center gap-2">
-                  <Languages size={14} className="text-red-500" /> 
-                  <span>{titleLanguage === 'english' ? 'English' : titleLanguage === 'romaji' ? 'Romaji' : 'Native'}</span>
-                </div>
-                <ChevronDown size={12} className="text-zinc-500 group-hover:text-white transition-colors" />
-              </button>
-              {isLangDropdownOpen && (
-                <>
-                  <div className="fixed inset-0 z-40" onClick={() => setIsLangDropdownOpen(false)} />
-                  <div className="absolute right-0 mt-2 w-40 bg-[#0c0c0e]/95 backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden shadow-2xl transition-all origin-top-right z-50 p-1.5 animate-in fade-in slide-in-from-top-2 duration-200">
-                    {[
-                      { value: 'english', label: 'English' },
-                      { value: 'romaji', label: 'Romaji' },
-                      { value: 'native', label: 'Native' }
-                    ].map(opt => (
-                      <button 
-                        key={opt.value} 
-                        onClick={() => { 
-                          setTitleLanguage(opt.value as any); 
-                          setIsLangDropdownOpen(false); 
-                        }} 
-                        className={`w-full text-left px-3.5 py-2 text-xs font-bold rounded-xl transition-colors flex items-center justify-between ${
-                          titleLanguage === opt.value 
-                            ? 'bg-red-600 text-white shadow-md shadow-red-600/20' 
-                            : 'text-zinc-400 hover:bg-white/5 hover:text-white'
-                        }`}
-                      >
-                        {opt.label}
-                        {titleLanguage === opt.value && <Check size={12} />}
-                      </button>
-                    ))}
+                <button
+                  onClick={() => setIsLangDropdownOpen(!isLangDropdownOpen)}
+                  className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/15 hover:border-white/25 rounded-full text-xs font-bold text-gray-200 transition-all active:scale-95 min-w-[130px] justify-between shadow-lg backdrop-blur-md"
+                >
+                  <div className="flex items-center gap-2">
+                    <Languages size={14} className="text-red-500" />
+                    <span>{titleLanguage === 'english' ? 'English' : titleLanguage === 'romaji' ? 'Romaji' : 'Native'}</span>
                   </div>
-                </>
-              )}
+                  <ChevronDown size={12} className="text-zinc-500 group-hover:text-white transition-colors" />
+                </button>
+                {isLangDropdownOpen && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setIsLangDropdownOpen(false)} />
+                    <div className="absolute right-0 mt-2 w-40 bg-[#0c0c0e]/95 backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden shadow-2xl transition-all origin-top-right z-50 p-1.5 animate-in fade-in slide-in-from-top-2 duration-200">
+                      {[
+                        { value: 'english', label: 'English' },
+                        { value: 'romaji', label: 'Romaji' },
+                        { value: 'native', label: 'Native' }
+                      ].map(opt => (
+                        <button
+                          key={opt.value}
+                          onClick={() => {
+                            setTitleLanguage(opt.value as any);
+                            setIsLangDropdownOpen(false);
+                          }}
+                          className={`w-full text-left px-3.5 py-2 text-xs font-bold rounded-xl transition-colors flex items-center justify-between ${titleLanguage === opt.value
+                              ? 'bg-red-600 text-white shadow-md shadow-red-600/20'
+                              : 'text-zinc-400 hover:bg-white/5 hover:text-white'
+                            }`}
+                        >
+                          {opt.label}
+                          {titleLanguage === opt.value && <Check size={12} />}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
           </div>
-        </div>
 
           {anilistPlanning.length > 0 && (
             <MangaRow title="Your AniList Manga Watchlist" items={anilistPlanning} onMangaClick={handleMangaSelect} titleLanguage={titleLanguage} onExpand={() => setExpandedCategory({ title: "Your AniList Manga Watchlist", items: anilistPlanning })} />
