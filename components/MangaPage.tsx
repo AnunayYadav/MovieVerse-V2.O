@@ -361,7 +361,9 @@ const renderTranslatedImage = async (imageUrl: string, blocks: any[]): Promise<s
       reject(new Error("Failed to load image content for canvas translation."));
     };
     // Use proxy-image to bypass CORS constraints
-    const proxyUrl = `/api/manga?action=proxy-image&url=${encodeURIComponent(imageUrl)}`;
+    const proxyUrl = imageUrl.startsWith('/api/')
+      ? imageUrl
+      : `/api/manga?action=proxy-image&url=${encodeURIComponent(imageUrl)}`;
     img.src = proxyUrl;
   });
 };
@@ -3462,13 +3464,25 @@ export const MangaPage: React.FC<MangaPageProps> = ({
       // Mark as translating
       setTranslatingPageIdxs(prev => ({ ...prev, [idx]: true }));
       try {
+        // Extract raw image URL if it's nested inside a proxy URL
+        let rawImageUrl = url;
+        if (url.includes("url=")) {
+          try {
+            const searchParams = new URL(url, window.location.origin).searchParams;
+            rawImageUrl = searchParams.get("url") || url;
+          } catch (e) {
+            const match = url.match(/[?&]url=([^&]+)/);
+            rawImageUrl = match ? decodeURIComponent(match[1]) : url;
+          }
+        }
+
         const apiRes = await fetch("/api/manga?action=translate", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            image_url: url,
+            image_url: rawImageUrl,
             target_lang: targetTranslateLanguage,
           }),
         });

@@ -115,18 +115,32 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(500).json({ error: 'Gemini API key is not configured' });
       }
 
+      // Extract raw image URL if it's nested inside a proxy URL
+      let rawImageUrl = image_url;
+      if (image_url.includes('url=')) {
+        try {
+          const urlObj = new URL(image_url, 'http://localhost');
+          rawImageUrl = urlObj.searchParams.get('url') || image_url;
+        } catch (e) {
+          const match = image_url.match(/[?&]url=([^&]+)/);
+          if (match) {
+            rawImageUrl = decodeURIComponent(match[1]);
+          }
+        }
+      }
+
       const headers: Record<string, string> = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
       };
 
       try {
-        const urlObj = new URL(image_url);
+        const urlObj = new URL(rawImageUrl);
         headers['Referer'] = urlObj.origin + '/';
       } catch (e) {
         // Ignore URL parsing errors
       }
 
-      const imageRes = await fetch(image_url, { headers });
+      const imageRes = await fetch(rawImageUrl, { headers });
       if (!imageRes.ok) {
         return res.status(imageRes.status).json({ error: `Failed to fetch image from URL: ${imageRes.statusText}` });
       }
