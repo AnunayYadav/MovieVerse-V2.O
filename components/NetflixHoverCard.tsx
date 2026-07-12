@@ -50,8 +50,8 @@ export const NetflixHoverCard: React.FC<NetflixHoverCardProps> = ({
     const cardRef = useRef<HTMLDivElement>(null);
 
     // Calculate dimensions
-    const width = rect.width * 1.3; // reduced from 1.5 to 1.3
-    const height = width * (horizontal ? 1.25 : 1.35); // reduced from 1.4
+    const width = rect.width * 1.16; // reduced from 1.3 to 1.16
+    const height = width * (horizontal ? 1.22 : 1.32); // reduced from 1.25/1.35
 
     // Center the hover box relative to the original card
     let left = rect.left - (width - rect.width) / 2;
@@ -315,7 +315,7 @@ export const NetflixHoverCard: React.FC<NetflixHoverCardProps> = ({
                 width: `${width}px`,
                 zIndex: 200,
             }}
-            className={`bg-[#1b2230] border border-white/[0.08] rounded-2xl overflow-hidden shadow-[0_24px_60px_rgba(0,0,0,0.9)] select-none font-sans flex flex-col text-left transition-all duration-300 transform ease-[cubic-bezier(0.25,1,0.5,1)] hover:scale-[1.03] cursor-pointer ${
+            className={`bg-[#141414] border border-white/[0.08] rounded-2xl overflow-hidden shadow-[0_24px_60px_rgba(0,0,0,0.9)] select-none font-sans flex flex-col text-left transition-all duration-300 transform ease-[cubic-bezier(0.25,1,0.5,1)] hover:scale-[1.03] cursor-pointer ${
                 isClosing ? 'animate-hover-exit' : 'animate-hover-enter'
             }`}
         >
@@ -360,51 +360,51 @@ export const NetflixHoverCard: React.FC<NetflixHoverCardProps> = ({
             </div>
 
             {/* Bottom details info wrapper */}
-            <div className="p-4 flex flex-col gap-3">
+            <div className="p-3 flex flex-col gap-2">
                 {/* Title */}
-                <h4 className="text-sm sm:text-base font-semibold text-white leading-tight tracking-normal">
+                <h4 className="text-xs sm:text-sm font-semibold text-white leading-tight tracking-normal">
                     {formatTitle(movie.title || movie.name)}
                 </h4>
 
                 {/* Action buttons row */}
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5">
                     <button
                         onClick={(e) => { e.stopPropagation(); onPlay(movie); }}
-                        className="h-9 px-4 rounded-xl bg-slate-200/90 hover:bg-white text-slate-900 font-semibold flex items-center justify-center gap-1.5 flex-1 max-w-[120px] transition-all active:scale-95 shadow-md border-none text-[11px] cursor-pointer"
+                        className="h-8 px-3 rounded-lg bg-slate-200/90 hover:bg-white text-slate-900 font-semibold flex items-center justify-center gap-1 flex-1 max-w-[100px] transition-all active:scale-95 shadow-md border-none text-[10px] cursor-pointer"
                         title="Watch Now"
                     >
-                        <Play size={13} fill="currentColor" /> {isWatched ? "Rewatch" : "Play"}
+                        <Play size={11} fill="currentColor" /> {isWatched ? "Rewatch" : "Play"}
                     </button>
 
                     {/* Favorite (Heart) */}
                     <button
                         onClick={(e) => { e.stopPropagation(); onToggleWatched(movie); }}
-                        className={`w-9 h-9 rounded-xl border flex items-center justify-center transition-all active:scale-95 cursor-pointer bg-white/[0.03] ${
+                        className={`w-8 h-8 rounded-lg border flex items-center justify-center transition-all active:scale-95 cursor-pointer bg-white/[0.03] ${
                             isWatched
                                 ? 'text-red-500 border-red-500/30 bg-red-500/10 hover:bg-red-500/20'
                                 : 'text-white border-white/15 hover:border-white/30 hover:bg-white/5'
                         }`}
                         title={isWatched ? "Mark Unwatched" : "Mark Watched"}
                     >
-                        <Heart size={15} fill={isWatched ? "currentColor" : "none"} />
+                        <Heart size={13} fill={isWatched ? "currentColor" : "none"} />
                     </button>
 
                     {/* Watchlist (Bookmark) */}
                     <button
                         onClick={(e) => { e.stopPropagation(); onToggleWatchlist(movie); }}
-                        className={`w-9 h-9 rounded-xl border flex items-center justify-center transition-all active:scale-95 cursor-pointer bg-white/[0.03] ${
+                        className={`w-8 h-8 rounded-lg border flex items-center justify-center transition-all active:scale-95 cursor-pointer bg-white/[0.03] ${
                             isWatchlisted
                                 ? 'text-green-400 border-green-500/30 bg-green-500/10 hover:bg-green-500/20'
                                 : 'text-white border-white/15 hover:border-white/30 hover:bg-white/5'
                         }`}
                         title={isWatchlisted ? "Remove from Watchlist" : "Add to Watchlist"}
                     >
-                        <Bookmark size={15} fill={isWatchlisted ? "currentColor" : "none"} />
+                        <Bookmark size={13} fill={isWatchlisted ? "currentColor" : "none"} />
                     </button>
                 </div>
 
                 {/* Match score & details badges row */}
-                <div className="text-[11px] text-zinc-400 font-semibold flex items-center gap-1.5 select-none flex-wrap">
+                <div className="text-[10px] text-zinc-400 font-semibold flex items-center gap-1 select-none flex-wrap">
                     <span>{typeLabel}</span>
                     <span>•</span>
                     <span>{episodesOrRuntime}</span>
@@ -420,7 +420,7 @@ export const NetflixHoverCard: React.FC<NetflixHoverCardProps> = ({
 
                 {/* Description Overview */}
                 <p 
-                    className="text-[11px] text-zinc-300 font-normal leading-relaxed text-left line-clamp-3 select-none opacity-85"
+                    className="text-[10px] text-zinc-300 font-normal leading-relaxed text-left line-clamp-3 select-none opacity-85"
                     style={{
                         display: '-webkit-box',
                         WebkitLineClamp: 3,
