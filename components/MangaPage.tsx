@@ -264,109 +264,6 @@ const CustomSelect: React.FC<CustomSelectProps> = ({
   );
 };
 
-const renderTranslatedImage = async (imageUrl: string, blocks: any[]): Promise<string> => {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.crossOrigin = "anonymous";
-    img.onload = () => {
-      const canvas = document.createElement("canvas");
-      canvas.width = img.naturalWidth;
-      canvas.height = img.naturalHeight;
-      const ctx = canvas.getContext("2d");
-      if (!ctx) {
-        reject(new Error("Failed to get canvas context"));
-        return;
-      }
-
-      // Draw the original image
-      ctx.drawImage(img, 0, 0);
-
-      // Draw each translation block
-      blocks.forEach(block => {
-        if (!block.box_2d || !Array.isArray(block.box_2d) || block.box_2d.length < 4) return;
-        const [ymin, xmin, ymax, xmax] = block.box_2d;
-        
-        // Convert normalized coordinates (0-1000) to actual canvas pixel coordinates
-        const x = (xmin / 1000) * canvas.width;
-        const y = (ymin / 1000) * canvas.height;
-        const w = ((xmax - xmin) / 1000) * canvas.width;
-        const h = ((ymax - ymin) / 1000) * canvas.height;
-
-        // 1. Cover the old text with a clean white bubble background
-        ctx.fillStyle = "white";
-        ctx.beginPath();
-        const cx = x + w / 2;
-        const cy = y + h / 2;
-        const rx = w / 2 + 2;
-        const ry = h / 2 + 2;
-        if (ctx.ellipse) {
-          ctx.ellipse(cx, cy, rx, ry, 0, 0, 2 * Math.PI);
-        } else {
-          ctx.rect(x - 2, y - 2, w + 4, h + 4);
-        }
-        ctx.fill();
-
-        // 2. Setup text rendering style
-        ctx.fillStyle = "black";
-        // Font size scales with bubble dimensions
-        const fontSize = Math.max(11, Math.min(w * 0.16, h * 0.22, 28));
-        ctx.font = `bold ${Math.round(fontSize)}px "Comic Sans MS", "Comic Sans", "Chalkboard SE", "Impact", sans-serif`;
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-
-        // Word wrap translation text
-        const text = block.translated_text || "";
-        const words = text.split(/\s+/);
-        const lines: string[] = [];
-        let currentLine = "";
-
-        // Calculate wrap based on bubble width
-        const padding = w * 0.15; // 15% padding on left/right
-        const maxWidth = w - padding;
-
-        for (let n = 0; n < words.length; n++) {
-          const testLine = currentLine + (currentLine ? " " : "") + words[n];
-          const metrics = ctx.measureText(testLine);
-          if (metrics.width > maxWidth && n > 0) {
-            lines.push(currentLine);
-            currentLine = words[n];
-          } else {
-            currentLine = testLine;
-          }
-        }
-        if (currentLine) {
-          lines.push(currentLine);
-        }
-
-        // Draw the wrapped text lines centered in the bubble
-        const lineHeight = fontSize * 1.15;
-        const totalTextHeight = lines.length * lineHeight;
-        const startY = y + h / 2 - totalTextHeight / 2 + lineHeight / 2;
-
-        lines.forEach((line, index) => {
-          ctx.fillText(line, x + w / 2, startY + index * lineHeight);
-        });
-      });
-
-      canvas.toBlob((blob) => {
-        if (blob) {
-          resolve(URL.createObjectURL(blob));
-        } else {
-          reject(new Error("Failed to export canvas to blob"));
-        }
-      }, "image/png");
-    };
-    img.onerror = (err) => {
-      console.error("Failed to load image for canvas translation:", err);
-      reject(new Error("Failed to load image content for canvas translation."));
-    };
-    // Use proxy-image to bypass CORS constraints
-    const proxyUrl = imageUrl.startsWith('/api/')
-      ? imageUrl
-      : `/api/manga?action=proxy-image&url=${encodeURIComponent(imageUrl)}`;
-    img.src = proxyUrl;
-  });
-};
 
 export const MangaPage: React.FC<MangaPageProps> = ({
   apiKey,
@@ -868,11 +765,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
   const [autoScrollSpeed, setAutoScrollSpeed] = useState<number>(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
-  // Translation States
-  const [translatedPagesCache, setTranslatedPagesCache] = useState<Record<string, string>>({});
-  const [activeTranslations, setActiveTranslations] = useState<Record<string, boolean>>({});
-  const [translatingPageIdxs, setTranslatingPageIdxs] = useState<Record<number, boolean>>({});
-  const [targetTranslateLanguage, setTargetTranslateLanguage] = useState<string>('English');
+
 
 
 
@@ -1017,12 +910,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
     localStorage.setItem('movieverse_manga_bookmarks', JSON.stringify(newBookmarks));
   }, [selectedManga, showToast]);
 
-  useEffect(() => {
-    // Clear translation caches when active chapter changes
-    setTranslatedPagesCache({});
-    setActiveTranslations({});
-    setTranslatingPageIdxs({});
-  }, [activeChapter?.id]);
+
 
   // Fetch helper
   const fetchMangaDex = useCallback(async (endpoint: string) => {
@@ -3445,71 +3333,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
       onChapterSelect(e.target.value);
     };
 
-    const handleTranslatePage = async (idx: number) => {
-      const url = pages[idx];
-      if (!url) return;
 
-      // Toggle off if already active
-      if (activeTranslations[url]) {
-        setActiveTranslations(prev => ({ ...prev, [url]: false }));
-        return;
-      }
-
-      // Toggle on from cache if already fetched
-      if (translatedPagesCache[url]) {
-        setActiveTranslations(prev => ({ ...prev, [url]: true }));
-        return;
-      }
-
-      // Mark as translating
-      setTranslatingPageIdxs(prev => ({ ...prev, [idx]: true }));
-      try {
-        // Extract raw image URL if it's nested inside a proxy URL
-        let rawImageUrl = url;
-        if (url.includes("url=")) {
-          try {
-            const searchParams = new URL(url, window.location.origin).searchParams;
-            rawImageUrl = searchParams.get("url") || url;
-          } catch (e) {
-            const match = url.match(/[?&]url=([^&]+)/);
-            rawImageUrl = match ? decodeURIComponent(match[1]) : url;
-          }
-        }
-
-        const apiRes = await fetch("/api/manga?action=translate", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            image_url: rawImageUrl,
-            target_lang: targetTranslateLanguage,
-          }),
-        });
-
-        if (!apiRes.ok) {
-          const errorData = await apiRes.json().catch(() => ({}));
-          throw new Error(errorData.error || "Translation backend error");
-        }
-
-        const resData = await apiRes.json();
-        if (!resData.blocks) {
-          throw new Error("Translation did not return any text blocks.");
-        }
-
-        // Render the translation on top of the original image using Canvas
-        const localUrl = await renderTranslatedImage(url, resData.blocks);
-
-        // Save to cache and activate
-        setTranslatedPagesCache(prev => ({ ...prev, [url]: localUrl }));
-        setActiveTranslations(prev => ({ ...prev, [url]: true }));
-      } catch (err: any) {
-        console.error("Manga translation error:", err);
-        showToast(err.message || "Failed to translate page");
-      } finally {
-        setTranslatingPageIdxs(prev => ({ ...prev, [idx]: false }));
-      }
-    };
 
     const handleReaderScroll = (e: React.UIEvent<HTMLDivElement>) => {
       const container = e.currentTarget;
@@ -3878,60 +3702,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
               {isFullscreen ? <Minimize size={14} /> : <Maximize size={14} />}
             </button>
 
-            {/* Target Language Dropdown */}
-            <CustomSelect
-              value={targetTranslateLanguage}
-              onChange={setTargetTranslateLanguage}
-              options={[
-                { value: 'English', label: 'English' },
-                { value: 'Spanish', label: 'Spanish' },
-                { value: 'French', label: 'French' },
-                { value: 'German', label: 'German' },
-                { value: 'Italian', label: 'Italian' },
-                { value: 'Portuguese', label: 'Portuguese' },
-                { value: 'Russian', label: 'Russian' },
-                { value: 'Chinese', label: 'Chinese' },
-                { value: 'Korean', label: 'Korean' },
-                { value: 'Japanese', label: 'Japanese' },
-                { value: 'Vietnamese', label: 'Vietnamese' },
-                { value: 'Indonesian', label: 'Indonesian' }
-              ]}
-              className="px-2 py-1 bg-white/5 hover:bg-white/10 border-white/5 rounded-xl font-semibold border text-[10px]"
-              containerClassName="w-24 sm:w-28 shrink-0"
-              dropdownClassName="w-28 max-h-48"
-              menuAlign="right"
-            />
 
-            {/* Translate Active Page Button */}
-            <button
-              onClick={async () => {
-                const url = pages[activePageIdx];
-                if (url) {
-                  await handleTranslatePage(activePageIdx);
-                }
-                if (readerMode === 'double' && activePageIdx + 1 < pages.length) {
-                  await handleTranslatePage(activePageIdx + 1);
-                }
-              }}
-              disabled={translatingPageIdxs[activePageIdx] || (readerMode === 'double' && translatingPageIdxs[activePageIdx + 1])}
-              className={`flex items-center gap-1.5 px-3 py-1.5 border rounded-xl transition-all active:scale-95 text-[10px] font-bold tracking-wider uppercase shrink-0 cursor-pointer ${
-                activeTranslations[pages[activePageIdx]]
-                  ? 'bg-red-600 border-red-500 text-white shadow-lg shadow-red-600/35'
-                  : 'bg-white/5 border-white/5 hover:bg-white/10 text-zinc-300'
-              }`}
-              title="Translate Current Page"
-            >
-              {translatingPageIdxs[activePageIdx] || (readerMode === 'double' && translatingPageIdxs[activePageIdx + 1]) ? (
-                <>
-                  <Loader2 className="animate-spin" size={11} />
-                  Translating...
-                </>
-              ) : activeTranslations[pages[activePageIdx]] ? (
-                'Show Original'
-              ) : (
-                'Translate'
-              )}
-            </button>
 
             {/* Settings toggler (only at top) */}
             {!isBottom && (
@@ -3982,7 +3753,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                 {pages.map((url, i) => (
                   <div key={i} className={`w-full relative overflow-hidden ${isStitchedFormat ? 'bg-transparent rounded-none min-h-0' : 'bg-zinc-950/20 rounded-xl shadow-lg min-h-0'}`}>
                     <img
-                      src={activeTranslations[url] ? translatedPagesCache[url] : url}
+                      src={url}
                       alt={`Page ${i + 1}`}
                       referrerPolicy="no-referrer"
                       className="w-full h-auto block pointer-events-none"
@@ -4000,22 +3771,6 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                         }
                       }}
                     />
-                    <button
-                      onClick={() => handleTranslatePage(i)}
-                      disabled={translatingPageIdxs[i]}
-                      className="absolute bottom-3 left-3 bg-red-600 hover:bg-red-700 disabled:bg-zinc-800 text-white font-bold text-[9px] px-2.5 py-1 rounded shadow-md backdrop-blur-sm transition-all active:scale-95 flex items-center gap-1.5 z-10 select-none cursor-pointer"
-                    >
-                      {translatingPageIdxs[i] ? (
-                        <>
-                          <Loader2 className="animate-spin" size={10} />
-                          Translating...
-                        </>
-                      ) : activeTranslations[url] ? (
-                        'Show Original'
-                      ) : (
-                        'Translate'
-                      )}
-                    </button>
                     {!isStitchedFormat && (
                       <div className="absolute bottom-3 right-3 bg-black/80 backdrop-blur-md px-2.5 py-0.5 rounded text-[10px] text-zinc-300 select-none font-medium shadow-md">
                         {i + 1} / {pages.length}
@@ -4040,7 +3795,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                   <div className="flex-1 aspect-[3/4] max-h-[76vh] md:max-h-[80vh] bg-zinc-950/20 border border-white/5 rounded-2xl overflow-hidden flex items-center justify-center relative shadow-2xl">
                     <img
                       key={activePageIdx}
-                      src={activeTranslations[pages[activePageIdx]] ? translatedPagesCache[pages[activePageIdx]] : pages[activePageIdx]}
+                      src={pages[activePageIdx]}
                       alt={`Page ${activePageIdx + 1}`}
                       referrerPolicy="no-referrer"
                       className="max-h-full max-w-full object-contain pointer-events-none animate-fade-in duration-300"
@@ -4240,7 +3995,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                           <div className="manga-page-gradient-left" />
                           {activePageIdx + 1 < pages.length ? (
                             <img
-                              src={activeTranslations[pages[activePageIdx + 1]] ? translatedPagesCache[pages[activePageIdx + 1]] : pages[activePageIdx + 1]}
+                              src={pages[activePageIdx + 1]}
                               alt={`Page ${activePageIdx + 2}`}
                               referrerPolicy="no-referrer"
                               className="manga-page-img"
@@ -4276,7 +4031,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                       >
                         <div className="manga-page-gradient-right" />
                         <img
-                          src={activeTranslations[pages[activePageIdx]] ? translatedPagesCache[pages[activePageIdx]] : pages[activePageIdx]}
+                          src={pages[activePageIdx]}
                           alt={`Page ${activePageIdx + 1}`}
                           referrerPolicy="no-referrer"
                           className="manga-page-img"
