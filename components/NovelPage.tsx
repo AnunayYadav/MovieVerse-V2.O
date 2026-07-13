@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Search, BookOpen, ChevronLeft, ChevronRight, RefreshCcw, Loader2, AlertCircle, Settings, Heart, Bookmark, ArrowLeft, Sun, Moon, Type, AlignLeft, List, Sparkles, Star, TrendingUp, Compass, Play, Info, Users, Link, Award, X } from 'lucide-react';
+import { Search, BookOpen, ChevronLeft, ChevronRight, RefreshCcw, Loader2, AlertCircle, Settings, Heart, Bookmark, ArrowLeft, Sun, Moon, Type, AlignLeft, List, Sparkles, Star, TrendingUp, Compass, Play, Info, Users, Link, Award, X, ChevronDown, Check } from 'lucide-react';
 
 interface Novel {
   id: string; // wuxia slug
@@ -1755,7 +1755,7 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
           {/* Background Styling Effects */}
           {bgStyle === 'gradient' && (
             <div className={`absolute inset-0 z-0 pointer-events-none transition-all duration-500 ${
-              theme === 'sepia'
+              theme === 'sepia' || theme === 'paper'
                 ? 'bg-gradient-to-tr from-[#f4ecd8] via-[#f7f1e3] to-[#ebdcb9]'
                 : theme === 'light'
                   ? 'bg-gradient-to-tr from-zinc-100 via-white to-indigo-50/20'
@@ -1770,7 +1770,7 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
                 src={novelDetails?.image || selectedNovel?.image} 
                 alt="blur background" 
                 className={`w-full h-full object-cover scale-110 filter blur-[80px] transition-all duration-700 ${
-                  theme === 'sepia' 
+                  theme === 'sepia' || theme === 'paper'
                     ? 'opacity-[0.22]' 
                     : theme === 'light' 
                       ? 'opacity-[0.18]' 
@@ -1781,7 +1781,7 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
               <div 
                 className="absolute inset-0 transition-all duration-500" 
                 style={{
-                  background: theme === 'sepia'
+                  background: (theme === 'sepia' || theme === 'paper')
                     ? 'radial-gradient(circle at center, rgba(247,241,227,0.2) 0%, rgba(235,220,185,0.75) 50%, rgba(204,185,145,0.96) 100%)'
                     : theme === 'light'
                       ? 'radial-gradient(circle at center, rgba(250,250,250,0.1) 0%, rgba(244,244,245,0.75) 60%, rgba(228,228,231,0.96) 100%)'
@@ -1800,54 +1800,102 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
               color: getThemeStyles().text
             }}
           >
-            <button 
-              onClick={() => {
-                setActiveChapter(null);
-                setChapterContent(null);
-              }}
-              className="flex items-center gap-1.5 text-xs font-semibold hover:opacity-75 transition-opacity"
-            >
-              <ArrowLeft size={16} /> Close Reader
-            </button>
-
-            {/* In-chapter Search input or Title */}
-            {searchQueryInside.trim() !== '' || (document.activeElement?.classList.contains('chapter-search-input')) ? (
-              <div className="flex-1 max-w-sm mx-4 flex items-center bg-black/10 dark:bg-white/5 border border-white/10 rounded-xl px-2 py-1 gap-1">
-                <Search size={14} className="text-zinc-500" />
-                <input 
-                  type="text" 
-                  value={searchQueryInside} 
-                  onChange={(e) => setSearchQueryInside(e.target.value)}
-                  placeholder="Search in chapter..."
-                  className="bg-transparent border-0 outline-none w-full text-xs text-white chapter-search-input"
-                />
-                {searchQueryInside && (
-                  <button 
-                    onClick={() => setSearchQueryInside('')} 
-                    className="p-0.5 rounded-full hover:bg-white/10"
-                  >
-                    <X size={12} />
-                  </button>
-                )}
-              </div>
-            ) : (
-              <h1 className="text-xs font-bold text-center line-clamp-1 max-w-[40%]">
-                {chapterContent?.title || activeChapter.title}
-              </h1>
-            )}
-
-            {/* Menu Controls */}
-            <div className="flex items-center gap-3 relative">
+            {/* Left section: Close & Novel Title */}
+            <div className="flex items-center gap-2">
               <button 
                 onClick={() => {
-                  setShowTOCDrawer(true);
+                  setActiveChapter(null);
+                  setChapterContent(null);
+                }}
+                className="p-2 text-zinc-400 hover:text-white rounded-lg bg-black/10 dark:bg-white/5 hover:bg-black/20 dark:hover:bg-white/10 transition-colors"
+                title="Back to Novel Details"
+              >
+                <ChevronLeft size={16} />
+              </button>
+              <div className="hidden md:flex items-center gap-1.5 px-3 py-1.5 bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/5 rounded-xl font-bold max-w-[160px] truncate">
+                <BookOpen size={14} className="text-indigo-500 shrink-0" />
+                <span className="truncate text-[11px]">{selectedNovel?.title || 'Loading...'}</span>
+              </div>
+            </div>
+
+            {/* Center section: Chapter Selector Dropdown */}
+            <div className="relative z-[220]">
+              <button
+                onClick={() => {
+                  setShowTOCDrawer(!showTOCDrawer);
                   setShowSettingsDrawer(false);
                 }}
-                className="p-1.5 rounded-full hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
-                title="Table of Contents"
+                className="flex items-center justify-between gap-1.5 px-3 py-1.5 bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 border border-black/5 dark:border-white/5 rounded-xl font-semibold text-xs transition-all max-w-[180px] sm:max-w-[280px]"
               >
-                <List size={16} />
+                <span className="truncate">{activeChapter.title}</span>
+                <ChevronDown size={12} className="opacity-60 shrink-0" />
               </button>
+
+              {showTOCDrawer && (
+                <>
+                  {/* Click outside backdrop */}
+                  <div 
+                    onClick={() => setShowTOCDrawer(false)}
+                    className="fixed inset-0 z-0 bg-transparent"
+                  />
+                  {/* Dropdown list */}
+                  <div 
+                    className={`absolute left-1/2 -translate-x-1/2 top-9 w-64 max-h-64 overflow-y-auto p-1 rounded-2xl shadow-2xl border flex flex-col gap-0.5 z-10 animate-in fade-in slide-in-from-top-2 duration-200 ${
+                      theme === 'sepia' || theme === 'paper'
+                        ? 'bg-[#ebdcb9] border-[#e3d5bb] text-[#433422]'
+                        : theme === 'light'
+                          ? 'bg-white border-zinc-200 text-zinc-800'
+                          : 'bg-[#1c1c1f] border-zinc-800 text-white'
+                    }`}
+                  >
+                    {novelDetails?.chapters.map((c) => {
+                      const isCurrent = c.id === activeChapter.id;
+                      return (
+                        <button
+                          key={c.id}
+                          onClick={() => {
+                            handleChapterSelect(c);
+                            setShowTOCDrawer(false);
+                          }}
+                          className={`w-full text-left p-2.5 text-[11px] rounded-lg transition-all flex items-center justify-between ${
+                            isCurrent 
+                              ? 'bg-indigo-600 text-white font-bold' 
+                              : 'hover:bg-black/5 dark:hover:bg-white/5 opacity-80 hover:opacity-100'
+                          }`}
+                        >
+                          <span className="truncate">{c.title}</span>
+                          {isCurrent && <Check size={12} className="shrink-0" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Right section: Navigation & Settings */}
+            <div className="flex items-center gap-2">
+              {/* PREV Chapter */}
+              <button
+                onClick={handlePrevChapter}
+                disabled={activeChapterIndex <= 0}
+                className="hidden md:flex items-center gap-1 py-1.5 px-3 bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/5 hover:bg-black/10 dark:hover:bg-white/10 disabled:opacity-20 text-xs font-semibold rounded-xl transition-all"
+                title="Previous Chapter"
+              >
+                <ChevronLeft size={14} /> PREV
+              </button>
+
+              {/* NEXT Chapter */}
+              <button
+                onClick={handleNextChapter}
+                disabled={activeChapterIndex >= (novelDetails?.chapters.length || 0) - 1}
+                className="hidden md:flex items-center gap-1 py-1.5 px-3 bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/5 hover:bg-black/10 dark:hover:bg-white/10 disabled:opacity-20 text-xs font-semibold rounded-xl transition-all"
+                title="Next Chapter"
+              >
+                NEXT <ChevronRight size={14} />
+              </button>
+
+              <div className="w-[1px] h-6 bg-black/10 dark:bg-white/10 mx-1 hidden md:block" />
 
               <button 
                 onClick={() => {
@@ -1861,10 +1909,10 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
                     }, 50);
                   }
                 }}
-                className="p-1.5 rounded-full hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+                className="p-2 rounded-xl bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/5 hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
                 title="Search in chapter"
               >
-                <Search size={16} />
+                <Search size={14} />
               </button>
 
               <button 
@@ -1872,53 +1920,13 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
                   setShowSettingsDrawer(true);
                   setShowTOCDrawer(false);
                 }}
-                className="p-1.5 rounded-full hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+                className="p-2 rounded-xl bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/5 hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
                 title="Reader Settings"
               >
-                <Settings size={16} />
+                <Settings size={14} />
               </button>
             </div>
           </div>
-
-          {/* Table of Contents Drawer */}
-          {showTOCDrawer && (
-            <div className="fixed inset-0 z-[250] flex">
-              <div 
-                onClick={() => setShowTOCDrawer(false)}
-                className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-300"
-              />
-              <div className="relative w-80 max-w-[90%] h-full flex flex-col z-10 shadow-2xl bg-zinc-950/95 border-r border-white/10 text-white animate-in slide-in-from-left duration-300">
-                <div className="p-4 border-b border-white/10 flex items-center justify-between">
-                  <h3 className="font-bold text-xs uppercase tracking-wider text-indigo-400">Chapters List</h3>
-                  <button onClick={() => setShowTOCDrawer(false)} className="p-1 rounded-full hover:bg-white/10">
-                    <X size={16} />
-                  </button>
-                </div>
-                <div className="flex-1 overflow-y-auto p-3 space-y-1">
-                  {novelDetails?.chapters.map(c => {
-                    const isCurrent = c.id === activeChapter.id;
-                    return (
-                      <button
-                        key={c.id}
-                        onClick={() => {
-                          handleChapterSelect(c);
-                          setShowTOCDrawer(false);
-                        }}
-                        className={`w-full text-left p-2.5 text-xs rounded-xl transition-all ${
-                          isCurrent 
-                            ? 'bg-indigo-600 text-white font-bold' 
-                            : 'hover:bg-white/5 text-zinc-300 hover:text-white'
-                        }`}
-                      >
-                        {c.title}
-                        {c.date && <span className="block text-[10px] text-zinc-500 font-normal mt-0.5">{c.date}</span>}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-          )}
 
           {/* Custom Settings Drawer */}
           {showSettingsDrawer && (
