@@ -2280,6 +2280,36 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
               readingMode === 'infinite' ? 'overflow-y-auto' : 'overflow-hidden items-center'
             } py-16 px-4`}
           >
+            {/* Skeuomorphic Open Book Container Layout */}
+            {readingMode === 'book-mode' && (
+              <div 
+                className="absolute inset-x-6 inset-y-12 border border-black/10 dark:border-white/10 rounded-2xl pointer-events-none z-[50] shadow-2xl transition-all duration-300"
+                style={{
+                  backgroundColor: getThemeStyles().bg,
+                  boxShadow: theme === 'light'
+                    ? '0 10px 40px rgba(0,0,0,0.08), 0 4px 10px rgba(0,0,0,0.03)'
+                    : '0 10px 50px rgba(0,0,0,0.45), 0 4px 15px rgba(0,0,0,0.25)'
+                }}
+              >
+                {/* 2nd Stacked Page Layer effect */}
+                <div className="absolute inset-0 translate-x-1.5 translate-y-1 border border-black/5 dark:border-white/5 rounded-2xl -z-10 bg-inherit shadow-md" />
+                {/* 3rd Stacked Page Layer effect */}
+                <div className="absolute inset-0 translate-x-3 translate-y-2 border border-black/5 dark:border-white/5 rounded-2xl -z-20 bg-inherit opacity-70 shadow-sm" />
+                
+                {/* Center Book Spine binder crease */}
+                <div 
+                  className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-10 pointer-events-none z-[60] transition-all duration-300 opacity-70 dark:opacity-50"
+                  style={{
+                    background: 'linear-gradient(to right, transparent 0%, rgba(0,0,0,0.05) 30%, rgba(0,0,0,0.22) 50%, rgba(0,0,0,0.05) 70%, transparent 100%)'
+                  }}
+                />
+
+                {/* Left Page shadow gutter */}
+                <div className="absolute left-0 top-0 bottom-0 w-8 pointer-events-none z-[55] rounded-l-2xl bg-gradient-to-r from-black/[0.03] to-transparent dark:from-white/[0.01]" />
+                {/* Right Page shadow gutter */}
+                <div className="absolute right-0 top-0 bottom-0 w-8 pointer-events-none z-[55] rounded-r-2xl bg-gradient-to-l from-black/[0.03] to-transparent dark:from-white/[0.01]" />
+              </div>
+            )}
             {/* Left page navigation tap zone & floating arrow */}
             {readingMode !== 'infinite' && !chapterLoading && chapterContent && (
               <button 
@@ -2303,6 +2333,8 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
               ref={readerBodyRef}
               className="w-full select-text transition-all duration-300 scroll-smooth"
               style={{
+                position: 'relative',
+                zIndex: 100,
                 fontSize: `${fontSize}px`,
                 fontFamily: fontFamily,
                 lineHeight: lineHeight,
