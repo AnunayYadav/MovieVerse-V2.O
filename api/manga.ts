@@ -625,12 +625,14 @@ async function scrapeLightNovelWorldInfo(novelId: string) {
       const hrefMatch = onclick.match(/location\.href='([^']+)'/);
       const href = hrefMatch ? hrefMatch[1] : '';
       const cTitle = page$(el).find('.chapter-title').text().trim();
+      const cDate = page$(el).find('.chapter-time').text().trim();
       const id = href.replace(/^\//, ''); // e.g. "novel/shadow-slave/chapter/1/"
       if (id) {
         pageChapters.push({
           id,
           title: cTitle,
-          url: `${LIGHTNOVELWORLD_BASE}${href}`
+          url: `${LIGHTNOVELWORLD_BASE}${href}`,
+          date: cDate || null
         });
       }
     });

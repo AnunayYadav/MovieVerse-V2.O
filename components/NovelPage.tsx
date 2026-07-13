@@ -11,6 +11,7 @@ interface Novel {
   genres?: (string | { name: string; slug: string })[];
   rating?: number | null;
   bannerImage?: string | null;
+  providers?: { provider: string; id: string }[];
 }
 
 interface Chapter {
@@ -91,7 +92,7 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
   const [fontSize, setFontSize] = useState(18); // default to 18px for better premium readability
   const [fontFamily, setFontFamily] = useState('Lora, serif'); // default premium serif font
   const [theme, setTheme] = useState<'dark' | 'light' | 'amoled' | 'sepia' | 'paper' | 'grey' | 'custom'>('dark');
-  const [readingMode, setReadingMode] = useState<'infinite' | 'paged-horizontal' | 'paged-vertical' | 'book-mode'>('infinite');
+  const [readingMode] = useState<'infinite'>('infinite');
   const [textAlign, setTextAlign] = useState<'left' | 'center' | 'justify'>('justify');
   const [lineHeight, setLineHeight] = useState<number>(1.8);
   const [readerWidth, setReaderWidth] = useState<'narrow' | 'medium' | 'wide' | 'full'>('medium');
@@ -135,9 +136,6 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
 
       const storedTheme = localStorage.getItem('novel_theme');
       if (storedTheme) setTheme(storedTheme as any);
-
-      const storedReadingMode = localStorage.getItem('novel_reading_mode');
-      if (storedReadingMode) setReadingMode(storedReadingMode as any);
 
       const storedTextAlign = localStorage.getItem('novel_text_align');
       if (storedTextAlign) setTextAlign(storedTextAlign as any);
@@ -430,10 +428,63 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
         const list = json.data?.Page?.media?.map(mapAniListNovel) || [];
         setSearchResults(list);
       } else {
-        const res = await fetch(`/api/manga?action=search&provider=${readingSource}&query=${encodeURIComponent(query)}`);
-        if (!res.ok) throw new Error('Search failed');
-        const data = await res.json();
-        setSearchResults(data);
+        const providers = ['ranobes', 'lightnovelworld', 'allnovel', 'royalroad', 'scribblehub'];
+        const searchPromises = providers.map(async (prov) => {
+          try {
+            const res = await fetch(`/api/manga?action=search&provider=${prov}&query=${encodeURIComponent(query)}`);
+            if (!res.ok) return [];
+            const list = await res.json();
+            return (list || []).map((item: any) => ({ ...item, provider: prov }));
+          } catch (e) {
+            console.error(`Search failed for provider ${prov}:`, e);
+            return [];
+          }
+        });
+        const allResults = await Promise.all(searchPromises);
+        const flattened = allResults.flat();
+
+        const cleanString = (str: string) => {
+          return str.toLowerCase().replace(/[^a-z0-9]/g, '').trim();
+        };
+
+        const merged: Record<string, Novel & { providers: { provider: string; id: string }[] }> = {};
+        for (const item of flattened) {
+          const titleKey = cleanString(item.title);
+          const authorKey = cleanString(item.author || '');
+          const matchKey = Object.keys(merged).find(k => {
+            const [tKey, aKey] = k.split('_');
+            if (tKey === titleKey) {
+              if (!aKey || !authorKey || aKey === authorKey) {
+                return true;
+              }
+            }
+            return false;
+          });
+
+          if (matchKey) {
+            merged[matchKey].providers.push({ provider: item.provider, id: item.id });
+            if (!merged[matchKey].description && item.description) {
+              merged[matchKey].description = item.description;
+            }
+            if ((!merged[matchKey].image || merged[matchKey].image.includes('placeholder')) && item.image) {
+              merged[matchKey].image = item.image;
+            }
+          } else {
+            const newKey = titleKey + '_' + authorKey;
+            merged[newKey] = {
+              id: item.id,
+              title: item.title,
+              image: item.image,
+              author: item.author || 'Unknown',
+              description: item.description,
+              genres: item.genres,
+              rating: item.rating,
+              providers: [{ provider: item.provider, id: item.id }]
+            };
+          }
+        }
+        
+        setSearchResults(Object.values(merged));
       }
     } catch (err: any) {
       setError(err.message || 'An error occurred during search');
@@ -611,27 +662,37 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
     setDetailsTab('chapters');
 
     try {
-      const searchQueries = [
-        selectedNovel.title,
-        novelDetails.alternativeTitles?.english,
-        novelDetails.alternativeTitles?.romaji
-      ].filter(Boolean) as string[];
-
-      let searchData: any[] = [];
-      for (const q of searchQueries) {
-        try {
-          const searchRes = await fetch(`/api/manga?action=search&provider=${newSource}&query=${encodeURIComponent(q)}`);
-          if (searchRes.ok) {
-            searchData = await searchRes.json();
-            if (searchData && searchData.length > 0) break;
-          }
-        } catch (e) {
-          console.warn(`switchReadingSource query "${q}" failed:`, e);
+      let targetId = '';
+      if (selectedNovel.providers && selectedNovel.providers.length > 0) {
+        const match = selectedNovel.providers.find(p => p.provider === newSource);
+        if (match) {
+          targetId = match.id;
         }
       }
-      
-      const targetId = findBestMatchId(searchData, novelDetails, selectedNovel.title) || 
-                       selectedNovel.title.toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-');
+
+      if (!targetId) {
+        const searchQueries = [
+          selectedNovel.title,
+          novelDetails.alternativeTitles?.english,
+          novelDetails.alternativeTitles?.romaji
+        ].filter(Boolean) as string[];
+
+        let searchData: any[] = [];
+        for (const q of searchQueries) {
+          try {
+            const searchRes = await fetch(`/api/manga?action=search&provider=${newSource}&query=${encodeURIComponent(q)}`);
+            if (searchRes.ok) {
+              searchData = await searchRes.json();
+              if (searchData && searchData.length > 0) break;
+            }
+          } catch (e) {
+            console.warn(`switchReadingSource query "${q}" failed:`, e);
+          }
+        }
+        
+        targetId = findBestMatchId(searchData, novelDetails, selectedNovel.title) || 
+                   selectedNovel.title.toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-');
+      }
 
       const infoRes = await fetch(`/api/manga?action=info&provider=${newSource}&id=${encodeURIComponent(targetId)}`);
       if (!infoRes.ok) throw new Error(`Failed to load chapters from ${newSource}`);
@@ -667,6 +728,21 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
     setChaptersError(null);
     setError(null);
 
+    let sourceToUse = readingSource;
+    let providerId = novel.id;
+
+    if (novel.providers && novel.providers.length > 0) {
+      const match = novel.providers.find(p => p.provider === readingSource);
+      if (match) {
+        sourceToUse = match.provider;
+        providerId = match.id;
+      } else {
+        sourceToUse = novel.providers[0].provider as any;
+        providerId = novel.providers[0].id;
+        setReadingSource(sourceToUse);
+      }
+    }
+
     const isNumeric = novel.aniListId || (/^\d+$/.test(novel.id) ? parseInt(novel.id) : undefined);
 
     try {
@@ -674,10 +750,8 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
       const [aniListMeta, providerData] = await Promise.all([
         fetchAniListMetadata(novel.title, isNumeric),
         (async () => {
-          let providerId = novel.id;
-          
-          // Resolve provider slug ID if selected novel has numeric AniList ID or is from AniList
-          if (/^\d+$/.test(novel.id) || novel.aniListId) {
+          // Resolve provider slug ID if selected novel has numeric AniList ID or is from AniList and has no explicit provider mapping
+          if ((/^\d+$/.test(novel.id) || novel.aniListId) && (!novel.providers || novel.providers.length === 0)) {
             const currentAniListMeta = await fetchAniListMetadata(novel.title, isNumeric);
             const searchQueries = [
               novel.title,
@@ -688,7 +762,7 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
             let searchData: any[] = [];
             for (const q of searchQueries) {
               try {
-                const searchRes = await fetch(`/api/manga?action=search&provider=${readingSource}&query=${encodeURIComponent(q)}`);
+                const searchRes = await fetch(`/api/manga?action=search&provider=${sourceToUse}&query=${encodeURIComponent(q)}`);
                 if (searchRes.ok) {
                   searchData = await searchRes.json();
                   if (searchData && searchData.length > 0) break;
@@ -702,7 +776,7 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
                          novel.title.toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-');
           }
 
-          const res = await fetch(`/api/manga?action=info&provider=${readingSource}&id=${encodeURIComponent(providerId)}`);
+          const res = await fetch(`/api/manga?action=info&provider=${sourceToUse}&id=${encodeURIComponent(providerId)}`);
           if (!res.ok) throw new Error('Failed to load chapters for this source');
           return await res.json();
         })()
@@ -812,14 +886,6 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
       handleChapterSelect(prevChapter);
     }
   };
-
-  const updateReadingMode = (mode: 'infinite' | 'paged-horizontal' | 'paged-vertical' | 'book-mode') => {
-    setReadingMode(mode);
-    localStorage.setItem('novel_reading_mode', mode);
-    setCurrentPage(0);
-    setTimeout(updatePaginationInfo, 100);
-  };
-
   const updateTextAlign = (align: 'left' | 'center' | 'justify') => {
     setTextAlign(align);
     localStorage.setItem('novel_text_align', align);
@@ -1295,7 +1361,7 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
                 onClick={() => setSearchMode('provider')}
                 className={`text-[11px] font-bold py-1.5 px-4 rounded-full transition-all ${searchMode === 'provider' ? 'bg-indigo-600 text-white shadow-md' : 'text-zinc-400 hover:text-white'}`}
               >
-                Direct Scraper ({readingSource === 'allnovel' ? 'AllNovel' : readingSource === 'ranobes' ? 'WuxiaWorld' : readingSource === 'royalroad' ? 'Royal Road' : readingSource === 'scribblehub' ? 'Scribble Hub' : 'LightNovelWorld'})
+                Direct Scraper
               </button>
             </div>
           )}
@@ -2036,27 +2102,7 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
                   </div>
                 </div>
 
-                {/* Reading Mode */}
-                <div className="space-y-2">
-                  <span className="text-[10px] uppercase font-bold tracking-wider text-zinc-400">Reading Mode</span>
-                  <div className="grid grid-cols-3 bg-white/5 p-1 rounded-xl border border-white/5 text-[10px] font-semibold text-center">
-                    {[
-                      { label: 'Scroll', value: 'infinite' },
-                      { label: 'Page', value: 'paged-horizontal' },
-                      { label: 'Book', value: 'book-mode' }
-                    ].map(item => (
-                      <button
-                        key={item.value}
-                        onClick={() => updateReadingMode(item.value as any)}
-                        className={`py-1.5 rounded-lg transition-all ${
-                          readingMode === item.value ? 'bg-indigo-600 text-white' : 'text-zinc-400 hover:text-white'
-                        }`}
-                      >
-                        {item.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
+
 
                 {/* Line Spacing */}
                 <div className="space-y-2">
@@ -2131,88 +2177,15 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
           <div 
             ref={readerScrollContainerRef}
             onClick={handleContentClick}
-            className={`flex-1 w-full flex justify-center relative ${
-              readingMode === 'infinite' ? 'overflow-y-auto' : 'overflow-hidden items-center'
-            } py-16 px-4`}
+            className="flex-1 w-full flex justify-center relative overflow-y-auto py-16 px-4"
           >
-            {/* Left page navigation tap zone & floating arrow */}
-            {readingMode !== 'infinite' && !chapterLoading && chapterContent && (
-              <button 
-                onClick={handlePrevPage}
-                className={`absolute left-4 top-1/2 -translate-y-1/2 p-3 rounded-full border transition-all z-[150] shadow-md ${
-                  controlsVisible ? 'opacity-80 scale-100 hover:opacity-100' : 'opacity-0 scale-90 pointer-events-none'
-                }`}
-                style={{
-                  backgroundColor: getThemeStyles().bg,
-                  borderColor: getThemeStyles().border.split(' ')[0].split('-').slice(1).join('-') === 'zinc-200' ? '#e4e4e7' : 'rgba(255,255,255,0.08)',
-                  color: getThemeStyles().text
-                }}
-                title="Previous Page (Left Arrow)"
-              >
-                <ChevronLeft size={20} />
-              </button>
-            )}
-
-            {/* Centered Relative Content Wrapper (Forces backdrop page stack to line up with text columns exactly) */}
+            {/* Centered Relative Content Wrapper */}
             <div 
               className="relative w-full h-full flex items-center justify-center"
               style={{
-                maxWidth: readingMode === 'book-mode' ? '1200px' : readerWidth === 'narrow' ? '580px' : readerWidth === 'wide' ? '1050px' : '800px',
+                maxWidth: readerWidth === 'narrow' ? '580px' : readerWidth === 'wide' ? '1050px' : '800px',
               }}
             >
-              {/* Skeuomorphic Open Book Container Layout (Only in book-mode!) */}
-              {readingMode === 'book-mode' && (
-                <div className="absolute inset-0 pointer-events-none z-[40] transition-all duration-300">
-                  {/* Left Page Box */}
-                  <div 
-                    className="absolute left-[1.5%] right-[51%] inset-y-6 rounded-2xl border z-[45] shadow-xl transition-all"
-                    style={{
-                      backgroundColor: theme === 'amoled' ? '#121212' : getThemeStyles().bg,
-                      borderColor: theme === 'light' ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.06)'
-                    }}
-                  >
-                    {/* Stacked sheets below left page */}
-                    <div className="absolute inset-0 -translate-x-1.5 translate-y-1.5 rounded-2xl bg-inherit border border-black/5 dark:border-white/5 -z-10 opacity-75 shadow-md" />
-                  </div>
-
-                  {/* Right Page Box */}
-                  <div 
-                    className="absolute left-[51%] right-[1.5%] inset-y-6 rounded-2xl border z-[45] shadow-xl transition-all"
-                    style={{
-                      backgroundColor: theme === 'amoled' ? '#121212' : getThemeStyles().bg,
-                      borderColor: theme === 'light' ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.06)'
-                    }}
-                  >
-                    {/* Stacked sheets below right page */}
-                    <div className="absolute inset-0 translate-x-1.5 translate-y-1.5 rounded-2xl bg-inherit border border-black/5 dark:border-white/5 -z-10 opacity-75 shadow-md" />
-                  </div>
-
-                  {/* Center Book Spine binder crease shadow */}
-                  <div 
-                    className="absolute inset-y-6 left-1/2 -translate-x-1/2 w-10 pointer-events-none z-[48] transition-all duration-300 opacity-60 dark:opacity-40"
-                    style={{
-                      background: 'linear-gradient(to right, transparent 0%, rgba(0,0,0,0.04) 30%, rgba(0,0,0,0.2) 50%, rgba(0,0,0,0.04) 70%, transparent 100%)'
-                    }}
-                  />
-                </div>
-              )}
-
-              {/* Skeuomorphic Single Page Card Layout (Only in page flip mode!) */}
-              {readingMode === 'paged-horizontal' && (
-                <div className="absolute inset-0 pointer-events-none z-[40] transition-all duration-300">
-                  <div 
-                    className="absolute inset-x-4 inset-y-6 rounded-2xl border z-[45] shadow-xl transition-all"
-                    style={{
-                      backgroundColor: theme === 'amoled' ? '#121212' : getThemeStyles().bg,
-                      borderColor: theme === 'light' ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.06)'
-                    }}
-                  >
-                    {/* Stacked sheets below page */}
-                    <div className="absolute inset-0 translate-x-1.5 translate-y-1.5 rounded-2xl bg-inherit border border-black/5 dark:border-white/5 -z-10 opacity-75 shadow-md" />
-                  </div>
-                </div>
-              )}
-
               {/* Main Text Content wrapper */}
               <div 
                 ref={readerBodyRef}
@@ -2225,16 +2198,10 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
                   textAlign: 'justify',
                   fontWeight: 400,
                   width: '100%',
-                  height: readingMode === 'infinite' ? 'auto' : '82vh',
-                  overflowX: (readingMode === 'paged-horizontal' || readingMode === 'book-mode') ? 'auto' : 'visible',
-                  overflowY: (readingMode === 'infinite') ? 'visible' : 'hidden',
-                  columnWidth: readingMode === 'paged-horizontal' ? '100%' : (readingMode === 'book-mode' ? '46%' : 'auto'),
-                  columnCount: readingMode === 'book-mode' ? 2 : 'auto',
-                  columnGap: readingMode === 'book-mode' ? '8%' : '4%',
-                  padding: readingMode === 'infinite' 
-                    ? '0 16px' 
-                    : (readingMode === 'book-mode' ? '48px 6%' : '48px 8%'),
-                  scrollSnapType: readingMode === 'infinite' ? 'none' : 'x mandatory',
+                  height: 'auto',
+                  overflowX: 'visible',
+                  overflowY: 'visible',
+                  padding: '0 16px',
                 }}
               >
                 {chapterLoading ? (
@@ -2255,8 +2222,6 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
                         style={{ 
                           textIndent: '1.5rem',
                           lineHeight: lineHeight,
-                          breakInside: (readingMode === 'paged-horizontal' || readingMode === 'book-mode') ? 'avoid-column' : 'auto',
-                          WebkitBreakInside: (readingMode === 'paged-horizontal' || readingMode === 'book-mode') ? 'avoid-column' : 'auto',
                           marginBottom: paragraphSpacing === 'compact' ? '0.4rem' : paragraphSpacing === 'loose' ? '1.4rem' : '0.8rem'
                         }}
                       >
@@ -2266,13 +2231,7 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
 
                     {/* End of Chapter Navigation Buttons */}
                     {novelDetails && (
-                      <div 
-                        className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-12 pt-8 border-t border-black/5 dark:border-white/5 pb-16"
-                        style={{
-                          breakInside: (readingMode === 'paged-horizontal' || readingMode === 'book-mode') ? 'avoid-column' : 'auto',
-                          WebkitBreakInside: (readingMode === 'paged-horizontal' || readingMode === 'book-mode') ? 'avoid-column' : 'auto',
-                        }}
-                      >
+                      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-12 pt-8 border-t border-black/5 dark:border-white/5 pb-16">
                         <button
                           onClick={handlePrevChapter}
                           disabled={activeChapterIndex <= 0}
@@ -2298,34 +2257,6 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
                 ) : null}
               </div>
             </div>
-
-            {/* Subtle Page Counter Overlay (No full bar) */}
-            {readingMode !== 'infinite' && !chapterLoading && chapterContent && (
-              <div 
-                className="absolute bottom-3 right-5 text-[10px] opacity-40 font-mono pointer-events-none z-[160]"
-                style={{ color: getThemeStyles().text }}
-              >
-                Page {currentPage + 1} / {totalPages}
-              </div>
-            )}
-
-            {/* Right page navigation tap zone & floating arrow */}
-            {readingMode !== 'infinite' && !chapterLoading && chapterContent && (
-              <button 
-                onClick={handleNextPage}
-                className={`absolute right-4 top-1/2 -translate-y-1/2 p-3 rounded-full border transition-all z-[150] shadow-md ${
-                  controlsVisible ? 'opacity-80 scale-100 hover:opacity-100' : 'opacity-0 scale-90 pointer-events-none'
-                }`}
-                style={{
-                  backgroundColor: getThemeStyles().bg,
-                  borderColor: getThemeStyles().border.split(' ')[0].split('-').slice(1).join('-') === 'zinc-200' ? '#e4e4e7' : 'rgba(255,255,255,0.08)',
-                  color: getThemeStyles().text
-                }}
-                title="Next Page (Right Arrow / Space)"
-              >
-                <ChevronRight size={20} />
-              </button>
-            )}
           </div>
         </div>
       )}
