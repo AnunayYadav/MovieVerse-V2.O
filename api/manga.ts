@@ -110,7 +110,9 @@ async function scrapeWuxiaWorldInfo(novelId: string) {
     id: novelId,
     title: infoJson.name,
     image: infoJson.image || '',
-    author: infoJson.author || '',
+    author: typeof infoJson.author === 'object' && infoJson.author !== null
+      ? (infoJson.author.name || '')
+      : (infoJson.author || ''),
     description: infoJson.description || '',
     genres,
     rating: infoJson.rating ? parseFloat(infoJson.rating) : null,
