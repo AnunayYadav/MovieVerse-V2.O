@@ -4887,7 +4887,10 @@ export default function App() {
                             profile={userProfile}
                         />
                     ) : selectedCategory === "Novels" ? (
-                        <NovelPage />
+                        <NovelPage
+                            searchQuery={searchQuery}
+                            onSearchClear={() => setSearchQuery('')}
+                        />
                     ) : selectedCategory === "Dramas" ? (
                         <DramaPage
                             apiKey={apiKey}
