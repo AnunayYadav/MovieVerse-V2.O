@@ -439,6 +439,34 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
     }
   };
 
+  const findBestMatchId = (searchData: any[], aniListMeta: any, originalTitle: string): string => {
+    if (!searchData || searchData.length === 0) return '';
+    
+    const targets = [
+      originalTitle.toLowerCase(),
+      aniListMeta?.alternativeTitles?.english?.toLowerCase(),
+      aniListMeta?.alternativeTitles?.romaji?.toLowerCase(),
+      aniListMeta?.alternativeTitles?.native?.toLowerCase()
+    ].filter(Boolean);
+
+    // Try exact match first
+    for (const target of targets) {
+      const exactMatch = searchData.find(x => x.title.toLowerCase() === target);
+      if (exactMatch) return exactMatch.id;
+    }
+
+    // Try fuzzy match (includes)
+    for (const target of targets) {
+      const includesMatch = searchData.find(x => 
+        x.title.toLowerCase().includes(target) || target.includes(x.title.toLowerCase())
+      );
+      if (includesMatch) return includesMatch.id;
+    }
+
+    // Default fallback to first search result
+    return searchData[0].id;
+  };
+
   const switchReadingSource = async (newSource: 'ranobes' | 'royalroad' | 'scribblehub') => {
     if (!selectedNovel || !novelDetails) return;
     setReadingSource(newSource);
@@ -452,13 +480,8 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
       if (!searchRes.ok) throw new Error(`Search on ${newSource} failed`);
       const searchData = await searchRes.json();
       
-      let targetId = '';
-      if (searchData && searchData.length > 0) {
-        const match = searchData.find((x: any) => x.title.toLowerCase() === selectedNovel.title.toLowerCase()) || searchData[0];
-        targetId = match.id;
-      } else {
-        targetId = selectedNovel.title.toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-');
-      }
+      const targetId = findBestMatchId(searchData, novelDetails, selectedNovel.title) || 
+                       selectedNovel.title.toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-');
 
       const infoRes = await fetch(`/api/manga?action=info&provider=${newSource}&id=${encodeURIComponent(targetId)}`);
       if (!infoRes.ok) throw new Error(`Failed to load chapters from ${newSource}`);
@@ -468,7 +491,7 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
         if (!prev) return null;
         return {
           ...prev,
-          ...data,
+          // STRICTLY preserve existing metadata, only copy chapters!
           chapters: data.chapters || []
         };
       });
@@ -509,12 +532,11 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
             const searchRes = await fetch(`/api/manga?action=search&provider=${readingSource}&query=${encodeURIComponent(novel.title)}`);
             if (searchRes.ok) {
               const searchData = await searchRes.json();
-              if (searchData && searchData.length > 0) {
-                const match = searchData.find((x: any) => x.title.toLowerCase() === novel.title.toLowerCase()) || searchData[0];
-                providerId = match.id;
-              } else {
-                providerId = novel.title.toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-');
-              }
+              
+              // We fetch AniList meta first to help resolve exact match
+              const currentAniListMeta = await fetchAniListMetadata(novel.title, isNumeric);
+              providerId = findBestMatchId(searchData, currentAniListMeta, novel.title) || 
+                           novel.title.toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-');
             }
           }
 
@@ -528,11 +550,13 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
         if (!prev) return null;
         return {
           ...prev,
-          ...providerData,
           ...(aniListMeta || {}),
           chapters: providerData.chapters || [],
-          image: providerData.image || prev.image,
-          title: providerData.title || prev.title,
+          // STRICTLY protect core metadata from provider overwrites
+          title: prev.title || novel.title,
+          image: prev.image || novel.image,
+          description: prev.description || novel.description,
+          author: prev.author || novel.author,
         };
       });
     } catch (err: any) {
