@@ -818,13 +818,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (action === 'proxy-image') {
       let imageUrl = req.query.url;
-      const refererUrl = req.query.referer || (
-        providerKey === 'lightnovelworld' ? LIGHTNOVELWORLD_BASE : (
-          providerKey === 'allnovel' ? 'https://allnovel.org' : (
-            ['novelfull', 'ranobes', 'wuxiaworld'].includes(providerKey) ? WUXIAWORLD_BASE : provider.baseUrl
-          )
-        )
-      );
       if (!imageUrl || typeof imageUrl !== 'string') {
         return res.status(400).json({ error: 'URL parameter is required' });
       }
@@ -836,28 +829,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         imageUrl = `${base}${imageUrl}`;
       }
 
-      const headers: Record<string, string> = {
-        'User-Agent': USER_AGENT
-      };
-
-      if (refererUrl && typeof refererUrl === 'string') {
-        headers['Referer'] = refererUrl;
-      }
-
-      const response = await fetch(imageUrl, { headers });
-      if (!response.ok) {
-        return res.status(response.status).json({ error: `Proxy fetch failed: ${response.statusText}` });
-      }
-
-      const contentType = response.headers.get('content-type');
-      if (contentType) {
-        res.setHeader('Content-Type', contentType);
-      }
-
-      res.setHeader('Cache-Control', 'public, max-age=86400, s-maxage=86400');
-
-      const arrayBuffer = await response.arrayBuffer();
-      return res.status(200).send(Buffer.from(arrayBuffer));
+      // Redirect browser directly to CDN to save Vercel bandwidth and CPU usage
+      res.writeHead(302, { 'Location': imageUrl });
+      return res.end();
     }
 
     return res.status(400).json({ error: `Invalid action: ${action}` });

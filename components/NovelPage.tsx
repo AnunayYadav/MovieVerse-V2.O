@@ -1193,6 +1193,7 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
                   <img 
                     src={proxiedImage} 
                     alt={novel.title} 
+                    referrerPolicy="no-referrer"
                     className="w-full h-full object-cover group-hover:scale-105 transition-all duration-500"
                     loading="lazy"
                   />
@@ -1410,6 +1411,7 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
                 <img 
                   src={featuredNovel.image} 
                   alt={featuredNovel.title} 
+                  referrerPolicy="no-referrer"
                   className="hidden md:block w-32 aspect-[3/4] object-cover rounded-2xl shadow-2xl border border-white/10"
                 />
                 <div className="space-y-4 max-w-xl text-left">
@@ -1496,6 +1498,7 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
               <img 
                 src={novelDetails.bannerImage || novelDetails.image} 
                 alt="Banner" 
+                referrerPolicy="no-referrer"
                 className="w-full h-full object-cover filter blur-[3px] opacity-15"
               />
               <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#030303]/60 to-[#030303]" />
@@ -1520,6 +1523,7 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
                     <img 
                       src={novelDetails.image.startsWith('/') ? `/api/manga?action=proxy-image&provider=${readingSource}&url=${encodeURIComponent(novelDetails.image)}` : novelDetails.image} 
                       alt={novelDetails.title} 
+                      referrerPolicy="no-referrer"
                       className="w-full h-full object-cover"
                       onError={(e) => {
                         (e.target as HTMLElement).style.display = 'none';
@@ -1736,7 +1740,7 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
                       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4 text-center">
                         {novelDetails.characters.map((char, index) => (
                           <div key={index} className="flex flex-col items-center bg-zinc-900/30 border border-white/5 rounded-2xl p-3 shadow-md">
-                            <img src={char.image} alt={char.name} className="w-16 h-16 rounded-full object-cover mb-2 border border-white/10" />
+                            <img src={char.image} alt={char.name} referrerPolicy="no-referrer" className="w-16 h-16 rounded-full object-cover mb-2 border border-white/10" />
                             <span className="text-[11px] font-bold text-white line-clamp-1">{char.name}</span>
                             <span className="text-[9px] text-zinc-500 line-clamp-1 capitalize">{char.role.toLowerCase()}</span>
                           </div>
@@ -1759,7 +1763,7 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
                               className={`flex flex-col bg-zinc-900/30 border border-white/5 rounded-xl overflow-hidden transition-all ${isNovel ? 'hover:border-indigo-500/50 cursor-pointer hover:scale-[1.02]' : 'opacity-70'}`}
                               onClick={() => handleRelationClick(rel)}
                             >
-                              <img src={rel.image} alt={rel.title} className="w-full aspect-[2/3] object-cover" />
+                              <img src={rel.image} alt={rel.title} referrerPolicy="no-referrer" className="w-full aspect-[2/3] object-cover" />
                               <div className="p-2 space-y-0.5">
                                 <span className="text-[10px] font-bold text-white line-clamp-1">{rel.title}</span>
                                 <span className="text-[8px] text-zinc-500 uppercase font-semibold leading-none">
@@ -1787,7 +1791,7 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
                               className={`flex flex-col bg-zinc-900/30 border border-white/5 rounded-xl overflow-hidden transition-all ${isNovel ? 'hover:border-indigo-500/50 cursor-pointer hover:scale-[1.02]' : 'opacity-70'}`}
                               onClick={() => handleRelationClick(rec)}
                             >
-                              <img src={rec.image} alt={rec.title} className="w-full aspect-[2/3] object-cover" />
+                              <img src={rec.image} alt={rec.title} referrerPolicy="no-referrer" className="w-full aspect-[2/3] object-cover" />
                               <div className="p-2 space-y-0.5">
                                 <span className="text-[10px] font-bold text-white line-clamp-1">{rec.title}</span>
                                 <span className="text-[8px] text-zinc-500 uppercase font-semibold leading-none">{rec.format}</span>
@@ -1835,6 +1839,7 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
               <img 
                 src={novelDetails?.image || selectedNovel?.image} 
                 alt="blur background" 
+                referrerPolicy="no-referrer"
                 className={`w-full h-full object-cover scale-110 filter blur-[80px] transition-all duration-700 ${
                   theme === 'sepia' || theme === 'paper'
                     ? 'opacity-[0.22]' 

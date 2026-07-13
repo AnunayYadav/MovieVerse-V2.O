@@ -101,6 +101,19 @@ export const PROVIDERS: Provider[] = [
     supportsPostMessage: true
   },
   {
+    id: 'vidnest',
+    name: 'VidNest',
+    getMovieUrl: (tmdbId, color, progress, isAnime, anilistId, animeLanguage = 'sub') => 
+      isAnime && anilistId
+        ? `https://vidnest.fun/anime/${anilistId}/1/${animeLanguage}`
+        : `https://vidnest.fun/movie/${tmdbId}${progress && progress > 0 ? `?startAt=${Math.floor(progress)}` : ''}`,
+    getTvUrl: (tmdbId, season, episode, color, progress, isAnime, anilistId, animeLanguage = 'sub') => 
+      isAnime && anilistId
+        ? `https://vidnest.fun/anime/${anilistId}/${episode}/${animeLanguage}`
+        : `https://vidnest.fun/tv/${tmdbId}/${season}/${episode}${progress && progress > 0 ? `?progress=${Math.floor(progress)}` : ''}`,
+    supportsPostMessage: false
+  },
+  {
     id: 'vidnest_animepahe',
     name: 'AnimePahe',
     getMovieUrl: (tmdbId, color, progress, isAnime, anilistId, animeLanguage = 'sub') => 
@@ -149,7 +162,7 @@ export const getFilteredProviders = (isAnime: boolean, isWatchParty: boolean = f
   let list = PROVIDERS.filter(p => {
     if (isWatchParty && !p.supportsPostMessage) return false;
     if (isAnimeDirect) {
-      return p.id === 'megaplay' || p.id === 'anikai' || p.id === 'vidnest_animepahe';
+      return p.id === 'megaplay' || p.id === 'anikai' || p.id === 'vidnest_animepahe' || p.id === 'vidnest';
     }
     if (!isAnime) {
       return p.id !== 'vidnest_animepahe' && p.id !== 'anikai' && p.id !== 'megaplay';

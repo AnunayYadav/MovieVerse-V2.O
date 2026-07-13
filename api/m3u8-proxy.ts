@@ -18,7 +18,16 @@ function rewriteM3U8(manifestText: string, playlistUrl: string, proxyBaseUrl: st
 
     // It's a segment or child playlist URL
     const absoluteUri = new URL(trimmed, playlistUrl).toString();
-    return `${proxyBaseUrl}?url=${encodeURIComponent(absoluteUri)}${refererParam}`;
+    
+    // Check if the URL is a child playlist (usually contains .m3u8 or .m3u)
+    const isPlaylist = absoluteUri.toLowerCase().includes('.m3u8') || absoluteUri.toLowerCase().includes('.m3u');
+    if (isPlaylist) {
+      return `${proxyBaseUrl}?url=${encodeURIComponent(absoluteUri)}${refererParam}`;
+    }
+    
+    // For segment files (e.g., .ts, .m4s, etc.), return the absolute CDN URL directly.
+    // This allows the browser to stream segments directly from the CDN, bypassing Vercel entirely.
+    return absoluteUri;
   });
 
   return rewrittenLines.join('\n');
