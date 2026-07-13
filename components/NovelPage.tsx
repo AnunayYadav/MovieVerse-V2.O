@@ -72,7 +72,7 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
   const [novelDetails, setNovelDetails] = useState<NovelDetails | null>(null);
   const [detailsLoading, setDetailsLoading] = useState(false);
   const [detailsTab, setDetailsTab] = useState<'chapters' | 'characters' | 'relations' | 'recommendations'>('chapters');
-  const [readingSource, setReadingSource] = useState<'ranobes' | 'royalroad' | 'scribblehub' | 'lightnovelworld'>('ranobes');
+  const [readingSource, setReadingSource] = useState<'ranobes' | 'royalroad' | 'scribblehub' | 'lightnovelworld'>('lightnovelworld');
   const [chaptersLoading, setChaptersLoading] = useState(false);
   const [chaptersError, setChaptersError] = useState<string | null>(null);
 
@@ -402,13 +402,15 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
       const media = json.data?.Media;
       if (!media) return null;
 
+      const displayTitle = media.title?.english || media.title?.romaji || media.title?.userPreferred || '';
+      const altTitles: Record<string, string> = {};
+      if (media.title?.english && media.title.english !== displayTitle) altTitles.english = media.title.english;
+      if (media.title?.romaji && media.title.romaji !== displayTitle) altTitles.romaji = media.title.romaji;
+      if (media.title?.native) altTitles.native = media.title.native;
+
       return {
         bannerImage: media.bannerImage,
-        alternativeTitles: {
-          english: media.title?.english,
-          romaji: media.title?.romaji,
-          native: media.title?.native
-        },
+        alternativeTitles: Object.keys(altTitles).length > 0 ? altTitles : undefined,
         status: media.status,
         startDateYear: media.startDate?.year,
         rating: media.averageScore ? media.averageScore / 10 : null,
@@ -557,6 +559,12 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
           image: prev.image || novel.image,
           description: prev.description || novel.description,
           author: prev.author || novel.author,
+          // Preserve alternativeTitles: prefer AniList, keep previous, or build from provider data
+          alternativeTitles: aniListMeta?.alternativeTitles || prev.alternativeTitles || (
+            providerData.title && providerData.title !== (prev.title || novel.title)
+              ? { english: providerData.title }
+              : undefined
+          ),
         };
       });
     } catch (err: any) {
@@ -1032,20 +1040,6 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
                         {bookmarks.some(b => b.id === novelDetails.id) ? 'Bookmarked' : 'Add to Library'}
                       </button>
                     </div>
-                    {/* Source Selector Dropdown */}
-                    <div className="flex items-center justify-center md:justify-start gap-2.5 pt-1 text-xs text-zinc-400">
-                      <span className="font-semibold">Source:</span>
-                      <select 
-                        value={readingSource}
-                        onChange={(e) => switchReadingSource(e.target.value as any)}
-                        className="bg-zinc-900/80 border border-white/10 rounded-xl px-3 py-1.5 text-xs font-semibold text-white focus:outline-none focus:border-indigo-500 transition-colors cursor-pointer"
-                      >
-                        <option value="ranobes">WuxiaWorld (Recommended)</option>
-                        <option value="lightnovelworld">Light Novel World</option>
-                        <option value="royalroad">Royal Road</option>
-                        <option value="scribblehub">Scribble Hub</option>
-                      </select>
-                    </div>
                   </div>
                 </div>
 
@@ -1092,6 +1086,21 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
                   
                   {/* CHAPTERS TAB */}
                   {detailsTab === 'chapters' && (
+                    <>
+                    {/* Source Selector Dropdown */}
+                    <div className="flex items-center gap-2.5 pb-4 text-xs text-zinc-400">
+                      <span className="font-semibold">Source:</span>
+                      <select 
+                        value={readingSource}
+                        onChange={(e) => switchReadingSource(e.target.value as any)}
+                        className="bg-zinc-900/80 border border-white/10 rounded-xl px-3 py-1.5 text-xs font-semibold text-white focus:outline-none focus:border-indigo-500 transition-colors cursor-pointer"
+                      >
+                        <option value="lightnovelworld">Light Novel World (Recommended)</option>
+                        <option value="ranobes">WuxiaWorld</option>
+                        <option value="royalroad">Royal Road</option>
+                        <option value="scribblehub">Scribble Hub</option>
+                      </select>
+                    </div>
                     chaptersLoading ? (
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-2 pr-1">
                         {[...Array(8)].map((_, i) => (
@@ -1133,6 +1142,7 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
                         })}
                       </div>
                     )
+                  </>
                   )}
 
                   {/* CHARACTERS TAB */}
