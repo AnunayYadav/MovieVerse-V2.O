@@ -72,7 +72,7 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
   const [novelDetails, setNovelDetails] = useState<NovelDetails | null>(null);
   const [detailsLoading, setDetailsLoading] = useState(false);
   const [detailsTab, setDetailsTab] = useState<'chapters' | 'characters' | 'relations' | 'recommendations'>('chapters');
-  const [readingSource, setReadingSource] = useState<'ranobes' | 'royalroad' | 'scribblehub'>('ranobes');
+  const [readingSource, setReadingSource] = useState<'ranobes' | 'royalroad' | 'scribblehub' | 'lightnovelworld'>('ranobes');
   const [chaptersLoading, setChaptersLoading] = useState(false);
   const [chaptersError, setChaptersError] = useState<string | null>(null);
 
@@ -467,7 +467,7 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
     return searchData[0].id;
   };
 
-  const switchReadingSource = async (newSource: 'ranobes' | 'royalroad' | 'scribblehub') => {
+  const switchReadingSource = async (newSource: 'ranobes' | 'royalroad' | 'scribblehub' | 'lightnovelworld') => {
     if (!selectedNovel || !novelDetails) return;
     setReadingSource(newSource);
     
@@ -675,7 +675,7 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
             const isBookmarked = bookmarks.some(b => b.id === novel.id);
             const progress = readingProgress[novel.id];
             const proxiedImage = novel.image.startsWith('/')
-              ? `/api/manga?action=proxy-image&provider=ranobes&url=${encodeURIComponent(novel.image)}`
+              ? `/api/manga?action=proxy-image&provider=${readingSource}&url=${encodeURIComponent(novel.image)}`
               : novel.image;
 
             return (
@@ -933,7 +933,7 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
                   {/* Glassmorphic custom book cover */}
                   <div className="w-40 aspect-[3/4] rounded-2xl overflow-hidden border border-white/10 shadow-2xl bg-zinc-950 mx-auto md:mx-0 shrink-0 relative group">
                     <img 
-                      src={novelDetails.image.startsWith('/') ? `/api/manga?action=proxy-image&provider=ranobes&url=${encodeURIComponent(novelDetails.image)}` : novelDetails.image} 
+                      src={novelDetails.image.startsWith('/') ? `/api/manga?action=proxy-image&provider=${readingSource}&url=${encodeURIComponent(novelDetails.image)}` : novelDetails.image} 
                       alt={novelDetails.title} 
                       className="w-full h-full object-cover"
                       onError={(e) => {
@@ -1041,6 +1041,7 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
                         className="bg-zinc-900/80 border border-white/10 rounded-xl px-3 py-1.5 text-xs font-semibold text-white focus:outline-none focus:border-indigo-500 transition-colors cursor-pointer"
                       >
                         <option value="ranobes">WuxiaWorld (Recommended)</option>
+                        <option value="lightnovelworld">Light Novel World</option>
                         <option value="royalroad">Royal Road</option>
                         <option value="scribblehub">Scribble Hub</option>
                       </select>

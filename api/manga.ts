@@ -16,6 +16,7 @@ const providers: Record<string, any> = {
 };
 
 const WUXIAWORLD_BASE = 'https://wuxiaworld.eu';
+const LIGHTNOVELWORLD_BASE = 'https://lightnovelworld.org';
 const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36';
 
 const BROWSER_HEADERS: Record<string, string> = {
@@ -329,6 +330,135 @@ async function scrapeScribbleHubChapter(chapterId: string) {
   };
 }
 
+async function scrapeLightNovelWorldSearch(query: string) {
+  const url = `${LIGHTNOVELWORLD_BASE}/api/search/?q=${encodeURIComponent(query)}`;
+  const res = await fetch(url, { headers: BROWSER_HEADERS });
+  if (!res.ok) throw new Error(`Search failed: ${res.statusText}`);
+  const json = await res.json();
+  const rawResults = json.novels || [];
+
+  return rawResults.map((item: any) => ({
+    id: item.slug,
+    title: item.title,
+    image: item.cover_path || '',
+    author: item.author || '',
+    description: `Rank: ${item.rank || 'N/A'} | Status: ${item.status || 'Ongoing'}`
+  }));
+}
+
+async function scrapeLightNovelWorldInfo(novelId: string) {
+  const url = `${LIGHTNOVELWORLD_BASE}/novel/${novelId}/`;
+  const html = await novelFetch(url);
+  const $ = cheerio.load(html);
+
+  const title = $('h1.novel-title').text().trim() || novelId;
+  const author = $('a.author-link').first().text().trim() || 'Unknown';
+  const description = $('.summary-content').text().trim() || '';
+  const image = $('img.novel-cover').attr('src') || '';
+
+  const genres: string[] = [];
+  $('.genre-tags .genre-tag').each((_, el) => {
+    genres.push($(el).text().trim());
+  });
+
+  const ratingText = $('.rating-number').text().trim();
+  const rating = ratingText ? parseFloat(ratingText) : null;
+
+  const chapters: any[] = [];
+  const firstPageHtml = await novelFetch(`${LIGHTNOVELWORLD_BASE}/novel/${novelId}/chapters/`);
+  const $first = cheerio.load(firstPageHtml);
+
+  // Extract page count
+  let totalPages = 1;
+  const pageOptions = $first('#pageSelect option');
+  if (pageOptions.length > 0) {
+    totalPages = pageOptions.length;
+  } else {
+    const lastPageLink = $first('.page-link[title="Last Page"]').attr('href');
+    if (lastPageLink) {
+      const match = lastPageLink.match(/page=(\d+)/);
+      if (match) totalPages = parseInt(match[1]);
+    }
+  }
+
+  function parsePage(pageHtml: string) {
+    const page$ = cheerio.load(pageHtml);
+    page$('.chapter-card').each((_, el) => {
+      const onclick = page$(el).attr('onclick') || '';
+      const hrefMatch = onclick.match(/location\.href='([^']+)'/);
+      const href = hrefMatch ? hrefMatch[1] : '';
+      const cTitle = page$(el).find('.chapter-title').text().trim();
+      const id = href.replace(/^\//, ''); // e.g. "novel/shadow-slave/chapter/1/"
+      if (id) {
+        chapters.push({
+          id,
+          title: cTitle,
+          url: `${LIGHTNOVELWORLD_BASE}${href}`
+        });
+      }
+    });
+  }
+
+  parsePage(firstPageHtml);
+
+  if (totalPages > 1) {
+    const remainingPages = [];
+    for (let p = 2; p <= totalPages; p++) {
+      remainingPages.push(p);
+    }
+
+    const BATCH_SIZE = 8;
+    for (let i = 0; i < remainingPages.length; i += BATCH_SIZE) {
+      const batch = remainingPages.slice(i, i + BATCH_SIZE);
+      await Promise.all(
+        batch.map(async (page) => {
+          try {
+            const pageHtml = await novelFetch(`${LIGHTNOVELWORLD_BASE}/novel/${novelId}/chapters/?page=${page}`);
+            parsePage(pageHtml);
+          } catch (err: any) {
+            console.error(`Error scraping page ${page}:`, err.message);
+          }
+        })
+      );
+      if (i + BATCH_SIZE < remainingPages.length) {
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
+    }
+  }
+
+  return {
+    id: novelId,
+    title,
+    image,
+    author,
+    description,
+    genres,
+    rating,
+    chapters
+  };
+}
+
+async function scrapeLightNovelWorldChapter(chapterId: string) {
+  const url = `${LIGHTNOVELWORLD_BASE}/${chapterId}`;
+  const html = await novelFetch(url);
+  const $ = cheerio.load(html);
+
+  const title = $('.chapter-title').first().text().trim() || 'Chapter';
+  const paragraphs: string[] = [];
+  $('#chapterText p, .chapter-text p').each((_, el) => {
+    const text = $(el).text().trim();
+    if (text) {
+      paragraphs.push(text);
+    }
+  });
+
+  return {
+    title,
+    paragraphs,
+    nextChapterId: null,
+    prevChapterId: null
+  };
+}
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Set CORS headers to allow cross-origin requests
@@ -351,7 +481,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const providerKey = typeof providerQuery === 'string' ? providerQuery.toLowerCase() : 'mangapill';
 
   try {
-    if (['novelfull', 'ranobes', 'wuxiaworld', 'royalroad', 'scribblehub'].includes(providerKey)) {
+    if (['novelfull', 'ranobes', 'wuxiaworld', 'royalroad', 'scribblehub', 'lightnovelworld'].includes(providerKey)) {
       if (action === 'search') {
         if (!query || typeof query !== 'string') {
           return res.status(400).json({ error: 'Query parameter is required' });
@@ -361,6 +491,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           results = await scrapeRoyalRoadSearch(query);
         } else if (providerKey === 'scribblehub') {
           results = await scrapeScribbleHubSearch(query);
+        } else if (providerKey === 'lightnovelworld') {
+          results = await scrapeLightNovelWorldSearch(query);
         } else {
           results = await scrapeWuxiaWorldSearch(query);
         }
@@ -376,6 +508,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           data = await scrapeRoyalRoadInfo(id);
         } else if (providerKey === 'scribblehub') {
           data = await scrapeScribbleHubInfo(id);
+        } else if (providerKey === 'lightnovelworld') {
+          data = await scrapeLightNovelWorldInfo(id);
         } else {
           data = await scrapeWuxiaWorldInfo(id);
         }
@@ -391,6 +525,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           data = await scrapeRoyalRoadChapter(id);
         } else if (providerKey === 'scribblehub') {
           data = await scrapeScribbleHubChapter(id);
+        } else if (providerKey === 'lightnovelworld') {
+          data = await scrapeLightNovelWorldChapter(id);
         } else {
           data = await scrapeWuxiaWorldChapter(id);
         }
@@ -427,10 +563,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     if (action === 'proxy-image') {
-      const imageUrl = req.query.url;
-      const refererUrl = req.query.referer || (['novelfull', 'ranobes', 'wuxiaworld'].includes(providerKey) ? WUXIAWORLD_BASE : provider.baseUrl);
+      let imageUrl = req.query.url;
+      const refererUrl = req.query.referer || (
+        providerKey === 'lightnovelworld' ? LIGHTNOVELWORLD_BASE : (
+          ['novelfull', 'ranobes', 'wuxiaworld'].includes(providerKey) ? WUXIAWORLD_BASE : provider.baseUrl
+        )
+      );
       if (!imageUrl || typeof imageUrl !== 'string') {
         return res.status(400).json({ error: 'URL parameter is required' });
+      }
+
+      if (imageUrl.startsWith('/')) {
+        const base = providerKey === 'lightnovelworld' ? LIGHTNOVELWORLD_BASE : WUXIAWORLD_BASE;
+        imageUrl = `${base}${imageUrl}`;
       }
 
       const headers: Record<string, string> = {
