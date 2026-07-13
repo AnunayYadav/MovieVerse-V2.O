@@ -73,7 +73,7 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
   const [detailsLoading, setDetailsLoading] = useState(false);
   const [detailsTab, setDetailsTab] = useState<'chapters' | 'characters' | 'relations' | 'recommendations'>('chapters');
   const [searchMode, setSearchMode] = useState<'database' | 'provider'>('database');
-  const [readingSource, setReadingSource] = useState<'ranobes' | 'royalroad' | 'scribblehub' | 'lightnovelworld' | 'allnovel'>('allnovel');
+  const [readingSource, setReadingSource] = useState<'ranobes' | 'royalroad' | 'scribblehub' | 'lightnovelworld' | 'allnovel'>('ranobes');
   const [chaptersLoading, setChaptersLoading] = useState(false);
   const [chaptersError, setChaptersError] = useState<string | null>(null);
 
@@ -87,13 +87,19 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
   const [readingProgress, setReadingProgress] = useState<Record<string, { chapterId: string; chapterTitle: string }>>({});
 
   // Reader UI settings
-  const [fontSize, setFontSize] = useState(16); // in pixels
-  const [fontFamily, setFontFamily] = useState('system-ui'); // 'system-ui', 'Georgia', 'monospace'
+  const [fontSize, setFontSize] = useState(18); // default to 18px for better premium readability
+  const [fontFamily, setFontFamily] = useState('Lora, serif'); // default premium serif font
   const [theme, setTheme] = useState<'dark' | 'light' | 'sepia'>('dark');
+  const [readingMode, setReadingMode] = useState<'infinite' | 'paged-horizontal' | 'paged-vertical' | 'book-mode'>('infinite');
+  const [textAlign, setTextAlign] = useState<'left' | 'justify'>('justify');
+  const [lineHeight, setLineHeight] = useState<number>(1.8);
+  const [currentPage, setCurrentPage] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
   const [showSettings, setShowSettings] = useState(false);
   const [showChapterListDropdown, setShowChapterListDropdown] = useState(false);
 
   const readerContainerRef = useRef<HTMLDivElement>(null);
+  const readerBodyRef = useRef<HTMLDivElement>(null);
 
   // Load bookmarks and progress from localStorage
   useEffect(() => {
@@ -112,6 +118,15 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
 
       const storedTheme = localStorage.getItem('novel_theme');
       if (storedTheme) setTheme(storedTheme as any);
+
+      const storedReadingMode = localStorage.getItem('novel_reading_mode');
+      if (storedReadingMode) setReadingMode(storedReadingMode as any);
+
+      const storedTextAlign = localStorage.getItem('novel_text_align');
+      if (storedTextAlign) setTextAlign(storedTextAlign as any);
+
+      const storedLineHeight = localStorage.getItem('novel_line_height');
+      if (storedLineHeight) setLineHeight(parseFloat(storedLineHeight));
     } catch (err) {
       console.error('Error loading novel local storage:', err);
     }
@@ -758,6 +773,151 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
     }
   };
 
+  const updateReadingMode = (mode: 'infinite' | 'paged-horizontal' | 'paged-vertical' | 'book-mode') => {
+    setReadingMode(mode);
+    localStorage.setItem('novel_reading_mode', mode);
+    setCurrentPage(0);
+    setTimeout(updatePaginationInfo, 100);
+  };
+
+  const updateTextAlign = (align: 'left' | 'justify') => {
+    setTextAlign(align);
+    localStorage.setItem('novel_text_align', align);
+    setTimeout(updatePaginationInfo, 100);
+  };
+
+  const updateLineHeight = (val: number) => {
+    setLineHeight(val);
+    localStorage.setItem('novel_line_height', val.toString());
+    setTimeout(updatePaginationInfo, 100);
+  };
+
+  const updatePaginationInfo = useCallback(() => {
+    const el = readerBodyRef.current;
+    if (!el || readingMode === 'infinite') return;
+
+    if (readingMode === 'paged-horizontal' || readingMode === 'book-mode') {
+      const colGap = readingMode === 'book-mode' ? 48 : 32;
+      const width = el.clientWidth;
+      const scrollWidth = el.scrollWidth;
+      const pages = Math.max(1, Math.ceil(scrollWidth / (width + colGap)));
+      const curr = Math.round(el.scrollLeft / (width + colGap));
+      setTotalPages(pages);
+      setCurrentPage(curr);
+    } else if (readingMode === 'paged-vertical') {
+      const height = el.clientHeight;
+      const scrollHeight = el.scrollHeight;
+      const pages = Math.max(1, Math.ceil(scrollHeight / height));
+      const curr = Math.round(el.scrollTop / height);
+      setTotalPages(pages);
+      setCurrentPage(curr);
+    }
+  }, [readingMode]);
+
+  const handleNextPage = () => {
+    const el = readerBodyRef.current;
+    if (!el) return;
+
+    if (readingMode === 'infinite') {
+      handleNextChapter();
+      return;
+    }
+
+    if (readingMode === 'paged-horizontal' || readingMode === 'book-mode') {
+      const colGap = readingMode === 'book-mode' ? 48 : 32;
+      const step = el.clientWidth + colGap;
+      const maxScroll = el.scrollWidth - el.clientWidth;
+      
+      if (el.scrollLeft < maxScroll - 10) {
+        el.scrollTo({ left: el.scrollLeft + step, behavior: 'smooth' });
+      } else {
+        handleNextChapter();
+      }
+    } else if (readingMode === 'paged-vertical') {
+      const step = el.clientHeight;
+      const maxScroll = el.scrollHeight - el.clientHeight;
+
+      if (el.scrollTop < maxScroll - 10) {
+        el.scrollTo({ top: el.scrollTop + step, behavior: 'smooth' });
+      } else {
+        handleNextChapter();
+      }
+    }
+  };
+
+  const handlePrevPage = () => {
+    const el = readerBodyRef.current;
+    if (!el) return;
+
+    if (readingMode === 'infinite') {
+      handlePrevChapter();
+      return;
+    }
+
+    if (readingMode === 'paged-horizontal' || readingMode === 'book-mode') {
+      const colGap = readingMode === 'book-mode' ? 48 : 32;
+      const step = el.clientWidth + colGap;
+      
+      if (el.scrollLeft > 10) {
+        el.scrollTo({ left: el.scrollLeft - step, behavior: 'smooth' });
+      } else {
+        handlePrevChapter();
+      }
+    } else if (readingMode === 'paged-vertical') {
+      const step = el.clientHeight;
+
+      if (el.scrollTop > 10) {
+        el.scrollTo({ top: el.scrollTop - step, behavior: 'smooth' });
+      } else {
+        handlePrevChapter();
+      }
+    }
+  };
+
+  useEffect(() => {
+    const el = readerBodyRef.current;
+    if (!el) return;
+
+    const handleScroll = () => {
+      updatePaginationInfo();
+    };
+
+    el.addEventListener('scroll', handleScroll);
+    window.addEventListener('resize', handleScroll);
+
+    const timeout = setTimeout(updatePaginationInfo, 300);
+
+    return () => {
+      el.removeEventListener('scroll', handleScroll);
+      window.removeEventListener('resize', handleScroll);
+      clearTimeout(timeout);
+    };
+  }, [chapterContent, readingMode, fontSize, lineHeight, textAlign, updatePaginationInfo]);
+
+  // Keyboard navigation for page-by-page modes (Arrow keys and Space)
+  useEffect(() => {
+    if (!activeChapter || readingMode === 'infinite') return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'TEXTAREA') {
+        return;
+      }
+      
+      if (e.key === 'ArrowRight' || e.key === ' ') {
+        e.preventDefault();
+        handleNextPage();
+      } else if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        handlePrevPage();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [activeChapter, readingMode, currentPage, totalPages]);
+
   const handleRelationClick = (rel: any) => {
     if (rel.format === 'NOVEL' || rel.type === 'NOVEL') {
       handleNovelSelectViaFeed({
@@ -936,10 +1096,19 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
           {/* Search Results */}
           {searchResults.length > 0 && !loading && renderNovelGrid(searchResults, "Search Results")}
 
-          {/* Premium Hero Banner Slideshow */}
-          {feedLoading && searchResults.length === 0 && !loading && renderHeroSkeleton()}
+          {/* No Search Results Found */}
+          {!loading && !feedLoading && searchResults.length === 0 && searchQuery && (
+            <div className="flex flex-col items-center justify-center py-20 gap-3 text-zinc-500">
+              <AlertCircle size={32} className="text-zinc-600 animate-pulse" />
+              <p className="text-sm font-semibold">No results found for "{searchQuery}"</p>
+              <p className="text-xs text-zinc-600">Try switching the search mode to "Database (AniList)" or try a different provider.</p>
+            </div>
+          )}
 
-          {!feedLoading && !loading && searchResults.length === 0 && featuredNovel && (
+          {/* Premium Hero Banner Slideshow */}
+          {feedLoading && searchResults.length === 0 && !searchQuery && !loading && renderHeroSkeleton()}
+
+          {!feedLoading && !loading && searchResults.length === 0 && !searchQuery && featuredNovel && (
             <div className="relative w-full aspect-[21/9] md:aspect-[3/1] rounded-3xl overflow-hidden border border-white/5 bg-zinc-950 flex items-end p-6 md:p-12 shadow-2xl transition-all duration-500">
               
               {/* Slideshow background image with linear fade */}
@@ -1011,17 +1180,17 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
           )}
 
           {/* Bookmarks Shelf */}
-          {bookmarks.length > 0 && searchResults.length === 0 && !loading && renderNovelGrid(bookmarks, "Your Library")}
+          {bookmarks.length > 0 && searchResults.length === 0 && !searchQuery && !loading && renderNovelGrid(bookmarks, "Your Library")}
 
           {/* AniList Shelves */}
-          {feedLoading && searchResults.length === 0 && !loading && (
+          {feedLoading && searchResults.length === 0 && !searchQuery && !loading && (
             <div className="space-y-8">
               {renderGridSkeleton()}
               {renderGridSkeleton()}
             </div>
           )}
 
-          {!feedLoading && searchResults.length === 0 && !loading && (
+          {!feedLoading && searchResults.length === 0 && !searchQuery && !loading && (
             <>
               {renderNovelGrid(trendingNovels, "Trending Light Novels", true)}
               {renderNovelGrid(popularNovels, "All-Time Popular", true)}
@@ -1223,7 +1392,7 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
                         <option value="scribblehub">Scribble Hub</option>
                       </select>
                     </div>
-                    chaptersLoading ? (
+                    {chaptersLoading ? (
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-2 pr-1">
                         {[...Array(8)].map((_, i) => (
                           <div 
@@ -1263,7 +1432,7 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
                           );
                         })}
                       </div>
-                    )
+                    )}
                   </>
                   )}
 
@@ -1349,21 +1518,21 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
       {selectedNovel && activeChapter && (
         <div 
           ref={readerContainerRef}
-          className={`fixed inset-0 z-[200] overflow-y-auto select-text font-serif leading-relaxed px-4 md:px-8 py-20 flex flex-col items-center transition-all ${
+          className={`fixed inset-0 z-[200] overflow-hidden flex flex-col select-text font-serif leading-relaxed transition-all ${
             theme === 'sepia' 
-              ? 'bg-[#f4ecd8] text-[#332215]' 
+              ? 'bg-[#f7f1e3] text-[#433422]' 
               : theme === 'light' 
-                ? 'bg-white text-zinc-900' 
-                : 'bg-[#0a0a0a] text-zinc-300'
+                ? 'bg-[#fafafa] text-[#27272a]' 
+                : 'bg-[#121212] text-[#e4e4e7]'
           }`}
         >
           {/* Header Controls (Overlaying app navbar) */}
-          <div className={`fixed top-0 inset-x-0 h-14 z-[200] px-4 flex items-center justify-between border-b backdrop-blur-xl transition-all ${
+          <div className={`h-14 w-full shrink-0 px-4 flex items-center justify-between border-b transition-all ${
             theme === 'sepia'
-              ? 'bg-[#ebdcb9]/85 border-[#d2be92]/30 text-[#5b4636]'
+              ? 'bg-[#ebdcb9]/90 border-[#e3d5bb] text-[#433422]'
               : theme === 'light'
-                ? 'bg-zinc-100/85 border-zinc-200 text-zinc-800'
-                : 'bg-[#060606]/85 border-zinc-900 text-zinc-300'
+                ? 'bg-zinc-100/90 border-zinc-200 text-zinc-800'
+                : 'bg-[#18181b]/90 border-zinc-800/60 text-zinc-300'
           }`}>
             <button 
               onClick={() => {
@@ -1382,7 +1551,10 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
             {/* Menu Controls */}
             <div className="flex items-center gap-3 relative">
               <button 
-                onClick={() => setShowChapterListDropdown(!showChapterListDropdown)}
+                onClick={() => {
+                  setShowChapterListDropdown(!showChapterListDropdown);
+                  setShowSettings(false);
+                }}
                 className="p-1.5 rounded-full hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
                 title="Table of Contents"
               >
@@ -1390,7 +1562,10 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
               </button>
 
               <button 
-                onClick={() => setShowSettings(!showSettings)}
+                onClick={() => {
+                  setShowSettings(!showSettings);
+                  setShowChapterListDropdown(false);
+                }}
                 className="p-1.5 rounded-full hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
                 title="Reader Settings"
               >
@@ -1399,42 +1574,98 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
 
               {/* Reader Options Settings Panel */}
               {showSettings && (
-                <div className={`absolute right-0 top-9 w-56 p-4 rounded-2xl shadow-2xl border flex flex-col gap-4 z-[210] animate-in fade-in duration-200 ${
+                <div className={`absolute right-0 top-10 w-64 p-4 rounded-2xl shadow-2xl border flex flex-col gap-4 z-[210] animate-in fade-in duration-200 ${
                   theme === 'sepia'
-                    ? 'bg-[#ebdcb9] border-[#d2be92] text-[#5b4636]'
+                    ? 'bg-[#ebdcb9] border-[#d2be92] text-[#433422]'
                     : theme === 'light'
                       ? 'bg-white border-zinc-200 text-zinc-800'
-                      : 'bg-zinc-900 border-zinc-800 text-white'
+                      : 'bg-[#1c1c1f] border-zinc-800 text-white'
                 }`}>
                   {/* Theme Presets */}
-                  <div className="space-y-1.5 text-left">
-                    <span className="text-[10px] uppercase font-bold tracking-wider opacity-60">Theme</span>
-                    <div className="grid grid-cols-3 gap-1.5">
+                  <div className="space-y-1 text-left">
+                    <span className="text-[9px] uppercase font-bold tracking-wider opacity-60">Theme</span>
+                    <div className="grid grid-cols-3 gap-1">
                       <button 
                         onClick={() => updateTheme('dark')}
-                        className={`py-1.5 text-[10px] rounded-lg border font-semibold ${theme === 'dark' ? 'border-indigo-500 bg-black text-white' : 'border-transparent bg-black/10'}`}
+                        className={`py-1 text-[10px] rounded-lg border font-semibold ${theme === 'dark' ? 'border-indigo-500 bg-[#0a0a0a] text-white' : 'border-transparent bg-black/10 dark:bg-white/5'}`}
                       >
                         Dark
                       </button>
                       <button 
                         onClick={() => updateTheme('light')}
-                        className={`py-1.5 text-[10px] rounded-lg border font-semibold ${theme === 'light' ? 'border-indigo-500 bg-white text-zinc-900' : 'border-transparent bg-zinc-200/50'}`}
+                        className={`py-1 text-[10px] rounded-lg border font-semibold ${theme === 'light' ? 'border-indigo-500 bg-white text-zinc-900' : 'border-transparent bg-black/10 dark:bg-white/5'}`}
                       >
                         Light
                       </button>
                       <button 
                         onClick={() => updateTheme('sepia')}
-                        className={`py-1.5 text-[10px] rounded-lg border font-semibold ${theme === 'sepia' ? 'border-[#8f7547] bg-[#fdf6e3] text-[#5b4636]' : 'border-transparent bg-[#8f7547]/10'}`}
+                        className={`py-1 text-[10px] rounded-lg border font-semibold ${theme === 'sepia' ? 'border-amber-700 bg-[#f7f1e3] text-[#433422]' : 'border-transparent bg-black/10 dark:bg-white/5'}`}
                       >
                         Sepia
                       </button>
                     </div>
                   </div>
 
+                  {/* Reading Mode */}
+                  <div className="space-y-1 text-left">
+                    <span className="text-[9px] uppercase font-bold tracking-wider opacity-60">Reading Mode</span>
+                    <div className="grid grid-cols-2 gap-1">
+                      <button 
+                        onClick={() => updateReadingMode('infinite')}
+                        className={`py-1 text-[9px] rounded-lg border font-semibold ${readingMode === 'infinite' ? 'border-indigo-500 bg-indigo-500/10 text-indigo-400' : 'border-transparent bg-black/10 dark:bg-white/5'}`}
+                      >
+                        Scroll (Infinite)
+                      </button>
+                      <button 
+                        onClick={() => updateReadingMode('paged-horizontal')}
+                        className={`py-1 text-[9px] rounded-lg border font-semibold ${readingMode === 'paged-horizontal' ? 'border-indigo-500 bg-indigo-500/10 text-indigo-400' : 'border-transparent bg-black/10 dark:bg-white/5'}`}
+                      >
+                        Horizontal Pages
+                      </button>
+                      <button 
+                        onClick={() => updateReadingMode('paged-vertical')}
+                        className={`py-1 text-[9px] rounded-lg border font-semibold ${readingMode === 'paged-vertical' ? 'border-indigo-500 bg-indigo-500/10 text-indigo-400' : 'border-transparent bg-black/10 dark:bg-white/5'}`}
+                      >
+                        Vertical Pages
+                      </button>
+                      <button 
+                        onClick={() => updateReadingMode('book-mode')}
+                        className={`py-1 text-[9px] rounded-lg border font-semibold ${readingMode === 'book-mode' ? 'border-indigo-500 bg-indigo-500/10 text-indigo-400' : 'border-transparent bg-black/10 dark:bg-white/5'}`}
+                      >
+                        Book (2 Pages)
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Typography Font Preset */}
+                  <div className="space-y-1 text-left">
+                    <span className="text-[9px] uppercase font-bold tracking-wider opacity-60">Typography</span>
+                    <div className="grid grid-cols-3 gap-1">
+                      <button 
+                        onClick={() => updateFontFamily('Lora, serif')}
+                        className={`py-1 text-[10px] rounded-lg border font-serif ${fontFamily === 'Lora, serif' ? 'border-indigo-500 font-bold' : 'border-transparent bg-black/10 dark:bg-white/5'}`}
+                      >
+                        Serif Book
+                      </button>
+                      <button 
+                        onClick={() => updateFontFamily('Inter, sans-serif')}
+                        className={`py-1 text-[10px] rounded-lg border font-sans ${fontFamily === 'Inter, sans-serif' ? 'border-indigo-500 font-bold' : 'border-transparent bg-black/10 dark:bg-white/5'}`}
+                      >
+                        Sans Modern
+                      </button>
+                      <button 
+                        onClick={() => updateFontFamily('Fira Code, monospace')}
+                        className={`py-1 text-[10px] rounded-lg border font-mono ${fontFamily === 'Fira Code, monospace' ? 'border-indigo-500 font-bold' : 'border-transparent bg-black/10 dark:bg-white/5'}`}
+                      >
+                        Mono Tech
+                      </button>
+                    </div>
+                  </div>
+
                   {/* Font Size Preset */}
-                  <div className="space-y-1.5 text-left">
-                    <span className="text-[10px] uppercase font-bold tracking-wider opacity-60">Font Size ({fontSize}px)</span>
-                    <div className="flex items-center gap-2">
+                  <div className="space-y-1 text-left">
+                    <span className="text-[9px] uppercase font-bold tracking-wider opacity-60">Font Size ({fontSize}px)</span>
+                    <div className="flex items-center gap-1.5">
                       <button 
                         onClick={() => updateFontSize(Math.max(12, fontSize - 2))}
                         className="flex-1 bg-black/10 dark:bg-white/5 hover:bg-black/20 dark:hover:bg-white/10 py-1 rounded-lg text-xs font-bold"
@@ -1442,7 +1673,7 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
                         A-
                       </button>
                       <button 
-                        onClick={() => updateFontSize(Math.min(30, fontSize + 2))}
+                        onClick={() => updateFontSize(Math.min(32, fontSize + 2))}
                         className="flex-1 bg-black/10 dark:bg-white/5 hover:bg-black/20 dark:hover:bg-white/10 py-1 rounded-lg text-xs font-bold"
                       >
                         A+
@@ -1450,28 +1681,37 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
                     </div>
                   </div>
 
-                  {/* Font Family preset */}
-                  <div className="space-y-1.5 text-left">
-                    <span className="text-[10px] uppercase font-bold tracking-wider opacity-60">Typography</span>
-                    <div className="grid grid-cols-3 gap-1.5">
-                      <button 
-                        onClick={() => updateFontFamily('Georgia')}
-                        className={`py-1 text-[10px] rounded-lg border font-serif ${fontFamily === 'Georgia' ? 'border-indigo-500 font-bold' : 'border-transparent opacity-75'}`}
+                  {/* Line Height & Alignment Controls */}
+                  <div className="grid grid-cols-2 gap-2 text-left">
+                    <div className="space-y-1">
+                      <span className="text-[9px] uppercase font-bold tracking-wider opacity-60">Line Height</span>
+                      <select 
+                        value={lineHeight}
+                        onChange={(e) => updateLineHeight(parseFloat(e.target.value))}
+                        className="w-full bg-black/10 dark:bg-white/5 border border-transparent rounded-lg py-1 px-1 text-[10px] font-semibold focus:outline-none"
                       >
-                        Serif
-                      </button>
-                      <button 
-                        onClick={() => updateFontFamily('system-ui')}
-                        className={`py-1 text-[10px] rounded-lg border font-sans ${fontFamily === 'system-ui' ? 'border-indigo-500 font-bold' : 'border-transparent opacity-75'}`}
-                      >
-                        Modern
-                      </button>
-                      <button 
-                        onClick={() => updateFontFamily('monospace')}
-                        className={`py-1 text-[10px] rounded-lg border font-mono ${fontFamily === 'monospace' ? 'border-indigo-500 font-bold' : 'border-transparent opacity-75'}`}
-                      >
-                        Mono
-                      </button>
+                        <option value="1.5">Compact (1.5)</option>
+                        <option value="1.8">Normal (1.8)</option>
+                        <option value="2.2">Loose (2.2)</option>
+                      </select>
+                    </div>
+
+                    <div className="space-y-1">
+                      <span className="text-[9px] uppercase font-bold tracking-wider opacity-60">Alignment</span>
+                      <div className="grid grid-cols-2 gap-0.5">
+                        <button 
+                          onClick={() => updateTextAlign('left')}
+                          className={`py-1 text-[9px] rounded-lg border font-semibold ${textAlign === 'left' ? 'border-indigo-500 bg-indigo-500/10 text-indigo-400' : 'border-transparent bg-black/10 dark:bg-white/5'}`}
+                        >
+                          Left
+                        </button>
+                        <button 
+                          onClick={() => updateTextAlign('justify')}
+                          className={`py-1 text-[9px] rounded-lg border font-semibold ${textAlign === 'justify' ? 'border-indigo-500 bg-indigo-500/10 text-indigo-400' : 'border-transparent bg-black/10 dark:bg-white/5'}`}
+                        >
+                          Justify
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1479,18 +1719,21 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
 
               {/* Table of Contents Dropdown */}
               {showChapterListDropdown && novelDetails && (
-                <div className={`absolute right-0 top-9 w-64 max-h-[300px] overflow-y-auto p-2 rounded-2xl shadow-2xl border flex flex-col gap-1 z-[210] animate-in fade-in duration-200 ${
+                <div className={`absolute right-0 top-10 w-64 max-h-[300px] overflow-y-auto p-2 rounded-2xl shadow-2xl border flex flex-col gap-1 z-[210] animate-in fade-in duration-200 ${
                   theme === 'sepia'
-                    ? 'bg-[#ebdcb9] border-[#d2be92] text-[#5b4636]'
+                    ? 'bg-[#ebdcb9] border-[#e3d5bb] text-[#433422]'
                     : theme === 'light'
                       ? 'bg-white border-zinc-200 text-zinc-800'
-                      : 'bg-zinc-900 border-zinc-800 text-white'
+                      : 'bg-[#1c1c1f] border-zinc-800 text-white'
                 }`}>
                   {novelDetails.chapters.map(c => (
                     <button
                       key={c.id}
-                      onClick={() => handleChapterSelect(c)}
-                      className={`text-left p-2 text-[11px] rounded-lg transition-colors leading-snug ${c.id === activeChapter.id ? 'bg-indigo-600/20 text-indigo-400 font-bold' : 'hover:bg-black/5 dark:hover:bg-white/5 opacity-80'}`}
+                      onClick={() => {
+                        handleChapterSelect(c);
+                        setShowChapterListDropdown(false);
+                      }}
+                      className={`text-left p-2 text-[11px] rounded-lg transition-colors leading-snug ${c.id === activeChapter.id ? 'bg-indigo-600/25 text-indigo-400 font-bold' : 'hover:bg-black/5 dark:hover:bg-white/5 opacity-80'}`}
                     >
                       {c.title}
                     </button>
@@ -1500,59 +1743,127 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
             </div>
           </div>
 
-          {/* Reader Body Text Container */}
-          <div 
-            className="w-full max-w-2xl px-2 py-6 leading-relaxed select-text text-left"
-            style={{ 
-              fontSize: `${fontSize}px`, 
-              fontFamily: fontFamily 
-            }}
-          >
-            {chapterLoading ? (
-              <div className="flex flex-col items-center justify-center py-40 gap-3">
-                <Loader2 className="animate-spin text-indigo-500" size={32} />
-                <p className="text-xs text-zinc-500">Loading chapter lines...</p>
-              </div>
-            ) : chapterContent ? (
-              <div className="space-y-6">
-                <h2 className="text-lg md:text-xl font-bold tracking-tight mb-8 border-b pb-4 opacity-90 border-black/5 dark:border-white/5">
-                  {chapterContent.title}
-                </h2>
-                {chapterContent.paragraphs.map((p, idx) => (
-                  <p key={idx} className="indent-6 text-justify">
-                    {p}
-                  </p>
-                ))}
-              </div>
-            ) : null}
+          {/* Reader Body content area */}
+          <div className="flex-1 w-full flex items-center justify-center relative overflow-hidden">
+            {/* Left page navigation tap zone & floating arrow */}
+            {readingMode !== 'infinite' && !chapterLoading && chapterContent && (
+              <button 
+                onClick={handlePrevPage}
+                className={`absolute left-4 top-1/2 -translate-y-1/2 p-3 rounded-full border transition-all z-[150] shadow-md ${
+                  theme === 'sepia' 
+                    ? 'bg-[#ebdcb9] border-[#e3d5bb] text-[#433422] hover:bg-[#dfd0ad]' 
+                    : theme === 'light' 
+                      ? 'bg-zinc-100 border-zinc-200 text-zinc-800 hover:bg-zinc-200' 
+                      : 'bg-[#1c1c1f] border-zinc-800 text-zinc-300 hover:bg-zinc-800'
+                }`}
+                title="Previous Page (Left Arrow)"
+              >
+                <ChevronLeft size={20} />
+              </button>
+            )}
+
+            {/* Main Text Content wrapper */}
+            <div 
+              ref={readerBodyRef}
+              className={`w-full select-text transition-all duration-300 scroll-smooth ${
+                readingMode === 'infinite' ? 'overflow-y-auto px-4 md:px-8 py-8 h-full animate-in fade-in duration-300' : ''
+              }`}
+              style={{
+                fontSize: `${fontSize}px`,
+                fontFamily: fontFamily,
+                lineHeight: lineHeight,
+                textAlign: textAlign,
+                maxWidth: readingMode === 'book-mode' ? '1200px' : '760px',
+                height: readingMode === 'infinite' ? '100%' : '80vh',
+                overflowX: (readingMode === 'paged-horizontal' || readingMode === 'book-mode') ? 'auto' : 'hidden',
+                overflowY: (readingMode === 'infinite') ? 'auto' : (readingMode === 'paged-vertical' ? 'auto' : 'hidden'),
+                columnWidth: readingMode === 'paged-horizontal' ? '100%' : (readingMode === 'book-mode' ? '46%' : 'auto'),
+                columnCount: readingMode === 'book-mode' ? 2 : 'auto',
+                columnGap: readingMode === 'book-mode' ? '48px' : '32px',
+                padding: readingMode === 'infinite' ? '24px 0px' : '16px 24px',
+                scrollSnapType: readingMode === 'infinite' ? 'none' : (readingMode === 'paged-vertical' ? 'y mandatory' : 'x mandatory'),
+              }}
+            >
+              {chapterLoading ? (
+                <div className="flex flex-col items-center justify-center py-40 gap-3">
+                  <Loader2 className="animate-spin text-indigo-500" size={32} />
+                  <p className="text-xs text-zinc-500">Loading chapter lines...</p>
+                </div>
+              ) : chapterContent ? (
+                <div className="space-y-6 md:space-y-7 pr-1">
+                  <h2 className="text-xl md:text-2xl font-extrabold tracking-tight mb-8 border-b pb-4 opacity-90 border-black/5 dark:border-white/5 scroll-snap-align-start">
+                    {chapterContent.title}
+                  </h2>
+                  {chapterContent.paragraphs.map((p, idx) => (
+                    <p 
+                      key={idx} 
+                      className={`leading-relaxed tracking-wide text-base md:text-lg mb-4 opacity-95 ${
+                        fontFamily.includes('Lora') ? 'font-serif' : fontFamily.includes('Fira') ? 'font-mono' : 'font-sans'
+                      }`}
+                      style={{ 
+                        textIndent: '1.5rem', 
+                        scrollSnapAlign: 'start'
+                      }}
+                    >
+                      {p}
+                    </p>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+
+            {/* Right page navigation tap zone & floating arrow */}
+            {readingMode !== 'infinite' && !chapterLoading && chapterContent && (
+              <button 
+                onClick={handleNextPage}
+                className={`absolute right-4 top-1/2 -translate-y-1/2 p-3 rounded-full border transition-all z-[150] shadow-md ${
+                  theme === 'sepia' 
+                    ? 'bg-[#ebdcb9] border-[#e3d5bb] text-[#433422] hover:bg-[#dfd0ad]' 
+                    : theme === 'light' 
+                      ? 'bg-zinc-100 border-zinc-200 text-zinc-800 hover:bg-zinc-200' 
+                      : 'bg-[#1c1c1f] border-zinc-800 text-zinc-300 hover:bg-zinc-800'
+                }`}
+                title="Next Page (Right Arrow / Space)"
+              >
+                <ChevronRight size={20} />
+              </button>
+            )}
           </div>
 
-          {/* Footer Navigation */}
-          {!chapterLoading && chapterContent && novelDetails && (
-            <div className={`w-full max-w-2xl mt-12 pt-6 border-t flex items-center justify-between text-xs ${
-              theme === 'sepia' ? 'border-[#d2be92]/30 text-[#5b4636]' : theme === 'light' ? 'border-zinc-200 text-zinc-600' : 'border-zinc-900 text-zinc-500'
-            }`}>
-              <button 
-                onClick={handlePrevChapter}
-                disabled={activeChapterIndex <= 0}
-                className="flex items-center gap-1 font-semibold py-1.5 px-3 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 disabled:opacity-30 disabled:pointer-events-none transition-all"
-              >
-                <ChevronLeft size={16} /> Prev Chapter
-              </button>
+          {/* Footer Controls */}
+          <div className={`h-12 w-full shrink-0 px-4 flex items-center justify-between border-t transition-all text-xs font-semibold ${
+            theme === 'sepia'
+              ? 'bg-[#ebdcb9]/90 border-[#e3d5bb] text-[#7d6954]'
+              : theme === 'light'
+                ? 'bg-zinc-100/90 border-zinc-200 text-zinc-500'
+                : 'bg-[#18181b]/90 border-zinc-800/60 text-zinc-500'
+          }`}>
+            <button 
+              onClick={handlePrevChapter}
+              disabled={activeChapterIndex <= 0}
+              className="flex items-center gap-1 py-1.5 px-3 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 disabled:opacity-30 disabled:pointer-events-none transition-all"
+            >
+              <ChevronLeft size={16} /> Prev Chapter
+            </button>
 
-              <span className="font-medium opacity-60">
+            {readingMode !== 'infinite' ? (
+              <span className="opacity-60 text-[11px]">
+                Page {currentPage + 1} of {totalPages} ({Math.round(((currentPage + 1) / totalPages) * 100)}%)
+              </span>
+            ) : (
+              <span className="opacity-60 text-[11px]">
                 Chapter {activeChapterIndex + 1} of {novelDetails.chapters.length}
               </span>
+            )}
 
-              <button 
-                onClick={handleNextChapter}
-                disabled={activeChapterIndex >= novelDetails.chapters.length - 1}
-                className="flex items-center gap-1 font-semibold py-1.5 px-3 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 disabled:opacity-30 disabled:pointer-events-none transition-all"
-              >
-                Next Chapter <ChevronRight size={16} />
-              </button>
-            </div>
-          )}
+            <button 
+              onClick={handleNextChapter}
+              disabled={activeChapterIndex >= novelDetails.chapters.length - 1}
+              className="flex items-center gap-1 py-1.5 px-3 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 disabled:opacity-30 disabled:pointer-events-none transition-all"
+            >
+              Next Chapter <ChevronRight size={16} />
+            </button>
+          </div>
         </div>
       )}
     </div>
