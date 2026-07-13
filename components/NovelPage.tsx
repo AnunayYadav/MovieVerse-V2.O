@@ -93,6 +93,8 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
   const [readingMode, setReadingMode] = useState<'infinite' | 'paged-horizontal' | 'paged-vertical' | 'book-mode'>('infinite');
   const [textAlign, setTextAlign] = useState<'left' | 'justify'>('justify');
   const [lineHeight, setLineHeight] = useState<number>(1.8);
+  const [readerWidth, setReaderWidth] = useState<'narrow' | 'medium' | 'wide' | 'full'>('medium');
+  const [bgStyle, setBgStyle] = useState<'plain' | 'gradient' | 'cinematic'>('plain');
   const [currentPage, setCurrentPage] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const [showSettings, setShowSettings] = useState(false);
@@ -127,6 +129,12 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
 
       const storedLineHeight = localStorage.getItem('novel_line_height');
       if (storedLineHeight) setLineHeight(parseFloat(storedLineHeight));
+
+      const storedReaderWidth = localStorage.getItem('novel_reader_width');
+      if (storedReaderWidth) setReaderWidth(storedReaderWidth as any);
+
+      const storedBgStyle = localStorage.getItem('novel_bg_style');
+      if (storedBgStyle) setBgStyle(storedBgStyle as any);
     } catch (err) {
       console.error('Error loading novel local storage:', err);
     }
@@ -790,6 +798,17 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
     setLineHeight(val);
     localStorage.setItem('novel_line_height', val.toString());
     setTimeout(updatePaginationInfo, 100);
+  };
+
+  const updateReaderWidth = (val: 'narrow' | 'medium' | 'wide' | 'full') => {
+    setReaderWidth(val);
+    localStorage.setItem('novel_reader_width', val);
+    setTimeout(updatePaginationInfo, 100);
+  };
+
+  const updateBgStyle = (val: 'plain' | 'gradient' | 'cinematic') => {
+    setBgStyle(val);
+    localStorage.setItem('novel_bg_style', val);
   };
 
   const updatePaginationInfo = useCallback(() => {
@@ -1526,6 +1545,44 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
                 : 'bg-[#121212] text-[#e4e4e7]'
           }`}
         >
+          {/* Background Styling Effects */}
+          {bgStyle === 'gradient' && (
+            <div className={`absolute inset-0 z-0 pointer-events-none transition-all duration-500 ${
+              theme === 'sepia'
+                ? 'bg-gradient-to-tr from-[#f4ecd8] via-[#f7f1e3] to-[#ebdcb9]'
+                : theme === 'light'
+                  ? 'bg-gradient-to-tr from-zinc-100 via-white to-indigo-50/20'
+                  : 'bg-gradient-to-tr from-zinc-950 via-[#121212] to-indigo-950/20'
+            }`} />
+          )}
+
+          {bgStyle === 'cinematic' && (novelDetails || selectedNovel) && (
+            <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden transition-all duration-500">
+              {/* Blurred Poster Image */}
+              <img 
+                src={novelDetails?.image || selectedNovel?.image} 
+                alt="blur background" 
+                className={`w-full h-full object-cover scale-110 filter blur-[80px] transition-all duration-700 ${
+                  theme === 'sepia' 
+                    ? 'opacity-[0.22]' 
+                    : theme === 'light' 
+                      ? 'opacity-[0.18]' 
+                      : 'opacity-[0.25]'
+                }`}
+              />
+              {/* Theme-Adaptive Radial Vignette Overlay */}
+              <div 
+                className="absolute inset-0 transition-all duration-500" 
+                style={{
+                  background: theme === 'sepia'
+                    ? 'radial-gradient(circle at center, rgba(247,241,227,0.2) 0%, rgba(235,220,185,0.75) 50%, rgba(204,185,145,0.96) 100%)'
+                    : theme === 'light'
+                      ? 'radial-gradient(circle at center, rgba(250,250,250,0.1) 0%, rgba(244,244,245,0.75) 60%, rgba(228,228,231,0.96) 100%)'
+                      : 'radial-gradient(circle at center, rgba(18,18,18,0.15) 0%, rgba(10,10,10,0.7) 50%, rgba(6,6,6,0.98) 100%)'
+                }}
+              />
+            </div>
+          )}
           {/* Header Controls (Overlaying app navbar) */}
           <div className={`h-14 w-full shrink-0 px-4 flex items-center justify-between border-b transition-all ${
             theme === 'sepia'
@@ -1714,6 +1771,62 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
                       </div>
                     </div>
                   </div>
+
+                  {/* Layout Width */}
+                  <div className="space-y-1 text-left">
+                    <span className="text-[9px] uppercase font-bold tracking-wider opacity-60">Text Width</span>
+                    <div className="grid grid-cols-4 gap-1">
+                      <button 
+                        onClick={() => updateReaderWidth('narrow')}
+                        className={`py-1 text-[9px] rounded-lg border font-semibold ${readerWidth === 'narrow' ? 'border-indigo-500 bg-indigo-500/10 text-indigo-400' : 'border-transparent bg-black/10 dark:bg-white/5'}`}
+                      >
+                        Narrow
+                      </button>
+                      <button 
+                        onClick={() => updateReaderWidth('medium')}
+                        className={`py-1 text-[9px] rounded-lg border font-semibold ${readerWidth === 'medium' ? 'border-indigo-500 bg-indigo-500/10 text-indigo-400' : 'border-transparent bg-black/10 dark:bg-white/5'}`}
+                      >
+                        Medium
+                      </button>
+                      <button 
+                        onClick={() => updateReaderWidth('wide')}
+                        className={`py-1 text-[9px] rounded-lg border font-semibold ${readerWidth === 'wide' ? 'border-indigo-500 bg-indigo-500/10 text-indigo-400' : 'border-transparent bg-black/10 dark:bg-white/5'}`}
+                      >
+                        Wide
+                      </button>
+                      <button 
+                        onClick={() => updateReaderWidth('full')}
+                        className={`py-1 text-[9px] rounded-lg border font-semibold ${readerWidth === 'full' ? 'border-indigo-500 bg-indigo-500/10 text-indigo-400' : 'border-transparent bg-black/10 dark:bg-white/5'}`}
+                      >
+                        Full
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Background Style */}
+                  <div className="space-y-1 text-left">
+                    <span className="text-[9px] uppercase font-bold tracking-wider opacity-60">Visual Style</span>
+                    <div className="grid grid-cols-3 gap-1">
+                      <button 
+                        onClick={() => updateBgStyle('plain')}
+                        className={`py-1 text-[9px] rounded-lg border font-semibold ${bgStyle === 'plain' ? 'border-indigo-500 bg-indigo-500/10 text-indigo-400' : 'border-transparent bg-black/10 dark:bg-white/5'}`}
+                      >
+                        Solid
+                      </button>
+                      <button 
+                        onClick={() => updateBgStyle('gradient')}
+                        className={`py-1 text-[9px] rounded-lg border font-semibold ${bgStyle === 'gradient' ? 'border-indigo-500 bg-indigo-500/10 text-indigo-400' : 'border-transparent bg-black/10 dark:bg-white/5'}`}
+                      >
+                        Gradient
+                      </button>
+                      <button 
+                        onClick={() => updateBgStyle('cinematic')}
+                        className={`py-1 text-[9px] rounded-lg border font-semibold ${bgStyle === 'cinematic' ? 'border-indigo-500 bg-indigo-500/10 text-indigo-400' : 'border-transparent bg-black/10 dark:bg-white/5'}`}
+                      >
+                        Cinematic
+                      </button>
+                    </div>
+                  </div>
                 </div>
               )}
 
@@ -1773,7 +1886,7 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
                 fontFamily: fontFamily,
                 lineHeight: lineHeight,
                 textAlign: textAlign,
-                maxWidth: readingMode === 'book-mode' ? '1200px' : '760px',
+                maxWidth: readingMode === 'book-mode' ? '1200px' : readerWidth === 'narrow' ? '600px' : readerWidth === 'wide' ? '960px' : readerWidth === 'full' ? '100%' : '780px',
                 height: readingMode === 'infinite' ? '100%' : '80vh',
                 overflowX: (readingMode === 'paged-horizontal' || readingMode === 'book-mode') ? 'auto' : 'hidden',
                 overflowY: (readingMode === 'infinite') ? 'auto' : (readingMode === 'paged-vertical' ? 'auto' : 'hidden'),
