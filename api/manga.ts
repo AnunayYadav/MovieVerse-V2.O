@@ -189,24 +189,26 @@ async function scrapeAllNovelInfo(novelId: string) {
   const ratingVal = $('#rateVal').val();
   const rating = ratingVal ? parseFloat(String(ratingVal)) : null;
 
-  const chapters: any[] = [];
+  const pageChaptersMap: Record<number, any[]> = {};
   
-  function parseChaptersPage(pageHtml: string) {
+  function parseChaptersPage(pageHtml: string, pageNum: number) {
     const page$ = cheerio.load(pageHtml);
+    const pageChapters: any[] = [];
     page$('#list-chapter .list-chapter li a').each((_, el) => {
       const href = page$(el).attr('href') || '';
       const id = href.replace(/^\//, '');
       if (id) {
-        chapters.push({
+        pageChapters.push({
           id,
           title: page$(el).text().trim(),
           url: `https://allnovel.org/${id}`
         });
       }
     });
+    pageChaptersMap[pageNum] = pageChapters;
   }
 
-  parseChaptersPage(html);
+  parseChaptersPage(html, 1);
 
   let totalPages = 1;
   const lastPageLink = $('.pagination li.last a').attr('href');
@@ -238,7 +240,7 @@ async function scrapeAllNovelInfo(novelId: string) {
         batch.map(async (page) => {
           try {
             const pageHtml = await novelFetch(`https://allnovel.org/${novelId}.html?page=${page}`);
-            parseChaptersPage(pageHtml);
+            parseChaptersPage(pageHtml, page);
           } catch (err: any) {
             console.error(`Error scraping AllNovel page ${page}:`, err.message);
           }
@@ -247,6 +249,14 @@ async function scrapeAllNovelInfo(novelId: string) {
       if (i + BATCH_SIZE < remainingPages.length) {
         await new Promise((resolve) => setTimeout(resolve, 100));
       }
+    }
+  }
+
+  // Combine pages in strict chronological page sequence order
+  const chapters: any[] = [];
+  for (let p = 1; p <= totalPages; p++) {
+    if (pageChaptersMap[p]) {
+      chapters.push(...pageChaptersMap[p]);
     }
   }
 
@@ -590,7 +600,7 @@ async function scrapeLightNovelWorldInfo(novelId: string) {
   const ratingText = $('.rating-number').text().trim();
   const rating = ratingText ? parseFloat(ratingText) : null;
 
-  const chapters: any[] = [];
+  const pageChaptersMap: Record<number, any[]> = {};
   const firstPageHtml = await novelFetch(`${LIGHTNOVELWORLD_BASE}/novel/${novelId}/chapters/`);
   const $first = cheerio.load(firstPageHtml);
 
@@ -607,8 +617,9 @@ async function scrapeLightNovelWorldInfo(novelId: string) {
     }
   }
 
-  function parsePage(pageHtml: string) {
+  function parsePage(pageHtml: string, pageNum: number) {
     const page$ = cheerio.load(pageHtml);
+    const pageChapters: any[] = [];
     page$('.chapter-card').each((_, el) => {
       const onclick = page$(el).attr('onclick') || '';
       const hrefMatch = onclick.match(/location\.href='([^']+)'/);
@@ -616,16 +627,17 @@ async function scrapeLightNovelWorldInfo(novelId: string) {
       const cTitle = page$(el).find('.chapter-title').text().trim();
       const id = href.replace(/^\//, ''); // e.g. "novel/shadow-slave/chapter/1/"
       if (id) {
-        chapters.push({
+        pageChapters.push({
           id,
           title: cTitle,
           url: `${LIGHTNOVELWORLD_BASE}${href}`
         });
       }
     });
+    pageChaptersMap[pageNum] = pageChapters;
   }
 
-  parsePage(firstPageHtml);
+  parsePage(firstPageHtml, 1);
 
   if (totalPages > 1) {
     const remainingPages = [];
@@ -640,7 +652,7 @@ async function scrapeLightNovelWorldInfo(novelId: string) {
         batch.map(async (page) => {
           try {
             const pageHtml = await novelFetch(`${LIGHTNOVELWORLD_BASE}/novel/${novelId}/chapters/?page=${page}`);
-            parsePage(pageHtml);
+            parsePage(pageHtml, page);
           } catch (err: any) {
             console.error(`Error scraping page ${page}:`, err.message);
           }
@@ -649,6 +661,14 @@ async function scrapeLightNovelWorldInfo(novelId: string) {
       if (i + BATCH_SIZE < remainingPages.length) {
         await new Promise((resolve) => setTimeout(resolve, 100));
       }
+    }
+  }
+
+  // Combine pages in strict page sequence order
+  const chapters: any[] = [];
+  for (let p = 1; p <= totalPages; p++) {
+    if (pageChaptersMap[p]) {
+      chapters.push(...pageChaptersMap[p]);
     }
   }
 
