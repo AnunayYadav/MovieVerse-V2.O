@@ -72,7 +72,8 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
   const [novelDetails, setNovelDetails] = useState<NovelDetails | null>(null);
   const [detailsLoading, setDetailsLoading] = useState(false);
   const [detailsTab, setDetailsTab] = useState<'chapters' | 'characters' | 'relations' | 'recommendations'>('chapters');
-  const [readingSource, setReadingSource] = useState<'ranobes' | 'royalroad' | 'scribblehub' | 'lightnovelworld'>('lightnovelworld');
+  const [searchMode, setSearchMode] = useState<'database' | 'provider'>('database');
+  const [readingSource, setReadingSource] = useState<'ranobes' | 'royalroad' | 'scribblehub' | 'lightnovelworld' | 'allnovel'>('allnovel');
   const [chaptersLoading, setChaptersLoading] = useState(false);
   const [chaptersError, setChaptersError] = useState<string | null>(null);
 
@@ -265,7 +266,7 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
     } else {
       setSearchResults([]);
     }
-  }, [searchQuery]);
+  }, [searchQuery, searchMode, readingSource]);
 
   const updateFontSize = (newSize: number) => {
     setFontSize(newSize);
@@ -298,10 +299,86 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/manga?action=search&provider=${readingSource}&query=${encodeURIComponent(query)}`);
-      if (!res.ok) throw new Error('Search failed');
-      const data = await res.json();
-      setSearchResults(data);
+      if (searchMode === 'database') {
+        const queryStr = `
+          query ($search: String, $page: Int, $perPage: Int) {
+            Page (page: $page, perPage: $perPage) {
+              media (search: $search, type: MANGA, format: NOVEL) {
+                id
+                title {
+                  romaji
+                  english
+                  native
+                  userPreferred
+                }
+                coverImage {
+                  extraLarge
+                  large
+                }
+                bannerImage
+                description
+                genres
+                averageScore
+                staff (perPage: 5) {
+                  edges {
+                    role
+                    node {
+                      name {
+                        full
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        `;
+
+        const response = await fetch('https://graphql.anilist.co', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+          },
+          body: JSON.stringify({
+            query: queryStr,
+            variables: { search: query, page: 1, perPage: 24 }
+          })
+        });
+
+        if (!response.ok) throw new Error('AniList search failed');
+        const json = await response.json();
+        
+        const mapAniListNovel = (item: any): Novel => {
+          const title = item.title.english || item.title.romaji || item.title.userPreferred;
+          const authorEdge = item.staff?.edges?.find((e: any) => 
+            e.role?.toLowerCase().includes('story') || 
+            e.role?.toLowerCase().includes('author') || 
+            e.role?.toLowerCase().includes('original creator')
+          );
+          const author = authorEdge?.node?.name?.full || item.staff?.edges?.[0]?.node?.name?.full || 'Unknown Author';
+          
+          return {
+            id: title.toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-'),
+            aniListId: item.id,
+            title: title,
+            image: item.coverImage.extraLarge || item.coverImage.large,
+            author: author,
+            description: item.description?.replace(/<[^>]*>/g, '') || '',
+            genres: item.genres || [],
+            rating: item.averageScore ? item.averageScore / 10 : null,
+            bannerImage: item.bannerImage
+          };
+        };
+
+        const list = json.data?.Page?.media?.map(mapAniListNovel) || [];
+        setSearchResults(list);
+      } else {
+        const res = await fetch(`/api/manga?action=search&provider=${readingSource}&query=${encodeURIComponent(query)}`);
+        if (!res.ok) throw new Error('Search failed');
+        const data = await res.json();
+        setSearchResults(data);
+      }
     } catch (err: any) {
       setError(err.message || 'An error occurred during search');
     } finally {
@@ -469,7 +546,7 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
     return searchData[0].id;
   };
 
-  const switchReadingSource = async (newSource: 'ranobes' | 'royalroad' | 'scribblehub' | 'lightnovelworld') => {
+  const switchReadingSource = async (newSource: 'ranobes' | 'royalroad' | 'scribblehub' | 'lightnovelworld' | 'allnovel') => {
     if (!selectedNovel || !novelDetails) return;
     setReadingSource(newSource);
     
@@ -478,9 +555,24 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
     setDetailsTab('chapters');
 
     try {
-      const searchRes = await fetch(`/api/manga?action=search&provider=${newSource}&query=${encodeURIComponent(selectedNovel.title)}`);
-      if (!searchRes.ok) throw new Error(`Search on ${newSource} failed`);
-      const searchData = await searchRes.json();
+      const searchQueries = [
+        selectedNovel.title,
+        novelDetails.alternativeTitles?.english,
+        novelDetails.alternativeTitles?.romaji
+      ].filter(Boolean) as string[];
+
+      let searchData: any[] = [];
+      for (const q of searchQueries) {
+        try {
+          const searchRes = await fetch(`/api/manga?action=search&provider=${newSource}&query=${encodeURIComponent(q)}`);
+          if (searchRes.ok) {
+            searchData = await searchRes.json();
+            if (searchData && searchData.length > 0) break;
+          }
+        } catch (e) {
+          console.warn(`switchReadingSource query "${q}" failed:`, e);
+        }
+      }
       
       const targetId = findBestMatchId(searchData, novelDetails, selectedNovel.title) || 
                        selectedNovel.title.toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-');
@@ -493,7 +585,6 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
         if (!prev) return null;
         return {
           ...prev,
-          // STRICTLY preserve existing metadata, only copy chapters!
           chapters: data.chapters || []
         };
       });
@@ -529,17 +620,30 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
         (async () => {
           let providerId = novel.id;
           
-          // Resolve provider slug ID if selected novel has numeric AniList ID
+          // Resolve provider slug ID if selected novel has numeric AniList ID or is from AniList
           if (/^\d+$/.test(novel.id) || novel.aniListId) {
-            const searchRes = await fetch(`/api/manga?action=search&provider=${readingSource}&query=${encodeURIComponent(novel.title)}`);
-            if (searchRes.ok) {
-              const searchData = await searchRes.json();
-              
-              // We fetch AniList meta first to help resolve exact match
-              const currentAniListMeta = await fetchAniListMetadata(novel.title, isNumeric);
-              providerId = findBestMatchId(searchData, currentAniListMeta, novel.title) || 
-                           novel.title.toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-');
+            const currentAniListMeta = await fetchAniListMetadata(novel.title, isNumeric);
+            const searchQueries = [
+              novel.title,
+              currentAniListMeta?.alternativeTitles?.english,
+              currentAniListMeta?.alternativeTitles?.romaji
+            ].filter(Boolean) as string[];
+
+            let searchData: any[] = [];
+            for (const q of searchQueries) {
+              try {
+                const searchRes = await fetch(`/api/manga?action=search&provider=${readingSource}&query=${encodeURIComponent(q)}`);
+                if (searchRes.ok) {
+                  searchData = await searchRes.json();
+                  if (searchData && searchData.length > 0) break;
+                }
+              } catch (e) {
+                console.warn(`handleNovelSelect search for query "${q}" failed:`, e);
+              }
             }
+            
+            providerId = findBestMatchId(searchData, currentAniListMeta, novel.title) || 
+                         novel.title.toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-');
           }
 
           const res = await fetch(`/api/manga?action=info&provider=${readingSource}&id=${encodeURIComponent(providerId)}`);
@@ -798,6 +902,23 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
       {!selectedNovel && (
         <div className="space-y-8 animate-in fade-in duration-500 px-4 md:px-12 pt-20 md:pt-24 pb-6">
           
+          {searchQuery && (
+            <div className="flex items-center gap-2 bg-zinc-900/30 border border-white/5 p-1 rounded-full w-fit">
+              <button 
+                onClick={() => setSearchMode('database')}
+                className={`text-[11px] font-bold py-1.5 px-4 rounded-full transition-all ${searchMode === 'database' ? 'bg-indigo-600 text-white shadow-md' : 'text-zinc-400 hover:text-white'}`}
+              >
+                Database (AniList)
+              </button>
+              <button 
+                onClick={() => setSearchMode('provider')}
+                className={`text-[11px] font-bold py-1.5 px-4 rounded-full transition-all ${searchMode === 'provider' ? 'bg-indigo-600 text-white shadow-md' : 'text-zinc-400 hover:text-white'}`}
+              >
+                Direct Scraper ({readingSource === 'allnovel' ? 'AllNovel' : readingSource === 'ranobes' ? 'WuxiaWorld' : readingSource === 'royalroad' ? 'Royal Road' : readingSource === 'scribblehub' ? 'Scribble Hub' : 'LightNovelWorld'})
+              </button>
+            </div>
+          )}
+
           {loading && (
             <div className="flex flex-col items-center justify-center py-20 gap-3">
               <Loader2 className="animate-spin text-indigo-500" size={32} />
@@ -1095,7 +1216,8 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
                         onChange={(e) => switchReadingSource(e.target.value as any)}
                         className="bg-zinc-900/80 border border-white/10 rounded-xl px-3 py-1.5 text-xs font-semibold text-white focus:outline-none focus:border-indigo-500 transition-colors cursor-pointer"
                       >
-                        <option value="lightnovelworld">Light Novel World (Recommended)</option>
+                        <option value="allnovel">AllNovel (High Stability)</option>
+                        <option value="lightnovelworld">Light Novel World</option>
                         <option value="ranobes">WuxiaWorld</option>
                         <option value="royalroad">Royal Road</option>
                         <option value="scribblehub">Scribble Hub</option>

@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { MANGA } from '@consumet/extensions';
 import * as cheerio from 'cheerio';
-import { execSync } from 'child_process';
+import { spawnSync } from 'child_process';
 
 // Initialize and cache provider instances
 const providers: Record<string, any> = {
@@ -47,30 +47,195 @@ async function novelFetch(url: string): Promise<string> {
     if (res.ok) {
       return await res.text();
     }
-    // If Cloudflare blocks us (403), fall through to curl fallback
     if (res.status !== 403) {
       throw new Error(`Fetch failed: ${res.status} ${res.statusText}`);
     }
   } catch (e: any) {
-    // Network errors also fall through to curl
     if (e?.message && !e.message.includes('403')) {
       console.warn('novelFetch: fetch error, trying curl fallback:', e.message);
     }
   }
 
-  // Fallback: use curl (available on most servers and local dev)
   try {
-    const escapedUrl = url.replace(/'/g, "'\\''");
-    const html = execSync(
-      `curl -s -L -A '${USER_AGENT}' '${escapedUrl}'`,
-      { maxBuffer: 10 * 1024 * 1024, timeout: 15000 }
-    ).toString();
-    if (html) return html;
-  } catch {
-    // curl not available or failed
+    const res = spawnSync('curl', ['-s', '-L', '-A', USER_AGENT, url], {
+      maxBuffer: 10 * 1024 * 1024,
+      timeout: 15000
+    });
+    if (res.status === 0 && res.stdout) {
+      const html = res.stdout.toString();
+      if (html) return html;
+    }
+  } catch (err: any) {
+    console.warn('novelFetch spawnSync error:', err.message);
   }
 
   throw new Error(`Failed to fetch ${url}: all methods exhausted`);
+}
+
+async function scrapeAllNovelSearch(query: string) {
+  const url = `https://allnovel.org/search?keyword=${encodeURIComponent(query)}`;
+  const html = await novelFetch(url);
+  const $ = cheerio.load(html);
+  const results: any[] = [];
+
+  $('.list-truyen .row').each((_, el) => {
+    const titleEl = $(el).find('.truyen-title a');
+    const href = titleEl.attr('href') || '';
+    if (!href) return;
+    
+    const id = href.replace(/^\//, '').replace(/\.html$/, '').replace(/^https:\/\/allnovel\.org\//, '');
+    const cover = $(el).find('img.cover').attr('src') || '';
+    const image = cover.startsWith('/') ? `https://allnovel.org${cover}` : cover;
+    const author = $(el).find('.author').text().trim().replace(/^\s*Author:\s*/i, '');
+    const lastChapter = $(el).find('.text-info a').text().trim();
+
+    results.push({
+      id,
+      title: titleEl.text().trim(),
+      image,
+      author,
+      description: lastChapter ? `Latest: ${lastChapter}` : ''
+    });
+  });
+
+  return results;
+}
+
+async function scrapeAllNovelInfo(novelId: string) {
+  const url = `https://allnovel.org/${novelId}.html`;
+  const html = await novelFetch(url);
+  const $ = cheerio.load(html);
+
+  const title = $('h3.title').first().text().trim();
+  const coverUrl = $('.info-holder .book img').attr('src') || '';
+  const image = coverUrl.startsWith('/') ? `https://allnovel.org${coverUrl}` : coverUrl;
+  
+  let author = $('.info .author a').text().trim();
+  if (!author) {
+    $('.info div').each((_, el) => {
+      const txt = $(el).text();
+      if (txt.includes('Author:')) {
+        author = txt.replace('Author:', '').trim();
+      }
+    });
+  }
+
+  const description = $('.desc-text').text().trim();
+
+  const genres: string[] = [];
+  $('.info div').each((_, el) => {
+    const txt = $(el).text();
+    if (txt.includes('Genre:')) {
+      $(el).find('a').each((_, aEl) => {
+        genres.push($(aEl).text().trim());
+      });
+    }
+  });
+
+  const ratingVal = $('#rateVal').val();
+  const rating = ratingVal ? parseFloat(String(ratingVal)) : null;
+
+  const chapters: any[] = [];
+  
+  function parseChaptersPage(pageHtml: string) {
+    const page$ = cheerio.load(pageHtml);
+    page$('#list-chapter .list-chapter li a').each((_, el) => {
+      const href = page$(el).attr('href') || '';
+      const id = href.replace(/^\//, '');
+      if (id) {
+        chapters.push({
+          id,
+          title: page$(el).text().trim(),
+          url: `https://allnovel.org/${id}`
+        });
+      }
+    });
+  }
+
+  parseChaptersPage(html);
+
+  let totalPages = 1;
+  const lastPageLink = $('.pagination li.last a').attr('href');
+  if (lastPageLink) {
+    const match = lastPageLink.match(/page=(\d+)/);
+    if (match) {
+      totalPages = parseInt(match[1]);
+    }
+  } else {
+    $('.pagination li a').each((_, el) => {
+      const pageNumAttr = $(el).attr('data-page');
+      if (pageNumAttr) {
+        const val = parseInt(pageNumAttr) + 1;
+        if (val > totalPages) totalPages = val;
+      }
+    });
+  }
+
+  if (totalPages > 1) {
+    const remainingPages: number[] = [];
+    for (let p = 2; p <= totalPages; p++) {
+      remainingPages.push(p);
+    }
+
+    const BATCH_SIZE = 8;
+    for (let i = 0; i < remainingPages.length; i += BATCH_SIZE) {
+      const batch = remainingPages.slice(i, i + BATCH_SIZE);
+      await Promise.all(
+        batch.map(async (page) => {
+          try {
+            const pageHtml = await novelFetch(`https://allnovel.org/${novelId}.html?page=${page}`);
+            parseChaptersPage(pageHtml);
+          } catch (err: any) {
+            console.error(`Error scraping AllNovel page ${page}:`, err.message);
+          }
+        })
+      );
+      if (i + BATCH_SIZE < remainingPages.length) {
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
+    }
+  }
+
+  return {
+    id: novelId,
+    title,
+    image,
+    author,
+    description,
+    genres,
+    rating,
+    chapters
+  };
+}
+
+async function scrapeAllNovelChapter(chapterId: string) {
+  const url = `https://allnovel.org/${chapterId}`;
+  const html = await novelFetch(url);
+  const $ = cheerio.load(html);
+
+  const title = $('.chapter-title').text().trim() || $('h2').first().text().trim() || $('.title').first().text().trim() || 'Chapter';
+  const paragraphs: string[] = [];
+
+  $('#chapter-content p, .chapter-content p, #chapter-c p').each((_, el) => {
+    const text = $(el).text().trim();
+    if (text) paragraphs.push(text);
+  });
+
+  if (paragraphs.length === 0) {
+    const contentHtml = $('#chapter-content, .chapter-c').html() || '';
+    const lines = contentHtml.split(/<br\s*\/?>/i);
+    lines.forEach(line => {
+      const text = cheerio.load(line).text().trim();
+      if (text) paragraphs.push(text);
+    });
+  }
+
+  return {
+    title,
+    paragraphs,
+    nextChapterId: null,
+    prevChapterId: null
+  };
 }
 
 async function scrapeWuxiaWorldSearch(query: string) {
@@ -267,11 +432,17 @@ async function scrapeScribbleHubInfo(novelId: string) {
   } catch {}
 
   if (!html) {
-    const escapedUrl = url.replace(/'/g, "'\\''");
-    html = execSync(
-      `curl -s -L -b 'toc_show=9999' -A '${USER_AGENT}' '${escapedUrl}'`,
-      { maxBuffer: 10 * 1024 * 1024, timeout: 15000 }
-    ).toString();
+    try {
+      const res = spawnSync('curl', ['-s', '-L', '-b', 'toc_show=9999', '-A', USER_AGENT, url], {
+        maxBuffer: 10 * 1024 * 1024,
+        timeout: 15000
+      });
+      if (res.status === 0 && res.stdout) {
+        html = res.stdout.toString();
+      }
+    } catch (err: any) {
+      console.warn('ScribbleHub curl fallback error:', err.message);
+    }
   }
 
   const $ = cheerio.load(html);
@@ -481,7 +652,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const providerKey = typeof providerQuery === 'string' ? providerQuery.toLowerCase() : 'mangapill';
 
   try {
-    if (['novelfull', 'ranobes', 'wuxiaworld', 'royalroad', 'scribblehub', 'lightnovelworld'].includes(providerKey)) {
+    if (['novelfull', 'ranobes', 'wuxiaworld', 'royalroad', 'scribblehub', 'lightnovelworld', 'allnovel'].includes(providerKey)) {
       if (action === 'search') {
         if (!query || typeof query !== 'string') {
           return res.status(400).json({ error: 'Query parameter is required' });
@@ -493,6 +664,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           results = await scrapeScribbleHubSearch(query);
         } else if (providerKey === 'lightnovelworld') {
           results = await scrapeLightNovelWorldSearch(query);
+        } else if (providerKey === 'allnovel') {
+          results = await scrapeAllNovelSearch(query);
         } else {
           results = await scrapeWuxiaWorldSearch(query);
         }
@@ -510,6 +683,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           data = await scrapeScribbleHubInfo(id);
         } else if (providerKey === 'lightnovelworld') {
           data = await scrapeLightNovelWorldInfo(id);
+        } else if (providerKey === 'allnovel') {
+          data = await scrapeAllNovelInfo(id);
         } else {
           data = await scrapeWuxiaWorldInfo(id);
         }
@@ -527,6 +702,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           data = await scrapeScribbleHubChapter(id);
         } else if (providerKey === 'lightnovelworld') {
           data = await scrapeLightNovelWorldChapter(id);
+        } else if (providerKey === 'allnovel') {
+          data = await scrapeAllNovelChapter(id);
         } else {
           data = await scrapeWuxiaWorldChapter(id);
         }
@@ -566,7 +743,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       let imageUrl = req.query.url;
       const refererUrl = req.query.referer || (
         providerKey === 'lightnovelworld' ? LIGHTNOVELWORLD_BASE : (
-          ['novelfull', 'ranobes', 'wuxiaworld'].includes(providerKey) ? WUXIAWORLD_BASE : provider.baseUrl
+          providerKey === 'allnovel' ? 'https://allnovel.org' : (
+            ['novelfull', 'ranobes', 'wuxiaworld'].includes(providerKey) ? WUXIAWORLD_BASE : provider.baseUrl
+          )
         )
       );
       if (!imageUrl || typeof imageUrl !== 'string') {
@@ -574,7 +753,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
 
       if (imageUrl.startsWith('/')) {
-        const base = providerKey === 'lightnovelworld' ? LIGHTNOVELWORLD_BASE : WUXIAWORLD_BASE;
+        const base = providerKey === 'lightnovelworld' ? LIGHTNOVELWORLD_BASE : (
+          providerKey === 'allnovel' ? 'https://allnovel.org' : WUXIAWORLD_BASE
+        );
         imageUrl = `${base}${imageUrl}`;
       }
 
