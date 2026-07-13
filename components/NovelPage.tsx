@@ -72,7 +72,9 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
   const [novelDetails, setNovelDetails] = useState<NovelDetails | null>(null);
   const [detailsLoading, setDetailsLoading] = useState(false);
   const [detailsTab, setDetailsTab] = useState<'chapters' | 'characters' | 'relations' | 'recommendations'>('chapters');
-  const [searchingSource, setSearchingSource] = useState<string | null>(null);
+  const [readingSource, setReadingSource] = useState<'ranobes' | 'royalroad' | 'scribblehub'>('ranobes');
+  const [chaptersLoading, setChaptersLoading] = useState(false);
+  const [chaptersError, setChaptersError] = useState<string | null>(null);
 
   // Active reading states
   const [activeChapter, setActiveChapter] = useState<Chapter | null>(null);
@@ -296,7 +298,7 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/manga?action=search&provider=ranobes&query=${encodeURIComponent(query)}`);
+      const res = await fetch(`/api/manga?action=search&provider=${readingSource}&query=${encodeURIComponent(query)}`);
       if (!res.ok) throw new Error('Search failed');
       const data = await res.json();
       setSearchResults(data);
@@ -437,68 +439,120 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
     }
   };
 
-  // Source mapping & info fetch logic
-  const handleNovelSelect = async (novel: Novel) => {
-    setSelectedNovel(novel);
-    setNovelDetails(null);
-    setActiveChapter(null);
-    setChapterContent(null);
-    setDetailsLoading(true);
-    setError(null);
+  const switchReadingSource = async (newSource: 'ranobes' | 'royalroad' | 'scribblehub') => {
+    if (!selectedNovel || !novelDetails) return;
+    setReadingSource(newSource);
+    
+    setChaptersLoading(true);
+    setChaptersError(null);
     setDetailsTab('chapters');
 
     try {
-      const res = await fetch(`/api/manga?action=info&provider=ranobes&id=${encodeURIComponent(novel.id)}`);
-      if (!res.ok) throw new Error('Failed to load novel details');
-      const data = await res.json();
+      const searchRes = await fetch(`/api/manga?action=search&provider=${newSource}&query=${encodeURIComponent(selectedNovel.title)}`);
+      if (!searchRes.ok) throw new Error(`Search on ${newSource} failed`);
+      const searchData = await searchRes.json();
       
-      const isNumeric = novel.aniListId || (/^\d+$/.test(novel.id) ? parseInt(novel.id) : undefined);
-      const cleanTitle = data.title || novel.title;
-      const aniListMeta = await fetchAniListMetadata(cleanTitle, isNumeric);
+      let targetId = '';
+      if (searchData && searchData.length > 0) {
+        const match = searchData.find((x: any) => x.title.toLowerCase() === selectedNovel.title.toLowerCase()) || searchData[0];
+        targetId = match.id;
+      } else {
+        targetId = selectedNovel.title.toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-');
+      }
 
-      const details: NovelDetails = {
-        ...novel,
-        ...data,
-        chapters: data.chapters || [],
-        ...(aniListMeta || {})
-      };
-      setNovelDetails(details);
+      const infoRes = await fetch(`/api/manga?action=info&provider=${newSource}&id=${encodeURIComponent(targetId)}`);
+      if (!infoRes.ok) throw new Error(`Failed to load chapters from ${newSource}`);
+      const data = await infoRes.json();
+
+      setNovelDetails(prev => {
+        if (!prev) return null;
+        return {
+          ...prev,
+          ...data,
+          chapters: data.chapters || []
+        };
+      });
     } catch (err: any) {
-      setError(err.message || 'Failed to load details');
+      setChaptersError(err.message || `Failed to switch source to ${newSource}`);
     } finally {
-      setDetailsLoading(false);
+      setChaptersLoading(false);
     }
   };
 
-  // Safe search + direct slug fallback for AniList Feed items
-  const handleNovelSelectViaFeed = async (novel: Novel) => {
-    setSearchingSource(novel.title);
+  // Source mapping & info fetch logic
+  const handleNovelSelect = async (novel: Novel) => {
+    setSelectedNovel(novel);
+    
+    // Open details modal instantly with initial metadata
+    const initialDetails: NovelDetails = {
+      ...novel,
+      chapters: []
+    };
+    setNovelDetails(initialDetails);
+    setDetailsTab('chapters');
+    
+    setChaptersLoading(true);
+    setChaptersError(null);
     setError(null);
+
+    const isNumeric = novel.aniListId || (/^\d+$/.test(novel.id) ? parseInt(novel.id) : undefined);
+
     try {
-      const searchRes = await fetch(`/api/manga?action=search&provider=ranobes&query=${encodeURIComponent(novel.title)}`);
-      if (!searchRes.ok) throw new Error('Source search failed');
-      const searchData = await searchRes.json();
-      
-      if (searchData && searchData.length > 0) {
-        await handleNovelSelect({
-          ...searchData[0],
-          aniListId: novel.aniListId,
-          image: searchData[0].image || novel.image,
-          bannerImage: novel.bannerImage
-        });
-      } else {
-        // Fallback: Convert title to standard kebab-case slug
-        const wuxiaSlug = novel.title.toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-');
-        await handleNovelSelect({
-          ...novel,
-          id: wuxiaSlug
-        });
-      }
+      // Fetch detailed AniList metadata and Provider chapters concurrently
+      const [aniListMeta, providerData] = await Promise.all([
+        fetchAniListMetadata(novel.title, isNumeric),
+        (async () => {
+          let providerId = novel.id;
+          
+          // Resolve provider slug ID if selected novel has numeric AniList ID
+          if (/^\d+$/.test(novel.id) || novel.aniListId) {
+            const searchRes = await fetch(`/api/manga?action=search&provider=${readingSource}&query=${encodeURIComponent(novel.title)}`);
+            if (searchRes.ok) {
+              const searchData = await searchRes.json();
+              if (searchData && searchData.length > 0) {
+                const match = searchData.find((x: any) => x.title.toLowerCase() === novel.title.toLowerCase()) || searchData[0];
+                providerId = match.id;
+              } else {
+                providerId = novel.title.toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-');
+              }
+            }
+          }
+
+          const res = await fetch(`/api/manga?action=info&provider=${readingSource}&id=${encodeURIComponent(providerId)}`);
+          if (!res.ok) throw new Error('Failed to load chapters for this source');
+          return await res.json();
+        })()
+      ]);
+
+      setNovelDetails(prev => {
+        if (!prev) return null;
+        return {
+          ...prev,
+          ...providerData,
+          ...(aniListMeta || {}),
+          chapters: providerData.chapters || [],
+          image: providerData.image || prev.image,
+          title: providerData.title || prev.title,
+        };
+      });
     } catch (err: any) {
-      await handleNovelSelect(novel);
+      console.error("handleNovelSelect background loading error:", err);
+      setChaptersError(err.message || 'Failed to load chapter list');
+      
+      try {
+        const aniListMeta = await fetchAniListMetadata(novel.title, isNumeric);
+        if (aniListMeta) {
+          setNovelDetails(prev => prev ? { ...prev, ...aniListMeta } : null);
+        }
+      } catch {}
     } finally {
-      setSearchingSource(null);
+      setChaptersLoading(false);
     }
+  };
+
+  // Direct mapping pass-through for feed items
+  const handleNovelSelectViaFeed = (novel: Novel) => {
+    handleNovelSelect(novel);
   };
 
   // Fetch chapter logic
@@ -510,7 +564,7 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
     setShowChapterListDropdown(false);
 
     try {
-      const res = await fetch(`/api/manga?action=pages&provider=ranobes&id=${encodeURIComponent(chapter.id)}`);
+      const res = await fetch(`/api/manga?action=pages&provider=${readingSource}&id=${encodeURIComponent(chapter.id)}`);
       if (!res.ok) throw new Error('Failed to load chapter content');
       const data = await res.json();
       setChapterContent(data);
@@ -706,14 +760,7 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
   return (
     <div className="min-h-screen text-white select-none pb-20">
       
-      {/* Search and mapping feedback modal */}
-      {searchingSource && (
-        <div className="fixed inset-0 z-[100] bg-black/85 backdrop-blur-md flex flex-col items-center justify-center p-4">
-          <Loader2 className="animate-spin text-indigo-500 mb-4" size={40} />
-          <h3 className="text-sm font-semibold text-white">Indexing Novel Source</h3>
-          <p className="text-xs text-zinc-500 mt-1 max-w-xs text-center">Locating verified translation chapters for "{searchingSource}"...</p>
-        </div>
-      )}
+
 
       {/* ── SCREEN 1: CATALOG / SEARCH LIST ────────────────────────── */}
       {!selectedNovel && (
@@ -961,6 +1008,19 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
                         {bookmarks.some(b => b.id === novelDetails.id) ? 'Bookmarked' : 'Add to Library'}
                       </button>
                     </div>
+                    {/* Source Selector Dropdown */}
+                    <div className="flex items-center justify-center md:justify-start gap-2.5 pt-1 text-xs text-zinc-400">
+                      <span className="font-semibold">Source:</span>
+                      <select 
+                        value={readingSource}
+                        onChange={(e) => switchReadingSource(e.target.value as any)}
+                        className="bg-zinc-900/80 border border-white/10 rounded-xl px-3 py-1.5 text-xs font-semibold text-white focus:outline-none focus:border-indigo-500 transition-colors cursor-pointer"
+                      >
+                        <option value="ranobes">WuxiaWorld (Recommended)</option>
+                        <option value="royalroad">Royal Road</option>
+                        <option value="scribblehub">Scribble Hub</option>
+                      </select>
+                    </div>
                   </div>
                 </div>
 
@@ -1007,21 +1067,47 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
                   
                   {/* CHAPTERS TAB */}
                   {detailsTab === 'chapters' && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-[400px] overflow-y-auto pr-1">
-                      {novelDetails.chapters.map(chapter => {
-                        const isLastRead = readingProgress[novelDetails.id]?.chapterId === chapter.id;
-                        return (
+                    chaptersLoading ? (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2 pr-1">
+                        {[...Array(8)].map((_, i) => (
                           <div 
-                            key={chapter.id}
-                            onClick={() => handleChapterSelect(chapter)}
-                            className={`flex items-center justify-between p-3 rounded-xl cursor-pointer transition-all border text-xs ${isLastRead ? 'bg-indigo-600/10 border-indigo-500/30 text-indigo-400 font-semibold' : 'bg-zinc-900/30 border-white/5 hover:border-white/10 text-zinc-300 hover:text-white'}`}
+                            key={i} 
+                            className="bg-zinc-900/30 border border-white/5 p-3.5 rounded-xl animate-pulse flex items-center justify-between"
                           >
-                            <span className="line-clamp-1">{chapter.title}</span>
-                            {isLastRead && <span className="text-[9px] uppercase font-bold tracking-wider opacity-70">Current</span>}
+                            <div className="h-3 w-2/3 bg-white/5 rounded-md" />
+                            <div className="h-3 w-8 bg-white/5 rounded-md" />
                           </div>
-                        );
-                      })}
-                    </div>
+                        ))}
+                      </div>
+                    ) : chaptersError ? (
+                      <div className="text-left py-4 space-y-2">
+                        <p className="text-zinc-500 text-xs italic">{chaptersError}</p>
+                        <button 
+                          onClick={() => handleNovelSelect(selectedNovel!)}
+                          className="bg-zinc-900/80 hover:bg-zinc-800 border border-white/10 text-white text-xs font-semibold py-1.5 px-4 rounded-xl transition-all"
+                        >
+                          Retry Loading Chapters
+                        </button>
+                      </div>
+                    ) : novelDetails.chapters.length === 0 ? (
+                      <p className="text-zinc-500 text-xs italic text-left py-4">No chapters found for this source. Try switching the Source above.</p>
+                    ) : (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-[400px] overflow-y-auto pr-1">
+                        {novelDetails.chapters.map(chapter => {
+                          const isLastRead = readingProgress[novelDetails.id]?.chapterId === chapter.id;
+                          return (
+                            <div 
+                              key={chapter.id}
+                              onClick={() => handleChapterSelect(chapter)}
+                              className={`flex items-center justify-between p-3 rounded-xl cursor-pointer transition-all border text-xs ${isLastRead ? 'bg-indigo-600/10 border-indigo-500/30 text-indigo-400 font-semibold' : 'bg-zinc-900/30 border-white/5 hover:border-white/10 text-zinc-300 hover:text-white'}`}
+                            >
+                              <span className="line-clamp-1">{chapter.title}</span>
+                              {isLastRead && <span className="text-[9px] uppercase font-bold tracking-wider opacity-70">Current</span>}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )
                   )}
 
                   {/* CHARACTERS TAB */}

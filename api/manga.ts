@@ -144,6 +144,192 @@ async function scrapeWuxiaWorldChapter(chapterId: string) {
 }
 
 
+
+async function scrapeRoyalRoadSearch(query: string) {
+  const url = `https://www.royalroad.com/fictions/search?title=${encodeURIComponent(query)}`;
+  const html = await novelFetch(url);
+  const $ = cheerio.load(html);
+  const results: any[] = [];
+
+  $('.fiction-list-item').each((_, el) => {
+    const a = $(el).find('.fiction-title a');
+    const href = a.attr('href') || '';
+    const id = href.replace(/^\/fiction\//, '');
+    const cover = $(el).find('img').attr('src') || '';
+    
+    results.push({
+      id,
+      title: a.text().trim(),
+      image: cover.startsWith('/') ? `https://www.royalroad.com${cover}` : cover,
+      author: $(el).find('.author').text().replace('by', '').trim(),
+      description: $(el).find('.description').text().trim()
+    });
+  });
+
+  return results;
+}
+
+async function scrapeRoyalRoadInfo(novelId: string) {
+  const url = `https://www.royalroad.com/fiction/${novelId}`;
+  const html = await novelFetch(url);
+  const $ = cheerio.load(html);
+
+  const title = $('h1').first().text().trim();
+  const author = $('h4 span a').first().text().trim();
+  const description = $('.description').first().text().trim();
+  const coverUrl = $('img.thumbnail').attr('src') || '';
+  const image = coverUrl.startsWith('/') ? `https://www.royalroad.com${coverUrl}` : coverUrl;
+
+  const genres: string[] = [];
+  $('.tags span').each((_, el) => {
+    genres.push($(el).text().trim());
+  });
+
+  const chapters: any[] = [];
+  $('td:not([class]) a').each((_, el) => {
+    const href = $(el).attr('href') || '';
+    const cleanId = href.startsWith('/') ? href.slice(1) : href;
+    chapters.push({
+      id: cleanId,
+      title: $(el).text().trim(),
+      url: `https://www.royalroad.com/${cleanId}`
+    });
+  });
+
+  return {
+    id: novelId,
+    title,
+    image,
+    author,
+    description,
+    genres,
+    rating: null,
+    chapters
+  };
+}
+
+async function scrapeRoyalRoadChapter(chapterId: string) {
+  const url = `https://www.royalroad.com/${chapterId}`;
+  const html = await novelFetch(url);
+  const $ = cheerio.load(html);
+
+  const title = $('.chapter-title').text().trim() || $('.chapter-header h1').text().trim() || 'Chapter';
+  const paragraphs: string[] = [];
+  $('.chapter-content p').each((_, el) => {
+    paragraphs.push($(el).text().trim());
+  });
+
+  return {
+    title,
+    paragraphs,
+    nextChapterId: null,
+    prevChapterId: null
+  };
+}
+
+async function scrapeScribbleHubSearch(query: string) {
+  const url = `https://www.scribblehub.com/?s=${encodeURIComponent(query)}&post_type=fictionposts`;
+  const html = await novelFetch(url);
+  const $ = cheerio.load(html);
+  const results: any[] = [];
+
+  $('.search_main_box').each((_, el) => {
+    const a = $(el).find('.search_title a');
+    const href = a.attr('href') || '';
+    const id = href.replace(/^https:\/\/www\.scribblehub\.com\/series\//, '').replace(/\/$/, '');
+    const cover = $(el).find('.search_img img').attr('src') || '';
+
+    results.push({
+      id,
+      title: a.text().trim(),
+      image: cover,
+      author: $(el).find('.search_author a').text().trim(),
+      description: $(el).find('.search_body').text().trim()
+    });
+  });
+
+  return results;
+}
+
+async function scrapeScribbleHubInfo(novelId: string) {
+  const url = `https://www.scribblehub.com/series/${novelId}/`;
+  
+  const customHeaders = {
+    ...BROWSER_HEADERS,
+    'Cookie': 'toc_show=9999'
+  };
+  
+  let html = '';
+  try {
+    const res = await fetch(url, { headers: customHeaders });
+    if (res.ok) html = await res.text();
+  } catch {}
+
+  if (!html) {
+    const escapedUrl = url.replace(/'/g, "'\\''");
+    html = execSync(
+      `curl -s -L -b 'toc_show=9999' -A '${USER_AGENT}' '${escapedUrl}'`,
+      { maxBuffer: 10 * 1024 * 1024, timeout: 15000 }
+    ).toString();
+  }
+
+  const $ = cheerio.load(html);
+
+  const title = $('.fic_title').first().text().trim();
+  const author = $('.auth_name_fic').first().text().trim();
+  const description = $('.wi_fic_desc').first().text().trim();
+  const image = $('.fic_image img').attr('src') || '';
+
+  const genres: string[] = [];
+  $('.wi_fic_genre a').each((_, el) => {
+    genres.push($(el).text().trim());
+  });
+
+  const chapters: any[] = [];
+  $('a.toc_a').each((_, el) => {
+    const href = $(el).attr('href') || '';
+    const cleanId = href.startsWith('https://www.scribblehub.com/') ? href.replace('https://www.scribblehub.com/', '') : href;
+    chapters.push({
+      id: cleanId,
+      title: $(el).text().trim(),
+      url: href
+    });
+  });
+  
+  chapters.reverse();
+
+  return {
+    id: novelId,
+    title,
+    image,
+    author,
+    description,
+    genres,
+    rating: null,
+    chapters
+  };
+}
+
+async function scrapeScribbleHubChapter(chapterId: string) {
+  const url = `https://www.scribblehub.com/${chapterId}`;
+  const html = await novelFetch(url);
+  const $ = cheerio.load(html);
+
+  const title = $('.chapter-title').text().trim() || 'Chapter';
+  const paragraphs: string[] = [];
+  $('#chp_raw p').each((_, el) => {
+    paragraphs.push($(el).text().trim());
+  });
+
+  return {
+    title,
+    paragraphs,
+    nextChapterId: null,
+    prevChapterId: null
+  };
+}
+
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Set CORS headers to allow cross-origin requests
   res.setHeader('Access-Control-Allow-Credentials', 'true');
@@ -165,12 +351,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const providerKey = typeof providerQuery === 'string' ? providerQuery.toLowerCase() : 'mangapill';
 
   try {
-    if (['novelfull', 'ranobes', 'wuxiaworld'].includes(providerKey)) {
+    if (['novelfull', 'ranobes', 'wuxiaworld', 'royalroad', 'scribblehub'].includes(providerKey)) {
       if (action === 'search') {
         if (!query || typeof query !== 'string') {
           return res.status(400).json({ error: 'Query parameter is required' });
         }
-        const results = await scrapeWuxiaWorldSearch(query);
+        let results;
+        if (providerKey === 'royalroad') {
+          results = await scrapeRoyalRoadSearch(query);
+        } else if (providerKey === 'scribblehub') {
+          results = await scrapeScribbleHubSearch(query);
+        } else {
+          results = await scrapeWuxiaWorldSearch(query);
+        }
         return res.status(200).json(results);
       }
 
@@ -178,7 +371,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (!id || typeof id !== 'string') {
           return res.status(400).json({ error: 'ID parameter is required' });
         }
-        const data = await scrapeWuxiaWorldInfo(id);
+        let data;
+        if (providerKey === 'royalroad') {
+          data = await scrapeRoyalRoadInfo(id);
+        } else if (providerKey === 'scribblehub') {
+          data = await scrapeScribbleHubInfo(id);
+        } else {
+          data = await scrapeWuxiaWorldInfo(id);
+        }
         return res.status(200).json(data);
       }
 
@@ -186,7 +386,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (!id || typeof id !== 'string') {
           return res.status(400).json({ error: 'ID parameter is required' });
         }
-        const data = await scrapeWuxiaWorldChapter(id);
+        let data;
+        if (providerKey === 'royalroad') {
+          data = await scrapeRoyalRoadChapter(id);
+        } else if (providerKey === 'scribblehub') {
+          data = await scrapeScribbleHubChapter(id);
+        } else {
+          data = await scrapeWuxiaWorldChapter(id);
+        }
         return res.status(200).json(data);
       }
     }
