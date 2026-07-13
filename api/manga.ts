@@ -72,6 +72,60 @@ async function novelFetch(url: string): Promise<string> {
   throw new Error(`Failed to fetch ${url}: all methods exhausted`);
 }
 
+function parseTitleForSort(title: string) {
+  const t = title.toLowerCase();
+  
+  let vol: number | null = null;
+  const volMatch = t.match(/(?:vol(?:ume)?|v)\.?\s*(\d+(\.\d+)?)/);
+  if (volMatch) {
+    vol = parseFloat(volMatch[1]);
+  }
+  
+  let chap = 0;
+  if (t.includes('prologue')) {
+    chap = -1;
+  } else {
+    const chapMatch = t.match(/(?:ch(?:apter|ap)?|c)\.?\s*(\d+(\.\d+)?)/);
+    if (chapMatch) {
+      chap = parseFloat(chapMatch[1]);
+    } else {
+      const numbers = [...t.matchAll(/\d+(\.\d+)?/g)].map(m => parseFloat(m[0]));
+      if (numbers.length > 0) {
+        if (vol !== null && numbers[0] === vol) {
+          if (numbers.length > 1) chap = numbers[1];
+        } else {
+          chap = numbers[0];
+        }
+      }
+    }
+  }
+  return { vol, chap };
+}
+
+function sortChaptersByVolumeAndNumber(chapters: any[]) {
+  let lastVol = 1;
+  const parsed = chapters.map((ch: any, idx: number) => {
+    const p = parseTitleForSort(ch.title);
+    if (p.vol !== null) {
+      lastVol = p.vol;
+    }
+    return {
+      originalIndex: idx,
+      data: ch,
+      vol: p.vol !== null ? p.vol : lastVol,
+      chap: p.chap
+    };
+  });
+
+  parsed.sort((a: any, b: any) => {
+    if (a.vol !== b.vol) return a.vol - b.vol;
+    if (a.chap !== b.chap) return a.chap - b.chap;
+    return a.originalIndex - b.originalIndex;
+  });
+
+  return parsed.map((p: any) => p.data);
+}
+
 async function scrapeAllNovelSearch(query: string) {
   const url = `https://allnovel.org/search?keyword=${encodeURIComponent(query)}`;
   const html = await novelFetch(url);
@@ -266,7 +320,7 @@ async function scrapeWuxiaWorldInfo(novelId: string) {
   const chaptersJson = await chaptersRes.json();
 
   const chapters = Array.isArray(chaptersJson) ? chaptersJson : [];
-  chapters.sort((a: any, b: any) => (a.index || 0) - (b.index || 0));
+  const sortedChapters = sortChaptersByVolumeAndNumber(chapters);
 
   const genres = Array.isArray(infoJson.categories)
     ? infoJson.categories.map((c: any) => c.name)
@@ -282,10 +336,11 @@ async function scrapeWuxiaWorldInfo(novelId: string) {
     description: infoJson.description || '',
     genres,
     rating: infoJson.rating ? parseFloat(infoJson.rating) : null,
-    chapters: chapters.map((ch: any) => ({
+    chapters: sortedChapters.map((ch: any) => ({
       id: ch.novSlugChapSlug,
       title: ch.title,
-      url: `${WUXIAWORLD_BASE}/chapter/${ch.novSlugChapSlug}`
+      url: `${WUXIAWORLD_BASE}/chapter/${ch.novSlugChapSlug}`,
+      date: ch.timeAdded || null
     }))
   };
 }

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Search, BookOpen, ChevronLeft, ChevronRight, RefreshCcw, Loader2, AlertCircle, Settings, Heart, Bookmark, ArrowLeft, Sun, Moon, Type, AlignLeft, List, Sparkles, Star, TrendingUp, Compass, Play, Info, Users, Link, Award } from 'lucide-react';
+import { Search, BookOpen, ChevronLeft, ChevronRight, RefreshCcw, Loader2, AlertCircle, Settings, Heart, Bookmark, ArrowLeft, Sun, Moon, Type, AlignLeft, List, Sparkles, Star, TrendingUp, Compass, Play, Info, Users, Link, Award, X } from 'lucide-react';
 
 interface Novel {
   id: string; // wuxia slug
@@ -17,6 +17,7 @@ interface Chapter {
   id: string;
   title: string;
   url: string;
+  date?: string | null;
 }
 
 interface NovelDetails extends Novel {
@@ -89,19 +90,33 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
   // Reader UI settings
   const [fontSize, setFontSize] = useState(18); // default to 18px for better premium readability
   const [fontFamily, setFontFamily] = useState('Lora, serif'); // default premium serif font
-  const [theme, setTheme] = useState<'dark' | 'light' | 'sepia'>('dark');
+  const [theme, setTheme] = useState<'dark' | 'light' | 'amoled' | 'sepia' | 'paper' | 'grey' | 'custom'>('dark');
   const [readingMode, setReadingMode] = useState<'infinite' | 'paged-horizontal' | 'paged-vertical' | 'book-mode'>('infinite');
-  const [textAlign, setTextAlign] = useState<'left' | 'justify'>('justify');
+  const [textAlign, setTextAlign] = useState<'left' | 'center' | 'justify'>('justify');
   const [lineHeight, setLineHeight] = useState<number>(1.8);
   const [readerWidth, setReaderWidth] = useState<'narrow' | 'medium' | 'wide' | 'full'>('medium');
   const [bgStyle, setBgStyle] = useState<'plain' | 'gradient' | 'cinematic'>('plain');
+  const [fontWeight, setFontWeight] = useState<'light' | 'normal' | 'semibold'>('normal');
+  const [letterSpacing, setLetterSpacing] = useState<'tight' | 'normal' | 'wide'>('normal');
+  const [paragraphSpacing, setParagraphSpacing] = useState<'compact' | 'normal' | 'loose'>('normal');
+  const [pageMargins, setPageMargins] = useState<'compact' | 'normal' | 'wide'>('normal');
+  const [customBg, setCustomBg] = useState('#1a1a1a');
+  const [customText, setCustomText] = useState('#e4e4e7');
+  
+  // HUD controls and Drawer states
+  const [controlsVisible, setControlsVisible] = useState(true);
+  const [showTOCDrawer, setShowTOCDrawer] = useState(false);
+  const [showSettingsDrawer, setShowSettingsDrawer] = useState(false);
+  const [activeSettingsTab, setActiveSettingsTab] = useState<'style' | 'theme' | 'display'>('style');
+  const [searchQueryInside, setSearchQueryInside] = useState('');
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
   const [currentPage, setCurrentPage] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
-  const [showSettings, setShowSettings] = useState(false);
-  const [showChapterListDropdown, setShowChapterListDropdown] = useState(false);
 
   const readerContainerRef = useRef<HTMLDivElement>(null);
   const readerBodyRef = useRef<HTMLDivElement>(null);
+  const readerScrollContainerRef = useRef<HTMLDivElement>(null);
 
   // Load bookmarks and progress from localStorage
   useEffect(() => {
@@ -135,6 +150,24 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
 
       const storedBgStyle = localStorage.getItem('novel_bg_style');
       if (storedBgStyle) setBgStyle(storedBgStyle as any);
+
+      const storedFontWeight = localStorage.getItem('novel_font_weight');
+      if (storedFontWeight) setFontWeight(storedFontWeight as any);
+
+      const storedLetterSpacing = localStorage.getItem('novel_letter_spacing');
+      if (storedLetterSpacing) setLetterSpacing(storedLetterSpacing as any);
+
+      const storedParagraphSpacing = localStorage.getItem('novel_paragraph_spacing');
+      if (storedParagraphSpacing) setParagraphSpacing(storedParagraphSpacing as any);
+
+      const storedPageMargins = localStorage.getItem('novel_page_margins');
+      if (storedPageMargins) setPageMargins(storedPageMargins as any);
+
+      const storedCustomBg = localStorage.getItem('novel_custom_bg');
+      if (storedCustomBg) setCustomBg(storedCustomBg);
+
+      const storedCustomText = localStorage.getItem('novel_custom_text');
+      if (storedCustomText) setCustomText(storedCustomText);
     } catch (err) {
       console.error('Error loading novel local storage:', err);
     }
@@ -720,7 +753,6 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
     setChapterContent(null);
     setChapterLoading(true);
     setError(null);
-    setShowChapterListDropdown(false);
 
     try {
       const res = await fetch(`/api/manga?action=pages&provider=${readingSource}&id=${encodeURIComponent(chapter.id)}`);
@@ -788,7 +820,7 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
     setTimeout(updatePaginationInfo, 100);
   };
 
-  const updateTextAlign = (align: 'left' | 'justify') => {
+  const updateTextAlign = (align: 'left' | 'center' | 'justify') => {
     setTextAlign(align);
     localStorage.setItem('novel_text_align', align);
     setTimeout(updatePaginationInfo, 100);
@@ -811,9 +843,56 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
     localStorage.setItem('novel_bg_style', val);
   };
 
+  const updateFontWeight = (val: 'light' | 'normal' | 'semibold') => {
+    setFontWeight(val);
+    localStorage.setItem('novel_font_weight', val);
+  };
+
+  const updateLetterSpacing = (val: 'tight' | 'normal' | 'wide') => {
+    setLetterSpacing(val);
+    localStorage.setItem('novel_letter_spacing', val);
+  };
+
+  const updateParagraphSpacing = (val: 'compact' | 'normal' | 'loose') => {
+    setParagraphSpacing(val);
+    localStorage.setItem('novel_paragraph_spacing', val);
+  };
+
+  const updatePageMargins = (val: 'compact' | 'normal' | 'wide') => {
+    setPageMargins(val);
+    localStorage.setItem('novel_page_margins', val);
+    setTimeout(updatePaginationInfo, 100);
+  };
+
+  const updateCustomBg = (val: string) => {
+    setCustomBg(val);
+    localStorage.setItem('novel_custom_bg', val);
+  };
+
+  const updateCustomText = (val: string) => {
+    setCustomText(val);
+    localStorage.setItem('novel_custom_text', val);
+  };
+
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen()
+        .then(() => setIsFullscreen(true))
+        .catch((err) => console.warn('Fullscreen error:', err.message));
+    } else {
+      document.exitFullscreen()
+        .then(() => setIsFullscreen(false))
+        .catch(() => {});
+    }
+  };
+
   const updatePaginationInfo = useCallback(() => {
-    const el = readerBodyRef.current;
-    if (!el || readingMode === 'infinite') return;
+    const el = readingMode === 'infinite' ? readerScrollContainerRef.current : readerBodyRef.current;
+    if (!el) return;
+
+    if (readingMode === 'infinite') {
+      return;
+    }
 
     if (readingMode === 'paged-horizontal' || readingMode === 'book-mode') {
       const colGap = readingMode === 'book-mode' ? 48 : 32;
@@ -894,24 +973,93 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
   };
 
   useEffect(() => {
-    const el = readerBodyRef.current;
-    if (!el) return;
+    const activeEl = readingMode === 'infinite' ? readerScrollContainerRef.current : readerBodyRef.current;
+    if (!activeEl) return;
 
     const handleScroll = () => {
       updatePaginationInfo();
+
+      if (!novelDetails || !activeChapter) return;
+
+      if (readingMode === 'infinite') {
+        const paragraphs = activeEl.getElementsByClassName('novel-p');
+        const containerTop = activeEl.getBoundingClientRect().top;
+        
+        for (let i = 0; i < paragraphs.length; i++) {
+          const p = paragraphs[i];
+          const rect = p.getBoundingClientRect();
+          if (rect.bottom > containerTop + 20) {
+            const updated = {
+              ...readingProgress,
+              [novelDetails.id]: {
+                chapterId: activeChapter.id,
+                chapterTitle: activeChapter.title,
+                paragraphIndex: i
+              }
+            };
+            setReadingProgress(updated);
+            localStorage.setItem('novel_progress', JSON.stringify(updated));
+            break;
+          }
+        }
+      } else {
+        const colGap = readingMode === 'book-mode' ? 48 : 32;
+        const width = activeEl.clientWidth;
+        const currPage = Math.round(activeEl.scrollLeft / (width + colGap));
+        
+        const updated = {
+          ...readingProgress,
+          [novelDetails.id]: {
+            chapterId: activeChapter.id,
+            chapterTitle: activeChapter.title,
+            page: currPage
+          }
+        };
+        setReadingProgress(updated);
+        localStorage.setItem('novel_progress', JSON.stringify(updated));
+      }
     };
 
-    el.addEventListener('scroll', handleScroll);
+    activeEl.addEventListener('scroll', handleScroll);
     window.addEventListener('resize', handleScroll);
 
     const timeout = setTimeout(updatePaginationInfo, 300);
 
     return () => {
-      el.removeEventListener('scroll', handleScroll);
+      activeEl.removeEventListener('scroll', handleScroll);
       window.removeEventListener('resize', handleScroll);
       clearTimeout(timeout);
     };
-  }, [chapterContent, readingMode, fontSize, lineHeight, textAlign, updatePaginationInfo]);
+  }, [chapterContent, readingMode, fontSize, lineHeight, textAlign, updatePaginationInfo, novelDetails, activeChapter, readingProgress]);
+
+  // Resume exactly from last paragraph / page position when chapter content loads
+  useEffect(() => {
+    if (!chapterContent || !novelDetails || !activeChapter) return;
+
+    const progress = readingProgress[novelDetails.id];
+    if (progress && progress.chapterId === activeChapter.id) {
+      setTimeout(() => {
+        const el = readerBodyRef.current;
+        const scrollEl = readerScrollContainerRef.current;
+        if (!el) return;
+
+        if (readingMode === 'infinite' && progress.paragraphIndex !== undefined && scrollEl) {
+          const paragraphs = el.getElementsByClassName('novel-p');
+          const p = paragraphs[progress.paragraphIndex];
+          if (p) {
+            const rect = p.getBoundingClientRect();
+            const topOffset = rect.top - scrollEl.getBoundingClientRect().top + scrollEl.scrollTop;
+            scrollEl.scrollTop = topOffset;
+          }
+        } else if (readingMode !== 'infinite' && progress.page !== undefined) {
+          const colGap = readingMode === 'book-mode' ? 48 : 32;
+          const step = el.clientWidth + colGap;
+          el.scrollLeft = progress.page * step;
+          setCurrentPage(progress.page);
+        }
+      }, 250);
+    }
+  }, [chapterContent, readingMode, activeChapter, novelDetails]);
 
   // Keyboard navigation for page-by-page modes (Arrow keys and Space)
   useEffect(() => {
@@ -1069,6 +1217,60 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
       </div>
     </div>
   );
+
+  const getThemeStyles = () => {
+    switch (theme) {
+      case 'light':
+        return { bg: '#fafafa', text: '#27272a', border: 'border-zinc-200', headerBg: 'bg-zinc-100/90 shadow-sm backdrop-blur-md' };
+      case 'amoled':
+        return { bg: '#000000', text: '#e4e4e7', border: 'border-zinc-900', headerBg: 'bg-black/90 shadow-md backdrop-blur-md' };
+      case 'sepia':
+        return { bg: '#f7f1e3', text: '#433422', border: 'border-[#e3d5bb]', headerBg: 'bg-[#ebdcb9]/90 shadow-sm backdrop-blur-md' };
+      case 'paper':
+        return { bg: '#f4ebd0', text: '#5c4322', border: 'border-[#ebdca8]', headerBg: 'bg-[#ebd09d]/90 shadow-sm backdrop-blur-md' };
+      case 'grey':
+        return { bg: '#27272a', text: '#f4f4f5', border: 'border-zinc-800', headerBg: 'bg-zinc-900/90 shadow-md backdrop-blur-md' };
+      case 'custom':
+        return { bg: customBg, text: customText, border: 'border-zinc-800/40', headerBg: 'bg-black/40 shadow-md backdrop-blur-md' };
+      case 'dark':
+      default:
+        return { bg: '#121212', text: '#e4e4e7', border: 'border-zinc-800/60', headerBg: 'bg-[#18181b]/90 shadow-md backdrop-blur-md' };
+    }
+  };
+
+  const renderParagraphWithHighlights = (text: string, paragraphIdx: number) => {
+    if (!searchQueryInside.trim()) return text;
+    const parts = text.split(new RegExp(`(${searchQueryInside})`, 'gi'));
+    return parts.map((part, idx) => {
+      const isMatch = part.toLowerCase() === searchQueryInside.toLowerCase();
+      return isMatch ? (
+        <mark 
+          key={idx} 
+          className="bg-amber-500/40 text-white rounded-sm px-0.5 border-b border-amber-400 font-bold"
+        >
+          {part}
+        </mark>
+      ) : part;
+    });
+  };
+
+  const handleContentClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const clickX = e.clientX - rect.left;
+    const width = rect.width;
+    
+    if (readingMode !== 'infinite') {
+      if (clickX < width * 0.15) {
+        handlePrevPage();
+      } else if (clickX > width * 0.85) {
+        handleNextPage();
+      } else {
+        setControlsVisible(!controlsVisible);
+      }
+    } else {
+      setControlsVisible(!controlsVisible);
+    }
+  };
 
   const featuredNovel = trendingNovels[heroIndex] || trendingNovels[0] || null;
 
@@ -1445,7 +1647,14 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
                               onClick={() => handleChapterSelect(chapter)}
                               className={`flex items-center justify-between p-3 rounded-xl cursor-pointer transition-all border text-xs ${isLastRead ? 'bg-indigo-600/10 border-indigo-500/30 text-indigo-400 font-semibold' : 'bg-zinc-900/30 border-white/5 hover:border-white/10 text-zinc-300 hover:text-white'}`}
                             >
-                              <span className="line-clamp-1">{chapter.title}</span>
+                              <div className="flex flex-col text-left gap-0.5 max-w-[80%]">
+                                <span className="line-clamp-1 font-semibold">{chapter.title}</span>
+                                {chapter.date && (
+                                  <span className="text-[9px] text-zinc-500 font-normal mt-0.5 leading-none">
+                                    {chapter.date}
+                                  </span>
+                                )}
+                              </div>
                               {isLastRead && <span className="text-[9px] uppercase font-bold tracking-wider opacity-70">Current</span>}
                             </div>
                           );
@@ -1537,13 +1746,11 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
       {selectedNovel && activeChapter && (
         <div 
           ref={readerContainerRef}
-          className={`fixed inset-0 z-[200] overflow-hidden flex flex-col select-text font-serif leading-relaxed transition-all ${
-            theme === 'sepia' 
-              ? 'bg-[#f7f1e3] text-[#433422]' 
-              : theme === 'light' 
-                ? 'bg-[#fafafa] text-[#27272a]' 
-                : 'bg-[#121212] text-[#e4e4e7]'
-          }`}
+          className="fixed inset-0 z-[200] overflow-hidden flex flex-col select-text transition-all duration-300"
+          style={{
+            backgroundColor: getThemeStyles().bg,
+            color: getThemeStyles().text
+          }}
         >
           {/* Background Styling Effects */}
           {bgStyle === 'gradient' && (
@@ -1583,14 +1790,16 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
               />
             </div>
           )}
+
           {/* Header Controls (Overlaying app navbar) */}
-          <div className={`h-14 w-full shrink-0 px-4 flex items-center justify-between border-b transition-all ${
-            theme === 'sepia'
-              ? 'bg-[#ebdcb9]/90 border-[#e3d5bb] text-[#433422]'
-              : theme === 'light'
-                ? 'bg-zinc-100/90 border-zinc-200 text-zinc-800'
-                : 'bg-[#18181b]/90 border-zinc-800/60 text-zinc-300'
-          }`}>
+          <div 
+            className={`fixed top-0 left-0 right-0 h-14 z-[210] px-4 flex items-center justify-between border-b transition-all duration-300 ${
+              controlsVisible ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0 pointer-events-none'
+            } ${getThemeStyles().border} ${getThemeStyles().headerBg}`}
+            style={{
+              color: getThemeStyles().text
+            }}
+          >
             <button 
               onClick={() => {
                 setActiveChapter(null);
@@ -1601,16 +1810,38 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
               <ArrowLeft size={16} /> Close Reader
             </button>
 
-            <h1 className="text-xs font-bold text-center line-clamp-1 max-w-[40%]">
-              {chapterContent?.title || activeChapter.title}
-            </h1>
+            {/* In-chapter Search input or Title */}
+            {searchQueryInside.trim() !== '' || (document.activeElement?.classList.contains('chapter-search-input')) ? (
+              <div className="flex-1 max-w-sm mx-4 flex items-center bg-black/10 dark:bg-white/5 border border-white/10 rounded-xl px-2 py-1 gap-1">
+                <Search size={14} className="text-zinc-500" />
+                <input 
+                  type="text" 
+                  value={searchQueryInside} 
+                  onChange={(e) => setSearchQueryInside(e.target.value)}
+                  placeholder="Search in chapter..."
+                  className="bg-transparent border-0 outline-none w-full text-xs text-white chapter-search-input"
+                />
+                {searchQueryInside && (
+                  <button 
+                    onClick={() => setSearchQueryInside('')} 
+                    className="p-0.5 rounded-full hover:bg-white/10"
+                  >
+                    <X size={12} />
+                  </button>
+                )}
+              </div>
+            ) : (
+              <h1 className="text-xs font-bold text-center line-clamp-1 max-w-[40%]">
+                {chapterContent?.title || activeChapter.title}
+              </h1>
+            )}
 
             {/* Menu Controls */}
             <div className="flex items-center gap-3 relative">
               <button 
                 onClick={() => {
-                  setShowChapterListDropdown(!showChapterListDropdown);
-                  setShowSettings(false);
+                  setShowTOCDrawer(true);
+                  setShowSettingsDrawer(false);
                 }}
                 className="p-1.5 rounded-full hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
                 title="Table of Contents"
@@ -1620,255 +1851,447 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
 
               <button 
                 onClick={() => {
-                  setShowSettings(!showSettings);
-                  setShowChapterListDropdown(false);
+                  const searchEl = document.querySelector('.chapter-search-input') as HTMLInputElement;
+                  if (searchEl) {
+                    searchEl.focus();
+                  } else {
+                    setSearchQueryInside(' ');
+                    setTimeout(() => {
+                      (document.querySelector('.chapter-search-input') as HTMLInputElement)?.focus();
+                    }, 50);
+                  }
+                }}
+                className="p-1.5 rounded-full hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+                title="Search in chapter"
+              >
+                <Search size={16} />
+              </button>
+
+              <button 
+                onClick={() => {
+                  setShowSettingsDrawer(true);
+                  setShowTOCDrawer(false);
                 }}
                 className="p-1.5 rounded-full hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
                 title="Reader Settings"
               >
                 <Settings size={16} />
               </button>
+            </div>
+          </div>
 
-              {/* Reader Options Settings Panel */}
-              {showSettings && (
-                <div className={`absolute right-0 top-10 w-64 p-4 rounded-2xl shadow-2xl border flex flex-col gap-4 z-[210] animate-in fade-in duration-200 ${
-                  theme === 'sepia'
-                    ? 'bg-[#ebdcb9] border-[#d2be92] text-[#433422]'
-                    : theme === 'light'
-                      ? 'bg-white border-zinc-200 text-zinc-800'
-                      : 'bg-[#1c1c1f] border-zinc-800 text-white'
-                }`}>
-                  {/* Theme Presets */}
-                  <div className="space-y-1 text-left">
-                    <span className="text-[9px] uppercase font-bold tracking-wider opacity-60">Theme</span>
-                    <div className="grid grid-cols-3 gap-1">
-                      <button 
-                        onClick={() => updateTheme('dark')}
-                        className={`py-1 text-[10px] rounded-lg border font-semibold ${theme === 'dark' ? 'border-indigo-500 bg-[#0a0a0a] text-white' : 'border-transparent bg-black/10 dark:bg-white/5'}`}
+          {/* Table of Contents Drawer */}
+          {showTOCDrawer && (
+            <div className="fixed inset-0 z-[250] flex">
+              <div 
+                onClick={() => setShowTOCDrawer(false)}
+                className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-300"
+              />
+              <div className="relative w-80 max-w-[90%] h-full flex flex-col z-10 shadow-2xl bg-zinc-950/95 border-r border-white/10 text-white animate-in slide-in-from-left duration-300">
+                <div className="p-4 border-b border-white/10 flex items-center justify-between">
+                  <h3 className="font-bold text-xs uppercase tracking-wider text-indigo-400">Chapters List</h3>
+                  <button onClick={() => setShowTOCDrawer(false)} className="p-1 rounded-full hover:bg-white/10">
+                    <X size={16} />
+                  </button>
+                </div>
+                <div className="flex-1 overflow-y-auto p-3 space-y-1">
+                  {novelDetails?.chapters.map(c => {
+                    const isCurrent = c.id === activeChapter.id;
+                    return (
+                      <button
+                        key={c.id}
+                        onClick={() => {
+                          handleChapterSelect(c);
+                          setShowTOCDrawer(false);
+                        }}
+                        className={`w-full text-left p-2.5 text-xs rounded-xl transition-all ${
+                          isCurrent 
+                            ? 'bg-indigo-600 text-white font-bold' 
+                            : 'hover:bg-white/5 text-zinc-300 hover:text-white'
+                        }`}
                       >
-                        Dark
+                        {c.title}
+                        {c.date && <span className="block text-[10px] text-zinc-500 font-normal mt-0.5">{c.date}</span>}
                       </button>
-                      <button 
-                        onClick={() => updateTheme('light')}
-                        className={`py-1 text-[10px] rounded-lg border font-semibold ${theme === 'light' ? 'border-indigo-500 bg-white text-zinc-900' : 'border-transparent bg-black/10 dark:bg-white/5'}`}
-                      >
-                        Light
-                      </button>
-                      <button 
-                        onClick={() => updateTheme('sepia')}
-                        className={`py-1 text-[10px] rounded-lg border font-semibold ${theme === 'sepia' ? 'border-amber-700 bg-[#f7f1e3] text-[#433422]' : 'border-transparent bg-black/10 dark:bg-white/5'}`}
-                      >
-                        Sepia
-                      </button>
-                    </div>
-                  </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
 
-                  {/* Reading Mode */}
-                  <div className="space-y-1 text-left">
-                    <span className="text-[9px] uppercase font-bold tracking-wider opacity-60">Reading Mode</span>
-                    <div className="grid grid-cols-2 gap-1">
-                      <button 
-                        onClick={() => updateReadingMode('infinite')}
-                        className={`py-1 text-[9px] rounded-lg border font-semibold ${readingMode === 'infinite' ? 'border-indigo-500 bg-indigo-500/10 text-indigo-400' : 'border-transparent bg-black/10 dark:bg-white/5'}`}
-                      >
-                        Scroll (Infinite)
-                      </button>
-                      <button 
-                        onClick={() => updateReadingMode('paged-horizontal')}
-                        className={`py-1 text-[9px] rounded-lg border font-semibold ${readingMode === 'paged-horizontal' ? 'border-indigo-500 bg-indigo-500/10 text-indigo-400' : 'border-transparent bg-black/10 dark:bg-white/5'}`}
-                      >
-                        Horizontal Pages
-                      </button>
-                      <button 
-                        onClick={() => updateReadingMode('paged-vertical')}
-                        className={`py-1 text-[9px] rounded-lg border font-semibold ${readingMode === 'paged-vertical' ? 'border-indigo-500 bg-indigo-500/10 text-indigo-400' : 'border-transparent bg-black/10 dark:bg-white/5'}`}
-                      >
-                        Vertical Pages
-                      </button>
-                      <button 
-                        onClick={() => updateReadingMode('book-mode')}
-                        className={`py-1 text-[9px] rounded-lg border font-semibold ${readingMode === 'book-mode' ? 'border-indigo-500 bg-indigo-500/10 text-indigo-400' : 'border-transparent bg-black/10 dark:bg-white/5'}`}
-                      >
-                        Book (2 Pages)
-                      </button>
-                    </div>
-                  </div>
+          {/* Custom Settings Drawer */}
+          {showSettingsDrawer && (
+            <div className="fixed inset-0 z-[250] flex justify-end">
+              <div 
+                onClick={() => setShowSettingsDrawer(false)}
+                className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-300"
+              />
+              <div className="relative w-80 max-w-[90%] h-full flex flex-col z-10 shadow-2xl bg-zinc-950/95 border-l border-white/10 text-white p-4 space-y-4 overflow-y-auto animate-in slide-in-from-right duration-300">
+                <div className="flex items-center justify-between border-b border-white/10 pb-3">
+                  <h3 className="font-bold text-xs uppercase tracking-wider text-indigo-400">Reader Settings</h3>
+                  <button onClick={() => setShowSettingsDrawer(false)} className="p-1 rounded-full hover:bg-white/10">
+                    <X size={16} />
+                  </button>
+                </div>
 
-                  {/* Typography Font Preset */}
-                  <div className="space-y-1 text-left">
-                    <span className="text-[9px] uppercase font-bold tracking-wider opacity-60">Typography</span>
-                    <div className="grid grid-cols-3 gap-1">
-                      <button 
-                        onClick={() => updateFontFamily('Lora, serif')}
-                        className={`py-1 text-[10px] rounded-lg border font-serif ${fontFamily === 'Lora, serif' ? 'border-indigo-500 font-bold' : 'border-transparent bg-black/10 dark:bg-white/5'}`}
-                      >
-                        Serif Book
-                      </button>
-                      <button 
-                        onClick={() => updateFontFamily('Inter, sans-serif')}
-                        className={`py-1 text-[10px] rounded-lg border font-sans ${fontFamily === 'Inter, sans-serif' ? 'border-indigo-500 font-bold' : 'border-transparent bg-black/10 dark:bg-white/5'}`}
-                      >
-                        Sans Modern
-                      </button>
-                      <button 
-                        onClick={() => updateFontFamily('Fira Code, monospace')}
-                        className={`py-1 text-[10px] rounded-lg border font-mono ${fontFamily === 'Fira Code, monospace' ? 'border-indigo-500 font-bold' : 'border-transparent bg-black/10 dark:bg-white/5'}`}
-                      >
-                        Mono Tech
-                      </button>
-                    </div>
-                  </div>
+                <div className="grid grid-cols-3 bg-white/5 p-1 rounded-xl border border-white/5 text-[10px] font-semibold text-center">
+                  <button 
+                    onClick={() => setActiveSettingsTab('style')}
+                    className={`py-1.5 rounded-lg transition-all ${activeSettingsTab === 'style' ? 'bg-indigo-600 text-white' : 'text-zinc-400 hover:text-white'}`}
+                  >
+                    Style
+                  </button>
+                  <button 
+                    onClick={() => setActiveSettingsTab('theme')}
+                    className={`py-1.5 rounded-lg transition-all ${activeSettingsTab === 'theme' ? 'bg-indigo-600 text-white' : 'text-zinc-400 hover:text-white'}`}
+                  >
+                    Theme
+                  </button>
+                  <button 
+                    onClick={() => setActiveSettingsTab('display')}
+                    className={`py-1.5 rounded-lg transition-all ${activeSettingsTab === 'display' ? 'bg-indigo-600 text-white' : 'text-zinc-400 hover:text-white'}`}
+                  >
+                    Layout
+                  </button>
+                </div>
 
-                  {/* Font Size Preset */}
-                  <div className="space-y-1 text-left">
-                    <span className="text-[9px] uppercase font-bold tracking-wider opacity-60">Font Size ({fontSize}px)</span>
-                    <div className="flex items-center gap-1.5">
-                      <button 
-                        onClick={() => updateFontSize(Math.max(12, fontSize - 2))}
-                        className="flex-1 bg-black/10 dark:bg-white/5 hover:bg-black/20 dark:hover:bg-white/10 py-1 rounded-lg text-xs font-bold"
-                      >
-                        A-
-                      </button>
-                      <button 
-                        onClick={() => updateFontSize(Math.min(32, fontSize + 2))}
-                        className="flex-1 bg-black/10 dark:bg-white/5 hover:bg-black/20 dark:hover:bg-white/10 py-1 rounded-lg text-xs font-bold"
-                      >
-                        A+
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Line Height & Alignment Controls */}
-                  <div className="grid grid-cols-2 gap-2 text-left">
+                {activeSettingsTab === 'style' && (
+                  <div className="space-y-4 text-xs">
                     <div className="space-y-1">
-                      <span className="text-[9px] uppercase font-bold tracking-wider opacity-60">Line Height</span>
+                      <label className="text-[10px] uppercase font-bold text-zinc-400 tracking-wider">Font Family</label>
                       <select 
-                        value={lineHeight}
-                        onChange={(e) => updateLineHeight(parseFloat(e.target.value))}
-                        className="w-full bg-black/10 dark:bg-white/5 border border-transparent rounded-lg py-1 px-1 text-[10px] font-semibold focus:outline-none"
+                        value={fontFamily}
+                        onChange={(e) => {
+                          setFontFamily(e.target.value);
+                          localStorage.setItem('novel_font_family', e.target.value);
+                          setTimeout(updatePaginationInfo, 100);
+                        }}
+                        className="w-full bg-white/5 border border-white/10 rounded-xl py-2 px-3 focus:outline-none focus:border-indigo-500 font-medium text-white"
                       >
-                        <option value="1.5">Compact (1.5)</option>
-                        <option value="1.8">Normal (1.8)</option>
-                        <option value="2.2">Loose (2.2)</option>
+                        <option value="Lora, serif" className="bg-zinc-950">Lora Book Serif</option>
+                        <option value="Merriweather, serif" className="bg-zinc-950">Merriweather Serif</option>
+                        <option value="Inter, sans-serif" className="bg-zinc-950">Inter Clean Sans</option>
+                        <option value="Outfit, sans-serif" className="bg-zinc-950">Outfit Modern Sans</option>
+                        <option value="Fira Code, monospace" className="bg-zinc-950">Fira Code Mono</option>
                       </select>
                     </div>
 
-                    <div className="space-y-1">
-                      <span className="text-[9px] uppercase font-bold tracking-wider opacity-60">Alignment</span>
-                      <div className="grid grid-cols-2 gap-0.5">
-                        <button 
-                          onClick={() => updateTextAlign('left')}
-                          className={`py-1 text-[9px] rounded-lg border font-semibold ${textAlign === 'left' ? 'border-indigo-500 bg-indigo-500/10 text-indigo-400' : 'border-transparent bg-black/10 dark:bg-white/5'}`}
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <label className="text-[10px] uppercase font-bold text-zinc-400 tracking-wider">Size ({fontSize}px)</label>
+                        <div className="flex items-center gap-1">
+                          <button 
+                            onClick={() => {
+                              const next = Math.max(12, fontSize - 1);
+                              setFontSize(next);
+                              localStorage.setItem('novel_font_size', next.toString());
+                              setTimeout(updatePaginationInfo, 100);
+                            }}
+                            className="flex-1 bg-white/5 hover:bg-white/10 rounded-xl py-1.5 font-bold border border-white/5"
+                          >
+                            A-
+                          </button>
+                          <button 
+                            onClick={() => {
+                              const next = Math.min(32, fontSize + 1);
+                              setFontSize(next);
+                              localStorage.setItem('novel_font_size', next.toString());
+                              setTimeout(updatePaginationInfo, 100);
+                            }}
+                            className="flex-1 bg-white/5 hover:bg-white/10 rounded-xl py-1.5 font-bold border border-white/5"
+                          >
+                            A+
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-[10px] uppercase font-bold text-zinc-400 tracking-wider">Weight</label>
+                        <select 
+                          value={fontWeight}
+                          onChange={(e) => updateFontWeight(e.target.value as any)}
+                          className="w-full bg-white/5 border border-white/10 rounded-xl py-2 px-2 focus:outline-none font-medium text-white"
                         >
-                          Left
-                        </button>
-                        <button 
-                          onClick={() => updateTextAlign('justify')}
-                          className={`py-1 text-[9px] rounded-lg border font-semibold ${textAlign === 'justify' ? 'border-indigo-500 bg-indigo-500/10 text-indigo-400' : 'border-transparent bg-black/10 dark:bg-white/5'}`}
+                          <option value="light" className="bg-zinc-950">Light</option>
+                          <option value="normal" className="bg-zinc-950">Regular</option>
+                          <option value="semibold" className="bg-zinc-950">Semi-Bold</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <label className="text-[10px] uppercase font-bold text-zinc-400 tracking-wider">Line Spacing</label>
+                        <select 
+                          value={lineHeight}
+                          onChange={(e) => updateLineHeight(parseFloat(e.target.value))}
+                          className="w-full bg-white/5 border border-white/10 rounded-xl py-2 px-2 focus:outline-none font-medium text-white"
                         >
-                          Justify
+                          <option value="1.4" className="bg-zinc-950">Compact (1.4)</option>
+                          <option value="1.6" className="bg-zinc-950">Normal (1.6)</option>
+                          <option value="1.8" className="bg-zinc-950">Loose (1.8)</option>
+                          <option value="2.0" className="bg-zinc-950">Tall (2.0)</option>
+                          <option value="2.2" className="bg-zinc-950">Extra Tall (2.2)</option>
+                        </select>
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-[10px] uppercase font-bold text-zinc-400 tracking-wider">Alignment</label>
+                        <select 
+                          value={textAlign}
+                          onChange={(e) => updateTextAlign(e.target.value as any)}
+                          className="w-full bg-white/5 border border-white/10 rounded-xl py-2 px-2 focus:outline-none font-medium text-white"
+                        >
+                          <option value="left" className="bg-zinc-950">Left</option>
+                          <option value="center" className="bg-zinc-950">Center</option>
+                          <option value="justify" className="bg-zinc-950">Justified</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <label className="text-[10px] uppercase font-bold text-zinc-400 tracking-wider">Letter Spacing</label>
+                        <select 
+                          value={letterSpacing}
+                          onChange={(e) => updateLetterSpacing(e.target.value as any)}
+                          className="w-full bg-white/5 border border-white/10 rounded-xl py-2 px-2 focus:outline-none font-medium text-white"
+                        >
+                          <option value="tight" className="bg-zinc-950">Tight</option>
+                          <option value="normal" className="bg-zinc-950">Normal</option>
+                          <option value="wide" className="bg-zinc-950">Wide</option>
+                        </select>
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-[10px] uppercase font-bold text-zinc-400 tracking-wider">Para Spacing</label>
+                        <select 
+                          value={paragraphSpacing}
+                          onChange={(e) => updateParagraphSpacing(e.target.value as any)}
+                          className="w-full bg-white/5 border border-white/10 rounded-xl py-2 px-2 focus:outline-none font-medium text-white"
+                        >
+                          <option value="compact" className="bg-zinc-950">Compact</option>
+                          <option value="normal" className="bg-zinc-950">Normal</option>
+                          <option value="loose" className="bg-zinc-950">Loose</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {activeSettingsTab === 'theme' && (
+                  <div className="space-y-4 text-xs">
+                    <div className="space-y-2">
+                      <label className="text-[10px] uppercase font-bold text-zinc-400 tracking-wider">Presets</label>
+                      <div className="grid grid-cols-3 gap-2">
+                        {[
+                          { name: 'Light', id: 'light', bg: '#fafafa', text: '#27272a' },
+                          { name: 'Dark', id: 'dark', bg: '#121212', text: '#e4e4e7' },
+                          { name: 'AMOLED', id: 'amoled', bg: '#000000', text: '#e4e4e7' },
+                          { name: 'Sepia', id: 'sepia', bg: '#f7f1e3', text: '#433422' },
+                          { name: 'Paper', id: 'paper', bg: '#f4ebd0', text: '#5c4322' },
+                          { name: 'Grey', id: 'grey', bg: '#27272a', text: '#f4f4f5' }
+                        ].map(item => (
+                          <button
+                            key={item.id}
+                            onClick={() => {
+                              setTheme(item.id as any);
+                              localStorage.setItem('novel_theme', item.id);
+                            }}
+                            style={{ backgroundColor: item.bg, color: item.text }}
+                            className={`h-11 rounded-xl border flex flex-col justify-center items-center font-bold text-[10px] shadow-sm relative transition-all ${
+                              theme === item.id ? 'border-indigo-500 scale-105 ring-1 ring-indigo-500/50' : 'border-white/10 hover:opacity-90'
+                            }`}
+                          >
+                            {item.name}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="bg-white/5 border border-white/5 rounded-2xl p-3.5 space-y-3">
+                      <button 
+                        onClick={() => {
+                          setTheme('custom');
+                          localStorage.setItem('novel_theme', 'custom');
+                        }}
+                        className={`w-full py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl text-center transition-all ${
+                          theme === 'custom' ? 'ring-2 ring-indigo-500/30' : 'opacity-80'
+                        }`}
+                      >
+                        Custom Colors
+                      </button>
+
+                      <div className="grid grid-cols-2 gap-3 text-[10px] text-zinc-400">
+                        <div className="space-y-1">
+                          <label>Background</label>
+                          <div className="flex items-center gap-1.5">
+                            <input 
+                              type="color" 
+                              value={customBg} 
+                              onChange={(e) => updateCustomBg(e.target.value)}
+                              className="w-7 h-7 rounded border-0 bg-transparent cursor-pointer"
+                            />
+                            <span className="font-mono uppercase text-[9px]">{customBg}</span>
+                          </div>
+                        </div>
+
+                        <div className="space-y-1">
+                          <label>Text Color</label>
+                          <div className="flex items-center gap-1.5">
+                            <input 
+                              type="color" 
+                              value={customText} 
+                              onChange={(e) => updateCustomText(e.target.value)}
+                              className="w-7 h-7 rounded border-0 bg-transparent cursor-pointer"
+                            />
+                            <span className="font-mono uppercase text-[9px]">{customText}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] uppercase font-bold text-zinc-400 tracking-wider">Backdrop Effect</label>
+                      <div className="grid grid-cols-3 gap-2">
+                        {[
+                          { name: 'Solid', id: 'plain' },
+                          { name: 'Gradient', id: 'gradient' },
+                          { name: 'Cinematic', id: 'cinematic' }
+                        ].map(item => (
+                          <button
+                            key={item.id}
+                            onClick={() => updateBgStyle(item.id as any)}
+                            className={`py-2 text-[10px] rounded-xl border font-bold transition-all ${
+                              bgStyle === item.id 
+                                ? 'border-indigo-500 bg-indigo-600/10 text-indigo-400' 
+                                : 'border-white/10 bg-white/5 hover:bg-white/10 text-zinc-300'
+                            }`}
+                          >
+                            {item.name}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {activeSettingsTab === 'display' && (
+                  <div className="space-y-4 text-xs">
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] uppercase font-bold text-zinc-400 tracking-wider">Reading Mode</label>
+                      <div className="grid grid-cols-2 gap-2">
+                        {[
+                          { name: 'Vertical Scroll', id: 'infinite' },
+                          { name: 'Horizontal Pages', id: 'paged-horizontal' },
+                          { name: 'Vertical Pages', id: 'paged-vertical' },
+                          { name: 'Book Mode (2 Col)', id: 'book-mode' }
+                        ].map(item => (
+                          <button
+                            key={item.id}
+                            onClick={() => updateReadingMode(item.id as any)}
+                            className={`py-2 px-1 text-[10px] rounded-xl border font-bold transition-all text-center ${
+                              readingMode === item.id 
+                                ? 'border-indigo-500 bg-indigo-600/10 text-indigo-400' 
+                                : 'border-white/10 bg-white/5 hover:bg-white/10 text-zinc-300'
+                            }`}
+                          >
+                            {item.name}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] uppercase font-bold text-zinc-400 tracking-wider">Content Max Width</label>
+                      <div className="grid grid-cols-4 gap-1.5">
+                        {[
+                          { name: 'Narrow', id: 'narrow' },
+                          { name: 'Medium', id: 'medium' },
+                          { name: 'Wide', id: 'wide' },
+                          { name: 'Full', id: 'full' }
+                        ].map(item => (
+                          <button
+                            key={item.id}
+                            onClick={() => updateReaderWidth(item.id as any)}
+                            className={`py-1.5 text-[9px] rounded-lg border font-bold transition-all text-center ${
+                              readerWidth === item.id 
+                                ? 'border-indigo-500 bg-indigo-600/10 text-indigo-400' 
+                                : 'border-white/10 bg-white/5 hover:bg-white/10 text-zinc-300'
+                            }`}
+                          >
+                            {item.name}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] uppercase font-bold text-zinc-400 tracking-wider">Page Margins</label>
+                      <div className="grid grid-cols-3 gap-2">
+                        {[
+                          { name: 'Compact', id: 'compact' },
+                          { name: 'Normal', id: 'normal' },
+                          { name: 'Wide', id: 'wide' }
+                        ].map(item => (
+                          <button
+                            key={item.id}
+                            onClick={() => updatePageMargins(item.id as any)}
+                            className={`py-2 text-[10px] rounded-xl border font-bold transition-all text-center ${
+                              pageMargins === item.id 
+                                ? 'border-indigo-500 bg-indigo-600/10 text-indigo-400' 
+                                : 'border-white/10 bg-white/5 hover:bg-white/10 text-zinc-300'
+                            }`}
+                          >
+                            {item.name}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="space-y-3 bg-white/5 border border-white/5 rounded-2xl p-3">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h4 className="font-bold text-[11px] text-zinc-200">Immersive Fullscreen</h4>
+                          <p className="text-[9px] text-zinc-500">Hide status bars</p>
+                        </div>
+                        <button
+                          onClick={toggleFullscreen}
+                          className={`px-3 py-1.5 rounded-lg border font-bold text-[10px] ${
+                            isFullscreen ? 'border-indigo-500 bg-indigo-600/15 text-indigo-400' : 'border-white/10 hover:bg-white/5 text-zinc-400'
+                          }`}
+                        >
+                          {isFullscreen ? 'Active' : 'Toggle'}
                         </button>
                       </div>
                     </div>
                   </div>
-
-                  {/* Layout Width */}
-                  <div className="space-y-1 text-left">
-                    <span className="text-[9px] uppercase font-bold tracking-wider opacity-60">Text Width</span>
-                    <div className="grid grid-cols-4 gap-1">
-                      <button 
-                        onClick={() => updateReaderWidth('narrow')}
-                        className={`py-1 text-[9px] rounded-lg border font-semibold ${readerWidth === 'narrow' ? 'border-indigo-500 bg-indigo-500/10 text-indigo-400' : 'border-transparent bg-black/10 dark:bg-white/5'}`}
-                      >
-                        Narrow
-                      </button>
-                      <button 
-                        onClick={() => updateReaderWidth('medium')}
-                        className={`py-1 text-[9px] rounded-lg border font-semibold ${readerWidth === 'medium' ? 'border-indigo-500 bg-indigo-500/10 text-indigo-400' : 'border-transparent bg-black/10 dark:bg-white/5'}`}
-                      >
-                        Medium
-                      </button>
-                      <button 
-                        onClick={() => updateReaderWidth('wide')}
-                        className={`py-1 text-[9px] rounded-lg border font-semibold ${readerWidth === 'wide' ? 'border-indigo-500 bg-indigo-500/10 text-indigo-400' : 'border-transparent bg-black/10 dark:bg-white/5'}`}
-                      >
-                        Wide
-                      </button>
-                      <button 
-                        onClick={() => updateReaderWidth('full')}
-                        className={`py-1 text-[9px] rounded-lg border font-semibold ${readerWidth === 'full' ? 'border-indigo-500 bg-indigo-500/10 text-indigo-400' : 'border-transparent bg-black/10 dark:bg-white/5'}`}
-                      >
-                        Full
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Background Style */}
-                  <div className="space-y-1 text-left">
-                    <span className="text-[9px] uppercase font-bold tracking-wider opacity-60">Visual Style</span>
-                    <div className="grid grid-cols-3 gap-1">
-                      <button 
-                        onClick={() => updateBgStyle('plain')}
-                        className={`py-1 text-[9px] rounded-lg border font-semibold ${bgStyle === 'plain' ? 'border-indigo-500 bg-indigo-500/10 text-indigo-400' : 'border-transparent bg-black/10 dark:bg-white/5'}`}
-                      >
-                        Solid
-                      </button>
-                      <button 
-                        onClick={() => updateBgStyle('gradient')}
-                        className={`py-1 text-[9px] rounded-lg border font-semibold ${bgStyle === 'gradient' ? 'border-indigo-500 bg-indigo-500/10 text-indigo-400' : 'border-transparent bg-black/10 dark:bg-white/5'}`}
-                      >
-                        Gradient
-                      </button>
-                      <button 
-                        onClick={() => updateBgStyle('cinematic')}
-                        className={`py-1 text-[9px] rounded-lg border font-semibold ${bgStyle === 'cinematic' ? 'border-indigo-500 bg-indigo-500/10 text-indigo-400' : 'border-transparent bg-black/10 dark:bg-white/5'}`}
-                      >
-                        Cinematic
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Table of Contents Dropdown */}
-              {showChapterListDropdown && novelDetails && (
-                <div className={`absolute right-0 top-10 w-64 max-h-[300px] overflow-y-auto p-2 rounded-2xl shadow-2xl border flex flex-col gap-1 z-[210] animate-in fade-in duration-200 ${
-                  theme === 'sepia'
-                    ? 'bg-[#ebdcb9] border-[#e3d5bb] text-[#433422]'
-                    : theme === 'light'
-                      ? 'bg-white border-zinc-200 text-zinc-800'
-                      : 'bg-[#1c1c1f] border-zinc-800 text-white'
-                }`}>
-                  {novelDetails.chapters.map(c => (
-                    <button
-                      key={c.id}
-                      onClick={() => {
-                        handleChapterSelect(c);
-                        setShowChapterListDropdown(false);
-                      }}
-                      className={`text-left p-2 text-[11px] rounded-lg transition-colors leading-snug ${c.id === activeChapter.id ? 'bg-indigo-600/25 text-indigo-400 font-bold' : 'hover:bg-black/5 dark:hover:bg-white/5 opacity-80'}`}
-                    >
-                      {c.title}
-                    </button>
-                  ))}
-                </div>
-              )}
+                )}
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Reader Body content area */}
-          <div className="flex-1 w-full flex items-center justify-center relative overflow-hidden">
+          <div 
+            ref={readerScrollContainerRef}
+            onClick={handleContentClick}
+            className={`flex-1 w-full flex justify-center relative ${
+              readingMode === 'infinite' ? 'overflow-y-auto' : 'overflow-hidden items-center'
+            } py-16 px-4`}
+          >
             {/* Left page navigation tap zone & floating arrow */}
             {readingMode !== 'infinite' && !chapterLoading && chapterContent && (
               <button 
                 onClick={handlePrevPage}
                 className={`absolute left-4 top-1/2 -translate-y-1/2 p-3 rounded-full border transition-all z-[150] shadow-md ${
-                  theme === 'sepia' 
-                    ? 'bg-[#ebdcb9] border-[#e3d5bb] text-[#433422] hover:bg-[#dfd0ad]' 
-                    : theme === 'light' 
-                      ? 'bg-zinc-100 border-zinc-200 text-zinc-800 hover:bg-zinc-200' 
-                      : 'bg-[#1c1c1f] border-zinc-800 text-zinc-300 hover:bg-zinc-800'
+                  controlsVisible ? 'opacity-80 scale-100 hover:opacity-100' : 'opacity-0 scale-90 pointer-events-none'
                 }`}
+                style={{
+                  backgroundColor: getThemeStyles().bg,
+                  borderColor: getThemeStyles().border.split(' ')[0].split('-').slice(1).join('-') === 'zinc-200' ? '#e4e4e7' : 'rgba(255,255,255,0.08)',
+                  color: getThemeStyles().text
+                }}
                 title="Previous Page (Left Arrow)"
               >
                 <ChevronLeft size={20} />
@@ -1878,22 +2301,22 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
             {/* Main Text Content wrapper */}
             <div 
               ref={readerBodyRef}
-              className={`w-full select-text transition-all duration-300 scroll-smooth ${
-                readingMode === 'infinite' ? 'overflow-y-auto px-4 md:px-8 py-8 h-full animate-in fade-in duration-300' : ''
-              }`}
+              className="w-full select-text transition-all duration-300 scroll-smooth"
               style={{
                 fontSize: `${fontSize}px`,
                 fontFamily: fontFamily,
                 lineHeight: lineHeight,
                 textAlign: textAlign,
-                maxWidth: readingMode === 'book-mode' ? '1200px' : readerWidth === 'narrow' ? '600px' : readerWidth === 'wide' ? '960px' : readerWidth === 'full' ? '100%' : '780px',
-                height: readingMode === 'infinite' ? '100%' : '80vh',
-                overflowX: (readingMode === 'paged-horizontal' || readingMode === 'book-mode') ? 'auto' : 'hidden',
-                overflowY: (readingMode === 'infinite') ? 'auto' : (readingMode === 'paged-vertical' ? 'auto' : 'hidden'),
+                fontWeight: fontWeight === 'light' ? 300 : fontWeight === 'semibold' ? 600 : 400,
+                letterSpacing: letterSpacing === 'tight' ? '-0.02em' : letterSpacing === 'wide' ? '0.05em' : 'normal',
+                maxWidth: readingMode === 'book-mode' ? '1200px' : readerWidth === 'narrow' ? '500px' : readerWidth === 'wide' ? '950px' : readerWidth === 'full' ? '100%' : '750px',
+                height: readingMode === 'infinite' ? 'auto' : '80vh',
+                overflowX: (readingMode === 'paged-horizontal' || readingMode === 'book-mode') ? 'auto' : 'visible',
+                overflowY: (readingMode === 'infinite') ? 'visible' : (readingMode === 'paged-vertical' ? 'auto' : 'hidden'),
                 columnWidth: readingMode === 'paged-horizontal' ? '100%' : (readingMode === 'book-mode' ? '46%' : 'auto'),
                 columnCount: readingMode === 'book-mode' ? 2 : 'auto',
                 columnGap: readingMode === 'book-mode' ? '48px' : '32px',
-                padding: readingMode === 'infinite' ? '24px 0px' : '16px 24px',
+                padding: pageMargins === 'compact' ? '8px 12px' : pageMargins === 'wide' ? '24px 48px' : '16px 24px',
                 scrollSnapType: readingMode === 'infinite' ? 'none' : (readingMode === 'paged-vertical' ? 'y mandatory' : 'x mandatory'),
               }}
             >
@@ -1910,72 +2333,72 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
                   {chapterContent.paragraphs.map((p, idx) => (
                     <p 
                       key={idx} 
-                      className={`leading-relaxed tracking-wide text-base md:text-lg mb-4 opacity-95 ${
-                        fontFamily.includes('Lora') ? 'font-serif' : fontFamily.includes('Fira') ? 'font-mono' : 'font-sans'
-                      }`}
+                      id={`p-${idx}`}
+                      className="novel-p leading-relaxed opacity-95 transition-all duration-300 scroll-snap-align-start"
                       style={{ 
-                        textIndent: '1.5rem', 
-                        scrollSnapAlign: 'start'
+                        textIndent: '1.5rem',
+                        marginBottom: paragraphSpacing === 'compact' ? '0.5rem' : paragraphSpacing === 'loose' ? '1.5rem' : '1rem'
                       }}
                     >
-                      {p}
+                      {renderParagraphWithHighlights(p, idx)}
                     </p>
                   ))}
+
+                  {/* End of Chapter Navigation Buttons */}
+                  {novelDetails && (
+                    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-12 pt-8 border-t border-black/5 dark:border-white/5 pb-16">
+                      <button
+                        onClick={handlePrevChapter}
+                        disabled={activeChapterIndex <= 0}
+                        className="w-full sm:w-auto bg-black/10 dark:bg-white/5 border border-black/10 dark:border-white/10 hover:bg-black/20 dark:hover:bg-white/10 disabled:opacity-30 disabled:pointer-events-none py-2 px-6 rounded-2xl flex items-center justify-center gap-1.5 transition-all text-xs font-bold"
+                      >
+                        <ChevronLeft size={16} /> Previous Chapter
+                      </button>
+                      
+                      <span className="text-[9px] opacity-40 font-bold tracking-wider uppercase">
+                        Finished {chapterContent.title || activeChapter.title}
+                      </span>
+
+                      <button
+                        onClick={handleNextChapter}
+                        disabled={activeChapterIndex >= novelDetails.chapters.length - 1}
+                        className="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-500 text-white py-2 px-6 rounded-2xl flex items-center justify-center gap-1.5 transition-all text-xs font-bold shadow-lg shadow-indigo-600/25 active:scale-95"
+                      >
+                        Next Chapter <ChevronRight size={16} />
+                      </button>
+                    </div>
+                  )}
                 </div>
               ) : null}
             </div>
+
+            {/* Subtle Page Counter Overlay (No full bar) */}
+            {readingMode !== 'infinite' && !chapterLoading && chapterContent && (
+              <div 
+                className="absolute bottom-3 right-5 text-[10px] opacity-40 font-mono pointer-events-none z-[160]"
+                style={{ color: getThemeStyles().text }}
+              >
+                Page {currentPage + 1} / {totalPages}
+              </div>
+            )}
 
             {/* Right page navigation tap zone & floating arrow */}
             {readingMode !== 'infinite' && !chapterLoading && chapterContent && (
               <button 
                 onClick={handleNextPage}
                 className={`absolute right-4 top-1/2 -translate-y-1/2 p-3 rounded-full border transition-all z-[150] shadow-md ${
-                  theme === 'sepia' 
-                    ? 'bg-[#ebdcb9] border-[#e3d5bb] text-[#433422] hover:bg-[#dfd0ad]' 
-                    : theme === 'light' 
-                      ? 'bg-zinc-100 border-zinc-200 text-zinc-800 hover:bg-zinc-200' 
-                      : 'bg-[#1c1c1f] border-zinc-800 text-zinc-300 hover:bg-zinc-800'
+                  controlsVisible ? 'opacity-80 scale-100 hover:opacity-100' : 'opacity-0 scale-90 pointer-events-none'
                 }`}
+                style={{
+                  backgroundColor: getThemeStyles().bg,
+                  borderColor: getThemeStyles().border.split(' ')[0].split('-').slice(1).join('-') === 'zinc-200' ? '#e4e4e7' : 'rgba(255,255,255,0.08)',
+                  color: getThemeStyles().text
+                }}
                 title="Next Page (Right Arrow / Space)"
               >
                 <ChevronRight size={20} />
               </button>
             )}
-          </div>
-
-          {/* Footer Controls */}
-          <div className={`h-12 w-full shrink-0 px-4 flex items-center justify-between border-t transition-all text-xs font-semibold ${
-            theme === 'sepia'
-              ? 'bg-[#ebdcb9]/90 border-[#e3d5bb] text-[#7d6954]'
-              : theme === 'light'
-                ? 'bg-zinc-100/90 border-zinc-200 text-zinc-500'
-                : 'bg-[#18181b]/90 border-zinc-800/60 text-zinc-500'
-          }`}>
-            <button 
-              onClick={handlePrevChapter}
-              disabled={activeChapterIndex <= 0}
-              className="flex items-center gap-1 py-1.5 px-3 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 disabled:opacity-30 disabled:pointer-events-none transition-all"
-            >
-              <ChevronLeft size={16} /> Prev Chapter
-            </button>
-
-            {readingMode !== 'infinite' ? (
-              <span className="opacity-60 text-[11px]">
-                Page {currentPage + 1} of {totalPages} ({Math.round(((currentPage + 1) / totalPages) * 100)}%)
-              </span>
-            ) : (
-              <span className="opacity-60 text-[11px]">
-                Chapter {activeChapterIndex + 1} of {novelDetails.chapters.length}
-              </span>
-            )}
-
-            <button 
-              onClick={handleNextChapter}
-              disabled={activeChapterIndex >= novelDetails.chapters.length - 1}
-              className="flex items-center gap-1 py-1.5 px-3 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 disabled:opacity-30 disabled:pointer-events-none transition-all"
-            >
-              Next Chapter <ChevronRight size={16} />
-            </button>
           </div>
         </div>
       )}
