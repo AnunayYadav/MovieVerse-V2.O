@@ -4377,7 +4377,7 @@ export default function App() {
                             />
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={16} />
 
-                            {showSuggestions && searchInput.trim().length >= 2 && (
+                            {showSuggestions && searchInput.trim().length >= 2 && window.innerWidth >= 768 && (
                                 <div className="absolute left-0 right-0 mt-2 bg-[#0c0c0e]/95 backdrop-blur-2xl border border-white/10 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.8)] overflow-hidden z-[150] animate-in fade-in slide-in-from-top-2 duration-200 w-full text-left">
                                     {loadingSuggestions ? (
                                         <div className="p-4 flex items-center justify-center text-zinc-400 gap-2 text-xs">
@@ -4622,7 +4622,7 @@ export default function App() {
                                     <Sparkles size={14} className={isAiSearchActive ? 'animate-pulse' : ''} />
                                 </button>
 
-                                {showSuggestions && searchInput.trim().length >= 2 && (
+                                {showSuggestions && searchInput.trim().length >= 2 && window.innerWidth >= 768 && (
                                     <div className="absolute left-0 right-0 mt-2 bg-[#0c0c0e]/95 backdrop-blur-2xl border border-white/10 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.8)] overflow-hidden z-[150] animate-in fade-in slide-in-from-top-2 duration-200 w-full text-left">
                                         {loadingSuggestions ? (
                                             <div className="p-4 flex items-center justify-center text-zinc-400 gap-2 text-xs">
