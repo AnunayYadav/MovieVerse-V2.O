@@ -171,6 +171,13 @@ export const PROVIDERS: Provider[] = [
     },
     supportsPostMessage: true
   },
+  {
+    id: 'xpass',
+    name: 'XPass',
+    getMovieUrl: (tmdbId) => `https://play.xpass.top/e/movie/${tmdbId}`,
+    getTvUrl: (tmdbId, season, episode) => `https://play.xpass.top/e/tv/${tmdbId}/${season}/${episode}`,
+    supportsPostMessage: true
+  },
 ];
 
 export const getFilteredProviders = (isAnime: boolean, isWatchParty: boolean = false, isAnimeDirect: boolean = false) => {
