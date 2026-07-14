@@ -2361,11 +2361,11 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                 }
 
                 // Handle Peachify, VidFast & CinemaOS PLAYER_EVENTs / MEDIA_DATAs
-                if (event.origin === 'https://peachify.pro' || event.origin === 'https://vidfast.vc' || event.origin === 'https://cinemaos.tech' || parsed.type === 'PLAYER_EVENT' || parsed.type === 'MEDIA_DATA') {
+                if (event.origin === 'https://peachify.pro' || event.origin === 'https://vidfast.vc' || event.origin.includes('cinemaos.tech') || parsed.type === 'PLAYER_EVENT' || parsed.type === 'MEDIA_DATA') {
                     const type = parsed.type;
                     const data = parsed.data;
                     if (type === 'MEDIA_DATA') {
-                        if (event.origin === 'https://cinemaos.tech') {
+                        if (event.origin.includes('cinemaos.tech')) {
                             localStorage.setItem('cinemaosProgress', JSON.stringify(data));
                         } else {
                             localStorage.setItem('peachifyProgress', JSON.stringify(data));
@@ -2486,6 +2486,9 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
 
                     if (!isNaN(timeNum)) {
                         currentProgressRef.current = timeNum;
+                        if (!isSeekingRef.current) {
+                            setPlayerCurrentTime(timeNum);
+                        }
                         if (onProgress) {
                             onProgress({
                                 currentTime: timeNum,
@@ -2495,6 +2498,9 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                                 episode: parsed.episode || parsed.data?.episode || currentEpisode
                             });
                         }
+                    }
+                    if (!isNaN(durationNum) && durationNum > 0) {
+                        setPlayerDuration(durationNum);
                     }
                 }
             }
