@@ -4599,7 +4599,7 @@ export default function App() {
                             </div>
                         </div>
 
-                        <div className="flex items-center gap-4 w-full md:w-auto">
+                        <div className="flex items-center gap-4 w-full px-4 md:px-0 md:w-auto">
                             <div className="relative w-full md:w-64 lg:w-80 group">
                                 <TvFocusInput
                                     ref={searchInputRef}
