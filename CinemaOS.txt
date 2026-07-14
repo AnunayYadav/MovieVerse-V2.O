@@ -1,0 +1,303 @@
+//CinemaOS
+logo
+more
+question-ai-logo
+managemanage
+managemanage
+useruser
+fullfull
+closeclose
+Chat AI
+Hello! Is there any question I can help you with?
+What is the longest war in American history?
+What can you do?
+Ask AI
+
+
+
+
+Free · No API Key Required
+Embed CinemaOS
+in your website
+Drop an iframe into any webpage and stream movies & TV shows instantly. No signup, no API key, no cost.
+
+Implementation
+Parameters
+Events
+PostMessage API
+Live Preview
+
+Try it now
+Configure the player and see it in real time.
+
+Movie
+TV Show
+150
+1
+1
+Preview
+Options
+theme
+
+#ffffff
+URL
+https://cinemaos.tech/player/150/1/1?theme=ffffff
+Copy
+
+Why CinemaOS
+
+Built for developers
+⚡
+Zero Setup
+No API key or signup. Just paste the iframe and it works.
+
+🔄
+Auto-Updated
+Links refresh automatically with the best available quality.
+
+📱
+Responsive
+Works on every device — desktop, mobile, tablet.
+
+🔌
+PostMessage API
+Control playback and track progress from your own page.
+
+Documentation
+
+Integration guide
+Everything you need to embed and control the CinemaOS player.
+
+Implementation
+Parameters
+Events
+PostMessage API
+Endpoints
+Movie
+https://cinemaos.tech/player/{tmdb_id}
+Copy
+TV Show
+https://cinemaos.tech/player/{tmdb_id}/{season}/{episode}
+Copy
+Basic
+
+html
+Copy
+<iframe
+  src="https://cinemaos.tech/player/150/1/1?theme=ffffff"
+  width="100%"
+  height="100%"
+  frameborder="0"
+  allowfullscreen
+  allow="encrypted-media"
+></iframe>
+Responsive 16:9
+
+html
+Copy
+<!-- 16:9 Aspect Ratio Container -->
+<div style="position:relative;padding-bottom:56.25%;height:0;">
+  <iframe
+    src="https://cinemaos.tech/player/150/1/1?theme=ffffff"
+    style="position:absolute;top:0;left:0;width:100%;height:100%;"
+    frameborder="0"
+    allowfullscreen
+    allow="encrypted-media"
+  ></iframe>
+</div>
+Tailwind CSS
+
+jsx
+Copy
+<div className="relative w-full pt-[56.25%]">
+  <iframe
+    src="https://cinemaos.tech/player/150/1/1?theme=ffffff"
+    className="absolute top-0 left-0 w-full h-full"
+    frameBorder="0"
+    allowFullScreen
+    allow="encrypted-media"
+  ></iframe>
+</div>
+CinemaOS Embed API · Free to use · No attribution required
+
+cinemaos.tech
+CinemaOS
+Your entertainment hub
+
+Trending
+Movies
+TV Shows
+Search
+Powered by
+Consumet & TMDB API
+Important Disclaimer
+◝(ᵔᵕᵔ)◜
+CinemaOS operates as a content aggregator and does not host any media files on our servers. All content is sourced from third-party providers and embedded services. For any copyright concerns or DMCA takedown requests, please contact the respective content providers directly.
+
+Third-party Content
+No File Hosting
+Built with ❤️ for entertainment enthusiasts worldwide
+
+Parameter
+Type
+Example
+Description
+theme
+string
+16A085
+Accent color as a hex code (without #).
+autoPlay
+boolean
+true
+Muted autoplay on load. User can unmute.
+title
+boolean
+false
+Show or hide title in loading screen.
+poster
+boolean
+false
+Show or hide the backdrop poster.
+nextButton
+boolean
+false
+Show or hide next episode countdown.
+autoNext
+boolean
+false
+Auto-play next episode when current ends.
+startTime
+number
+120
+Start playback at this time in seconds.
+Example with params
+
+html
+Copy
+<iframe
+  src="https://cinemaos.tech/player/550?autoPlay=true&theme=ffffff&autoNext=false"
+  width="100%" height="100%"
+  frameborder="0" allowfullscreen
+  allow="autoplay; encrypted-media"
+></iframe>
+
+Event
+Type
+Description
+play
+PLAYER_EVENT
+Video started playing.
+pause
+PLAYER_EVENT
+Video was paused.
+seeked
+PLAYER_EVENT
+User seeked to a different timestamp.
+ended
+PLAYER_EVENT
+Playback reached the end.
+timeupdate
+PLAYER_EVENT
+Emitted periodically during playback.
+playerstatus
+PLAYER_EVENT
+Response to a getStatus command.
+Event listener
+
+javascript
+Copy
+window.addEventListener('message', ({ origin, data }) => {
+  const allowed = ['https://cinemaos.tech'];
+  if (!allowed.includes(origin) || !data) return;
+
+  if (data.type === 'PLAYER_EVENT') {
+    const { event, currentTime, duration, playing } = data.data;
+    console.log(`[${event}] ${currentTime}s / ${duration}s playing=${playing}`);
+  }
+
+  if (data.type === 'MEDIA_DATA') {
+    localStorage.setItem('cinemaosProgress', JSON.stringify(data.data));
+  }
+});
+PLAYER_EVENT data structure
+
+json
+Copy
+{
+  type: "PLAYER_EVENT",
+  data: {
+    event: "play" | "pause" | "seeked" | "ended" | "timeupdate" | "playerstatus",
+    currentTime: number,
+    duration: number,
+    tmdbId: string,
+    mediaType: "movie" | "tv",
+    season?: number,
+    episode?: number,
+    playing: boolean,
+    muted: boolean,
+    volume: number
+  }
+}
+MEDIA_DATA structure (emitted every 5s)
+
+json
+Copy
+{
+  type: "MEDIA_DATA",
+  data: {
+    "m550": {
+      id: 550,
+      type: "movie",
+      title: "Fight Club",
+      poster_path: "/pB8BM7pdSp6B6Ih7QZ4DrQ3PmJK.jpg",
+      progress: { watched: 3521.4, duration: 8280.0 },
+      last_updated: 1747123200000
+    }
+  }
+}
+CinemaOS Embed API · Free to use · No attribution required
+
+Command
+Params
+Description
+play
+—
+Resume video playback.
+pause
+—
+Pause video playback.
+seek
+time: number
+Jump to time in seconds.
+volume
+level: 0.0–1.0
+Set volume level.
+mute
+muted: boolean
+Mute or unmute the player.
+getStatus
+—
+Request a playerstatus event back.
+Commands example
+
+javascript
+Copy
+const iframe = document.querySelector('iframe');
+
+// Play / Pause
+iframe.contentWindow.postMessage({ command: 'play' }, '*');
+iframe.contentWindow.postMessage({ command: 'pause' }, '*');
+
+// Seek to 2 minutes
+iframe.contentWindow.postMessage({ command: 'seek', time: 120 }, '*');
+
+// Set volume to 50%
+iframe.contentWindow.postMessage({ command: 'volume', level: 0.5 }, '*');
+
+// Mute / Unmute
+iframe.contentWindow.postMessage({ command: 'mute', muted: true }, '*');
+
+// Get current player status
+iframe.contentWindow.postMessage({ command: 'getStatus' }, '*');
+CinemaOS Embed API · Free to use · No attribution required
+

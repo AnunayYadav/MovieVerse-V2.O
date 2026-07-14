@@ -142,6 +142,21 @@ export const PROVIDERS: Provider[] = [
     supportsPostMessage: false
   },
   {
+    id: 'cinemaos',
+    name: 'CinemaOS',
+    getMovieUrl: (tmdbId, color, progress) => {
+      const cleanColor = color ? color.replace('#', '') : 'EF4444';
+      const startAt = progress && progress > 0 ? `&startTime=${Math.floor(progress)}` : '';
+      return `https://cinemaos.tech/player/${tmdbId}?theme=${cleanColor}&autoPlay=true&title=false&poster=false${startAt}`;
+    },
+    getTvUrl: (tmdbId, season, episode, color, progress) => {
+      const cleanColor = color ? color.replace('#', '') : 'EF4444';
+      const startAt = progress && progress > 0 ? `&startTime=${Math.floor(progress)}` : '';
+      return `https://cinemaos.tech/player/${tmdbId}/${season}/${episode}?theme=${cleanColor}&autoPlay=true&nextButton=true&autoNext=true&title=false&poster=false${startAt}`;
+    },
+    supportsPostMessage: true
+  },
+  {
     id: 'zxcstream',
     name: 'ZXCStream',
     getMovieUrl: (tmdbId, color, progress, isAnime, anilistId, animeLanguage, language, subtitle) => {
