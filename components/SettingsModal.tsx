@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { UserCircle, X, Check, Settings, ShieldCheck, RefreshCcw, HelpCircle, FileText, Lock, LogOut, Calendar, Mail, User, BrainCircuit, Pencil, CheckCheck, Loader2, ChevronDown, ChevronUp, Fingerprint, Copy, Crown, History, Trash2, Search, Clock, ArrowLeft, Upload, Dice5, PaintBucket, AlertCircle, Sparkles } from 'lucide-react';
+import { UserCircle, X, Check, Settings, ShieldCheck, RefreshCcw, HelpCircle, FileText, Lock, LogOut, Calendar, Mail, User, BrainCircuit, Pencil, CheckCheck, Loader2, ChevronDown, ChevronUp, Fingerprint, Copy, Crown, History, Trash2, Search, Clock, ArrowLeft, Upload, Dice5, PaintBucket, AlertCircle, Sparkles, Bookmark, Heart, Download } from 'lucide-react';
 import { UserProfile, MaturityRating, Movie, GENRES_LIST } from '../types';
 import { getSupabase, submitSupportTicket } from '../services/supabase';
 import { TMDB_IMAGE_BASE } from './Shared';
@@ -18,11 +18,17 @@ interface SettingsPageProps {
     setSearchHistory?: (h: string[]) => void;
     watchedMovies?: Movie[];
     setWatchedMovies?: (m: Movie[]) => void;
+    watchlist?: Movie[];
+    setWatchlist?: (w: Movie[]) => void;
+    favorites?: Movie[];
+    setFavorites?: (f: Movie[]) => void;
+    onSelectMovie?: (m: Movie) => void;
 }
 
 export const SettingsPage: React.FC<SettingsPageProps> = ({ 
     isOpen, onClose, apiKey, setApiKey, maturityRating, setMaturityRating, profile, onUpdateProfile, onLogout,
-    searchHistory = [], setSearchHistory, watchedMovies = [], setWatchedMovies
+    searchHistory = [], setSearchHistory, watchedMovies = [], setWatchedMovies,
+    watchlist = [], setWatchlist, favorites = [], setFavorites, onSelectMovie
 }) => {
     // Check if custom keys are stored
     const hasCustomTmdb = !!localStorage.getItem('movieverse_tmdb_key');
@@ -54,6 +60,8 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
     // Expandable accordion states
     const [isProfileExpanded, setIsProfileExpanded] = useState(false);
     const [isHistoryExpanded, setIsHistoryExpanded] = useState(false);
+    const [isWatchlistExpanded, setIsWatchlistExpanded] = useState(false);
+    const [isFavoritesExpanded, setIsFavoritesExpanded] = useState(false);
     const [isFaqExpanded, setIsFaqExpanded] = useState(false);
 
     // Help Form State
@@ -108,51 +116,69 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
         }
     }, [isOpen, apiKey, hasCustomTmdb, profile]);
 
-    const handleSaveAll = async () => {
-        const ageNum = parseInt(profileAge);
-        if (!profileName.trim()) {
+    const autoSaveProfile = async (updates: {
+        name?: string;
+        age?: string;
+        genres?: string[];
+        avatar?: string;
+        avatarBackground?: string;
+        newMaturityRating?: MaturityRating;
+        newApiKey?: string;
+        anilistUsername?: string;
+        anilistToken?: string;
+        malUsername?: string;
+    }) => {
+        const nameVal = updates.name !== undefined ? updates.name : profileName;
+        const ageVal = updates.age !== undefined ? updates.age : profileAge;
+        const genresVal = updates.genres !== undefined ? updates.genres : profileGenres;
+        const avatarVal = updates.avatar !== undefined ? updates.avatar : profileAvatar;
+        const avatarBgVal = updates.avatarBackground !== undefined ? updates.avatarBackground : profileAvatarBg;
+        const maturityRatingVal = updates.newMaturityRating !== undefined ? updates.newMaturityRating : maturityRating;
+        const anilistUserVal = updates.anilistUsername !== undefined ? updates.anilistUsername : anilistUsername;
+        const anilistTokenVal = updates.anilistToken !== undefined ? updates.anilistToken : anilistToken;
+        const malUserVal = updates.malUsername !== undefined ? updates.malUsername : malUsername;
+
+        if (updates.name !== undefined && !nameVal.trim()) {
             setProfileError("Display name is required.");
-            setIsProfileExpanded(true);
             return;
         }
-        if (!profileAge || isNaN(ageNum) || ageNum < 10 || ageNum > 120) {
-            setProfileError("Age must be between 10 and 120.");
-            setIsProfileExpanded(true);
-            return;
+        if (updates.age !== undefined) {
+            const ageNum = parseInt(ageVal);
+            if (!ageVal || isNaN(ageNum) || ageNum < 10 || ageNum > 120) {
+                setProfileError("Age must be between 10 and 120.");
+                return;
+            }
         }
-        if (profileGenres.length < 3) {
-             setProfileError("Please select at least 3 genres to personalize your feed.");
-             setIsProfileExpanded(true);
-             return;
+        if (updates.genres !== undefined && genresVal.length < 3) {
+            setProfileError("Please select at least 3 preferred genres.");
+            return;
         }
 
-        setIsSaving(true);
         setProfileError("");
-
         try {
-            // Save TMDB Key
-            setApiKey(isEditingTmdb ? inputKey : "");
+            if (updates.newApiKey !== undefined) {
+                setApiKey(updates.newApiKey);
+            }
+            if (updates.newMaturityRating !== undefined) {
+                setMaturityRating(updates.newMaturityRating);
+            }
 
-            // Update user profile properties
             const updatedProfile: UserProfile = {
                 ...profile,
-                name: profileName,
-                age: profileAge,
-                genres: profileGenres,
-                avatar: profileAvatar,
-                avatarBackground: profileAvatarBg,
-                maturityRating: maturityRating,
-                anilistUsername,
-                anilistToken,
-                malUsername
+                name: nameVal,
+                age: ageVal,
+                genres: genresVal,
+                avatar: avatarVal,
+                avatarBackground: avatarBgVal,
+                maturityRating: maturityRatingVal,
+                anilistUsername: anilistUserVal,
+                anilistToken: anilistTokenVal,
+                malUsername: malUserVal
             };
 
             await onUpdateProfile(updatedProfile);
-            onClose();
         } catch (err: any) {
-            setProfileError(err.message || "Failed to update profile settings.");
-        } finally {
-            setIsSaving(false);
+            setProfileError(err.message || "Failed to auto-save settings.");
         }
     };
 
@@ -197,9 +223,11 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
     };
 
     const toggleGenre = (genre: string) => {
-        setProfileGenres(prev => 
-            prev.includes(genre) ? prev.filter(g => g !== genre) : [...prev, genre]
-        );
+        const next = profileGenres.includes(genre)
+            ? profileGenres.filter(g => g !== genre)
+            : [...profileGenres, genre];
+        setProfileGenres(next);
+        autoSaveProfile({ genres: next });
     };
 
     const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -216,8 +244,10 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
             const reader = new FileReader();
             reader.onload = (e) => {
                 if (e.target?.result) {
-                    setProfileAvatar(e.target.result as string);
+                    const avatarUrl = e.target.result as string;
+                    setProfileAvatar(avatarUrl);
                     setProfileError("");
+                    autoSaveProfile({ avatar: avatarUrl });
                 }
             };
             reader.readAsDataURL(file);
@@ -225,7 +255,9 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
     };
 
     const selectAvatar = (seed: string) => {
-        setProfileAvatar(`https://api.dicebear.com/9.x/avataaars/svg?seed=${seed}`);
+        const avatarUrl = `https://api.dicebear.com/9.x/avataaars/svg?seed=${seed}`;
+        setProfileAvatar(avatarUrl);
+        autoSaveProfile({ avatar: avatarUrl });
     };
 
     const AVATARS = [
@@ -257,7 +289,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
     return (
         <div className={`fixed inset-0 z-[100] bg-[#030303] overflow-y-auto font-sans transition-all duration-300 ${isOpen ? 'visible opacity-100 pointer-events-auto scale-100' : 'invisible opacity-0 pointer-events-none scale-98'}`}>
             {/* Inner Content Centered Wrapper */}
-            <div className="max-w-5xl mx-auto px-6 py-12 md:py-16 relative">
+            <div className="max-w-4xl mx-auto px-6 py-12 md:py-16 relative">
                 
                 {/* Header Title band */}
                 <div className="flex justify-between items-center pb-6 border-b border-zinc-800 mb-8">
@@ -288,6 +320,26 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                         </div>
                     </div>
                 )}
+
+                {/* PREMIUM APK DOWNLOAD BANNER */}
+                <div className="mb-6 p-5 rounded-2xl bg-gradient-to-r from-emerald-950/40 via-zinc-900/60 to-[#070708] border border-emerald-500/20 shadow-[0_8px_30px_rgb(0,0,0,0.5)] flex flex-col sm:flex-row items-center justify-between gap-4">
+                    <div className="flex items-center gap-3.5 text-center sm:text-left">
+                        <div className="p-3 bg-emerald-500/10 rounded-xl border border-emerald-500/20 text-emerald-400 shrink-0">
+                            <Download size={22} className="animate-bounce" />
+                        </div>
+                        <div>
+                            <h3 className="text-sm font-extrabold text-white tracking-wide uppercase">MovieVerse Android App</h3>
+                            <p className="text-[11px] text-zinc-400 mt-1">Get the native APK for a dedicated cinematic console on your television or mobile device.</p>
+                        </div>
+                    </div>
+                    <a 
+                        href="/movieverse.apk" 
+                        download
+                        className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs rounded-xl shadow-lg shadow-emerald-900/20 transition-all active:scale-[0.97] shrink-0 text-center uppercase tracking-wider flex items-center gap-1.5"
+                    >
+                        <Download size={14} /> Download APK
+                    </a>
+                </div>
 
                 {/* SECTION 1: MEMBERSHIP & BILLING */}
                 <div className="grid grid-cols-1 md:grid-cols-12 gap-6 py-8 border-b border-zinc-800">
@@ -394,6 +446,11 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                                         type="password" 
                                         value={isEditingTmdb ? inputKey : "Default Environment Key"} 
                                         onChange={(e) => isEditingTmdb && setInputKey(e.target.value)} 
+                                        onBlur={() => {
+                                            if (isEditingTmdb) {
+                                                autoSaveProfile({ newApiKey: inputKey });
+                                            }
+                                        }}
                                         disabled={!isEditingTmdb}
                                         className={`w-full border rounded-lg p-2.5 pr-10 focus:outline-none transition-all text-xs font-mono bg-zinc-900/60 border-zinc-800 text-zinc-300 focus:border-red-600`} 
                                         placeholder="Enter TMDB Key"
@@ -403,7 +460,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                                 
                                 {isEditingTmdb ? (
                                     <button 
-                                        onClick={() => { setIsEditingTmdb(false); setInputKey(""); }} 
+                                        onClick={() => { setIsEditingTmdb(false); setInputKey(""); autoSaveProfile({ newApiKey: "" }); }} 
                                         className="p-2.5 rounded-lg border border-red-800/40 bg-red-950/20 text-red-400 hover:bg-red-950/30 transition-all"
                                         title="Reset to Default"
                                     >
@@ -448,6 +505,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                                         type="text" 
                                         value={anilistUsername} 
                                         onChange={(e) => setAnilistUsername(e.target.value)} 
+                                        onBlur={() => autoSaveProfile({ anilistUsername })}
                                         className="w-full bg-[#030303]/60 border border-zinc-800 rounded-lg py-2 px-3.5 text-white focus:outline-none focus:border-red-600 text-xs font-semibold" 
                                         placeholder="e.g. AnimeFan123" 
                                     />
@@ -458,6 +516,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                                         type="text" 
                                         value={malUsername} 
                                         onChange={(e) => setMalUsername(e.target.value)} 
+                                        onBlur={() => autoSaveProfile({ malUsername })}
                                         className="w-full bg-[#030303]/60 border border-zinc-800 rounded-lg py-2 px-3.5 text-white focus:outline-none focus:border-red-600 text-xs font-semibold" 
                                         placeholder="e.g. MALProfileName" 
                                     />
@@ -469,6 +528,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                                     type="password" 
                                     value={anilistToken} 
                                     onChange={(e) => setAnilistToken(e.target.value)} 
+                                    onBlur={() => autoSaveProfile({ anilistToken })}
                                     className="w-full bg-[#030303]/60 border border-zinc-800 rounded-lg py-2 px-3.5 text-white focus:outline-none focus:border-red-600 text-xs font-mono" 
                                     placeholder="Paste developer access token here..." 
                                 />
@@ -521,6 +581,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                                             type="text" 
                                             value={profileName} 
                                             onChange={(e) => setProfileName(e.target.value)} 
+                                            onBlur={() => autoSaveProfile({ name: profileName })}
                                             className="w-full bg-zinc-900/50 border border-zinc-800 rounded-lg py-2 px-3.5 text-white focus:outline-none focus:border-red-600 text-sm" 
                                             placeholder="Your Name" 
                                         />
@@ -538,6 +599,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                                                     setProfileAge(e.target.value);
                                                 }
                                             }} 
+                                            onBlur={() => autoSaveProfile({ age: profileAge })}
                                             className="w-full bg-zinc-900/50 border border-zinc-800 rounded-lg py-2 px-3.5 text-white focus:outline-none focus:border-red-600 text-sm" 
                                             placeholder="10-120" 
                                         />
@@ -587,7 +649,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                                             <button 
                                                 key={bg.id}
                                                 type="button"
-                                                onClick={() => setProfileAvatarBg(bg.class)}
+                                                onClick={() => { setProfileAvatarBg(bg.class); autoSaveProfile({ avatarBackground: bg.class }); }}
                                                 className={`w-7 h-7 rounded-full ${bg.class} border-2 ring-2 ring-transparent transition-all ${profileAvatarBg === bg.class ? 'border-white scale-110 ring-white/20 shadow-md' : 'border-transparent hover:scale-105 hover:border-zinc-500'}`}
                                                 title={bg.name}
                                             />
@@ -606,7 +668,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                                             <button 
                                                 key={rate} 
                                                 type="button"
-                                                onClick={() => setMaturityRating(rate as MaturityRating)}
+                                                onClick={() => { setMaturityRating(rate as MaturityRating); autoSaveProfile({ newMaturityRating: rate as MaturityRating }); }}
                                                 className={`py-2 text-[10px] sm:text-xs font-bold rounded-lg border text-center transition-all ${
                                                     maturityRating === rate 
                                                     ? 'bg-red-600 border-red-600 text-white shadow-md' 
@@ -645,20 +707,123 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                                         ))}
                                     </div>
                                 </div>
-
-
                             </div>
                         )}
 
                     </div>
                 </div>
 
-                {/* SECTION 5: MANAGE VIEWING HISTORY */}
+                {/* SECTION 5: MY LIBRARY & VIEWING HISTORY */}
                 <div className="grid grid-cols-1 md:grid-cols-12 gap-6 py-8 border-b border-zinc-800">
                     <div className="md:col-span-4">
-                        <h2 className="text-xs font-extrabold text-zinc-500 uppercase tracking-widest">Viewing & Search History</h2>
+                        <h2 className="text-xs font-extrabold text-zinc-500 uppercase tracking-widest">My Library & History</h2>
                     </div>
-                    <div className="md:col-span-8">
+                    <div className="md:col-span-8 space-y-4">
+                        
+                        {/* Watchlist Accordion */}
+                        <div>
+                            <button 
+                                onClick={() => setIsWatchlistExpanded(!isWatchlistExpanded)}
+                                className="w-full flex items-center justify-between p-4 bg-zinc-900/30 hover:bg-zinc-900/50 border border-zinc-800 rounded-xl transition-all"
+                            >
+                                <div className="flex items-center gap-3 text-left">
+                                    <Bookmark size={16} className="text-emerald-500" />
+                                    <div>
+                                        <p className="text-xs font-bold text-white uppercase tracking-wider">My Watchlist</p>
+                                        <p className="text-[11px] text-zinc-500 mt-0.5">{watchlist.length} items saved to watch later.</p>
+                                    </div>
+                                </div>
+                                {isWatchlistExpanded ? <ChevronUp size={18} className="text-zinc-500" /> : <ChevronDown size={18} className="text-zinc-500" />}
+                            </button>
+
+                            {isWatchlistExpanded && (
+                                <div className="mt-2 p-3 rounded-xl border border-zinc-800 bg-[#0c0c0e] max-h-64 overflow-y-auto custom-scrollbar space-y-2 animate-in slide-in-from-top-3 duration-250">
+                                    {watchlist.length === 0 ? (
+                                        <p className="text-[11px] text-zinc-500 text-center py-4">Your watchlist is currently empty.</p>
+                                    ) : (
+                                        watchlist.map((movie) => (
+                                            <div key={movie.id} className="flex items-center gap-3 p-1.5 hover:bg-zinc-900/60 rounded-lg transition-all relative group cursor-pointer" onClick={() => { if (onSelectMovie) { onSelectMovie(movie); onClose(); } }}>
+                                                <img 
+                                                    src={movie.poster_path ? `${TMDB_IMAGE_BASE}${movie.poster_path}` : "https://placehold.co/40x60"} 
+                                                    alt={movie.title || movie.name}
+                                                    className="w-8 h-12 object-cover rounded shadow"
+                                                />
+                                                <div className="flex-1 min-w-0 pr-8">
+                                                    <p className="text-[11px] font-bold text-zinc-300 truncate group-hover:text-white transition-colors">{movie.title || movie.name}</p>
+                                                    <p className="text-[9px] text-zinc-650 mt-0.5">{movie.release_date?.split('-')[0] || 'Unknown'}</p>
+                                                </div>
+                                                <button 
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        if (setWatchlist) {
+                                                            setWatchlist(watchlist.filter(m => m.id !== movie.id));
+                                                        }
+                                                    }} 
+                                                    className="absolute right-2.5 top-1/2 -translate-y-1/2 p-2 hover:bg-white/5 rounded-full text-zinc-550 hover:text-red-500 transition-colors"
+                                                    title="Remove from Watchlist"
+                                                >
+                                                    <Trash2 size={13} />
+                                                </button>
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Favorites Accordion */}
+                        <div>
+                            <button 
+                                onClick={() => setIsFavoritesExpanded(!isFavoritesExpanded)}
+                                className="w-full flex items-center justify-between p-4 bg-zinc-900/30 hover:bg-zinc-900/50 border border-zinc-800 rounded-xl transition-all"
+                            >
+                                <div className="flex items-center gap-3 text-left">
+                                    <Heart size={16} className="text-red-555 fill-red-500/20" />
+                                    <div>
+                                        <p className="text-xs font-bold text-white uppercase tracking-wider">My Favorites</p>
+                                        <p className="text-[11px] text-zinc-500 mt-0.5">{favorites.length} movies favorited.</p>
+                                    </div>
+                                </div>
+                                {isFavoritesExpanded ? <ChevronUp size={18} className="text-zinc-500" /> : <ChevronDown size={18} className="text-zinc-500" />}
+                            </button>
+
+                            {isFavoritesExpanded && (
+                                <div className="mt-2 p-3 rounded-xl border border-zinc-800 bg-[#0c0c0e] max-h-64 overflow-y-auto custom-scrollbar space-y-2 animate-in slide-in-from-top-3 duration-250">
+                                    {favorites.length === 0 ? (
+                                        <p className="text-[11px] text-zinc-500 text-center py-4">Your favorites list is currently empty.</p>
+                                    ) : (
+                                        favorites.map((movie) => (
+                                            <div key={movie.id} className="flex items-center gap-3 p-1.5 hover:bg-zinc-900/60 rounded-lg transition-all relative group cursor-pointer" onClick={() => { if (onSelectMovie) { onSelectMovie(movie); onClose(); } }}>
+                                                <img 
+                                                    src={movie.poster_path ? `${TMDB_IMAGE_BASE}${movie.poster_path}` : "https://placehold.co/40x60"} 
+                                                    alt={movie.title || movie.name}
+                                                    className="w-8 h-12 object-cover rounded shadow"
+                                                />
+                                                <div className="flex-1 min-w-0 pr-8">
+                                                    <p className="text-[11px] font-bold text-zinc-300 truncate group-hover:text-white transition-colors">{movie.title || movie.name}</p>
+                                                    <p className="text-[9px] text-zinc-650 mt-0.5">{movie.release_date?.split('-')[0] || 'Unknown'}</p>
+                                                </div>
+                                                <button 
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        if (setFavorites) {
+                                                            setFavorites(favorites.filter(m => m.id !== movie.id));
+                                                        }
+                                                    }} 
+                                                    className="absolute right-2.5 top-1/2 -translate-y-1/2 p-2 hover:bg-white/5 rounded-full text-zinc-550 hover:text-red-500 transition-colors"
+                                                    title="Remove from Favorites"
+                                                >
+                                                    <Trash2 size={13} />
+                                                </button>
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* History/Viewing Logs Accordion */}
+                        <div>
                         
                         <button 
                             onClick={() => setIsHistoryExpanded(!isHistoryExpanded)}
@@ -764,7 +929,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
 
                             </div>
                         )}
-
+                        </div>
                     </div>
                 </div>
 
@@ -893,22 +1058,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                     </div>
                 </div>
 
-                {/* SAVE CHANGES & CANCEL FOOTER BARS */}
-                <div className="mt-12 flex flex-col sm:flex-row justify-end items-center gap-3 bg-[#030303] sticky bottom-0 py-6 border-t border-zinc-800">
-                    <button 
-                        onClick={onClose} 
-                        className="w-full sm:w-auto px-6 py-2.5 text-zinc-400 hover:text-white font-bold text-xs rounded-lg transition-all"
-                    >
-                        Cancel
-                    </button>
-                    <button 
-                        onClick={handleSaveAll} 
-                        disabled={isSaving}
-                        className="w-full sm:w-auto px-8 py-2.5 bg-red-600 hover:bg-red-700 disabled:opacity-40 text-white font-bold text-xs rounded-lg transition-all flex items-center justify-center gap-1.5 shadow-md shadow-red-950/20 active:scale-[0.98]"
-                    >
-                        {isSaving ? <Loader2 size={13} className="animate-spin" /> : "Save Changes"}
-                    </button>
-                </div>
+                <div className="pb-12" />
 
             </div>
         </div>

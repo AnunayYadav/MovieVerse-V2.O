@@ -2855,6 +2855,12 @@ export default function App() {
         }
     };
 
+    useEffect(() => {
+        if (userProfile && userProfile.name !== "Guest") {
+            localStorage.setItem('movieverse_profile', JSON.stringify(userProfile));
+        }
+    }, [userProfile]);
+
     const addToSearchHistory = (query: string) => {
         if (!query.trim() || userProfile.enableHistory === false) return;
         const newHistory = [query, ...searchHistory.filter(h => h !== query)].slice(0, 10);
@@ -4299,11 +4305,12 @@ export default function App() {
         { id: "Awards", icon: Award, label: "Awards", action: () => { resetFilters(); setSelectedCategory("Awards"); } },
         { id: "AnimeCommunity", icon: MessageSquare, label: "Anime Forum", action: () => { resetFilters(); setSelectedCategory("AnimeCommunity"); } },
         { id: "Family", icon: Baby, label: "Family", action: () => { resetFilters(); setSelectedCategory("Family"); } },
-        { id: "Novels", icon: BookOpen, label: "Novels", action: () => { resetFilters(); setSelectedCategory("Novels"); } }
+        { id: "Novels", icon: BookOpen, label: "Novels", action: () => { resetFilters(); setSelectedCategory("Novels"); } },
+        { id: "Settings", icon: Settings, label: "Settings", action: () => { setIsSettingsOpen(true); } }
     ];
 
     if (authChecking) return <div className="fixed inset-0 bg-black flex items-center justify-center"><LogoLoader /></div>;
-    if (!isAuthenticated) return (<> <LoginPage onLogin={handleLogin} onOpenSettings={() => setIsSettingsOpen(true)} /> <SettingsPage isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} apiKey={apiKey} setApiKey={(k) => saveSettings(k)} maturityRating={maturityRating} setMaturityRating={setMaturityRating} profile={userProfile} onUpdateProfile={setUserProfile} onLogout={handleLogout} searchHistory={searchHistory} setSearchHistory={(h) => { setSearchHistory(h); localStorage.setItem('movieverse_search_history', JSON.stringify(h)); }} watchedMovies={watched} setWatchedMovies={(m) => { setWatched(m); localStorage.setItem('movieverse_watched', JSON.stringify(m)); }} /> </>);
+    if (!isAuthenticated) return (<> <LoginPage onLogin={handleLogin} onOpenSettings={() => setIsSettingsOpen(true)} /> <SettingsPage isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} apiKey={apiKey} setApiKey={(k) => saveSettings(k)} maturityRating={maturityRating} setMaturityRating={setMaturityRating} profile={userProfile} onUpdateProfile={setUserProfile} onLogout={handleLogout} searchHistory={searchHistory} setSearchHistory={(h) => { setSearchHistory(h); localStorage.setItem('movieverse_search_history', JSON.stringify(h)); }} watchedMovies={watched} setWatchedMovies={(m) => { setWatched(m); localStorage.setItem('movieverse_watched', JSON.stringify(m)); }} watchlist={watchlist} setWatchlist={(w) => { setWatchlist(w); localStorage.setItem('movieverse_watchlist', JSON.stringify(w)); }} favorites={favorites} setFavorites={(f) => { setFavorites(f); localStorage.setItem('movieverse_favorites', JSON.stringify(f)); }} onSelectMovie={setSelectedMovie} /> </>);
 
     if (isTV) {
         return (
@@ -4512,7 +4519,7 @@ export default function App() {
                                 : 'bg-black/90 backdrop-blur-xl border-b border-white/5'
                     }`}>
                     <div className="flex items-center justify-between w-full max-w-7xl">
-                        <div className="flex items-center gap-4 md:gap-8">
+                        <div className="hidden md:flex items-center gap-4 md:gap-8">
                             {!isTV && (
                                 <button
                                     onClick={() => setIsSidebarOpen(true)}
@@ -4592,8 +4599,8 @@ export default function App() {
                             </div>
                         </div>
 
-                        <div className="flex items-center gap-4">
-                            <div className="relative w-32 sm:w-48 md:w-64 lg:w-80 group">
+                        <div className="flex items-center gap-4 w-full md:w-auto">
+                            <div className="relative w-full md:w-64 lg:w-80 group">
                                 <TvFocusInput
                                     ref={searchInputRef}
                                     type="text"
@@ -4640,7 +4647,7 @@ export default function App() {
                                                                     poster_path: item.poster,
                                                                     isAnimeDirect: true,
                                                                     media_type: item.media_type
-                                                                } as any);
+                                                                 } as any);
                                                             } else {
                                                                 setSelectedMovie(item.originalItem);
                                                             }
@@ -4671,7 +4678,7 @@ export default function App() {
                                 )}
                             </div>
 
-                            <div className="flex items-center gap-3">
+                            <div className="hidden md:flex items-center gap-3">
                                 <button onClick={() => setIsNotificationOpen(!isNotificationOpen)} className="relative text-gray-400 hover:text-white transition-colors p-2 hover:bg-white/10 rounded-full">
                                     <Bell size={20} />
                                     {hasUnread && <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-red-600"></span>}
@@ -5264,7 +5271,7 @@ export default function App() {
                                     )}
 
                                     {showStickyHeader && (
-                                        <div className="sticky top-16 z-40 bg-[#030303]/80 backdrop-blur-xl border-b border-white/5 px-4 md:px-12 py-3 flex flex-col md:flex-row md:items-center justify-between gap-4 animate-in fade-in">
+                                        <div className="sticky top-16 z-40 bg-[#030303]/80 backdrop-blur-xl border-b border-white/5 px-4 md:px-12 py-3 hidden md:flex flex-row items-center justify-between gap-4 animate-in fade-in">
                                             <div className="flex items-center gap-3">
                                                 <h2 className="text-xl font-bold text-white tracking-tight">{searchQuery ? `Results for "${searchQuery}"` : selectedCategory === 'All' ? 'Trending Now' : selectedCategory}</h2>
                                                 <span className="px-2 py-0.5 rounded-lg bg-white/5 text-[10px] font-bold text-gray-400 border border-white/5">{movies.length > 0 ? movies.length : 0}</span>
@@ -5701,7 +5708,7 @@ export default function App() {
                     />
                 )}
             />
-            <SettingsPage isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} apiKey={apiKey} setApiKey={(k) => saveSettings(k)} maturityRating={maturityRating} setMaturityRating={setMaturityRating} profile={userProfile} onUpdateProfile={setUserProfile} onLogout={handleLogout} searchHistory={searchHistory} setSearchHistory={(h) => { setSearchHistory(h); localStorage.setItem('movieverse_search_history', JSON.stringify(h)); }} watchedMovies={watched} setWatchedMovies={(m) => { setWatched(m); localStorage.setItem('movieverse_watched', JSON.stringify(m)); }} />
+            <SettingsPage isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} apiKey={apiKey} setApiKey={(k) => saveSettings(k)} maturityRating={maturityRating} setMaturityRating={setMaturityRating} profile={userProfile} onUpdateProfile={setUserProfile} onLogout={handleLogout} searchHistory={searchHistory} setSearchHistory={(h) => { setSearchHistory(h); localStorage.setItem('movieverse_search_history', JSON.stringify(h)); }} watchedMovies={watched} setWatchedMovies={(m) => { setWatched(m); localStorage.setItem('movieverse_watched', JSON.stringify(m)); }} watchlist={watchlist} setWatchlist={(w) => { setWatchlist(w); localStorage.setItem('movieverse_watchlist', JSON.stringify(w)); }} favorites={favorites} setFavorites={(f) => { setFavorites(f); localStorage.setItem('movieverse_favorites', JSON.stringify(f)); }} onSelectMovie={setSelectedMovie} />
             <NotificationModal isOpen={isNotificationOpen} onClose={() => setIsNotificationOpen(false)} onUpdate={checkUnreadNotifications} userProfile={userProfile} />
 
 
@@ -5782,8 +5789,7 @@ export default function App() {
                         { id: 'Home', label: 'Home', icon: Home, action: () => { setIsBrowseOpen(false); resetToHome(); }, activeCondition: selectedCategory === "All" && !searchQuery },
                         { id: 'Anime', label: 'Anime', icon: Ghost, action: () => { setIsBrowseOpen(false); resetFilters(); setSelectedCategory("Anime"); }, activeCondition: selectedCategory === "Anime" },
                         { id: 'Manga', label: 'Manga', icon: BookOpen, action: () => { setIsBrowseOpen(false); resetFilters(); setSelectedMangaId(null); setActiveMangaChapterId(null); setSelectedCategory("Manga"); }, activeCondition: selectedCategory === "Manga" },
-                        { id: 'LiveTV', label: 'Live TV', icon: Radio, action: () => { setIsBrowseOpen(false); resetFilters(); setSelectedCategory("LiveTV"); }, activeCondition: selectedCategory === "LiveTV" },
-                        { id: 'Browse', label: 'Browse', icon: LayoutGrid, action: () => setIsBrowseOpen(!isBrowseOpen), activeCondition: isBrowseOpen || ["Categories", "Awards", "AnimeCommunity", "Family", "TV Shows", "Coming", "Novels"].includes(selectedCategory) }
+                        { id: 'Browse', label: 'More', icon: LayoutGrid, action: () => setIsBrowseOpen(!isBrowseOpen), activeCondition: isBrowseOpen || ["Categories", "Awards", "AnimeCommunity", "Family", "TV Shows", "Coming", "Novels", "WatchParty"].includes(selectedCategory) }
                     ].map((tab) => {
                             const Icon = tab.icon;
                             const isActive = tab.activeCondition;
