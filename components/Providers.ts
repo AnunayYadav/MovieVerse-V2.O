@@ -178,6 +178,21 @@ export const PROVIDERS: Provider[] = [
     getTvUrl: (tmdbId, season, episode) => `https://play.xpass.top/e/tv/${tmdbId}/${season}/${episode}`,
     supportsPostMessage: true
   },
+  {
+    id: 'vidsuper',
+    name: 'VidSuper',
+    getMovieUrl: (tmdbId, color, progress) => {
+      const colorParam = color ? color.replace('#', '') : 'EF4444';
+      const progressParam = progress && progress > 0 ? `&progress=${Math.floor(progress)}` : '';
+      return `https://vidsuper.net/movie/${tmdbId}?color=${colorParam}&autoplay=true&overlay=false&skip_intro=true${progressParam}`;
+    },
+    getTvUrl: (tmdbId, season, episode, color, progress) => {
+      const colorParam = color ? color.replace('#', '') : 'EF4444';
+      const progressParam = progress && progress > 0 ? `&progress=${Math.floor(progress)}` : '';
+      return `https://vidsuper.net/tv/${tmdbId}/${season}/${episode}?color=${colorParam}&autoplay=true&nextEpisode=true&autoplayNextEpisode=true&episodeSelector=true&overlay=false&skip_intro=true${progressParam}`;
+    },
+    supportsPostMessage: true
+  },
 ];
 
 export const getFilteredProviders = (isAnime: boolean, isWatchParty: boolean = false, isAnimeDirect: boolean = false) => {

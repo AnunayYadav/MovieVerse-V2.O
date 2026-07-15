@@ -2479,17 +2479,26 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                 // Handle Peachify, VidFast & CinemaOS PLAYER_EVENTs / MEDIA_DATAs
                 if (event.origin === 'https://peachify.pro' || event.origin === 'https://vidfast.vc' || event.origin.includes('cinemaos.tech') || parsed.type === 'PLAYER_EVENT' || parsed.type === 'MEDIA_DATA') {
                     const type = parsed.type;
-                    const data = parsed.data;
-                    if (type === 'MEDIA_DATA') {
+                    const rawData = parsed.data;
+                    if (type === 'MEDIA_DATA' && rawData) {
                         if (event.origin.includes('cinemaos.tech')) {
-                            localStorage.setItem('cinemaosProgress', JSON.stringify(data));
+                            localStorage.setItem('cinemaosProgress', JSON.stringify(rawData));
                         } else {
-                            localStorage.setItem('peachifyProgress', JSON.stringify(data));
+                            localStorage.setItem('peachifyProgress', JSON.stringify(rawData));
                         }
                         return;
                     }
-                    if (type === 'PLAYER_EVENT' && data) {
-                        const { event: playerEvent, currentTime, duration, season, episode, playing } = data;
+                    
+                    // Fallback to top-level object if parsed.data is not defined
+                    const data = (rawData && typeof rawData === 'object') ? rawData : parsed;
+
+                    if ((type === 'PLAYER_EVENT' || parsed.event !== undefined) && data) {
+                        const playerEvent = data.event || data.eventType || type;
+                        const currentTime = data.currentTime ?? data.timestamp ?? data.current_time ?? data.time ?? data.progress;
+                        const duration = data.duration ?? data.totalTime ?? data.total_time;
+                        const playing = data.playing ?? data.isPlaying;
+                        const season = data.season;
+                        const episode = data.episode;
 
                         // Sync custom controls state from player events
                         if (playing !== undefined) {
@@ -2531,6 +2540,56 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                         }
                         return;
                     }
+                }
+
+                // Handle VidSuper events
+                if (event.origin.includes('vidsuper.net') || (parsed && (parsed.type === 'timeupdate' || parsed.type === 'play' || parsed.type === 'pause' || parsed.type === 'ended') && parsed.progress !== undefined)) {
+                    const vsType = parsed.type;
+                    const vsProgress = Number(parsed.progress);
+                    const vsDuration = Number(parsed.duration);
+                    const vsSeason = parsed.season ? Number(parsed.season) : undefined;
+                    const vsEpisode = parsed.episode ? Number(parsed.episode) : undefined;
+
+                    if (vsType === 'play' || vsType === 'playing') {
+                        setIsPlaying(true);
+                        setIsBuffering(false);
+                    } else if (vsType === 'pause') {
+                        setIsPlaying(false);
+                    } else if (vsType === 'timeupdate') {
+                        if (!isSeekingRef.current) {
+                            if (!isNaN(vsProgress)) {
+                                setPlayerCurrentTime(vsProgress);
+                                currentProgressRef.current = vsProgress;
+                            }
+                            if (!isNaN(vsDuration) && vsDuration > 0) {
+                                setPlayerDuration(vsDuration);
+                            }
+                        }
+                        if (onProgress && !isNaN(vsProgress)) {
+                            onProgress({
+                                currentTime: vsProgress,
+                                duration: !isNaN(vsDuration) ? vsDuration : 0,
+                                event: 'time',
+                                season: vsSeason || currentSeason,
+                                episode: vsEpisode || currentEpisode
+                            });
+                        }
+                    } else if (vsType === 'ended') {
+                        setIsPlaying(false);
+                        if (onProgress) {
+                            onProgress({
+                                currentTime: vsDuration || playerDuration,
+                                duration: vsDuration || playerDuration,
+                                event: 'complete',
+                                season: vsSeason || currentSeason,
+                                episode: vsEpisode || currentEpisode
+                            });
+                        }
+                        if (isAutoplayEnabled && hasNextEpisode) {
+                            playNextEpisode();
+                        }
+                    }
+                    return;
                 }
 
                 // Handle Vidify events explicitly
