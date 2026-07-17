@@ -264,6 +264,80 @@ const CustomSelect: React.FC<CustomSelectProps> = ({
   );
 };
 
+const GigaViewerPage: React.FC<{ page: any; pageNum: number; className?: string }> = ({ page, pageNum, className }) => {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    if (!page || !page.src) return;
+    let isMounted = true;
+    const img = new Image();
+    img.src = `/api/manga?action=proxy-gigaviewer-image&url=${encodeURIComponent(page.src)}`;
+    img.crossOrigin = "anonymous";
+    
+    img.onload = () => {
+      if (!isMounted) return;
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      
+      const width = page.width || img.width;
+      const height = page.height || img.height;
+      
+      canvas.width = width;
+      canvas.height = height;
+      
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+
+      const div = 4;
+      const mul = 8;
+      const fixedWidth = Math.floor(width / (div * mul)) * mul;
+      const fixedHeight = Math.floor(height / (div * mul)) * mul;
+
+      ctx.drawImage(img, 0, 0);
+
+      for (let col = 0; col < div; col++) {
+        for (let row = 0; row < div; row++) {
+          ctx.drawImage(
+            img,
+            fixedWidth * col, fixedHeight * row, fixedWidth, fixedHeight,
+            fixedWidth * row, fixedHeight * col, fixedWidth, fixedHeight
+          );
+        }
+      }
+      setLoading(false);
+    };
+
+    img.onerror = () => {
+      if (isMounted) setError(true);
+    };
+
+    return () => {
+      isMounted = false;
+    };
+  }, [page]);
+
+  if (error) {
+    return (
+      <div className="w-full aspect-[2/3] bg-zinc-900 flex items-center justify-center border border-white/5 rounded-xl font-sans">
+        <span className="text-zinc-500 text-xs">Failed to load page {pageNum}</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="w-full relative overflow-hidden bg-transparent flex justify-center font-sans">
+      {loading && (
+        <div className="absolute inset-0 flex items-center justify-center bg-zinc-955/20 min-h-[300px]">
+          <Loader2 className="animate-spin text-red-600" size={24} />
+        </div>
+      )}
+      <canvas ref={canvasRef} className={className || "w-full h-auto block max-w-full"} style={{ display: loading ? 'none' : 'block' }} />
+    </div>
+  );
+};
+
 
 export const MangaPage: React.FC<MangaPageProps> = ({
   apiKey,
@@ -740,6 +814,14 @@ export const MangaPage: React.FC<MangaPageProps> = ({
   const [relationsLoading, setRelationsLoading] = useState(false);
   const [statistics, setStatistics] = useState<any>(null);
   const [selectedLanguage, setSelectedLanguage] = useState('en');
+
+  // GigaViewer Native States
+  const [useNativeGigaViewer, setUseNativeGigaViewer] = useState(false);
+  const [pastedGigaViewerUrl, setPastedGigaViewerUrl] = useState('');
+  const [resolvedGigaViewerUrl, setResolvedGigaViewerUrl] = useState<string | null>(null);
+  const [isResolvingGigaViewer, setIsResolvingGigaViewer] = useState(false);
+  const [gigaViewerMappingError, setGigaViewerMappingError] = useState<string | null>(null);
+  const [gigaViewerHost, setGigaViewerHost] = useState('shonenjumpplus.com');
 
   // Reader Overlay
   const [activeChapter, setActiveChapter] = useState<MangaDexChapter | null>(null);
@@ -2402,10 +2484,145 @@ export const MangaPage: React.FC<MangaPageProps> = ({
     return () => { isMounted = false; };
   }, [searchQuery, isAiSearchActive, fetchMangaDex, getContentRatingParams]);
 
+  // GigaViewer Mapping Effect
+  useEffect(() => {
+    if (!selectedManga || !useNativeGigaViewer) {
+      setResolvedGigaViewerUrl(null);
+      setGigaViewerMappingError(null);
+      return;
+    }
+
+    let isMounted = true;
+    const resolveMapping = async () => {
+      setIsResolvingGigaViewer(true);
+      setGigaViewerMappingError(null);
+      
+      try {
+        const rawLink = selectedManga.attributes.links?.raw;
+        if (rawLink) {
+          try {
+            const parsed = new URL(rawLink);
+            const host = parsed.hostname.replace('www.', '');
+            const GIGAVIEWER_VALID_HOSTS = [
+              "shonenjumpplus.com", "comic-days.com", "kuragebunch.com", 
+              "tonarinoyj.jp", "www.sunday-webry.com", "feelweb.jp", 
+              "magcomi.com", "comic-action.com", "comic-earthstar.com", 
+              "comic-gardo.com", "comic-zenon.com", "viewer.heros-web.com",
+              "comicborder.com", "feelweb.jp", "ichicomi.com", "ourfeel.jp"
+            ];
+            if (GIGAVIEWER_VALID_HOSTS.some(h => host === h || host.endsWith('.' + h))) {
+              if (isMounted) {
+                setResolvedGigaViewerUrl(rawLink);
+                setIsResolvingGigaViewer(false);
+                return;
+              }
+            }
+          } catch (e) {
+            console.error("Failed to parse rawLink URL:", e);
+          }
+        }
+
+        let queryTitle = '';
+        if (selectedManga.attributes.altTitles) {
+          const jaTitleObj = selectedManga.attributes.altTitles.find(t => t.ja || t['ja-ro']);
+          if (jaTitleObj) {
+            queryTitle = jaTitleObj.ja || jaTitleObj['ja-ro'] || '';
+          }
+        }
+        if (!queryTitle) {
+          queryTitle = selectedManga.attributes.title.en || selectedManga.attributes.title.ja || Object.values(selectedManga.attributes.title)[0] || '';
+        }
+
+        if (!queryTitle) {
+          throw new Error("No search query found for GigaViewer search");
+        }
+
+        const searchRes = await window.fetch(`/api/manga?action=search&provider=gigaviewer&query=${encodeURIComponent(queryTitle)}&host=shonenjumpplus.com`);
+        if (!searchRes.ok) throw new Error("Search mapping request failed");
+        const results = await searchRes.json();
+        
+        if (results && results.length > 0) {
+          if (isMounted) {
+            setResolvedGigaViewerUrl(results[0].id);
+            return;
+          }
+        }
+
+        const searchResCd = await window.fetch(`/api/manga?action=search&provider=gigaviewer&query=${encodeURIComponent(queryTitle)}&host=comic-days.com`);
+        if (searchResCd.ok) {
+          const resultsCd = await searchResCd.json();
+          if (resultsCd && resultsCd.length > 0) {
+            if (isMounted) {
+              setResolvedGigaViewerUrl(resultsCd[0].id);
+              return;
+            }
+          }
+        }
+
+        throw new Error("No GigaViewer mapping found automatically.");
+      } catch (err: any) {
+        console.error("Mapping error:", err);
+        if (isMounted) {
+          setGigaViewerMappingError(err.message || "Failed to find native chapters automatically.");
+        }
+      } finally {
+        if (isMounted) {
+          setIsResolvingGigaViewer(false);
+        }
+      }
+    };
+
+    resolveMapping();
+    return () => { isMounted = false; };
+  }, [selectedManga, useNativeGigaViewer]);
+
+  // Sync useNativeGigaViewer toggled off back to standard source
+  useEffect(() => {
+    if (!useNativeGigaViewer && selectedManga) {
+      setReadingSource('weebcentral');
+      setChapters([]);
+    }
+  }, [useNativeGigaViewer, selectedManga]);
+
+  // Load GigaViewer Chapters
+  useEffect(() => {
+    if (!selectedManga || !useNativeGigaViewer) return;
+    
+    const targetUrl = pastedGigaViewerUrl.trim() || resolvedGigaViewerUrl;
+    if (!targetUrl) {
+      setChapters([]);
+      return;
+    }
+
+    let isMounted = true;
+    const fetchGigaChapters = async () => {
+      setChaptersLoading(true);
+      try {
+        const res = await window.fetch(`/api/manga?action=info&provider=gigaviewer&id=${encodeURIComponent(targetUrl)}`);
+        if (!res.ok) throw new Error("Failed to load GigaViewer chapters");
+        const data = await res.json();
+        
+        if (isMounted) {
+          setChapters(data.chapters || []);
+          setMangapillChapters(data.chapters || []);
+          setReadingSource('gigaviewer');
+        }
+      } catch (err) {
+        console.error("GigaViewer chapters load error:", err);
+        showToast("Error loading raw chapters");
+      } finally {
+        if (isMounted) setChaptersLoading(false);
+      }
+    };
+
+    fetchGigaChapters();
+    return () => { isMounted = false; };
+  }, [selectedManga, useNativeGigaViewer, resolvedGigaViewerUrl, pastedGigaViewerUrl]);
+
   // Load Chapter list on Details open
   useEffect(() => {
-    if (!selectedManga) {
-      setChapters([]);
+    if (!selectedManga || useNativeGigaViewer) {
+      if (!selectedManga) setChapters([]);
       return;
     }
     let isMounted = true;
@@ -2449,6 +2666,17 @@ export const MangaPage: React.FC<MangaPageProps> = ({
       setPagesLoading(true);
       setActivePageIdx(0);
       try {
+        if (readingSource === 'gigaviewer') {
+          const res = await window.fetch(`/api/manga?action=pages&provider=gigaviewer&id=${encodeURIComponent(activeChapter.id)}`);
+          if (!res.ok) throw new Error(`Failed to load pages from GigaViewer`);
+          const pageData = await res.json();
+          if (!isMounted) return;
+
+          setPages(pageData);
+          setChapterServerData({ provider: 'gigaviewer' });
+          return;
+        }
+
         if (readingSource !== 'mangadex') {
           const res = await window.fetch(`/api/manga?action=pages&provider=${readingSource}&id=${encodeURIComponent(activeChapter.id)}`);
           if (!res.ok) throw new Error(`Failed to load pages from ${readingSource}`);
@@ -2497,7 +2725,8 @@ export const MangaPage: React.FC<MangaPageProps> = ({
   // Prefetch all chapter pages in the background for instant loading
   useEffect(() => {
     if (pages.length === 0) return;
-    pages.forEach((url) => {
+    pages.forEach((page) => {
+      const url = typeof page === 'string' ? page : `/api/manga?action=proxy-gigaviewer-image&url=${encodeURIComponent(page.src)}`;
       const img = new Image();
       img.src = url;
     });
@@ -3750,34 +3979,42 @@ export const MangaPage: React.FC<MangaPageProps> = ({
             ) : readerMode === 'strip' ? (
               /* Long Strip Mode (Stacked scroll) */
               <div className={`${getPageWidthClass()} w-full flex flex-col ${isStitchedFormat ? 'gap-0 py-0' : 'gap-2 py-1'}`}>
-                {pages.map((url, i) => (
-                  <div key={i} className={`w-full relative overflow-hidden ${isStitchedFormat ? 'bg-transparent rounded-none min-h-0' : 'bg-zinc-950/20 rounded-xl shadow-lg min-h-0'}`}>
-                    <img
-                      src={url}
-                      alt={`Page ${i + 1}`}
-                      referrerPolicy="no-referrer"
-                      className="w-full h-auto block pointer-events-none"
-                      loading="lazy"
-                      onError={(e) => {
-                        if (readingSource !== 'mangadex') return;
-                        const target = e.currentTarget;
-                        if (!target.src.includes('uploads.mangadex.org')) {
-                          try {
-                            const parsedUrl = new URL(target.src);
-                            target.src = `https://uploads.mangadex.org${parsedUrl.pathname}`;
-                          } catch (err) {
-                            console.error('Failed to resolve fallback URL:', err);
-                          }
-                        }
-                      }}
-                    />
+                {pages.map((page, i) => {
+                  const isGiga = readingSource === 'gigaviewer';
+                  const url = typeof page === 'string' ? page : page.src;
+                  return (
+                    <div key={i} className={`w-full relative overflow-hidden ${isStitchedFormat ? 'bg-transparent rounded-none min-h-0' : 'bg-zinc-950/20 rounded-xl shadow-lg min-h-0'}`}>
+                      {isGiga ? (
+                        <GigaViewerPage page={page} pageNum={i + 1} />
+                      ) : (
+                        <img
+                          src={url}
+                          alt={`Page ${i + 1}`}
+                          referrerPolicy="no-referrer"
+                          className="w-full h-auto block pointer-events-none"
+                          loading="lazy"
+                          onError={(e) => {
+                            if (readingSource !== 'mangadex') return;
+                            const target = e.currentTarget;
+                            if (!target.src.includes('uploads.mangadex.org')) {
+                              try {
+                                const parsedUrl = new URL(target.src);
+                                target.src = `https://uploads.mangadex.org${parsedUrl.pathname}`;
+                              } catch (err) {
+                                console.error('Failed to resolve fallback URL:', err);
+                              }
+                            }
+                          }}
+                        />
+                    )}
                     {!isStitchedFormat && (
                       <div className="absolute bottom-3 right-3 bg-black/80 backdrop-blur-md px-2.5 py-0.5 rounded text-[10px] text-zinc-300 select-none font-medium shadow-md">
                         {i + 1} / {pages.length}
                       </div>
                     )}
                   </div>
-                ))}
+                );
+              })}
               </div>
             ) : readerMode === 'single' ? (
               /* Single Page Mode (Slideshow) */
@@ -3793,25 +4030,29 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                   </button>
 
                   <div className="flex-1 aspect-[3/4] max-h-[76vh] md:max-h-[80vh] bg-zinc-950/20 border border-white/5 rounded-2xl overflow-hidden flex items-center justify-center relative shadow-2xl">
-                    <img
-                      key={activePageIdx}
-                      src={pages[activePageIdx]}
-                      alt={`Page ${activePageIdx + 1}`}
-                      referrerPolicy="no-referrer"
-                      className="max-h-full max-w-full object-contain pointer-events-none animate-fade-in duration-300"
-                      onError={(e) => {
-                        if (readingSource !== 'mangadex') return;
-                        const target = e.currentTarget;
-                        if (!target.src.includes('uploads.mangadex.org')) {
-                          try {
-                            const parsedUrl = new URL(target.src);
-                            target.src = `https://uploads.mangadex.org${parsedUrl.pathname}`;
-                          } catch (err) {
-                            console.error('Failed to resolve fallback URL:', err);
+                    {readingSource === 'gigaviewer' ? (
+                      <GigaViewerPage key={activePageIdx} page={pages[activePageIdx]} pageNum={activePageIdx + 1} className="max-h-full max-w-full object-contain pointer-events-none animate-fade-in duration-300" />
+                    ) : (
+                      <img
+                        key={activePageIdx}
+                        src={pages[activePageIdx]}
+                        alt={`Page ${activePageIdx + 1}`}
+                        referrerPolicy="no-referrer"
+                        className="max-h-full max-w-full object-contain pointer-events-none animate-fade-in duration-300"
+                        onError={(e) => {
+                          if (readingSource !== 'mangadex') return;
+                          const target = e.currentTarget;
+                          if (!target.src.includes('uploads.mangadex.org')) {
+                            try {
+                              const parsedUrl = new URL(target.src);
+                              target.src = `https://uploads.mangadex.org${parsedUrl.pathname}`;
+                            } catch (err) {
+                              console.error('Failed to resolve fallback URL:', err);
+                            }
                           }
-                        }
-                      }}
-                    />
+                        }}
+                      />
+                    )}
 
                     <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/85 backdrop-blur-md px-3.5 py-1 rounded-full text-xs text-white select-none font-medium shadow-xl">
                       {activePageIdx + 1} / {pages.length}
@@ -3994,24 +4235,28 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                         >
                           <div className="manga-page-gradient-left" />
                           {activePageIdx + 1 < pages.length ? (
-                            <img
-                              src={pages[activePageIdx + 1]}
-                              alt={`Page ${activePageIdx + 2}`}
-                              referrerPolicy="no-referrer"
-                              className="manga-page-img"
-                              onError={(e) => {
-                                if (readingSource !== 'mangadex') return;
-                                const target = e.currentTarget;
-                                if (!target.src.includes('uploads.mangadex.org')) {
-                                  try {
-                                    const parsedUrl = new URL(target.src);
-                                    target.src = `https://uploads.mangadex.org${parsedUrl.pathname}`;
-                                  } catch (err) {
-                                    console.error('Failed to resolve fallback URL:', err);
+                            readingSource === 'gigaviewer' ? (
+                              <GigaViewerPage page={pages[activePageIdx + 1]} pageNum={activePageIdx + 2} className="manga-page-img" />
+                            ) : (
+                              <img
+                                src={pages[activePageIdx + 1]}
+                                alt={`Page ${activePageIdx + 2}`}
+                                referrerPolicy="no-referrer"
+                                className="manga-page-img"
+                                onError={(e) => {
+                                  if (readingSource !== 'mangadex') return;
+                                  const target = e.currentTarget;
+                                  if (!target.src.includes('uploads.mangadex.org')) {
+                                    try {
+                                      const parsedUrl = new URL(target.src);
+                                      target.src = `https://uploads.mangadex.org${parsedUrl.pathname}`;
+                                    } catch (err) {
+                                      console.error('Failed to resolve fallback URL:', err);
+                                    }
                                   }
-                                }
-                              }}
-                            />
+                                }}
+                              />
+                            )
                           ) : (
                             <div className="flex flex-col items-center gap-2 select-none opacity-20">
                               <BookOpen size={36} className="text-zinc-700" />
@@ -4030,24 +4275,28 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                           }`}
                       >
                         <div className="manga-page-gradient-right" />
-                        <img
-                          src={pages[activePageIdx]}
-                          alt={`Page ${activePageIdx + 1}`}
-                          referrerPolicy="no-referrer"
-                          className="manga-page-img"
-                          onError={(e) => {
-                            if (readingSource !== 'mangadex') return;
-                            const target = e.currentTarget;
-                            if (!target.src.includes('uploads.mangadex.org')) {
-                              try {
-                                const parsedUrl = new URL(target.src);
-                                target.src = `https://uploads.mangadex.org${parsedUrl.pathname}`;
-                              } catch (err) {
-                                console.error('Failed to resolve fallback URL:', err);
+                        {readingSource === 'gigaviewer' ? (
+                          <GigaViewerPage page={pages[activePageIdx]} pageNum={activePageIdx + 1} className="manga-page-img" />
+                        ) : (
+                          <img
+                            src={pages[activePageIdx]}
+                            alt={`Page ${activePageIdx + 1}`}
+                            referrerPolicy="no-referrer"
+                            className="manga-page-img"
+                            onError={(e) => {
+                              if (readingSource !== 'mangadex') return;
+                              const target = e.currentTarget;
+                              if (!target.src.includes('uploads.mangadex.org')) {
+                                try {
+                                  const parsedUrl = new URL(target.src);
+                                  target.src = `https://uploads.mangadex.org${parsedUrl.pathname}`;
+                                } catch (err) {
+                                  console.error('Failed to resolve fallback URL:', err);
+                                }
                               }
-                            }
-                          }}
-                        />
+                            }}
+                          />
+                        )}
                         <div className="absolute bottom-4 right-4 bg-black/80 backdrop-blur-md px-2 py-0.5 rounded text-[10px] text-zinc-400 font-semibold border border-white/5 shadow-md">
                           {activePageIdx + 1} / {pages.length}
                         </div>
@@ -4444,22 +4693,58 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                   </div>
 
                   <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto justify-end">
-                    {/* Source Selector */}
-                    <div className="flex items-center gap-2">
-                      <span className="text-[10px] font-medium text-zinc-500">Source</span>
-                      <CustomSelect
-                        value={readingSource}
-                        onChange={setReadingSource}
-                        options={sourceOptions}
-                        className="px-3 py-1.5 hover:bg-zinc-800 text-xs font-medium border-white/5 rounded-lg border shrink-0 w-full"
-                        containerClassName="w-44"
-                        dropdownClassName="w-44 max-h-60"
-                        menuAlign="right"
-                      />
-                    </div>
+                    {/* Native (Japanese) GigaViewer Switch Toggle */}
+                    {!isAutoResolving && (
+                      <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 shrink-0">
+                        <span className="text-[10px] font-medium text-zinc-400">Raw (日本語)</span>
+                        <button
+                          onClick={() => setUseNativeGigaViewer(prev => !prev)}
+                          className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${useNativeGigaViewer ? 'bg-red-600' : 'bg-zinc-800'}`}
+                        >
+                          <span
+                            className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${useNativeGigaViewer ? 'translate-x-4' : 'translate-x-0'}`}
+                          />
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Source / Host Selector */}
+                    {useNativeGigaViewer ? (
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-medium text-zinc-500">Host</span>
+                        <CustomSelect
+                          value={gigaViewerHost}
+                          onChange={setGigaViewerHost}
+                          options={[
+                            { value: 'shonenjumpplus.com', label: 'Shonen Jump+' },
+                            { value: 'comic-days.com', label: 'Comic Days' },
+                            { value: 'kuragebunch.com', label: 'Kurage Bunch' },
+                            { value: 'tonarinoyj.jp', label: 'となりのヤングジャンプ' },
+                            { value: 'www.sunday-webry.com', label: 'Sunday Webry' }
+                          ]}
+                          className="px-3 py-1.5 hover:bg-zinc-800 text-xs font-medium border-white/5 rounded-lg border shrink-0 w-full"
+                          containerClassName="w-44"
+                          dropdownClassName="w-44 max-h-60"
+                          menuAlign="right"
+                        />
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-medium text-zinc-500">Source</span>
+                        <CustomSelect
+                          value={readingSource}
+                          onChange={setReadingSource}
+                          options={sourceOptions}
+                          className="px-3 py-1.5 hover:bg-zinc-800 text-xs font-medium border-white/5 rounded-lg border shrink-0 w-full"
+                          containerClassName="w-44"
+                          dropdownClassName="w-44 max-h-60"
+                          menuAlign="right"
+                        />
+                      </div>
+                    )}
 
                     {/* Language Picker */}
-                    {readingSource === 'mangadex' && (
+                    {!useNativeGigaViewer && readingSource === 'mangadex' && (
                       <div className="flex items-center gap-2">
                         <span className="text-[10px] font-medium text-zinc-500">Language</span>
                         <CustomSelect
@@ -4485,6 +4770,33 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                     </div>
                   </div>
                 </div>
+
+                {/* GigaViewer Mapping Fallback UI */}
+                {useNativeGigaViewer && isResolvingGigaViewer && (
+                  <div className="flex flex-col items-center justify-center py-8 gap-2 bg-[#0c0c0e]/50 border border-white/5 rounded-xl">
+                    <Loader2 className="animate-spin text-red-500" size={20} />
+                    <span className="text-[10px] text-zinc-500 font-medium">Resolving GigaViewer mapping...</span>
+                  </div>
+                )}
+
+                {useNativeGigaViewer && !isResolvingGigaViewer && !resolvedGigaViewerUrl && !pastedGigaViewerUrl && (
+                  <div className="bg-[#0c0c0e]/50 border border-white/5 rounded-xl p-5 text-center space-y-3">
+                    <AlertCircle className="text-zinc-500 mx-auto" size={24} />
+                    <div className="space-y-1">
+                      <h4 className="text-xs font-bold text-white">Could not find official Japanese source automatically</h4>
+                      <p className="text-[10px] text-zinc-500">Please paste a GigaViewer chapter/episode URL directly below to read.</p>
+                    </div>
+                    <div className="flex gap-2 max-w-md mx-auto">
+                      <input
+                        type="text"
+                        placeholder="e.g., https://shonenjumpplus.com/episode/..."
+                        value={pastedGigaViewerUrl}
+                        onChange={(e) => setPastedGigaViewerUrl(e.target.value)}
+                        className="flex-1 bg-black text-xs text-white border border-white/5 hover:border-white/10 focus:border-red-600 rounded-lg px-3 py-1.5 focus:outline-none"
+                      />
+                    </div>
+                  </div>
+                )}
 
                 {/* Chapters List */}
                 {readingSource !== 'mangadex' && mangapillError && !isAutoResolving ? (

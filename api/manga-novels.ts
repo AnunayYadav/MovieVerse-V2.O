@@ -72,6 +72,159 @@ async function novelFetch(url: string): Promise<string> {
   throw new Error(`Failed to fetch ${url}: all methods exhausted`);
 }
 
+async function scrapeGigaViewerSearch(query: string, host: string = 'shonenjumpplus.com') {
+  const url = `https://${host}/search?q=${encodeURIComponent(query)}`;
+  const html = await novelFetch(url);
+  const $ = cheerio.load(html);
+  
+  const results: any[] = [];
+  $('.search-series-list li').each((_, el) => {
+    const title = $(el).find('.series-title').text().trim();
+    const author = $(el).find('.author').text().trim();
+    const thumbnail = $(el).find('.thmb-container img').attr('src') || '';
+    const firstEpisodeUrl = $(el).find('.thmb-container a').attr('href') || '';
+    
+    if (firstEpisodeUrl) {
+      results.push({
+        id: firstEpisodeUrl,
+        title,
+        image: thumbnail,
+        author,
+        description: `Source: ${host}`
+      });
+    }
+  });
+  return results;
+}
+
+async function scrapeGigaViewerInfo(episodeUrl: string) {
+  const html = await novelFetch(episodeUrl);
+  const $ = cheerio.load(html);
+  
+  const script = $('#episode-json');
+  if (script.length === 0) {
+    throw new Error('Could not find episode details');
+  }
+  const data = JSON.parse(script.attr('data-value') || '{}');
+  const readable = data.readableProduct || {};
+  
+  const seriesId = readable.series?.id;
+  const seriesTitle = readable.series?.title || readable.title || 'Manga';
+  const coverUrl = readable.series?.thumbnailUri || '';
+  const parsedUrl = new URL(episodeUrl);
+  const host = parsedUrl.host;
+  
+  if (!seriesId) {
+    return {
+      id: episodeUrl,
+      title: seriesTitle,
+      image: coverUrl,
+      author: 'GigaViewer',
+      description: readable.title || '',
+      chapters: [
+        {
+          id: episodeUrl,
+          attributes: {
+            title: readable.title || 'Chapter',
+            chapter: 'Oneshot',
+            publishAt: readable.publishedAt || new Date().toISOString()
+          }
+        }
+      ]
+    };
+  }
+
+  const rssUrl = `https://${host}/rss/series/${seriesId}`;
+  let xml = '';
+  try {
+    const rssRes = await fetch(rssUrl, {
+      headers: {
+        'User-Agent': USER_AGENT
+      }
+    });
+    if (rssRes.ok) {
+      xml = await rssRes.text();
+    }
+  } catch (err) {
+    console.warn(`Failed to fetch GigaViewer RSS from ${rssUrl}:`, err);
+  }
+
+  if (!xml) {
+    return {
+      id: episodeUrl,
+      title: seriesTitle,
+      image: coverUrl,
+      author: 'GigaViewer',
+      description: readable.title || '',
+      chapters: [
+        {
+          id: episodeUrl,
+          attributes: {
+            title: readable.title || 'Chapter',
+            chapter: 'Oneshot',
+            publishAt: readable.publishedAt || new Date().toISOString()
+          }
+        }
+      ]
+    };
+  }
+
+  const rss$ = cheerio.load(xml, { xmlMode: true });
+  const title = rss$('channel > title').text().replace(/少年ジャンプ＋（|となジャン（|くらげバンチ（|コミックデイズ（|）/g, '').trim() || seriesTitle;
+  const description = rss$('channel > description').text().trim() || '';
+  
+  const chapters: any[] = [];
+  rss$('item').each((_, el) => {
+    const itemTitle = rss$(el).find('title').text().trim();
+    const itemLink = rss$(el).find('link').text().trim();
+    const pubDate = rss$(el).find('pubDate').text().trim();
+    
+    const match = itemTitle.match(/\[(\d+(?:\.\d+)?)話\]/);
+    const chapterNum = match ? match[1] : '';
+    
+    chapters.push({
+      id: itemLink,
+      attributes: {
+        title: itemTitle,
+        chapter: chapterNum || itemTitle,
+        publishAt: new Date(pubDate).toISOString()
+      }
+    });
+  });
+
+  return {
+    id: episodeUrl,
+    title,
+    image: coverUrl,
+    author: 'GigaViewer',
+    description,
+    chapters: chapters.reverse()
+  };
+}
+
+async function scrapeGigaViewerPages(episodeUrl: string) {
+  const html = await novelFetch(episodeUrl);
+  const $ = cheerio.load(html);
+  
+  const script = $('#episode-json');
+  if (script.length === 0) {
+    throw new Error('Could not find episode details');
+  }
+  const data = JSON.parse(script.attr('data-value') || '{}');
+  const readable = data.readableProduct || {};
+  
+  const pages = (readable.pageStructure?.pages || [])
+    .filter((p: any) => p.src)
+    .map((p: any) => ({
+      src: p.src,
+      width: p.width,
+      height: p.height
+    }));
+    
+  return pages;
+}
+
+
 function parseTitleForSort(title: string) {
   const t = title.toLowerCase();
   
@@ -773,7 +926,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const providerKey = typeof providerQuery === 'string' ? providerQuery.toLowerCase() : 'mangapill';
 
   try {
-    if (['novelfull', 'ranobes', 'wuxiaworld', 'royalroad', 'scribblehub', 'lightnovelworld', 'allnovel'].includes(providerKey)) {
+    if (['novelfull', 'ranobes', 'wuxiaworld', 'royalroad', 'scribblehub', 'lightnovelworld', 'allnovel', 'gigaviewer'].includes(providerKey)) {
       if (action === 'search') {
         if (!query || typeof query !== 'string') {
           return res.status(400).json({ error: 'Query parameter is required' });
@@ -787,6 +940,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           results = await scrapeLightNovelWorldSearch(query);
         } else if (providerKey === 'allnovel') {
           results = await scrapeAllNovelSearch(query);
+        } else if (providerKey === 'gigaviewer') {
+          const host = typeof req.query.host === 'string' ? req.query.host : 'shonenjumpplus.com';
+          results = await scrapeGigaViewerSearch(query, host);
         } else {
           results = await scrapeWuxiaWorldSearch(query);
         }
@@ -806,6 +962,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           data = await scrapeLightNovelWorldInfo(id);
         } else if (providerKey === 'allnovel') {
           data = await scrapeAllNovelInfo(id);
+        } else if (providerKey === 'gigaviewer') {
+          data = await scrapeGigaViewerInfo(id);
         } else {
           data = await scrapeWuxiaWorldInfo(id);
         }
@@ -825,6 +983,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           data = await scrapeLightNovelWorldChapter(id);
         } else if (providerKey === 'allnovel') {
           data = await scrapeAllNovelChapter(id);
+        } else if (providerKey === 'gigaviewer') {
+          data = await scrapeGigaViewerPages(id);
         } else {
           data = await scrapeWuxiaWorldChapter(id);
         }
@@ -858,6 +1018,40 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
       const data = await provider.fetchChapterPages(id);
       return res.status(200).json(data);
+    }
+
+    if (action === 'proxy-gigaviewer-image') {
+      const imageUrl = req.query.url;
+      if (!imageUrl || typeof imageUrl !== 'string') {
+        return res.status(400).json({ error: 'URL parameter is required' });
+      }
+
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+      res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+      if (req.method === 'OPTIONS') {
+        return res.status(200).end();
+      }
+
+      try {
+        const imgRes = await fetch(imageUrl, {
+          headers: {
+            'User-Agent': USER_AGENT,
+            'Referer': new URL(imageUrl).origin
+          }
+        });
+        if (!imgRes.ok) {
+          return res.status(imgRes.status).json({ error: `CDN responded with status: ${imgRes.status}` });
+        }
+        const buffer = await imgRes.arrayBuffer();
+        res.setHeader('Content-Type', imgRes.headers.get('Content-Type') || 'image/jpeg');
+        res.setHeader('Cache-Control', 'public, max-age=86400');
+        return res.status(200).send(Buffer.from(buffer));
+      } catch (err: any) {
+        console.error("GigaViewer image proxy error:", err.message);
+        return res.status(500).json({ error: err.message || 'Image proxy failed' });
+      }
     }
 
     if (action === 'proxy-image') {
