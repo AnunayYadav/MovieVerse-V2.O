@@ -2501,6 +2501,17 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
 
   const checkServerStatus = async (url: string): Promise<boolean> => {
     try {
+      // First, try calling our backend check-source API
+      const apiRes = await fetch(`/api/check-source?url=${encodeURIComponent(url)}`);
+      if (apiRes.ok) {
+        const data = await apiRes.json();
+        return data.exists === true;
+      }
+    } catch (e) {
+      console.warn("Backend server check failed, falling back to client-side check:", e);
+    }
+
+    try {
       const controller = new AbortController();
       const id = setTimeout(() => controller.abort(), 3500);
       
