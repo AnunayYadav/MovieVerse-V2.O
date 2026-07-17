@@ -2807,7 +2807,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
             }
           }));
           setChapters(mappedChapters);
-          setMangapillChapters(mappedChapters);
+          setMangapillChapters(data.chapters || []);
           setReadingSource(providerName);
         }
       } catch (err) {
