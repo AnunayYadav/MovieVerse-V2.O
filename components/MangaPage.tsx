@@ -1782,9 +1782,17 @@ export const MangaPage: React.FC<MangaPageProps> = ({
       setMangapillChapters([]);
       setResolvedProvider(null);
       setMangapillError(null);
+      setUseNativeGigaViewer(false);
+      setPastedGigaViewerUrl('');
+      setResolvedGigaViewerUrl(null);
+      setGigaViewerMappingError(null);
       return;
     }
     let isMounted = true;
+    setUseNativeGigaViewer(false);
+    setPastedGigaViewerUrl('');
+    setResolvedGigaViewerUrl(null);
+    setGigaViewerMappingError(null);
 
     const fetchSelectedMangaDetails = async () => {
       try {
@@ -2498,30 +2506,6 @@ export const MangaPage: React.FC<MangaPageProps> = ({
       setGigaViewerMappingError(null);
       
       try {
-        const rawLink = selectedManga.attributes.links?.raw;
-        if (rawLink) {
-          try {
-            const parsed = new URL(rawLink);
-            const host = parsed.hostname.replace('www.', '');
-            const GIGAVIEWER_VALID_HOSTS = [
-              "shonenjumpplus.com", "comic-days.com", "kuragebunch.com", 
-              "tonarinoyj.jp", "www.sunday-webry.com", "feelweb.jp", 
-              "magcomi.com", "comic-action.com", "comic-earthstar.com", 
-              "comic-gardo.com", "comic-zenon.com", "viewer.heros-web.com",
-              "comicborder.com", "feelweb.jp", "ichicomi.com", "ourfeel.jp"
-            ];
-            if (GIGAVIEWER_VALID_HOSTS.some(h => host === h || host.endsWith('.' + h))) {
-              if (isMounted) {
-                setResolvedGigaViewerUrl(rawLink);
-                setIsResolvingGigaViewer(false);
-                return;
-              }
-            }
-          } catch (e) {
-            console.error("Failed to parse rawLink URL:", e);
-          }
-        }
-
         let queryTitle = '';
         if (selectedManga.attributes.altTitles) {
           const jaTitleObj = selectedManga.attributes.altTitles.find(t => t.ja || t['ja-ro']);
@@ -2537,25 +2521,71 @@ export const MangaPage: React.FC<MangaPageProps> = ({
           throw new Error("No search query found for GigaViewer search");
         }
 
-        const searchRes = await window.fetch(`/api/manga?action=search&provider=gigaviewer&query=${encodeURIComponent(queryTitle)}&host=shonenjumpplus.com`);
-        if (!searchRes.ok) throw new Error("Search mapping request failed");
-        const results = await searchRes.json();
-        
-        if (results && results.length > 0) {
-          if (isMounted) {
-            setResolvedGigaViewerUrl(results[0].id);
+        // Check if we already resolved a URL, and if the user changed the host manually
+        let currentUrlHost = '';
+        if (resolvedGigaViewerUrl) {
+          try {
+            currentUrlHost = new URL(resolvedGigaViewerUrl).hostname.replace('www.', '');
+          } catch (e) {}
+        }
+
+        if (resolvedGigaViewerUrl && currentUrlHost === gigaViewerHost) {
+          // Already resolved and matches the selected host, nothing to do!
+          return;
+        }
+
+        if (resolvedGigaViewerUrl && currentUrlHost !== gigaViewerHost) {
+          // User manually changed the host in the dropdown! Search specifically on this host.
+          const searchRes = await window.fetch(`/api/manga?action=search&provider=gigaviewer&query=${encodeURIComponent(queryTitle)}&host=${gigaViewerHost}`);
+          if (!searchRes.ok) throw new Error("Search mapping request failed");
+          const results = await searchRes.json();
+          
+          if (results && results.length > 0) {
+            if (isMounted) {
+              setResolvedGigaViewerUrl(results[0].id);
+            }
             return;
+          } else {
+            throw new Error(`No matching manga found on ${gigaViewerHost}`);
           }
         }
 
-        const searchResCd = await window.fetch(`/api/manga?action=search&provider=gigaviewer&query=${encodeURIComponent(queryTitle)}&host=comic-days.com`);
-        if (searchResCd.ok) {
-          const resultsCd = await searchResCd.json();
-          if (resultsCd && resultsCd.length > 0) {
-            if (isMounted) {
-              setResolvedGigaViewerUrl(resultsCd[0].id);
-              return;
+        // Tier 1: Check MangaDex raw link
+        const rawLink = selectedManga.attributes.links?.raw;
+        if (rawLink) {
+          try {
+            const parsed = new URL(rawLink);
+            const host = parsed.hostname.replace('www.', '');
+            const GIGAVIEWER_VALID_HOSTS = [
+              "shonenjumpplus.com", "comic-days.com", "kuragebunch.com", 
+              "tonarinoyj.jp", "www.sunday-webry.com", "feelweb.jp", 
+              "magcomi.com", "comic-action.com", "comic-earthstar.com", 
+              "comic-gardo.com", "comic-zenon.com", "viewer.heros-web.com",
+              "comicborder.com", "feelweb.jp", "ichicomi.com", "ourfeel.jp"
+            ];
+            if (GIGAVIEWER_VALID_HOSTS.some(h => host === h || host.endsWith('.' + h))) {
+              if (isMounted) {
+                setResolvedGigaViewerUrl(rawLink);
+                setGigaViewerHost(host);
+                setIsResolvingGigaViewer(false);
+                return;
+              }
             }
+          } catch (e) {
+            console.error("Failed to parse rawLink URL:", e);
+          }
+        }
+
+        // Tier 2: Auto-detect best host by chapter count
+        const resolverRes = await window.fetch(`/api/manga?action=resolve-best-gigaviewer&query=${encodeURIComponent(queryTitle)}`);
+        if (!resolverRes.ok) throw new Error("Auto-detection resolver failed");
+        
+        const bestSource = await resolverRes.json();
+        if (bestSource && bestSource.url) {
+          if (isMounted) {
+            setResolvedGigaViewerUrl(bestSource.url);
+            setGigaViewerHost(bestSource.host);
+            return;
           }
         }
 
@@ -2574,7 +2604,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
 
     resolveMapping();
     return () => { isMounted = false; };
-  }, [selectedManga, useNativeGigaViewer]);
+  }, [selectedManga, useNativeGigaViewer, gigaViewerHost, resolvedGigaViewerUrl]);
 
   // Sync useNativeGigaViewer toggled off back to standard source
   useEffect(() => {

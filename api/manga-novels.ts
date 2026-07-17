@@ -224,6 +224,53 @@ async function scrapeGigaViewerPages(episodeUrl: string) {
   return pages;
 }
 
+async function resolveBestGigaViewerHost(query: string) {
+  const hosts = [
+    'shonenjumpplus.com',
+    'comic-days.com',
+    'tonarinoyj.jp',
+    'www.sunday-webry.com',
+    'kuragebunch.com'
+  ];
+  
+  const searchPromises = hosts.map(async (host) => {
+    try {
+      const results = await scrapeGigaViewerSearch(query, host);
+      if (results && results.length > 0) {
+        const info = await scrapeGigaViewerInfo(results[0].id);
+        return {
+          host,
+          url: results[0].id,
+          chapterCount: info.chapters?.length || 0,
+          info
+        };
+      }
+    } catch (e) {
+      // Ignore errors for individual hosts to allow others to complete
+    }
+    return null;
+  });
+  
+  const resolved = await Promise.all(searchPromises);
+  const valid = resolved.filter((r): r is NonNullable<typeof r> => r !== null && r.chapterCount > 0);
+  
+  if (valid.length === 0) {
+    return null;
+  }
+  
+  // Sort by chapter count descending to get the host with the most chapters
+  valid.sort((a, b) => b.chapterCount - a.chapterCount);
+  
+  return {
+    url: valid[0].url,
+    host: valid[0].host,
+    chapters: valid[0].info.chapters,
+    title: valid[0].info.title,
+    image: valid[0].info.image,
+    description: valid[0].info.description
+  };
+}
+
 
 function parseTitleForSort(title: string) {
   const t = title.toLowerCase();
@@ -927,6 +974,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     if (['novelfull', 'ranobes', 'wuxiaworld', 'royalroad', 'scribblehub', 'lightnovelworld', 'allnovel', 'gigaviewer'].includes(providerKey)) {
+      if (action === 'resolve-best-gigaviewer') {
+        if (!query || typeof query !== 'string') {
+          return res.status(400).json({ error: 'Query parameter is required' });
+        }
+        const data = await resolveBestGigaViewerHost(query);
+        return res.status(200).json(data);
+      }
+
       if (action === 'search') {
         if (!query || typeof query !== 'string') {
           return res.status(400).json({ error: 'Query parameter is required' });
