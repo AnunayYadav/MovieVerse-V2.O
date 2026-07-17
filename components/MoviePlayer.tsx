@@ -2504,7 +2504,8 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
       const controller = new AbortController();
       const id = setTimeout(() => controller.abort(), 3500);
       
-      await fetch(url, {
+      const domain = new URL(url).origin;
+      await fetch(`${domain}/favicon.ico`, {
         mode: 'no-cors',
         signal: controller.signal,
         headers: { 'Cache-Control': 'no-cache' }

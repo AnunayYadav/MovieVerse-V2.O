@@ -57,7 +57,7 @@
     {
       "server": "TwoEmbed",
       "url": "https://www.2embed.cc",
-      "enabled": false,
+      "enabled": true,
       "type": "movie"
     },
     {
