@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { Play, Info, Search, Star, BookOpen, X, ChevronLeft, ChevronRight, FileText, LayoutList, RefreshCcw, Loader2, AlertCircle, Sparkles, Trophy, Calendar, TrendingUp, ArrowLeft, Users, Globe, Bookmark, AlertTriangle, Settings, Heart, Maximize, Minimize, Languages, ChevronDown, Check, Send } from 'lucide-react';
+import { Play, Info, Search, Star, BookOpen, X, ChevronLeft, ChevronRight, FileText, LayoutList, RefreshCcw, Loader2, AlertCircle, Sparkles, Trophy, Calendar, Download, TrendingUp, ArrowLeft, Users, Globe, Bookmark, AlertTriangle, Settings, Heart, Maximize, Minimize, Languages, ChevronDown, Check, Send } from 'lucide-react';
 import { useTvFocus, TvFocusButton, TvFocusInput } from '../tvNavigation';
 import { ExpandedCategoryModal } from './Modals';
 import { fetchAniListUserList } from '../services/anilistSync';
+import JSZip from 'jszip';
 
 export interface MangaDexManga {
   id: string;
@@ -337,6 +338,57 @@ const GigaViewerPage: React.FC<{ page: any; pageNum: number; className?: string 
     </div>
   );
 };
+
+const descrambleGigaViewerPageToBlob = async (page: any): Promise<Blob> => {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.src = `/api/manga?action=proxy-gigaviewer-image&url=${encodeURIComponent(page.src)}`;
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      try {
+        const canvas = document.createElement('canvas');
+        const width = page.width || img.width;
+        const height = page.height || img.height;
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          reject(new Error("Failed to get 2D canvas context"));
+          return;
+        }
+        const div = 4;
+        const mul = 8;
+        const fixedWidth = Math.floor(width / (div * mul)) * mul;
+        const fixedHeight = Math.floor(height / (div * mul)) * mul;
+
+        ctx.drawImage(img, 0, 0);
+
+        for (let col = 0; col < div; col++) {
+          for (let row = 0; row < div; row++) {
+            ctx.drawImage(
+              img,
+              fixedWidth * col, fixedHeight * row, fixedWidth, fixedHeight,
+              fixedWidth * row, fixedHeight * col, fixedWidth, fixedHeight
+            );
+          }
+        }
+        canvas.toBlob((blob) => {
+          if (blob) {
+            resolve(blob);
+          } else {
+            reject(new Error("Failed to export canvas to blob"));
+          }
+        }, 'image/jpeg', 0.9);
+      } catch (err) {
+        reject(err);
+      }
+    };
+    img.onerror = () => {
+      reject(new Error("Failed to fetch/load GigaViewer image for download"));
+    };
+  });
+};
+
 
 
 export const MangaPage: React.FC<MangaPageProps> = ({
@@ -849,6 +901,230 @@ export const MangaPage: React.FC<MangaPageProps> = ({
   const readerScrollContainerRef = useRef<HTMLDivElement>(null);
   const [autoScrollSpeed, setAutoScrollSpeed] = useState<number>(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
+
+  // Downloader States
+  const [isDownloadModalOpen, setIsDownloadModalOpen] = useState(false);
+  const [downloadStatus, setDownloadStatus] = useState<'idle' | 'fetching' | 'downloading' | 'zipping' | 'done' | 'error'>('idle');
+  const [downloadProgress, setDownloadProgress] = useState(0);
+  const [downloadProgressText, setDownloadProgressText] = useState('');
+  const [downloadCancelRef] = useState<{ cancel: boolean }>({ cancel: false });
+  const [downloadBatchStart, setDownloadBatchStart] = useState<string>('');
+  const [downloadBatchEnd, setDownloadBatchEnd] = useState<string>('');
+
+  useEffect(() => {
+    if (activeReaderChapters && activeReaderChapters.length > 0) {
+      setDownloadBatchStart(activeReaderChapters[activeReaderChapters.length - 1]?.id || '');
+      setDownloadBatchEnd(activeReaderChapters[0]?.id || '');
+    }
+  }, [activeReaderChapters]);
+
+  const fetchChapterPagesList = async (chapterId: string): Promise<any[]> => {
+    if (readingSource === 'weloma') {
+      const res = await window.fetch(`/api/manga?action=pages&provider=weloma&id=${encodeURIComponent(chapterId)}`);
+      if (!res.ok) throw new Error("Failed to load WeLoMa page list");
+      return await res.json();
+    }
+    if (readingSource === 'kadocomi') {
+      const res = await window.fetch(`/api/manga?action=pages&provider=kadocomi&id=${encodeURIComponent(chapterId)}`);
+      if (!res.ok) throw new Error("Failed to load KadoComi page list");
+      return await res.json();
+    }
+    if (readingSource === 'gigaviewer') {
+      const res = await window.fetch(`/api/manga?action=pages&provider=gigaviewer&id=${encodeURIComponent(chapterId)}`);
+      if (!res.ok) throw new Error("Failed to load GigaViewer page list");
+      return await res.json();
+    }
+    if (readingSource !== 'mangadex') {
+      const res = await window.fetch(`/api/manga?action=pages&provider=${readingSource}&id=${encodeURIComponent(chapterId)}`);
+      if (!res.ok) throw new Error(`Failed to load ${readingSource} page list`);
+      const pageData = await res.json();
+      return pageData.map((p: any) => ({ src: `/api/manga?action=proxy-image&provider=${readingSource}&url=${encodeURIComponent(p.img || p.image || p.url)}` }));
+    }
+    const data = await fetchMangaDex(`/at-home/server/${chapterId}`);
+    const base = data.baseUrl;
+    const hash = data.chapter.hash;
+    const pagesArr = isDataSaver ? data.chapter.dataSaver : data.chapter.data;
+    return pagesArr.map((filename: string) => ({ src: `${base}/${isDataSaver ? 'data-saver' : 'data'}/${hash}/${filename}` }));
+  };
+
+  const handleDownloadChapter = async (chapterId: string, chapterTitle: string) => {
+    setIsDownloadModalOpen(true);
+    setDownloadStatus('fetching');
+    setDownloadProgress(0);
+    setDownloadProgressText('Initializing...');
+    downloadCancelRef.cancel = false;
+    
+    try {
+      setDownloadProgressText('Fetching page list...');
+      const pagesList = await fetchChapterPagesList(chapterId);
+      if (downloadCancelRef.cancel) return;
+      
+      if (!pagesList || pagesList.length === 0) {
+        throw new Error("No pages found for this chapter.");
+      }
+
+      setDownloadStatus('downloading');
+      setDownloadProgressText(`Downloading page 0/${pagesList.length}...`);
+      
+      const zip = new JSZip();
+      
+      for (let i = 0; i < pagesList.length; i++) {
+        if (downloadCancelRef.cancel) return;
+        
+        const page = pagesList[i];
+        const url = typeof page === 'string' ? page : page.src;
+        
+        let blob: Blob;
+        if (readingSource === 'gigaviewer') {
+          blob = await descrambleGigaViewerPageToBlob(page);
+        } else {
+          const imgRes = await window.fetch(url);
+          if (!imgRes.ok) throw new Error(`Failed to fetch page ${i + 1}`);
+          blob = await imgRes.blob();
+        }
+        
+        const ext = url.split('?')[0].split('.').pop() || 'jpg';
+        const cleanExt = ['jpg', 'jpeg', 'png', 'webp'].includes(ext.toLowerCase()) ? ext : 'jpg';
+        const filename = `page_${String(i + 1).padStart(3, '0')}.${cleanExt}`;
+        
+        zip.file(filename, blob);
+        
+        const progressVal = Math.floor(((i + 1) / pagesList.length) * 90);
+        setDownloadProgress(progressVal);
+        setDownloadProgressText(`Downloading page ${i + 1}/${pagesList.length}...`);
+      }
+      
+      if (downloadCancelRef.cancel) return;
+      
+      setDownloadStatus('zipping');
+      setDownloadProgressText('Compressing zip file...');
+      setDownloadProgress(95);
+      
+      const content = await zip.generateAsync({ type: 'blob' });
+      
+      if (downloadCancelRef.cancel) return;
+      
+      setDownloadProgress(100);
+      setDownloadStatus('done');
+      setDownloadProgressText('Zip generation complete!');
+      
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(content);
+      const name = `${selectedManga ? getMangaTitle(selectedManga) : 'Manga'} - ${chapterTitle}.zip`.replace(/[\\/:*?"<>|]/g, '_');
+      a.download = name;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(a.href);
+    } catch (err: any) {
+      console.error("Single download error:", err);
+      setDownloadStatus('error');
+      setDownloadProgressText(err.message || 'Download failed');
+    }
+  };
+
+  const handleDownloadBatch = async (startChId: string, endChId: string) => {
+    setIsDownloadModalOpen(true);
+    setDownloadStatus('fetching');
+    setDownloadProgress(0);
+    setDownloadProgressText('Initializing batch download...');
+    downloadCancelRef.cancel = false;
+
+    try {
+      const startIdx = activeReaderChapters.findIndex(c => c.id === startChId);
+      const endIdx = activeReaderChapters.findIndex(c => c.id === endChId);
+      
+      if (startIdx === -1 || endIdx === -1) {
+        throw new Error("Invalid chapter range selection");
+      }
+
+      const minIdx = Math.min(startIdx, endIdx);
+      const maxIdx = Math.max(startIdx, endIdx);
+      const targetChapters = activeReaderChapters.slice(minIdx, maxIdx + 1);
+
+      if (targetChapters.length === 0) {
+        throw new Error("No chapters found in selected range");
+      }
+
+      setDownloadStatus('downloading');
+      
+      const zip = new JSZip();
+      
+      for (let c = 0; c < targetChapters.length; c++) {
+        if (downloadCancelRef.cancel) return;
+        
+        const ch = targetChapters[c];
+        const chNum = ch.attributes.chapter || 'Oneshot';
+        const chTitle = ch.attributes.title || '';
+        const folderName = `Chapter ${chNum}${chTitle ? ` - ${chTitle}` : ''}`.replace(/[\\/:*?"<>|]/g, '_');
+        const folder = zip.folder(folderName);
+        
+        setDownloadProgressText(`Fetching page list for Chapter ${chNum} (${c + 1}/${targetChapters.length})...`);
+        const pagesList = await fetchChapterPagesList(ch.id);
+        
+        if (downloadCancelRef.cancel) return;
+        
+        for (let p = 0; p < pagesList.length; p++) {
+          if (downloadCancelRef.cancel) return;
+          
+          const page = pagesList[p];
+          const url = typeof page === 'string' ? page : page.src;
+          
+          let blob: Blob;
+          if (readingSource === 'gigaviewer') {
+            blob = await descrambleGigaViewerPageToBlob(page);
+          } else {
+            const imgRes = await window.fetch(url);
+            if (!imgRes.ok) throw new Error(`Failed to fetch page ${p + 1} of Chapter ${chNum}`);
+            blob = await imgRes.blob();
+          }
+          
+          const ext = url.split('?')[0].split('.').pop() || 'jpg';
+          const cleanExt = ['jpg', 'jpeg', 'png', 'webp'].includes(ext.toLowerCase()) ? ext : 'jpg';
+          const filename = `page_${String(p + 1).padStart(3, '0')}.${cleanExt}`;
+          
+          if (folder) {
+            folder.file(filename, blob);
+          }
+          
+          const overallProgress = Math.floor(
+            ((c / targetChapters.length) + (p / (pagesList.length * targetChapters.length))) * 90
+          );
+          setDownloadProgress(overallProgress);
+          setDownloadProgressText(`Downloading Chapter ${chNum} (${c + 1}/${targetChapters.length}) - Page ${p + 1}/${pagesList.length}...`);
+        }
+      }
+      
+      if (downloadCancelRef.cancel) return;
+      
+      setDownloadStatus('zipping');
+      setDownloadProgressText('Packaging batch zip file (this may take a few seconds)...');
+      setDownloadProgress(95);
+      
+      const content = await zip.generateAsync({ type: 'blob' });
+      
+      if (downloadCancelRef.cancel) return;
+      
+      setDownloadProgress(100);
+      setDownloadStatus('done');
+      setDownloadProgressText('Batch download complete!');
+      
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(content);
+      const startNum = targetChapters[targetChapters.length - 1].attributes.chapter || 'Start';
+      const endNum = targetChapters[0].attributes.chapter || 'End';
+      const name = `${selectedManga ? getMangaTitle(selectedManga) : 'Manga'} - Chapters ${startNum} to ${endNum}.zip`.replace(/[\\/:*?"<>|]/g, '_');
+      a.download = name;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(a.href);
+    } catch (err: any) {
+      console.error("Batch download error:", err);
+      setDownloadStatus('error');
+      setDownloadProgressText(err.message || 'Batch download failed');
+    }
+  };
 
 
 
@@ -4149,6 +4425,15 @@ export const MangaPage: React.FC<MangaPageProps> = ({
               <Bookmark size={14} />
             </button>
 
+            {/* Download button */}
+            <button
+              onClick={() => setIsDownloadModalOpen(true)}
+              className="p-2 bg-white/5 border border-white/5 hover:bg-white/10 text-zinc-300 hover:text-white rounded-xl transition-all active:scale-95 shrink-0 flex items-center justify-center"
+              title="Download Chapters"
+            >
+              <Download size={14} />
+            </button>
+
             {/* Fullscreen button */}
             <button
               onClick={toggleFullscreen}
@@ -4582,6 +4867,218 @@ export const MangaPage: React.FC<MangaPageProps> = ({
             </div>
           </div>
         </div>
+
+        {/* Download Modal Overlay */}
+        {isDownloadModalOpen && (
+          <div
+            className="fixed inset-0 z-[200] flex items-center justify-center bg-black/75 backdrop-blur-md animate-fade-in"
+            onClick={() => {
+              if (downloadStatus === 'idle' || downloadStatus === 'done' || downloadStatus === 'error') {
+                setIsDownloadModalOpen(false);
+                setDownloadStatus('idle');
+                setDownloadProgress(0);
+                setDownloadProgressText('');
+              }
+            }}
+          >
+            <div
+              className="bg-[#0e0e10] border border-white/10 rounded-2xl w-[420px] max-w-[92vw] shadow-2xl overflow-hidden font-sans"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Modal Header */}
+              <div className="px-5 pt-5 pb-3 flex items-center justify-between border-b border-white/5">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-lg bg-red-600/15 flex items-center justify-center">
+                    <Download size={16} className="text-red-500" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-white">Download Manga</h3>
+                    <p className="text-[10px] text-zinc-500 font-medium">Save chapters as ZIP files</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => {
+                    if (downloadStatus === 'fetching' || downloadStatus === 'downloading' || downloadStatus === 'zipping') {
+                      downloadCancelRef.cancel = true;
+                    }
+                    setIsDownloadModalOpen(false);
+                    setDownloadStatus('idle');
+                    setDownloadProgress(0);
+                    setDownloadProgressText('');
+                  }}
+                  className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white transition-colors"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+
+              {/* Modal Body */}
+              {downloadStatus === 'idle' ? (
+                <div className="p-5 space-y-4">
+                  {/* Download Current Chapter */}
+                  <button
+                    onClick={() => {
+                      const chNum = activeChapter?.attributes?.chapter || 'Oneshot';
+                      const chTitle = activeChapter?.attributes?.title;
+                      const label = `Chapter ${chNum}${chTitle ? ` - ${chTitle}` : ''}`;
+                      handleDownloadChapter(activeChapter!.id, label);
+                    }}
+                    className="w-full flex items-center gap-3 px-4 py-3 bg-white/[0.03] hover:bg-white/[0.06] border border-white/5 hover:border-white/10 rounded-xl transition-all group active:scale-[0.98]"
+                  >
+                    <div className="w-9 h-9 rounded-lg bg-red-600/10 group-hover:bg-red-600/20 flex items-center justify-center transition-colors shrink-0">
+                      <FileText size={16} className="text-red-500" />
+                    </div>
+                    <div className="text-left flex-1 min-w-0">
+                      <span className="text-xs font-semibold text-white block">Download Current Chapter</span>
+                      <span className="text-[10px] text-zinc-500 block truncate">
+                        Chapter {activeChapter?.attributes?.chapter || 'Oneshot'}
+                        {activeChapter?.attributes?.title ? ` — ${activeChapter.attributes.title}` : ''}
+                      </span>
+                    </div>
+                    <Download size={14} className="text-zinc-500 group-hover:text-red-500 transition-colors shrink-0" />
+                  </button>
+
+                  {/* Divider */}
+                  <div className="flex items-center gap-3">
+                    <div className="flex-1 h-px bg-white/5" />
+                    <span className="text-[9px] text-zinc-600 font-bold uppercase tracking-widest">or</span>
+                    <div className="flex-1 h-px bg-white/5" />
+                  </div>
+
+                  {/* Batch Download */}
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <span className="w-1 h-3 bg-red-600 rounded-full" />
+                      <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Batch Download</span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1.5">
+                        <span className="text-[10px] text-zinc-500 font-medium">From Chapter</span>
+                        <select
+                          value={downloadBatchStart}
+                          onChange={(e) => setDownloadBatchStart(e.target.value)}
+                          className="w-full px-2.5 py-2 bg-white/5 border border-white/5 rounded-lg text-xs text-white appearance-none cursor-pointer hover:bg-white/[0.08] transition-colors focus:outline-none focus:border-red-500/50"
+                        >
+                          {activeReaderChapters.slice().reverse().map((ch) => (
+                            <option key={ch.id} value={ch.id}>
+                              Ch. {ch.attributes.chapter || 'Oneshot'}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="space-y-1.5">
+                        <span className="text-[10px] text-zinc-500 font-medium">To Chapter</span>
+                        <select
+                          value={downloadBatchEnd}
+                          onChange={(e) => setDownloadBatchEnd(e.target.value)}
+                          className="w-full px-2.5 py-2 bg-white/5 border border-white/5 rounded-lg text-xs text-white appearance-none cursor-pointer hover:bg-white/[0.08] transition-colors focus:outline-none focus:border-red-500/50"
+                        >
+                          {activeReaderChapters.slice().reverse().map((ch) => (
+                            <option key={ch.id} value={ch.id}>
+                              Ch. {ch.attributes.chapter || 'Oneshot'}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={() => handleDownloadBatch(downloadBatchStart, downloadBatchEnd)}
+                      className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-red-600 hover:bg-red-500 text-white rounded-xl font-bold text-xs tracking-wide transition-all active:scale-[0.98] shadow-lg shadow-red-600/20"
+                    >
+                      <Download size={14} />
+                      Download Batch
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                /* Progress View */
+                <div className="p-5 space-y-4">
+                  <div className="flex items-center gap-3">
+                    {downloadStatus === 'done' ? (
+                      <div className="w-10 h-10 rounded-xl bg-green-600/15 flex items-center justify-center shrink-0">
+                        <Check size={20} className="text-green-500" />
+                      </div>
+                    ) : downloadStatus === 'error' ? (
+                      <div className="w-10 h-10 rounded-xl bg-red-600/15 flex items-center justify-center shrink-0">
+                        <AlertCircle size={20} className="text-red-500" />
+                      </div>
+                    ) : (
+                      <div className="w-10 h-10 rounded-xl bg-blue-600/15 flex items-center justify-center shrink-0">
+                        <Loader2 size={20} className="text-blue-400 animate-spin" />
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-semibold text-white">
+                        {downloadStatus === 'fetching' ? 'Preparing...' :
+                         downloadStatus === 'downloading' ? 'Downloading...' :
+                         downloadStatus === 'zipping' ? 'Compressing...' :
+                         downloadStatus === 'done' ? 'Complete!' :
+                         'Error'}
+                      </p>
+                      <p className="text-[10px] text-zinc-500 truncate">{downloadProgressText}</p>
+                    </div>
+                    <span className="text-sm font-bold text-white tabular-nums shrink-0">{downloadProgress}%</span>
+                  </div>
+
+                  {/* Progress bar */}
+                  <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all duration-300 ease-out ${
+                        downloadStatus === 'done' ? 'bg-green-500' :
+                        downloadStatus === 'error' ? 'bg-red-500' :
+                        'bg-gradient-to-r from-blue-500 to-red-500'
+                      }`}
+                      style={{ width: `${downloadProgress}%` }}
+                    />
+                  </div>
+
+                  {/* Action buttons */}
+                  <div className="flex gap-2">
+                    {(downloadStatus === 'done' || downloadStatus === 'error') ? (
+                      <button
+                        onClick={() => {
+                          setDownloadStatus('idle');
+                          setDownloadProgress(0);
+                          setDownloadProgressText('');
+                        }}
+                        className="flex-1 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/5 text-white rounded-xl text-xs font-semibold transition-all active:scale-[0.98]"
+                      >
+                        {downloadStatus === 'error' ? 'Try Again' : 'Download More'}
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => {
+                          downloadCancelRef.cancel = true;
+                          setDownloadStatus('idle');
+                          setDownloadProgress(0);
+                          setDownloadProgressText('');
+                        }}
+                        className="flex-1 px-4 py-2 bg-red-600/10 hover:bg-red-600/20 border border-red-500/20 text-red-400 rounded-xl text-xs font-semibold transition-all active:scale-[0.98]"
+                      >
+                        Cancel
+                      </button>
+                    )}
+                    {downloadStatus === 'done' && (
+                      <button
+                        onClick={() => {
+                          setIsDownloadModalOpen(false);
+                          setDownloadStatus('idle');
+                          setDownloadProgress(0);
+                          setDownloadProgressText('');
+                        }}
+                        className="flex-1 px-4 py-2 bg-green-600 hover:bg-green-500 text-white rounded-xl text-xs font-bold transition-all active:scale-[0.98]"
+                      >
+                        Done
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     );
   }

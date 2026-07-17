@@ -25,11 +25,13 @@
     "crypto-js": "^4.2.0",
     "hls.js": "^1.6.15",
     "https-proxy-agent": "^9.1.0",
+    "jszip": "^3.10.1",
     "lucide-react": "^0.556.0",
     "react": "^19.2.1",
     "react-dom": "^19.2.1"
   },
   "devDependencies": {
+    "@types/jszip": "^3.4.0",
     "@types/node": "^22.14.0",
     "@vercel/node": "^5.8.4",
     "@vitejs/plugin-react": "^5.0.0",
