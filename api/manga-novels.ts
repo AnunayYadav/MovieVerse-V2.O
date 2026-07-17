@@ -1496,6 +1496,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         imageUrl = `${base}${imageUrl}`;
       }
 
+      // If downloading, fetch and stream the image bytes directly from the server to bypass CORS
+      if (req.query.download === 'true') {
+        try {
+          const fetchResponse = await fetch(imageUrl, {
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+              'Referer': new URL(imageUrl).origin
+            }
+          });
+          if (!fetchResponse.ok) throw new Error(`CDN returned status ${fetchResponse.status}`);
+          const buffer = await fetchResponse.arrayBuffer();
+          res.setHeader('Content-Type', fetchResponse.headers.get('Content-Type') || 'image/jpeg');
+          res.setHeader('Cache-Control', 'public, max-age=86400');
+          res.setHeader('Access-Control-Allow-Origin', '*');
+          return res.status(200).send(Buffer.from(buffer));
+        } catch (err: any) {
+          console.error("Download proxy-image streaming error:", err.message);
+        }
+      }
+
       // Redirect browser directly to CDN to save Vercel bandwidth and CPU usage
       res.writeHead(302, { 'Location': imageUrl });
       return res.end();

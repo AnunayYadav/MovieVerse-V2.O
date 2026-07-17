@@ -3415,13 +3415,16 @@ export const MangaPage: React.FC<MangaPageProps> = ({
       const res = await window.fetch(`/api/manga?action=pages&provider=${readingSource}&id=${encodeURIComponent(chapterId)}`);
       if (!res.ok) throw new Error(`Failed to load ${readingSource} page list`);
       const pageData = await res.json();
-      return pageData.map((p: any) => ({ src: `/api/manga?action=proxy-image&provider=${readingSource}&url=${encodeURIComponent(p.img || p.image || p.url)}` }));
+      return pageData.map((p: any) => ({ src: `/api/manga?action=proxy-image&provider=${readingSource}&download=true&url=${encodeURIComponent(p.img || p.image || p.url)}` }));
     }
     const data = await fetchMangaDex(`/at-home/server/${chapterId}`);
     const base = data.baseUrl;
     const hash = data.chapter.hash;
     const pagesArr = isDataSaver ? data.chapter.dataSaver : data.chapter.data;
-    return pagesArr.map((filename: string) => ({ src: `${base}/${isDataSaver ? 'data-saver' : 'data'}/${hash}/${filename}` }));
+    return pagesArr.map((filename: string) => {
+      const originalUrl = `${base}/${isDataSaver ? 'data-saver' : 'data'}/${hash}/${filename}`;
+      return { src: `/api/manga?action=proxy-image&provider=mangadex&download=true&url=${encodeURIComponent(originalUrl)}` };
+    });
   };
 
   const handleDownloadChapter = async (chapterId: string, chapterTitle: string) => {
