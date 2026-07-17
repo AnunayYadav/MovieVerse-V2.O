@@ -1496,7 +1496,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         imageUrl = `${base}${imageUrl}`;
       }
 
-      // Server-side streaming only for downloads (bypasses CORS for fetch())
+      // If downloading, fetch and stream the image bytes directly from the server to bypass CORS
       if (req.query.download === 'true') {
         try {
           const fetchResponse = await fetch(imageUrl, {
@@ -1513,11 +1513,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           return res.status(200).send(Buffer.from(buffer));
         } catch (err: any) {
           console.error("Download proxy-image streaming error:", err.message);
-          return res.status(500).json({ error: err.message || 'Image download failed' });
         }
       }
 
-      // Redirect browser directly to CDN to save Vercel bandwidth
+      // Redirect browser directly to CDN to save Vercel bandwidth and CPU usage
       res.writeHead(302, { 'Location': imageUrl });
       return res.end();
     }

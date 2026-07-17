@@ -2974,11 +2974,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
           const pageData = await res.json();
           if (!isMounted) return;
 
-          // Providers with publicly accessible CDNs — load directly (saves Vercel bandwidth)
-          const directCdnProviders = ['comick', 'mangapill', 'weebcentral'];
-          const urls = directCdnProviders.includes(readingSource)
-            ? pageData.map((p: any) => p.img || p.image || p.url)
-            : pageData.map((p: any) => `/api/manga?action=proxy-image&provider=${readingSource}&url=${encodeURIComponent(p.img || p.image || p.url)}`);
+          const urls = pageData.map((p: any) => `/api/manga?action=proxy-image&provider=${readingSource}&url=${encodeURIComponent(p.img || p.image || p.url)}`);
           setPages(urls);
           setChapterServerData({ provider: readingSource });
           return;
