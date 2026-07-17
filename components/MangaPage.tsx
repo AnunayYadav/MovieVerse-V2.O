@@ -2007,13 +2007,13 @@ export const MangaPage: React.FC<MangaPageProps> = ({
 
   // Automatically select the best source provider when a manga is selected
   useEffect(() => {
-    if (!selectedManga) {
+    if (!selectedManga || useNativeGigaViewer) {
       setResolvedProvider(null);
       return;
     }
     setResolvedProvider(null);
     autoSelectBestProvider(selectedManga);
-  }, [selectedManga, autoSelectBestProvider]);
+  }, [selectedManga, autoSelectBestProvider, useNativeGigaViewer]);
 
   // Reset scroll position and reader top/bottom bars when details page or reader state changes
   useEffect(() => {
@@ -2246,7 +2246,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
     if (!selectedManga || isAutoResolving || !resolvedProvider) {
       return;
     }
-    if (readingSource !== 'mangadex') {
+    if (readingSource !== 'mangadex' && readingSource !== 'gigaviewer') {
       resolveMangaPill(selectedManga, readingSource);
     }
   }, [selectedManga, readingSource, resolveMangaPill, isAutoResolving, resolvedProvider]);
