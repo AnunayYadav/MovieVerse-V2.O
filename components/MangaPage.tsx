@@ -836,7 +836,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
 
   // Premium Reader settings states
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-  const [pageSize, setPageSize] = useState<'normal' | 'wide' | 'full'>('full');
+  const [pageSize, setPageSize] = useState<'normal' | 'wide' | 'full'>('wide');
   const [readerBg, setReaderBg] = useState<'black' | 'gray' | 'darker'>('black');
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [isBookmarked, setIsBookmarked] = useState(false);
@@ -3892,7 +3892,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
 
     const HorizontalMenuBar = ({ isBottom = false }: { isBottom?: boolean }) => {
       const barClass = isBottom
-        ? `fixed bottom-4 left-1/2 -translate-x-1/2 z-50 transition-all duration-300 ${showBottomBar ? 'translate-y-0 opacity-100' : 'translate-y-20 opacity-0 pointer-events-none'
+        ? `fixed bottom-4 left-1/2 -translate-x-1/2 z-50 transition-all duration-300 ${(showBottomBar && readerMode !== 'double') ? 'translate-y-0 opacity-100' : 'translate-y-20 opacity-0 pointer-events-none'
         } w-[92vw] max-w-5xl`
         : `fixed top-4 left-1/2 -translate-x-1/2 z-50 transition-all duration-300 ${showTopBar && isMenuVisible ? 'translate-y-0 opacity-100' : '-translate-y-20 opacity-0 pointer-events-none'
         } w-[92vw] max-w-5xl`;
@@ -4118,7 +4118,8 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                     width: 100%;
                     max-width: 1000px;
                     aspect-ratio: 4 / 3;
-                    max-h: 75vh;
+                    max-h: 68vh;
+                    margin-top: 24px;
                     box-shadow: 0 30px 70px rgba(0, 0, 0, 0.85);
                     border-radius: 12px;
                     background: #111;
