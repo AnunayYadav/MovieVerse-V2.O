@@ -720,7 +720,51 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(200).end();
   }
 
-  const { action, query, id, provider: providerQuery } = req.query;
+  const { path, service, action, query, id, provider: providerQuery } = req.query;
+
+  // 1. MangaDex / DramaList Direct proxy logic (routed from /api/mangadex or /api/drama)
+  if (path && typeof path === 'string') {
+    const isDrama = service === 'drama';
+    const searchParams = new URLSearchParams();
+    for (const [key, value] of Object.entries(req.query)) {
+      if (key === 'path' || key === 'service' || key === 'provider') continue;
+      if (Array.isArray(value)) {
+        value.forEach(v => searchParams.append(key, v));
+      } else if (value) {
+        searchParams.append(key, value);
+      }
+    }
+
+    const targetBase = isDrama ? 'https://my-drama-list-api-ten.vercel.app/api' : 'https://api.mangadex.org';
+    let cleanPath = path.startsWith('/') ? path : `/${path}`;
+    if (isDrama && cleanPath.startsWith('/api/')) {
+      cleanPath = cleanPath.substring(4);
+    }
+    const targetUrl = `${targetBase}${cleanPath}${searchParams.toString() ? '?' + searchParams.toString() : ''}`;
+
+    try {
+      const headers: Record<string, string> = {};
+      if (!isDrama) {
+        headers['User-Agent'] = 'MovieVerse/2.0 (contact@movieverse.app)';
+      }
+
+      const response = await fetch(targetUrl, { headers });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        return res.status(response.status).json({ error: `API error (${isDrama ? 'Drama' : 'MangaDex'}): ${errorText}` });
+      }
+      
+      const data = await response.json();
+      const cacheAge = isDrama ? 1800 : 300;
+      const revalidateAge = isDrama ? 600 : 120;
+      res.setHeader('Cache-Control', `s-maxage=${cacheAge}, stale-while-revalidate=${revalidateAge}`);
+      
+      return res.status(200).json(data);
+    } catch (error: any) {
+      return res.status(500).json({ error: error.message || 'Internal Server Error' });
+    }
+  }
 
   if (!action || typeof action !== 'string') {
     return res.status(400).json({ error: 'Action parameter is required and must be a string' });

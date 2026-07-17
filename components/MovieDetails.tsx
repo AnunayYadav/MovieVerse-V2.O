@@ -2243,7 +2243,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                     q = `${cleanTitle} ${episodeStr}`;
                 }
                 
-                const res = await fetch(`/api/nyaa?q=${encodeURIComponent(q)}`);
+                const res = await fetch(`/api/anime?action=nyaa&q=${encodeURIComponent(q)}`);
                 if (!res.ok) throw new Error("Failed to fetch torrents");
                 const data = await res.json();
                 

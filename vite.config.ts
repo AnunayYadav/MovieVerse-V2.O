@@ -41,25 +41,58 @@ export default defineConfig(({ mode }) => {
               
               // Only handle our serverless API routes
               const apiRoutes: Record<string, string> = {
-                '/api/manga': './api/manga.ts',
+                '/api/manga': './api/manga-novels.ts',
+                '/api/manga-novels': './api/manga-novels.ts',
                 '/api/anime': './api/anime.ts',
-                '/api/anilist': './api/anilist.ts',
-                '/api/mangadex': './api/mangadex.ts',
-                '/api/nyaa': './api/nyaa.ts',
-                '/api/tmdb': './api/tmdb.ts',
-                '/api/videasy': './api/videasy.ts',
-                '/api/encdec': './api/encdec.ts',
+                '/api/anilist': './api/metadata.ts',
+                '/api/metadata': './api/metadata.ts',
+                '/api/mangadex': './api/manga-novels.ts',
+                '/api/nyaa': './api/anime.ts',
+                '/api/tmdb': './api/metadata.ts',
+                '/api/videasy': './api/stream-resolvers.ts',
+                '/api/encdec': './api/stream-resolvers.ts',
+                '/api/stream-resolvers': './api/stream-resolvers.ts',
+                '/api/subtitles': './api/subtitles.ts',
+                '/api/opensubtitles': './api/subtitles.ts',
                 '/api/ai-search': './api/ai-search.ts',
               };
               
               let matchedPath = pathname || '';
               let isDramaDev = false;
+              let isTmdbDev = false;
+              let isMangadexDev = false;
+              let isMangaPathDev = false;
+              let isNyaaDev = false;
+              let isAnilistDev = false;
+              let isVideasyDev = false;
+
               if (matchedPath.startsWith('/api/anime/')) {
                 matchedPath = '/api/anime';
               }
               if (matchedPath.startsWith('/api/drama/')) {
                 matchedPath = '/api/mangadex';
                 isDramaDev = true;
+              }
+              if (matchedPath.startsWith('/api/tmdb/')) {
+                matchedPath = '/api/tmdb';
+                isTmdbDev = true;
+              }
+              if (matchedPath.startsWith('/api/mangadex/')) {
+                matchedPath = '/api/mangadex';
+                isMangadexDev = true;
+              }
+              if (matchedPath.startsWith('/api/manga/')) {
+                matchedPath = '/api/manga';
+                isMangaPathDev = true;
+              }
+              if (matchedPath === '/api/nyaa') {
+                isNyaaDev = true;
+              }
+              if (matchedPath === '/api/anilist') {
+                isAnilistDev = true;
+              }
+              if (matchedPath === '/api/videasy') {
+                isVideasyDev = true;
               }
               
               const modulePath = apiRoutes[matchedPath];
@@ -100,11 +133,26 @@ export default defineConfig(({ mode }) => {
                 
                 // Build mock VercelRequest
                 const mockReq: any = Object.create(req);
-                mockReq.query = isDramaDev ? {
-                  ...parsedUrl.query,
-                  service: 'drama',
-                  path: pathname.replace(/^\/api\/drama/, '')
-                } : parsedUrl.query;
+                let mockQuery: any = { ...parsedUrl.query };
+                if (isDramaDev) {
+                  mockQuery.service = 'drama';
+                  mockQuery.path = pathname.replace(/^\/api\/drama/, '');
+                } else if (isTmdbDev) {
+                  mockQuery.path = pathname.replace(/^\/api\/tmdb/, '');
+                } else if (isMangadexDev) {
+                  mockQuery.path = pathname.replace(/^\/api\/mangadex/, '');
+                  mockQuery.provider = 'mangadex';
+                } else if (isMangaPathDev) {
+                  mockQuery.path = pathname.replace(/^\/api\/manga/, '');
+                } else if (isNyaaDev) {
+                  mockQuery.action = 'nyaa';
+                } else if (isAnilistDev) {
+                  mockQuery.action = 'anilist';
+                } else if (isVideasyDev) {
+                  mockQuery.provider = 'videasy';
+                }
+                
+                mockReq.query = mockQuery;
                 mockReq.method = req.method;
                 
                 await handler(mockReq, mockRes);

@@ -2,15 +2,43 @@
   "rewrites": [
     {
       "source": "/api/tmdb/(.*)",
-      "destination": "/api/tmdb.ts?path=/$1"
+      "destination": "/api/metadata.ts?path=/$1"
+    },
+    {
+      "source": "/api/anilist",
+      "destination": "/api/metadata.ts?action=anilist"
     },
     {
       "source": "/api/mangadex/(.*)",
-      "destination": "/api/mangadex.ts?path=/$1"
+      "destination": "/api/manga-novels.ts?path=/$1&provider=mangadex"
     },
     {
       "source": "/api/drama/(.*)",
-      "destination": "/api/mangadex.ts?path=/$1&service=drama"
+      "destination": "/api/manga-novels.ts?path=/$1&service=drama"
+    },
+    {
+      "source": "/api/manga",
+      "destination": "/api/manga-novels.ts"
+    },
+    {
+      "source": "/api/manga/(.*)",
+      "destination": "/api/manga-novels.ts?path=/$1"
+    },
+    {
+      "source": "/api/videasy",
+      "destination": "/api/stream-resolvers.ts?provider=videasy"
+    },
+    {
+      "source": "/api/encdec",
+      "destination": "/api/stream-resolvers.ts"
+    },
+    {
+      "source": "/api/opensubtitles",
+      "destination": "/api/subtitles.ts"
+    },
+    {
+      "source": "/api/nyaa",
+      "destination": "/api/anime.ts?action=nyaa"
     },
     {
       "source": "/((?!api/).*)",

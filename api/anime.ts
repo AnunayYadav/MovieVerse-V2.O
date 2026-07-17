@@ -616,6 +616,70 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
   }
 
+  // 0. Route to Nyaa Torrent Search
+  if (action === 'nyaa') {
+    const { q } = req.query;
+    if (!q || typeof q !== 'string') {
+      return res.status(400).json({ error: 'Search query "q" is required' });
+    }
+
+    try {
+      const nyaaUrl = `https://nyaa.si/?page=rss&q=${encodeURIComponent(q)}`;
+      const response = await fetch(nyaaUrl);
+      
+      if (!response.ok) {
+        return res.status(response.status).json({ error: `Nyaa.si error: ${response.statusText}` });
+      }
+
+      const text = await response.text();
+      const items = [];
+      const itemRegex = /<item>([\s\S]*?)<\/item>/g;
+      let match;
+
+      while ((match = itemRegex.exec(text)) !== null) {
+        const itemXml = match[1];
+
+        const getField = (tagName: string) => {
+          const regex = new RegExp(`<${tagName}\\b[^>]*>([\\s\\S]*?)<\\/${tagName}>`);
+          const m = regex.exec(itemXml);
+          return m ? m[1].replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1').trim() : '';
+        };
+
+        const itemTitle = getField('title');
+        const link = getField('link');
+        const guid = getField('guid');
+        const pubDate = getField('pubDate');
+        const seeders = getField('nyaa:seeders');
+        const leechers = getField('nyaa:leechers');
+        const downloads = getField('nyaa:downloads');
+        const infoHash = getField('nyaa:infoHash');
+        const size = getField('nyaa:size');
+        const category = getField('nyaa:category');
+
+        const magnet = infoHash ? `magnet:?xt=urn:btih:${infoHash}&dn=${encodeURIComponent(itemTitle)}` : '';
+
+        items.push({
+          title: itemTitle,
+          link,
+          guid,
+          pubDate,
+          seeders: Number(seeders) || 0,
+          leechers: Number(leechers) || 0,
+          downloads: Number(downloads) || 0,
+          infoHash,
+          size,
+          category,
+          magnet
+        });
+      }
+
+      res.setHeader('Cache-Control', 's-maxage=600, stale-while-revalidate=300');
+      return res.status(200).json(items);
+    } catch (error: any) {
+      return res.status(500).json({ error: error.message || 'Internal Server Error' });
+    }
+  }
+
   // 1. Route to Anikai Scraper
   if (provider === 'anikai') {
     if (!cleanTitle) {
