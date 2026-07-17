@@ -2262,7 +2262,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
     if (!selectedManga || isAutoResolving || !resolvedProvider) {
       return;
     }
-    if (readingSource !== 'mangadex' && readingSource !== 'gigaviewer' && readingSource !== 'kadocomi') {
+    if (readingSource !== 'mangadex' && readingSource !== 'gigaviewer' && readingSource !== 'kadocomi' && readingSource !== 'weloma') {
       resolveMangaPill(selectedManga, readingSource);
     }
   }, [selectedManga, readingSource, resolveMangaPill, isAutoResolving, resolvedProvider]);
@@ -2557,19 +2557,48 @@ export const MangaPage: React.FC<MangaPageProps> = ({
           }
         }
 
-        if (resolvedGigaViewerUrl && currentUrlHost !== gigaViewerHost) {
-          // User manually changed the host in the dropdown! Search specifically on this host.
-          const searchRes = await window.fetch(`/api/manga?action=search&provider=gigaviewer&query=${encodeURIComponent(queryTitle)}&host=${gigaViewerHost}`);
-          if (!searchRes.ok) throw new Error("Search mapping request failed");
+        if (gigaViewerHost === 'weloma.art') {
+          // WeLoMa manually selected
+          const searchRes = await window.fetch(`/api/manga?action=search&provider=weloma&query=${encodeURIComponent(queryTitle)}`);
+          if (!searchRes.ok) throw new Error("WeLoMa search mapping failed");
           const results = await searchRes.json();
-          
           if (results && results.length > 0) {
             if (isMounted) {
-              setResolvedGigaViewerUrl(results[0].id);
+              setResolvedGigaViewerUrl(`https://weloma.art/${results[0].id}/`);
             }
             return;
           } else {
-            throw new Error(`No matching manga found on ${gigaViewerHost}`);
+            throw new Error("No matching manga found on WeLoMa (weloma.art)");
+          }
+        }
+
+        if (resolvedGigaViewerUrl && currentUrlHost !== gigaViewerHost) {
+          // User manually changed the host in the dropdown! Search specifically on this host.
+          if (gigaViewerHost === 'weloma.art') {
+            const searchRes = await window.fetch(`/api/manga?action=search&provider=weloma&query=${encodeURIComponent(queryTitle)}`);
+            if (!searchRes.ok) throw new Error("Search mapping request failed");
+            const results = await searchRes.json();
+            if (results && results.length > 0) {
+              if (isMounted) {
+                setResolvedGigaViewerUrl(`https://weloma.art/${results[0].id}/`);
+              }
+              return;
+            } else {
+              throw new Error(`No matching manga found on ${gigaViewerHost}`);
+            }
+          } else {
+            const searchRes = await window.fetch(`/api/manga?action=search&provider=gigaviewer&query=${encodeURIComponent(queryTitle)}&host=${gigaViewerHost}`);
+            if (!searchRes.ok) throw new Error("Search mapping request failed");
+            const results = await searchRes.json();
+            
+            if (results && results.length > 0) {
+              if (isMounted) {
+                setResolvedGigaViewerUrl(results[0].id);
+              }
+              return;
+            } else {
+              throw new Error(`No matching manga found on ${gigaViewerHost}`);
+            }
           }
         }
 
@@ -2602,29 +2631,91 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                 return;
               }
             }
+            if (host === 'weloma.art' || host.endsWith('.weloma.art')) {
+              if (isMounted) {
+                setResolvedGigaViewerUrl(rawLink);
+                setGigaViewerHost('weloma.art');
+                setIsResolvingGigaViewer(false);
+                return;
+              }
+            }
           } catch (e) {
             console.error("Failed to parse rawLink URL:", e);
           }
         }
 
-        // Tier 2: Auto-detect best host by chapter count
+        // Tier 2: Auto-detect best host by chapter count comparing GigaViewer and WeLoMa
+        let bestGigaUrl = '';
+        let bestGigaHost = '';
+        let gigaChaptersCount = 0;
+        
+        let bestWelomaId = '';
+        let welomaChaptersCount = 0;
+
+        await Promise.all([
+          // GigaViewer Resolver
+          (async () => {
+            try {
+              const resolverRes = await window.fetch(`/api/manga?action=resolve-best-gigaviewer&provider=gigaviewer&query=${encodeURIComponent(queryTitle)}`);
+              if (resolverRes.ok) {
+                const bestSource = await resolverRes.json();
+                if (bestSource && bestSource.url) {
+                  bestGigaUrl = bestSource.url;
+                  bestGigaHost = bestSource.host;
+                  
+                  const infoRes = await window.fetch(`/api/manga?action=info&provider=gigaviewer&id=${encodeURIComponent(bestGigaUrl)}`);
+                  if (infoRes.ok) {
+                    const infoData = await infoRes.json();
+                    gigaChaptersCount = infoData?.chapters?.length || 0;
+                  }
+                }
+              }
+            } catch (e) {
+              console.warn("GigaViewer resolve failed during parallel search:", e);
+            }
+          })(),
+          // WeLoMa Resolver
+          (async () => {
+            try {
+              const welomaRes = await window.fetch(`/api/manga?action=search&provider=weloma&query=${encodeURIComponent(queryTitle)}`);
+              if (welomaRes.ok) {
+                const results = await welomaRes.json();
+                if (results && results.length > 0) {
+                  bestWelomaId = results[0].id;
+                  
+                  const infoRes = await window.fetch(`/api/manga?action=info&provider=weloma&id=${encodeURIComponent(bestWelomaId)}`);
+                  if (infoRes.ok) {
+                    const infoData = await infoRes.json();
+                    welomaChaptersCount = infoData?.chapters?.length || 0;
+                  }
+                }
+              }
+            } catch (e) {
+              console.warn("WeLoMa resolve failed during parallel search:", e);
+            }
+          })()
+        ]);
+
         let bestResolvedUrl = '';
         let bestResolvedHost = '';
-        
-        try {
-          const resolverRes = await window.fetch(`/api/manga?action=resolve-best-gigaviewer&provider=gigaviewer&query=${encodeURIComponent(queryTitle)}`);
-          if (resolverRes.ok) {
-            const bestSource = await resolverRes.json();
-            if (bestSource && bestSource.url) {
-              bestResolvedUrl = bestSource.url;
-              bestResolvedHost = bestSource.host;
-            }
+
+        if (bestGigaUrl && bestWelomaId) {
+          if (gigaChaptersCount >= welomaChaptersCount) {
+            bestResolvedUrl = bestGigaUrl;
+            bestResolvedHost = bestGigaHost;
+          } else {
+            bestResolvedUrl = `https://weloma.art/${bestWelomaId}/`;
+            bestResolvedHost = 'weloma.art';
           }
-        } catch (resolverErr) {
-          console.warn("Auto-detect best GigaViewer host failed:", resolverErr);
+        } else if (bestGigaUrl) {
+          bestResolvedUrl = bestGigaUrl;
+          bestResolvedHost = bestGigaHost;
+        } else if (bestWelomaId) {
+          bestResolvedUrl = `https://weloma.art/${bestWelomaId}/`;
+          bestResolvedHost = 'weloma.art';
         }
 
-        // Tier 3: Fall back to auto-detecting KadoComi if GigaViewer search failed
+        // Tier 3: Fall back to auto-detecting KadoComi if both failed
         if (!bestResolvedUrl) {
           try {
             const kadoRes = await window.fetch(`/api/manga?action=search&provider=kadocomi&query=${encodeURIComponent(queryTitle)}`);
@@ -2688,10 +2779,21 @@ export const MangaPage: React.FC<MangaPageProps> = ({
       setChaptersLoading(true);
       try {
         const isKado = gigaViewerHost === 'comic-walker.com' || targetUrl.includes('comic-walker.com') || targetUrl.includes('kadocomi');
-        const providerName = isKado ? 'kadocomi' : 'gigaviewer';
+        const isWeloma = gigaViewerHost === 'weloma.art' || targetUrl.includes('weloma.art') || targetUrl.includes('weloma');
+        const providerName = isWeloma ? 'weloma' : (isKado ? 'kadocomi' : 'gigaviewer');
         
-        const res = await window.fetch(`/api/manga?action=info&provider=${providerName}&id=${encodeURIComponent(targetUrl)}`);
-        if (!res.ok) throw new Error(`Failed to load ${isKado ? 'KadoComi' : 'GigaViewer'} chapters`);
+        let finalId = targetUrl;
+        if (isWeloma) {
+          try {
+            const parsed = new URL(targetUrl);
+            finalId = parsed.pathname.replace(/\//g, '').trim();
+          } catch (e) {
+            finalId = targetUrl.replace('https://weloma.art', '').replace(/\//g, '').trim();
+          }
+        }
+        
+        const res = await window.fetch(`/api/manga?action=info&provider=${providerName}&id=${encodeURIComponent(finalId)}`);
+        if (!res.ok) throw new Error(`Failed to load ${isWeloma ? 'WeLoMa' : (isKado ? 'KadoComi' : 'GigaViewer')} chapters`);
         const data = await res.json();
         
         if (isMounted) {
@@ -2767,6 +2869,18 @@ export const MangaPage: React.FC<MangaPageProps> = ({
       setPagesLoading(true);
       setActivePageIdx(0);
       try {
+        if (readingSource === 'weloma') {
+          const res = await window.fetch(`/api/manga?action=pages&provider=weloma&id=${encodeURIComponent(activeChapter.id)}`);
+          if (!res.ok) throw new Error(`Failed to load pages from WeLoMa`);
+          const pageData = await res.json();
+          if (!isMounted) return;
+
+          const urls = pageData.map((p: any) => p.src);
+          setPages(urls);
+          setChapterServerData({ provider: 'weloma' });
+          return;
+        }
+
         if (readingSource === 'kadocomi') {
           const res = await window.fetch(`/api/manga?action=pages&provider=kadocomi&id=${encodeURIComponent(activeChapter.id)}`);
           if (!res.ok) throw new Error(`Failed to load pages from KadoComi`);
@@ -4833,7 +4947,8 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                             { value: 'kuragebunch.com', label: 'Kurage Bunch' },
                             { value: 'tonarinoyj.jp', label: 'となりのヤングジャンプ' },
                             { value: 'www.sunday-webry.com', label: 'Sunday Webry' },
-                            { value: 'comic-walker.com', label: 'KadoComi (ComicWalker)' }
+                            { value: 'comic-walker.com', label: 'KadoComi (ComicWalker)' },
+                            { value: 'weloma.art', label: 'WeLoMa (weloma.art)' }
                           ]}
                           className="px-3 py-1.5 hover:bg-zinc-800 text-xs font-medium border-white/5 rounded-lg border shrink-0 w-full"
                           containerClassName="w-44"

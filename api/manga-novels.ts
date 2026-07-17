@@ -471,6 +471,151 @@ async function proxyKadoComiImage(imageUrl: string, hashHex: string, res: Vercel
   }
 }
 
+async function scrapeWelomaSearch(query: string) {
+  const url = `https://weloma.art/manga-list.html?name=${encodeURIComponent(query)}`;
+  const res = await fetch(url, {
+    headers: { 'User-Agent': USER_AGENT }
+  });
+  if (!res.ok) throw new Error(`WeLoMa search failed with status ${res.status}`);
+  const html = await res.text();
+  const $ = cheerio.load(html);
+
+  const results: any[] = [];
+  $('.thumb-item-flow').each((_, el) => {
+    const titleLink = $(el).find('.series-title a');
+    const title = titleLink.attr('title') || titleLink.text().trim() || '';
+    const href = titleLink.attr('href') || '';
+    const id = href.replace(/\//g, '').trim(); // e.g. "/234/" -> "234"
+    
+    // Extract thumbnail from style attribute
+    const thumbWrapper = $(el).find('.content.img-in-ratio');
+    const styleAttr = thumbWrapper.attr('style') || '';
+    const bgUrlMatch = styleAttr.match(/url\(['"]?(.*?)['"]?\)/);
+    const image = bgUrlMatch ? bgUrlMatch[1] : '';
+
+    if (id && title) {
+      results.push({
+        id,
+        title,
+        image,
+        author: '',
+        description: 'WeLoMa series'
+      });
+    }
+  });
+
+  return results;
+}
+
+async function scrapeWelomaInfo(seriesId: string) {
+  const url = `https://weloma.art/${seriesId}/`;
+  const res = await fetch(url, {
+    headers: { 'User-Agent': USER_AGENT }
+  });
+  if (!res.ok) throw new Error(`WeLoMa info failed with status ${res.status}`);
+  const html = await res.text();
+  const $ = cheerio.load(html);
+
+  const title = $('h1, .series-name, .manga-title').first().text().trim() || 'WeLoMa Manga';
+  const description = $('.manga-summary, .description, .summary, .detail-content').first().text().trim() || '';
+  
+  // Find cover image
+  const imgWrapper = $('.manga-info-pic img, .manga-image img, .cover img, img').first();
+  const image = imgWrapper.attr('src') || imgWrapper.attr('data-src') || '';
+
+  const chapters: any[] = [];
+  $('a').each((_, el) => {
+    const href = $(el).attr('href') || '';
+    const text = $(el).text().trim();
+    // Links are like "/234/243522/"
+    const match = href.match(new RegExp(`^\\/${seriesId}\\/(\\d+)\\/$`));
+    if (match) {
+      const chapterId = match[1];
+      
+      // Parse chapter number
+      let chapterNum = '1';
+      const numMatch = text.match(/Chapter\s*(\d+(\.\d+)?)/i) || text.match(/Chap\s*(\d+(\.\d+)?)/i) || text.match(/(\d+(\.\d+)?)/);
+      if (numMatch) {
+        chapterNum = numMatch[1];
+      }
+      
+      // Parse publish/update date
+      const dateText = text.replace(/Chapter\s*\d+/i, '').replace(/Chap\s*\d+/i, '').replace(/[\r\n\t]+/g, ' ').trim();
+      
+      chapters.push({
+        id: `${seriesId}/${chapterId}`, // Store path so pages scraper can fetch it directly
+        title: text.split('\n')[0].trim(),
+        chapter: chapterNum,
+        releaseDate: dateText || 'Recent'
+      });
+    }
+  });
+
+  // Remove duplicates and sort by chapter ascending
+  const uniqueChaptersMap = new Map<string, any>();
+  for (const ch of chapters) {
+    uniqueChaptersMap.set(ch.id, ch);
+  }
+  const sortedChapters = Array.from(uniqueChaptersMap.values()).reverse(); // Typically listed newest first, so reverse to make it oldest first
+
+  return {
+    title,
+    image,
+    description,
+    chapters: sortedChapters
+  };
+}
+
+async function scrapeWelomaPages(chapterPath: string) {
+  const url = `https://weloma.art/${chapterPath}/`;
+  const res = await fetch(url, {
+    headers: { 'User-Agent': USER_AGENT }
+  });
+  if (!res.ok) throw new Error(`WeLoMa pages failed with status ${res.status}`);
+  const html = await res.text();
+  const $ = cheerio.load(html);
+
+  const pages: any[] = [];
+  $('img').each((_, el) => {
+    const dataImg = $(el).attr('data-img');
+    if (dataImg) {
+      try {
+        const decodedUrl = Buffer.from(dataImg, 'base64').toString('utf8');
+        if (decodedUrl.startsWith('http')) {
+          pages.push({
+            src: `/api/manga?action=proxy-weloma-image&url=${encodeURIComponent(decodedUrl)}`,
+            width: 800,
+            height: 1200
+          });
+        }
+      } catch (e) {}
+    }
+  });
+
+  return pages;
+}
+
+async function proxyWelomaImage(imageUrl: string, res: VercelResponse) {
+  try {
+    const imgRes = await fetch(imageUrl, {
+      headers: {
+        'User-Agent': USER_AGENT,
+        'Referer': 'https://weloma.art/'
+      }
+    });
+    if (!imgRes.ok) throw new Error(`CDN returned status ${imgRes.status}`);
+    const buffer = await imgRes.arrayBuffer();
+    
+    res.setHeader('Content-Type', imgRes.headers.get('Content-Type') || 'image/jpeg');
+    res.setHeader('Cache-Control', 'public, max-age=86400, s-maxage=86400');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    return res.status(200).send(Buffer.from(buffer));
+  } catch (err: any) {
+    console.error("proxyWelomaImage error:", err.message);
+    return res.status(500).json({ error: err.message || 'Image proxy failed' });
+  }
+}
+
 
 function parseTitleForSort(title: string) {
   const t = title.toLowerCase();
@@ -1173,7 +1318,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const providerKey = typeof providerQuery === 'string' ? providerQuery.toLowerCase() : 'mangapill';
 
   try {
-    if (['novelfull', 'ranobes', 'wuxiaworld', 'royalroad', 'scribblehub', 'lightnovelworld', 'allnovel', 'gigaviewer', 'kadocomi'].includes(providerKey)) {
+    if (['novelfull', 'ranobes', 'wuxiaworld', 'royalroad', 'scribblehub', 'lightnovelworld', 'allnovel', 'gigaviewer', 'kadocomi', 'weloma'].includes(providerKey)) {
       if (action === 'resolve-best-gigaviewer') {
         if (!query || typeof query !== 'string') {
           return res.status(400).json({ error: 'Query parameter is required' });
@@ -1200,6 +1345,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           results = await scrapeGigaViewerSearch(query, host);
         } else if (providerKey === 'kadocomi') {
           results = await scrapeKadoComiSearch(query);
+        } else if (providerKey === 'weloma') {
+          results = await scrapeWelomaSearch(query);
         } else {
           results = await scrapeWuxiaWorldSearch(query);
         }
@@ -1223,6 +1370,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           data = await scrapeGigaViewerInfo(id);
         } else if (providerKey === 'kadocomi') {
           data = await scrapeKadoComiInfo(id);
+        } else if (providerKey === 'weloma') {
+          data = await scrapeWelomaInfo(id);
         } else {
           data = await scrapeWuxiaWorldInfo(id);
         }
@@ -1246,6 +1395,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           data = await scrapeGigaViewerPages(id);
         } else if (providerKey === 'kadocomi') {
           data = await scrapeKadoComiPages(id);
+        } else if (providerKey === 'weloma') {
+          data = await scrapeWelomaPages(id);
         } else {
           data = await scrapeWuxiaWorldChapter(id);
         }
@@ -1279,6 +1430,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
       const data = await provider.fetchChapterPages(id);
       return res.status(200).json(data);
+    }
+
+    if (action === 'proxy-weloma-image') {
+      const imageUrl = req.query.url;
+      if (!imageUrl || typeof imageUrl !== 'string') {
+        return res.status(400).json({ error: 'URL parameter is required' });
+      }
+      return proxyWelomaImage(imageUrl, res);
     }
 
     if (action === 'proxy-kadocomi-image') {
