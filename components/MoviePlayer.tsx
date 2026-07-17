@@ -358,6 +358,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     return isAnime ? 'HiAnime' : 'TwoEmbed';
   });
   const [isJarvisModalOpen, setIsJarvisModalOpen] = useState(false);
+  const [iframeLoading, setIframeLoading] = useState(true);
 
   const ServerIcon = ({ size = 16 }: { size?: number }) => (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-white">
@@ -372,8 +373,8 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
 
   const getServerDetails = (serverName: string) => {
     const nameLower = serverName.toLowerCase();
-    let flag = '🇺🇸';
-    let langLabel = 'EN';
+    let countryCode = 'us';
+    let langLabel = 'US';
     
     if (
       nameLower.includes('hindi') || 
@@ -388,19 +389,19 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
       nameLower.includes('hind') ||
       nameLower.includes('asia')
     ) {
-      flag = '🇮🇳';
+      countryCode = 'in';
       langLabel = 'IN';
     } else if (nameLower.includes('french') || nameLower.includes('fr')) {
-      flag = '🇫🇷';
+      countryCode = 'fr';
       langLabel = 'FR';
     } else if (nameLower.includes('spanish') || nameLower.includes('es')) {
-      flag = '🇪🇸';
+      countryCode = 'es';
       langLabel = 'ES';
     } else if (nameLower.includes('brazil') || nameLower.includes('portuguese') || nameLower.includes('br') || nameLower.includes('pt') || nameLower.includes('raze')) {
-      flag = '🇧🇷';
+      countryCode = 'br';
       langLabel = 'BR';
     } else if (nameLower.includes('arab') || nameLower.includes('sa')) {
-      flag = '🇸🇦';
+      countryCode = 'sa';
       langLabel = 'AR';
     } else if (
       nameLower.includes('ae') || 
@@ -415,11 +416,11 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
       nameLower.includes('4k') ||
       nameLower.includes('anime')
     ) {
-      flag = '🇬🇧';
-      langLabel = 'UK';
+      countryCode = 'gb';
+      langLabel = 'GB';
     }
   
-    return { flag, langLabel };
+    return { countryCode, langLabel, flagUrl: `https://flagcdn.com/w40/${countryCode}.png` };
   };
 
   const getJarvisServers = useCallback((): JarvisServer[] => {
@@ -2175,6 +2176,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   }, [selectedProviderId]);
 
   const handleIframeLoad = () => {
+    setIframeLoading(false);
     focusIframe();
     sendPlayState(playState);
     setTimeout(() => sendPlayState(playState), 1000);
@@ -2307,7 +2309,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
       : `${cleanBase}/movie/${tmdbId}`;
   };
 
-  const getEmbedUrlForProvider = (providerId: string, progress: number = 0) => {
+  const getEmbedUrlForProvider = (providerId: string, progress: number = 0, overrideJarvisServer?: string) => {
     const isTvShow = mediaType === 'tv' || (isAnime && mediaType !== 'movie');
     if (providerId === 'megaplay') {
       const domain = useMegaplayBackup ? 'https://megaplay.buzz' : 'https://animeplay.cfd';
@@ -2318,7 +2320,8 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     }
     if (providerId === 'jarvis') {
       const available = getJarvisServers();
-      const serverConfig = available.find(s => s.server === selectedJarvisServer) || available[0];
+      const activeServer = overrideJarvisServer || selectedJarvisServer;
+      const serverConfig = available.find(s => s.server === activeServer) || available[0];
       if (serverConfig) {
         return getJarvisServerUrl(
           serverConfig.server,
@@ -2446,6 +2449,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
       if (isIframeCustomControls) {
         setIsBuffering(true);
       }
+      setIframeLoading(true);
       setEmbedUrl(newUrl);
     }
   }, [tmdbId, mediaType, isAnime, title, currentSeason, currentEpisode, activeColor, selectedProviderId, forceProgress, isWatchParty, anilistId, animeLanguage, audioLanguage, subtitleLanguage, fallbackToNativeVideasy, useCustomControls, useMegaplayBackup]);
@@ -3178,21 +3182,29 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
             </div>
           ) : (
             embedUrl && (
-              <iframe 
-                  ref={iframeRef}
-                  src={embedUrl}
-                  onLoad={handleIframeLoad}
-                  className="w-full h-full absolute inset-0 bg-black z-0 transition-all duration-300"
-                  style={{
-                    objectFit: aspectRatio
-                  }}
-                  title="Media Player"
-                  frameBorder="0"
-                  allow="autoplay; encrypted-media; gyroscope; picture-in-picture; fullscreen; clipboard-write; screen-wake-lock; web-share"
-                  allowFullScreen={true}
-                  webkitallowfullscreen="true"
-                  mozallowfullscreen="true"
-              />
+              <div className="w-full h-full absolute inset-0 bg-black z-0 overflow-hidden">
+                {iframeLoading && (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center bg-black z-30 animate-in fade-in duration-200">
+                    <div className="w-10 h-10 border-[3px] border-[#E50914] border-t-transparent rounded-full animate-spin shadow-[0_0_15px_rgba(229,9,20,0.4)]" />
+                    <span className="text-zinc-500 text-[10px] mt-3 tracking-widest font-semibold uppercase animate-pulse select-none">Loading Server...</span>
+                  </div>
+                )}
+                <iframe 
+                    ref={iframeRef}
+                    src={embedUrl}
+                    onLoad={handleIframeLoad}
+                    className="w-full h-full absolute inset-0 bg-black z-0 transition-all duration-300"
+                    style={{
+                      objectFit: aspectRatio
+                    }}
+                    title="Media Player"
+                    frameBorder="0"
+                    allow="autoplay; encrypted-media; gyroscope; picture-in-picture; fullscreen; clipboard-write; screen-wake-lock; web-share"
+                    allowFullScreen={true}
+                    webkitallowfullscreen="true"
+                    mozallowfullscreen="true"
+                />
+              </div>
             )
         )}
 
@@ -3444,7 +3456,8 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                                            if (typeof window !== 'undefined') {
                                              localStorage.setItem('movieverse_preferred_jarvis_server', srv.server);
                                            }
-                                           const newUrl = getEmbedUrlForProvider('jarvis', 0);
+                                           setIframeLoading(true);
+                                           const newUrl = getEmbedUrlForProvider('jarvis', 0, srv.server);
                                            setEmbedUrl(newUrl);
                                            setSettingsView('main');
                                          }}
@@ -4736,12 +4749,12 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
             </button>
 
             {/* Modal Container */}
-            <div className="bg-[#09090b] border border-white/10 rounded-2xl p-6 w-full max-w-3xl max-h-[75vh] flex flex-col shadow-2xl overflow-hidden">
+            <div className="bg-[#09090b] border border-white/10 rounded-2xl p-5 w-full max-w-xl max-h-[60vh] flex flex-col shadow-2xl overflow-hidden">
               {/* Scrollable grid of servers */}
-              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3 overflow-y-auto pr-2 custom-scrollbar pb-2">
+              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2 overflow-y-auto pr-1 custom-scrollbar pb-1">
                 {getJarvisServers().map((srv) => {
                   const isActive = selectedJarvisServer === srv.server;
-                  const { flag } = getServerDetails(srv.server);
+                  const { flagUrl, langLabel } = getServerDetails(srv.server);
                   
                   return (
                     <button
@@ -4752,24 +4765,29 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                         if (typeof window !== 'undefined') {
                           localStorage.setItem('movieverse_preferred_jarvis_server', srv.server);
                         }
-                        const newUrl = getEmbedUrlForProvider('jarvis', 0);
+                        setIframeLoading(true);
+                        const newUrl = getEmbedUrlForProvider('jarvis', 0, srv.server);
                         setEmbedUrl(newUrl);
                       }}
-                      className={`relative rounded-xl p-4 flex flex-col items-center justify-center gap-2.5 transition-all border active:scale-95 cursor-pointer h-24 ${
+                      className={`relative rounded-xl p-2 flex flex-col items-center justify-center gap-1.5 transition-all border active:scale-95 cursor-pointer h-16 ${
                         isActive 
                           ? 'bg-white text-zinc-950 border-white shadow-lg shadow-white/5' 
                           : 'bg-[#121214]/40 hover:bg-[#161619] text-zinc-300 border-zinc-800/80 hover:border-zinc-700'
                       }`}
                     >
-                      <div className="relative text-2xl leading-none flex items-center justify-center">
-                        <span className="text-2xl select-none">{flag}</span>
+                      <div className="relative leading-none flex items-center justify-center">
+                        <img 
+                          src={flagUrl} 
+                          alt={langLabel}
+                          className="w-7 h-5 rounded-sm object-cover border border-white/10 shadow-sm select-none pointer-events-none" 
+                        />
                         {isActive && (
-                          <div className="absolute -bottom-1 -right-1.5 bg-[#09090b] text-white rounded-full w-4 h-4 flex items-center justify-center border border-white/10 shadow-md">
-                            <Check size={9} strokeWidth={4} />
+                          <div className="absolute -bottom-1 -right-1 bg-black text-white rounded-full w-3.5 h-3.5 flex items-center justify-center border border-white/20 shadow-md">
+                            <Check size={8} strokeWidth={4} />
                           </div>
                         )}
                       </div>
-                      <span className="text-[11px] font-bold tracking-wide truncate max-w-full text-center">
+                      <span className="text-[10px] font-bold tracking-wide truncate max-w-full text-center">
                         {srv.server}
                       </span>
                     </button>
@@ -4923,7 +4941,8 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                               if (typeof window !== 'undefined') {
                                 localStorage.setItem('movieverse_preferred_jarvis_server', srv.server);
                               }
-                              const newUrl = getEmbedUrlForProvider('jarvis', 0);
+                              setIframeLoading(true);
+                              const newUrl = getEmbedUrlForProvider('jarvis', 0, srv.server);
                               setEmbedUrl(newUrl);
                               setIsDrawerOpen(false);
                             }}
