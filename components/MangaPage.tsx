@@ -815,8 +815,11 @@ export const MangaPage: React.FC<MangaPageProps> = ({
   const [statistics, setStatistics] = useState<any>(null);
   const [selectedLanguage, setSelectedLanguage] = useState('en');
 
-  // GigaViewer Native States
   const [useNativeGigaViewer, setUseNativeGigaViewer] = useState(false);
+  const useNativeGigaViewerRef = useRef(useNativeGigaViewer);
+  useEffect(() => {
+    useNativeGigaViewerRef.current = useNativeGigaViewer;
+  }, [useNativeGigaViewer]);
   const [pastedGigaViewerUrl, setPastedGigaViewerUrl] = useState('');
   const [resolvedGigaViewerUrl, setResolvedGigaViewerUrl] = useState<string | null>(null);
   const [isResolvingGigaViewer, setIsResolvingGigaViewer] = useState(false);
@@ -1725,6 +1728,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
   }, [fetchAniList, showToast]);
 
   const resolveMangaPill = useCallback(async (manga: MangaDexManga, provider = readingSource) => {
+    if (useNativeGigaViewerRef.current) return;
     if (resolvedProvider === provider && mangapillChapters.length > 0) {
       setMangapillError(null);
       return; // Already resolved for this provider!
@@ -1994,6 +1998,10 @@ export const MangaPage: React.FC<MangaPageProps> = ({
       await Promise.all(promises);
 
       console.log(`[Auto-Detector] Final decision: ${bestProvider} with chapter ${maxChapterNum} (MangaDex had ${maxDexChapter})`);
+
+      if (useNativeGigaViewerRef.current) {
+        return;
+      }
 
       if (bestProvider !== 'mangadex') {
         setResolvedProvider(bestProvider);
@@ -4734,19 +4742,17 @@ export const MangaPage: React.FC<MangaPageProps> = ({
 
                   <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto justify-end">
                     {/* Native (Japanese) GigaViewer Switch Toggle */}
-                    {!isAutoResolving && (
-                      <div className="flex items-center gap-2 bg-transparent border-none px-0 py-1.5 shrink-0">
-                        <span className="text-[10px] font-medium text-zinc-400">Raw (日本語)</span>
-                        <button
-                          onClick={() => setUseNativeGigaViewer(prev => !prev)}
-                          className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${useNativeGigaViewer ? 'bg-red-600' : 'bg-zinc-800'}`}
-                        >
-                          <span
-                             className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${useNativeGigaViewer ? 'translate-x-4' : 'translate-x-0'}`}
-                          />
-                        </button>
-                      </div>
-                    )}
+                    <div className="flex items-center gap-2 bg-transparent border-none px-0 py-1.5 shrink-0">
+                      <span className="text-[10px] font-medium text-zinc-400">Raw (日本語)</span>
+                      <button
+                        onClick={() => setUseNativeGigaViewer(prev => !prev)}
+                        className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${useNativeGigaViewer ? 'bg-red-600' : 'bg-zinc-800'}`}
+                      >
+                        <span
+                           className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${useNativeGigaViewer ? 'translate-x-4' : 'translate-x-0'}`}
+                        />
+                      </button>
+                    </div>
 
                     {/* Source / Host Selector */}
                     {useNativeGigaViewer ? (
