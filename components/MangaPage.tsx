@@ -2577,7 +2577,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
         }
 
         // Tier 2: Auto-detect best host by chapter count
-        const resolverRes = await window.fetch(`/api/manga?action=resolve-best-gigaviewer&query=${encodeURIComponent(queryTitle)}`);
+        const resolverRes = await window.fetch(`/api/manga?action=resolve-best-gigaviewer&provider=gigaviewer&query=${encodeURIComponent(queryTitle)}`);
         if (!resolverRes.ok) throw new Error("Auto-detection resolver failed");
         
         const bestSource = await resolverRes.json();
