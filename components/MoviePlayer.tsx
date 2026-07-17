@@ -5,6 +5,15 @@ import { TvFocusButton } from '../tvNavigation';
 import { pause, resume } from '@noriginmedia/norigin-spatial-navigation';
 import { TMDB_BASE_URL, TMDB_IMAGE_BASE } from './Shared';
 import { Provider, PROVIDERS, getSubtitleCode, getAudioCode, getFilteredProviders } from './Providers';
+import jarvisSourcesData from './SourceUrls.json';
+
+interface JarvisServer {
+  server: string;
+  url: string;
+  enabled: boolean;
+  type: string;
+}
+
 
 interface SubtitleCue {
   start: number;
@@ -339,6 +348,105 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   const [selectedEncDecServer, setSelectedEncDecServer] = useState<string>('');
   const [selectedVideasyServer, setSelectedVideasyServer] = useState('Hydrogen');
   const [useMegaplayBackup, setUseMegaplayBackup] = useState(false);
+
+  // Jarvis sub-server states
+  const [selectedJarvisServer, setSelectedJarvisServer] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('movieverse_preferred_jarvis_server');
+      if (saved) return saved;
+    }
+    return isAnime ? 'HiAnime' : 'TwoEmbed';
+  });
+  const [isJarvisModalOpen, setIsJarvisModalOpen] = useState(false);
+
+  const ServerIcon = ({ size = 16 }: { size?: number }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-white">
+      <rect x="2" y="3" width="20" height="8" rx="2" ry="2" />
+      <rect x="2" y="13" width="20" height="8" rx="2" ry="2" />
+      <line x1="6" y1="7" x2="6.01" y2="7" />
+      <line x1="6" y1="17" x2="6.01" y2="17" />
+      <line x1="10" y1="7" x2="10.01" y2="7" />
+      <line x1="10" y1="17" x2="10.01" y2="17" />
+    </svg>
+  );
+
+  const getServerDetails = (serverName: string) => {
+    const nameLower = serverName.toLowerCase();
+    let flag = '🇺🇸';
+    let langLabel = 'EN';
+    
+    if (
+      nameLower.includes('hindi') || 
+      nameLower.includes('tamil') || 
+      nameLower.includes('telugu') || 
+      nameLower.includes('bolly') || 
+      nameLower.includes('hdhub') || 
+      nameLower.includes('moviesmod') || 
+      nameLower.includes('moviesdrive') || 
+      nameLower.includes('4khdhub') || 
+      nameLower.includes('filmy') ||
+      nameLower.includes('hind') ||
+      nameLower.includes('asia')
+    ) {
+      flag = '🇮🇳';
+      langLabel = 'IN';
+    } else if (nameLower.includes('french') || nameLower.includes('fr')) {
+      flag = '🇫🇷';
+      langLabel = 'FR';
+    } else if (nameLower.includes('spanish') || nameLower.includes('es')) {
+      flag = '🇪🇸';
+      langLabel = 'ES';
+    } else if (nameLower.includes('brazil') || nameLower.includes('portuguese') || nameLower.includes('br') || nameLower.includes('pt') || nameLower.includes('raze')) {
+      flag = '🇧🇷';
+      langLabel = 'BR';
+    } else if (nameLower.includes('arab') || nameLower.includes('sa')) {
+      flag = '🇸🇦';
+      langLabel = 'AR';
+    } else if (
+      nameLower.includes('ae') || 
+      nameLower.includes('vidfast') || 
+      nameLower.includes('vidpro') || 
+      nameLower.includes('vidnest') || 
+      nameLower.includes('drive') || 
+      nameLower.includes('bravo') || 
+      nameLower.includes('vidking') || 
+      nameLower.includes('rip') || 
+      nameLower.includes('111') ||
+      nameLower.includes('4k') ||
+      nameLower.includes('anime')
+    ) {
+      flag = '🇬🇧';
+      langLabel = 'UK';
+    }
+  
+    return { flag, langLabel };
+  };
+
+  const getJarvisServers = useCallback((): JarvisServer[] => {
+    if (!jarvisSourcesData || !jarvisSourcesData.sources) return [];
+    return (jarvisSourcesData.sources as JarvisServer[]).filter((s: JarvisServer) => {
+      if (!s.enabled) return false;
+      if (isAnime) {
+        return s.type === 'anime' || s.type === 'all';
+      } else {
+        return s.type === 'movie' || s.type === 'all' || s.type === 'asian';
+      }
+    });
+  }, [isAnime]);
+
+  // Self-correcting selection for Jarvis
+  useEffect(() => {
+    if (selectedProviderId === 'jarvis') {
+      const available = getJarvisServers();
+      if (available.length > 0) {
+        const found = available.find(s => s.server === selectedJarvisServer);
+        if (!found) {
+          setSelectedJarvisServer(available[0].server);
+        }
+      }
+    }
+  }, [selectedProviderId, isAnime, selectedJarvisServer, getJarvisServers]);
+
 
   useEffect(() => {
     if (providerId) {
@@ -2119,6 +2227,86 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   const lastAudioLanguageRef = useRef<string>(audioLanguage);
   const lastSubtitleLanguageRef = useRef<string>(subtitleLanguage);
 
+  const getJarvisServerUrl = (serverName: string, baseUrl: string, tmdbId: number, mediaType: 'movie' | 'tv', season: number, episode: number) => {
+    const isTv = mediaType === 'tv';
+    const nameLower = serverName.toLowerCase();
+    
+    if (nameLower.includes('twoembed') || nameLower.includes('2embed')) {
+      return isTv 
+        ? `https://www.2embed.cc/embed/tv/${tmdbId}/${season}/${episode}`
+        : `https://www.2embed.cc/embed/movie/${tmdbId}`;
+    }
+    
+    if (nameLower.includes('vidsrcto') || nameLower.includes('vidsrc.cc') || nameLower.includes('vidsrc')) {
+      const cleanBase = baseUrl.replace(/\/$/, '');
+      if (cleanBase.includes('vidsrc.xyz') || cleanBase.includes('vidsrc.me') || cleanBase.includes('vidsrc-embed.su')) {
+        return isTv
+          ? `${cleanBase}/embed/tv/${tmdbId}/${season}/${episode}`
+          : `${cleanBase}/embed/movie/${tmdbId}`;
+      }
+      return isTv
+        ? `${cleanBase}/embed/tv/${tmdbId}/${season}/${episode}`
+        : `${cleanBase}/embed/movie/${tmdbId}`;
+    }
+
+    if (nameLower.includes('vidlink')) {
+      const cleanBase = baseUrl.replace(/\/$/, '');
+      return isTv
+        ? `${cleanBase}/embed/tv/${tmdbId}/${season}/${episode}`
+        : `${cleanBase}/embed/movie/${tmdbId}`;
+    }
+
+    if (nameLower.includes('embedsu') || nameLower.includes('embed.su')) {
+      const cleanBase = baseUrl.replace(/\/$/, '');
+      return isTv
+        ? `${cleanBase}/embed/tv/${tmdbId}/${season}/${episode}`
+        : `${cleanBase}/embed/movie/${tmdbId}`;
+    }
+
+    if (nameLower.includes('multiembed')) {
+      const cleanBase = baseUrl.replace(/\/$/, '');
+      return isTv
+        ? `${cleanBase}/direct/?video_id=${tmdbId}&tmdb=1&s=${season}&e=${episode}`
+        : `${cleanBase}/direct/?video_id=${tmdbId}&tmdb=1`;
+    }
+
+    if (nameLower.includes('cinemaos')) {
+      return isTv
+        ? `https://cinemaos.tech/player/${tmdbId}/${season}/${episode}`
+        : `https://cinemaos.tech/player/${tmdbId}`;
+    }
+
+    if (nameLower.includes('xpass')) {
+      return isTv
+        ? `https://play.xpass.top/e/tv/${tmdbId}/${season}/${episode}`
+        : `https://play.xpass.top/e/movie/${tmdbId}`;
+    }
+
+    if (nameLower.includes('kisskh')) {
+      return isTv
+        ? `https://kisskh.ovh/embed/tv/${tmdbId}/${season}/${episode}`
+        : `https://kisskh.ovh/embed/movie/${tmdbId}`;
+    }
+
+    const cleanBase = baseUrl.replace(/\/$/, '');
+    
+    if (cleanBase.includes('player/') || cleanBase.includes('player.php')) {
+      return isTv
+        ? `${cleanBase}/${tmdbId}/${season}/${episode}`
+        : `${cleanBase}/${tmdbId}`;
+    }
+
+    if (cleanBase.includes('embed')) {
+      return isTv
+        ? `${cleanBase}/tv/${tmdbId}/${season}/${episode}`
+        : `${cleanBase}/movie/${tmdbId}`;
+    }
+
+    return isTv
+      ? `${cleanBase}/tv/${tmdbId}/${season}/${episode}`
+      : `${cleanBase}/movie/${tmdbId}`;
+  };
+
   const getEmbedUrlForProvider = (providerId: string, progress: number = 0) => {
     const isTvShow = mediaType === 'tv' || (isAnime && mediaType !== 'movie');
     if (providerId === 'megaplay') {
@@ -2127,6 +2315,20 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
       return isTvShow
         ? `${domain}/stream/ani/${anilistId || tmdbId}/${currentEpisode}/${lang}`
         : `${domain}/stream/ani/${anilistId || tmdbId}/1/${lang}`;
+    }
+    if (providerId === 'jarvis') {
+      const available = getJarvisServers();
+      const serverConfig = available.find(s => s.server === selectedJarvisServer) || available[0];
+      if (serverConfig) {
+        return getJarvisServerUrl(
+          serverConfig.server,
+          serverConfig.url,
+          tmdbId,
+          isTvShow ? 'tv' : 'movie',
+          currentSeason,
+          currentEpisode
+        );
+      }
     }
     const provider = PROVIDERS.find(p => p.id === providerId) || PROVIDERS[0];
     let url = isTvShow
@@ -3230,6 +3432,32 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                                       </button>
                                     );
                                   })}
+
+                                 {selectedProviderId === 'jarvis' && (
+                                   getJarvisServers().map((srv) => {
+                                     const isActive = selectedJarvisServer === srv.server;
+                                     return (
+                                       <button
+                                         key={srv.server}
+                                         onClick={() => {
+                                           setSelectedJarvisServer(srv.server);
+                                           if (typeof window !== 'undefined') {
+                                             localStorage.setItem('movieverse_preferred_jarvis_server', srv.server);
+                                           }
+                                           const newUrl = getEmbedUrlForProvider('jarvis', 0);
+                                           setEmbedUrl(newUrl);
+                                           setSettingsView('main');
+                                         }}
+                                         className={`w-full py-2.5 px-3 rounded-xl text-xs flex items-center justify-between transition-all hover:bg-white/5 ${
+                                           isActive ? 'text-red-500 bg-white/5 font-extrabold' : 'text-zinc-400 hover:text-white'
+                                         }`}
+                                       >
+                                         <span>{srv.server}</span>
+                                         {isActive && <Check size={12} className="text-red-500" />}
+                                       </button>
+                                     );
+                                   })
+                                 )}
                                 </div>
                               )}
                             </div>
@@ -3412,7 +3640,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                                 </button>
 
                                 {/* Server Row (Conditional) */}
-                                {(((selectedProviderId.startsWith('encdec') || selectedProviderId === 'cinepro_core') && encDecServers.length > 0) || selectedProviderId === 'megaplay') && (
+                                {(((selectedProviderId.startsWith('encdec') || selectedProviderId === 'cinepro_core') && encDecServers.length > 0) || selectedProviderId === 'megaplay' || selectedProviderId === 'jarvis') && (
                                   <button
                                     onClick={() => setSettingsView('servers')}
                                     className="w-full py-2 px-3 rounded-xl text-xs text-zinc-300 hover:text-white hover:bg-white/5 flex items-center justify-between transition-all"
@@ -4461,7 +4689,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
 
         {/* Premium Top Bar Overlay */}
         <div 
-          className={`absolute top-0 left-0 right-0 z-50 w-full pt-8 pb-8 px-8 flex items-center transition-all duration-300 ease-out ${
+          className={`absolute top-0 left-0 right-0 z-50 w-full pt-8 pb-8 px-8 flex items-center justify-between transition-all duration-300 ease-out ${
             useCustomControls 
               ? (showControls || isDrawerOpen ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4 pointer-events-none') 
               : 'opacity-100 translate-y-0'
@@ -4475,7 +4703,82 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
           >
             <ArrowLeft size={30} strokeWidth={1.5} />
           </button>
+
+          {selectedProviderId === 'jarvis' && (
+            <div className="relative pointer-events-auto mr-4">
+              <button 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsJarvisModalOpen(true);
+                }}
+                className="flex items-center gap-2 px-3 py-1.5 bg-black hover:bg-zinc-900/80 text-white font-medium text-xs rounded-lg transition-all border border-zinc-800 active:scale-95 shadow-xl cursor-pointer"
+              >
+                <ServerIcon size={14} />
+                <span className="text-white text-[13px] font-medium leading-none">Select a server</span>
+              </button>
+            </div>
+          )}
         </div>
+
+        {/* Jarvis Server Selector Modal */}
+        {isJarvisModalOpen && (
+          <div 
+            className="fixed inset-0 bg-black/80 backdrop-blur-md z-[100] flex flex-col items-center justify-center p-4 animate-in fade-in duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Centered Close Button above the container */}
+            <button 
+              onClick={() => setIsJarvisModalOpen(false)}
+              className="flex items-center gap-1.5 px-4 py-1.5 bg-[#0c0c0e] hover:bg-zinc-900 text-white rounded-full border border-zinc-800 text-xs font-semibold tracking-wide transition-all active:scale-95 mb-4 cursor-pointer"
+            >
+              <X size={14} className="text-zinc-400" />
+              <span>Close</span>
+            </button>
+
+            {/* Modal Container */}
+            <div className="bg-[#09090b] border border-white/10 rounded-2xl p-6 w-full max-w-3xl max-h-[75vh] flex flex-col shadow-2xl overflow-hidden">
+              {/* Scrollable grid of servers */}
+              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3 overflow-y-auto pr-2 custom-scrollbar pb-2">
+                {getJarvisServers().map((srv) => {
+                  const isActive = selectedJarvisServer === srv.server;
+                  const { flag } = getServerDetails(srv.server);
+                  
+                  return (
+                    <button
+                      key={srv.server}
+                      onClick={() => {
+                        setSelectedJarvisServer(srv.server);
+                        setIsJarvisModalOpen(false);
+                        if (typeof window !== 'undefined') {
+                          localStorage.setItem('movieverse_preferred_jarvis_server', srv.server);
+                        }
+                        const newUrl = getEmbedUrlForProvider('jarvis', 0);
+                        setEmbedUrl(newUrl);
+                      }}
+                      className={`relative rounded-xl p-4 flex flex-col items-center justify-center gap-2.5 transition-all border active:scale-95 cursor-pointer h-24 ${
+                        isActive 
+                          ? 'bg-white text-zinc-950 border-white shadow-lg shadow-white/5' 
+                          : 'bg-[#121214]/40 hover:bg-[#161619] text-zinc-300 border-zinc-800/80 hover:border-zinc-700'
+                      }`}
+                    >
+                      <div className="relative text-2xl leading-none flex items-center justify-center">
+                        <span className="text-2xl select-none">{flag}</span>
+                        {isActive && (
+                          <div className="absolute -bottom-1 -right-1.5 bg-[#09090b] text-white rounded-full w-4 h-4 flex items-center justify-center border border-white/10 shadow-md">
+                            <Check size={9} strokeWidth={4} />
+                          </div>
+                        )}
+                      </div>
+                      <span className="text-[11px] font-bold tracking-wide truncate max-w-full text-center">
+                        {srv.server}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Full-screen overlay removed; episodes selector is now rendered as a dropdown menu inside custom controls */}
 
@@ -4597,6 +4900,40 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                             }`}
                           >
                             {srv}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {selectedProviderId === 'jarvis' && (
+                  <div className="border-t border-white/5 pt-4 mt-2">
+                    <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block mb-2 px-1">
+                      Select Jarvis Server
+                    </span>
+                    <div className="grid grid-cols-2 gap-2 max-h-[165px] overflow-y-auto pr-1 custom-scrollbar pb-1">
+                      {getJarvisServers().map((srv) => {
+                        const isActive = selectedJarvisServer === srv.server;
+                        return (
+                          <button
+                            key={srv.server}
+                            onClick={() => {
+                              setSelectedJarvisServer(srv.server);
+                              if (typeof window !== 'undefined') {
+                                localStorage.setItem('movieverse_preferred_jarvis_server', srv.server);
+                              }
+                              const newUrl = getEmbedUrlForProvider('jarvis', 0);
+                              setEmbedUrl(newUrl);
+                              setIsDrawerOpen(false);
+                            }}
+                            className={`py-2 px-3 rounded-xl text-xs font-bold transition-all border text-center active:scale-[0.98] ${
+                              isActive 
+                                ? 'bg-red-600/20 text-red-500 border-red-500/30 font-extrabold shadow-[0_0_15px_rgba(239,68,68,0.15)]' 
+                                : 'bg-white/5 text-zinc-300 border-white/5 hover:border-white/10 hover:bg-white/10'
+                            }`}
+                          >
+                            {srv.server}
                           </button>
                         );
                       })}

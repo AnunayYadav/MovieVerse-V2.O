@@ -193,6 +193,13 @@ export const PROVIDERS: Provider[] = [
     },
     supportsPostMessage: true
   },
+  {
+    id: 'jarvis',
+    name: 'Jarvis',
+    getMovieUrl: (tmdbId) => `https://www.2embed.cc/embed/movie/${tmdbId}`,
+    getTvUrl: (tmdbId, season, episode) => `https://www.2embed.cc/embed/tv/${tmdbId}/${season}/${episode}`,
+    supportsPostMessage: false
+  },
 ];
 
 export const getFilteredProviders = (isAnime: boolean, isWatchParty: boolean = false, isAnimeDirect: boolean = false) => {

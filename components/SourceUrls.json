@@ -1,0 +1,520 @@
+{
+  "sources": [
+    {
+      "server": "Anizone",
+      "url": "https://anizone.to",
+      "enabled": true,
+      "type": "anime"
+    },
+    {
+      "server": "TokyoInsider",
+      "url": "https://www.tokyoinsider.com",
+      "enabled": true,
+      "type": "anime"
+    },
+    {
+      "server": "Kuudere",
+      "url": "https://kuudere.to",
+      "enabled": true,
+      "type": "anime"
+    },
+    {
+      "server": "Anikage",
+      "url": "https://anikage.cc",
+      "enabled": true,
+      "type": "anime"
+    },
+    {
+      "server": "Anineko",
+      "url": "https://anineko.to",
+      "enabled": true,
+      "type": "anime"
+    },
+    {
+      "server": "HiAnime",
+      "url": "https://hianime.to",
+      "enabled": true,
+      "type": "anime"
+    },
+    {
+      "server": "AnimeOwl",
+      "url": "https://animeowl.me",
+      "enabled": true,
+      "type": "anime"
+    },
+    {
+      "server": "Zoro",
+      "url": "anime/zoro",
+      "enabled": false,
+      "type": "anime"
+    },
+    {
+      "server": "AnimePahe",
+      "url": "https://animepahe.org",
+      "enabled": true,
+      "type": "anime"
+    },
+    {
+      "server": "TwoEmbed",
+      "url": "https://www.2embed.cc",
+      "enabled": true,
+      "type": "movie"
+    },
+    {
+      "server": "Vidsrcto",
+      "url": "https://vidsrc.cc",
+      "enabled": true,
+      "type": "movie"
+    },
+    {
+      "server": "AllMovieLand",
+      "url": "https://allmovieland.io",
+      "enabled": true,
+      "type": "movie"
+    },
+    {
+      "server": "Player4uApi",
+      "url": "https://player4u.xyz",
+      "enabled": false,
+      "type": "all"
+    },
+    {
+      "server": "MoviesMod",
+      "url": "https://moviesmod.army",
+      "enabled": true,
+      "type": "movie"
+    },
+    {
+      "server": "VidEasy",
+      "url": "https://api.videasy.net",
+      "enabled": true,
+      "type": "all"
+    },
+    {
+      "server": "MoviesDrive",
+      "url": "https://new4.moviesdrives.my",
+      "enabled": true,
+      "type": "movie"
+    },
+    {
+      "server": "HDhub4u",
+      "url": "https://new2.hdhub4u.cl",
+      "enabled": true,
+      "type": "movie"
+    },
+    {
+      "server": "Xpass",
+      "url": "https://play.xpass.top",
+      "enabled": true,
+      "type": "movie"
+    },
+    {
+      "server": "Movies4u",
+      "url": "https://new2.movies4u.finance",
+      "enabled": true,
+      "type": "all"
+    },
+    {
+      "server": "Mapple",
+      "url": "https://mapple.uk",
+      "enabled": false,
+      "type": "movie"
+    },
+    {
+      "server": "Levidia",
+      "url": "https://www.levidia.ch",
+      "enabled": true,
+      "type": "movie"
+    },
+    {
+      "server": "MoviesApi",
+      "url": "https://moviesapi.club",
+      "enabled": true,
+      "type": "movie"
+    },
+    {
+      "server": "CinemaCity",
+      "url": "https://cinemacity.cc",
+      "enabled": true,
+      "type": "all"
+    },
+    {
+      "server": "Vidrock",
+      "url": "https://vidrock.net",
+      "enabled": true,
+      "type": "movie"
+    },
+    {
+      "server": "Soapy",
+      "url": "https://soapy.to",
+      "enabled": true,
+      "type": "movie"
+    },
+    {
+      "server": "Vidlink",
+      "url": "https://vidlink.pro",
+      "enabled": true,
+      "type": "movie"
+    },
+    {
+      "server": "HexaSu",
+      "url": "https://theemoviedb.hexa.su",
+      "enabled": true,
+      "type": "movie"
+    },
+    {
+      "server": "EmbedMaster",
+      "url": "https://embedmaster.link",
+      "enabled": true,
+      "type": "movie"
+    },
+    {
+      "server": "CinemaOs",
+      "url": "https://cinemaos.tech",
+      "enabled": true,
+      "type": "all"
+    },
+    {
+      "server": "VidPlus",
+      "url": "https://player.vidplus.pro",
+      "enabled": true,
+      "type": "all"
+    },
+    {
+      "server": "Mp4Hydra",
+      "url": "https://mp4hydra.org",
+      "enabled": true,
+      "type": "movie"
+    },
+    {
+      "server": "Vidnest",
+      "url": "https://backend.vidnest.fun",
+      "enabled": true,
+      "type": "movie"
+    },
+    {
+      "server": "Vidfast",
+      "url": "https://vidfast.pro",
+      "enabled": true,
+      "type": "all"
+    },
+    {
+      "server": "VaPlayer",
+      "url": "https://streamdata.vaplayer.ru",
+      "enabled": true,
+      "type": "all"
+    },
+    {
+      "server": "Xdmovies",
+      "url": "https://new.xdmovies.wtf",
+      "enabled": true,
+      "type": "movie"
+    },
+    {
+      "server": "VStream",
+      "url": "https://vadapav.mov",
+      "enabled": true,
+      "type": "movie"
+    },
+    {
+      "server": "Vega",
+      "url": "https://vegamovies.navy",
+      "enabled": true,
+      "type": "movie"
+    },
+    {
+      "server": "DotMovies",
+      "url": "https://luxmovies1.shop",
+      "enabled": true,
+      "type": "movie"
+    },
+    {
+      "server": "RogMovies",
+      "url": "https://rogmovies.cv",
+      "enabled": true,
+      "type": "movie"
+    },
+    {
+      "server": "Filmyfiy",
+      "url": "https://filmyfly.cafe",
+      "enabled": true,
+      "type": "movie"
+    },
+    {
+      "server": "Elevenmovies",
+      "url": "https://111movies.com",
+      "enabled": true,
+      "type": "movie"
+    },
+    {
+      "server": "FlixHQ",
+      "url": "movies/flixhq",
+      "enabled": true,
+      "type": "all"
+    },
+    {
+      "server": "Rido",
+      "url": "https://ridomovies.tv",
+      "enabled": true,
+      "type": "movie"
+    },
+    {
+      "server": "ExtraMovies",
+      "url": "https://extramovies.miami/cgi-sys/suspendedpage.cgi",
+      "enabled": true,
+      "type": "movie"
+    },
+    {
+      "server": "TopMovies",
+      "url": "https://moviesleech.bar",
+      "enabled": true,
+      "type": "movie"
+    },
+    {
+      "server": "UHDMovies",
+      "url": "https://uhdmovies.food",
+      "enabled": true,
+      "type": "all"
+    },
+    {
+      "server": "BollyflixVIP",
+      "url": "https://bollyflix.at",
+      "enabled": true,
+      "type": "movie"
+    },
+    {
+      "server": "XPrime",
+      "url": "https://backend.xprime.tv",
+      "enabled": true,
+      "type": "movie"
+    },
+    {
+      "server": "Hindmoviez",
+      "url": "https://hindmovie.icu",
+      "enabled": true,
+      "type": "movie"
+    },
+    {
+      "server": "RiveStream",
+      "url": "https://rivestream.org",
+      "enabled": true,
+      "type": "all"
+    },
+    {
+      "server": "HdMovie2",
+      "url": "https://hdmo2.com",
+      "enabled": true,
+      "type": "movie"
+    },
+    {
+      "server": "WebStreamr",
+      "url": "https://webstreamr.hayd.uk",
+      "enabled": true,
+      "type": "movie"
+    },
+    {
+      "server": "Vidzee",
+      "url": "https://player.vidzee.wtf",
+      "enabled": true,
+      "type": "movie"
+    },
+    {
+      "server": "Bollyflix",
+      "url": "https://bollyflix.at",
+      "enabled": true,
+      "type": "movie"
+    },
+    {
+      "server": "Dreamfilm",
+      "url": "https://dreamfilmsw.info",
+      "enabled": true,
+      "type": "movie"
+    },
+    {
+      "server": "Filmxy",
+      "url": "https://www.filmxy.online",
+      "enabled": false,
+      "type": "movie"
+    },
+    {
+      "server": "AniXL",
+      "url": "AniXL",
+      "enabled": true,
+      "type": "anime"
+    },
+    {
+      "server": "AnimeKai",
+      "url": "https://animekai.to",
+      "enabled": true,
+      "type": "anime"
+    },
+    {
+      "server": "MultiEmbed",
+      "url": "https://multiembed.mov",
+      "enabled": true,
+      "type": "movie"
+    },
+    {
+      "server": "Kisskh",
+      "url": "https://kisskh.ovh",
+      "enabled": true,
+      "type": "asian"
+    },
+    {
+      "server": "Ling",
+      "url": "https://ling-online.net",
+      "enabled": true,
+      "type": "movie"
+    },
+    {
+      "server": "Flixon",
+      "url": "https://flixon.ovh",
+      "enabled": false,
+      "type": "movie"
+    },
+    {
+      "server": "NowTv",
+      "url": "https://myfilestorage.xyz",
+      "enabled": false,
+      "type": "movie"
+    },
+    {
+      "server": "EMovies",
+      "url": "https://emovies.si",
+      "enabled": false,
+      "type": "movie"
+    },
+    {
+      "server": "MultiMovies",
+      "url": "https://multimovies.makeup",
+      "enabled": true,
+      "type": "all"
+    },
+    {
+      "server": "VidSrcVip",
+      "url": "https://vidsrc.vip",
+      "enabled": true,
+      "type": "movie"
+    },
+    {
+      "server": "VidsrcXYZ",
+      "url": "https://vidsrc-embed.su",
+      "enabled": true,
+      "type": "movie"
+    },
+    {
+      "server": "Watch32",
+      "url": "https://watch32.sx",
+      "enabled": true,
+      "type": "movie"
+    },
+    {
+      "server": "Vidsrc",
+      "url": "https://vidsrc.su",
+      "enabled": true,
+      "type": "movie"
+    },
+    {
+      "server": "Animetosho",
+      "url": "https://animetosho.org",
+      "enabled": true,
+      "type": "anime"
+    },
+    {
+      "server": "Showflix",
+      "url": "https://showflix.store",
+      "enabled": true,
+      "type": "movie"
+    },
+    {
+      "server": "4khdhub",
+      "url": "https://4khdhub.one",
+      "enabled": true,
+      "type": "all"
+    },
+    {
+      "server": "MoFlix",
+      "url": "https://moflix-stream.xyz",
+      "enabled": false,
+      "type": "movie"
+    },
+    {
+      "server": "Zoechip",
+      "url": "https://www1.zoechip.to",
+      "enabled": true,
+      "type": "movie"
+    },
+    {
+      "server": "Nepu",
+      "url": "https://nepu.to",
+      "enabled": true,
+      "type": "movie"
+    },
+    {
+      "server": "Dahmer",
+      "url": "https://a.111477.xyz",
+      "enabled": true,
+      "type": "all"
+    },
+    {
+      "server": "EmbedSu",
+      "url": "https://embed.su",
+      "enabled": true,
+      "type": "movie"
+    },
+    {
+      "server": "Morph",
+      "url": "JkxDYnUzaVlDN2xuMjRLN1A=",
+      "enabled": true,
+      "type": "movie"
+    },
+    {
+      "server": "HinAPI",
+      "url": "https://hin.autoembed.cc",
+      "enabled": false,
+      "type": "movie"
+    },
+    {
+      "server": "Primewire",
+      "url": "https://primesrc.me",
+      "enabled": true,
+      "type": "movie"
+    },
+    {
+      "server": "Aniwatch",
+      "url": "https://aniwatchtv.to",
+      "enabled": false,
+      "type": "anime"
+    },
+    {
+      "server": "TomAPI",
+      "url": "https://tom.autoembed.cc",
+      "enabled": true,
+      "type": "movie"
+    },
+    {
+      "server": "AniWave",
+      "url": "https://aniwave.com.pl",
+      "enabled": false,
+      "type": "anime"
+    },
+    {
+      "server": "Crunchyroll",
+      "url": "https://beta-api.crunchyroll.com",
+      "enabled": false,
+      "type": "anime"
+    },
+    {
+      "server": "Goku",
+      "url": "goku",
+      "enabled": false,
+      "type": "all"
+    },
+    {
+      "server": "Anitaku",
+      "url": "https://anitaku.pe",
+      "enabled": false,
+      "type": "anime"
+    }
+  ]
+}
