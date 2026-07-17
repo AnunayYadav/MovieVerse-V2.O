@@ -423,6 +423,26 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     return { countryCode, langLabel, flagUrl: `https://flagcdn.com/w40/${countryCode}.png` };
   };
 
+  const [serverStatuses, setServerStatuses] = useState<Record<string, 'online' | 'offline' | 'checking'>>({});
+
+  const checkServerStatus = async (url: string): Promise<boolean> => {
+    try {
+      const controller = new AbortController();
+      const id = setTimeout(() => controller.abort(), 3500);
+      
+      const domain = new URL(url).origin;
+      await fetch(`${domain}/favicon.ico`, {
+        mode: 'no-cors',
+        signal: controller.signal,
+        headers: { 'Cache-Control': 'no-cache' }
+      });
+      clearTimeout(id);
+      return true;
+    } catch (e) {
+      return false;
+    }
+  };
+
   const getJarvisServers = useCallback((): JarvisServer[] => {
     if (!jarvisSourcesData || !jarvisSourcesData.sources) return [];
     
@@ -449,6 +469,31 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
       }
     });
   }, [isAnime]);
+
+  useEffect(() => {
+    if (!isJarvisModalOpen) return;
+    const available = getJarvisServers();
+    
+    available.forEach(async (srv) => {
+      if (serverStatuses[srv.server]) return;
+      
+      setServerStatuses(prev => ({ ...prev, [srv.server]: 'checking' }));
+      
+      const hasProperUrl = srv.url && srv.url.startsWith('http');
+      const testUrl = hasProperUrl ? srv.url : getEmbedUrlForProvider('jarvis', 0, srv.server);
+      
+      if (!testUrl || !testUrl.startsWith('http')) {
+        setServerStatuses(prev => ({ ...prev, [srv.server]: 'offline' }));
+        return;
+      }
+      
+      const isOnline = await checkServerStatus(testUrl);
+      setServerStatuses(prev => ({ 
+        ...prev, 
+        [srv.server]: isOnline ? 'online' : 'offline' 
+      }));
+    });
+  }, [isJarvisModalOpen, getJarvisServers]);
 
   // Self-correcting selection for Jarvis
   useEffect(() => {
@@ -4790,6 +4835,26 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                           : 'bg-[#121214]/40 hover:bg-[#161619] text-zinc-300 border-zinc-800/80 hover:border-zinc-700'
                       }`}
                     >
+                      {/* Status Dot */}
+                      {serverStatuses[srv.server] && (
+                        <span 
+                          className={`absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full border border-black/10 ${
+                            serverStatuses[srv.server] === 'online' 
+                              ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' 
+                              : serverStatuses[srv.server] === 'offline' 
+                                ? 'bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.5)]' 
+                                : 'bg-amber-500 animate-pulse'
+                          }`}
+                          title={
+                            serverStatuses[srv.server] === 'online' 
+                              ? 'Server Online' 
+                              : serverStatuses[srv.server] === 'offline' 
+                                ? 'Server Offline / Down' 
+                                : 'Pinging Server...'
+                          }
+                        />
+                      )}
+
                       <div className="relative leading-none flex items-center justify-center">
                         <img 
                           src={flagUrl} 
