@@ -2501,8 +2501,8 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
 
   const checkServerStatus = async (url: string): Promise<boolean> => {
     try {
-      // First, try calling our backend check-source API
-      const apiRes = await fetch(`/api/check-source?url=${encodeURIComponent(url)}`);
+      // First, try calling our backend check-source API integrated in /api/encdec
+      const apiRes = await fetch(`/api/encdec?action=check-source&url=${encodeURIComponent(url)}`);
       if (apiRes.ok) {
         const data = await apiRes.json();
         return data.exists === true;
