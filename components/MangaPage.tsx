@@ -4710,7 +4710,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
             {detailsTab === 'chapters' && (
               <div className="space-y-4">
                 {/* Search & Sort Panel */}
-                <div className="flex flex-col sm:flex-row gap-3 items-center justify-between bg-[#0c0c0e] border border-white/5 rounded-xl p-3">
+                <div className="flex flex-col sm:flex-row gap-3 items-center justify-between bg-transparent border-none p-0">
                   <div className="relative w-full sm:w-64">
                     <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-500" size={14} />
                     <input
@@ -4725,14 +4725,14 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                   <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto justify-end">
                     {/* Native (Japanese) GigaViewer Switch Toggle */}
                     {!isAutoResolving && (
-                      <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 shrink-0">
+                      <div className="flex items-center gap-2 bg-transparent border-none px-0 py-1.5 shrink-0">
                         <span className="text-[10px] font-medium text-zinc-400">Raw (日本語)</span>
                         <button
                           onClick={() => setUseNativeGigaViewer(prev => !prev)}
                           className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${useNativeGigaViewer ? 'bg-red-600' : 'bg-zinc-800'}`}
                         >
                           <span
-                            className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${useNativeGigaViewer ? 'translate-x-4' : 'translate-x-0'}`}
+                             className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${useNativeGigaViewer ? 'translate-x-4' : 'translate-x-0'}`}
                           />
                         </button>
                       </div>
