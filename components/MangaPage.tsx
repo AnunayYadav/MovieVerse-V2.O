@@ -2633,8 +2633,17 @@ export const MangaPage: React.FC<MangaPageProps> = ({
         const data = await res.json();
         
         if (isMounted) {
-          setChapters(data.chapters || []);
-          setMangapillChapters(data.chapters || []);
+          const mappedChapters = (data.chapters || []).map((ch: any) => ({
+            id: ch.id,
+            attributes: {
+              title: ch.title,
+              chapter: ch.chapter,
+              publishAt: ch.releaseDate,
+              pages: 0
+            }
+          }));
+          setChapters(mappedChapters);
+          setMangapillChapters(mappedChapters);
           setReadingSource('gigaviewer');
         }
       } catch (err) {
