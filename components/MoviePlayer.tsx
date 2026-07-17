@@ -425,8 +425,23 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
 
   const getJarvisServers = useCallback((): JarvisServer[] => {
     if (!jarvisSourcesData || !jarvisSourcesData.sources) return [];
+    
+    const whitelist = [
+      'twoembed', 'vidsrcto', 'xpass', 'moviesapi', 'vidlink', 'hexasu', 'embedmaster', 
+      'cinemaos', 'vidplus', 'vidnest', 'vidfast', 'rivestream', 'vidsrcxyz', 'vidsrc', 
+      'zoechip', 'nepu', 'embedsu', 'morph', 'primewire', 'tomapi', 'videasy', 
+      'multiembed', 'kisskh', 'allmovieland', 'vidsrcvip', 'vidrock',
+      'hianime', 'anizone', 'tokyoinsider', 'kuudere', 'anikage', 'anineko', 
+      'animeowl', 'animepahe', 'anixl', 'animekai'
+    ];
+
     return (jarvisSourcesData.sources as JarvisServer[]).filter((s: JarvisServer) => {
       if (!s.enabled) return false;
+      
+      const nameLower = s.server.toLowerCase();
+      const isEmbed = whitelist.some(w => nameLower.includes(w));
+      if (!isEmbed) return false;
+
       if (isAnime) {
         return s.type === 'anime' || s.type === 'all';
       } else {
