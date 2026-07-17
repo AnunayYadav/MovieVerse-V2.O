@@ -425,24 +425,6 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
 
   const [serverStatuses, setServerStatuses] = useState<Record<string, 'online' | 'offline' | 'checking'>>({});
 
-  const checkServerStatus = async (url: string): Promise<boolean> => {
-    try {
-      const controller = new AbortController();
-      const id = setTimeout(() => controller.abort(), 3500);
-      
-      const domain = new URL(url).origin;
-      await fetch(`${domain}/favicon.ico`, {
-        mode: 'no-cors',
-        signal: controller.signal,
-        headers: { 'Cache-Control': 'no-cache' }
-      });
-      clearTimeout(id);
-      return true;
-    } catch (e) {
-      return false;
-    }
-  };
-
   const getJarvisServers = useCallback((): JarvisServer[] => {
     if (!jarvisSourcesData || !jarvisSourcesData.sources) return [];
     
@@ -469,31 +451,6 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
       }
     });
   }, [isAnime]);
-
-  useEffect(() => {
-    if (!isJarvisModalOpen) return;
-    const available = getJarvisServers();
-    
-    available.forEach(async (srv) => {
-      if (serverStatuses[srv.server]) return;
-      
-      setServerStatuses(prev => ({ ...prev, [srv.server]: 'checking' }));
-      
-      const hasProperUrl = srv.url && srv.url.startsWith('http');
-      const testUrl = hasProperUrl ? srv.url : getEmbedUrlForProvider('jarvis', 0, srv.server);
-      
-      if (!testUrl || !testUrl.startsWith('http')) {
-        setServerStatuses(prev => ({ ...prev, [srv.server]: 'offline' }));
-        return;
-      }
-      
-      const isOnline = await checkServerStatus(testUrl);
-      setServerStatuses(prev => ({ 
-        ...prev, 
-        [srv.server]: isOnline ? 'online' : 'offline' 
-      }));
-    });
-  }, [isJarvisModalOpen, getJarvisServers]);
 
   // Self-correcting selection for Jarvis
   useEffect(() => {
@@ -2350,6 +2307,34 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
         : `https://kisskh.ovh/embed/movie/${tmdbId}`;
     }
 
+    if (nameLower.includes('videasy')) {
+      const cleanBase = baseUrl.replace(/\/$/, '').replace('api.videasy.net', 'player.videasy.net');
+      return isTv
+        ? `${cleanBase}/tv/${tmdbId}/${season}/${episode}?nextEpisode=true&autoplayNextEpisode=true&episodeSelector=true&overlay=false&color=EF4444&autoplay=true`
+        : `${cleanBase}/movie/${tmdbId}?overlay=false&color=EF4444&autoplay=true`;
+    }
+
+    if (nameLower.includes('vidplus')) {
+      const cleanBase = baseUrl.replace(/\/$/, '');
+      return isTv
+        ? `${cleanBase}/embed/tv/${tmdbId}/${season}/${episode}`
+        : `${cleanBase}/embed/movie/${tmdbId}`;
+    }
+
+    if (nameLower.includes('moviesapi')) {
+      const cleanBase = baseUrl.replace(/\/$/, '');
+      return isTv
+        ? `${cleanBase}/embed/tv/${tmdbId}/${season}/${episode}`
+        : `${cleanBase}/embed/movie/${tmdbId}`;
+    }
+
+    if (nameLower.includes('vidnest')) {
+      const cleanBase = baseUrl.replace(/\/$/, '').replace('backend.vidnest.fun', 'vidnest.fun');
+      return isTv
+        ? `${cleanBase}/tv/${tmdbId}/${season}/${episode}`
+        : `${cleanBase}/movie/${tmdbId}`;
+    }
+
     const cleanBase = baseUrl.replace(/\/$/, '');
     
     if (cleanBase.includes('player/') || cleanBase.includes('player.php')) {
@@ -2513,6 +2498,47 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
       setEmbedUrl(newUrl);
     }
   }, [tmdbId, mediaType, isAnime, title, currentSeason, currentEpisode, activeColor, selectedProviderId, forceProgress, isWatchParty, anilistId, animeLanguage, audioLanguage, subtitleLanguage, fallbackToNativeVideasy, useCustomControls, useMegaplayBackup]);
+
+  const checkServerStatus = async (url: string): Promise<boolean> => {
+    try {
+      const controller = new AbortController();
+      const id = setTimeout(() => controller.abort(), 3500);
+      
+      await fetch(url, {
+        mode: 'no-cors',
+        signal: controller.signal,
+        headers: { 'Cache-Control': 'no-cache' }
+      });
+      clearTimeout(id);
+      return true;
+    } catch (e) {
+      return false;
+    }
+  };
+
+  useEffect(() => {
+    if (!isJarvisModalOpen) return;
+    const available = getJarvisServers();
+    
+    available.forEach(async (srv) => {
+      if (serverStatuses[srv.server]) return;
+      
+      setServerStatuses(prev => ({ ...prev, [srv.server]: 'checking' }));
+      
+      const testUrl = getEmbedUrlForProvider('jarvis', 0, srv.server);
+      
+      if (!testUrl || !testUrl.startsWith('http')) {
+        setServerStatuses(prev => ({ ...prev, [srv.server]: 'offline' }));
+        return;
+      }
+      
+      const isOnline = await checkServerStatus(testUrl);
+      setServerStatuses(prev => ({ 
+        ...prev, 
+        [srv.server]: isOnline ? 'online' : 'offline' 
+      }));
+    });
+  }, [isJarvisModalOpen, getJarvisServers]);
 
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
