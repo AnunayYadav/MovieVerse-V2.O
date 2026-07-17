@@ -911,220 +911,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
   const [downloadBatchStart, setDownloadBatchStart] = useState<string>('');
   const [downloadBatchEnd, setDownloadBatchEnd] = useState<string>('');
 
-  useEffect(() => {
-    if (activeReaderChapters && activeReaderChapters.length > 0) {
-      setDownloadBatchStart(activeReaderChapters[activeReaderChapters.length - 1]?.id || '');
-      setDownloadBatchEnd(activeReaderChapters[0]?.id || '');
-    }
-  }, [activeReaderChapters]);
 
-  const fetchChapterPagesList = async (chapterId: string): Promise<any[]> => {
-    if (readingSource === 'weloma') {
-      const res = await window.fetch(`/api/manga?action=pages&provider=weloma&id=${encodeURIComponent(chapterId)}`);
-      if (!res.ok) throw new Error("Failed to load WeLoMa page list");
-      return await res.json();
-    }
-    if (readingSource === 'kadocomi') {
-      const res = await window.fetch(`/api/manga?action=pages&provider=kadocomi&id=${encodeURIComponent(chapterId)}`);
-      if (!res.ok) throw new Error("Failed to load KadoComi page list");
-      return await res.json();
-    }
-    if (readingSource === 'gigaviewer') {
-      const res = await window.fetch(`/api/manga?action=pages&provider=gigaviewer&id=${encodeURIComponent(chapterId)}`);
-      if (!res.ok) throw new Error("Failed to load GigaViewer page list");
-      return await res.json();
-    }
-    if (readingSource !== 'mangadex') {
-      const res = await window.fetch(`/api/manga?action=pages&provider=${readingSource}&id=${encodeURIComponent(chapterId)}`);
-      if (!res.ok) throw new Error(`Failed to load ${readingSource} page list`);
-      const pageData = await res.json();
-      return pageData.map((p: any) => ({ src: `/api/manga?action=proxy-image&provider=${readingSource}&url=${encodeURIComponent(p.img || p.image || p.url)}` }));
-    }
-    const data = await fetchMangaDex(`/at-home/server/${chapterId}`);
-    const base = data.baseUrl;
-    const hash = data.chapter.hash;
-    const pagesArr = isDataSaver ? data.chapter.dataSaver : data.chapter.data;
-    return pagesArr.map((filename: string) => ({ src: `${base}/${isDataSaver ? 'data-saver' : 'data'}/${hash}/${filename}` }));
-  };
-
-  const handleDownloadChapter = async (chapterId: string, chapterTitle: string) => {
-    setIsDownloadModalOpen(true);
-    setDownloadStatus('fetching');
-    setDownloadProgress(0);
-    setDownloadProgressText('Initializing...');
-    downloadCancelRef.cancel = false;
-    
-    try {
-      setDownloadProgressText('Fetching page list...');
-      const pagesList = await fetchChapterPagesList(chapterId);
-      if (downloadCancelRef.cancel) return;
-      
-      if (!pagesList || pagesList.length === 0) {
-        throw new Error("No pages found for this chapter.");
-      }
-
-      setDownloadStatus('downloading');
-      setDownloadProgressText(`Downloading page 0/${pagesList.length}...`);
-      
-      const zip = new JSZip();
-      
-      for (let i = 0; i < pagesList.length; i++) {
-        if (downloadCancelRef.cancel) return;
-        
-        const page = pagesList[i];
-        const url = typeof page === 'string' ? page : page.src;
-        
-        let blob: Blob;
-        if (readingSource === 'gigaviewer') {
-          blob = await descrambleGigaViewerPageToBlob(page);
-        } else {
-          const imgRes = await window.fetch(url);
-          if (!imgRes.ok) throw new Error(`Failed to fetch page ${i + 1}`);
-          blob = await imgRes.blob();
-        }
-        
-        const ext = url.split('?')[0].split('.').pop() || 'jpg';
-        const cleanExt = ['jpg', 'jpeg', 'png', 'webp'].includes(ext.toLowerCase()) ? ext : 'jpg';
-        const filename = `page_${String(i + 1).padStart(3, '0')}.${cleanExt}`;
-        
-        zip.file(filename, blob);
-        
-        const progressVal = Math.floor(((i + 1) / pagesList.length) * 90);
-        setDownloadProgress(progressVal);
-        setDownloadProgressText(`Downloading page ${i + 1}/${pagesList.length}...`);
-      }
-      
-      if (downloadCancelRef.cancel) return;
-      
-      setDownloadStatus('zipping');
-      setDownloadProgressText('Compressing zip file...');
-      setDownloadProgress(95);
-      
-      const content = await zip.generateAsync({ type: 'blob' });
-      
-      if (downloadCancelRef.cancel) return;
-      
-      setDownloadProgress(100);
-      setDownloadStatus('done');
-      setDownloadProgressText('Zip generation complete!');
-      
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(content);
-      const name = `${selectedManga ? getMangaTitle(selectedManga) : 'Manga'} - ${chapterTitle}.zip`.replace(/[\\/:*?"<>|]/g, '_');
-      a.download = name;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(a.href);
-    } catch (err: any) {
-      console.error("Single download error:", err);
-      setDownloadStatus('error');
-      setDownloadProgressText(err.message || 'Download failed');
-    }
-  };
-
-  const handleDownloadBatch = async (startChId: string, endChId: string) => {
-    setIsDownloadModalOpen(true);
-    setDownloadStatus('fetching');
-    setDownloadProgress(0);
-    setDownloadProgressText('Initializing batch download...');
-    downloadCancelRef.cancel = false;
-
-    try {
-      const startIdx = activeReaderChapters.findIndex(c => c.id === startChId);
-      const endIdx = activeReaderChapters.findIndex(c => c.id === endChId);
-      
-      if (startIdx === -1 || endIdx === -1) {
-        throw new Error("Invalid chapter range selection");
-      }
-
-      const minIdx = Math.min(startIdx, endIdx);
-      const maxIdx = Math.max(startIdx, endIdx);
-      const targetChapters = activeReaderChapters.slice(minIdx, maxIdx + 1);
-
-      if (targetChapters.length === 0) {
-        throw new Error("No chapters found in selected range");
-      }
-
-      setDownloadStatus('downloading');
-      
-      const zip = new JSZip();
-      
-      for (let c = 0; c < targetChapters.length; c++) {
-        if (downloadCancelRef.cancel) return;
-        
-        const ch = targetChapters[c];
-        const chNum = ch.attributes.chapter || 'Oneshot';
-        const chTitle = ch.attributes.title || '';
-        const folderName = `Chapter ${chNum}${chTitle ? ` - ${chTitle}` : ''}`.replace(/[\\/:*?"<>|]/g, '_');
-        const folder = zip.folder(folderName);
-        
-        setDownloadProgressText(`Fetching page list for Chapter ${chNum} (${c + 1}/${targetChapters.length})...`);
-        const pagesList = await fetchChapterPagesList(ch.id);
-        
-        if (downloadCancelRef.cancel) return;
-        
-        for (let p = 0; p < pagesList.length; p++) {
-          if (downloadCancelRef.cancel) return;
-          
-          const page = pagesList[p];
-          const url = typeof page === 'string' ? page : page.src;
-          
-          let blob: Blob;
-          if (readingSource === 'gigaviewer') {
-            blob = await descrambleGigaViewerPageToBlob(page);
-          } else {
-            const imgRes = await window.fetch(url);
-            if (!imgRes.ok) throw new Error(`Failed to fetch page ${p + 1} of Chapter ${chNum}`);
-            blob = await imgRes.blob();
-          }
-          
-          const ext = url.split('?')[0].split('.').pop() || 'jpg';
-          const cleanExt = ['jpg', 'jpeg', 'png', 'webp'].includes(ext.toLowerCase()) ? ext : 'jpg';
-          const filename = `page_${String(p + 1).padStart(3, '0')}.${cleanExt}`;
-          
-          if (folder) {
-            folder.file(filename, blob);
-          }
-          
-          const overallProgress = Math.floor(
-            ((c / targetChapters.length) + (p / (pagesList.length * targetChapters.length))) * 90
-          );
-          setDownloadProgress(overallProgress);
-          setDownloadProgressText(`Downloading Chapter ${chNum} (${c + 1}/${targetChapters.length}) - Page ${p + 1}/${pagesList.length}...`);
-        }
-      }
-      
-      if (downloadCancelRef.cancel) return;
-      
-      setDownloadStatus('zipping');
-      setDownloadProgressText('Packaging batch zip file (this may take a few seconds)...');
-      setDownloadProgress(95);
-      
-      const content = await zip.generateAsync({ type: 'blob' });
-      
-      if (downloadCancelRef.cancel) return;
-      
-      setDownloadProgress(100);
-      setDownloadStatus('done');
-      setDownloadProgressText('Batch download complete!');
-      
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(content);
-      const startNum = targetChapters[targetChapters.length - 1].attributes.chapter || 'Start';
-      const endNum = targetChapters[0].attributes.chapter || 'End';
-      const name = `${selectedManga ? getMangaTitle(selectedManga) : 'Manga'} - Chapters ${startNum} to ${endNum}.zip`.replace(/[\\/:*?"<>|]/g, '_');
-      a.download = name;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(a.href);
-    } catch (err: any) {
-      console.error("Batch download error:", err);
-      setDownloadStatus('error');
-      setDownloadProgressText(err.message || 'Batch download failed');
-    }
-  };
 
 
 
@@ -3600,6 +3387,221 @@ export const MangaPage: React.FC<MangaPageProps> = ({
       };
     });
   }, [activeReaderChapters]);
+
+  useEffect(() => {
+    if (activeReaderChapters && activeReaderChapters.length > 0) {
+      setDownloadBatchStart(activeReaderChapters[activeReaderChapters.length - 1]?.id || '');
+      setDownloadBatchEnd(activeReaderChapters[0]?.id || '');
+    }
+  }, [activeReaderChapters]);
+
+  const fetchChapterPagesList = async (chapterId: string): Promise<any[]> => {
+    if (readingSource === 'weloma') {
+      const res = await window.fetch(`/api/manga?action=pages&provider=weloma&id=${encodeURIComponent(chapterId)}`);
+      if (!res.ok) throw new Error("Failed to load WeLoMa page list");
+      return await res.json();
+    }
+    if (readingSource === 'kadocomi') {
+      const res = await window.fetch(`/api/manga?action=pages&provider=kadocomi&id=${encodeURIComponent(chapterId)}`);
+      if (!res.ok) throw new Error("Failed to load KadoComi page list");
+      return await res.json();
+    }
+    if (readingSource === 'gigaviewer') {
+      const res = await window.fetch(`/api/manga?action=pages&provider=gigaviewer&id=${encodeURIComponent(chapterId)}`);
+      if (!res.ok) throw new Error("Failed to load GigaViewer page list");
+      return await res.json();
+    }
+    if (readingSource !== 'mangadex') {
+      const res = await window.fetch(`/api/manga?action=pages&provider=${readingSource}&id=${encodeURIComponent(chapterId)}`);
+      if (!res.ok) throw new Error(`Failed to load ${readingSource} page list`);
+      const pageData = await res.json();
+      return pageData.map((p: any) => ({ src: `/api/manga?action=proxy-image&provider=${readingSource}&url=${encodeURIComponent(p.img || p.image || p.url)}` }));
+    }
+    const data = await fetchMangaDex(`/at-home/server/${chapterId}`);
+    const base = data.baseUrl;
+    const hash = data.chapter.hash;
+    const pagesArr = isDataSaver ? data.chapter.dataSaver : data.chapter.data;
+    return pagesArr.map((filename: string) => ({ src: `${base}/${isDataSaver ? 'data-saver' : 'data'}/${hash}/${filename}` }));
+  };
+
+  const handleDownloadChapter = async (chapterId: string, chapterTitle: string) => {
+    setIsDownloadModalOpen(true);
+    setDownloadStatus('fetching');
+    setDownloadProgress(0);
+    setDownloadProgressText('Initializing...');
+    downloadCancelRef.cancel = false;
+    
+    try {
+      setDownloadProgressText('Fetching page list...');
+      const pagesList = await fetchChapterPagesList(chapterId);
+      if (downloadCancelRef.cancel) return;
+      
+      if (!pagesList || pagesList.length === 0) {
+        throw new Error("No pages found for this chapter.");
+      }
+
+      setDownloadStatus('downloading');
+      setDownloadProgressText(`Downloading page 0/${pagesList.length}...`);
+      
+      const zip = new JSZip();
+      
+      for (let i = 0; i < pagesList.length; i++) {
+        if (downloadCancelRef.cancel) return;
+        
+        const page = pagesList[i];
+        const url = typeof page === 'string' ? page : page.src;
+        
+        let blob: Blob;
+        if (readingSource === 'gigaviewer') {
+          blob = await descrambleGigaViewerPageToBlob(page);
+        } else {
+          const imgRes = await window.fetch(url);
+          if (!imgRes.ok) throw new Error(`Failed to fetch page ${i + 1}`);
+          blob = await imgRes.blob();
+        }
+        
+        const ext = url.split('?')[0].split('.').pop() || 'jpg';
+        const cleanExt = ['jpg', 'jpeg', 'png', 'webp'].includes(ext.toLowerCase()) ? ext : 'jpg';
+        const filename = `page_${String(i + 1).padStart(3, '0')}.${cleanExt}`;
+        
+        zip.file(filename, blob);
+        
+        const progressVal = Math.floor(((i + 1) / pagesList.length) * 90);
+        setDownloadProgress(progressVal);
+        setDownloadProgressText(`Downloading page ${i + 1}/${pagesList.length}...`);
+      }
+      
+      if (downloadCancelRef.cancel) return;
+      
+      setDownloadStatus('zipping');
+      setDownloadProgressText('Compressing zip file...');
+      setDownloadProgress(95);
+      
+      const content = await zip.generateAsync({ type: 'blob' });
+      
+      if (downloadCancelRef.cancel) return;
+      
+      setDownloadProgress(100);
+      setDownloadStatus('done');
+      setDownloadProgressText('Zip generation complete!');
+      
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(content);
+      const name = `${selectedManga ? getMangaTitle(selectedManga) : 'Manga'} - ${chapterTitle}.zip`.replace(/[\\/:*?"<>|]/g, '_');
+      a.download = name;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(a.href);
+    } catch (err: any) {
+      console.error("Single download error:", err);
+      setDownloadStatus('error');
+      setDownloadProgressText(err.message || 'Download failed');
+    }
+  };
+
+  const handleDownloadBatch = async (startChId: string, endChId: string) => {
+    setIsDownloadModalOpen(true);
+    setDownloadStatus('fetching');
+    setDownloadProgress(0);
+    setDownloadProgressText('Initializing batch download...');
+    downloadCancelRef.cancel = false;
+
+    try {
+      const startIdx = activeReaderChapters.findIndex(c => c.id === startChId);
+      const endIdx = activeReaderChapters.findIndex(c => c.id === endChId);
+      
+      if (startIdx === -1 || endIdx === -1) {
+        throw new Error("Invalid chapter range selection");
+      }
+
+      const minIdx = Math.min(startIdx, endIdx);
+      const maxIdx = Math.max(startIdx, endIdx);
+      const targetChapters = activeReaderChapters.slice(minIdx, maxIdx + 1);
+
+      if (targetChapters.length === 0) {
+        throw new Error("No chapters found in selected range");
+      }
+
+      setDownloadStatus('downloading');
+      
+      const zip = new JSZip();
+      
+      for (let c = 0; c < targetChapters.length; c++) {
+        if (downloadCancelRef.cancel) return;
+        
+        const ch = targetChapters[c];
+        const chNum = ch.attributes.chapter || 'Oneshot';
+        const chTitle = ch.attributes.title || '';
+        const folderName = `Chapter ${chNum}${chTitle ? ` - ${chTitle}` : ''}`.replace(/[\\/:*?"<>|]/g, '_');
+        const folder = zip.folder(folderName);
+        
+        setDownloadProgressText(`Fetching page list for Chapter ${chNum} (${c + 1}/${targetChapters.length})...`);
+        const pagesList = await fetchChapterPagesList(ch.id);
+        
+        if (downloadCancelRef.cancel) return;
+        
+        for (let p = 0; p < pagesList.length; p++) {
+          if (downloadCancelRef.cancel) return;
+          
+          const page = pagesList[p];
+          const url = typeof page === 'string' ? page : page.src;
+          
+          let blob: Blob;
+          if (readingSource === 'gigaviewer') {
+            blob = await descrambleGigaViewerPageToBlob(page);
+          } else {
+            const imgRes = await window.fetch(url);
+            if (!imgRes.ok) throw new Error(`Failed to fetch page ${p + 1} of Chapter ${chNum}`);
+            blob = await imgRes.blob();
+          }
+          
+          const ext = url.split('?')[0].split('.').pop() || 'jpg';
+          const cleanExt = ['jpg', 'jpeg', 'png', 'webp'].includes(ext.toLowerCase()) ? ext : 'jpg';
+          const filename = `page_${String(p + 1).padStart(3, '0')}.${cleanExt}`;
+          
+          if (folder) {
+            folder.file(filename, blob);
+          }
+          
+          const overallProgress = Math.floor(
+            ((c / targetChapters.length) + (p / (pagesList.length * targetChapters.length))) * 90
+          );
+          setDownloadProgress(overallProgress);
+          setDownloadProgressText(`Downloading Chapter ${chNum} (${c + 1}/${targetChapters.length}) - Page ${p + 1}/${pagesList.length}...`);
+        }
+      }
+      
+      if (downloadCancelRef.cancel) return;
+      
+      setDownloadStatus('zipping');
+      setDownloadProgressText('Packaging batch zip file (this may take a few seconds)...');
+      setDownloadProgress(95);
+      
+      const content = await zip.generateAsync({ type: 'blob' });
+      
+      if (downloadCancelRef.cancel) return;
+      
+      setDownloadProgress(100);
+      setDownloadStatus('done');
+      setDownloadProgressText('Batch download complete!');
+      
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(content);
+      const startNum = targetChapters[targetChapters.length - 1].attributes.chapter || 'Start';
+      const endNum = targetChapters[0].attributes.chapter || 'End';
+      const name = `${selectedManga ? getMangaTitle(selectedManga) : 'Manga'} - Chapters ${startNum} to ${endNum}.zip`.replace(/[\\/:*?"<>|]/g, '_');
+      a.download = name;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(a.href);
+    } catch (err: any) {
+      console.error("Batch download error:", err);
+      setDownloadStatus('error');
+      setDownloadProgressText(err.message || 'Batch download failed');
+    }
+  };
 
   // Premium Character Details Page layout (Early Return)
   if (selectedCharacterId) {
