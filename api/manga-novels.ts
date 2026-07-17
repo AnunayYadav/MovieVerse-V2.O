@@ -2,6 +2,8 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { MANGA } from '@consumet/extensions';
 import * as cheerio from 'cheerio';
 import { spawnSync } from 'child_process';
+import https from 'https';
+import { HttpsProxyAgent } from 'https-proxy-agent';
 
 // Initialize and cache provider instances
 const providers: Record<string, any> = {
@@ -269,6 +271,204 @@ async function resolveBestGigaViewerHost(query: string) {
     image: valid[0].info.image,
     description: valid[0].info.description
   };
+}
+
+async function kadocomiFetch(url: string, options: any = {}): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const proxyUrl = process.env.JAPAN_PROXY;
+    const parsedUrl = new URL(url);
+    
+    const headers = {
+      'User-Agent': USER_AGENT,
+      'Referer': 'https://comic-walker.com/',
+      'Accept': 'application/json, text/plain, */*',
+      'Accept-Language': 'ja,en-US;q=0.9,en;q=0.8',
+      ...(options.headers || {})
+    };
+    
+    const requestOptions: any = {
+      method: options.method || 'GET',
+      headers: headers,
+      timeout: 15000,
+    };
+    
+    if (proxyUrl) {
+      requestOptions.agent = new HttpsProxyAgent(proxyUrl);
+    }
+    
+    const req = https.request(url, requestOptions, (res) => {
+      if (res.statusCode && [301, 302, 303, 307, 308].includes(res.statusCode)) {
+        const redirectUrl = res.headers.location;
+        if (redirectUrl) {
+          const absoluteRedirect = redirectUrl.startsWith('http') 
+            ? redirectUrl 
+            : `https://${parsedUrl.host}${redirectUrl}`;
+          resolve(kadocomiFetch(absoluteRedirect, options));
+          return;
+        }
+      }
+      
+      const chunks: any[] = [];
+      res.on('data', (chunk) => chunks.push(chunk));
+      res.on('end', () => {
+        const buffer = Buffer.concat(chunks);
+        resolve(buffer.toString('utf8'));
+      });
+    });
+    
+    req.on('error', (err) => reject(err));
+    req.on('timeout', () => {
+      req.destroy();
+      reject(new Error(`Request timeout: ${url}`));
+    });
+    
+    if (options.body) {
+      req.write(options.body);
+    }
+    req.end();
+  });
+}
+
+async function kadocomiFetchBuffer(url: string, options: any = {}): Promise<Buffer> {
+  return new Promise((resolve, reject) => {
+    const proxyUrl = process.env.JAPAN_PROXY;
+    const parsedUrl = new URL(url);
+    
+    const headers = {
+      'User-Agent': USER_AGENT,
+      'Referer': 'https://comic-walker.com/',
+      'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
+      'Accept-Language': 'ja,en-US;q=0.9,en;q=0.8',
+      ...(options.headers || {})
+    };
+    
+    const requestOptions: any = {
+      method: options.method || 'GET',
+      headers: headers,
+      timeout: 15000,
+    };
+    
+    if (proxyUrl) {
+      requestOptions.agent = new HttpsProxyAgent(proxyUrl);
+    }
+    
+    const req = https.request(url, requestOptions, (res) => {
+      if (res.statusCode && [301, 302, 303, 307, 308].includes(res.statusCode)) {
+        const redirectUrl = res.headers.location;
+        if (redirectUrl) {
+          const absoluteRedirect = redirectUrl.startsWith('http') 
+            ? redirectUrl 
+            : `https://${parsedUrl.host}${redirectUrl}`;
+          resolve(kadocomiFetchBuffer(absoluteRedirect, options));
+          return;
+        }
+      }
+      
+      const chunks: any[] = [];
+      res.on('data', (chunk) => chunks.push(chunk));
+      res.on('end', () => {
+        resolve(Buffer.concat(chunks));
+      });
+    });
+    
+    req.on('error', (err) => reject(err));
+    req.on('timeout', () => {
+      req.destroy();
+      reject(new Error(`Request timeout: ${url}`));
+    });
+    
+    if (options.body) {
+      req.write(options.body);
+    }
+    req.end();
+  });
+}
+
+async function scrapeKadoComiSearch(query: string) {
+  const url = `https://comic-walker.com/api/search/keywords?keywords=${encodeURIComponent(query)}&limit=20&offset=0&sortBy=popularity`;
+  const raw = await kadocomiFetch(url);
+  const data = JSON.parse(raw);
+  
+  const results: any[] = [];
+  const list = data.result || [];
+  for (const item of list) {
+    if (item.code) {
+      results.push({
+        id: `https://comic-walker.com/contents/detail/${item.code}`,
+        title: item.title,
+        image: item.bookCover || item.thumbnail || '',
+        author: item.authors?.map((a: any) => a.name).join(', ') || '',
+        description: item.summary || 'KadoComi series'
+      });
+    }
+  }
+  return results;
+}
+
+async function scrapeKadoComiInfo(urlOrCode: string) {
+  const code = urlOrCode.includes('/') ? urlOrCode.substring(urlOrCode.lastIndexOf('/') + 1) : urlOrCode;
+  const apiUrl = `https://comic-walker.com/api/contents/details/work?workCode=${code}`;
+  
+  const raw = await kadocomiFetch(apiUrl);
+  const data = JSON.parse(raw);
+  
+  const work = data.work || {};
+  const episodesResult = data.latestEpisodes?.result || [];
+  
+  const chapters = episodesResult.map((ep: any) => {
+    return {
+      id: ep.id,
+      title: ep.title,
+      chapter: ep.internal?.episodeNo?.toString() || '1',
+      releaseDate: ep.updateDate,
+      code: ep.code
+    };
+  });
+  
+  return {
+    title: work.title || '',
+    image: work.bookCover || work.thumbnail || '',
+    description: work.summary || '',
+    chapters
+  };
+}
+
+async function scrapeKadoComiPages(episodeId: string) {
+  const url = `https://comic-walker.com/api/contents/viewer?episodeId=${episodeId}&imageSizeType=width%3A1284`;
+  const raw = await kadocomiFetch(url);
+  const data = JSON.parse(raw);
+  
+  const manuscripts = data.manuscripts || [];
+  const pages = manuscripts.map((m: any) => {
+    const proxyUrl = `/api/manga?action=proxy-kadocomi-image&url=${encodeURIComponent(m.drmImageUrl)}&hash=${m.drmHash}`;
+    return {
+      src: proxyUrl,
+      width: 800,
+      height: 1200
+    };
+  });
+  
+  return pages;
+}
+
+async function proxyKadoComiImage(imageUrl: string, hashHex: string, res: VercelResponse) {
+  try {
+    const encrypted = await kadocomiFetchBuffer(imageUrl);
+    const hash = Buffer.from(hashHex, 'hex');
+    
+    const decrypted = Buffer.alloc(encrypted.length);
+    for (let i = 0; i < encrypted.length; i++) {
+      decrypted[i] = encrypted[i] ^ hash[i % hash.length];
+    }
+    
+    res.setHeader('Content-Type', 'image/webp');
+    res.setHeader('Cache-Control', 'public, max-age=86400, s-maxage=86400');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    return res.status(200).send(decrypted);
+  } catch (err: any) {
+    console.error("proxyKadoComiImage error:", err.message);
+    return res.status(500).json({ error: err.message || 'Image proxy failed' });
+  }
 }
 
 
@@ -973,7 +1173,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const providerKey = typeof providerQuery === 'string' ? providerQuery.toLowerCase() : 'mangapill';
 
   try {
-    if (['novelfull', 'ranobes', 'wuxiaworld', 'royalroad', 'scribblehub', 'lightnovelworld', 'allnovel', 'gigaviewer'].includes(providerKey)) {
+    if (['novelfull', 'ranobes', 'wuxiaworld', 'royalroad', 'scribblehub', 'lightnovelworld', 'allnovel', 'gigaviewer', 'kadocomi'].includes(providerKey)) {
       if (action === 'resolve-best-gigaviewer') {
         if (!query || typeof query !== 'string') {
           return res.status(400).json({ error: 'Query parameter is required' });
@@ -998,6 +1198,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         } else if (providerKey === 'gigaviewer') {
           const host = typeof req.query.host === 'string' ? req.query.host : 'shonenjumpplus.com';
           results = await scrapeGigaViewerSearch(query, host);
+        } else if (providerKey === 'kadocomi') {
+          results = await scrapeKadoComiSearch(query);
         } else {
           results = await scrapeWuxiaWorldSearch(query);
         }
@@ -1019,6 +1221,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           data = await scrapeAllNovelInfo(id);
         } else if (providerKey === 'gigaviewer') {
           data = await scrapeGigaViewerInfo(id);
+        } else if (providerKey === 'kadocomi') {
+          data = await scrapeKadoComiInfo(id);
         } else {
           data = await scrapeWuxiaWorldInfo(id);
         }
@@ -1040,6 +1244,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           data = await scrapeAllNovelChapter(id);
         } else if (providerKey === 'gigaviewer') {
           data = await scrapeGigaViewerPages(id);
+        } else if (providerKey === 'kadocomi') {
+          data = await scrapeKadoComiPages(id);
         } else {
           data = await scrapeWuxiaWorldChapter(id);
         }
@@ -1073,6 +1279,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
       const data = await provider.fetchChapterPages(id);
       return res.status(200).json(data);
+    }
+
+    if (action === 'proxy-kadocomi-image') {
+      const imageUrl = req.query.url;
+      const hashHex = req.query.hash;
+      if (!imageUrl || typeof imageUrl !== 'string' || !hashHex || typeof hashHex !== 'string') {
+        return res.status(400).json({ error: 'URL and hash parameters are required' });
+      }
+      return proxyKadoComiImage(imageUrl, hashHex, res);
     }
 
     if (action === 'proxy-gigaviewer-image') {

@@ -2262,7 +2262,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
     if (!selectedManga || isAutoResolving || !resolvedProvider) {
       return;
     }
-    if (readingSource !== 'mangadex' && readingSource !== 'gigaviewer') {
+    if (readingSource !== 'mangadex' && readingSource !== 'gigaviewer' && readingSource !== 'kadocomi') {
       resolveMangaPill(selectedManga, readingSource);
     }
   }, [selectedManga, readingSource, resolveMangaPill, isAutoResolving, resolvedProvider]);
@@ -2542,6 +2542,21 @@ export const MangaPage: React.FC<MangaPageProps> = ({
           return;
         }
 
+        if (gigaViewerHost === 'comic-walker.com') {
+          // KadoComi manually selected
+          const searchRes = await window.fetch(`/api/manga?action=search&provider=kadocomi&query=${encodeURIComponent(queryTitle)}`);
+          if (!searchRes.ok) throw new Error("KadoComi search mapping failed");
+          const results = await searchRes.json();
+          if (results && results.length > 0) {
+            if (isMounted) {
+              setResolvedGigaViewerUrl(results[0].id);
+            }
+            return;
+          } else {
+            throw new Error("No matching manga found on KadoComi (ComicWalker)");
+          }
+        }
+
         if (resolvedGigaViewerUrl && currentUrlHost !== gigaViewerHost) {
           // User manually changed the host in the dropdown! Search specifically on this host.
           const searchRes = await window.fetch(`/api/manga?action=search&provider=gigaviewer&query=${encodeURIComponent(queryTitle)}&host=${gigaViewerHost}`);
@@ -2579,25 +2594,61 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                 return;
               }
             }
+            if (host === 'comic-walker.com' || host === 'kadocomi.jp' || host.endsWith('.comic-walker.com') || host.endsWith('.kadocomi.jp')) {
+              if (isMounted) {
+                setResolvedGigaViewerUrl(rawLink);
+                setGigaViewerHost('comic-walker.com');
+                setIsResolvingGigaViewer(false);
+                return;
+              }
+            }
           } catch (e) {
             console.error("Failed to parse rawLink URL:", e);
           }
         }
 
         // Tier 2: Auto-detect best host by chapter count
-        const resolverRes = await window.fetch(`/api/manga?action=resolve-best-gigaviewer&provider=gigaviewer&query=${encodeURIComponent(queryTitle)}`);
-        if (!resolverRes.ok) throw new Error("Auto-detection resolver failed");
+        let bestResolvedUrl = '';
+        let bestResolvedHost = '';
         
-        const bestSource = await resolverRes.json();
-        if (bestSource && bestSource.url) {
+        try {
+          const resolverRes = await window.fetch(`/api/manga?action=resolve-best-gigaviewer&provider=gigaviewer&query=${encodeURIComponent(queryTitle)}`);
+          if (resolverRes.ok) {
+            const bestSource = await resolverRes.json();
+            if (bestSource && bestSource.url) {
+              bestResolvedUrl = bestSource.url;
+              bestResolvedHost = bestSource.host;
+            }
+          }
+        } catch (resolverErr) {
+          console.warn("Auto-detect best GigaViewer host failed:", resolverErr);
+        }
+
+        // Tier 3: Fall back to auto-detecting KadoComi if GigaViewer search failed
+        if (!bestResolvedUrl) {
+          try {
+            const kadoRes = await window.fetch(`/api/manga?action=search&provider=kadocomi&query=${encodeURIComponent(queryTitle)}`);
+            if (kadoRes.ok) {
+              const results = await kadoRes.json();
+              if (results && results.length > 0) {
+                bestResolvedUrl = results[0].id;
+                bestResolvedHost = 'comic-walker.com';
+              }
+            }
+          } catch (kadoErr) {
+            console.warn("Auto-detect KadoComi failed:", kadoErr);
+          }
+        }
+
+        if (bestResolvedUrl && bestResolvedHost) {
           if (isMounted) {
-            setResolvedGigaViewerUrl(bestSource.url);
-            setGigaViewerHost(bestSource.host);
+            setResolvedGigaViewerUrl(bestResolvedUrl);
+            setGigaViewerHost(bestResolvedHost);
             return;
           }
         }
 
-        throw new Error("No GigaViewer mapping found automatically.");
+        throw new Error("No GigaViewer or KadoComi mapping found automatically.");
       } catch (err: any) {
         console.error("Mapping error:", err);
         if (isMounted) {
@@ -2636,8 +2687,11 @@ export const MangaPage: React.FC<MangaPageProps> = ({
     const fetchGigaChapters = async () => {
       setChaptersLoading(true);
       try {
-        const res = await window.fetch(`/api/manga?action=info&provider=gigaviewer&id=${encodeURIComponent(targetUrl)}`);
-        if (!res.ok) throw new Error("Failed to load GigaViewer chapters");
+        const isKado = gigaViewerHost === 'comic-walker.com' || targetUrl.includes('comic-walker.com') || targetUrl.includes('kadocomi');
+        const providerName = isKado ? 'kadocomi' : 'gigaviewer';
+        
+        const res = await window.fetch(`/api/manga?action=info&provider=${providerName}&id=${encodeURIComponent(targetUrl)}`);
+        if (!res.ok) throw new Error(`Failed to load ${isKado ? 'KadoComi' : 'GigaViewer'} chapters`);
         const data = await res.json();
         
         if (isMounted) {
@@ -2652,7 +2706,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
           }));
           setChapters(mappedChapters);
           setMangapillChapters(mappedChapters);
-          setReadingSource('gigaviewer');
+          setReadingSource(providerName);
         }
       } catch (err) {
         console.error("GigaViewer chapters load error:", err);
@@ -2713,6 +2767,18 @@ export const MangaPage: React.FC<MangaPageProps> = ({
       setPagesLoading(true);
       setActivePageIdx(0);
       try {
+        if (readingSource === 'kadocomi') {
+          const res = await window.fetch(`/api/manga?action=pages&provider=kadocomi&id=${encodeURIComponent(activeChapter.id)}`);
+          if (!res.ok) throw new Error(`Failed to load pages from KadoComi`);
+          const pageData = await res.json();
+          if (!isMounted) return;
+
+          const urls = pageData.map((p: any) => p.src);
+          setPages(urls);
+          setChapterServerData({ provider: 'kadocomi' });
+          return;
+        }
+
         if (readingSource === 'gigaviewer') {
           const res = await window.fetch(`/api/manga?action=pages&provider=gigaviewer&id=${encodeURIComponent(activeChapter.id)}`);
           if (!res.ok) throw new Error(`Failed to load pages from GigaViewer`);
@@ -4766,7 +4832,8 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                             { value: 'comic-days.com', label: 'Comic Days' },
                             { value: 'kuragebunch.com', label: 'Kurage Bunch' },
                             { value: 'tonarinoyj.jp', label: 'となりのヤングジャンプ' },
-                            { value: 'www.sunday-webry.com', label: 'Sunday Webry' }
+                            { value: 'www.sunday-webry.com', label: 'Sunday Webry' },
+                            { value: 'comic-walker.com', label: 'KadoComi (ComicWalker)' }
                           ]}
                           className="px-3 py-1.5 hover:bg-zinc-800 text-xs font-medium border-white/5 rounded-lg border shrink-0 w-full"
                           containerClassName="w-44"
