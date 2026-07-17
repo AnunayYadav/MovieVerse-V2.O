@@ -910,6 +910,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
   const [downloadCancelRef] = useState<{ cancel: boolean }>({ cancel: false });
   const [downloadBatchStart, setDownloadBatchStart] = useState<string>('');
   const [downloadBatchEnd, setDownloadBatchEnd] = useState<string>('');
+  const [isDownloadShrunk, setIsDownloadShrunk] = useState(false);
 
 
 
@@ -3388,6 +3389,18 @@ export const MangaPage: React.FC<MangaPageProps> = ({
     });
   }, [activeReaderChapters]);
 
+  const downloadBatchOptions = useMemo(() => {
+    return activeReaderChapters.slice().reverse().map((ch) => {
+      const num = ch?.attributes?.chapter || 'Oneshot';
+      const title = ch?.attributes?.title;
+      return {
+        value: ch.id,
+        label: `Ch ${num}${title ? ` - ${title}` : ''}`,
+        triggerLabel: `Ch ${num}`
+      };
+    });
+  }, [activeReaderChapters]);
+
   useEffect(() => {
     if (activeReaderChapters && activeReaderChapters.length > 0) {
       setDownloadBatchStart(activeReaderChapters[activeReaderChapters.length - 1]?.id || '');
@@ -4873,8 +4886,8 @@ export const MangaPage: React.FC<MangaPageProps> = ({
           </div>
         </div>
 
-        {/* Download Modal Overlay */}
-        {isDownloadModalOpen && (
+        {/* Download Modal Overlay — Full or Shrunk */}
+        {isDownloadModalOpen && !isDownloadShrunk && (
           <div
             className="fixed inset-0 z-[200] flex items-center justify-center bg-black/75 backdrop-blur-md animate-fade-in"
             onClick={() => {
@@ -4887,7 +4900,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
             }}
           >
             <div
-              className="bg-[#0e0e10] border border-white/10 rounded-2xl w-[420px] max-w-[92vw] shadow-2xl overflow-hidden font-sans"
+              className="bg-[#0e0e10] border border-white/10 rounded-2xl w-[420px] max-w-[92vw] shadow-2xl overflow-hidden font-sans animate-fade-in"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Modal Header */}
@@ -4901,20 +4914,33 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                     <p className="text-[10px] text-zinc-500 font-medium">Save chapters as ZIP files</p>
                   </div>
                 </div>
-                <button
-                  onClick={() => {
-                    if (downloadStatus === 'fetching' || downloadStatus === 'downloading' || downloadStatus === 'zipping') {
-                      downloadCancelRef.cancel = true;
-                    }
-                    setIsDownloadModalOpen(false);
-                    setDownloadStatus('idle');
-                    setDownloadProgress(0);
-                    setDownloadProgressText('');
-                  }}
-                  className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white transition-colors"
-                >
-                  <X size={16} />
-                </button>
+                <div className="flex items-center gap-1.5">
+                  {/* Shrink button — only visible during active download */}
+                  {downloadStatus !== 'idle' && downloadStatus !== 'done' && downloadStatus !== 'error' && (
+                    <button
+                      onClick={() => setIsDownloadShrunk(true)}
+                      className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white transition-colors"
+                      title="Minimize to corner"
+                    >
+                      <Minimize size={14} />
+                    </button>
+                  )}
+                  <button
+                    onClick={() => {
+                      if (downloadStatus === 'fetching' || downloadStatus === 'downloading' || downloadStatus === 'zipping') {
+                        downloadCancelRef.cancel = true;
+                      }
+                      setIsDownloadModalOpen(false);
+                      setIsDownloadShrunk(false);
+                      setDownloadStatus('idle');
+                      setDownloadProgress(0);
+                      setDownloadProgressText('');
+                    }}
+                    className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white transition-colors"
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
               </div>
 
               {/* Modal Body */}
@@ -4960,31 +4986,25 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                     <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-1.5">
                         <span className="text-[10px] text-zinc-500 font-medium">From Chapter</span>
-                        <select
+                        <CustomSelect
                           value={downloadBatchStart}
-                          onChange={(e) => setDownloadBatchStart(e.target.value)}
-                          className="w-full px-2.5 py-2 bg-white/5 border border-white/5 rounded-lg text-xs text-white appearance-none cursor-pointer hover:bg-white/[0.08] transition-colors focus:outline-none focus:border-red-500/50"
-                        >
-                          {activeReaderChapters.slice().reverse().map((ch) => (
-                            <option key={ch.id} value={ch.id}>
-                              Ch. {ch.attributes.chapter || 'Oneshot'}
-                            </option>
-                          ))}
-                        </select>
+                          onChange={(val) => setDownloadBatchStart(val)}
+                          options={downloadBatchOptions}
+                          className="px-2.5 py-2 hover:bg-zinc-900 font-medium text-xs border-white/5 rounded-lg border"
+                          dropdownClassName="w-56 max-h-52"
+                          menuAlign="left"
+                        />
                       </div>
                       <div className="space-y-1.5">
                         <span className="text-[10px] text-zinc-500 font-medium">To Chapter</span>
-                        <select
+                        <CustomSelect
                           value={downloadBatchEnd}
-                          onChange={(e) => setDownloadBatchEnd(e.target.value)}
-                          className="w-full px-2.5 py-2 bg-white/5 border border-white/5 rounded-lg text-xs text-white appearance-none cursor-pointer hover:bg-white/[0.08] transition-colors focus:outline-none focus:border-red-500/50"
-                        >
-                          {activeReaderChapters.slice().reverse().map((ch) => (
-                            <option key={ch.id} value={ch.id}>
-                              Ch. {ch.attributes.chapter || 'Oneshot'}
-                            </option>
-                          ))}
-                        </select>
+                          onChange={(val) => setDownloadBatchEnd(val)}
+                          options={downloadBatchOptions}
+                          className="px-2.5 py-2 hover:bg-zinc-900 font-medium text-xs border-white/5 rounded-lg border"
+                          dropdownClassName="w-56 max-h-52"
+                          menuAlign="right"
+                        />
                       </div>
                     </div>
 
@@ -5053,22 +5073,31 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                         {downloadStatus === 'error' ? 'Try Again' : 'Download More'}
                       </button>
                     ) : (
-                      <button
-                        onClick={() => {
-                          downloadCancelRef.cancel = true;
-                          setDownloadStatus('idle');
-                          setDownloadProgress(0);
-                          setDownloadProgressText('');
-                        }}
-                        className="flex-1 px-4 py-2 bg-red-600/10 hover:bg-red-600/20 border border-red-500/20 text-red-400 rounded-xl text-xs font-semibold transition-all active:scale-[0.98]"
-                      >
-                        Cancel
-                      </button>
+                      <>
+                        <button
+                          onClick={() => setIsDownloadShrunk(true)}
+                          className="flex-1 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/5 text-white rounded-xl text-xs font-semibold transition-all active:scale-[0.98]"
+                        >
+                          Continue Reading
+                        </button>
+                        <button
+                          onClick={() => {
+                            downloadCancelRef.cancel = true;
+                            setDownloadStatus('idle');
+                            setDownloadProgress(0);
+                            setDownloadProgressText('');
+                          }}
+                          className="px-4 py-2 bg-red-600/10 hover:bg-red-600/20 border border-red-500/20 text-red-400 rounded-xl text-xs font-semibold transition-all active:scale-[0.98]"
+                        >
+                          Cancel
+                        </button>
+                      </>
                     )}
                     {downloadStatus === 'done' && (
                       <button
                         onClick={() => {
                           setIsDownloadModalOpen(false);
+                          setIsDownloadShrunk(false);
                           setDownloadStatus('idle');
                           setDownloadProgress(0);
                           setDownloadProgressText('');
@@ -5081,6 +5110,57 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                   </div>
                 </div>
               )}
+            </div>
+          </div>
+        )}
+
+        {/* Shrunk Download Pill — floating in bottom-left corner */}
+        {isDownloadModalOpen && isDownloadShrunk && (
+          <div
+            className="fixed bottom-6 left-6 z-[200] animate-fade-in"
+            onClick={() => setIsDownloadShrunk(false)}
+          >
+            <div className="bg-[#0e0e10]/95 backdrop-blur-xl border border-white/10 rounded-2xl px-4 py-3 flex items-center gap-3 cursor-pointer hover:border-white/20 transition-all shadow-2xl shadow-black/50 group select-none min-w-[220px]">
+              {/* Status icon */}
+              {downloadStatus === 'done' ? (
+                <div className="w-8 h-8 rounded-lg bg-green-600/15 flex items-center justify-center shrink-0">
+                  <Check size={16} className="text-green-500" />
+                </div>
+              ) : downloadStatus === 'error' ? (
+                <div className="w-8 h-8 rounded-lg bg-red-600/15 flex items-center justify-center shrink-0">
+                  <AlertCircle size={16} className="text-red-500" />
+                </div>
+              ) : (
+                <div className="w-8 h-8 rounded-lg bg-blue-600/15 flex items-center justify-center shrink-0 relative">
+                  <Loader2 size={16} className="text-blue-400 animate-spin" />
+                </div>
+              )}
+
+              {/* Info */}
+              <div className="flex-1 min-w-0">
+                <p className="text-[11px] font-bold text-white truncate">
+                  {downloadStatus === 'done' ? 'Download Complete' :
+                   downloadStatus === 'error' ? 'Download Failed' :
+                   'Downloading...'}
+                </p>
+                <div className="flex items-center gap-2 mt-1">
+                  {/* Mini progress bar */}
+                  <div className="flex-1 h-1 bg-white/5 rounded-full overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all duration-300 ${
+                        downloadStatus === 'done' ? 'bg-green-500' :
+                        downloadStatus === 'error' ? 'bg-red-500' :
+                        'bg-gradient-to-r from-blue-500 to-red-500'
+                      }`}
+                      style={{ width: `${downloadProgress}%` }}
+                    />
+                  </div>
+                  <span className="text-[10px] font-bold text-zinc-400 tabular-nums shrink-0">{downloadProgress}%</span>
+                </div>
+              </div>
+
+              {/* Expand hint */}
+              <Maximize size={12} className="text-zinc-600 group-hover:text-zinc-400 transition-colors shrink-0" />
             </div>
           </div>
         )}
