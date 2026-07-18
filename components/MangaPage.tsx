@@ -221,7 +221,11 @@ const CustomSelect: React.FC<CustomSelectProps> = ({
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className={`flex items-center justify-between w-full text-white bg-white/5 border border-white/5 hover:bg-white/10 focus:border-red-600 rounded-lg transition-all focus:outline-none cursor-pointer ${className}`}
+        className={`flex items-center justify-between w-full text-white rounded-lg transition-all focus:outline-none cursor-pointer ${
+          className.includes('bg-') ? '' : 'bg-white/5'
+        } ${className.includes('border') ? '' : 'border border-white/5'} ${
+          className.includes('hover:bg-') ? '' : 'hover:bg-white/10'
+        } ${className}`}
       >
         <div className="flex items-center gap-2 truncate pr-2">
           {icon && <span className="shrink-0">{icon}</span>}
@@ -4388,13 +4392,13 @@ export const MangaPage: React.FC<MangaPageProps> = ({
             {!isBottom && (
               <button
                 onClick={handleCloseReader}
-                className="p-2 text-zinc-400 hover:text-white rounded-lg bg-white/5 hover:bg-white/10 transition-colors"
+                className="p-2 text-zinc-400 hover:text-white rounded-lg bg-transparent border-none hover:bg-transparent transition-colors animate-none"
                 title="Back to Manga Details"
               >
                 <ChevronLeft size={15} />
               </button>
             )}
-            <div className="flex items-center gap-2 px-3 py-1.5 bg-white/5 border border-white/5 rounded-xl font-bold text-white max-w-[140px] sm:max-w-[240px] truncate">
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-transparent border-none rounded-xl font-bold text-white max-w-[140px] sm:max-w-[240px] truncate">
               <BookOpen size={14} className="text-red-500 shrink-0" />
               <span className="truncate">{selectedManga ? getMangaTitle(selectedManga) : 'Loading...'}</span>
             </div>
@@ -4406,7 +4410,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
             onChange={onChapterSelect}
             options={menuChapterOptions}
             icon={<LayoutList size={14} className="text-red-500 shrink-0" />}
-            className="px-3 py-1.5 bg-white/5 hover:bg-white/10 border-white/5 rounded-xl font-semibold border text-xs"
+            className="px-3 py-1.5 bg-transparent hover:bg-transparent border-none rounded-xl font-semibold text-xs"
             containerClassName="w-40 sm:w-56"
             dropdownClassName="w-56 max-h-60"
             menuAlign="center"
@@ -4418,7 +4422,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
             <button
               onClick={goToPrevChapter}
               disabled={!hasPrevChapter}
-              className="flex items-center gap-1 px-3 py-1.5 bg-white/5 border border-white/5 hover:bg-white/10 disabled:opacity-20 text-white rounded-xl transition-all font-bold active:scale-95 text-[10px] tracking-wider uppercase shrink-0"
+              className="flex items-center gap-1 px-3 py-1.5 bg-transparent border-none hover:bg-transparent disabled:opacity-20 text-white rounded-xl transition-all font-bold active:scale-95 text-[10px] tracking-wider uppercase shrink-0"
               title="Older Chapter"
             >
               <ChevronLeft size={13} /> PREV
@@ -4428,7 +4432,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
             <button
               onClick={goToNextChapter}
               disabled={!hasNextChapter}
-              className="flex items-center gap-1 px-3 py-1.5 bg-white/5 border border-white/5 hover:bg-white/10 disabled:opacity-20 text-white rounded-xl transition-all font-bold active:scale-95 text-[10px] tracking-wider uppercase shrink-0"
+              className="flex items-center gap-1 px-3 py-1.5 bg-transparent border-none hover:bg-transparent disabled:opacity-20 text-white rounded-xl transition-all font-bold active:scale-95 text-[10px] tracking-wider uppercase shrink-0"
               title="Newer Chapter"
             >
               NEXT <ChevronRight size={13} />
@@ -4437,7 +4441,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
             {/* Bookmark button */}
             <button
               onClick={() => showToast("Added to reading list")}
-              className="hidden sm:inline-flex p-2 bg-white/5 border border-white/5 hover:bg-white/10 text-zinc-300 hover:text-white rounded-xl transition-all active:scale-95 shrink-0"
+              className="hidden sm:inline-flex p-2 bg-transparent border-none hover:bg-transparent text-zinc-300 hover:text-white rounded-xl transition-all active:scale-95 shrink-0"
               title="Bookmark Chapter"
             >
               <Bookmark size={14} />
@@ -4446,7 +4450,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
             {/* Download button */}
             <button
               onClick={() => setIsDownloadModalOpen(true)}
-              className="p-2 bg-white/5 border border-white/5 hover:bg-white/10 text-zinc-300 hover:text-white rounded-xl transition-all active:scale-95 shrink-0 flex items-center justify-center"
+              className="p-2 bg-transparent border-none hover:bg-transparent text-zinc-300 hover:text-white rounded-xl transition-all active:scale-95 shrink-0 flex items-center justify-center"
               title="Download Chapters"
             >
               <Download size={14} />
@@ -4455,7 +4459,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
             {/* Fullscreen button */}
             <button
               onClick={toggleFullscreen}
-              className="p-2 bg-white/5 border border-white/5 hover:bg-white/10 text-zinc-300 hover:text-white rounded-xl transition-all active:scale-95 shrink-0"
+              className="p-2 bg-transparent border-none hover:bg-transparent text-zinc-300 hover:text-white rounded-xl transition-all active:scale-95 shrink-0"
               title={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
             >
               {isFullscreen ? <Minimize size={14} /> : <Maximize size={14} />}
@@ -4467,7 +4471,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
             {!isBottom && (
               <button
                 onClick={() => setIsReaderSettingsOpen(prev => !prev)}
-                className={`p-2 border rounded-xl transition-all active:scale-95 shrink-0 ${isReaderSettingsOpen ? 'bg-red-600 border-red-500 text-white shadow-lg shadow-red-600/35' : 'bg-white/5 border-white/5 hover:bg-white/10 text-zinc-300'}`}
+                className={`p-2 rounded-xl transition-all active:scale-95 shrink-0 bg-transparent border-none hover:bg-transparent ${isReaderSettingsOpen ? 'text-red-500' : 'text-zinc-300 hover:text-white'}`}
                 title="Settings & Info"
               >
                 <Settings size={14} />
