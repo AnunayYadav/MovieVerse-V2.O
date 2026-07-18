@@ -4,6 +4,8 @@ import * as cheerio from 'cheerio';
 import { spawnSync } from 'child_process';
 import https from 'https';
 import { HttpsProxyAgent } from 'https-proxy-agent';
+import { GoogleGenAI, Type } from '@google/genai';
+import { createClient } from '@supabase/supabase-js';
 
 // Initialize and cache provider instances
 const providers: Record<string, any> = {
@@ -1519,6 +1521,180 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       // Redirect browser directly to CDN to save Vercel bandwidth and CPU usage
       res.writeHead(302, { 'Location': imageUrl });
       return res.end();
+    }
+
+    if (action === 'translate') {
+      const mangaId = req.query.mangaId;
+      const chapterId = req.query.chapterId;
+      const pageNumStr = req.query.pageNum;
+      const imageUrl = req.query.url;
+
+      if (!mangaId || !chapterId || !pageNumStr || !imageUrl ||
+          typeof mangaId !== 'string' || typeof chapterId !== 'string' ||
+          typeof pageNumStr !== 'string' || typeof imageUrl !== 'string') {
+        return res.status(400).json({ error: 'mangaId, chapterId, pageNum, and url are required parameters' });
+      }
+
+      const pageNum = parseInt(pageNumStr, 10);
+      if (isNaN(pageNum)) {
+        return res.status(400).json({ error: 'pageNum must be an integer' });
+      }
+
+      // 1. Initialize Supabase
+      const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
+      const supabaseKey = process.env.VITE_SUPABASE_KEY || process.env.SUPABASE_KEY;
+      
+      let supabase: any = null;
+      if (supabaseUrl && supabaseKey) {
+        try {
+          supabase = createClient(supabaseUrl, supabaseKey);
+        } catch (e) {
+          console.error("Failed to initialize Supabase client on backend:", e);
+        }
+      }
+
+      // 2. Query Cache
+      if (supabase) {
+        try {
+          const { data, error } = await supabase
+            .from('manga_translations')
+            .select('translation_data')
+            .eq('manga_id', mangaId)
+            .eq('chapter_id', chapterId)
+            .eq('page_num', pageNum)
+            .maybeSingle();
+
+          if (data && data.translation_data) {
+            // Cache Hit!
+            return res.status(200).json(data.translation_data);
+          }
+          if (error) {
+            console.error("Supabase cache read error:", error);
+          }
+        } catch (dbErr) {
+          console.error("Supabase exception during cache lookup:", dbErr);
+        }
+      }
+
+      // 3. Cache Miss: Fetch image and run Gemini OCR + Translation
+      const apiKey = process.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY || process.env.API_KEY;
+      if (!apiKey) {
+        return res.status(500).json({ error: 'Gemini API key is not configured' });
+      }
+
+      try {
+        let finalFetchUrl = imageUrl;
+        if (imageUrl.startsWith('/')) {
+          const base = providerKey === 'lightnovelworld' ? LIGHTNOVELWORLD_BASE : (
+            providerKey === 'allnovel' ? 'https://allnovel.org' : WUXIAWORLD_BASE
+          );
+          finalFetchUrl = `${base}${imageUrl}`;
+        }
+
+        const imgRes = await fetch(finalFetchUrl, {
+          headers: {
+            'User-Agent': USER_AGENT,
+            'Referer': new URL(finalFetchUrl).origin
+          }
+        });
+
+        if (!imgRes.ok) {
+          throw new Error(`Failed to fetch manga page image: ${imgRes.status} ${imgRes.statusText}`);
+        }
+
+        const buffer = await imgRes.arrayBuffer();
+        const base64Image = Buffer.from(buffer).toString('base64');
+        const mimeType = imgRes.headers.get('Content-Type') || 'image/jpeg';
+
+        // Call Gemini
+        const ai = new GoogleGenAI({ apiKey });
+        const prompt = `
+          You are a professional manga translation and typesetting AI.
+          Detect all text bubbles (primarily Japanese) in this raw manga page image.
+          For each text bubble:
+          1. Locate its bounding box using normalized coordinates in the form [ymin, xmin, ymax, xmax] where the range is 0 to 1000 (0 is top-left, 1000 is bottom-right).
+          2. Transcribe the original text (Japanese).
+          3. Translate the text into natural, localized English.
+          
+          Return the result in JSON format matching the schema.
+        `;
+
+        const response = await ai.models.generateContent({
+          model: 'gemini-2.5-flash',
+          contents: [
+            {
+              role: 'user',
+              parts: [
+                { text: prompt },
+                {
+                  inlineData: {
+                    data: base64Image,
+                    mimeType: mimeType
+                  }
+                }
+              ]
+            }
+          ],
+          config: {
+            responseMimeType: "application/json",
+            responseSchema: {
+              type: Type.OBJECT,
+              properties: {
+                boxes: {
+                  type: Type.ARRAY,
+                  items: {
+                    type: Type.OBJECT,
+                    properties: {
+                      box: {
+                        type: Type.ARRAY,
+                        items: { type: Type.INTEGER },
+                        description: "[ymin, xmin, ymax, xmax] normalized to 1000"
+                      },
+                      originalText: { type: Type.STRING },
+                      translatedText: { type: Type.STRING }
+                    },
+                    required: ["box", "originalText", "translatedText"]
+                  }
+                }
+              },
+              required: ["boxes"]
+            }
+          }
+        });
+
+        const responseText = response.text;
+        if (!responseText) {
+          throw new Error("Empty response from Gemini");
+        }
+
+        const cleanJson = (text: string): string => {
+          return text.replace(/```(json)?/gi, '').replace(/```/g, '').trim();
+        };
+
+        const translationData = JSON.parse(cleanJson(responseText));
+
+        // 4. Save to cache asynchronously
+        if (supabase) {
+          try {
+            const pageUrlHash = Buffer.from(imageUrl).toString('base64').substring(0, 32);
+            await supabase.from('manga_translations').insert({
+              manga_id: mangaId,
+              chapter_id: chapterId,
+              page_num: pageNum,
+              page_url_hash: pageUrlHash,
+              translation_data: translationData
+            });
+          } catch (dbInsertErr) {
+            console.error("Supabase cache write error:", dbInsertErr);
+          }
+        }
+
+        return res.status(200).json(translationData);
+
+      } catch (err: any) {
+        console.error("Failed translation API pipeline:", err);
+        return res.status(500).json({ error: err.message || 'Manga translation pipeline failed' });
+      }
     }
 
     return res.status(400).json({ error: `Invalid action: ${action}` });

@@ -4,6 +4,7 @@ import { useTvFocus, TvFocusButton, TvFocusInput } from '../tvNavigation';
 import { ExpandedCategoryModal } from './Modals';
 import { fetchAniListUserList } from '../services/anilistSync';
 import JSZip from 'jszip';
+import { MangaTranslationOverlay } from './MangaTranslationOverlay';
 
 export interface MangaDexManga {
   id: string;
@@ -448,6 +449,13 @@ export const MangaPage: React.FC<MangaPageProps> = ({
   const [aniListMangaData, setAniListMangaData] = useState<any | null>(null);
   const [aniListMangaLoading, setAniListMangaLoading] = useState(false);
   const [isReaderSettingsOpen, setIsReaderSettingsOpen] = useState(false);
+
+  // Manga Translation States
+  const [isTranslateActive, setIsTranslateActive] = useState(false);
+  const [showOriginalOnHover, setShowOriginalOnHover] = useState(true);
+  const [translationStates, setTranslationStates] = useState<Record<number, { data: any | null; loading: boolean; error: string | null }>>({});
+  const prefetchedPagesRef = useRef<Set<number>>(new Set());
+  const translationCacheRef = useRef<Record<number, any>>({});
   const [isMenuVisible, setIsMenuVisible] = useState(true);
   const [showTopBar, setShowTopBar] = useState(true);
   const [showBottomBar, setShowBottomBar] = useState(false);
@@ -3023,6 +3031,87 @@ export const MangaPage: React.FC<MangaPageProps> = ({
     });
   }, [pages]);
 
+  // Reset translation states when chapter changes
+  useEffect(() => {
+    setTranslationStates({});
+    prefetchedPagesRef.current.clear();
+    translationCacheRef.current = {};
+  }, [activeChapterId]);
+
+  const fetchPageTranslation = useCallback(async (pageIdx: number) => {
+    if (pageIdx < 0 || pageIdx >= pages.length) return;
+    
+    if (translationCacheRef.current[pageIdx] || prefetchedPagesRef.current.has(pageIdx)) {
+      return;
+    }
+    
+    prefetchedPagesRef.current.add(pageIdx);
+    
+    setTranslationStates(prev => ({
+      ...prev,
+      [pageIdx]: { data: null, loading: true, error: null }
+    }));
+    
+    try {
+      const page = pages[pageIdx];
+      const imageUrl = typeof page === 'string' ? page : page.src;
+      
+      const mangaId = selectedManga?.id || 'unknown';
+      const chapterId = activeChapter?.id || 'unknown';
+      
+      const finalImgUrl = imageUrl.startsWith('/') ? window.location.origin + imageUrl : imageUrl;
+
+      const res = await window.fetch(
+        `/api/manga?action=translate&mangaId=${encodeURIComponent(mangaId)}&chapterId=${encodeURIComponent(chapterId)}&pageNum=${pageIdx}&url=${encodeURIComponent(finalImgUrl)}`
+      );
+      
+      if (!res.ok) {
+        throw new Error(`API returned status ${res.status}`);
+      }
+      
+      const data = await res.json();
+      translationCacheRef.current[pageIdx] = data;
+      
+      setTranslationStates(prev => ({
+        ...prev,
+        [pageIdx]: { data, loading: false, error: null }
+      }));
+    } catch (err: any) {
+      console.error(`Failed to translate page ${pageIdx}:`, err);
+      prefetchedPagesRef.current.delete(pageIdx);
+      
+      setTranslationStates(prev => ({
+        ...prev,
+        [pageIdx]: { data: null, loading: false, error: err.message || 'Unknown error' }
+      }));
+    }
+  }, [pages, selectedManga?.id, activeChapter?.id]);
+
+  // Proactive Background Prefetching for Manga Translations
+  useEffect(() => {
+    if (!isTranslateActive || pages.length === 0 || !activeChapter) return;
+    
+    const activePages = readerMode === 'double' 
+      ? [activePageIdx, activePageIdx + 1].filter(idx => idx < pages.length)
+      : [activePageIdx];
+      
+    activePages.forEach(idx => {
+      if (!translationCacheRef.current[idx] && !prefetchedPagesRef.current.has(idx)) {
+        fetchPageTranslation(idx);
+      }
+    });
+    
+    const lastActiveIdx = activePages[activePages.length - 1];
+    for (let i = 1; i <= 3; i++) {
+      const nextIdx = lastActiveIdx + i;
+      if (nextIdx < pages.length) {
+        if (!translationCacheRef.current[nextIdx] && !prefetchedPagesRef.current.has(nextIdx)) {
+          fetchPageTranslation(nextIdx);
+        }
+      }
+    }
+  }, [isTranslateActive, activePageIdx, pages, activeChapter, readerMode, fetchPageTranslation]);
+
   const handleNextPage = useCallback(() => {
     if (readerMode === 'double') {
       if (activePageIdx >= pages.length - 1) return;
@@ -3107,6 +3196,9 @@ export const MangaPage: React.FC<MangaPageProps> = ({
       }
       const pct = Math.min(100, Math.max(0, Math.round((container.scrollTop / scrollHeight) * 100)));
       setScrollPercent(pct);
+
+      const estimatedIdx = Math.min(pages.length - 1, Math.max(0, Math.floor((container.scrollTop / container.scrollHeight) * pages.length)));
+      setActivePageIdx(estimatedIdx);
     };
     container.addEventListener('scroll', handleScroll);
     handleScroll();
@@ -4314,6 +4406,28 @@ export const MangaPage: React.FC<MangaPageProps> = ({
             </div>
 
             <div className="flex items-center justify-between">
+              <span className="font-normal text-zinc-400 font-sans">Translate (AI)</span>
+              <button
+                onClick={() => setIsTranslateActive(!isTranslateActive)}
+                className={`px-2.5 py-1 rounded-md text-[10px] font-normal transition-all ${isTranslateActive ? 'bg-red-600/20 text-red-400' : 'bg-white/5 text-zinc-500 hover:text-white'}`}
+              >
+                {isTranslateActive ? 'On' : 'Off'}
+              </button>
+            </div>
+
+            {isTranslateActive && (
+              <div className="flex items-center justify-between animate-fade-in">
+                <span className="font-normal text-zinc-400 font-sans">Hover Reveal</span>
+                <button
+                  onClick={() => setShowOriginalOnHover(!showOriginalOnHover)}
+                  className={`px-2.5 py-1 rounded-md text-[10px] font-normal transition-all ${showOriginalOnHover ? 'bg-red-600/20 text-red-400' : 'bg-white/5 text-zinc-500 hover:text-white'}`}
+                >
+                  {showOriginalOnHover ? 'On' : 'Off'}
+                </button>
+              </div>
+            )}
+
+            <div className="flex items-center justify-between">
               <span className="font-normal text-zinc-400">Page Width</span>
               <div className="flex items-center rounded-lg bg-white/5 p-0.5">
                 {(['normal', 'wide', 'full'] as const).map((sz) => (
@@ -4461,6 +4575,18 @@ export const MangaPage: React.FC<MangaPageProps> = ({
               {isFullscreen ? <Minimize size={14} /> : <Maximize size={14} />}
             </button>
 
+            {/* Translation Toggle button */}
+            <button
+              onClick={() => {
+                setIsTranslateActive(prev => !prev);
+                showToast(!isTranslateActive ? "Translation overlay enabled" : "Translation overlay disabled");
+              }}
+              className={`p-2 border rounded-xl transition-all active:scale-95 shrink-0 ${isTranslateActive ? 'bg-green-600 border-green-500 text-white shadow-lg shadow-green-600/35' : 'bg-white/5 border-white/5 hover:bg-white/10 text-zinc-300'}`}
+              title="Translate Page (AI)"
+            >
+              <Languages size={14} />
+            </button>
+
 
 
             {/* Settings toggler (only at top) */}
@@ -4537,6 +4663,15 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                           }}
                         />
                     )}
+                    {isTranslateActive && (
+                      <MangaTranslationOverlay
+                        translationData={translationStates[i]?.data}
+                        isLoading={translationStates[i]?.loading}
+                        error={translationStates[i]?.error}
+                        isActive={isTranslateActive}
+                        showOriginalOnHover={showOriginalOnHover}
+                      />
+                    )}
                     {!isStitchedFormat && (
                       <div className="absolute bottom-3 right-3 bg-black/80 backdrop-blur-md px-2.5 py-0.5 rounded text-[10px] text-zinc-300 select-none font-medium shadow-md">
                         {i + 1} / {pages.length}
@@ -4581,6 +4716,16 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                             }
                           }
                         }}
+                      />
+                    )}
+
+                    {isTranslateActive && (
+                      <MangaTranslationOverlay
+                        translationData={translationStates[activePageIdx]?.data}
+                        isLoading={translationStates[activePageIdx]?.loading}
+                        error={translationStates[activePageIdx]?.error}
+                        isActive={isTranslateActive}
+                        showOriginalOnHover={showOriginalOnHover}
                       />
                     )}
 
@@ -4766,28 +4911,39 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                         >
                           <div className="manga-page-gradient-left" />
                           {activePageIdx + 1 < pages.length ? (
-                            readingSource === 'gigaviewer' ? (
-                              <GigaViewerPage page={pages[activePageIdx + 1]} pageNum={activePageIdx + 2} className="manga-page-img" />
-                            ) : (
-                              <img
-                                src={pages[activePageIdx + 1]}
-                                alt={`Page ${activePageIdx + 2}`}
-                                referrerPolicy="no-referrer"
-                                className="manga-page-img"
-                                onError={(e) => {
-                                  if (readingSource !== 'mangadex') return;
-                                  const target = e.currentTarget;
-                                  if (!target.src.includes('uploads.mangadex.org')) {
-                                    try {
-                                      const parsedUrl = new URL(target.src);
-                                      target.src = `https://uploads.mangadex.org${parsedUrl.pathname}`;
-                                    } catch (err) {
-                                      console.error('Failed to resolve fallback URL:', err);
+                            <>
+                              {readingSource === 'gigaviewer' ? (
+                                <GigaViewerPage page={pages[activePageIdx + 1]} pageNum={activePageIdx + 2} className="manga-page-img" />
+                              ) : (
+                                <img
+                                  src={pages[activePageIdx + 1]}
+                                  alt={`Page ${activePageIdx + 2}`}
+                                  referrerPolicy="no-referrer"
+                                  className="manga-page-img"
+                                  onError={(e) => {
+                                    if (readingSource !== 'mangadex') return;
+                                    const target = e.currentTarget;
+                                    if (!target.src.includes('uploads.mangadex.org')) {
+                                      try {
+                                        const parsedUrl = new URL(target.src);
+                                        target.src = `https://uploads.mangadex.org${parsedUrl.pathname}`;
+                                      } catch (err) {
+                                        console.error('Failed to resolve fallback URL:', err);
+                                      }
                                     }
-                                  }
-                                }}
-                              />
-                            )
+                                  }}
+                                />
+                              )}
+                              {isTranslateActive && (
+                                <MangaTranslationOverlay
+                                  translationData={translationStates[activePageIdx + 1]?.data}
+                                  isLoading={translationStates[activePageIdx + 1]?.loading}
+                                  error={translationStates[activePageIdx + 1]?.error}
+                                  isActive={isTranslateActive}
+                                  showOriginalOnHover={showOriginalOnHover}
+                                />
+                              )}
+                            </>
                           ) : (
                             <div className="flex flex-col items-center gap-2 select-none opacity-20">
                               <BookOpen size={36} className="text-zinc-700" />
@@ -4818,14 +4974,23 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                               if (readingSource !== 'mangadex') return;
                               const target = e.currentTarget;
                               if (!target.src.includes('uploads.mangadex.org')) {
-                                try {
-                                  const parsedUrl = new URL(target.src);
-                                  target.src = `https://uploads.mangadex.org${parsedUrl.pathname}`;
-                                } catch (err) {
-                                  console.error('Failed to resolve fallback URL:', err);
-                                }
+                                  try {
+                                    const parsedUrl = new URL(target.src);
+                                    target.src = `https://uploads.mangadex.org${parsedUrl.pathname}`;
+                                  } catch (err) {
+                                    console.error('Failed to resolve fallback URL:', err);
+                                  }
                               }
                             }}
+                          />
+                        )}
+                        {isTranslateActive && (
+                          <MangaTranslationOverlay
+                            translationData={translationStates[activePageIdx]?.data}
+                            isLoading={translationStates[activePageIdx]?.loading}
+                            error={translationStates[activePageIdx]?.error}
+                            isActive={isTranslateActive}
+                            showOriginalOnHover={showOriginalOnHover}
                           />
                         )}
                         <div className="absolute bottom-4 right-4 bg-black/80 backdrop-blur-md px-2 py-0.5 rounded text-[10px] text-zinc-400 font-semibold border border-white/5 shadow-md">
