@@ -89,11 +89,25 @@ export const MangaTranslationOverlay: React.FC<MangaTranslationOverlayProps> = (
           {translationData.boxes.map((item, idx) => {
             const [ymin, xmin, ymax, xmax] = item.box;
 
-            // Convert normalized coordinates (0-1000) to percentages
-            const top = ymin / 10;
-            const left = xmin / 10;
-            const height = (ymax - ymin) / 10;
-            const width = (xmax - xmin) / 10;
+            // Calculate height and width of the detected text bounding box
+            const boxHeight = ymax - ymin;
+            const boxWidth = xmax - xmin;
+
+            // Expand the box to cover speech bubble margins and prevent text peeking
+            // Vertically and horizontally padding by 12% of the box dimension
+            const yPadding = boxHeight * 0.12;
+            const xPadding = boxWidth * 0.12;
+
+            const yminVal = Math.max(0, ymin - yPadding);
+            const ymaxVal = Math.min(1000, ymax + yPadding);
+            const xminVal = Math.max(0, xmin - xPadding);
+            const xmaxVal = Math.min(1000, xmax + xPadding);
+
+            // Convert expanded coordinates (0-1000) to percentages
+            const top = yminVal / 10;
+            const left = xminVal / 10;
+            const height = (ymaxVal - yminVal) / 10;
+            const width = (xmaxVal - xminVal) / 10;
 
             // Calculate dynamic font size based on bubble width in pixels
             const bubbleWidthPx = (containerWidth * width) / 100;
@@ -101,10 +115,10 @@ export const MangaTranslationOverlay: React.FC<MangaTranslationOverlayProps> = (
             
             // Scaled font size based on dimensions (aiming for standard readable sizes)
             const fontSize = Math.max(
-              7,
+              8,
               Math.min(
                 20,
-                Math.round(Math.min(bubbleWidthPx * 0.125, bubbleHeightPx * 0.22))
+                Math.round(Math.min(bubbleWidthPx * 0.13, bubbleHeightPx * 0.23))
               )
             );
 
@@ -120,8 +134,8 @@ export const MangaTranslationOverlay: React.FC<MangaTranslationOverlayProps> = (
                   // Dynamic white masking to hide original Japanese text
                   backgroundColor: '#ffffff',
                   color: '#000000',
-                  borderRadius: '50% / 50%',
-                  padding: '5%',
+                  borderRadius: '24px',
+                  padding: '8% 10%',
                   boxShadow: '0 1px 3px rgba(0,0,0,0.15)',
                   opacity: 0.98,
                 }}
