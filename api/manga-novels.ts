@@ -1496,23 +1496,62 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         imageUrl = `${base}${imageUrl}`;
       }
 
-      // If downloading, fetch and stream the image bytes directly from the server to bypass CORS
-      if (req.query.download === 'true') {
+      // Determine the best Referer based on provider or URL to bypass CDN hotlinking blockages
+      let referer = '';
+      const lowerUrl = imageUrl.toLowerCase();
+      const provider = String(req.query.provider || providerKey || '').toLowerCase();
+
+      if (provider === 'comick' || lowerUrl.includes('comick') || lowerUrl.includes('comicknew.pictures')) {
+        referer = 'https://comick.io/';
+      } else if (provider === 'mangapill' || lowerUrl.includes('mangapill')) {
+        referer = 'https://mangapill.com/';
+      } else if (provider === 'weloma' || lowerUrl.includes('weloma')) {
+        referer = 'https://weloma.art/';
+      } else if (provider === 'weebcentral' || lowerUrl.includes('weebcentral')) {
+        referer = 'https://weebcentral.com/';
+      } else if (provider === 'mangadex' || lowerUrl.includes('mangadex') || lowerUrl.includes('uploads.mangadex.org')) {
+        referer = 'https://mangadex.org/';
+      } else if (provider === 'kadocomi' || lowerUrl.includes('kadocomi') || lowerUrl.includes('comic-walker')) {
+        referer = 'https://comic-walker.com/';
+      } else {
         try {
+          referer = new URL(imageUrl).origin + '/';
+        } catch (e) {
+          referer = '';
+        }
+      }
+
+      // If downloading OR if the provider blocks hotlinking, fetch and stream the image bytes directly from the server
+      const isDownload = req.query.download === 'true';
+      const blocksHotlinking = ['comick', 'mangapill', 'weloma', 'kadocomi'].includes(provider);
+
+      if (isDownload || blocksHotlinking) {
+        try {
+          const fetchHeaders: Record<string, string> = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+          };
+          if (referer) {
+            fetchHeaders['Referer'] = referer;
+          }
+
           const fetchResponse = await fetch(imageUrl, {
-            headers: {
-              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-              'Referer': new URL(imageUrl).origin
-            }
+            headers: fetchHeaders
           });
-          if (!fetchResponse.ok) throw new Error(`CDN returned status ${fetchResponse.status}`);
+
+          if (!fetchResponse.ok) {
+            throw new Error(`CDN returned status ${fetchResponse.status} for URL: ${imageUrl}`);
+          }
+
           const buffer = await fetchResponse.arrayBuffer();
           res.setHeader('Content-Type', fetchResponse.headers.get('Content-Type') || 'image/jpeg');
           res.setHeader('Cache-Control', 'public, max-age=86400');
           res.setHeader('Access-Control-Allow-Origin', '*');
+          res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+          res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
           return res.status(200).send(Buffer.from(buffer));
         } catch (err: any) {
-          console.error("Download proxy-image streaming error:", err.message);
+          console.error("proxy-image streaming error:", err.message);
+          // Fallback to redirect if streaming fails completely
         }
       }
 
