@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, Suspense, useRef, useMemo, useCallback } from 'react';
-import { X, Info, Calendar, Clock, Star, Play, Bookmark, Heart, Share2, Clapperboard, Sparkles, Loader2, Tag, MessageCircle, Globe, Facebook, Instagram, Twitter, Film, PlayCircle, Eye, Volume2, VolumeX, Users, ArrowLeft, Lightbulb, DollarSign, Trophy, Tv, Check, Mic2, Video, PenTool, ChevronRight, ChevronDown, Search, Monitor, Plus, Layers, Shield, Building2, Languages, Headphones, Activity, Target, TrendingUp, Cast, AlertCircle, Pause, Download, PieChart as PieChartIcon, Send, BookOpen, Music, Maximize } from 'lucide-react';
+import { X, Info, Calendar, Clock, Star, Play, Bookmark, Heart, Share2, Clapperboard, Sparkles, Loader2, Tag, MessageCircle, Globe, Facebook, Instagram, Twitter, Film, PlayCircle, Eye, Volume2, VolumeX, Users, ArrowLeft, Lightbulb, DollarSign, Trophy, Tv, Check, Mic2, Video, PenTool, ChevronRight, ChevronDown, Search, Monitor, Plus, Layers, Shield, Building2, Languages, Headphones, Activity, Target, TrendingUp, Cast, AlertCircle, Pause, Download, PieChart as PieChartIcon, Send, BookOpen, Music, Maximize, Newspaper, ExternalLink } from 'lucide-react';
 import { Movie, MovieDetails, Season, UserProfile, Keyword, Review, CastMember, CrewMember, CollectionDetails, Genre } from '../types';
 import { TMDB_BASE_URL, TMDB_IMAGE_BASE, TMDB_BACKDROP_BASE, formatCurrency, ImageLightbox, PersonCard, MovieCard, tvFetch } from '../components/Shared';
 import { FullCreditsModal } from './Modals';
@@ -466,6 +466,11 @@ export const MoviePage: React.FC<MoviePageProps> = ({
     const [socialPostText, setSocialPostText] = useState("");
     const [aniListReviews, setAniListReviews] = useState<any[]>([]);
     const [aniListReviewsLoading, setAniListReviewsLoading] = useState(false);
+    
+    // Anime News Network (ANN) states
+    const [annNews, setAnnNews] = useState<any[]>([]);
+    const [annNewsLoading, setAnnNewsLoading] = useState(false);
+    const [annNewsError, setAnnNewsError] = useState<string | null>(null);
     
     // MyDramaList (MDL) states for Asian Dramas
     const [mdlSlug, setMdlSlug] = useState<string | null>(null);
@@ -2215,6 +2220,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
         { id: 'reviews', label: 'Reviews' },
         { id: 'media', label: 'Media' },
         ...(isAnime ? [{ id: 'social', label: 'Social' }] : []),
+        ...(isAnime ? [{ id: 'news', label: 'News' }] : []),
         ...(isTv ? [{ id: 'seasons', label: 'Seasons' }] : []),
         ...(isAnime ? [{ id: 'characters', label: 'Characters' }] : []),
         ...(isAnime && animeThemes && (animeThemes.openings.length > 0 || animeThemes.endings.length > 0) ? [{ id: 'themes', label: 'Theme Songs' }] : []),
@@ -2288,6 +2294,75 @@ export const MoviePage: React.FC<MoviePageProps> = ({
         fetchTorrents();
         return () => { active = false; };
     }, [showDownloadModal, isAnime, downloadSeason, downloadEpisode, isTv, displayData.id]);
+
+    // Fetch Anime News Network news feed
+    useEffect(() => {
+        if (activeTab !== 'news' || !isAnime) return;
+        
+        let active = true;
+        setAnnNewsLoading(true);
+        setAnnNewsError(null);
+
+        const fetchNews = async () => {
+            try {
+                const baseTitle = displayData.name || displayData.title || "";
+                const cleanTitle = baseTitle
+                    .replace(/\s*\(?(Dub|Sub|TV|Movie|uncensored|censored|season\s*\d+|part\s*\d+)\)?\s*$/i, '')
+                    .replace(/[^\w\s-]/g, '')
+                    .trim();
+
+                if (!cleanTitle) {
+                    throw new Error("No valid title for search");
+                }
+
+                // Query Google News RSS search for site:animenewsnetwork.com + cleanTitle
+                const targetRssUrl = `https://news.google.com/rss/search?q=site:animenewsnetwork.com+${encodeURIComponent(cleanTitle)}&hl=en-US&gl=US&ceid=US:en`;
+                const requestUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(targetRssUrl)}`;
+
+                const res = await fetch(requestUrl);
+                if (!res.ok) throw new Error("Failed to fetch news feed");
+                const data = await res.json();
+
+                if (active) {
+                    if (data && data.status === 'ok' && data.items && data.items.length > 0) {
+                        setAnnNews(data.items);
+                    } else {
+                        // Fallback: Fetch general ANN news feed and filter client-side
+                        const generalRssUrl = "https://www.animenewsnetwork.com/news/rss.xml";
+                        const fallbackUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(generalRssUrl)}`;
+                        const fRes = await fetch(fallbackUrl);
+                        if (fRes.ok) {
+                            const fData = await fRes.json();
+                            if (fData && fData.status === 'ok' && fData.items) {
+                                const keywords = cleanTitle.toLowerCase().split(/\s+/).filter(k => k.length > 2);
+                                const filtered = fData.items.filter((item: any) => {
+                                    const text = ((item.title || '') + ' ' + (item.description || '')).toLowerCase();
+                                    return keywords.some(kw => text.includes(kw));
+                                });
+                                setAnnNews(filtered);
+                                if (filtered.length === 0) {
+                                    setAnnNewsError(`No recent Anime News Network articles found for "${cleanTitle}".`);
+                                }
+                                return;
+                            }
+                        }
+                        setAnnNewsError(`No news articles found for "${cleanTitle}".`);
+                    }
+                }
+            } catch (err: any) {
+                if (active) {
+                    setAnnNewsError(err.message || "Failed to load news.");
+                }
+            } finally {
+                if (active) {
+                    setAnnNewsLoading(false);
+                }
+            }
+        };
+
+        fetchNews();
+        return () => { active = false; };
+    }, [activeTab, isAnime, displayData.id]);
 
     const handleNyaaScroll = (e: React.UIEvent<HTMLDivElement>) => {
         const container = e.currentTarget;
@@ -2800,6 +2875,72 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                                     </p>
                                                                 </div>
                                                             </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+
+                                    {activeTab === 'news' && (
+                                        <div className="space-y-4 animate-in fade-in max-h-[820px] overflow-y-auto pr-1.5 custom-scrollbar text-left">
+                                            {annNewsLoading ? (
+                                                <div className="flex flex-col items-center justify-center py-16 gap-3">
+                                                    <Loader2 className="animate-spin text-red-500" size={24} />
+                                                    <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider">Fetching industry news...</span>
+                                                </div>
+                                            ) : annNewsError ? (
+                                                <div className="text-center py-12 text-zinc-500 border border-white/5 rounded-2xl text-xs italic">
+                                                    {annNewsError}
+                                                </div>
+                                            ) : annNews.length === 0 ? (
+                                                <div className="text-center py-12 text-zinc-500 border border-white/5 rounded-2xl text-xs italic">
+                                                    No recent news articles found for this anime.
+                                                </div>
+                                            ) : (
+                                                <div className="space-y-4">
+                                                    {annNews.map((item, idx) => {
+                                                        const cleanTitle = item.title
+                                                            ? item.title.replace(/\s*-\s*Anime\s*News\s*Network$/i, '')
+                                                            : 'Anime News Article';
+                                                        
+                                                        const pubDateFormatted = item.pubDate
+                                                            ? new Date(item.pubDate).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })
+                                                            : 'Recent';
+
+                                                        return (
+                                                            <a
+                                                                key={idx}
+                                                                href={item.link}
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                                className="block bg-white/5 border border-white/5 hover:border-white/10 p-5 rounded-2xl transition-all duration-300 hover:scale-[1.005] group animate-in fade-in"
+                                                            >
+                                                                <div className="flex items-start gap-4">
+                                                                    <div className="p-3 bg-red-600/10 border border-red-500/20 text-red-500 rounded-xl flex items-center justify-center shrink-0">
+                                                                        <Newspaper size={18} />
+                                                                    </div>
+                                                                    <div className="flex-1 min-w-0">
+                                                                        <div className="flex items-center gap-2 mb-1">
+                                                                            <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">{pubDateFormatted}</span>
+                                                                            <span className="w-1 h-1 rounded-full bg-zinc-700" />
+                                                                            <span className="text-[9px] font-bold text-red-400 uppercase tracking-wider">ANN News</span>
+                                                                        </div>
+                                                                        <h4 className="font-bold text-white text-sm sm:text-base leading-snug group-hover:text-red-500 transition-colors duration-300">
+                                                                            {cleanTitle}
+                                                                        </h4>
+                                                                        {item.description && (
+                                                                            <p className="text-zinc-400 text-xs mt-2 line-clamp-3 leading-relaxed font-light font-sans">
+                                                                                {item.description.replace(/<\/?[^>]+(>|$)/g, "")}
+                                                                            </p>
+                                                                        )}
+                                                                        <div className="mt-3 flex items-center gap-1.5 text-red-500 text-[10px] font-extrabold uppercase tracking-wider">
+                                                                            <span>Read full story</span>
+                                                                            <ExternalLink size={10} className="group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            </a>
                                                         );
                                                     })}
                                                 </div>
