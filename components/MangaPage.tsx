@@ -160,7 +160,8 @@ export const translateAniListToManga = (aniMedia: any): MangaDexManga => {
     ],
     // Custom markers to recognize it's AniList
     isAniList: true,
-    aniListId: aniMedia.id
+    aniListId: aniMedia.id,
+    bannerImage: aniMedia.bannerImage || null
   } as any;
 };
 
@@ -2427,8 +2428,10 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                 native
               }
               coverImage {
+                extraLarge
                 large
               }
+              bannerImage
               description
               startDate {
                 year
@@ -2446,8 +2449,10 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                 native
               }
               coverImage {
+                extraLarge
                 large
               }
+              bannerImage
               description
               startDate {
                 year
@@ -2465,8 +2470,10 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                 native
               }
               coverImage {
+                extraLarge
                 large
               }
+              bannerImage
               description
               startDate {
                 year
@@ -5325,10 +5332,10 @@ export const MangaPage: React.FC<MangaPageProps> = ({
         {/* Backdrop Hero Banner */}
         <div className="relative w-full h-[14vh] md:h-[18vh] overflow-hidden select-none">
           <img
-            src={getMangaCover(selectedManga)}
+            src={(selectedManga as any)?.bannerImage || getMangaCover(selectedManga)}
             alt={getMangaTitle(selectedManga)}
             referrerPolicy="no-referrer"
-            className="w-full h-full object-cover opacity-15 blur-xl scale-110"
+            className="w-full h-full object-cover opacity-30 blur-md scale-105"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-[#030303] via-[#030303]/60 to-transparent" />
 
@@ -6174,10 +6181,10 @@ export const MangaPage: React.FC<MangaPageProps> = ({
         <div className="relative w-full h-[65vh] md:h-[75vh] overflow-hidden group mb-10 border-b border-white/5 select-none">
           <div className="absolute inset-0">
             <img
-              src={getMangaCover(trending[heroIndex])}
+              src={(trending[heroIndex] as any)?.bannerImage || getMangaCover(trending[heroIndex])}
               alt={getMangaTitle(trending[heroIndex])}
               referrerPolicy="no-referrer"
-              className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-102 opacity-70 blur-xs"
+              className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105 opacity-85"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-[#030303] via-[#030303]/60 to-transparent" />
             <div className="absolute inset-0 bg-gradient-to-r from-[#030303] via-[#030303]/40 to-transparent" />
