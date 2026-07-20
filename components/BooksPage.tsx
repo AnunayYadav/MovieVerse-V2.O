@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Play, Pause, Volume2, VolumeX, Search, Loader2, Headphones, ArrowLeft, X, Wifi, SkipBack, SkipForward, Info, HelpCircle, FastForward, RotateCcw, Mic, Music } from 'lucide-react';
+import { Play, Pause, Volume2, VolumeX, Search, Loader2, Headphones, ArrowLeft, X, Wifi, SkipBack, SkipForward, Info, HelpCircle, FastForward, RotateCcw, Mic, Music, ListMusic } from 'lucide-react';
 import { useTvFocus } from '../tvNavigation';
 
 // Types
@@ -62,6 +62,7 @@ export const PodcastsPage: React.FC<PodcastsPageProps> = ({ searchQuery = "", on
   const [isMuted, setIsMuted] = useState(false);
   const [playbackSpeed, setPlaybackSpeed] = useState(1.0);
   const [audioError, setAudioError] = useState<string | null>(null);
+  const [isEpisodeMenuOpen, setIsEpisodeMenuOpen] = useState(false);
 
   // Hero Spotlight Featured index
   const [featuredIndex, setFeaturedIndex] = useState(0);
@@ -440,7 +441,7 @@ export const PodcastsPage: React.FC<PodcastsPageProps> = ({ searchQuery = "", on
             <div className="flex gap-5 overflow-hidden">
               {[...Array(6)].map((_, i) => (
                 <div key={i} className="flex flex-col gap-2 shrink-0 w-[130px] sm:w-[150px]">
-                  <div className="w-full aspect-[10/15] bg-zinc-900 border border-white/5 rounded-2xl animate-pulse"></div>
+                  <div className="w-full aspect-square bg-zinc-900 border border-white/5 rounded-2xl animate-pulse"></div>
                   <div className="h-3 w-3/4 bg-zinc-900 rounded animate-pulse"></div>
                 </div>
               ))}
@@ -692,9 +693,49 @@ export const PodcastsPage: React.FC<PodcastsPageProps> = ({ searchQuery = "", on
 
       {/* 5. Persistent Bottom Media Player Bar */}
       {currentShow && currentChapter && (
-        <div className="fixed bottom-[calc(4rem+env(safe-area-inset-bottom,0px))] md:bottom-0 left-0 right-0 z-[80] bg-zinc-950/85 backdrop-blur-2xl border-t border-white/[0.05] p-3 md:p-4 select-none px-4 md:px-12 flex flex-col md:flex-row md:items-center justify-between gap-4 animate-in slide-in-from-bottom duration-500 shadow-2xl">
+        <div className="fixed bottom-[calc(4rem+env(safe-area-inset-bottom,0px))] md:bottom-0 left-0 right-0 z-[80] bg-zinc-950/85 backdrop-blur-2xl border-t border-white/[0.05] p-3 md:p-4 select-none px-4 md:px-12 flex flex-col md:flex-row md:items-center justify-between gap-4 animate-in slide-in-from-bottom duration-500 shadow-2xl relative">
           
-          {/* Left Side: Metadata */}
+          {/* Floating Episode Selector Popover */}
+          {isEpisodeMenuOpen && (
+            <div className="absolute bottom-full right-4 md:right-12 mb-3 w-80 md:w-96 max-h-80 bg-zinc-950/95 backdrop-blur-2xl border border-white/10 rounded-2xl shadow-2xl overflow-hidden flex flex-col z-[90] animate-in slide-in-from-bottom-3 duration-200 text-left">
+              <div className="p-3 border-b border-white/10 flex items-center justify-between bg-white/[0.02]">
+                <div className="flex items-center gap-2 text-xs font-bold text-white">
+                  <ListMusic size={14} className="text-red-500" />
+                  <span>Episode Selector ({currentChaptersList.length})</span>
+                </div>
+                <button
+                  onClick={() => setIsEpisodeMenuOpen(false)}
+                  className="p-1 text-zinc-400 hover:text-white rounded-full border-none bg-transparent cursor-pointer"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+
+              <div className="overflow-y-auto max-h-64 p-2 space-y-1 scrollbar-thin">
+                {currentChaptersList.map((chap, idx) => {
+                  const isActive = idx === activeChapterIndex;
+                  return (
+                    <button
+                      key={idx}
+                      onClick={() => {
+                        setActiveChapterIndex(idx);
+                        setIsEpisodeMenuOpen(false);
+                      }}
+                      className={`w-full text-left p-2 rounded-xl text-xs flex items-center gap-2.5 transition-all border ${isActive ? 'bg-red-600/15 border-red-500/40 text-red-400 font-bold' : 'bg-transparent border-transparent text-zinc-300 hover:bg-white/5 hover:text-white'}`}
+                    >
+                      <div className={`w-5 h-5 rounded-md flex items-center justify-center shrink-0 text-[10px] ${isActive ? 'bg-red-600 text-white' : 'bg-white/5 text-zinc-500'}`}>
+                        {isActive ? <Play size={10} fill="currentColor" /> : idx + 1}
+                      </div>
+                      <span className="truncate flex-1">{chap.title}</span>
+                      {chap.length && <span className="text-[9px] font-mono text-zinc-500 shrink-0">{formatChapterLength(chap.length)}</span>}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Left Side: Metadata & Quick Episode Dropdown */}
           <div className="flex items-center gap-3 w-full md:w-1/3 min-w-0">
             <div className="w-11 h-11 bg-zinc-900 rounded-xl border border-white/5 flex items-center justify-center shadow-md relative overflow-hidden shrink-0">
               {currentShow.isPodcast ? <Mic size={20} className="text-red-500 animate-pulse" /> : <Headphones size={20} className="text-red-500 animate-pulse" />}
@@ -705,6 +746,21 @@ export const PodcastsPage: React.FC<PodcastsPageProps> = ({ searchQuery = "", on
                 {currentShow.title}
               </p>
             </div>
+            {/* Direct Quick Episode Selector Dropdown */}
+            {currentChaptersList.length > 1 && (
+              <select
+                value={activeChapterIndex}
+                onChange={(e) => setActiveChapterIndex(Number(e.target.value))}
+                className="bg-zinc-900 border border-white/10 text-white text-[11px] font-medium rounded-xl px-2 py-1 cursor-pointer outline-none max-w-[130px] sm:max-w-[170px] truncate transition-colors hover:bg-zinc-800 shrink-0"
+                title="Switch Episode"
+              >
+                {currentChaptersList.map((chap, idx) => (
+                  <option key={idx} value={idx} className="bg-zinc-950 text-white">
+                    Ep {idx + 1}: {chap.title}
+                  </option>
+                ))}
+              </select>
+            )}
           </div>
 
           {/* Center Column: Scrubber progress slider & Buttons */}
@@ -784,7 +840,17 @@ export const PodcastsPage: React.FC<PodcastsPageProps> = ({ searchQuery = "", on
           </div>
 
           {/* Right Column: Speed & Volume */}
-          <div className="flex items-center justify-end gap-3 w-full md:w-1/3 shrink-0">
+          <div className="flex items-center justify-end gap-2 sm:gap-3 w-full md:w-1/3 shrink-0">
+            {/* Episode List Button */}
+            <button
+              onClick={() => setIsEpisodeMenuOpen(!isEpisodeMenuOpen)}
+              className={`p-1.5 rounded-lg border transition-all cursor-pointer flex items-center gap-1.5 text-[11px] font-medium ${isEpisodeMenuOpen ? 'bg-red-600 text-white border-red-500' : 'bg-white/5 text-zinc-400 hover:text-white border-white/5 hover:bg-white/10'}`}
+              title="Episode List"
+            >
+              <ListMusic size={16} />
+              <span className="hidden lg:inline text-[10px] font-bold">Episodes ({activeChapterIndex + 1}/{currentChaptersList.length})</span>
+            </button>
+
             {/* Speed Multiplier */}
             <button
               onClick={() => {
@@ -825,6 +891,7 @@ export const PodcastsPage: React.FC<PodcastsPageProps> = ({ searchQuery = "", on
                 setCurrentShow(null);
                 setCurrentChaptersList([]);
                 setActiveChapterIndex(-1);
+                setIsEpisodeMenuOpen(false);
               }}
               className="p-2 text-zinc-400 hover:text-white transition-colors border-none bg-transparent cursor-pointer ml-1"
               title="Close Player"
@@ -856,9 +923,9 @@ const AudioShowCard: React.FC<AudioShowCardProps> = ({ show, onClick }) => {
     <div
       ref={ref}
       onClick={onClick}
-      className="group flex flex-col gap-2 shrink-0 w-[125px] sm:w-[145px] cursor-pointer select-none text-left"
+      className="group flex flex-col gap-2 shrink-0 w-[130px] sm:w-[150px] cursor-pointer select-none text-left"
     >
-      <div className="relative w-full aspect-[10/15] rounded-2xl overflow-hidden bg-zinc-950 border border-white/5 group-hover:border-red-500/50 group-hover:shadow-[0_0_20px_rgba(239,68,68,0.25)] group-hover:scale-[1.03] transition-all duration-500 flex items-center justify-center">
+      <div className="relative w-full aspect-square rounded-2xl overflow-hidden bg-zinc-950 border border-white/5 group-hover:border-red-500/50 group-hover:shadow-[0_0_20px_rgba(239,68,68,0.25)] group-hover:scale-[1.03] transition-all duration-500 flex items-center justify-center">
         {/* Fallback covers */}
         <div className="absolute inset-0 bg-gradient-to-br from-zinc-900 to-zinc-950 p-3 text-center flex flex-col items-center justify-center">
           {show.isPodcast ? (
