@@ -806,6 +806,8 @@ export const DramaCard: React.FC<DramaCardProps> = ({ drama, onDramaClick, title
       let mediaType = drama.mediaType || 'tv';
       let backdropPath = drama.backdrop;
 
+      let resolvedPoster: string | null = drama.image || null;
+
       const safeSlug = (drama.slug && drama.slug !== 'undefined') 
         ? drama.slug 
         : (drama.title ? drama.title.toLowerCase().replace(/[^a-z0-9]/g, '-') : `drama-${Math.random()}`);
@@ -825,11 +827,13 @@ export const DramaCard: React.FC<DramaCardProps> = ({ drama, onDramaClick, title
           const matchData = JSON.parse(cachedMatch);
           tmdbId = matchData.id;
           mediaType = matchData.mediaType || mediaType;
-          const bestImage = matchData.poster_path
-            ? `https://image.tmdb.org/t/p/w500${matchData.poster_path}`
-            : (matchData.backdrop_path ? `https://image.tmdb.org/t/p/w500${matchData.backdrop_path}` : null);
-          if (bestImage) {
-            setImageUrl(bestImage);
+          if (matchData.poster_path) {
+            resolvedPoster = `https://image.tmdb.org/t/p/w500${matchData.poster_path}`;
+          } else if (matchData.backdrop_path) {
+            resolvedPoster = `https://image.tmdb.org/t/p/w500${matchData.backdrop_path}`;
+          }
+          if (isMounted && resolvedPoster) {
+            setImageUrl(resolvedPoster);
           }
           if (isMounted) {
             const tmdbTitle = titleLanguage === 'native'
@@ -876,11 +880,13 @@ export const DramaCard: React.FC<DramaCardProps> = ({ drama, onDramaClick, title
           if (match) {
             tmdbId = match.id;
             mediaType = match.first_air_date ? 'tv' : 'movie';
-            const bestImage = match.poster_path
-              ? `https://image.tmdb.org/t/p/w500${match.poster_path}`
-              : (match.backdrop_path ? `https://image.tmdb.org/t/p/w500${match.backdrop_path}` : null);
-            if (bestImage && isMounted) {
-              setImageUrl(bestImage);
+            if (match.poster_path) {
+              resolvedPoster = `https://image.tmdb.org/t/p/w500${match.poster_path}`;
+            } else if (match.backdrop_path) {
+              resolvedPoster = `https://image.tmdb.org/t/p/w500${match.backdrop_path}`;
+            }
+            if (resolvedPoster && isMounted) {
+              setImageUrl(resolvedPoster);
             }
             const matchData = {
               id: match.id,
@@ -909,12 +915,12 @@ export const DramaCard: React.FC<DramaCardProps> = ({ drama, onDramaClick, title
       }
 
       if (isMounted) {
-        if (backdropPath) {
-          setImageUrl(backdropPath);
+        if (resolvedPoster) {
+          setImageUrl(resolvedPoster);
+        } else if (drama.image) {
+          setImageUrl(drama.image);
         } else if (drama.backdrop) {
           setImageUrl(drama.backdrop);
-        } else {
-          setImageUrl(drama.image);
         }
       }
 
