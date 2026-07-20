@@ -4563,9 +4563,9 @@ export default function App() {
                                     </TvFocusButton>
 
                                     <div className={`absolute top-full left-1/2 -translate-x-1/2 w-[360px] h-[18px] bg-transparent z-[55] transition-opacity duration-200 ${isBrowseOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`} />
-                                    <div className={`absolute top-[calc(100%+0.5rem)] left-1/2 -translate-x-1/2 w-[360px] bg-zinc-950/80 backdrop-blur-3xl border border-white/[0.08] rounded-2xl shadow-[0_24px_50px_rgba(0,0,0,0.85)] p-4 grid grid-cols-3 gap-3 z-[60] transition-all duration-200 transform origin-top select-none ${isBrowseOpen ? 'opacity-100 scale-100 translate-y-0 pointer-events-auto' : 'opacity-0 scale-95 -translate-y-2 pointer-events-none'}`}>
+                                    <div className={`absolute top-[calc(100%+0.5rem)] left-1/2 -translate-x-1/2 w-[360px] bg-zinc-950/98 backdrop-blur-3xl border border-white/[0.08] rounded-2xl shadow-[0_24px_50px_rgba(0,0,0,0.85)] p-4 grid grid-cols-3 gap-3 z-[60] transition-all duration-200 transform origin-top select-none ${isBrowseOpen ? 'opacity-100 scale-100 translate-y-0 pointer-events-auto' : 'opacity-0 scale-95 -translate-y-2 pointer-events-none'}`}>
                                         {/* Popover Arrow */}
-                                        <div className="absolute -top-1 w-2.5 h-2.5 rotate-45 bg-[#0a0a0c] border-t border-l border-white/[0.08] left-1/2 -translate-x-1/2 z-[-1]" />
+                                        <div className="absolute -top-1 w-2.5 h-2.5 rotate-45 bg-zinc-950 border-t border-l border-white/[0.08] left-1/2 -translate-x-1/2 z-[-1]" />
 
                                         {browseOptions.map(opt => {
                                             const isActive = selectedCategory === opt.id ||
