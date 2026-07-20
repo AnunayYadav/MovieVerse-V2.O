@@ -505,16 +505,78 @@ export const MovieCard = React.memo(React.forwardRef<HTMLDivElement, MovieCardPr
             if (leaveTimeoutRef.current) clearTimeout(leaveTimeoutRef.current);
         };
     }, []);
-  
+      if (horizontal) {
+        return (
+          <div 
+            ref={combinedRef}
+            className="group relative w-full aspect-[16/9] rounded-xl overflow-hidden cursor-pointer transition-all duration-500 ease-[cubic-bezier(0.33,1,0.68,1)] hover:z-20 hover:scale-[1.03] hover:shadow-[0_10px_40px_rgba(0,0,0,0.5)] border border-white/5 hover:border-red-500/50 font-sans select-none"
+            onClick={() => onClick(movie)}
+            onMouseEnter={handleMouseEnter}
+            onMouseLeave={handleMouseLeave}
+          >
+            <div className="w-full h-full relative bg-white/5">
+              <img 
+                src={posterUrl} 
+                alt={movie.title || movie.name || "Movie Poster"} 
+                loading="lazy"
+                decoding="async"
+                className="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-105"
+              />
+              
+              {showProgress && (
+                  <div className="absolute bottom-0 left-0 w-full h-[3px] bg-white/10 z-20">
+                      <div 
+                        className="h-full bg-gradient-to-r from-red-600 via-orange-500 to-red-600 shadow-[0_0_10px_rgba(255,50,0,0.8)] transition-all duration-500" 
+                        style={{ width: `${progress}%` }}
+                      />
+                  </div>
+              )}
+    
+              {/* Liquid Glass Overlay on Hover */}
+              <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/40 to-transparent opacity-85 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+              
+              {/* Content Overlay */}
+              <div className="absolute inset-0 p-3 flex flex-col justify-end select-none pointer-events-none">
+                 <div className="flex flex-col gap-1">
+                    {isFuture && (
+                      <span className="w-fit bg-red-600/90 backdrop-blur-sm text-white text-[9px] font-bold px-2 py-0.5 rounded-md shadow-lg mb-1 animate-pulse">COMING SOON</span>
+                    )}
+                    <h4 className="text-xs sm:text-sm font-bold text-white line-clamp-2 group-hover:text-red-500 transition-colors duration-300 drop-shadow-md leading-tight">
+                        {movie.title || movie.name}
+                    </h4>
+                    <div className="max-h-0 overflow-hidden group-hover:max-h-10 group-hover:mt-1 transition-all duration-500 ease-out opacity-0 group-hover:opacity-100 flex items-center justify-between text-[9px] text-zinc-400 font-semibold">
+                      <span>{year || 'TBA'}</span>
+                      <MVRatingBadge rating={getMovieVerseRating(movie.id, movie.vote_average, movie.popularity, movie.vote_count, movie.release_date || movie.first_air_date)} size={12} />
+                    </div>
+                 </div>
+              </div>
+            </div>
+    
+            {/* Action Buttons */}
+            <div className="absolute top-2 right-2 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-x-4 group-hover:translate-x-0 z-30">
+                 <button 
+                   onClick={(e) => { e.stopPropagation(); onToggleWatched(movie); }}
+                   className={`p-2 rounded-full backdrop-blur-md shadow-lg transition-all hover:scale-110 active:scale-95 ${isWatched ? 'text-green-400 bg-black/60' : 'text-white/80 bg-black/40 hover:bg-white hover:text-black'}`}
+                   title={isWatched ? "Mark Unwatched" : "Mark Watched"}
+                >
+                   {isWatched ? <Check size={16} strokeWidth={3} /> : <Eye size={16} />}
+                </button>
+            </div>
+          </div>
+        );
+    }
+
+    // Vertical Poster Layout with Details Below
     return (
       <div 
         ref={combinedRef}
-        className={`group relative ${horizontal ? 'w-full aspect-[16/9]' : 'shrink-0 w-[140px] sm:w-[170px] aspect-[2/3]'} rounded-xl overflow-hidden cursor-pointer transition-all duration-500 ease-[cubic-bezier(0.33,1,0.68,1)] hover:z-20 hover:scale-[1.03] hover:shadow-[0_10px_40px_rgba(0,0,0,0.5)] border border-white/5 hover:border-red-500/50 font-sans select-none`}
+        className="group flex flex-col gap-2 shrink-0 w-[140px] sm:w-[170px] cursor-pointer select-none text-left font-sans"
         onClick={() => onClick(movie)}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
       >
-        <div className="w-full h-full relative bg-white/5">
+        {/* Vertical Poster Container */}
+        <div className="relative w-full aspect-[2/3] rounded-xl overflow-hidden bg-zinc-900 border border-white/5 group-hover:border-red-500/50 group-hover:shadow-[0_0_20px_rgba(239,68,68,0.25)] group-hover:scale-[1.03] transition-all duration-500">
           <img 
             src={posterUrl} 
             alt={movie.title || movie.name || "Movie Poster"} 
@@ -532,35 +594,35 @@ export const MovieCard = React.memo(React.forwardRef<HTMLDivElement, MovieCardPr
               </div>
           )}
 
-          {/* Liquid Glass Overlay on Hover */}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/40 to-transparent opacity-85 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
-          
-          {/* Content Overlay */}
-          <div className="absolute inset-0 p-3 flex flex-col justify-end select-none pointer-events-none">
-             <div className="flex flex-col gap-1">
-                {isFuture && (
-                  <span className="w-fit bg-red-600/90 backdrop-blur-sm text-white text-[9px] font-bold px-2 py-0.5 rounded-md shadow-lg mb-1 animate-pulse">COMING SOON</span>
-                )}
-                <h4 className="text-xs sm:text-sm font-bold text-white line-clamp-2 group-hover:text-red-500 transition-colors duration-300 drop-shadow-md leading-tight">
-                    {movie.title || movie.name}
-                </h4>
-                <div className="max-h-0 overflow-hidden group-hover:max-h-10 group-hover:mt-1 transition-all duration-500 ease-out opacity-0 group-hover:opacity-100 flex items-center justify-between text-[9px] text-zinc-400 font-semibold">
-                  <span>{year || 'TBA'}</span>
-                  <MVRatingBadge rating={getMovieVerseRating(movie.id, movie.vote_average, movie.popularity, movie.vote_count, movie.release_date || movie.first_air_date)} size={12} />
-                </div>
-             </div>
+          {/* Rating Badge */}
+          {rating && (
+            <div className="absolute top-2 left-2 bg-black/75 backdrop-blur-md text-[9px] font-bold text-white px-1.5 py-0.5 rounded shadow-md border border-white/5 flex items-center gap-0.5 z-10 font-sans">
+              <Star size={9} fill="currentColor" className="text-yellow-400" />
+              {rating.toFixed(1)}
+            </div>
+          )}
+
+          {/* Action Buttons */}
+          <div className="absolute top-2 right-2 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-x-4 group-hover:translate-x-0 z-30">
+               <button 
+                 onClick={(e) => { e.stopPropagation(); onToggleWatched(movie); }}
+                 className={`p-2 rounded-full backdrop-blur-md shadow-lg transition-all hover:scale-110 active:scale-95 ${isWatched ? 'text-green-400 bg-black/60' : 'text-white/80 bg-black/40 hover:bg-white hover:text-black'}`}
+                 title={isWatched ? "Mark Unwatched" : "Mark Watched"}
+              >
+                 {isWatched ? <Check size={16} strokeWidth={3} /> : <Eye size={16} />}
+              </button>
           </div>
         </div>
 
-        {/* Action Buttons */}
-        <div className="absolute top-2 right-2 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-x-4 group-hover:translate-x-0 z-30">
-             <button 
-               onClick={(e) => { e.stopPropagation(); onToggleWatched(movie); }}
-               className={`p-2 rounded-full backdrop-blur-md shadow-lg transition-all hover:scale-110 active:scale-95 ${isWatched ? 'text-green-400 bg-black/60' : 'text-white/80 bg-black/40 hover:bg-white hover:text-black'}`}
-               title={isWatched ? "Mark Unwatched" : "Mark Watched"}
-            >
-               {isWatched ? <Check size={16} strokeWidth={3} /> : <Eye size={16} />}
-            </button>
+        {/* Details below poster */}
+        <div className="flex flex-col px-1">
+          <h4 className="text-xs md:text-sm font-medium text-zinc-200 line-clamp-2 group-hover:text-red-500 transition-colors duration-300 leading-snug min-h-[32px] md:min-h-[40px]">
+              {movie.title || movie.name}
+          </h4>
+          <div className="flex items-center justify-between mt-1 text-[9px] text-zinc-400 font-semibold font-sans">
+            <span>{year || 'TBA'}</span>
+            <MVRatingBadge rating={getMovieVerseRating(movie.id, movie.vote_average, movie.popularity, movie.vote_count, movie.release_date || movie.first_air_date)} size={12} />
+          </div>
         </div>
       </div>
     );
