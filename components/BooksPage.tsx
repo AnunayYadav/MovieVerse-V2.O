@@ -65,6 +65,8 @@ export const BooksPage: React.FC<BooksPageProps> = ({ searchQuery = "", onSearch
   const [loadingChapters, setLoadingChapters] = useState(false);
   const [selectedEbook, setSelectedEbook] = useState<Ebook | null>(null);
   const [isReadingEbook, setIsReadingEbook] = useState(false);
+  const [ebookText, setEbookText] = useState<string | null>(null);
+  const [loadingText, setLoadingText] = useState(false);
 
   // Active Playback State
   const [currentAudiobook, setCurrentAudiobook] = useState<Audiobook | null>(null);
@@ -262,6 +264,40 @@ export const BooksPage: React.FC<BooksPageProps> = ({ searchQuery = "", onSearch
     }
   };
 
+  // Fetch eBook text content directly using a CORS proxy
+  const fetchEbookText = async (book: Ebook) => {
+    setLoadingText(true);
+    setEbookText(null);
+
+    // Find first available plain text or HTML content format
+    let textUrl = book.formats['text/plain; charset=utf-8'] ||
+                  book.formats['text/plain; charset=us-ascii'] ||
+                  book.formats['text/plain'] ||
+                  book.formats['text/html'] ||
+                  book.formats['text/html; charset=utf-8'];
+
+    if (!textUrl) {
+      setLoadingText(false);
+      return;
+    }
+
+    // Upgrade http to https to avoid mixed content block
+    textUrl = textUrl.replace("http://", "https://");
+
+    try {
+      // Use AllOrigins CORS Proxy to fetch the book content
+      const res = await window.fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(textUrl)}`);
+      if (!res.ok) throw new Error("CORS proxy fetch failed");
+      const text = await res.text();
+      setEbookText(text);
+    } catch (e) {
+      console.warn("Direct fetch failed, falling back to secure Gutenberg iframe reader", e);
+      setEbookText(null); // Triggers secure iframe fallback
+    } finally {
+      setLoadingText(false);
+    }
+  };
+
   // Trigger loading chapters on Audiobook selection
   useEffect(() => {
     if (selectedAudiobook) {
@@ -288,14 +324,22 @@ export const BooksPage: React.FC<BooksPageProps> = ({ searchQuery = "", onSearch
       setIsPlaying(true);
       setIsLoadingAudio(false);
     };
+    const onPlaying = () => {
+      setIsPlaying(true);
+      setIsLoadingAudio(false);
+    };
     const onPause = () => {
       setIsPlaying(false);
     };
     const onWaiting = () => {
       setIsLoadingAudio(true);
     };
+    const onCanPlay = () => {
+      setIsLoadingAudio(false);
+    };
     const onTimeUpdate = () => {
       setAudioProgress(audio.currentTime);
+      setIsLoadingAudio(false); // If time is updating, it is definitely not loading
     };
     const onDurationChange = () => {
       setAudioDuration(audio.duration || 0);
@@ -315,8 +359,10 @@ export const BooksPage: React.FC<BooksPageProps> = ({ searchQuery = "", onSearch
     };
 
     audio.addEventListener('play', onPlay);
+    audio.addEventListener('playing', onPlaying);
     audio.addEventListener('pause', onPause);
     audio.addEventListener('waiting', onWaiting);
+    audio.addEventListener('canplay', onCanPlay);
     audio.addEventListener('timeupdate', onTimeUpdate);
     audio.addEventListener('durationchange', onDurationChange);
     audio.addEventListener('ended', onEnded);
@@ -333,8 +379,10 @@ export const BooksPage: React.FC<BooksPageProps> = ({ searchQuery = "", onSearch
       audio.src = "";
       audio.load();
       audio.removeEventListener('play', onPlay);
+      audio.removeEventListener('playing', onPlaying);
       audio.removeEventListener('pause', onPause);
       audio.removeEventListener('waiting', onWaiting);
+      audio.removeEventListener('canplay', onCanPlay);
       audio.removeEventListener('timeupdate', onTimeUpdate);
       audio.removeEventListener('durationchange', onDurationChange);
       audio.removeEventListener('ended', onEnded);
@@ -406,6 +454,13 @@ export const BooksPage: React.FC<BooksPageProps> = ({ searchQuery = "", onSearch
       return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
     }
     return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+  };
+
+  const formatChapterLength = (lengthStr: string | undefined) => {
+    if (!lengthStr) return "";
+    const secs = parseFloat(lengthStr);
+    if (isNaN(secs)) return lengthStr;
+    return formatTime(secs);
   };
 
   const currentChapter = currentChaptersList[activeChapterIndex];
@@ -668,7 +723,7 @@ export const BooksPage: React.FC<BooksPageProps> = ({ searchQuery = "", onSearch
                           </div>
 
                           {chapter.length && (
-                            <span className="text-[9px] text-zinc-500 font-mono font-medium shrink-0">{chapter.length}</span>
+                            <span className="text-[9px] text-zinc-500 font-mono font-medium shrink-0">{formatChapterLength(chapter.length)}</span>
                           )}
                         </div>
                       );
@@ -694,14 +749,17 @@ export const BooksPage: React.FC<BooksPageProps> = ({ searchQuery = "", onSearch
               <div className="flex items-center gap-3">
                 {isReadingEbook && (
                   <button
-                    onClick={() => setIsReadingEbook(false)}
+                    onClick={() => {
+                      setIsReadingEbook(false);
+                      setEbookText(null);
+                    }}
                     className="text-xs font-bold text-zinc-400 hover:text-white px-3 py-1 bg-white/5 rounded-full border-none cursor-pointer"
                   >
                     Close Reader
                   </button>
                 )}
                 <button
-                  onClick={() => { setSelectedEbook(null); setIsReadingEbook(false); }}
+                  onClick={() => { setSelectedEbook(null); setIsReadingEbook(false); setEbookText(null); }}
                   className="p-1 text-zinc-400 hover:text-white rounded-full bg-white/5 hover:bg-white/10 transition-colors border-none cursor-pointer"
                 >
                   <X size={18} />
@@ -710,24 +768,53 @@ export const BooksPage: React.FC<BooksPageProps> = ({ searchQuery = "", onSearch
             </div>
 
             {isReadingEbook ? (
-              /* Reading Pane: Embedded HTML reader with fallback link */
-              <div className="flex-1 flex flex-col bg-[#141416]">
-                <div className="p-3 bg-zinc-950 flex items-center justify-between border-b border-white/5 select-none text-[11px] text-zinc-500">
-                  <span>Provided by Project Gutenberg</span>
-                  <a
-                    href={selectedEbook.formats['text/html'] || `https://www.gutenberg.org/ebooks/${selectedEbook.id}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="flex items-center gap-1.5 text-red-500 hover:text-red-400 font-bold"
-                  >
-                    Open in Fullscreen Tab <ExternalLink size={12} />
-                  </a>
-                </div>
-                <iframe
-                  src={selectedEbook.formats['text/html'] || `https://www.gutenberg.org/ebooks/${selectedEbook.id}`}
-                  title={selectedEbook.title}
-                  className="w-full flex-1 border-none bg-white rounded-b-2xl"
-                />
+              /* Reading Pane: Embedded Direct Reader or Secure fallback iframe */
+              <div className="flex-1 flex flex-col bg-[#0d0d0f] overflow-hidden">
+                {loadingText ? (
+                  <div className="flex-1 flex flex-col items-center justify-center py-20 gap-3">
+                    <Loader2 className="animate-spin text-red-500" size={32} />
+                    <p className="text-[10px] text-zinc-500 font-semibold uppercase tracking-widest">Formatting book pages...</p>
+                  </div>
+                ) : ebookText ? (
+                  /* Native eBook Reader rendering fetched text/HTML directly inside our UI */
+                  <div className="flex-1 overflow-y-auto p-8 md:p-12 font-serif text-base leading-relaxed text-zinc-300 bg-[#0d0d0f] select-text selection:bg-red-650 selection:text-white max-h-[70vh] scrollbar-thin">
+                    <div className="max-w-2xl mx-auto space-y-4 whitespace-pre-line text-left">
+                      {ebookText.includes('<html') || ebookText.includes('<p>') ? (
+                        <div 
+                          className="prose prose-invert max-w-none prose-red prose-p:leading-relaxed prose-headings:text-white"
+                          dangerouslySetInnerHTML={{ 
+                            __html: ebookText
+                              .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+                              .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+                              .replace(/http:\/\/www\.gutenberg\.org/g, 'https://www.gutenberg.org') // upgrade links inside content to https
+                          }} 
+                        />
+                      ) : (
+                        ebookText
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  /* Fallback: Secure HTTPS iframe */
+                  <div className="flex-1 flex flex-col bg-[#141416]">
+                    <div className="p-3 bg-zinc-950 flex items-center justify-between border-b border-white/5 select-none text-[11px] text-zinc-500">
+                      <span>Rendering secure frame reader.</span>
+                      <a
+                        href={(selectedEbook.formats['text/html'] || `https://www.gutenberg.org/ebooks/${selectedEbook.id}`).replace("http://", "https://")}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex items-center gap-1.5 text-red-500 hover:text-red-400 font-bold"
+                      >
+                        Open in Fullscreen Tab <ExternalLink size={12} />
+                      </a>
+                    </div>
+                    <iframe
+                      src={(selectedEbook.formats['text/html'] || selectedEbook.formats['text/html; charset=utf-8'] || `https://www.gutenberg.org/ebooks/${selectedEbook.id}`).replace("http://", "https://")}
+                      title={selectedEbook.title}
+                      className="w-full flex-1 border-none bg-white rounded-b-2xl"
+                    />
+                  </div>
+                )}
               </div>
             ) : (
               /* Summary Details view */
@@ -768,7 +855,10 @@ export const BooksPage: React.FC<BooksPageProps> = ({ searchQuery = "", onSearch
                     <div className="flex items-center gap-3">
                       {(selectedEbook.formats['text/html'] || selectedEbook.formats['text/html; charset=utf-8']) ? (
                         <button
-                          onClick={() => setIsReadingEbook(true)}
+                          onClick={() => {
+                            setIsReadingEbook(true);
+                            fetchEbookText(selectedEbook);
+                          }}
                           className="flex-1 py-3 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-xl active:scale-95 transition-all border-none cursor-pointer flex items-center justify-center gap-2 shadow-md shadow-red-600/20"
                         >
                           <BookOpen size={14} /> Read eBook
