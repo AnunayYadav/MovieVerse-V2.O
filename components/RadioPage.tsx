@@ -591,7 +591,22 @@ export const RadioPage: React.FC<RadioPageProps> = ({ searchQuery = "", onSearch
           {/* Category Rows */}
           <div className="space-y-1 mt-6">
             <RadioRow title="🔥 Popular Stations" stations={popular} onPlay={handlePlayStation} activeStationId={currentStation?.stationuuid} isPlaying={isPlaying} />
-            <RadioRow title="🇮🇳 Trending in India" stations={trendingIndia} onPlay={handlePlayStation} activeStationId={currentStation?.stationuuid} isPlaying={isPlaying} />
+            <RadioRow
+              title={
+                <span className="flex items-center gap-2">
+                  <img
+                    src="https://flagcdn.com/w40/in.png"
+                    alt=""
+                    className="w-5.5 h-4 object-cover rounded-[2px] shadow-sm border border-white/5 inline-block align-middle"
+                  />
+                  <span>Trending in India</span>
+                </span>
+              }
+              stations={trendingIndia}
+              onPlay={handlePlayStation}
+              activeStationId={currentStation?.stationuuid}
+              isPlaying={isPlaying}
+            />
             <RadioRow title="🎸 Rock" stations={rock} onPlay={handlePlayStation} activeStationId={currentStation?.stationuuid} isPlaying={isPlaying} />
             <RadioRow title="🎙️ Podcasts" stations={podcasts} onPlay={handlePlayStation} activeStationId={currentStation?.stationuuid} isPlaying={isPlaying} />
             <RadioRow title="🎤 Bollywood" stations={bollywood} onPlay={handlePlayStation} activeStationId={currentStation?.stationuuid} isPlaying={isPlaying} />
@@ -705,7 +720,7 @@ const RadioCard: React.FC<RadioCardProps> = ({ station, onPlay, activeStationId,
 /* --- Row Component --- */
 
 interface RadioRowProps {
-  title: string;
+  title: React.ReactNode;
   stations: RadioStation[];
   onPlay: (station: RadioStation, playlist: RadioStation[]) => void;
   activeStationId?: string;
@@ -761,7 +776,11 @@ const CountryCard: React.FC<CountryCardProps> = ({ country, onClick }) => {
 
         {/* Name and Flag overlay */}
         <div className="absolute inset-x-0 bottom-0 p-2.5 bg-black/55 backdrop-blur-md border-t border-white/5 flex items-center gap-2">
-          <span className="text-base select-none">{country.flag}</span>
+          <img
+            src={`https://flagcdn.com/w40/${country.code.toLowerCase()}.png`}
+            alt=""
+            className="w-5.5 h-4 object-cover rounded-[2px] shadow-sm border border-white/5"
+          />
           <span className="text-[10px] sm:text-xs font-semibold text-white truncate">{country.name}</span>
         </div>
       </div>
@@ -929,7 +948,11 @@ const CountryRadioPage: React.FC<CountryRadioPageProps> = ({ country, onBack, on
               <ArrowLeft size={13} /> Back to Directory
             </button>
             <div className="flex items-center gap-3">
-              <span className="text-3xl md:text-5xl">{country.flag}</span>
+              <img
+                src={`https://flagcdn.com/w80/${country.code.toLowerCase()}.png`}
+                alt=""
+                className="w-10 h-7 object-cover rounded-md shadow-md border border-white/10 shrink-0"
+              />
               <h1 className="text-2xl md:text-4xl font-bold tracking-tight text-white leading-tight">
                 Live from {country.name}
               </h1>
