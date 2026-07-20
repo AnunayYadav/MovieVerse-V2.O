@@ -294,7 +294,7 @@ export async function processMangaPageOffline(
 
 /**
  * Erase Japanese text and render cleanly formatted English text in speech bubbles
- * Uses tight, crisp rounded rectangle inpainting (NO giant gray circles!)
+ * Seamlessly blends into circular/oval manga speech bubbles with authentic lettering
  */
 export function renderTypesetMangaCanvas(
   sourceCanvas: HTMLCanvasElement,
@@ -313,42 +313,33 @@ export function renderTypesetMangaCanvas(
 
     ctx.save();
 
-    // 1. Inpaint tight rounded rectangle around actual text area (clean white fill with soft drop shadow)
-    const pad = 6;
-    const rx = Math.max(0, b.x - pad);
-    const ry = Math.max(0, b.y - pad);
-    const rw = Math.min(canvas.width - rx, b.width + pad * 2);
-    const rh = Math.min(canvas.height - ry, b.height + pad * 2);
-    const radius = 10;
+    // 1. Calculate speech bubble oval bounds
+    const centerX = b.x + b.width / 2;
+    const centerY = b.y + b.height / 2;
+    const radiusX = Math.max(10, b.width / 2 + 2);
+    const radiusY = Math.max(10, b.height / 2 + 2);
 
-    // Draw crisp white pill over text
+    // 2. Inpaint interior with pure bubble white fill (NO rectangular borders/stickers)
     ctx.fillStyle = '#ffffff';
     ctx.beginPath();
-    if (ctx.roundRect) {
-      ctx.roundRect(rx, ry, rw, rh, radius);
-    } else {
-      ctx.rect(rx, ry, rw, rh);
-    }
+    ctx.ellipse(centerX, centerY, radiusX, radiusY, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // Optional thin subtle border to blend seamlessly into manga panels
-    ctx.strokeStyle = '#e4e4e7';
-    ctx.lineWidth = 1;
-    ctx.stroke();
-
-    // 2. Render English text cleanly
+    // 3. Render uppercase Manga Lettering
     ctx.fillStyle = '#000000';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
 
-    let fontSize = Math.max(10, Math.min(18, Math.floor(rh / 4)));
-    ctx.font = `bold ${fontSize}px "Comic Sans MS", "Bangers", sans-serif`;
+    // Format text into uppercase for official manga lettering feel
+    const formattedText = b.translatedEnglishText.toUpperCase();
 
-    const text = b.translatedEnglishText;
-    const words = text.split(' ');
+    let fontSize = Math.max(11, Math.min(20, Math.floor(radiusY / 2.8)));
+    ctx.font = `700 ${fontSize}px "Bangers", "Comic Sans MS", "Changa", sans-serif`;
+
+    const words = formattedText.split(' ');
     const lines: string[] = [];
     let currentLine = '';
-    const maxLineWidth = rw * 0.88;
+    const maxLineWidth = radiusX * 1.65;
 
     for (const word of words) {
       const testLine = currentLine ? `${currentLine} ${word}` : word;
@@ -364,10 +355,10 @@ export function renderTypesetMangaCanvas(
 
     const lineHeight = fontSize * 1.25;
     const totalHeight = lines.length * lineHeight;
-    let startY = (ry + rh / 2) - (totalHeight / 2) + (lineHeight / 2);
+    let startY = centerY - totalHeight / 2 + lineHeight / 2;
 
     for (const line of lines) {
-      ctx.fillText(line, rx + rw / 2, startY);
+      ctx.fillText(line, centerX, startY);
       startY += lineHeight;
     }
 
