@@ -166,6 +166,7 @@ export const LiveTVPlayer: React.FC<LiveTVPlayerProps> = ({ channel, playlist = 
 
         const handleEnterPip = () => {
             setIsPipActive(true);
+            setIsMinimized(true);
         };
 
         const handleLeavePip = () => {
@@ -491,30 +492,36 @@ export const LiveTVPlayer: React.FC<LiveTVPlayerProps> = ({ channel, playlist = 
                 {loading && !error && (
                     <div className="absolute inset-0 flex flex-col items-center justify-center text-white z-10 bg-black/60 backdrop-blur-[2px] pointer-events-none transition-all">
                         <div className="flex flex-col items-center justify-center gap-4">
-                            <Loader2 className="animate-spin text-red-600" size={48} />
-                            <p className="font-semibold animate-pulse text-xs tracking-widest text-white/90 uppercase">Connecting Live Feed...</p>
+                            <div className="relative flex items-center justify-center">
+                                <div className="absolute w-16 h-16 rounded-full bg-red-600/10 border border-red-500/20 animate-ping duration-1000 pointer-events-none" />
+                                <svg className="w-12 h-12 text-red-600 animate-spin will-change-transform relative z-10" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ transform: 'translateZ(0)', backfaceVisibility: 'hidden' }}>
+                                    <circle className="opacity-20" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
+                                    <path className="opacity-90" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                                </svg>
+                            </div>
+                            <p className="font-bold animate-pulse text-[10px] tracking-widest text-zinc-300 uppercase mt-2">Connecting Live Feed...</p>
                         </div>
                     </div>
                 )}
                 
                 {error && (
                     <div className="absolute inset-0 flex flex-col items-center justify-center text-white z-15 bg-black/85 backdrop-blur-md p-6 text-center animate-in fade-in duration-300">
-                        <div className="bg-[#0e0e10]/60 border border-white/5 rounded-3xl p-6 max-w-[340px] w-full shadow-2xl relative overflow-hidden text-center">
-                            <div className="absolute top-0 left-0 w-full h-1 bg-red-600"></div>
+                        <div className="bg-zinc-950/80 border border-white/10 rounded-3xl p-8 max-w-[340px] w-full shadow-2xl relative overflow-hidden text-center backdrop-blur-xl">
+                            <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-red-600 to-red-400"></div>
                             
-                            <div className="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center mx-auto mb-4 border border-red-500/20 animate-[pulse_2s_infinite]">
-                                <AlertCircle size={32} className="text-red-500"/>
+                            <div className="w-14 h-14 bg-red-500/10 rounded-full flex items-center justify-center mx-auto mb-5 border border-red-500/20 shadow-[0_0_20px_rgba(239,68,68,0.15)] animate-[pulse_2s_infinite]">
+                                <AlertCircle size={28} className="text-red-500"/>
                             </div>
                             
-                            <h2 className="text-lg font-extrabold mb-1 tracking-tight text-white">Signal Lost</h2>
-                            <p className="text-gray-400 text-[11px] leading-relaxed mb-4 px-1">
+                            <h2 className="text-base font-black mb-1 tracking-tight text-white uppercase">Signal Lost</h2>
+                            <p className="text-zinc-400 text-[10px] leading-relaxed mb-6 px-1 font-medium">
                                 {error}
                             </p>
 
                             {/* Stream Server Recovery Selector */}
                             {servers.length > 1 && (
-                                <div className="mb-5 select-none text-center">
-                                    <span className="text-[8px] font-black text-zinc-500 uppercase tracking-widest block mb-2">Switch Server / Source</span>
+                                <div className="mb-6 select-none text-center border-t border-white/5 pt-4">
+                                    <span className="text-[8px] font-black text-zinc-500 uppercase tracking-widest block mb-2.5">Switch Stream Server</span>
                                     <div className="flex flex-wrap gap-1.5 justify-center">
                                         {servers.map((s, idx) => (
                                             <button
@@ -524,10 +531,10 @@ export const LiveTVPlayer: React.FC<LiveTVPlayerProps> = ({ channel, playlist = 
                                                     setError(null);
                                                     setLoading(true);
                                                 }}
-                                                className={`px-3 py-1.5 rounded-lg text-[9px] font-extrabold uppercase transition-all border ${
+                                                className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all border ${
                                                     currentServerIndex === idx
-                                                        ? 'bg-red-600 border-red-500 text-white shadow-md'
-                                                        : 'bg-white/5 border-white/5 text-gray-400 hover:text-white hover:bg-white/10'
+                                                        ? 'bg-red-600 border-red-500 text-white shadow-md shadow-red-600/10'
+                                                        : 'bg-white/5 border-white/5 text-zinc-400 hover:text-white hover:bg-white/10'
                                                 }`}
                                             >
                                                 Server {idx + 1}
@@ -537,17 +544,17 @@ export const LiveTVPlayer: React.FC<LiveTVPlayerProps> = ({ channel, playlist = 
                                 </div>
                             )}
                             
-                            <div className="flex items-center gap-3 justify-center">
+                            <div className="flex items-center gap-3 justify-center border-t border-white/5 pt-5">
                                 <button 
                                     onClick={handleRetry} 
-                                    className="flex-1 h-10 px-4 bg-red-600 hover:bg-red-700 text-white font-bold text-[10px] uppercase tracking-wider rounded-xl transition-all hover:scale-[1.02] active:scale-95 shadow-lg shadow-red-600/20 flex items-center justify-center gap-1.5 whitespace-nowrap animate-in"
+                                    className="flex-1 h-10 px-4 bg-white hover:bg-zinc-200 text-black font-black text-[10px] uppercase tracking-wider rounded-xl transition-all active:scale-95 shadow-md flex items-center justify-center gap-1.5 whitespace-nowrap"
                                 >
-                                    <RefreshCw size={12} className="animate-spin-slow" />
+                                    <RefreshCw size={11} />
                                     Retry
                                 </button>
                                 <button 
                                     onClick={onClose} 
-                                    className="flex-1 h-10 px-4 bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white border border-white/5 hover:border-white/10 font-bold text-[10px] uppercase tracking-wider rounded-xl transition-all active:scale-95 whitespace-nowrap"
+                                    className="flex-1 h-10 px-4 bg-white/5 hover:bg-white/10 text-zinc-300 hover:text-white border border-white/5 hover:border-white/10 font-black text-[10px] uppercase tracking-wider rounded-xl transition-all active:scale-95 whitespace-nowrap"
                                 >
                                     Close
                                 </button>
@@ -957,18 +964,25 @@ export const LiveTVPlayer: React.FC<LiveTVPlayerProps> = ({ channel, playlist = 
                                     onClick={() => {
                                         if (onChannelChange) onChannelChange(recChannel);
                                     }}
-                                    className="p-3.5 rounded-xl bg-white/[0.02] hover:bg-white/[0.06] border border-white/5 cursor-pointer transition-all duration-300 flex items-center gap-3 group/rec select-none hover:border-red-500/20 active:scale-95"
+                                    className="cursor-pointer transition-all duration-300 flex items-center gap-3.5 group/rec select-none active:scale-95 py-2.5 px-2 rounded-xl hover:bg-white/[0.03]"
                                 >
-                                    <div className="w-10 h-10 bg-black/40 rounded-xl p-1.5 border border-white/5 shrink-0 flex items-center justify-center group-hover/rec:border-white/20 transition-all shadow-inner">
+                                    <div className="w-12 h-12 bg-zinc-950 rounded-2xl p-1.5 border border-white/5 shrink-0 flex items-center justify-center group-hover/rec:border-red-500/30 group-hover/rec:shadow-[0_0_15px_rgba(220,38,38,0.15)] transition-all duration-300">
                                         {recChannel.logo ? (
-                                            <img src={recChannel.logo} className="max-w-full max-h-full object-contain filter drop-shadow" alt="" onError={(e) => { e.currentTarget.style.display = 'none'; }}/>
+                                            <img src={recChannel.logo} className="max-w-[95%] max-h-[95%] object-contain filter drop-shadow" alt="" onError={(e) => { e.currentTarget.style.display = 'none'; }}/>
                                         ) : (
-                                            <span className="font-bold text-xs text-gray-400">{recChannel.name.charAt(0)}</span>
+                                            <span className="font-black text-sm text-red-500">{recChannel.name.charAt(0)}</span>
                                         )}
                                     </div>
-                                    <span className="text-[10px] font-bold text-zinc-300 group-hover/rec:text-white truncate">
-                                        {recChannel.name}
-                                    </span>
+                                    <div className="text-left min-w-0 flex-1">
+                                        <span className="text-[11px] font-bold text-zinc-300 group-hover/rec:text-white transition-colors truncate block">
+                                            {recChannel.name}
+                                        </span>
+                                        {recChannel.group && (
+                                            <span className="text-[8px] font-black text-zinc-500 group-hover/rec:text-red-500/80 transition-colors uppercase tracking-wider block mt-0.5">
+                                                {recChannel.group}
+                                            </span>
+                                        )}
+                                    </div>
                                 </div>
                             ))}
                         </div>
