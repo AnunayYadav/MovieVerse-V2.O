@@ -298,6 +298,16 @@ export const RadioPage: React.FC<RadioPageProps> = ({ searchQuery = "", onSearch
 
   return (
     <div className="min-h-screen bg-[#030303] text-white pb-36 relative select-none">
+      <style>{`
+        @keyframes liveWave {
+          0%, 100% {
+            height: 4px;
+          }
+          50% {
+            height: 16px;
+          }
+        }
+      `}</style>
       {/* 1. Search Results Layout */}
       {searchQuery ? (
         <div className="px-4 md:px-12 max-w-7xl mx-auto text-left pt-6 animate-in fade-in duration-500">
@@ -523,10 +533,13 @@ interface RadioCardProps {
 
 const RadioCard: React.FC<RadioCardProps> = ({ station, onPlay, activeStationId, isPlaying }) => {
   const isCurrentActive = activeStationId === station.stationuuid;
+  const [imgError, setImgError] = useState(false);
 
   const { ref } = useTvFocus({
     onEnterPress: () => onPlay(station)
   });
+
+  const showFallback = !station.favicon || imgError;
 
   return (
     <div
@@ -535,25 +548,22 @@ const RadioCard: React.FC<RadioCardProps> = ({ station, onPlay, activeStationId,
       className="group flex flex-col gap-2 shrink-0 w-[125px] sm:w-[145px] md:w-[150px] cursor-pointer select-none text-left"
     >
       <div className="relative w-full aspect-square rounded-2xl overflow-hidden bg-zinc-900 border border-white/5 group-hover:border-red-500/50 group-hover:shadow-[0_0_20px_rgba(239,68,68,0.25)] group-hover:scale-[1.03] transition-all duration-500 flex items-center justify-center">
-        {station.favicon ? (
+        {showFallback ? (
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-br from-zinc-900 to-zinc-950 text-zinc-400 p-3 text-center">
+            <Headphones size={28} className="text-red-500/80 mb-2 group-hover:scale-110 transition-transform" />
+            <span className="text-[10px] font-medium text-zinc-300 line-clamp-2 px-1 select-none leading-snug">
+              {station.name}
+            </span>
+          </div>
+        ) : (
           <img
             src={station.favicon}
             alt={station.name}
             loading="lazy"
-            className="w-full h-full object-contain p-2 transition-transform duration-700 group-hover:scale-105"
-            onError={(e) => {
-              e.currentTarget.style.display = 'none';
-            }}
+            className="w-full h-full object-contain p-3 transition-transform duration-700 group-hover:scale-105"
+            onError={() => setImgError(true)}
           />
-        ) : null}
-        
-        {/* Fallback Icon / Text */}
-        <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-br from-zinc-900 to-zinc-950 text-zinc-600 font-black p-2 z-[-1]">
-          <Headphones size={28} className="text-zinc-700 mb-1" />
-          <span className="text-[10px] text-zinc-500 truncate max-w-full font-light px-1 select-none">
-            {station.name.substring(0, 15)}
-          </span>
-        </div>
+        )}
 
         {/* Hover / Active Overlay */}
         <div className={`absolute inset-0 bg-black/60 flex items-center justify-center transition-opacity duration-300 ${isCurrentActive ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
