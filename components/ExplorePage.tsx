@@ -830,7 +830,7 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ apiKey, onMovieClick, 
                                         onClick={onMovieClick} 
                                         isWatched={false} 
                                         onToggleWatched={() => {}} 
-                                        horizontal={true}
+                                        horizontal={false}
                                     />
                                 ))}
                             </div>

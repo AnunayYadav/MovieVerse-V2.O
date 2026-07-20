@@ -5510,7 +5510,7 @@ export default function App() {
                                                                             onClick={setSelectedMovie}
                                                                             isWatched={watched.some(m => m.id === movie.id)}
                                                                             onToggleWatched={handleToggleWatched}
-                                                                            horizontal={!!searchQuery}
+                                                                            horizontal={false}
                                                                         />
                                                                     ) : (
                                                                         <PersonCard person={movie} onClick={(id) => setSelectedPersonId(id)} />
