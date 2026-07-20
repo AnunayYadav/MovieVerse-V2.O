@@ -815,8 +815,11 @@ export const DramaCard: React.FC<DramaCardProps> = ({ drama, onDramaClick, title
           const matchData = JSON.parse(cachedMatch);
           tmdbId = matchData.id;
           mediaType = matchData.mediaType || mediaType;
-          if (matchData.backdrop_path) {
-            backdropPath = `https://image.tmdb.org/t/p/w500${matchData.backdrop_path}`;
+          const bestImage = matchData.poster_path
+            ? `https://image.tmdb.org/t/p/w500${matchData.poster_path}`
+            : (matchData.backdrop_path ? `https://image.tmdb.org/t/p/w500${matchData.backdrop_path}` : null);
+          if (bestImage) {
+            setImageUrl(bestImage);
           }
           if (isMounted) {
             const tmdbTitle = titleLanguage === 'native'
@@ -863,8 +866,11 @@ export const DramaCard: React.FC<DramaCardProps> = ({ drama, onDramaClick, title
           if (match) {
             tmdbId = match.id;
             mediaType = match.first_air_date ? 'tv' : 'movie';
-            if (match.backdrop_path) {
-              backdropPath = `https://image.tmdb.org/t/p/w500${match.backdrop_path}`;
+            const bestImage = match.poster_path
+              ? `https://image.tmdb.org/t/p/w500${match.poster_path}`
+              : (match.backdrop_path ? `https://image.tmdb.org/t/p/w500${match.backdrop_path}` : null);
+            if (bestImage && isMounted) {
+              setImageUrl(bestImage);
             }
             const matchData = {
               id: match.id,

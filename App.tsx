@@ -836,20 +836,22 @@ const MovieRow = ({
             >
                 {loading ? (
                     [...Array(6)].map((_, i) => (
-                        <div key={i} className="w-[220px] md:w-[260px] shrink-0 aspect-[16/9] bg-zinc-900/45 rounded-xl animate-pulse border border-white/5"></div>
+                        <div key={i} className="w-[140px] sm:w-[170px] shrink-0 aspect-[2/3] bg-zinc-900/45 rounded-xl animate-pulse border border-white/5"></div>
                     ))
                 ) : (
                     <>
                         {movies.map((movie, idx) => (
-                            <MovieRowCard
+                            <MovieCard
                                 key={`${movie.id}-${idx}`}
                                 movie={movie}
-                                onClick={() => onMovieClick(movie)}
+                                onClick={onMovieClick}
+                                isWatched={false}
+                                onToggleWatched={() => {}}
                             />
                         ))}
                         {loadingMore && (
                             [...Array(3)].map((_, i) => (
-                                <div key={`loadmore-${i}`} className="w-[220px] md:w-[260px] shrink-0 aspect-[16/9] bg-zinc-900/45 rounded-xl animate-pulse border border-white/5 flex items-center justify-center">
+                                <div key={`loadmore-${i}`} className="w-[140px] sm:w-[170px] shrink-0 aspect-[2/3] bg-zinc-900/45 rounded-xl animate-pulse border border-white/5 flex items-center justify-center">
                                     <div className="w-6 h-6 border-2 border-red-600 border-t-transparent rounded-full animate-spin"></div>
                                 </div>
                             ))
@@ -5476,7 +5478,7 @@ export default function App() {
                                                             </div>
                                                             <div className="flex gap-5 overflow-hidden px-4 md:px-12">
                                                                 {[...Array(6)].map((_, i) => (
-                                                                    <div key={i} className="w-[220px] md:w-[260px] shrink-0 aspect-[16/9] bg-zinc-900 border border-white/5 rounded-xl"></div>
+                                                                    <div key={i} className="w-[140px] sm:w-[170px] shrink-0 aspect-[2/3] bg-zinc-900 border border-white/5 rounded-xl"></div>
                                                                 ))}
                                                             </div>
                                                         </div>
