@@ -77,6 +77,13 @@ export const LiveTVPlayer: React.FC<LiveTVPlayerProps> = ({ channel, playlist = 
     // Watch count state
     const [watchCount, setWatchCount] = useState(0);
 
+    // Hls quality states
+    const [hlsInstance, setHlsInstance] = useState<any>(null);
+    const [qualityLevels, setQualityLevels] = useState<{ id: number; name: string }[]>([]);
+    const [selectedQuality, setSelectedQuality] = useState<number>(-1); // Auto by default
+    const [isQualityMenuOpen, setIsQualityMenuOpen] = useState(false);
+    const qualityMenuRef = useRef<HTMLDivElement>(null);
+
     // Load API Metadata & Servers
     useEffect(() => {
         let isMounted = true;
@@ -247,6 +254,17 @@ export const LiveTVPlayer: React.FC<LiveTVPlayerProps> = ({ channel, playlist = 
         return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
     }, []);
 
+    // Close quality menu on click outside
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (qualityMenuRef.current && !qualityMenuRef.current.contains(event.target as Node)) {
+                setIsQualityMenuOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
     // HLS stream loader logic with auto switching
     useEffect(() => {
         const video = videoRef.current;
@@ -288,6 +306,7 @@ export const LiveTVPlayer: React.FC<LiveTVPlayerProps> = ({ channel, playlist = 
 
         if (Hls && Hls.isSupported()) {
             hls = new Hls();
+            setHlsInstance(hls);
             hls.loadSource(hlsUrl);
             hls.attachMedia(video);
             hls.on(Hls.Events.MANIFEST_PARSED, () => {
@@ -295,6 +314,18 @@ export const LiveTVPlayer: React.FC<LiveTVPlayerProps> = ({ channel, playlist = 
                     console.log("Autoplay prevented", e);
                     setIsPlaying(false);
                 });
+
+                // Capture Quality Levels
+                const levels = hls.levels || [];
+                const formattedLevels = levels.map((lvl: any, idx: number) => {
+                    const height = lvl.height || (lvl.attrs?.RESOLUTION ? parseInt(lvl.attrs.RESOLUTION.split('x')[1], 10) : null);
+                    const label = height ? `${height}p` : `Level ${idx + 1}`;
+                    return { id: idx, name: label };
+                });
+                setQualityLevels(formattedLevels);
+
+                // Default / restore quality selection
+                hls.currentLevel = selectedQuality;
             });
             hls.on(Hls.Events.ERROR, handleStreamError);
             
@@ -317,14 +348,25 @@ export const LiveTVPlayer: React.FC<LiveTVPlayerProps> = ({ channel, playlist = 
         }
 
         return () => {
-            if (hls) hls.destroy();
+            if (hls) {
+                hls.destroy();
+                setHlsInstance(null);
+                setQualityLevels([]);
+            }
             if (video) {
                 video.removeEventListener('loadeddata', handleCanPlay);
                 video.removeEventListener('error', handleStreamError);
                 video.removeEventListener('error', handleAutoSwitchServer);
             }
         };
-    }, [channel, retryKey, currentServerIndex, servers]);
+    }, [channel, retryKey, currentServerIndex, servers, selectedQuality]);
+
+    const handleQualityChange = (levelId: number) => {
+        setSelectedQuality(levelId);
+        if (hlsInstance) {
+            hlsInstance.currentLevel = levelId;
+        }
+    };
 
     const togglePlay = () => {
         if (videoRef.current) {
@@ -756,6 +798,46 @@ export const LiveTVPlayer: React.FC<LiveTVPlayerProps> = ({ channel, playlist = 
                                 </button>
                             )}
 
+                            {qualityLevels.length > 0 && (
+                                <div className="relative flex items-center" ref={qualityMenuRef}>
+                                    <button 
+                                        onClick={() => setIsQualityMenuOpen(!isQualityMenuOpen)} 
+                                        className="text-zinc-300 hover:text-white transition-all px-2.5 py-1 hover:bg-white/10 rounded-lg text-[10px] font-bold border border-white/10 bg-white/5 uppercase select-none active:scale-95"
+                                        title="Video Quality"
+                                    >
+                                        {selectedQuality === -1 ? 'Auto' : qualityLevels.find(q => q.id === selectedQuality)?.name || 'Auto'}
+                                    </button>
+
+                                    {isQualityMenuOpen && (
+                                        <div className="absolute bottom-full right-0 mb-2 w-28 bg-[#09090b]/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-2xl overflow-hidden z-50 p-1 flex flex-col gap-0.5 animate-in fade-in slide-in-from-bottom-2 duration-200">
+                                            <button
+                                                onClick={() => { handleQualityChange(-1); setIsQualityMenuOpen(false); }}
+                                                className={`w-full px-3 py-1.5 text-[10px] font-bold rounded-lg text-left transition-colors ${
+                                                    selectedQuality === -1
+                                                        ? 'bg-red-600 text-white'
+                                                        : 'text-zinc-400 hover:text-white hover:bg-white/5'
+                                                }`}
+                                            >
+                                                Auto
+                                            </button>
+                                            {qualityLevels.map((lvl) => (
+                                                <button
+                                                    key={lvl.id}
+                                                    onClick={() => { handleQualityChange(lvl.id); setIsQualityMenuOpen(false); }}
+                                                    className={`w-full px-3 py-1.5 text-[10px] font-bold rounded-lg text-left transition-colors ${
+                                                        selectedQuality === lvl.id
+                                                            ? 'bg-red-600 text-white'
+                                                            : 'text-zinc-400 hover:text-white hover:bg-white/5'
+                                                    }`}
+                                                >
+                                                    {lvl.name}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
                             <button 
                                 onClick={() => setShowEpgGuide(!showEpgGuide)} 
                                 className={`text-zinc-300 hover:text-white transition-all p-2 hover:bg-white/10 rounded-full ${showEpgGuide ? 'text-red-400' : ''}`}
@@ -845,72 +927,7 @@ export const LiveTVPlayer: React.FC<LiveTVPlayerProps> = ({ channel, playlist = 
                     </div>
                 )}
 
-                {/* Visual Program Timeline */}
-                {epg && (
-                    <div className="p-3.5 rounded-xl bg-white/[0.02] border border-white/5 text-left select-none mb-4">
-                        <h4 className="text-xs font-semibold text-white mb-3 flex items-center gap-1.5">
-                            <Clock size={12} className="text-red-500" />
-                            Program Timeline
-                        </h4>
-                        
-                        <div className="flex justify-between text-[9px] text-zinc-500 font-bold mb-1.5 px-1 select-none">
-                            {(() => {
-                                const currentHour = new Date();
-                                currentHour.setMinutes(0, 0, 0);
-                                const h1 = new Date(currentHour.getTime() - 3600000);
-                                const h2 = currentHour;
-                                const h3 = new Date(currentHour.getTime() + 3600000);
-                                const h4 = new Date(currentHour.getTime() + 7200000);
-                                return (
-                                    <>
-                                        <span>{h1.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</span>
-                                        <span>{h2.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</span>
-                                        <span>{h3.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</span>
-                                        <span>{h4.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</span>
-                                    </>
-                                );
-                            })()}
-                        </div>
-                        
-                        <div className="h-10 w-full rounded-lg bg-zinc-950/60 border border-white/5 overflow-hidden flex relative select-none">
-                            {(() => {
-                                const schedule = generateEPG(channel);
-                                const now = new Date();
-                                const activeIdx = schedule.findIndex(p => now >= p.startTime && now < p.endTime);
-                                if (activeIdx === -1) return null;
-                                
-                                const list = schedule.slice(Math.max(0, activeIdx - 1), Math.min(schedule.length, activeIdx + 3));
-                                const totalDuration = list.reduce((sum, p) => sum + p.duration, 0);
-                                
-                                return list.map((p, i) => {
-                                    const percent = (p.duration / totalDuration) * 100;
-                                    const isPlayingNow = now >= p.startTime && now < p.endTime;
-                                    const isPast = now > p.endTime;
-                                    return (
-                                        <div 
-                                            key={i}
-                                            className={`h-full border-r border-white/5 flex flex-col justify-center px-3 transition-all relative ${
-                                                isPlayingNow 
-                                                    ? 'bg-gradient-to-r from-red-600/20 to-red-600/5 text-red-400 font-extrabold border-l-2 border-red-500' 
-                                                    : isPast 
-                                                        ? 'bg-black/40 text-zinc-600 opacity-40' 
-                                                        : 'bg-white/[0.01] text-zinc-400 font-semibold'
-                                            }`}
-                                            style={{ width: `${percent}%` }}
-                                            title={`${p.title} (${p.duration}m)`}
-                                        >
-                                            <span className="text-[10px] truncate block leading-tight">{p.title}</span>
-                                            <span className="text-[8px] text-zinc-500 font-normal leading-none mt-0.5">{p.duration}m</span>
-                                            {isPlayingNow && (
-                                                <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-red-500" />
-                                            )}
-                                        </div>
-                                    );
-                                });
-                            })()}
-                        </div>
-                    </div>
-                )}
+
 
                 {/* Schedule List */}
                 <div className="flex-1 overflow-y-auto custom-scrollbar space-y-3 pr-1 text-left">

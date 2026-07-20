@@ -133,6 +133,38 @@ const COUNTRIES = [
     { id: 'YE', name: 'Yemen', icon: '🇾🇪' }
 ];
 
+const LANGUAGES = [
+    { id: 'ALL', name: 'All Languages', icon: '🌐' },
+    { id: 'hin', name: 'Hindi', icon: '🇮🇳' },
+    { id: 'eng', name: 'English', icon: '🇬🇧' },
+    { id: 'spa', name: 'Spanish', icon: '🇪🇸' },
+    { id: 'fra', name: 'French', icon: '🇫🇷' },
+    { id: 'deu', name: 'German', icon: '🇩🇪' },
+    { id: 'ita', name: 'Italian', icon: '🇮🇹' },
+    { id: 'jpn', name: 'Japanese', icon: '🇯🇵' },
+    { id: 'kor', name: 'Korean', icon: '🇰🇷' },
+    { id: 'zho', name: 'Chinese', icon: '🇨🇳' },
+    { id: 'rus', name: 'Russian', icon: '🇷🇺' },
+    { id: 'por', name: 'Portuguese', icon: '🇧🇷' },
+    { id: 'ara', name: 'Arabic', icon: '🇸🇦' },
+    { id: 'tam', name: 'Tamil', icon: '🇮🇳' },
+    { id: 'tel', name: 'Telugu', icon: '🇮🇳' },
+    { id: 'mal', name: 'Malayalam', icon: '🇮🇳' },
+    { id: 'kan', name: 'Kannada', icon: '🇮🇳' },
+    { id: 'ben', name: 'Bengali', icon: '🇧🇩' },
+    { id: 'mar', name: 'Marathi', icon: '🇮🇳' },
+    { id: 'pan', name: 'Punjabi', icon: '🇮🇳' },
+    { id: 'urd', name: 'Urdu', icon: '🇵🇰' },
+    { id: 'tur', name: 'Turkish', icon: '🇹🇷' },
+    { id: 'vie', name: 'Vietnamese', icon: '🇻🇳' },
+    { id: 'ind', name: 'Indonesian', icon: '🇮🇩' },
+    { id: 'tha', name: 'Thai', icon: '🇹🇭' },
+    { id: 'pol', name: 'Polish', icon: '🇵🇱' },
+    { id: 'ukr', name: 'Ukrainian', icon: '🇺🇦' },
+    { id: 'swe', name: 'Swedish', icon: '🇸🇪' },
+    { id: 'nld', name: 'Dutch', icon: '🇳🇱' }
+];
+
 
 const parseM3U = (data: string): LiveChannel[] => {
     const lines = data.split('\n');
@@ -333,6 +365,7 @@ const LiveTVRow: React.FC<{
     title: string;
     categoryId: string;
     countryCode: string;
+    languageCode?: string;
     searchQuery: string;
     hideOffline: boolean;
     onChannelClick: (c: LiveChannel, playlist: LiveChannel[]) => void;
@@ -341,6 +374,7 @@ const LiveTVRow: React.FC<{
     title,
     categoryId,
     countryCode,
+    languageCode = 'ALL',
     searchQuery,
     hideOffline,
     onChannelClick,
@@ -354,7 +388,7 @@ const LiveTVRow: React.FC<{
     // Reset visibility count when filters change
     useEffect(() => {
         setVisibleCount(40);
-    }, [categoryId, countryCode]);
+    }, [categoryId, countryCode, languageCode]);
 
     useEffect(() => {
         let isMounted = true;
@@ -364,17 +398,25 @@ const LiveTVRow: React.FC<{
             try {
                 let url = '';
                 let isCountryFetch = false;
+                let isLangFetch = false;
 
-                if (countryCode === 'ALL') {
-                    url = `https://iptv-org.github.io/iptv/categories/${categoryId}.m3u`;
-                } else {
+                if (countryCode !== 'ALL') {
                     url = `https://iptv-org.github.io/iptv/countries/${countryCode.toLowerCase()}.m3u`;
                     isCountryFetch = true;
+                } else if (languageCode !== 'ALL') {
+                    url = `https://iptv-org.github.io/iptv/languages/${languageCode.toLowerCase()}.m3u`;
+                    isLangFetch = true;
+                } else {
+                    url = `https://iptv-org.github.io/iptv/categories/${categoryId}.m3u`;
                 }
 
                 let parsed = await fetchAndParseM3U(url);
 
                 if (isCountryFetch) {
+                    parsed = parsed.filter(c => 
+                        c.group && c.group.toLowerCase().includes(categoryId.toLowerCase())
+                    );
+                } else if (isLangFetch) {
                     parsed = parsed.filter(c => 
                         c.group && c.group.toLowerCase().includes(categoryId.toLowerCase())
                     );
@@ -396,7 +438,7 @@ const LiveTVRow: React.FC<{
 
         loadChannels();
         return () => { isMounted = false; };
-    }, [categoryId, countryCode]);
+    }, [categoryId, countryCode, languageCode]);
 
     const filtered = useMemo(() => {
         return channels.filter(c => 
@@ -504,7 +546,23 @@ const renderCountryFlag = (countryId: string, className = "w-5 h-3.5 object-cove
 };
 
 export const LiveTV: React.FC<LiveTVProps> = React.memo(({ userProfile, searchQuery = "" }) => {
-    const [selectedCountry, setSelectedCountry] = useState('ALL');
+    const [selectedCountry, setSelectedCountry] = useState<string>(() => {
+        return localStorage.getItem('livetv_selected_country') || 'ALL';
+    });
+    const [selectedLanguage, setSelectedLanguage] = useState<string>(() => {
+        return localStorage.getItem('livetv_selected_language') || 'ALL';
+    });
+
+    const handleCountryChange = (countryId: string) => {
+        setSelectedCountry(countryId);
+        localStorage.setItem('livetv_selected_country', countryId);
+    };
+
+    const handleLanguageChange = (langId: string) => {
+        setSelectedLanguage(langId);
+        localStorage.setItem('livetv_selected_language', langId);
+    };
+
     const [selectedChannel, setSelectedChannel] = useState<LiveChannel | null>(null);
     const [activePlaylist, setActivePlaylist] = useState<LiveChannel[]>([]);
     const [expandedCategory, setExpandedCategory] = useState<{ title: string; items: LiveChannel[] } | null>(null);
@@ -523,8 +581,6 @@ export const LiveTV: React.FC<LiveTVProps> = React.memo(({ userProfile, searchQu
 
     const trendingRowRef = useRef<HTMLDivElement>(null);
 
-
-
     // Fetch news and movies on mount to extract top trending channels
     useEffect(() => {
         let isMounted = true;
@@ -535,7 +591,6 @@ export const LiveTV: React.FC<LiveTVProps> = React.memo(({ userProfile, searchQu
         ]).then(([news, movies]) => {
             if (!isMounted) return;
             const combined = [...news.slice(0, 10), ...movies.slice(0, 10)];
-            // Shuffle/sort deterministically based on watch count
             const sorted = combined
                 .map(c => {
                     let hash = 0;
@@ -571,21 +626,27 @@ export const LiveTV: React.FC<LiveTVProps> = React.memo(({ userProfile, searchQu
 
     // Dropdown state
     const [isCountryDropdownOpen, setIsCountryDropdownOpen] = useState(false);
+    const [isLanguageDropdownOpen, setIsLanguageDropdownOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
+    const langDropdownRef = useRef<HTMLDivElement>(null);
 
     const isExclusive = true;
     const activeCountryObj = COUNTRIES.find(c => c.id === selectedCountry) || COUNTRIES[0];
+    const activeLanguageObj = LANGUAGES.find(l => l.id === selectedLanguage) || LANGUAGES[0];
 
     // Reset search pagination on search query change
     useEffect(() => {
         setSearchVisibleCount(60);
     }, [searchQuery]);
 
-    // Close dropdown on click outside
+    // Close dropdowns on click outside
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
             if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
                 setIsCountryDropdownOpen(false);
+            }
+            if (langDropdownRef.current && !langDropdownRef.current.contains(event.target as Node)) {
+                setIsLanguageDropdownOpen(false);
             }
         };
         document.addEventListener('mousedown', handleClickOutside);
@@ -642,6 +703,9 @@ export const LiveTV: React.FC<LiveTVProps> = React.memo(({ userProfile, searchQu
                 if (selectedCountry !== 'ALL') {
                     const url = `https://iptv-org.github.io/iptv/countries/${selectedCountry.toLowerCase()}.m3u`;
                     results = await fetchAndParseM3U(url);
+                } else if (selectedLanguage !== 'ALL') {
+                    const url = `https://iptv-org.github.io/iptv/languages/${selectedLanguage.toLowerCase()}.m3u`;
+                    results = await fetchAndParseM3U(url);
                 } else {
                     const categories = ['news', 'movies', 'sports', 'entertainment'];
                     const fetches = categories.map(cat => 
@@ -682,7 +746,7 @@ export const LiveTV: React.FC<LiveTVProps> = React.memo(({ userProfile, searchQu
             isMounted = false;
             clearTimeout(debounce);
         };
-    }, [searchQuery, selectedCountry]);
+    }, [searchQuery, selectedCountry, selectedLanguage]);
 
     if (!isExclusive) {
         return (
@@ -844,13 +908,13 @@ export const LiveTV: React.FC<LiveTVProps> = React.memo(({ userProfile, searchQu
 
                     <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
                         {/* Country Selector Dropdown */}
-                        <div className="relative z-50 w-full sm:w-60" ref={dropdownRef}>
+                        <div className="relative z-50 w-full sm:w-48" ref={dropdownRef}>
                             <TvFocusButton 
-                                onClick={() => setIsCountryDropdownOpen(!isCountryDropdownOpen)}
-                                className="w-full h-10 flex items-center justify-between px-4 rounded-xl bg-white/5 hover:bg-white/10 border border-white/5 hover:border-white/10 transition-all active:scale-95 backdrop-blur-md"
+                                onClick={() => { setIsCountryDropdownOpen(!isCountryDropdownOpen); setIsLanguageDropdownOpen(false); }}
+                                className="w-full h-10 flex items-center justify-between px-3.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/5 hover:border-white/10 transition-all active:scale-95 backdrop-blur-md"
                             >
-                                <div className="flex items-center gap-3 min-w-0 flex-1 text-left">
-                                    {renderCountryFlag(activeCountryObj.id, "w-5 h-3.5 object-cover rounded-sm shadow-sm shrink-0")}
+                                <div className="flex items-center gap-2.5 min-w-0 flex-1 text-left">
+                                    {renderCountryFlag(activeCountryObj.id, "w-4.5 h-3 object-cover rounded-sm shadow-sm shrink-0")}
                                     <span className="text-xs font-bold truncate">{activeCountryObj.name}</span>
                                 </div>
                                 <ChevronDown size={14} className={`transition-transform duration-300 text-white/50 shrink-0 ${isCountryDropdownOpen ? 'rotate-180' : ''}`}/>
@@ -861,14 +925,46 @@ export const LiveTV: React.FC<LiveTVProps> = React.memo(({ userProfile, searchQu
                                     {COUNTRIES.map(country => (
                                         <TvFocusButton 
                                             key={country.id}
-                                            onClick={() => { setSelectedCountry(country.id); setIsCountryDropdownOpen(false); }}
+                                            onClick={() => { handleCountryChange(country.id); setIsCountryDropdownOpen(false); }}
                                             className={`w-full flex items-center justify-between px-3 py-2 text-xs font-semibold rounded-lg hover:bg-white/5 transition-colors ${selectedCountry === country.id ? 'bg-white/10 text-white font-bold' : 'text-zinc-400 hover:text-white'}`}
                                         >
-                                            <div className="flex items-center gap-3 min-w-0 flex-1 text-left">
-                                                {renderCountryFlag(country.id, "w-5 h-3.5 object-cover rounded-sm shadow-sm shrink-0")}
+                                            <div className="flex items-center gap-2.5 min-w-0 flex-1 text-left">
+                                                {renderCountryFlag(country.id, "w-4.5 h-3 object-cover rounded-sm shadow-sm shrink-0")}
                                                 <span className="font-medium text-[11px] truncate">{country.name}</span>
                                             </div>
                                             {selectedCountry === country.id && <Check size={12} className="shrink-0 text-white/80 ml-2" />}
+                                        </TvFocusButton>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Language Selector Dropdown */}
+                        <div className="relative z-50 w-full sm:w-44" ref={langDropdownRef}>
+                            <TvFocusButton 
+                                onClick={() => { setIsLanguageDropdownOpen(!isLanguageDropdownOpen); setIsCountryDropdownOpen(false); }}
+                                className="w-full h-10 flex items-center justify-between px-3.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/5 hover:border-white/10 transition-all active:scale-95 backdrop-blur-md"
+                            >
+                                <div className="flex items-center gap-2 min-w-0 flex-1 text-left">
+                                    <span className="text-sm shrink-0">{activeLanguageObj.icon}</span>
+                                    <span className="text-xs font-bold truncate">{activeLanguageObj.name}</span>
+                                </div>
+                                <ChevronDown size={14} className={`transition-transform duration-300 text-white/50 shrink-0 ${isLanguageDropdownOpen ? 'rotate-180' : ''}`}/>
+                            </TvFocusButton>
+
+                            {isLanguageDropdownOpen && (
+                                <div className="absolute top-full left-0 right-0 mt-2 bg-[#0e0e10]/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-2xl overflow-hidden max-h-80 overflow-y-auto custom-scrollbar animate-in zoom-in-95 duration-200 z-50 p-1">
+                                    {LANGUAGES.map(lang => (
+                                        <TvFocusButton 
+                                            key={lang.id}
+                                            onClick={() => { handleLanguageChange(lang.id); setIsLanguageDropdownOpen(false); }}
+                                            className={`w-full flex items-center justify-between px-3 py-2 text-xs font-semibold rounded-lg hover:bg-white/5 transition-colors ${selectedLanguage === lang.id ? 'bg-white/10 text-white font-bold' : 'text-zinc-400 hover:text-white'}`}
+                                        >
+                                            <div className="flex items-center gap-2 min-w-0 flex-1 text-left">
+                                                <span className="text-sm shrink-0">{lang.icon}</span>
+                                                <span className="font-medium text-[11px] truncate">{lang.name}</span>
+                                            </div>
+                                            {selectedLanguage === lang.id && <Check size={12} className="shrink-0 text-white/80 ml-2" />}
                                         </TvFocusButton>
                                     ))}
                                 </div>
@@ -951,6 +1047,7 @@ export const LiveTV: React.FC<LiveTVProps> = React.memo(({ userProfile, searchQu
                                 title={cat.name}
                                 categoryId={cat.id}
                                 countryCode={selectedCountry}
+                                languageCode={selectedLanguage}
                                 searchQuery={searchQuery}
                                 hideOffline={hideOffline}
                                 onChannelClick={handleChannelPlay}
