@@ -443,34 +443,36 @@ export const LiveTVPlayer: React.FC<LiveTVPlayerProps> = ({ channel, playlist = 
             onMouseMove={handleMouseMove}
             onMouseLeave={handleMouseLeave}
         >
-            {/* Header / Top Overlay (Cinematic Glassmorphism) */}
-            <div className={`absolute top-0 left-0 right-0 p-6 z-20 flex items-center transition-all duration-300 ${showControls && !isMinimized ? 'translate-y-0 opacity-100 pointer-events-auto' : '-translate-y-4 opacity-0 pointer-events-none'}`}>
-                <div className="flex items-center gap-4">
+            {/* Header / Top Overlay (Cinematic Glassmorphism with deep contrast drop) */}
+            <div className={`absolute top-0 left-0 right-0 p-6 pt-8 z-20 flex items-center bg-gradient-to-b from-black/90 via-black/75 to-transparent transition-all duration-300 ${showControls && !isMinimized ? 'translate-y-0 opacity-100 pointer-events-auto' : '-translate-y-4 opacity-0 pointer-events-none'}`}>
+                <div className="flex items-center gap-4 w-full">
                     <button 
                         onClick={handleClose} 
-                        className="bg-white/5 hover:bg-white/10 p-2.5 rounded-full text-white transition-all duration-300 border border-white/5 hover:border-white/20 active:scale-90 shadow-lg"
+                        className="bg-black/40 hover:bg-white/10 p-3 rounded-full text-white transition-all duration-300 border border-white/10 hover:border-white/30 active:scale-90 shadow-xl"
                         title="Back"
                     >
-                        <ArrowLeft size={20}/>
+                        <ArrowLeft size={22}/>
                     </button>
-                    <div className="flex items-center gap-3">
-                        <div className="w-11 h-11 bg-white/5 rounded-xl p-1.5 border border-white/5 flex items-center justify-center shadow-md bg-gradient-to-b from-white/[0.02] to-transparent">
+                    <div className="flex items-center gap-4">
+                        {/* Larger Logo Container with Solid Black Backing for maximum contrast */}
+                        <div className="w-16 h-16 bg-black rounded-2xl p-1 border border-white/10 flex items-center justify-center shadow-2xl relative overflow-hidden shrink-0">
+                            <div className="absolute inset-0 bg-gradient-to-b from-white/[0.04] to-transparent" />
                              {channel.logo ? (
-                                <img src={channel.logo} className="max-w-full max-h-full object-contain filter drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]" alt={channel.name} onError={(e) => (e.currentTarget.style.display = 'none')}/>
+                                <img src={channel.logo} className="max-w-[90%] max-h-[90%] object-contain filter drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]" alt={channel.name} onError={(e) => { e.currentTarget.style.display = 'none'; }}/>
                              ) : (
-                                <span className="font-bold text-base text-gray-300">{channel.name.charAt(0)}</span>
+                                <span className="font-black text-xl text-red-500">{channel.name.charAt(0)}</span>
                              )}
                         </div>
                         <div className="text-left">
-                            <h2 className="text-base font-bold text-white tracking-tight drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">{channel.name}</h2>
-                            <div className="flex items-center gap-2 mt-1">
+                            <h2 className="text-lg md:text-xl font-black text-white tracking-tight drop-shadow-[0_2px_10px_rgba(0,0,0,0.95)]">{channel.name}</h2>
+                            <div className="flex items-center gap-2 mt-1.5 select-none">
                                 {channel.group && (
-                                    <span className="inline-block px-2 py-0.5 rounded bg-white/5 text-[9px] font-bold text-gray-400 border border-white/5 uppercase tracking-widest leading-none">
+                                    <span className="inline-block px-2.5 py-1 rounded-md bg-white/10 text-[9px] font-black text-white border border-white/15 uppercase tracking-widest leading-none shadow-sm">
                                         {channel.group}
                                     </span>
                                 )}
                                 {epg && (
-                                    <span className="inline-block px-2 py-0.5 rounded bg-red-600/20 text-[9px] font-bold text-red-400 border border-red-500/25 tracking-wider uppercase leading-none">
+                                    <span className="inline-block px-2.5 py-1 rounded-md bg-red-600 text-[9px] font-black text-white tracking-widest uppercase leading-none shadow-[0_2px_8px_rgba(220,38,38,0.4)] animate-pulse">
                                         Now: {epg.current.title}
                                     </span>
                                 )}
@@ -599,18 +601,18 @@ export const LiveTVPlayer: React.FC<LiveTVPlayerProps> = ({ channel, playlist = 
                             />
                         </div>
                         {epg && (
-                            <div className="flex items-center justify-between text-[10px] text-gray-400 font-semibold px-0.5">
-                                <div className="flex items-center gap-1.5">
-                                    <Clock size={10} className="text-zinc-500" />
+                            <div className="flex items-center justify-between text-[10px] text-zinc-300 font-bold px-0.5">
+                                <div className="flex items-center gap-1.5 drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
+                                    <Clock size={10} className="text-red-400" />
                                     <span>
-                                        NOW PLAYING: <span className="text-white font-bold">{epg.current.title}</span>
+                                        NOW PLAYING: <span className="text-white font-black">{epg.current.title}</span>
                                     </span>
-                                    <span className="text-zinc-700">|</span>
-                                    <span className="text-zinc-400 font-medium">Ends in {Math.round(epg.current.duration * (1 - epg.progress / 100))} min</span>
+                                    <span className="text-zinc-600">|</span>
+                                    <span className="text-zinc-300 font-bold">Ends in {Math.round(epg.current.duration * (1 - epg.progress / 100))} min</span>
                                 </div>
                                 {epg.next && (
-                                    <span className="text-zinc-400">
-                                        NEXT: <span className="text-zinc-300 font-bold">{epg.next.title}</span> (Starts {epg.next.startTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})
+                                    <span className="text-zinc-300 font-medium drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
+                                        NEXT: <span className="text-white font-black">{epg.next.title}</span> (Starts {epg.next.startTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})
                                     </span>
                                 )}
                             </div>
