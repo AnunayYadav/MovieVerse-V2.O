@@ -130,6 +130,23 @@ const MANGA_DICTIONARY: Record<string, string> = {
   'そいつ': 'That fellow',
   'みんな': 'Everyone',
   '皆': 'Everyone',
+
+  // Chainsaw Man & Shonen Manga Dialogue Expressions
+  'なんかイイような': 'Kind of a good...',
+  'なんか': 'Kind of...',
+  'イイような': 'like a good...',
+  'ワリいような': 'or a bad kind of...',
+  '夢みてた': 'having a dream...',
+  '気がする': 'I feel like...',
+  '犬も飼いてえな': 'I wanna keep a dog too...',
+  '犬も': 'even a dog',
+  '飼いてえな': 'wanna keep one...',
+  '飼いてえ': 'wanna raise',
+  '女と': 'with a girl',
+  'メシ食って': 'eating food',
+  'ゲームして': 'playing games',
+  'コンコン': '*Knock knock*',
+  'コン': '*Knock*',
 };
 
 // Particle and suffix rules for offline grammar engine

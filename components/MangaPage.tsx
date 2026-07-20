@@ -4094,6 +4094,38 @@ export const MangaPage: React.FC<MangaPageProps> = ({
       onChapterSelect(e.target.value);
     };
 
+    const translatePageUrl = useCallback(async (pageUrl: string) => {
+      if (!pageUrl || translatedPageCache[pageUrl]) return;
+
+      setIsOfflineTranslating(true);
+      setOfflineTranslationProgress({ msg: 'Initializing Japanese OCR...', percent: 10 });
+      try {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.src = pageUrl;
+        await new Promise((res) => {
+          img.onload = res;
+          img.onerror = () => res(null);
+        });
+
+        const result = await processMangaPageOffline(img, (msg, percent) => {
+          setOfflineTranslationProgress({ msg, percent });
+        });
+
+        if (result && result.processedCanvasDataUrl) {
+          setTranslatedPageCache(prev => ({
+            ...prev,
+            [pageUrl]: result.processedCanvasDataUrl
+          }));
+          showToast("Page translated on-device!");
+        }
+      } catch (err) {
+        console.error("Offline translation failed:", err);
+      } finally {
+        setIsOfflineTranslating(false);
+      }
+    }, [translatedPageCache]);
+
     const handleToggleOfflineTranslation = async () => {
       if (isOfflineTranslateActive) {
         setIsOfflineTranslateActive(false);
@@ -4106,38 +4138,22 @@ export const MangaPage: React.FC<MangaPageProps> = ({
 
       const rawPage = pages[activePageIdx];
       const pageUrl = typeof rawPage === 'string' ? rawPage : rawPage?.src;
-
-      if (pageUrl && !translatedPageCache[pageUrl]) {
-        setIsOfflineTranslating(true);
-        setOfflineTranslationProgress({ msg: 'Initializing Japanese OCR...', percent: 10 });
-        try {
-          const img = new Image();
-          img.crossOrigin = 'anonymous';
-          img.src = pageUrl;
-          await new Promise((res) => {
-            img.onload = res;
-            img.onerror = () => res(null);
-          });
-
-          const result = await processMangaPageOffline(img, (msg, percent) => {
-            setOfflineTranslationProgress({ msg, percent });
-          });
-
-          if (result && result.processedCanvasDataUrl) {
-            setTranslatedPageCache(prev => ({
-              ...prev,
-              [pageUrl]: result.processedCanvasDataUrl
-            }));
-            showToast("Japanese page translated on-device!");
-          }
-        } catch (err) {
-          console.error("Offline translation failed:", err);
-          showToast("Failed to run offline OCR translation");
-        } finally {
-          setIsOfflineTranslating(false);
-        }
+      if (pageUrl) {
+        translatePageUrl(pageUrl);
       }
     };
+
+    // Auto translate active page whenever user changes pages or mode
+    useEffect(() => {
+      if (!isOfflineTranslateActive) return;
+
+      const rawPage = pages[activePageIdx];
+      const pageUrl = typeof rawPage === 'string' ? rawPage : rawPage?.src;
+
+      if (pageUrl && !translatedPageCache[pageUrl] && !isOfflineTranslating) {
+        translatePageUrl(pageUrl);
+      }
+    }, [isOfflineTranslateActive, activePageIdx, pages, translatedPageCache, isOfflineTranslating, translatePageUrl]);
 
 
 
