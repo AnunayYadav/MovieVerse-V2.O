@@ -976,12 +976,18 @@ const ContinueWatchingCard = ({
             onMouseLeave={handleMouseLeave}
             className="relative w-[220px] md:w-[260px] shrink-0 aspect-[16/9] rounded-xl overflow-hidden bg-zinc-900 border border-white/5 cursor-pointer shadow-lg hover:scale-[1.03] hover:border-white/10 transition-all duration-300 group"
         >
-            <img
-                src={movie.backdrop_path ? `https://image.tmdb.org/t/p/w500${movie.backdrop_path}` : (movie.poster_path ? `https://image.tmdb.org/t/p/w300${movie.poster_path}` : "https://placehold.co/600x338?text=No+Preview")}
-                alt={movie.title || movie.name}
-                className="w-full h-full object-cover"
-                loading="lazy"
-            />
+            {(() => {
+                const rawImg = movie.backdrop_path || movie.poster_path || (movie as any).coverImage?.extraLarge || (movie as any).coverImage?.large || (movie as any).image;
+                const srcUrl = rawImg ? (rawImg.startsWith('http://') || rawImg.startsWith('https://') ? rawImg : `https://image.tmdb.org/t/p/w500${rawImg.startsWith('/') ? rawImg : `/${rawImg}`}`) : "https://placehold.co/600x338?text=No+Preview";
+                return (
+                    <img
+                        src={srcUrl}
+                        alt={movie.title || movie.name}
+                        className="w-full h-full object-cover"
+                        loading="lazy"
+                    />
+                );
+            })()}
             <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/35 to-transparent opacity-85 group-hover:opacity-100 transition-opacity duration-300" />
             <div className="absolute bottom-3 left-3 right-3 flex flex-col gap-1 text-left pointer-events-none">
                 <div className="min-h-[30px] flex items-end">
@@ -1076,7 +1082,13 @@ const TrendingMovieItem = ({ movie, idx, onMovieClick }: { movie: Movie, idx: nu
                 {idx + 1}
             </div>
             <div className="relative z-10 w-[80%] ml-auto aspect-[2/3] rounded-lg overflow-hidden bg-zinc-900 shadow-xl transition-all duration-500 group-hover:-translate-y-2 border border-white/5 group-hover:border-white/10">
-                <img src={movie.poster_path ? `${TMDB_IMAGE_BASE}${movie.poster_path}` : "https://placehold.co/300x450"} className="w-full h-full object-cover" alt={movie.title} loading="lazy" />
+                {(() => {
+                    const rawPath = movie.poster_path || (movie as any).coverImage?.extraLarge || (movie as any).coverImage?.large || (movie as any).image;
+                    const posterSrc = rawPath ? (rawPath.startsWith('http://') || rawPath.startsWith('https://') ? rawPath : `${TMDB_IMAGE_BASE}${rawPath.startsWith('/') ? rawPath : `/${rawPath}`}`) : "https://placehold.co/300x450";
+                    return (
+                        <img src={posterSrc} className="w-full h-full object-cover" alt={movie.title || movie.name} loading="lazy" />
+                    );
+                })()}
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
             </div>
         </div>

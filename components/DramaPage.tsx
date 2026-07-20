@@ -804,9 +804,6 @@ export const DramaCard: React.FC<DramaCardProps> = ({ drama, onDramaClick, title
     const resolveTmdbAndLogo = async () => {
       let tmdbId = drama.tmdbId;
       let mediaType = drama.mediaType || 'tv';
-      let backdropPath = drama.backdrop;
-
-      let resolvedPoster: string | null = drama.image || null;
 
       const safeSlug = (drama.slug && drama.slug !== 'undefined') 
         ? drama.slug 
@@ -816,7 +813,10 @@ export const DramaCard: React.FC<DramaCardProps> = ({ drama, onDramaClick, title
         tmdbId = parseInt(safeSlug.replace('tmdb-', ''), 10);
       }
 
-      const matchCacheKey = `movieverse_drama_tmdb_match_${safeSlug}`;
+      // If drama already has a valid full poster image, set it directly
+      let resolvedPoster: string | null = drama.image || null;
+
+      const matchCacheKey = `movieverse_drama_v3_match_${safeSlug}`;
       const logoCacheKey = `movieverse_drama_logo_${safeSlug}`;
       
       const cachedMatch = localStorage.getItem(matchCacheKey);
@@ -836,10 +836,11 @@ export const DramaCard: React.FC<DramaCardProps> = ({ drama, onDramaClick, title
             setImageUrl(resolvedPoster);
           }
           if (isMounted) {
-            const tmdbTitle = titleLanguage === 'native'
-              ? (matchData.original_name || drama.title)
-              : (matchData.name || drama.title);
-            setDisplayTitle(tmdbTitle);
+            if (titleLanguage === 'native' && matchData.original_name) {
+              setDisplayTitle(matchData.original_name);
+            } else {
+              setDisplayTitle(drama.title);
+            }
             if (matchData.vote_average) {
               setRating(matchData.vote_average);
             }
@@ -860,20 +861,27 @@ export const DramaCard: React.FC<DramaCardProps> = ({ drama, onDramaClick, title
           const tvData = await tvRes.json();
           let match = null;
 
+          const cleanLower = cleanTitle.toLowerCase();
+
           if (tvData && tvData.results && tvData.results.length > 0) {
-            match = tvData.results.find((item: any) => 
-              ['ko', 'zh', 'ja'].includes(item.original_language)
-            ) || tvData.results[0];
+            // Find a result that actually matches Asian origin language and title
+            match = tvData.results.find((item: any) => {
+              const itemTitle = (item.name || item.original_name || '').toLowerCase();
+              const isAsian = ['ko', 'zh', 'ja'].includes(item.original_language);
+              return isAsian && (itemTitle.includes(cleanLower) || cleanLower.includes(itemTitle));
+            }) || tvData.results.find((item: any) => ['ko', 'zh', 'ja'].includes(item.original_language));
           }
 
           if (!match) {
             const movieRes = await window.fetch(`${TMDB_BASE_URL}/search/movie?api_key=${apiKey}&query=${encodeURIComponent(cleanTitle)}`);
             const movieData = await movieRes.json();
             if (movieData && movieData.results && movieData.results.length > 0) {
-              match = movieData.results.find((item: any) => 
-                ['ko', 'zh', 'ja'].includes(item.original_language)
-              ) || movieData.results[0];
-              mediaType = 'movie';
+              match = movieData.results.find((item: any) => {
+                const itemTitle = (item.title || item.original_title || '').toLowerCase();
+                const isAsian = ['ko', 'zh', 'ja'].includes(item.original_language);
+                return isAsian && (itemTitle.includes(cleanLower) || cleanLower.includes(itemTitle));
+              }) || movieData.results.find((item: any) => ['ko', 'zh', 'ja'].includes(item.original_language));
+              if (match) mediaType = 'movie';
             }
           }
 
@@ -893,17 +901,18 @@ export const DramaCard: React.FC<DramaCardProps> = ({ drama, onDramaClick, title
               mediaType,
               poster_path: match.poster_path,
               backdrop_path: match.backdrop_path,
-              name: match.name || match.title,
-              original_name: match.original_name || match.original_title,
+              name: drama.title, // Store canonical title to prevent overwrite
+              original_name: match.original_name || match.original_title || drama.title,
               vote_average: match.vote_average
             };
             localStorage.setItem(matchCacheKey, JSON.stringify(matchData));
             
             if (isMounted) {
-              const tmdbTitle = titleLanguage === 'native'
-                ? (matchData.original_name || drama.title)
-                : (matchData.name || drama.title);
-              setDisplayTitle(tmdbTitle);
+              if (titleLanguage === 'native' && matchData.original_name) {
+                setDisplayTitle(matchData.original_name);
+              } else {
+                setDisplayTitle(drama.title);
+              }
               if (match.vote_average) {
                 setRating(match.vote_average);
               }

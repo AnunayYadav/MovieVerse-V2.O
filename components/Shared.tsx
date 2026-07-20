@@ -436,13 +436,18 @@ export const MovieCard = React.memo(React.forwardRef<HTMLDivElement, MovieCardPr
         }
     };
 
+    const resolveImageUrl = (path: any, isBackdrop = false) => {
+        if (!path || typeof path !== 'string') return null;
+        if (path.startsWith('http://') || path.startsWith('https://')) return path;
+        const clean = path.startsWith('/') ? path : `/${path}`;
+        return `${isBackdrop ? TMDB_BACKDROP_BASE : TMDB_IMAGE_BASE}${clean}`;
+    };
+
+    const animeCover = (movie as any).coverImage?.extraLarge || (movie as any).coverImage?.large || (movie as any).image;
+
     const posterUrl = horizontal
-      ? (movie.backdrop_path 
-          ? `https://image.tmdb.org/t/p/w500${movie.backdrop_path}`
-          : (movie.poster_path ? `https://image.tmdb.org/t/p/w500${movie.poster_path}` : `https://placehold.co/600x338/111/444?text=${encodeURIComponent(movie.title || movie.name || "Movie")}`))
-      : (movie.poster_path 
-          ? `https://image.tmdb.org/t/p/w500${movie.poster_path}`
-          : (movie.backdrop_path ? `https://image.tmdb.org/t/p/w500${movie.backdrop_path}` : `https://placehold.co/320x480/111/444?text=${encodeURIComponent(movie.title || movie.name || "Movie")}`));
+      ? (resolveImageUrl(movie.backdrop_path, true) || resolveImageUrl(movie.poster_path) || resolveImageUrl(animeCover) || `https://placehold.co/600x338/111/444?text=${encodeURIComponent(movie.title || movie.name || "Movie")}`)
+      : (resolveImageUrl(movie.poster_path) || resolveImageUrl(animeCover) || resolveImageUrl(movie.backdrop_path, true) || `https://placehold.co/320x480/111/444?text=${encodeURIComponent(movie.title || movie.name || "Movie")}`);
 
     const rating = movie.vote_average;
     const year = (movie.release_date || movie.first_air_date || "").split('-')[0];
