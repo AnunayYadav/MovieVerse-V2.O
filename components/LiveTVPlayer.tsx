@@ -48,10 +48,12 @@ export const LiveTVPlayer: React.FC<LiveTVPlayerProps> = ({ channel, playlist = 
     const [epg, setEpg] = useState<ReturnType<typeof getCurrentProgram>>(null);
     const [showEpgGuide, setShowEpgGuide] = useState(false);
     const [isMinimized, setIsMinimized] = useState(false);
+    const [isClosing, setIsClosing] = useState(false);
     const activeProgramRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         setIsMinimized(false);
+        setIsClosing(false);
     }, [channel]);
 
     useEffect(() => {
@@ -204,7 +206,10 @@ export const LiveTVPlayer: React.FC<LiveTVPlayerProps> = ({ channel, playlist = 
         if (isPip) {
             setIsMinimized(true);
         } else {
-            onClose();
+            setIsClosing(true);
+            setTimeout(() => {
+                onClose();
+            }, 300);
         }
     };
 
@@ -436,10 +441,12 @@ export const LiveTVPlayer: React.FC<LiveTVPlayerProps> = ({ channel, playlist = 
     return (
         <div 
             ref={containerRef}
-            className={`fixed bg-black z-[100] flex flex-col group select-none overflow-hidden transition-all duration-300 ${
+            className={`fixed bg-black z-[100] flex flex-col group select-none overflow-hidden transition-all duration-300 ease-out ${
                 isMinimized 
                     ? 'left-[-9999px] top-[-9999px] w-[1px] h-[1px] opacity-0 pointer-events-none' 
-                    : 'inset-0'
+                    : isClosing 
+                        ? 'opacity-0 scale-95 pointer-events-none'
+                        : 'opacity-100 scale-100 inset-0 animate-in fade-in zoom-in-95 duration-300'
             }`}
             onMouseMove={handleMouseMove}
             onMouseLeave={handleMouseLeave}

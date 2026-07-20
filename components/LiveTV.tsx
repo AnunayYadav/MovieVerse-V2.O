@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Tv, Play, Search, AlertCircle, RefreshCcw, Wifi, Globe, Loader2, Lock, ChevronDown, Check, Info, ChevronRight } from 'lucide-react';
+import { Tv, Play, Search, AlertCircle, RefreshCcw, Wifi, Globe, Loader2, Lock, ChevronDown, Check, Info, ChevronRight, Clock } from 'lucide-react';
 import { LiveChannel, UserProfile } from '../types';
 import { LiveTVPlayer } from './LiveTVPlayer';
 import { getCurrentProgram } from '../utils/epgGenerator';
@@ -7,9 +7,11 @@ import { preloadChannelMetadata } from '../utils/channelMetadata';
 import { useStreamStatuses, StreamStatus } from '../utils/streamChecker';
 import { useTvFocus, TvFocusButton, TvFocusInput } from '../tvNavigation';
 import { ExpandedCategoryModal } from './Modals';
+import { GridEPG } from './GridEPG';
 
 interface LiveTVProps {
     userProfile: UserProfile;
+    searchQuery?: string;
 }
 
 const CATEGORIES = [
@@ -467,17 +469,35 @@ const LiveTVRow: React.FC<{
     );
 };
 
-export const LiveTV: React.FC<LiveTVProps> = ({ userProfile }) => {
+const getChannelBackdrop = (channel: LiveChannel) => {
+    const name = (channel.name || "").toLowerCase();
+    if (name.includes('news') || name.includes('bbc') || name.includes('cnn') || name.includes('al jazeera') || name.includes('euronews')) {
+        return "https://images.unsplash.com/photo-1504711434969-e33886168f5c?w=1600&q=80"; // Newsroom
+    }
+    if (name.includes('sport') || name.includes('espn') || name.includes('sky') || name.includes('football') || name.includes('cricket') || name.includes('tennis')) {
+        return "https://images.unsplash.com/photo-1461896836934-ffe607ba8211?w=1600&q=80"; // Sports stadium
+    }
+    if (name.includes('movie') || name.includes('action') || name.includes('cine') || name.includes('film') || name.includes('hbo')) {
+        return "https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=1600&q=80"; // Cinema
+    }
+    if (name.includes('music') || name.includes('mtv') || name.includes('song') || name.includes('radio')) {
+        return "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=1600&q=80"; // Music stage
+    }
+    return "https://images.unsplash.com/photo-1593305841991-05c297ba4575?w=1600&q=80"; // Fallback
+};
+
+export const LiveTV: React.FC<LiveTVProps> = ({ userProfile, searchQuery = "" }) => {
     const [selectedCountry, setSelectedCountry] = useState('ALL');
     const [selectedChannel, setSelectedChannel] = useState<LiveChannel | null>(null);
     const [activePlaylist, setActivePlaylist] = useState<LiveChannel[]>([]);
-    const [searchQuery, setSearchQuery] = useState("");
     const [expandedCategory, setExpandedCategory] = useState<{ title: string; items: LiveChannel[] } | null>(null);
     const [hideOffline, setHideOffline] = useState(false);
+    const [showGridEpg, setShowGridEpg] = useState(false);
     
     // Trending Channels Today
     const [trendingChannels, setTrendingChannels] = useState<LiveChannel[]>([]);
     const [trendingLoading, setTrendingLoading] = useState(false);
+    const [heroIndex, setHeroIndex] = useState(0);
 
     // Preload API metadata on mount
     useEffect(() => {
@@ -513,6 +533,15 @@ export const LiveTV: React.FC<LiveTVProps> = ({ userProfile }) => {
         });
         return () => { isMounted = false; };
     }, []);
+
+    // Auto-slide EPG Hero Carousel index
+    useEffect(() => {
+        if (trendingChannels.length <= 1) return;
+        const interval = setInterval(() => {
+            setHeroIndex(prev => (prev + 1) % Math.min(5, trendingChannels.length));
+        }, 6000);
+        return () => clearInterval(interval);
+    }, [trendingChannels]);
 
     // Search states
     const [searchChannels, setSearchChannels] = useState<LiveChannel[]>([]);
@@ -664,8 +693,6 @@ export const LiveTV: React.FC<LiveTVProps> = ({ userProfile }) => {
         );
     }
 
-
-
     return (
         <div className="w-full min-h-screen bg-[#030303] text-white pb-20">
             {selectedChannel && (
@@ -677,41 +704,118 @@ export const LiveTV: React.FC<LiveTVProps> = ({ userProfile }) => {
                 />
             )}
 
-            {/* Premium Netflix-style Live TV Hero Banner */}
-            <div className="relative w-full aspect-[21/9] min-h-[350px] max-h-[500px] overflow-hidden flex items-center bg-black select-none">
-                <img 
-                    src="https://images.unsplash.com/photo-1593305841991-05c297ba4575?w=1600&q=80" 
-                    alt="Live TV Header"
-                    className="absolute inset-0 w-full h-full object-cover opacity-30 scale-105"
-                />
-                
-                {/* Netflix-style gradient fade overlays */}
-                <div className="absolute inset-0 bg-gradient-to-r from-[#030303] via-black/40 to-transparent z-10" />
-                <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-[#030303] via-[#030303]/60 to-transparent z-10" />
-                
-                {/* Hero Banner details content */}
-                <div className="absolute left-4 md:left-12 bottom-8 md:bottom-12 max-w-2xl text-left z-20 space-y-4 px-4 md:px-0">
-                    <div className="flex items-center gap-2">
-                        <div className="flex items-center gap-1.5 bg-red-600 px-3 py-0.5 rounded-full border border-red-500/25 shadow-[0_0_12px_#dc2626]/40">
-                            <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
-                            <span className="text-[10px] font-black tracking-widest text-white uppercase">Live Broadcasts</span>
-                        </div>
-                    </div>
+            {/* Premium Netflix-style Live TV Hero Banner / Carousel */}
+            <div className="relative w-full aspect-[21/9] min-h-[380px] max-h-[500px] overflow-hidden flex items-center bg-black select-none">
+                {(() => {
+                    const activeHeroChannel = trendingChannels[heroIndex];
+                    const currentProg = activeHeroChannel ? getCurrentProgram(activeHeroChannel) : null;
+                    return activeHeroChannel ? (
+                        <>
+                            {/* Background Slide Image with Fade Transitions */}
+                            <div className="absolute inset-0 transition-all duration-1000 ease-in-out">
+                                <img 
+                                    src={getChannelBackdrop(activeHeroChannel)} 
+                                    alt={activeHeroChannel.name}
+                                    className="absolute inset-0 w-full h-full object-cover opacity-25 scale-105 transition-transform duration-[6000ms] ease-out animate-pulse"
+                                />
+                            </div>
+                            
+                            {/* Netflix-style gradient fade overlays */}
+                            <div className="absolute inset-0 bg-gradient-to-r from-[#030303] via-black/40 to-transparent z-10" />
+                            <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-[#030303] via-[#030303]/60 to-transparent z-10" />
+                            
+                            {/* Hero Banner details content */}
+                            <div className="absolute left-4 md:left-12 bottom-8 md:bottom-12 max-w-2xl text-left z-20 space-y-4 px-4 md:px-0 animate-in fade-in slide-in-from-bottom-6 duration-700">
+                                <div className="flex items-center gap-2">
+                                    <div className="flex items-center gap-1.5 bg-red-600 px-3 py-0.5 rounded-full border border-red-500/25 shadow-[0_0_12px_#dc2626]/40">
+                                        <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+                                        <span className="text-[10px] font-black tracking-widest text-white uppercase">Spotlight Broadcast</span>
+                                    </div>
+                                    {activeHeroChannel.country && (
+                                        <span className="text-[9px] bg-white/10 text-white/90 border border-white/5 px-2 py-0.5 rounded uppercase font-bold tracking-widest">
+                                            {activeHeroChannel.country}
+                                        </span>
+                                    )}
+                                </div>
 
-                    <div className="flex items-center gap-4">
-                        <div className="h-10 md:h-12 bg-white/5 px-3 py-2.5 rounded-xl flex items-center justify-center border border-white/5">
-                            <Tv className="text-red-500" size={24} />
-                        </div>
-                        <h2 className="text-xl md:text-3xl font-black tracking-tight text-white">Global Live TV</h2>
-                    </div>
+                                <div className="flex items-center gap-4">
+                                    <div className="w-14 h-14 bg-black rounded-2xl p-1.5 border border-white/10 flex items-center justify-center shadow-2xl relative overflow-hidden shrink-0">
+                                        <div className="absolute inset-0 bg-gradient-to-b from-white/[0.04] to-transparent" />
+                                        {activeHeroChannel.logo ? (
+                                            <img src={activeHeroChannel.logo} className="max-w-[90%] max-h-[90%] object-contain" alt="" onError={(e) => { e.currentTarget.style.display = 'none'; }}/>
+                                        ) : (
+                                            <span className="font-black text-lg text-red-500">{activeHeroChannel.name.charAt(0)}</span>
+                                        )}
+                                    </div>
+                                    <h2 className="text-xl md:text-3xl font-black tracking-tight text-white">{activeHeroChannel.name}</h2>
+                                </div>
 
-                    <p className="text-xs md:text-sm text-gray-300 font-medium leading-relaxed drop-shadow-md">
-                        Stream free-to-air international television channels instantly. Explore 24/7 live news, movies, sports, entertainment, and documentaries from around the globe in real-time.
-                    </p>
+                                {/* EPG Program Preview in Hero */}
+                                {currentProg && (
+                                    <div className="p-3.5 rounded-2xl bg-white/[0.02] border border-white/5 backdrop-blur-md max-w-md flex flex-col gap-1.5 shadow-lg select-none">
+                                        <span className="text-[8px] font-bold text-red-500 uppercase tracking-widest flex items-center gap-1">
+                                            <span className="w-1.5 h-1.5 rounded-full bg-red-600 inline-block animate-ping"></span>
+                                            Now Playing
+                                        </span>
+                                        <h4 className="text-xs md:text-sm font-bold text-zinc-100 line-clamp-1">{currentProg.current.title}</h4>
+                                        <p className="text-[10px] text-zinc-400 font-medium">
+                                            {currentProg.current.startTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })} - {currentProg.current.endTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}
+                                        </p>
+                                    </div>
+                                )}
 
+                                <div className="flex items-center gap-3 mt-2">
+                                    <TvFocusButton
+                                        onClick={() => handleChannelPlay(activeHeroChannel, trendingChannels)}
+                                        className="px-6 py-2.5 text-xs font-bold rounded-xl flex items-center gap-2.5 transition-all hover:scale-[1.02] active:scale-95 shadow-lg bg-red-600 text-white hover:bg-red-700 hover:shadow-red-600/20"
+                                    >
+                                        <Play size={14} fill="currentColor" /> Watch Live
+                                    </TvFocusButton>
+                                </div>
+                            </div>
 
-                </div>
+                            {/* Slider Dot Indicators */}
+                            <div className="absolute right-4 md:right-12 bottom-12 z-20 flex items-center gap-2">
+                                {trendingChannels.slice(0, 5).map((_, idx) => (
+                                    <button 
+                                        key={idx}
+                                        onClick={() => setHeroIndex(idx)}
+                                        className={`w-2 h-2 rounded-full transition-all duration-300 ${heroIndex === idx ? 'bg-red-600 w-6' : 'bg-white/30 hover:bg-white/50'}`}
+                                    />
+                                ))}
+                            </div>
+                        </>
+                    ) : (
+                        <>
+                            <img 
+                                src="https://images.unsplash.com/photo-1593305841991-05c297ba4575?w=1600&q=80" 
+                                alt="Live TV Header"
+                                className="absolute inset-0 w-full h-full object-cover opacity-30 scale-105"
+                            />
+                            <div className="absolute inset-0 bg-gradient-to-r from-[#030303] via-black/40 to-transparent z-10" />
+                            <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-[#030303] via-[#030303]/60 to-transparent z-10" />
+                            <div className="absolute left-4 md:left-12 bottom-8 md:bottom-12 max-w-2xl text-left z-20 space-y-4 px-4 md:px-0">
+                                <div className="flex items-center gap-2">
+                                    <div className="flex items-center gap-1.5 bg-red-600 px-3 py-0.5 rounded-full border border-red-500/25 shadow-[0_0_12px_#dc2626]/40">
+                                        <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+                                        <span className="text-[10px] font-black tracking-widest text-white uppercase">Live Broadcasts</span>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-4">
+                                    <div className="h-10 md:h-12 bg-white/5 px-3 py-2.5 rounded-xl flex items-center justify-center border border-white/5">
+                                        <Tv className="text-red-500" size={24} />
+                                    </div>
+                                    <h2 className="text-xl md:text-3xl font-black tracking-tight text-white">Global Live TV</h2>
+                                </div>
+                                <p className="text-xs md:text-sm text-gray-300 font-medium leading-relaxed drop-shadow-md">
+                                    Stream free-to-air international television channels instantly. Explore 24/7 live news, movies, sports, entertainment, and documentaries from around the globe in real-time.
+                                </p>
+                            </div>
+                        </>
+                    );
+                })()}
             </div>
+
 
             {/* Main Interactive Row and Filter Section */}
             <div className="max-w-7xl mx-auto px-4 md:px-0 -mt-6 relative z-50">
@@ -757,18 +861,6 @@ export const LiveTV: React.FC<LiveTVProps> = ({ userProfile }) => {
                             )}
                         </div>
 
-                        {/* Channel Search Input */}
-                        <div className="relative w-full sm:w-60 group h-10">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-white transition-colors" size={14} />
-                            <TvFocusInput 
-                                type="text" 
-                                value={searchQuery}
-                                onChange={(e: any) => setSearchQuery(e.target.value)}
-                                placeholder="Search channel name..." 
-                                className="w-full h-full bg-white/5 border border-white/5 hover:border-white/10 rounded-xl pl-9 pr-4 text-xs focus:outline-none focus:bg-white/10 focus:border-white/20 transition-all placeholder-gray-500"
-                            />
-                        </div>
-
                         {/* Hide Dead Streams Toggle Button */}
                         <TvFocusButton
                             onClick={() => setHideOffline(!hideOffline)}
@@ -780,6 +872,15 @@ export const LiveTV: React.FC<LiveTVProps> = ({ userProfile }) => {
                         >
                             <Wifi size={14} className={hideOffline ? 'animate-pulse' : ''} />
                             <span>Hide Offline</span>
+                        </TvFocusButton>
+
+                        {/* Interactive Grid EPG Button */}
+                        <TvFocusButton
+                            onClick={() => setShowGridEpg(true)}
+                            className="h-10 px-4 rounded-xl bg-white/5 border border-white/5 text-gray-400 hover:text-white hover:bg-white/10 hover:border-white/10 transition-all active:scale-95 flex items-center justify-center gap-2 text-xs font-bold whitespace-nowrap shadow-md"
+                        >
+                            <Clock size={14} className="text-red-500" />
+                            <span>TV Guide Grid</span>
                         </TvFocusButton>
                     </div>
                 </div>
@@ -926,6 +1027,17 @@ export const LiveTV: React.FC<LiveTVProps> = ({ userProfile }) => {
                     />
                 )}
             />
+
+            {showGridEpg && (
+                <GridEPG 
+                    selectedCountry={selectedCountry}
+                    onClose={() => setShowGridEpg(false)}
+                    onChannelSelect={(channel, playlist) => {
+                        handleChannelPlay(channel, playlist);
+                        setShowGridEpg(false);
+                    }}
+                />
+            )}
         </div>
     );
 };

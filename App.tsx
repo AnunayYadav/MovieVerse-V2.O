@@ -4828,7 +4828,7 @@ export default function App() {
                             apiKey={apiKey}
                             onJoinRoom={handleJoinWatchParty}
                         />
-                    ) : selectedCategory === "LiveTV" ? (<LiveTV userProfile={userProfile} />) : selectedCategory === "Anime" ? (
+                    ) : selectedCategory === "LiveTV" ? (<LiveTV userProfile={userProfile} searchQuery={searchQuery} />) : selectedCategory === "Anime" ? (
                         <AnimePage
                             apiKey={apiKey}
                             onMovieClick={(m: any) => {
