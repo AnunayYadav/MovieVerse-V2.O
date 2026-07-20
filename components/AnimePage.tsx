@@ -339,8 +339,11 @@ export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick, sear
 
       const cartoonsQuery = `
         query {
-          doraemon: Page(page: 1, perPage: 1) {
-            media(type: ANIME, search: "Doraemon") { ...animeFields }
+          doraemon1973: Page(page: 1, perPage: 1) {
+            media(type: ANIME, id: 20140) { ...animeFields }
+          }
+          doraemon1979: Page(page: 1, perPage: 1) {
+            media(type: ANIME, id: 2471) { ...animeFields }
           }
           shinchan: Page(page: 1, perPage: 1) {
             media(type: ANIME, search: "Crayon Shin-chan") { ...animeFields }
@@ -440,7 +443,7 @@ export const AnimePage: React.FC<AnimePageProps> = ({ apiKey, onMovieClick, sear
       let cartoonsList: AniListMedia[] = [];
       if (cartoonsDataResult) {
         const cartoonKeys = [
-          'doraemon', 'shinchan', 'pokemon', 'kochikame', 'hattori',
+          'doraemon1973', 'doraemon1979', 'shinchan', 'pokemon', 'kochikame', 'hattori',
           'perman', 'kiteretsu', 'beyblade', 'bakugan', 'digimon',
           'conan', 'idaten', 'maruko', 'zatchbell', 'atashinchi'
         ];
