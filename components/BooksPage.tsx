@@ -39,7 +39,7 @@ interface BooksPageProps {
   onSearchClear?: () => void;
 }
 
-const LIBRIVOX_API_BASE = "https://librivox.org/api/feed/audiobooks";
+const ARCHIVE_API_BASE = "https://archive.org/advancedsearch.php";
 const GUTENDEX_API_BASE = "https://gutendex.com/books";
 
 export const BooksPage: React.FC<BooksPageProps> = ({ searchQuery = "", onSearchClear }) => {
@@ -102,7 +102,7 @@ export const BooksPage: React.FC<BooksPageProps> = ({ searchQuery = "", onSearch
       setError(null);
       try {
         const endpoints = {
-          popularAudio: `${LIBRIVOX_API_BASE}/?format=json&limit=30&extended=1`,
+          popularAudio: `${ARCHIVE_API_BASE}?q=collection:librivoxaudio&fl[]=identifier&fl[]=title&fl[]=creator&fl[]=description&fl[]=downloads&sort[]=downloads+desc&rows=30&output=json`,
           trendingEbooks: `${GUTENDEX_API_BASE}/?sort=popular`,
           mysteryEbooks: `${GUTENDEX_API_BASE}/?topic=mystery`,
           scifiEbooks: `${GUTENDEX_API_BASE}/?topic=science%20fiction`,
@@ -127,7 +127,18 @@ export const BooksPage: React.FC<BooksPageProps> = ({ searchQuery = "", onSearch
         results.forEach(({ key, data }) => {
           if (!data) return;
           if (key === 'popularAudio') {
-            setPopularAudiobooks(data.books || []);
+            const docs = data?.response?.docs || [];
+            const formatted: Audiobook[] = docs.map((doc: any) => ({
+              id: doc.identifier,
+              title: doc.title || "Unknown Title",
+              description: doc.description || "No description available.",
+              url_librivox: "",
+              url_iarchive: `https://archive.org/details/${doc.identifier}`,
+              total_time: "",
+              totaltimesecs: 0,
+              authors: [{ first_name: "", last_name: doc.creator || "Unknown Author" }]
+            }));
+            setPopularAudiobooks(formatted);
           } else if (key === 'trendingEbooks') {
             setTrendingEbooks(data.results || []);
           } else if (key === 'mysteryEbooks') {
@@ -166,7 +177,7 @@ export const BooksPage: React.FC<BooksPageProps> = ({ searchQuery = "", onSearch
     const performSearch = async () => {
       setSearchLoading(true);
       try {
-        const audioUrl = `${LIBRIVOX_API_BASE}/?format=json&title=${encodeURIComponent(searchQuery)}&limit=24&extended=1`;
+        const audioUrl = `${ARCHIVE_API_BASE}?q=collection:librivoxaudio+AND+(title:(${encodeURIComponent(searchQuery)})+OR+creator:(${encodeURIComponent(searchQuery)}))&fl[]=identifier&fl[]=title&fl[]=creator&fl[]=description&fl[]=downloads&sort[]=downloads+desc&rows=24&output=json`;
         const ebookUrl = `${GUTENDEX_API_BASE}/?search=${encodeURIComponent(searchQuery)}`;
 
         const [audioRes, ebookRes] = await Promise.all([
@@ -178,7 +189,18 @@ export const BooksPage: React.FC<BooksPageProps> = ({ searchQuery = "", onSearch
 
         if (audioRes && audioRes.ok) {
           const audioData = await audioRes.json();
-          setAudiobookSearchResults(audioData.books || []);
+          const docs = audioData?.response?.docs || [];
+          const formatted: Audiobook[] = docs.map((doc: any) => ({
+            id: doc.identifier,
+            title: doc.title || "Unknown Title",
+            description: doc.description || "No description available.",
+            url_librivox: "",
+            url_iarchive: `https://archive.org/details/${doc.identifier}`,
+            total_time: "",
+            totaltimesecs: 0,
+            authors: [{ first_name: "", last_name: doc.creator || "Unknown Author" }]
+          }));
+          setAudiobookSearchResults(formatted);
         }
         if (ebookRes && ebookRes.ok) {
           const ebookData = await ebookRes.json();
