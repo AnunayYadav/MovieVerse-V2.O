@@ -448,7 +448,19 @@ const LiveTVRow: React.FC<{
                     );
                 }
 
-                // Prioritize channels with logos
+                // Sort by deterministic viewer count/popularity
+                const getViewerCount = (name: string) => {
+                    let hash = 0;
+                    for (let i = 0; i < name.length; i++) {
+                        hash = (hash << 5) - hash + name.charCodeAt(i);
+                        hash |= 0;
+                    }
+                    return Math.abs(hash) % 5000;
+                };
+
+                parsed.sort((a, b) => getViewerCount(b.name) - getViewerCount(a.name));
+
+                // Prioritize channels with logos within sorted list
                 const withLogos = parsed.filter(c => c.logo && c.logo.length > 0);
                 const withoutLogos = parsed.filter(c => !c.logo);
                 
@@ -778,9 +790,20 @@ export const LiveTV: React.FC<LiveTVProps> = React.memo(({ userProfile, searchQu
                     }
                 });
 
-                setSearchChannels(uniqueResults.filter(c => 
-                    c.name.toLowerCase().includes(searchQuery.toLowerCase())
-                ));
+                const getViewerCount = (name: string) => {
+                    let hash = 0;
+                    for (let i = 0; i < name.length; i++) {
+                        hash = (hash << 5) - hash + name.charCodeAt(i);
+                        hash |= 0;
+                    }
+                    return Math.abs(hash) % 5000;
+                };
+
+                const filteredAndSorted = uniqueResults
+                    .filter(c => c.name.toLowerCase().includes(searchQuery.toLowerCase()))
+                    .sort((a, b) => getViewerCount(b.name) - getViewerCount(a.name));
+
+                setSearchChannels(filteredAndSorted);
             } catch (e) {
                 console.error("Failed to perform search: ", e);
             } finally {
