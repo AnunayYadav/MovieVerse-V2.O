@@ -876,8 +876,8 @@ const ContinueWatchingCard = ({
     });
 
     const progress = movie.play_progress || 0;
-    const isFuture = new Date(movie.release_date || `${movie.year}-01-01`) > new Date();
-    const year = (movie.release_date || movie.first_air_date || "").split('-')[0];
+    const year = (movie.release_date || movie.first_air_date || movie.year || (movie as any).startDate?.year || (movie as any).seasonYear || "").toString().split('-')[0];
+    const isFuture = new Date(movie.release_date || `${movie.year || year}-01-01`) > new Date();
     const mvRating = getMovieVerseRating(movie.id, movie.vote_average, movie.popularity, movie.vote_count, movie.release_date || movie.first_air_date);
 
     const resolveImageUrl = (path: any) => {

@@ -50,12 +50,12 @@ export const NetflixHoverCard: React.FC<NetflixHoverCardProps> = ({
     const cardRef = useRef<HTMLDivElement>(null);
 
     // Calculate dimensions
-    const width = rect.width * 1.16; // reduced from 1.3 to 1.16
-    const height = width * (horizontal ? 1.22 : 1.32); // reduced from 1.25/1.35
+    const width = rect.width * 1.28;
+    const height = horizontal ? width * 1.2 : width * 1.42;
 
-    // Center the hover box relative to the original card
+    // Center the hover box relative to original card
     let left = rect.left - (width - rect.width) / 2;
-    let top = rect.top - (height - rect.height) / 2;
+    let top = horizontal ? rect.top - (height - rect.height) / 2 : rect.top - 24;
 
     // Viewport boundary check to prevent card clipping
     const margin = 12;
