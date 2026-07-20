@@ -1070,26 +1070,37 @@ export const MangaPage: React.FC<MangaPageProps> = ({
           ...prev,
           [pageUrl]: result.processedCanvasDataUrl
         }));
-        showToast("Page translated on-device!");
       }
     } catch (err) {
       console.error("Offline translation failed:", err);
     } finally {
       setIsOfflineTranslating(false);
     }
-  }, [translatedPageCache, showToast]);
+  }, [translatedPageCache]);
 
-  // Top-level auto-translation effect for active manga page
+  // Top-level auto-translation effect for all chapter pages
   useEffect(() => {
-    if (!isOfflineTranslateActive) return;
+    if (!isOfflineTranslateActive || isOfflineTranslating || !pages || pages.length === 0) return;
 
-    const rawPage = pages?.[activePageIdx];
-    const pageUrl = typeof rawPage === 'string' ? rawPage : rawPage?.src;
+    // Prioritize active page first, then subsequent pages, then earlier pages
+    const pagesFromActive = [
+      ...pages.slice(activePageIdx),
+      ...pages.slice(0, activePageIdx)
+    ];
 
-    if (pageUrl && !translatedPageCache[pageUrl] && !isOfflineTranslating) {
-      translatePageUrl(pageUrl);
+    const nextUntranslatedRaw = pagesFromActive.find(rawPage => {
+      const pageUrl = typeof rawPage === 'string' ? rawPage : rawPage?.src;
+      return pageUrl && !translatedPageCache[pageUrl];
+    });
+
+    if (nextUntranslatedRaw) {
+      const pageUrl = typeof nextUntranslatedRaw === 'string' ? nextUntranslatedRaw : nextUntranslatedRaw?.src;
+      if (pageUrl) {
+        translatePageUrl(pageUrl);
+      }
     }
   }, [isOfflineTranslateActive, activePageIdx, pages, translatedPageCache, isOfflineTranslating, translatePageUrl]);
+
 
   // Sync bookmark status
   useEffect(() => {
@@ -4149,13 +4160,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
       }
 
       setIsOfflineTranslateActive(true);
-      showToast("Offline translation enabled");
-
-      const rawPage = pages[activePageIdx];
-      const pageUrl = typeof rawPage === 'string' ? rawPage : rawPage?.src;
-      if (pageUrl) {
-        translatePageUrl(pageUrl);
-      }
+      showToast("Offline translation enabled - Translating pages...");
     };
 
 
