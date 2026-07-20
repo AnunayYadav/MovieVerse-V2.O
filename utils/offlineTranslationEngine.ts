@@ -170,23 +170,24 @@ const GRAMMAR_PARTICLES: Record<string, string> = {
 };
 
 /**
- * Clean Japanese OCR noise (extra symbols, vertical lines artifacts)
+ * Clean Japanese OCR noise (extra symbols, vertical lines artifacts, stray Latin noise)
  */
 export function cleanJapaneseText(raw: string): string {
   if (!raw) return '';
   return raw
     .replace(/[\r\n]+/g, '')
     .replace(/[｜|│]/g, '') // remove OCR vertical line artifacts
+    .replace(/[a-zA-Z0-9=+_<>:/\-[\]{}]+/g, '') // remove stray OCR latin noise symbols
     .replace(/\s+/g, '')
     .trim();
 }
 
 /**
- * Perform instant offline dictionary & pattern translation
+ * High-accuracy translation using Free Online NMT API with local dictionary fallback
  */
-export function translateJapaneseOffline(rawText: string): TranslationResult {
+export async function translateJapaneseText(rawText: string): Promise<TranslationResult> {
   const clean = cleanJapaneseText(rawText);
-  if (!clean) {
+  if (!clean || clean.length < 1) {
     return { translatedText: '', originalText: rawText, tokens: [], confidence: 0 };
   }
 
@@ -200,14 +201,43 @@ export function translateJapaneseOffline(rawText: string): TranslationResult {
     };
   }
 
-  // 2. Substring & phrase matching
+  // 2. Try Free Online NMT API (MyMemory / LibreTranslate fallback for real English sentences)
+  if (typeof window !== 'undefined' && navigator.onLine) {
+    try {
+      const res = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(clean)}&langpair=ja|en`);
+      if (res.ok) {
+        const data = await res.json();
+        let translatedText = data.responseData?.translatedText;
+        if (translatedText && typeof translatedText === 'string') {
+          translatedText = translatedText.replace(/&#39;/g, "'").replace(/&quot;/g, '"').trim();
+          // Verify it's English text, not returned raw Japanese or error string
+          if (
+            translatedText &&
+            !/[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/.test(translatedText) &&
+            translatedText.toLowerCase() !== clean.toLowerCase() &&
+            !translatedText.includes("INVALID")
+          ) {
+            return {
+              translatedText: capitalizeFirstLetter(translatedText),
+              originalText: clean,
+              tokens: [{ surface: clean, meaning: translatedText }],
+              confidence: 0.95
+            };
+          }
+        }
+      }
+    } catch (e) {
+      console.warn("NMT translation fetch skipped/failed:", e);
+    }
+  }
+
+  // 3. Substring & phrase matching
   let wordsMatched: { surface: string; meaning: string }[] = [];
   let remaining = clean;
   let translatedParts: string[] = [];
 
-  // Iterate over phrase matches sorted by length
   const sortedDictKeys = Object.keys(MANGA_DICTIONARY).sort((a, b) => b.length - a.length);
-  
+
   for (const key of sortedDictKeys) {
     if (remaining.includes(key)) {
       translatedParts.push(MANGA_DICTIONARY[key]);
@@ -217,7 +247,6 @@ export function translateJapaneseOffline(rawText: string): TranslationResult {
   }
 
   if (translatedParts.length > 0) {
-    // Join recognized components cleanly
     const fullTranslation = translatedParts.join(' ');
     return {
       translatedText: capitalizeFirstLetter(fullTranslation),
@@ -227,40 +256,62 @@ export function translateJapaneseOffline(rawText: string): TranslationResult {
     };
   }
 
-  // 3. Morphological / Kana Tokenization Fallback
-  const tokenized = tokenizeSimple(clean);
-  const fallbackTranslation = tokenized.map(t => MANGA_DICTIONARY[t] || GRAMMAR_PARTICLES[t] || t).join(' ');
-
+  // 4. Safe fallback: If OCR produced garbled noise that doesn't match any dictionary phrase or NMT API,
+  // do NOT output raw Japanese with internal debug tags like "AND/WITH" or "[TOPIC]".
   return {
-    translatedText: capitalizeFirstLetter(fallbackTranslation),
+    translatedText: '',
     originalText: clean,
-    tokens: tokenized.map(t => ({ surface: t, meaning: MANGA_DICTIONARY[t] })),
-    confidence: 0.65
+    tokens: [],
+    confidence: 0
   };
 }
 
 /**
- * Helper to split Japanese characters into logical morph units
+ * Synchronous fallback wrapper for backward compatibility
  */
-function tokenizeSimple(text: string): string[] {
-  const tokens: string[] = [];
-  let current = '';
-  
-  for (let i = 0; i < text.length; i++) {
-    const char = text[i];
-    // Check if character is a particle or dict key
-    if (GRAMMAR_PARTICLES[char] || MANGA_DICTIONARY[char]) {
-      if (current) {
-        tokens.push(current);
-        current = '';
-      }
-      tokens.push(char);
-    } else {
-      current += char;
+export function translateJapaneseOffline(rawText: string): TranslationResult {
+  const clean = cleanJapaneseText(rawText);
+  if (!clean) {
+    return { translatedText: '', originalText: rawText, tokens: [], confidence: 0 };
+  }
+
+  if (MANGA_DICTIONARY[clean]) {
+    return {
+      translatedText: MANGA_DICTIONARY[clean],
+      originalText: clean,
+      tokens: [{ surface: clean, meaning: MANGA_DICTIONARY[clean] }],
+      confidence: 1.0
+    };
+  }
+
+  let wordsMatched: { surface: string; meaning: string }[] = [];
+  let remaining = clean;
+  let translatedParts: string[] = [];
+  const sortedDictKeys = Object.keys(MANGA_DICTIONARY).sort((a, b) => b.length - a.length);
+
+  for (const key of sortedDictKeys) {
+    if (remaining.includes(key)) {
+      translatedParts.push(MANGA_DICTIONARY[key]);
+      wordsMatched.push({ surface: key, meaning: MANGA_DICTIONARY[key] });
+      remaining = remaining.replace(key, ' ');
     }
   }
-  if (current) tokens.push(current);
-  return tokens;
+
+  if (translatedParts.length > 0) {
+    return {
+      translatedText: capitalizeFirstLetter(translatedParts.join(' ')),
+      originalText: clean,
+      tokens: wordsMatched,
+      confidence: 0.85
+    };
+  }
+
+  return {
+    translatedText: '',
+    originalText: clean,
+    tokens: [],
+    confidence: 0
+  };
 }
 
 function capitalizeFirstLetter(str: string): string {
@@ -268,3 +319,4 @@ function capitalizeFirstLetter(str: string): string {
   const cleaned = str.replace(/\s+/g, ' ').trim();
   return cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
 }
+

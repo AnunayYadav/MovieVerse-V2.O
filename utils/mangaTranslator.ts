@@ -4,7 +4,7 @@
  * 100% Client-side WASM execution.
  */
 
-import { translateJapaneseOffline, cleanJapaneseText } from './offlineTranslationEngine';
+import { translateJapaneseText, cleanJapaneseText } from './offlineTranslationEngine';
 
 export interface SpeechBubbleRegion {
   id: string;
@@ -123,16 +123,16 @@ export function detectSpeechBubbles(
         const boxX = minGx * step;
         const boxY = minGy * step;
 
-        // Verify size limits for valid speech bubble text
-        const isMinSize = boxW >= width * 0.03 && boxH >= height * 0.03;
-        const isMaxSize = boxW <= width * 0.35 && boxH <= height * 0.40;
+        // Verify size limits for valid speech bubble text (supports tall vertical manga bubbles)
+        const isMinSize = boxW >= width * 0.015 && boxH >= height * 0.015;
+        const isMaxSize = boxW <= width * 0.60 && boxH <= height * 0.70;
 
-        if (isMinSize && isMaxSize && darkCount >= 4) {
+        if (isMinSize && isMaxSize && darkCount >= 2) {
           textClusters.push({
-            minX: Math.max(0, boxX - 12),
-            minY: Math.max(0, boxY - 12),
-            maxX: Math.min(width, boxX + boxW + 12),
-            maxY: Math.min(height, boxY + boxH + 12),
+            minX: Math.max(0, boxX - 16),
+            minY: Math.max(0, boxY - 16),
+            maxX: Math.min(width, boxX + boxW + 16),
+            maxY: Math.min(height, boxY + boxH + 16),
             darkCount
           });
         }
@@ -255,11 +255,11 @@ export async function processMangaPageOffline(
 
     const cleanedText = cleanJapaneseText(rawOcrText);
 
-    // CRITICAL: Reject false positive noise (e.g. "euいNNN...")
+    // Reject false positive noise
     if (isGenuineJapanese(cleanedText)) {
-      const translation = translateJapaneseOffline(cleanedText);
+      const translation = await translateJapaneseText(cleanedText);
 
-      // Only include if translation is valid and meaningful
+      // Only include if translation is valid, meaningful, and non-empty English
       if (translation.translatedText && translation.translatedText !== cleanedText) {
         translatedBubbles.push({
           id: `bubble_${i}_${Date.now()}`,
