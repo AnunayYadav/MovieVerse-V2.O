@@ -1594,31 +1594,31 @@ export const AnimeForum: React.FC<AnimeForumProps> = ({
       {/* Forum Content Grid */}
       <div className="flex flex-col lg:flex-row gap-8 items-start">
         {/* Sidebar Navigation */}
-        <div className="w-full lg:w-64 shrink-0 flex lg:flex-col gap-2 p-1.5 rounded-2xl bg-[#0c0c0e]/30 border border-white/5 backdrop-blur-md">
+        <div className="w-full lg:w-64 shrink-0 flex lg:flex-col gap-2 p-1.5 rounded-2xl bg-[#0c0c0e]/30 border border-white/5 backdrop-blur-md overflow-x-auto hide-scrollbar">
           <button 
             onClick={() => setForumSection('feed')} 
-            className={`flex-1 lg:flex-none flex items-center gap-3 px-4 py-3 rounded-xl text-xs sm:text-sm font-medium uppercase tracking-wider transition-all duration-300 ${forumSection === 'feed' ? 'bg-white/5 border border-white/10 text-white' : 'text-zinc-500 hover:text-zinc-300'}`}
+            className={`flex-1 lg:flex-none shrink-0 flex items-center gap-3 px-4 py-3 rounded-xl text-xs sm:text-sm font-medium tracking-wider transition-all duration-300 ${forumSection === 'feed' ? 'bg-white/5 border border-white/10 text-white' : 'text-zinc-500 hover:text-zinc-300'}`}
           >
             <Clock size={16} />
             <span>Activity Feed</span>
           </button>
           <button 
             onClick={() => setForumSection('reviews')} 
-            className={`flex-1 lg:flex-none flex items-center gap-3 px-4 py-3 rounded-xl text-xs sm:text-sm font-medium uppercase tracking-wider transition-all duration-300 ${forumSection === 'reviews' ? 'bg-white/5 border border-white/10 text-white' : 'text-zinc-500 hover:text-zinc-300'}`}
+            className={`flex-1 lg:flex-none shrink-0 flex items-center gap-3 px-4 py-3 rounded-xl text-xs sm:text-sm font-medium tracking-wider transition-all duration-300 ${forumSection === 'reviews' ? 'bg-white/5 border border-white/10 text-white' : 'text-zinc-500 hover:text-zinc-300'}`}
           >
             <Star size={16} />
             <span>Reviews Board</span>
           </button>
           <button 
             onClick={() => setForumSection('recommendations')} 
-            className={`flex-1 lg:flex-none flex items-center gap-3 px-4 py-3 rounded-xl text-xs sm:text-sm font-medium uppercase tracking-wider transition-all duration-300 ${forumSection === 'recommendations' ? 'bg-white/5 border border-white/10 text-white' : 'text-zinc-500 hover:text-zinc-300'}`}
+            className={`flex-1 lg:flex-none shrink-0 flex items-center gap-3 px-4 py-3 rounded-xl text-xs sm:text-sm font-medium tracking-wider transition-all duration-300 ${forumSection === 'recommendations' ? 'bg-white/5 border border-white/10 text-white' : 'text-zinc-500 hover:text-zinc-300'}`}
           >
             <ThumbsUp size={16} />
             <span>Recommendations</span>
           </button>
           <button 
             onClick={() => setForumSection('users')} 
-            className={`flex-1 lg:flex-none flex items-center gap-3 px-4 py-3 rounded-xl text-xs sm:text-sm font-medium uppercase tracking-wider transition-all duration-300 ${forumSection === 'users' ? 'bg-white/5 border border-white/10 text-white' : 'text-zinc-500 hover:text-zinc-300'}`}
+            className={`flex-1 lg:flex-none shrink-0 flex items-center gap-3 px-4 py-3 rounded-xl text-xs sm:text-sm font-medium tracking-wider transition-all duration-300 ${forumSection === 'users' ? 'bg-white/5 border border-white/10 text-white' : 'text-zinc-500 hover:text-zinc-300'}`}
           >
             <Users size={16} />
             <span>Users Directory</span>
