@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Tv, Play, Search, AlertCircle, RefreshCcw, Wifi, Globe, Loader2, Lock, ChevronDown, Check, Info, ChevronRight, Clock } from 'lucide-react';
+import { Tv, Play, Search, AlertCircle, RefreshCcw, Wifi, Globe, Loader2, Lock, ChevronDown, Check, Info, ChevronRight, Clock, Calendar } from 'lucide-react';
 import { LiveChannel, UserProfile } from '../types';
 import { LiveTVPlayer } from './LiveTVPlayer';
 import { getCurrentProgram } from '../utils/epgGenerator';
@@ -861,26 +861,13 @@ export const LiveTV: React.FC<LiveTVProps> = ({ userProfile, searchQuery = "" })
                             )}
                         </div>
 
-                        {/* Hide Dead Streams Toggle Button */}
-                        <TvFocusButton
-                            onClick={() => setHideOffline(!hideOffline)}
-                            className={`h-10 px-4 rounded-xl border transition-all active:scale-95 flex items-center justify-center gap-2 text-xs font-bold whitespace-nowrap ${
-                                hideOffline
-                                    ? 'bg-red-600 border-red-500 text-white shadow-lg shadow-red-600/20'
-                                    : 'bg-white/5 border-white/5 text-gray-400 hover:text-white hover:bg-white/10'
-                            }`}
-                        >
-                            <Wifi size={14} className={hideOffline ? 'animate-pulse' : ''} />
-                            <span>Hide Offline</span>
-                        </TvFocusButton>
-
                         {/* Interactive Grid EPG Button */}
                         <TvFocusButton
                             onClick={() => setShowGridEpg(true)}
                             className="h-10 px-4 rounded-xl bg-white/5 border border-white/5 text-gray-400 hover:text-white hover:bg-white/10 hover:border-white/10 transition-all active:scale-95 flex items-center justify-center gap-2 text-xs font-bold whitespace-nowrap shadow-md"
                         >
-                            <Clock size={14} className="text-red-500" />
-                            <span>TV Guide Grid</span>
+                            <Calendar size={14} className="text-red-500" />
+                            <span>Interactive Schedule</span>
                         </TvFocusButton>
                     </div>
                 </div>

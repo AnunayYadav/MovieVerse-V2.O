@@ -66,7 +66,7 @@ const CustomDropdown: React.FC<CustomDropdownProps> = ({ value, options, onChang
             <button
                 type="button"
                 onClick={() => setIsOpen(!isOpen)}
-                className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/5 border border-white/5 hover:bg-white/10 hover:border-white/10 transition-all text-xs font-light text-zinc-400 hover:text-zinc-200 outline-none"
+                className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-white/5 border border-white/5 hover:bg-white/10 hover:border-white/10 transition-all text-xs font-normal text-zinc-300 hover:text-zinc-100 outline-none tracking-wide"
             >
                 {activeOption.icon && <span className="text-sm shrink-0">{activeOption.icon}</span>}
                 <span className="truncate">{activeOption.name}</span>
@@ -85,14 +85,14 @@ const CustomDropdown: React.FC<CustomDropdownProps> = ({ value, options, onChang
                                     onChange(opt.id);
                                     setIsOpen(false);
                                 }}
-                                className={`w-full text-left px-3 py-2 text-xs rounded-lg transition-all flex items-center gap-2 outline-none ${
+                                className={`w-full text-left px-3.5 py-2 text-xs rounded-lg transition-all flex items-center gap-2 outline-none ${
                                     isActive
                                         ? 'bg-red-600 text-white font-medium'
-                                        : 'text-zinc-400 hover:bg-red-600 hover:text-white hover:font-medium'
+                                        : 'text-zinc-300 hover:bg-red-600 hover:text-white hover:font-medium'
                                 }`}
                             >
                                 {opt.icon && <span className="text-sm shrink-0">{opt.icon}</span>}
-                                <span className="font-light truncate">{opt.name}</span>
+                                <span className="font-normal truncate">{opt.name}</span>
                             </button>
                         );
                     })}
@@ -331,7 +331,7 @@ export const GridEPG: React.FC<GridEPGProps> = ({ selectedCountry, onClose, onCh
                         value={searchText}
                         onChange={(e) => setSearchText(e.target.value)}
                         placeholder="Search guide channels..."
-                        className="bg-transparent border-none outline-none text-xs text-zinc-300 placeholder-zinc-600 w-full font-light"
+                        className="bg-transparent border-none outline-none text-sm text-zinc-200 placeholder-zinc-500 w-full font-normal tracking-wide"
                     />
                 </div>
                 
