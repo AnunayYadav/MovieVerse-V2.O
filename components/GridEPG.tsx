@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { X, Clock, Tv, AlertCircle, Loader2, Search } from 'lucide-react';
+import { X, Clock, Tv, AlertCircle, Loader2, Search, Globe } from 'lucide-react';
 import { LiveChannel } from '../types';
 import { generateEPG } from '../utils/epgGenerator';
 
@@ -39,6 +39,27 @@ const COUNTRIES_LIST = [
     { id: 'KR', name: 'South Korea', icon: '🇰🇷' }
 ];
 
+// Helper to render flags or icons dynamically in EPG Grid dropdown
+const renderDropdownIcon = (id: string, icon?: string) => {
+    if (id === 'ALL' || id === 'all') {
+        return <Globe className="text-zinc-400 shrink-0" size={14} />;
+    }
+    if ((id.length === 2 && id === id.toUpperCase()) || id === 'UK') {
+        const code = id === 'UK' ? 'gb' : id.toLowerCase();
+        return (
+            <img 
+                src={`https://flagcdn.com/w20/${code}.png`} 
+                className="w-5 h-3.5 object-cover rounded-sm shadow-sm shrink-0" 
+                alt="" 
+                onError={(e) => {
+                    e.currentTarget.style.display = 'none';
+                }}
+            />
+        );
+    }
+    return icon ? <span className="text-sm shrink-0">{icon}</span> : null;
+};
+
 // Reusable custom dropdown styled to match MovieVerse app design aesthetics
 interface CustomDropdownProps {
     value: string;
@@ -68,7 +89,7 @@ const CustomDropdown: React.FC<CustomDropdownProps> = ({ value, options, onChang
                 onClick={() => setIsOpen(!isOpen)}
                 className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-white/5 border border-white/5 hover:bg-white/10 hover:border-white/10 transition-all text-xs font-normal text-zinc-300 hover:text-zinc-100 outline-none tracking-wide"
             >
-                {activeOption.icon && <span className="text-sm shrink-0">{activeOption.icon}</span>}
+                {renderDropdownIcon(activeOption.id, activeOption.icon)}
                 <span className="truncate">{activeOption.name}</span>
                 <span className="text-zinc-600 text-[8px] ml-1 shrink-0">▼</span>
             </button>
@@ -91,7 +112,7 @@ const CustomDropdown: React.FC<CustomDropdownProps> = ({ value, options, onChang
                                         : 'text-zinc-300 hover:bg-red-600 hover:text-white hover:font-medium'
                                 }`}
                             >
-                                {opt.icon && <span className="text-sm shrink-0">{opt.icon}</span>}
+                                {renderDropdownIcon(opt.id, opt.icon)}
                                 <span className="font-normal truncate">{opt.name}</span>
                             </button>
                         );

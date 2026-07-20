@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Tv, Play, Search, AlertCircle, RefreshCcw, Wifi, Globe, Loader2, Lock, ChevronDown, Check, Info, ChevronRight, Clock, Calendar } from 'lucide-react';
 import { LiveChannel, UserProfile } from '../types';
 import { LiveTVPlayer } from './LiveTVPlayer';
@@ -337,7 +337,7 @@ const LiveTVRow: React.FC<{
     hideOffline: boolean;
     onChannelClick: (c: LiveChannel, playlist: LiveChannel[]) => void;
     onExpand?: (items: LiveChannel[]) => void;
-}> = ({
+}> = React.memo(({
     title,
     categoryId,
     countryCode,
@@ -398,12 +398,11 @@ const LiveTVRow: React.FC<{
         return () => { isMounted = false; };
     }, [categoryId, countryCode]);
 
-    const statuses = useStreamStatuses(channels.map(c => c.url));
-
-    const filtered = channels.filter(c => 
-        c.name.toLowerCase().includes(searchQuery.toLowerCase()) &&
-        (!hideOffline || statuses[c.url] !== 'offline')
-    );
+    const filtered = useMemo(() => {
+        return channels.filter(c => 
+            c.name.toLowerCase().includes(searchQuery.toLowerCase())
+        );
+    }, [channels, searchQuery]);
 
     // D-pad focused loading: if focus is near the end, load more
     const handleCardFocus = useCallback((index: number) => {
@@ -422,6 +421,22 @@ const LiveTVRow: React.FC<{
             setVisibleCount(prev => Math.min(prev + 40, filtered.length));
         }
     }, [filtered.length]);
+
+    // Support horizontal scroll with mouse wheel on Category Row
+    useEffect(() => {
+        const row = rowRef.current;
+        if (!row) return;
+
+        const handleWheel = (e: WheelEvent) => {
+            if (e.deltaY !== 0) {
+                e.preventDefault();
+                row.scrollLeft += e.deltaY;
+            }
+        };
+
+        row.addEventListener('wheel', handleWheel, { passive: false });
+        return () => row.removeEventListener('wheel', handleWheel);
+    }, [channels, visibleCount]);
 
     // Hide row if empty
     if (!loading && filtered.length === 0) return null;
@@ -467,7 +482,7 @@ const LiveTVRow: React.FC<{
             </div>
         </div>
     );
-};
+});
 
 const getChannelBackdrop = (channel: LiveChannel) => {
     const name = (channel.name || "").toLowerCase();
@@ -483,10 +498,26 @@ const getChannelBackdrop = (channel: LiveChannel) => {
     if (name.includes('music') || name.includes('mtv') || name.includes('song') || name.includes('radio')) {
         return "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=1600&q=80"; // Music stage
     }
-    return "https://images.unsplash.com/photo-1593305841991-05c297ba4575?w=1600&q=80"; // Fallback
 };
 
-export const LiveTV: React.FC<LiveTVProps> = ({ userProfile, searchQuery = "" }) => {
+const renderCountryFlag = (countryId: string, className = "w-5 h-3.5 object-cover rounded-sm shadow-sm shrink-0") => {
+    if (countryId === 'ALL') {
+        return <Globe className="text-zinc-400 shrink-0" size={14} />;
+    }
+    const code = countryId.toLowerCase() === 'uk' ? 'gb' : countryId.toLowerCase();
+    return (
+        <img 
+            src={`https://flagcdn.com/w20/${code}.png`} 
+            className={className} 
+            alt="" 
+            onError={(e) => {
+                e.currentTarget.style.display = 'none';
+            }}
+        />
+    );
+};
+
+export const LiveTV: React.FC<LiveTVProps> = React.memo(({ userProfile, searchQuery = "" }) => {
     const [selectedCountry, setSelectedCountry] = useState('ALL');
     const [selectedChannel, setSelectedChannel] = useState<LiveChannel | null>(null);
     const [activePlaylist, setActivePlaylist] = useState<LiveChannel[]>([]);
@@ -503,6 +534,24 @@ export const LiveTV: React.FC<LiveTVProps> = ({ userProfile, searchQuery = "" })
     useEffect(() => {
         preloadChannelMetadata();
     }, []);
+
+    const trendingRowRef = useRef<HTMLDivElement>(null);
+
+    // Support horizontal scroll with mouse wheel on Trending Row
+    useEffect(() => {
+        const row = trendingRowRef.current;
+        if (!row) return;
+
+        const handleWheel = (e: WheelEvent) => {
+            if (e.deltaY !== 0) {
+                e.preventDefault();
+                row.scrollLeft += e.deltaY;
+            }
+        };
+
+        row.addEventListener('wheel', handleWheel, { passive: false });
+        return () => row.removeEventListener('wheel', handleWheel);
+    }, [trendingChannels]);
 
     // Fetch news and movies on mount to extract top trending channels
     useEffect(() => {
@@ -578,16 +627,9 @@ export const LiveTV: React.FC<LiveTVProps> = ({ userProfile, searchQuery = "" })
     }, []);
 
     // Track statuses for search results and expanded modal
-    const searchStatuses = useStreamStatuses(searchChannels.map(c => c.url));
-    const filteredSearch = searchChannels.filter(c => 
-        !hideOffline || searchStatuses[c.url] !== 'offline'
-    );
-
+    const filteredSearch = searchChannels;
     const modalItems = expandedCategory?.items || [];
-    const modalStatuses = useStreamStatuses(modalItems.map(c => c.url));
-    const filteredModalItems = modalItems.filter(c => 
-        !hideOffline || modalStatuses[c.url] !== 'offline'
-    );
+    const filteredModalItems = modalItems;
 
     // D-pad focused loading for search grid
     const handleSearchCardFocus = useCallback((index: number) => {
@@ -836,7 +878,7 @@ export const LiveTV: React.FC<LiveTVProps> = ({ userProfile, searchQuery = "" })
                                 className="w-full h-10 flex items-center justify-between px-4 rounded-xl bg-white/5 hover:bg-white/10 border border-white/5 hover:border-white/10 transition-all active:scale-95 backdrop-blur-md"
                             >
                                 <div className="flex items-center gap-3 min-w-0 flex-1 text-left">
-                                    <span className="text-base shrink-0">{activeCountryObj.icon}</span>
+                                    {renderCountryFlag(activeCountryObj.id, "w-5 h-3.5 object-cover rounded-sm shadow-sm shrink-0")}
                                     <span className="text-xs font-bold truncate">{activeCountryObj.name}</span>
                                 </div>
                                 <ChevronDown size={14} className={`transition-transform duration-300 text-white/50 shrink-0 ${isCountryDropdownOpen ? 'rotate-180' : ''}`}/>
@@ -851,7 +893,7 @@ export const LiveTV: React.FC<LiveTVProps> = ({ userProfile, searchQuery = "" })
                                             className={`w-full flex items-center justify-between px-3 py-2 text-xs font-semibold rounded-lg hover:bg-white/5 transition-colors ${selectedCountry === country.id ? 'bg-white/10 text-white font-bold' : 'text-zinc-400 hover:text-white'}`}
                                         >
                                             <div className="flex items-center gap-3 min-w-0 flex-1 text-left">
-                                                <span className="text-base shrink-0">{country.icon}</span>
+                                                {renderCountryFlag(country.id, "w-5 h-3.5 object-cover rounded-sm shadow-sm shrink-0")}
                                                 <span className="font-medium text-[11px] truncate">{country.name}</span>
                                             </div>
                                             {selectedCountry === country.id && <Check size={12} className="shrink-0 text-white/80 ml-2" />}
@@ -879,7 +921,7 @@ export const LiveTV: React.FC<LiveTVProps> = ({ userProfile, searchQuery = "" })
                             <span className="w-1.5 h-5 bg-red-600 rounded-full inline-block"></span>
                             Trending Channels Today
                         </h3>
-                        <div className="flex gap-8 overflow-x-auto pb-4 hide-scrollbar scroll-smooth">
+                        <div ref={trendingRowRef} className="flex gap-8 overflow-x-auto pb-4 hide-scrollbar scroll-smooth">
                             {trendingChannels.map((channel, idx) => (
                                 <div 
                                     key={channel.id} 
@@ -1027,4 +1069,4 @@ export const LiveTV: React.FC<LiveTVProps> = ({ userProfile, searchQuery = "" })
             )}
         </div>
     );
-};
+});
