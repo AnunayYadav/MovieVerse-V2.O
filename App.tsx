@@ -21,7 +21,8 @@ import { MangaPage } from './components/MangaPage';
 import { NovelPage } from './components/NovelPage';
 import { DramaPage } from './components/DramaPage';
 import { MusicPage } from './components/MusicPage';
-import { BookOpen, Drama, Music } from 'lucide-react';
+import { RadioPage } from './components/RadioPage';
+import { BookOpen, Drama, Music, Headphones } from 'lucide-react';
 import { useTvFocus, TvFocusButton, TvFocusInput } from './tvNavigation';
 import AppTV from './components/AppTV';
 import { syncWatchlistToAniList } from './services/anilistSync';
@@ -1876,6 +1877,9 @@ export default function App() {
             } else if (path === '/manga' || path === '/browse/manga') {
                 category = "Manga";
             } else if (path === '/live-tv') {
+                category = "LiveTV";
+            } else if (path === '/radio' || path === '/browse/radio') {
+                category = "Radio";
             } else if (path === '/dramas' || path === '/browse/dramas') {
                 category = "Dramas";
             } else if (path.startsWith('/drama/')) {
@@ -1908,6 +1912,7 @@ export default function App() {
                 else if (sub === 'coming') category = "Coming";
                 else if (sub === 'categories') category = "Categories";
                 else if (sub === 'franchise') category = "Franchise";
+                else if (sub === 'radio') category = "Radio";
             } else if (path.startsWith('/library/')) {
                 const sub = parts[2];
                 if (sub === 'watchlist') category = "Watchlist";
@@ -2215,6 +2220,9 @@ export default function App() {
         } else if (selectedCategory === 'Music') {
             newPath = '/music';
 
+        } else if (selectedCategory === 'Radio') {
+            newPath = '/radio';
+
         } else if (selectedCategory === 'Collection' && currentCollection) {
             newPath = `/custom-collection/${currentCollection}`;
         }
@@ -2273,6 +2281,8 @@ export default function App() {
             pageTitle = 'Explore - MovieVerse AI';
         } else if (selectedCategory === 'LiveTV') {
             pageTitle = 'Live TV - MovieVerse AI';
+        } else if (selectedCategory === 'Radio') {
+            pageTitle = 'Radio - MovieVerse AI';
         } else if (selectedCategory === 'Awards') {
             pageTitle = 'Awards - MovieVerse AI';
         } else if (selectedCategory === 'Anime') {
@@ -4296,6 +4306,7 @@ export default function App() {
         { id: "TV Shows", icon: Tv, label: "TV Shows", action: () => { resetFilters(); setSelectedCategory("TV Shows"); } },
         { id: "LiveTV", icon: Radio, label: "Live TV", action: () => { resetFilters(); setSelectedCategory("LiveTV"); } },
         { id: "Music", icon: Music, label: "Music", action: () => { resetFilters(); setSelectedCategory("Music"); } },
+        { id: "Radio", icon: Headphones, label: "Radio", action: () => { resetFilters(); setSelectedCategory("Radio"); } },
         { id: "WatchParty", icon: Users, label: "Watch Party", action: () => { resetFilters(); setSelectedCategory("WatchParty"); } },
         { id: "Coming", icon: CalendarDays, label: "Coming Soon", action: () => { resetFilters(); setSelectedCategory("Coming"); } },
         { id: "Awards", icon: Award, label: "Awards", action: () => { resetFilters(); setSelectedCategory("Awards"); } },
@@ -4457,6 +4468,9 @@ export default function App() {
                                 </button>
                                 <button onClick={() => { resetFilters(); setSelectedCategory("LiveTV"); }} className={getSidebarItemClass(selectedCategory === "LiveTV")}>
                                     <Radio size={18} /> Live TV <span className="ml-auto text-[8px] opacity-40 hidden lg:inline">Alt+T</span>
+                                </button>
+                                <button onClick={() => { resetFilters(); setSelectedCategory("Radio"); }} className={getSidebarItemClass(selectedCategory === "Radio")}>
+                                    <Headphones size={18} /> Radio
                                 </button>
                                 <button onClick={() => { resetFilters(); setSelectedCategory("Franchise"); }} className={getSidebarItemClass(selectedCategory === "Franchise")}>
                                     <Layers size={18} /> Franchises
@@ -4914,6 +4928,12 @@ export default function App() {
                         <MusicPage
                             isAuthenticated={isAuthenticated}
                             disableEntryAnimation={isNavigatingBack}
+                        />
+
+                    ) : selectedCategory === "Radio" ? (
+                        <RadioPage
+                            searchQuery={searchQuery}
+                            onSearchClear={() => setSearchQuery('')}
                         />
 
                     ) : selectedCategory === "Categories" ? (
@@ -5790,7 +5810,7 @@ export default function App() {
                         { id: 'Home', label: 'Home', icon: Home, action: () => { setIsBrowseOpen(false); resetToHome(); }, activeCondition: selectedCategory === "All" && !searchQuery },
                         { id: 'Anime', label: 'Anime', icon: Ghost, action: () => { setIsBrowseOpen(false); resetFilters(); setSelectedCategory("Anime"); }, activeCondition: selectedCategory === "Anime" },
                         { id: 'Manga', label: 'Manga', icon: BookOpen, action: () => { setIsBrowseOpen(false); resetFilters(); setSelectedMangaId(null); setActiveMangaChapterId(null); setSelectedCategory("Manga"); }, activeCondition: selectedCategory === "Manga" },
-                        { id: 'Browse', label: 'More', icon: LayoutGrid, action: () => setIsBrowseOpen(!isBrowseOpen), activeCondition: isBrowseOpen || ["Categories", "Awards", "AnimeCommunity", "Family", "TV Shows", "Coming", "Novels", "WatchParty"].includes(selectedCategory) }
+                        { id: 'Browse', label: 'More', icon: LayoutGrid, action: () => setIsBrowseOpen(!isBrowseOpen), activeCondition: isBrowseOpen || ["Categories", "Awards", "AnimeCommunity", "Family", "TV Shows", "Coming", "Novels", "WatchParty", "Radio", "Music", "Dramas"].includes(selectedCategory) }
                     ].map((tab) => {
                             const Icon = tab.icon;
                             const isActive = tab.activeCondition;
