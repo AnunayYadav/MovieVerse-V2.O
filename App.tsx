@@ -5405,7 +5405,12 @@ export default function App() {
                                                         onMovieClick={setSelectedMovie}
                                                         sortOption={sortOption}
                                                         selectedLanguage={selectedLanguage}
-                                                        onExpand={() => setExpandedCategory({ title: `Because You Watched ${recBaseMovie.title || recBaseMovie.name}`, items: recommendations })}
+                                                        onExpand={() => setExpandedCategory({
+                                                            title: `Because You Watched ${recBaseMovie.title || recBaseMovie.name}`,
+                                                            items: recommendations,
+                                                            endpoint: `${TMDB_BASE_URL}/${recBaseMovie.media_type || (recBaseMovie.first_air_date ? 'tv' : 'movie')}/${recBaseMovie.id}/recommendations`,
+                                                            mediaType: recBaseMovie.media_type || (recBaseMovie.first_air_date ? 'tv' : 'movie')
+                                                        })}
                                                     />
                                                 )}
 

@@ -1196,18 +1196,6 @@ export const ExpandedCategoryModal: React.FC<ExpandedCategoryModalProps> = ({
     const [searchQuery, setSearchQuery] = useState("");
     const scrollContainerRef = useRef<HTMLDivElement | null>(null);
 
-    useEffect(() => {
-        if (isOpen) {
-            setItems(initialItems);
-            setPage(1);
-            setHasMore(initialItems.length >= 10);
-            setSearchQuery("");
-            if (scrollContainerRef.current) {
-                scrollContainerRef.current.scrollTop = 0;
-            }
-        }
-    }, [isOpen, initialItems]);
-
     const getFinalEndpoint = useCallback((baseEndpoint: string) => {
         let finalEndpoint = baseEndpoint;
         if (finalEndpoint.includes('/discover/') || finalEndpoint.includes('/trending/')) {
@@ -1246,6 +1234,49 @@ export const ExpandedCategoryModal: React.FC<ExpandedCategoryModalProps> = ({
         return finalEndpoint;
     }, [sortOption, selectedLanguage]);
 
+    useEffect(() => {
+        if (isOpen) {
+            setSearchQuery("");
+            setPage(1);
+            if (scrollContainerRef.current) {
+                scrollContainerRef.current.scrollTop = 0;
+            }
+
+            if (endpoint && apiKey) {
+                setHasMore(true);
+                if (!initialItems || initialItems.length === 0) {
+                    setItems([]);
+                    setLoadingMore(true);
+                    const finalEndpoint = getFinalEndpoint(endpoint);
+                    const separator = finalEndpoint.includes('?') ? '&' : '?';
+                    const url = `${finalEndpoint}${separator}api_key=${apiKey}&page=1`;
+                    fetch(url)
+                        .then(res => res.json())
+                        .then(data => {
+                            let results = data.results || [];
+                            if (results.length === 0) {
+                                setHasMore(false);
+                            } else {
+                                results = results.map((item: any) => ({
+                                    ...item,
+                                    media_type: mediaType || item.media_type || (finalEndpoint.includes('/tv/') ? 'tv' : 'movie'),
+                                    title: item.title || item.name
+                                }));
+                                setItems(results);
+                            }
+                        })
+                        .catch(e => console.error("Error loading page 1 in ExpandedCategoryModal:", e))
+                        .finally(() => setLoadingMore(false));
+                } else {
+                    setItems(initialItems);
+                }
+            } else {
+                setItems(initialItems || []);
+                setHasMore(initialItems ? initialItems.length >= 10 : false);
+            }
+        }
+    }, [isOpen, endpoint, apiKey, initialItems, mediaType, getFinalEndpoint]);
+
     const loadNextPage = async () => {
         if (!endpoint || !apiKey || loadingMore || !hasMore) return;
         setLoadingMore(true);
@@ -1265,7 +1296,11 @@ export const ExpandedCategoryModal: React.FC<ExpandedCategoryModalProps> = ({
                     media_type: mediaType || item.media_type || (finalEndpoint.includes('/tv/') ? 'tv' : 'movie'),
                     title: item.title || item.name
                 }));
-                setItems(prev => [...prev, ...results]);
+                setItems(prev => {
+                    const existingIds = new Set(prev.map(i => i.id));
+                    const newItems = results.filter((i: any) => !existingIds.has(i.id));
+                    return [...prev, ...newItems];
+                });
                 setPage(nextPage);
             }
         } catch (e) {
@@ -1368,12 +1403,12 @@ export const ExpandedCategoryModal: React.FC<ExpandedCategoryModalProps> = ({
                 ) : (
                     <div className={
                         mode === 'manga'
-                            ? "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-5"
+                            ? "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8 gap-3 sm:gap-4"
                             : mode === 'livetv'
-                                ? "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6"
+                                ? "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3.5 sm:gap-4"
                                 : mode === 'anime'
-                                    ? "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-5"
-                                    : "grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-x-4 gap-y-8"
+                                    ? "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 gap-3 sm:gap-4"
+                                    : "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 gap-3 sm:gap-4 md:gap-5"
                     }>
                         {filteredItems.map((item, idx) => (
                             <React.Fragment key={idx}>

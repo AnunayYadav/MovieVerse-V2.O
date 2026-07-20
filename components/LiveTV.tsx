@@ -273,12 +273,12 @@ export const LiveTVCard: React.FC<LiveTVCardProps> = React.memo(({
             </div>
 
             {/* Logo Center Display */}
-            <div className="flex-1 w-full flex items-center justify-center p-4 mt-2 min-h-0">
+            <div className="flex-1 w-full flex items-center justify-center px-3 pt-6 pb-2 min-h-0">
                  {channel.logo ? (
                      <img 
                         src={channel.logo} 
                         alt={channel.name} 
-                        className="max-w-full max-h-full object-contain filter drop-shadow-[0_4px_8px_rgba(0,0,0,0.5)] opacity-80 group-hover:opacity-100 group-hover:scale-105 transition-all duration-300" 
+                        className="w-auto h-full max-h-16 md:max-h-20 max-w-[90%] object-contain filter drop-shadow-[0_4px_10px_rgba(0,0,0,0.8)] group-hover:scale-110 transition-all duration-300" 
                         loading="lazy" 
                         onError={(e) => {
                             e.currentTarget.style.display = 'none';
@@ -422,21 +422,7 @@ const LiveTVRow: React.FC<{
         }
     }, [filtered.length]);
 
-    // Support horizontal scroll with mouse wheel on Category Row
-    useEffect(() => {
-        const row = rowRef.current;
-        if (!row) return;
 
-        const handleWheel = (e: WheelEvent) => {
-            if (e.deltaY !== 0) {
-                e.preventDefault();
-                row.scrollLeft += e.deltaY;
-            }
-        };
-
-        row.addEventListener('wheel', handleWheel, { passive: false });
-        return () => row.removeEventListener('wheel', handleWheel);
-    }, [channels, visibleCount]);
 
     // Hide row if empty
     if (!loading && filtered.length === 0) return null;
@@ -537,21 +523,7 @@ export const LiveTV: React.FC<LiveTVProps> = React.memo(({ userProfile, searchQu
 
     const trendingRowRef = useRef<HTMLDivElement>(null);
 
-    // Support horizontal scroll with mouse wheel on Trending Row
-    useEffect(() => {
-        const row = trendingRowRef.current;
-        if (!row) return;
 
-        const handleWheel = (e: WheelEvent) => {
-            if (e.deltaY !== 0) {
-                e.preventDefault();
-                row.scrollLeft += e.deltaY;
-            }
-        };
-
-        row.addEventListener('wheel', handleWheel, { passive: false });
-        return () => row.removeEventListener('wheel', handleWheel);
-    }, [trendingChannels]);
 
     // Fetch news and movies on mount to extract top trending channels
     useEffect(() => {
@@ -928,9 +900,11 @@ export const LiveTV: React.FC<LiveTVProps> = React.memo(({ userProfile, searchQu
                                     onClick={() => handleChannelPlay(channel, trendingChannels)}
                                     className="relative flex items-center pl-10 md:pl-12 w-[240px] md:w-[280px] shrink-0 aspect-[16/10] group cursor-pointer"
                                 >
-                                    <div className="absolute left-0 bottom-0 text-[100px] md:text-[130px] font-black leading-none text-zinc-950 select-none transform translate-y-3 md:translate-y-5"
+                                    <div className="absolute left-0 bottom-0 text-[100px] md:text-[130px] font-black leading-none select-none transform translate-y-3 md:translate-y-5 opacity-70 group-hover:opacity-100 transition-all duration-300 pointer-events-none"
                                             style={{ 
-                                                WebkitTextStroke: '2px rgba(255,255,255,0.06)',
+                                                color: '#000',
+                                                WebkitTextStroke: '1.8px rgba(255,255,255,0.35)',
+                                                fontFamily: 'Inter, sans-serif',
                                                 zIndex: 1
                                             }}>
                                         {idx + 1}
@@ -943,12 +917,12 @@ export const LiveTV: React.FC<LiveTVProps> = React.memo(({ userProfile, searchQu
                                                 Trending
                                             </span>
                                         </div>
-                                        <div className="flex-1 w-full flex items-center justify-center p-4 mt-2 min-h-0">
+                                        <div className="flex-1 w-full flex items-center justify-center px-3 pt-6 pb-2 min-h-0">
                                             {channel.logo ? (
                                                 <img 
                                                     src={channel.logo} 
                                                     alt={channel.name} 
-                                                    className="max-w-full max-h-full object-contain filter drop-shadow-[0_4px_8px_rgba(0,0,0,0.5)] opacity-80 group-hover:opacity-100 transition-opacity" 
+                                                    className="w-auto h-full max-h-16 md:max-h-20 max-w-[90%] object-contain filter drop-shadow-[0_4px_10px_rgba(0,0,0,0.8)] opacity-90 group-hover:opacity-100 group-hover:scale-105 transition-all duration-300" 
                                                     loading="lazy" 
                                                     onError={(e) => { e.currentTarget.style.display = 'none'; }}
                                                 />

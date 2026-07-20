@@ -451,39 +451,40 @@ export const LiveTVPlayer: React.FC<LiveTVPlayerProps> = ({ channel, playlist = 
             onMouseMove={handleMouseMove}
             onMouseLeave={handleMouseLeave}
         >
-            {/* Header / Top Overlay (Cinematic Glassmorphism with deep contrast drop) */}
-            <div className={`absolute top-0 left-0 right-0 p-6 pt-8 z-20 flex items-center bg-gradient-to-b from-black/90 via-black/75 to-transparent transition-all duration-300 ${showControls && !isMinimized ? 'translate-y-0 opacity-100 pointer-events-auto' : '-translate-y-4 opacity-0 pointer-events-none'}`}>
-                <div className="flex items-center gap-4 w-full">
-                    <button 
-                        onClick={handleClose} 
-                        className="bg-black/40 hover:bg-white/10 p-3 rounded-full text-white transition-all duration-300 border border-white/10 hover:border-white/30 active:scale-90 shadow-xl"
-                        title="Back"
-                    >
-                        <ArrowLeft size={22}/>
-                    </button>
-                    <div className="flex items-center gap-4">
-                        {/* Larger Logo Container with Solid Black Backing for maximum contrast */}
-                        <div className="w-16 h-16 bg-black rounded-2xl p-1 border border-white/10 flex items-center justify-center shadow-2xl relative overflow-hidden shrink-0">
-                            <div className="absolute inset-0 bg-gradient-to-b from-white/[0.04] to-transparent" />
-                             {channel.logo ? (
-                                <img src={channel.logo} className="max-w-[90%] max-h-[90%] object-contain filter drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]" alt={channel.name} onError={(e) => { e.currentTarget.style.display = 'none'; }}/>
-                             ) : (
-                                <span className="font-black text-xl text-red-500">{channel.name.charAt(0)}</span>
-                             )}
-                        </div>
-                        <div className="text-left">
-                            <h2 className="text-lg md:text-xl font-black text-white tracking-tight drop-shadow-[0_2px_10px_rgba(0,0,0,0.95)]">{channel.name}</h2>
-                            <div className="flex items-center gap-2 mt-1.5 select-none">
-                                {channel.group && (
-                                    <span className="inline-block px-2.5 py-1 rounded-md bg-white/10 text-[9px] font-black text-white border border-white/15 uppercase tracking-widest leading-none shadow-sm">
-                                        {channel.group}
-                                    </span>
-                                )}
-                                {epg && (
-                                    <span className="inline-block px-2.5 py-1 rounded-md bg-red-600 text-[9px] font-black text-white tracking-widest uppercase leading-none shadow-[0_2px_8px_rgba(220,38,38,0.4)] animate-pulse">
-                                        Now: {epg.current.title}
-                                    </span>
-                                )}
+            {/* Header / Top Overlay */}
+            <div className={`absolute top-0 left-0 right-0 p-4 md:p-6 pt-6 md:pt-8 z-20 flex items-center bg-gradient-to-b from-black/90 via-black/75 to-transparent transition-all duration-300 ${showControls && !isMinimized ? 'translate-y-0 opacity-100 pointer-events-auto' : '-translate-y-4 opacity-0 pointer-events-none'}`}>
+                <div className="flex items-center justify-between gap-3 w-full">
+                    <div className="flex items-center gap-3 min-w-0">
+                        <button 
+                            onClick={handleClose} 
+                            className="bg-black/50 hover:bg-white/15 p-2.5 rounded-full text-white transition-all duration-200 border border-white/10 active:scale-90 shadow-xl shrink-0"
+                            title="Back"
+                        >
+                            <ArrowLeft size={20}/>
+                        </button>
+                        <div className="flex items-center gap-3 min-w-0">
+                            {/* Logo Container */}
+                            <div className="w-11 h-11 md:w-14 md:h-14 bg-black rounded-xl p-1 border border-white/10 flex items-center justify-center shadow-xl relative overflow-hidden shrink-0">
+                                 {channel.logo ? (
+                                    <img src={channel.logo} className="max-w-[90%] max-h-[90%] object-contain" alt={channel.name} onError={(e) => { e.currentTarget.style.display = 'none'; }}/>
+                                 ) : (
+                                    <span className="font-bold text-lg text-red-500">{channel.name.charAt(0)}</span>
+                                 )}
+                            </div>
+                            <div className="text-left min-w-0 flex-1">
+                                <h2 className="text-sm md:text-lg font-bold text-white tracking-tight truncate leading-snug">{channel.name}</h2>
+                                <div className="flex items-center gap-2 mt-1 flex-wrap">
+                                    {channel.group && (
+                                        <span className="inline-block px-2 py-0.5 rounded-full bg-white/10 text-[10px] font-medium text-zinc-300 leading-none">
+                                            {channel.group}
+                                        </span>
+                                    )}
+                                    {epg && (
+                                        <span className="inline-block px-2.5 py-0.5 rounded-full bg-red-500/20 text-red-400 border border-red-500/30 text-[10px] font-medium leading-none truncate max-w-[150px] sm:max-w-xs">
+                                            Now: {epg.current.title}
+                                        </span>
+                                    )}
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -506,7 +507,7 @@ export const LiveTVPlayer: React.FC<LiveTVPlayerProps> = ({ channel, playlist = 
                                     <path className="opacity-90" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                                 </svg>
                             </div>
-                            <p className="font-bold animate-pulse text-[10px] tracking-widest text-zinc-300 uppercase mt-2">Connecting Live Feed...</p>
+                            <p className="font-medium animate-pulse text-xs text-zinc-300 mt-2">Connecting Live Feed...</p>
                         </div>
                     </div>
                 )}
@@ -520,15 +521,15 @@ export const LiveTVPlayer: React.FC<LiveTVPlayerProps> = ({ channel, playlist = 
                                 <AlertCircle size={28} className="text-red-500"/>
                             </div>
                             
-                            <h2 className="text-base font-black mb-1 tracking-tight text-white uppercase">Signal Lost</h2>
-                            <p className="text-zinc-400 text-[10px] leading-relaxed mb-6 px-1 font-medium">
+                            <h2 className="text-base font-bold mb-1 tracking-tight text-white">Signal Lost</h2>
+                            <p className="text-zinc-400 text-xs leading-relaxed mb-6 px-1 font-normal">
                                 {error}
                             </p>
 
                             {/* Stream Server Recovery Selector */}
                             {servers.length > 1 && (
                                 <div className="mb-6 select-none text-center border-t border-white/5 pt-4">
-                                    <span className="text-[8px] font-black text-zinc-500 uppercase tracking-widest block mb-2.5">Switch Stream Server</span>
+                                    <span className="text-[10px] font-medium text-zinc-400 block mb-2.5">Switch Stream Server</span>
                                     <div className="flex flex-wrap gap-1.5 justify-center">
                                         {servers.map((s, idx) => (
                                             <button
@@ -538,10 +539,10 @@ export const LiveTVPlayer: React.FC<LiveTVPlayerProps> = ({ channel, playlist = 
                                                     setError(null);
                                                     setLoading(true);
                                                 }}
-                                                className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all border ${
+                                                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
                                                     currentServerIndex === idx
-                                                        ? 'bg-red-600 border-red-500 text-white shadow-md shadow-red-600/10'
-                                                        : 'bg-white/5 border-white/5 text-zinc-400 hover:text-white hover:bg-white/10'
+                                                        ? 'bg-red-600 text-white shadow-md'
+                                                        : 'bg-white/5 text-zinc-400 hover:text-white hover:bg-white/10'
                                                 }`}
                                             >
                                                 Server {idx + 1}
@@ -554,14 +555,14 @@ export const LiveTVPlayer: React.FC<LiveTVPlayerProps> = ({ channel, playlist = 
                             <div className="flex items-center gap-3 justify-center border-t border-white/5 pt-5">
                                 <button 
                                     onClick={handleRetry} 
-                                    className="flex-1 h-10 px-4 bg-white hover:bg-zinc-200 text-black font-black text-[10px] uppercase tracking-wider rounded-xl transition-all active:scale-95 shadow-md flex items-center justify-center gap-1.5 whitespace-nowrap"
+                                    className="flex-1 h-10 px-4 bg-white hover:bg-zinc-200 text-black font-semibold text-xs rounded-xl transition-all active:scale-95 shadow-md flex items-center justify-center gap-1.5 whitespace-nowrap"
                                 >
-                                    <RefreshCw size={11} />
+                                    <RefreshCw size={12} />
                                     Retry
                                 </button>
                                 <button 
                                     onClick={onClose} 
-                                    className="flex-1 h-10 px-4 bg-white/5 hover:bg-white/10 text-zinc-300 hover:text-white border border-white/5 hover:border-white/10 font-black text-[10px] uppercase tracking-wider rounded-xl transition-all active:scale-95 whitespace-nowrap"
+                                    className="flex-1 h-10 px-4 bg-white/10 hover:bg-white/20 text-zinc-200 font-semibold text-xs rounded-xl transition-all active:scale-95 whitespace-nowrap"
                                 >
                                     Close
                                 </button>
@@ -587,14 +588,14 @@ export const LiveTVPlayer: React.FC<LiveTVPlayerProps> = ({ channel, playlist = 
                                 <Cast size={30} className="text-red-500"/>
                             </div>
                             
-                            <h2 className="text-base font-extrabold mb-1 tracking-tight text-white font-sans text-center">Connected to TV</h2>
-                            <p className="text-gray-400 text-[10px] leading-relaxed mb-6 px-1 font-medium text-center">
-                                Currently casting <span className="text-white font-bold">{channel.name}</span> to <span className="text-red-400 font-bold">{castingDevice || 'Chromecast Device'}</span>.
+                            <h2 className="text-base font-bold mb-1 tracking-tight text-white font-sans text-center">Connected to TV</h2>
+                            <p className="text-gray-400 text-xs leading-relaxed mb-6 px-1 font-normal text-center">
+                                Currently casting <span className="text-white font-medium">{channel.name}</span> to <span className="text-red-400 font-medium">{castingDevice || 'Chromecast Device'}</span>.
                             </p>
                             
                             <button 
                                 onClick={stopCasting} 
-                                className="w-full h-10 px-4 bg-red-600 hover:bg-red-700 text-white font-bold text-[10px] uppercase tracking-wider rounded-xl transition-all active:scale-95 shadow-lg shadow-red-600/20 flex items-center justify-center gap-1.5"
+                                className="w-full h-10 px-4 bg-red-600 hover:bg-red-700 text-white font-semibold text-xs rounded-xl transition-all active:scale-95 shadow-lg flex items-center justify-center gap-1.5"
                             >
                                 Stop Casting
                             </button>
@@ -603,77 +604,79 @@ export const LiveTVPlayer: React.FC<LiveTVPlayerProps> = ({ channel, playlist = 
                 )}
             </div>
 
-            {/* Bottom Controls Overlay (Cinematic Glassmorphism) */}
-            <div className={`absolute bottom-0 left-0 right-0 z-20 bg-gradient-to-t from-black/95 via-black/60 to-transparent px-6 pb-6 pt-16 transition-all duration-300 ${showControls && !isMinimized ? 'translate-y-0 opacity-100 pointer-events-auto' : 'translate-y-4 opacity-0 pointer-events-none'}`}>
-                <div className="flex flex-col gap-4 w-full">
-                    {/* Live Stream visual timeline tracker (EPG based) */}
+            {/* Bottom Controls Overlay */}
+            <div className={`absolute bottom-0 left-0 right-0 z-20 bg-gradient-to-t from-black/95 via-black/70 to-transparent px-4 md:px-6 pb-4 md:pb-6 pt-12 transition-all duration-300 ${showControls && !isMinimized ? 'translate-y-0 opacity-100 pointer-events-auto' : 'translate-y-4 opacity-0 pointer-events-none'}`}>
+                <div className="flex flex-col gap-3 w-full">
+                    {/* Live Stream timeline bar & current program text */}
                     <div className="flex flex-col gap-1.5 w-full text-left select-none">
-                        <div className="w-full h-1 bg-white/10 rounded-full overflow-hidden relative">
+                        <div className="w-full h-1 bg-white/15 rounded-full overflow-hidden relative">
                             <div 
                                 className={`absolute top-0 left-0 bottom-0 ${accentBg} transition-all duration-1000`}
                                 style={{ width: `${epg ? epg.progress : 100}%` }}
                             />
                         </div>
                         {epg && (
-                            <div className="flex items-center justify-between text-[10px] text-zinc-300 font-bold px-0.5">
-                                <div className="flex items-center gap-1.5 drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
-                                    <Clock size={10} className="text-red-400" />
-                                    <span>
-                                        NOW PLAYING: <span className="text-white font-black">{epg.current.title}</span>
+                            <div className="flex items-center justify-between text-[11px] text-zinc-300 font-medium px-0.5 flex-wrap gap-x-3 gap-y-1">
+                                <div className="flex items-center gap-1.5 truncate max-w-full">
+                                    <Clock size={12} className="text-red-400 shrink-0" />
+                                    <span className="truncate">
+                                        Now: <span className="text-white font-semibold">{epg.current.title}</span>
                                     </span>
-                                    <span className="text-zinc-600">|</span>
-                                    <span className="text-zinc-300 font-bold">Ends in {Math.round(epg.current.duration * (1 - epg.progress / 100))} min</span>
+                                    <span className="text-zinc-500">•</span>
+                                    <span className="text-zinc-400 shrink-0">Ends in {Math.round(epg.current.duration * (1 - epg.progress / 100))} min</span>
                                 </div>
                                 {epg.next && (
-                                    <span className="text-zinc-300 font-medium drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
-                                        NEXT: <span className="text-white font-black">{epg.next.title}</span> (Starts {epg.next.startTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})
+                                    <span className="text-zinc-400 text-[10px] truncate hidden sm:inline-block">
+                                        Next: <span className="text-zinc-200 font-medium">{epg.next.title}</span> ({epg.next.startTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})
                                     </span>
                                 )}
                             </div>
                         )}
                     </div>
 
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-6">
-                            {/* Playback Controls (Prev, Play/Pause, Next) */}
-                            <div className="flex items-center gap-2">
+                    {/* Main Responsive Controls Bar */}
+                    <div className="flex flex-wrap items-center justify-between gap-2 md:gap-4">
+                        {/* Left Group: Playback Controls + Volume + Live Indicator */}
+                        <div className="flex items-center gap-3 sm:gap-4 flex-wrap">
+                            {/* Playback Controls */}
+                            <div className="flex items-center gap-1.5">
                                 <button 
                                     onClick={handlePrev}
                                     disabled={!prevChannel}
-                                    className="p-2 rounded-full bg-white/5 hover:bg-white/15 border border-white/5 transition-all active:scale-90 text-white disabled:opacity-35 disabled:pointer-events-none"
-                                    title={prevChannel ? `Previous: ${prevChannel.name} (← / P / [)` : "No previous channel"}
+                                    className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white disabled:opacity-30 disabled:pointer-events-none transition-all active:scale-90"
+                                    title={prevChannel ? `Previous: ${prevChannel.name}` : "No previous channel"}
                                 >
-                                    <SkipBack size={18} fill="currentColor"/>
+                                    <SkipBack size={16}/>
                                 </button>
 
                                 <button 
                                     onClick={togglePlay}
-                                    className={`p-2.5 rounded-full bg-white/5 hover:bg-white/15 border border-white/5 transition-all active:scale-90 ${isPlaying ? 'text-white' : accentColor}`}
-                                    title={isPlaying ? "Pause (Space)" : "Play (Space)"}
+                                    className="p-2.5 rounded-full bg-white text-black hover:bg-zinc-200 transition-all active:scale-90"
+                                    title={isPlaying ? "Pause" : "Play"}
                                 >
-                                    {isPlaying ? <Pause size={22} fill="currentColor"/> : <Play size={22} fill="currentColor"/>}
+                                    {isPlaying ? <Pause size={18} fill="currentColor"/> : <Play size={18} fill="currentColor"/>}
                                 </button>
 
                                 <button 
                                     onClick={handleNext}
                                     disabled={!nextChannel}
-                                    className="p-2 rounded-full bg-white/5 hover:bg-white/15 border border-white/5 transition-all active:scale-90 text-white disabled:opacity-35 disabled:pointer-events-none"
-                                    title={nextChannel ? `Next: ${nextChannel.name} (→ / N / ])` : "No next channel"}
+                                    className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white disabled:opacity-30 disabled:pointer-events-none transition-all active:scale-90"
+                                    title={nextChannel ? `Next: ${nextChannel.name}` : "No next channel"}
                                 >
-                                    <SkipForward size={18} fill="currentColor"/>
+                                    <SkipForward size={16}/>
                                 </button>
                             </div>
 
-                            {/* Volume bar */}
-                            <div className="flex items-center gap-3">
+                            {/* Volume Control */}
+                            <div className="flex items-center gap-2">
                                 <button 
                                     onClick={toggleMute} 
-                                    className="text-white hover:text-red-500 transition-colors p-2 hover:bg-white/5 rounded-full"
-                                    title="Mute (M)"
+                                    className="text-zinc-300 hover:text-white transition-colors p-1.5 hover:bg-white/10 rounded-full"
+                                    title="Mute"
                                 >
-                                    {isMuted || volume === 0 ? <VolumeX size={20}/> : <Volume2 size={20}/>}
+                                    {isMuted || volume === 0 ? <VolumeX size={18}/> : <Volume2 size={18}/>}
                                 </button>
-                                <div className="w-20 sm:w-24 flex items-center">
+                                <div className="w-16 sm:w-20 hidden xs:flex items-center">
                                     <input 
                                         type="range" 
                                         min="0" 
@@ -686,20 +689,20 @@ export const LiveTVPlayer: React.FC<LiveTVPlayerProps> = ({ channel, playlist = 
                                 </div>
                             </div>
                             
-                            {/* Live Badge & Watch Count */}
+                            {/* Live Badge & Watching Count */}
                             <div className="flex items-center gap-2 select-none">
-                                <div className="flex items-center gap-1.5 px-3 py-1 bg-red-600 rounded-md shadow-[0_0_10px_#dc2626]/40">
+                                <div className="flex items-center gap-1.5 px-2.5 py-0.5 bg-red-600 rounded-full">
                                     <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
-                                    <span className="text-[9px] font-black text-white uppercase tracking-widest leading-none">LIVE</span>
+                                    <span className="text-[10px] font-bold text-white uppercase tracking-wider leading-none">LIVE</span>
                                 </div>
-                                <span className="text-[9px] font-bold text-zinc-400 bg-white/5 border border-white/5 px-2 py-1 rounded-md">
-                                    🔥 {watchCount.toLocaleString()} watching
+                                <span className="text-[10px] text-zinc-400 bg-white/5 px-2 py-0.5 rounded-full hidden sm:inline-block">
+                                    🔥 {watchCount.toLocaleString()}
                                 </span>
                             </div>
 
                             {/* Server Selector Pills */}
                             {servers.length > 1 && (
-                                <div className="flex items-center gap-1 bg-white/5 border border-white/5 rounded-md p-0.5 select-none">
+                                <div className="flex items-center gap-1 bg-white/5 rounded-full p-0.5 select-none">
                                     {servers.map((s, idx) => (
                                         <button
                                             key={idx}
@@ -708,9 +711,9 @@ export const LiveTVPlayer: React.FC<LiveTVPlayerProps> = ({ channel, playlist = 
                                                 setError(null);
                                                 setLoading(true);
                                             }}
-                                            className={`px-2 py-0.5 rounded text-[8px] font-black uppercase transition-all ${
+                                            className={`px-2 py-0.5 rounded-full text-[9px] font-bold transition-all ${
                                                 currentServerIndex === idx
-                                                    ? 'bg-red-600 text-white shadow-sm'
+                                                    ? 'bg-red-600 text-white'
                                                     : 'text-zinc-400 hover:text-white'
                                             }`}
                                         >
@@ -721,56 +724,52 @@ export const LiveTVPlayer: React.FC<LiveTVPlayerProps> = ({ channel, playlist = 
                             )}
                         </div>
 
-                        <div className="flex items-center gap-4">
-                            {/* Google Cast / Chromecast button */}
+                        {/* Right Group: Action Buttons (Cast, EPG, Fullscreen) */}
+                        <div className="flex items-center gap-2">
                             {isChromecastAvailable && (
                                 <button 
                                     onClick={() => castChannel(servers[currentServerIndex]?.url || channel.url, channel.name, channel.logo)} 
-                                    className={`text-white hover:text-red-500 transition-all duration-300 p-2.5 hover:bg-white/10 rounded-full border border-white/5 ${isCasting ? 'bg-red-600 text-white border-red-500' : ''}`}
-                                    title={isCasting ? `Casting to ${castingDevice}` : "Cast to TV (Chromecast)"}
+                                    className={`text-zinc-300 hover:text-white transition-all p-2 hover:bg-white/10 rounded-full ${isCasting ? 'bg-red-600 text-white' : ''}`}
+                                    title="Cast"
                                 >
-                                    <Cast size={20}/>
+                                    <Cast size={18}/>
                                 </button>
                             )}
 
-                            {/* AirPlay button */}
                             {isAirPlayAvailable && (
                                 <button 
                                     onClick={airPlay} 
-                                    className="text-white hover:text-red-500 transition-all duration-300 p-2.5 hover:bg-white/10 rounded-full border border-white/5"
-                                    title="AirPlay to Apple TV"
+                                    className="text-zinc-300 hover:text-white transition-all p-2 hover:bg-white/10 rounded-full"
+                                    title="AirPlay"
                                 >
-                                    <Tv size={20}/>
+                                    <Tv size={18}/>
                                 </button>
                             )}
 
-                            {/* PiP Mode Button */}
                             {isPipSupported && (
                                 <button 
                                     onClick={togglePip} 
-                                    className={`text-white hover:text-red-500 transition-all duration-300 p-2.5 hover:bg-white/10 rounded-full border border-white/5 ${isPipActive ? 'bg-white/10 text-red-500' : ''}`}
+                                    className={`text-zinc-300 hover:text-white transition-all p-2 hover:bg-white/10 rounded-full ${isPipActive ? 'text-red-400' : ''}`}
                                     title="Picture in Picture"
                                 >
-                                    <ExternalLink size={20}/>
+                                    <ExternalLink size={18}/>
                                 </button>
                             )}
 
-                            {/* EPG TV Guide Button */}
                             <button 
                                 onClick={() => setShowEpgGuide(!showEpgGuide)} 
-                                className={`text-white hover:text-red-500 transition-all duration-300 p-2.5 hover:bg-white/10 rounded-full border border-white/5 ${showEpgGuide ? 'bg-white/10 text-red-500' : ''}`}
-                                title="EPG TV Guide (G)"
+                                className={`text-zinc-300 hover:text-white transition-all p-2 hover:bg-white/10 rounded-full ${showEpgGuide ? 'text-red-400' : ''}`}
+                                title="TV Guide"
                             >
-                                <List size={20}/>
+                                <List size={18}/>
                             </button>
 
-                            {/* Fullscreen button */}
                             <button 
                                 onClick={toggleFullscreen} 
-                                className="text-white hover:text-red-500 transition-all duration-300 p-2.5 hover:bg-white/10 rounded-full border border-white/5"
-                                title="Fullscreen (F)"
+                                className="text-zinc-300 hover:text-white transition-all p-2 hover:bg-white/10 rounded-full"
+                                title="Fullscreen"
                             >
-                                {isFullscreen ? <Minimize size={20}/> : <Maximize size={20}/>}
+                                {isFullscreen ? <Minimize size={18}/> : <Maximize size={18}/>}
                             </button>
                         </div>
                     </div>
@@ -782,15 +781,15 @@ export const LiveTVPlayer: React.FC<LiveTVPlayerProps> = ({ channel, playlist = 
                 {/* Panel Header */}
                 <div className="flex items-center justify-between pb-4 border-b border-white/5 mb-4 text-left">
                     <div>
-                        <h3 className="text-xs font-black text-white tracking-widest uppercase flex items-center gap-2">
+                        <h3 className="text-sm font-semibold text-white flex items-center gap-2">
                             <Calendar size={14} className="text-red-500" />
                             TV Guide (EPG)
                         </h3>
-                        <p className="text-[10px] text-zinc-400 mt-0.5">Today's Programming Schedule</p>
+                        <p className="text-xs text-zinc-400 mt-0.5 font-normal">Today's Programming Schedule</p>
                     </div>
                     <button 
                         onClick={() => setShowEpgGuide(false)}
-                        className="text-zinc-400 hover:text-white bg-white/5 hover:bg-white/10 px-3 py-1.5 rounded-lg border border-white/5 transition-all text-[10px] font-bold uppercase tracking-wider"
+                        className="text-zinc-400 hover:text-white bg-white/10 hover:bg-white/20 px-3 py-1 rounded-lg transition-all text-xs font-medium"
                     >
                         Close
                     </button>
@@ -824,20 +823,20 @@ export const LiveTVPlayer: React.FC<LiveTVPlayerProps> = ({ channel, playlist = 
                         
                         <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-[10px] border-t border-white/[0.03] pt-3">
                             <div>
-                                <span className="text-zinc-500 font-bold block uppercase tracking-wider text-[8px]">Country</span>
-                                <span className="text-zinc-300 font-semibold">{channelDetails.country || "Global"}</span>
+                                <span className="text-zinc-400 font-medium block text-[10px]">Country</span>
+                                <span className="text-zinc-200 font-semibold">{channelDetails.country || "Global"}</span>
                             </div>
                             <div>
-                                <span className="text-zinc-500 font-bold block uppercase tracking-wider text-[8px]">Language</span>
-                                <span className="text-zinc-300 font-semibold truncate block max-w-[100px]">{channelDetails.languages.join(', ')}</span>
+                                <span className="text-zinc-400 font-medium block text-[10px]">Language</span>
+                                <span className="text-zinc-200 font-semibold truncate block max-w-[100px]">{channelDetails.languages.join(', ')}</span>
                             </div>
                             <div>
-                                <span className="text-zinc-500 font-bold block uppercase tracking-wider text-[8px]">Category</span>
-                                <span className="text-zinc-300 font-semibold truncate block max-w-[100px] capitalize">{channelDetails.categories.join(', ') || "Entertainment"}</span>
+                                <span className="text-zinc-400 font-medium block text-[10px]">Category</span>
+                                <span className="text-zinc-200 font-semibold truncate block max-w-[100px] capitalize">{channelDetails.categories.join(', ') || "Entertainment"}</span>
                             </div>
                             <div>
-                                <span className="text-zinc-500 font-bold block uppercase tracking-wider text-[8px]">Status</span>
-                                <span className="text-green-500 font-bold flex items-center gap-1">
+                                <span className="text-zinc-400 font-medium block text-[10px]">Status</span>
+                                <span className="text-green-500 font-medium flex items-center gap-1">
                                     <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
                                     Online
                                 </span>
@@ -849,7 +848,7 @@ export const LiveTVPlayer: React.FC<LiveTVPlayerProps> = ({ channel, playlist = 
                 {/* Visual Program Timeline */}
                 {epg && (
                     <div className="p-3.5 rounded-xl bg-white/[0.02] border border-white/5 text-left select-none mb-4">
-                        <h4 className="text-[10px] font-black text-white tracking-widest uppercase mb-3 flex items-center gap-1.5">
+                        <h4 className="text-xs font-semibold text-white mb-3 flex items-center gap-1.5">
                             <Clock size={12} className="text-red-500" />
                             Program Timeline
                         </h4>
