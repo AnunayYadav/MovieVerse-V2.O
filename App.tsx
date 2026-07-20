@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef, Suspense } from 'react
 import { App as CapApp } from '@capacitor/app';
 import { Search, Film, Menu, TrendingUp, Tv, Ghost, Calendar, Star, X, Sparkles, Settings, Globe, Bookmark, Heart, Folder, Languages, Filter, ChevronDown, Info, Plus, Cloud, CloudOff, Clock, Bell, History, Users, Tag, Dice5, Crown, Radio, LayoutGrid, Award, Baby, Clapperboard, ChevronRight, PlayCircle, Play, Megaphone, CalendarDays, Compass, Home, Map, Loader2, Trophy, RefreshCcw, Check, MonitorPlay, Layers, LogOut, Download, User, FileText, MessageSquare } from 'lucide-react';
 import { Movie, UserProfile, GENRES_MAP, GENRES_LIST, INDIAN_LANGUAGES, MaturityRating, Keyword } from './types';
-import { LogoLoader, MovieSkeleton, MovieCard, PersonCard, TMDB_BASE_URL, TMDB_BACKDROP_BASE, TMDB_IMAGE_BASE, getTmdbKey, BrandLogo, getMovieVerseRating, tvFetch } from './components/Shared';
+import { LogoLoader, MovieSkeleton, MovieCard, PersonCard, TMDB_BASE_URL, TMDB_BACKDROP_BASE, TMDB_IMAGE_BASE, getTmdbKey, BrandLogo, getMovieVerseRating, MVRatingBadge, tvFetch } from './components/Shared';
 import { MoviePage } from './components/MovieDetails';
 import { NetflixHoverCard } from './components/NetflixHoverCard';
 import { PersonPage, NotificationModal, ComparisonModal, ExpandedCategoryModal, CharacterPage, StudioPage } from './components/Modals';
@@ -871,50 +871,24 @@ const ContinueWatchingCard = ({
     onClick: () => void;
     key?: string | number;
 }) => {
-    const [logoUrl, setLogoUrl] = useState<string | null>(null);
-    const [logoLoading, setLogoLoading] = useState(true);
-
     const { ref } = useTvFocus({
         onEnterPress: () => onClick()
     });
 
-    useEffect(() => {
-        let isMounted = true;
-        if ((movie as any).isAnimeDirect) {
-            setLogoLoading(false);
-            return;
-        }
-        const key = getTmdbKey();
-        if (!key) {
-            setLogoLoading(false);
-            return;
-        }
-
-        const type = movie.media_type === 'tv' || (!movie.release_date && movie.first_air_date) ? 'tv' : 'movie';
-
-        fetch(`${TMDB_BASE_URL}/${type}/${movie.id}/images?api_key=${key}`)
-            .then(res => {
-                if (!res.ok) throw new Error();
-                return res.json();
-            })
-            .then(data => {
-                if (!isMounted) return;
-                const logo = data.logos?.find((l: any) => l.iso_639_1 === 'en') || data.logos?.[0];
-                if (logo) {
-                    setLogoUrl(`https://image.tmdb.org/t/p/w300${logo.file_path}`);
-                }
-            })
-            .catch(() => { })
-            .finally(() => {
-                if (isMounted) setLogoLoading(false);
-            });
-
-        return () => {
-            isMounted = false;
-        };
-    }, [movie.id]);
-
     const progress = movie.play_progress || 0;
+    const isFuture = new Date(movie.release_date || `${movie.year}-01-01`) > new Date();
+    const year = (movie.release_date || movie.first_air_date || "").split('-')[0];
+    const mvRating = getMovieVerseRating(movie.id, movie.vote_average, movie.popularity, movie.vote_count, movie.release_date || movie.first_air_date);
+
+    const resolveImageUrl = (path: any) => {
+        if (!path || typeof path !== 'string') return null;
+        if (path.startsWith('http://') || path.startsWith('https://')) return path;
+        const clean = path.startsWith('/') ? path : `/${path}`;
+        return `${TMDB_IMAGE_BASE}${clean}`;
+    };
+
+    const animeCover = (movie as any).coverImage?.extraLarge || (movie as any).coverImage?.large || (movie as any).image;
+    const posterUrl = resolveImageUrl(movie.poster_path) || resolveImageUrl(animeCover) || resolveImageUrl(movie.backdrop_path) || `https://placehold.co/320x480/111/444?text=${encodeURIComponent(movie.title || movie.name || "Movie")}`;
 
     const enterTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const leaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -944,7 +918,7 @@ const ContinueWatchingCard = ({
                 detail: {
                     movie,
                     rect: position,
-                    horizontal: true
+                    horizontal: false
                 }
             }));
         }, 800);
@@ -974,36 +948,44 @@ const ContinueWatchingCard = ({
             onClick={onClick}
             onMouseEnter={handleMouseEnter}
             onMouseLeave={handleMouseLeave}
-            className="relative w-[220px] md:w-[260px] shrink-0 aspect-[16/9] rounded-xl overflow-hidden bg-zinc-900 border border-white/5 cursor-pointer shadow-lg hover:scale-[1.03] hover:border-white/10 transition-all duration-300 group"
+            className="group flex flex-col gap-2 shrink-0 w-[125px] sm:w-[145px] md:w-[150px] cursor-pointer select-none text-left font-sans"
         >
-            {(() => {
-                const rawImg = movie.backdrop_path || movie.poster_path || (movie as any).coverImage?.extraLarge || (movie as any).coverImage?.large || (movie as any).image;
-                const srcUrl = rawImg ? (rawImg.startsWith('http://') || rawImg.startsWith('https://') ? rawImg : `https://image.tmdb.org/t/p/w500${rawImg.startsWith('/') ? rawImg : `/${rawImg}`}`) : "https://placehold.co/600x338?text=No+Preview";
-                return (
-                    <img
-                        src={srcUrl}
-                        alt={movie.title || movie.name}
-                        className="w-full h-full object-cover"
-                        loading="lazy"
-                    />
-                );
-            })()}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/35 to-transparent opacity-85 group-hover:opacity-100 transition-opacity duration-300" />
-            <div className="absolute bottom-3 left-3 right-3 flex flex-col gap-1 text-left pointer-events-none">
-                <div className="min-h-[30px] flex items-end">
-                    {!logoLoading && logoUrl ? (
-                        <img
-                            src={logoUrl}
-                            alt={movie.title || movie.name}
-                            className="max-h-[28px] max-w-[85%] object-contain drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)] group-hover:scale-105 transition-transform duration-300 origin-left"
-                            loading="lazy"
-                        />
-                    ) : (
-                        <span className="text-xs font-bold text-white truncate drop-shadow-md">{movie.title || movie.name}</span>
-                    )}
-                </div>
-                <div className="w-full h-1 bg-white/20 rounded-full overflow-hidden mt-1.5 shadow-inner">
-                    <div className="h-full bg-red-600 transition-all duration-500" style={{ width: `${progress}%` }}></div>
+            {/* Vertical Poster Container */}
+            <div className="relative w-full aspect-[2/3] rounded-xl overflow-hidden bg-zinc-900 border border-white/5 group-hover:border-red-500/50 group-hover:shadow-[0_0_20px_rgba(239,68,68,0.25)] group-hover:scale-[1.03] transition-all duration-500">
+                <img
+                    src={posterUrl}
+                    alt={movie.title || movie.name || "Movie Poster"}
+                    loading="lazy"
+                    decoding="async"
+                    className="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-105"
+                    referrerPolicy="no-referrer"
+                />
+
+                {/* Rating Badge */}
+                {movie.vote_average ? (
+                    <div className="absolute top-2 left-2 z-10 px-2 py-0.5 rounded-md bg-black/70 backdrop-blur-md border border-white/10 text-amber-400 text-[10px] font-bold flex items-center gap-1 shadow-md">
+                        <Star size={10} className="fill-amber-400 text-amber-400" />
+                        <span>{movie.vote_average.toFixed(1)}</span>
+                    </div>
+                ) : null}
+
+                {/* Progress Bar Overlay inside Poster */}
+                {progress > 0 && (
+                    <div className="absolute bottom-0 left-0 right-0 h-1.5 bg-black/60 z-10 overflow-hidden">
+                        <div className="h-full bg-red-600 transition-all duration-500" style={{ width: `${progress}%` }}></div>
+                    </div>
+                )}
+            </div>
+
+            {/* Details Below Poster */}
+            <div className="flex flex-col px-0.5">
+                <h4 className="text-xs md:text-sm font-medium text-zinc-200 line-clamp-2 group-hover:text-red-500 transition-colors duration-300 leading-snug min-h-[32px] md:min-h-[40px]">
+                    {movie.title || movie.name}
+                </h4>
+
+                <div className="mt-1 flex items-center justify-between text-[10px] font-semibold text-zinc-400 font-sans">
+                    <span>{year || (isFuture ? 'Upcoming' : '')}</span>
+                    <MVRatingBadge rating={mvRating} size={12} />
                 </div>
             </div>
         </div>
