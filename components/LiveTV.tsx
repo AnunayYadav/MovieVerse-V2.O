@@ -176,6 +176,7 @@ const parseM3U = (data: string): LiveChannel[] => {
             const logoMatch = line.match(/tvg-logo="([^"]*)"/);
             const groupMatch = line.match(/group-title="([^"]*)"/);
             const countryMatch = line.match(/tvg-country="([^"]*)"/);
+            const langMatch = line.match(/tvg-language="([^"]*)"/) || line.match(/tvg-lang="([^"]*)"/);
             const nameMatch = line.split(',').pop()?.trim() || "Unknown Channel";
             
             let url = "";
@@ -192,8 +193,9 @@ const parseM3U = (data: string): LiveChannel[] => {
                     logo: logoMatch ? logoMatch[1] : "",
                     group: groupMatch ? groupMatch[1] : "",
                     country: countryMatch ? countryMatch[1] : undefined,
+                    language: langMatch ? langMatch[1] : undefined,
                     url: url
-                });
+                } as any);
             }
         }
     }
@@ -416,6 +418,30 @@ const LiveTVRow: React.FC<{
                     parsed = parsed.filter(c => 
                         c.group && c.group.toLowerCase().includes(categoryId.toLowerCase())
                     );
+
+                    if (languageCode !== 'ALL') {
+                        const targetLangObj = LANGUAGES.find(l => l.id === languageCode);
+                        const targetLangName = targetLangObj ? targetLangObj.name.toLowerCase() : '';
+                        parsed = parsed.filter(c => {
+                            const chanLang = (c as any).language?.toLowerCase() || '';
+                            const chanName = c.name.toLowerCase();
+                            return chanLang.includes(targetLangName) || 
+                                   chanLang.includes(languageCode) || 
+                                   chanName.includes(targetLangName) ||
+                                   (languageCode === 'hin' && (chanName.includes('hindi') || chanLang.includes('hindi'))) ||
+                                   (languageCode === 'tel' && (chanName.includes('telugu') || chanLang.includes('telugu'))) ||
+                                   (languageCode === 'tam' && (chanName.includes('tamil') || chanLang.includes('tamil'))) ||
+                                   (languageCode === 'kan' && (chanName.includes('kannada') || chanLang.includes('kannada'))) ||
+                                   (languageCode === 'mal' && (chanName.includes('malayalam') || chanLang.includes('malayalam'))) ||
+                                   (languageCode === 'ben' && (chanName.includes('bengali') || chanLang.includes('bengali'))) ||
+                                   (languageCode === 'mar' && (chanName.includes('marathi') || chanLang.includes('marathi'))) ||
+                                   (languageCode === 'pan' && (chanName.includes('punjabi') || chanLang.includes('punjabi'))) ||
+                                   (languageCode === 'eng' && (chanName.includes('english') || chanLang.includes('english'))) ||
+                                   (languageCode === 'spa' && (chanName.includes('spanish') || chanLang.includes('spanish'))) ||
+                                   (languageCode === 'fra' && (chanName.includes('french') || chanLang.includes('french'))) ||
+                                   (languageCode === 'deu' && (chanName.includes('german') || chanLang.includes('german')));
+                        });
+                    }
                 } else if (isLangFetch) {
                     parsed = parsed.filter(c => 
                         c.group && c.group.toLowerCase().includes(categoryId.toLowerCase())
@@ -703,6 +729,30 @@ export const LiveTV: React.FC<LiveTVProps> = React.memo(({ userProfile, searchQu
                 if (selectedCountry !== 'ALL') {
                     const url = `https://iptv-org.github.io/iptv/countries/${selectedCountry.toLowerCase()}.m3u`;
                     results = await fetchAndParseM3U(url);
+                    
+                    if (selectedLanguage !== 'ALL') {
+                        const targetLangObj = LANGUAGES.find(l => l.id === selectedLanguage);
+                        const targetLangName = targetLangObj ? targetLangObj.name.toLowerCase() : '';
+                        results = results.filter(c => {
+                            const chanLang = (c as any).language?.toLowerCase() || '';
+                            const chanName = c.name.toLowerCase();
+                            return chanLang.includes(targetLangName) || 
+                                   chanLang.includes(selectedLanguage) || 
+                                   chanName.includes(targetLangName) ||
+                                   (selectedLanguage === 'hin' && (chanName.includes('hindi') || chanLang.includes('hindi'))) ||
+                                   (selectedLanguage === 'tel' && (chanName.includes('telugu') || chanLang.includes('telugu'))) ||
+                                   (selectedLanguage === 'tam' && (chanName.includes('tamil') || chanLang.includes('tamil'))) ||
+                                   (selectedLanguage === 'kan' && (chanName.includes('kannada') || chanLang.includes('kannada'))) ||
+                                   (selectedLanguage === 'mal' && (chanName.includes('malayalam') || chanLang.includes('malayalam'))) ||
+                                   (selectedLanguage === 'ben' && (chanName.includes('bengali') || chanLang.includes('bengali'))) ||
+                                   (selectedLanguage === 'mar' && (chanName.includes('marathi') || chanLang.includes('marathi'))) ||
+                                   (selectedLanguage === 'pan' && (chanName.includes('punjabi') || chanLang.includes('punjabi'))) ||
+                                   (selectedLanguage === 'eng' && (chanName.includes('english') || chanLang.includes('english'))) ||
+                                   (selectedLanguage === 'spa' && (chanName.includes('spanish') || chanLang.includes('spanish'))) ||
+                                   (selectedLanguage === 'fra' && (chanName.includes('french') || chanLang.includes('french'))) ||
+                                   (selectedLanguage === 'deu' && (chanName.includes('german') || chanLang.includes('german')));
+                        });
+                    }
                 } else if (selectedLanguage !== 'ALL') {
                     const url = `https://iptv-org.github.io/iptv/languages/${selectedLanguage.toLowerCase()}.m3u`;
                     results = await fetchAndParseM3U(url);
