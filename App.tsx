@@ -22,8 +22,8 @@ import { NovelPage } from './components/NovelPage';
 import { DramaPage } from './components/DramaPage';
 import { MusicPage } from './components/MusicPage';
 import { RadioPage } from './components/RadioPage';
-import { BooksPage } from './components/BooksPage';
-import { BookOpen, Drama, Music, Headphones } from 'lucide-react';
+import { PodcastsPage } from './components/BooksPage';
+import { BookOpen, Drama, Music, Headphones, Mic } from 'lucide-react';
 import { useTvFocus, TvFocusButton, TvFocusInput } from './tvNavigation';
 import AppTV from './components/AppTV';
 import { syncWatchlistToAniList } from './services/anilistSync';
@@ -1881,8 +1881,8 @@ export default function App() {
                 category = "LiveTV";
             } else if (path === '/radio' || path === '/browse/radio') {
                 category = "Radio";
-            } else if (path === '/books' || path === '/browse/books') {
-                category = "Books";
+            } else if (path === '/podcasts' || path === '/browse/podcasts') {
+                category = "Podcasts";
             } else if (path === '/dramas' || path === '/browse/dramas') {
                 category = "Dramas";
             } else if (path.startsWith('/drama/')) {
@@ -1916,7 +1916,7 @@ export default function App() {
                 else if (sub === 'categories') category = "Categories";
                 else if (sub === 'franchise') category = "Franchise";
                 else if (sub === 'radio') category = "Radio";
-                else if (sub === 'books') category = "Books";
+                else if (sub === 'podcasts') category = "Podcasts";
             } else if (path.startsWith('/library/')) {
                 const sub = parts[2];
                 if (sub === 'watchlist') category = "Watchlist";
@@ -2227,8 +2227,8 @@ export default function App() {
         } else if (selectedCategory === 'Radio') {
             newPath = '/radio';
 
-        } else if (selectedCategory === 'Books') {
-            newPath = '/books';
+        } else if (selectedCategory === 'Podcasts') {
+            newPath = '/podcasts';
 
         } else if (selectedCategory === 'Collection' && currentCollection) {
             newPath = `/custom-collection/${currentCollection}`;
@@ -2290,8 +2290,8 @@ export default function App() {
             pageTitle = 'Live TV - MovieVerse AI';
         } else if (selectedCategory === 'Radio') {
             pageTitle = 'Radio - MovieVerse AI';
-        } else if (selectedCategory === 'Books') {
-            pageTitle = 'Books & Audiobooks - MovieVerse AI';
+        } else if (selectedCategory === 'Podcasts') {
+            pageTitle = 'Podcasts & Audiobooks - MovieVerse AI';
         } else if (selectedCategory === 'Awards') {
             pageTitle = 'Awards - MovieVerse AI';
         } else if (selectedCategory === 'Anime') {
@@ -4319,7 +4319,7 @@ export default function App() {
         { id: "Coming", icon: CalendarDays, label: "Coming Soon", action: () => { resetFilters(); setSelectedCategory("Coming"); } },
         { id: "AnimeCommunity", icon: MessageSquare, label: "Anime Forum", action: () => { resetFilters(); setSelectedCategory("AnimeCommunity"); } },
         { id: "Novels", icon: BookOpen, label: "Novels", action: () => { resetFilters(); setSelectedCategory("Novels"); } },
-        { id: "Books", icon: BookOpen, label: "Books", action: () => { resetFilters(); setSelectedCategory("Books"); } },
+        { id: "Podcasts", icon: Mic, label: "Podcasts", action: () => { resetFilters(); setSelectedCategory("Podcasts"); } },
         { id: "Settings", icon: Settings, label: "Settings", action: () => { setIsSettingsOpen(true); } }
     ];
 
@@ -4479,8 +4479,8 @@ export default function App() {
                                 <button onClick={() => { resetFilters(); setSelectedCategory("Radio"); }} className={getSidebarItemClass(selectedCategory === "Radio")}>
                                     <Headphones size={18} /> Radio
                                 </button>
-                                <button onClick={() => { resetFilters(); setSelectedCategory("Books"); }} className={getSidebarItemClass(selectedCategory === "Books")}>
-                                    <BookOpen size={18} /> Books
+                                <button onClick={() => { resetFilters(); setSelectedCategory("Podcasts"); }} className={getSidebarItemClass(selectedCategory === "Podcasts")}>
+                                    <Mic size={18} /> Podcasts
                                 </button>
                                 <button onClick={() => { resetFilters(); setSelectedCategory("Franchise"); }} className={getSidebarItemClass(selectedCategory === "Franchise")}>
                                     <Layers size={18} /> Franchises
@@ -4946,8 +4946,8 @@ export default function App() {
                             onSearchClear={() => setSearchQuery('')}
                         />
 
-                    ) : selectedCategory === "Books" ? (
-                        <BooksPage
+                    ) : selectedCategory === "Podcasts" ? (
+                        <PodcastsPage
                             searchQuery={searchQuery}
                             onSearchClear={() => setSearchQuery('')}
                         />
@@ -5826,7 +5826,7 @@ export default function App() {
                         { id: 'Home', label: 'Home', icon: Home, action: () => { setIsBrowseOpen(false); resetToHome(); }, activeCondition: selectedCategory === "All" && !searchQuery },
                         { id: 'Anime', label: 'Anime', icon: Ghost, action: () => { setIsBrowseOpen(false); resetFilters(); setSelectedCategory("Anime"); }, activeCondition: selectedCategory === "Anime" },
                         { id: 'Manga', label: 'Manga', icon: BookOpen, action: () => { setIsBrowseOpen(false); resetFilters(); setSelectedMangaId(null); setActiveMangaChapterId(null); setSelectedCategory("Manga"); }, activeCondition: selectedCategory === "Manga" },
-                        { id: 'Browse', label: 'More', icon: LayoutGrid, action: () => setIsBrowseOpen(!isBrowseOpen), activeCondition: isBrowseOpen || ["Categories", "Awards", "AnimeCommunity", "Family", "TV Shows", "Coming", "Novels", "Books", "WatchParty", "Radio", "Music", "Dramas"].includes(selectedCategory) }
+                        { id: 'Browse', label: 'More', icon: LayoutGrid, action: () => setIsBrowseOpen(!isBrowseOpen), activeCondition: isBrowseOpen || ["Categories", "Awards", "AnimeCommunity", "Family", "TV Shows", "Coming", "Novels", "Podcasts", "WatchParty", "Radio", "Music", "Dramas"].includes(selectedCategory) }
                     ].map((tab) => {
                             const Icon = tab.icon;
                             const isActive = tab.activeCondition;

@@ -1,32 +1,19 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Play, Pause, Volume2, VolumeX, Search, Loader2, Headphones, BookOpen, ArrowLeft, X, Wifi, SkipBack, SkipForward, Info, ExternalLink, HelpCircle, FastForward, RotateCcw } from 'lucide-react';
+import { Play, Pause, Volume2, VolumeX, Search, Loader2, Headphones, ArrowLeft, X, Wifi, SkipBack, SkipForward, Info, HelpCircle, FastForward, RotateCcw, Mic, Music } from 'lucide-react';
 import { useTvFocus } from '../tvNavigation';
 
 // Types
-export interface Audiobook {
+export interface AudioShow {
   id: string;
   title: string;
   description: string;
-  url_librivox: string;
+  creator: string;
+  downloads: number;
   url_iarchive: string;
-  total_time: string;
-  totaltimesecs: number;
-  authors: Array<{ first_name: string; last_name: string }>;
+  isPodcast: boolean;
 }
 
-export interface Ebook {
-  id: number;
-  title: string;
-  authors: Array<{ name: string; birth_year?: number; death_year?: number }>;
-  subjects: string[];
-  bookshelves: string[];
-  languages: string[];
-  media_type: string;
-  download_count: number;
-  formats: Record<string, string>;
-}
-
-export interface AudiobookChapter {
+export interface AudioChapter {
   name: string;
   title: string;
   track?: string;
@@ -34,25 +21,24 @@ export interface AudiobookChapter {
   url: string;
 }
 
-interface BooksPageProps {
+interface PodcastsPageProps {
   searchQuery?: string;
   onSearchClear?: () => void;
 }
 
 const ARCHIVE_API_BASE = "https://archive.org/advancedsearch.php";
-const GUTENDEX_API_BASE = "https://gutendex.com/books";
 
-export const BooksPage: React.FC<BooksPageProps> = ({ searchQuery = "", onSearchClear }) => {
+export const PodcastsPage: React.FC<PodcastsPageProps> = ({ searchQuery = "", onSearchClear }) => {
   // Category lists states
-  const [popularAudiobooks, setPopularAudiobooks] = useState<Audiobook[]>([]);
-  const [trendingEbooks, setTrendingEbooks] = useState<Ebook[]>([]);
-  const [mysteryEbooks, setMysteryEbooks] = useState<Ebook[]>([]);
-  const [scifiEbooks, setScifiEbooks] = useState<Ebook[]>([]);
-  const [historyEbooks, setHistoryEbooks] = useState<Ebook[]>([]);
+  const [popularPodcasts, setPopularPodcasts] = useState<AudioShow[]>([]);
+  const [popularAudiobooks, setPopularAudiobooks] = useState<AudioShow[]>([]);
+  const [newsPodcasts, setNewsPodcasts] = useState<AudioShow[]>([]);
+  const [techPodcasts, setTechPodcasts] = useState<AudioShow[]>([]);
+  const [comedyPodcasts, setComedyPodcasts] = useState<AudioShow[]>([]);
 
   // Search Results States
-  const [audiobookSearchResults, setAudiobookSearchResults] = useState<Audiobook[]>([]);
-  const [ebookSearchResults, setEbookSearchResults] = useState<Ebook[]>([]);
+  const [podcastSearchResults, setPodcastSearchResults] = useState<AudioShow[]>([]);
+  const [audiobookSearchResults, setAudiobookSearchResults] = useState<AudioShow[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
 
   // Loading / Error States
@@ -60,17 +46,13 @@ export const BooksPage: React.FC<BooksPageProps> = ({ searchQuery = "", onSearch
   const [error, setError] = useState<string | null>(null);
 
   // Active Modals
-  const [selectedAudiobook, setSelectedAudiobook] = useState<Audiobook | null>(null);
-  const [audiobookChapters, setAudiobookChapters] = useState<AudiobookChapter[]>([]);
+  const [selectedShow, setSelectedShow] = useState<AudioShow | null>(null);
+  const [showChapters, setShowChapters] = useState<AudioChapter[]>([]);
   const [loadingChapters, setLoadingChapters] = useState(false);
-  const [selectedEbook, setSelectedEbook] = useState<Ebook | null>(null);
-  const [isReadingEbook, setIsReadingEbook] = useState(false);
-  const [ebookText, setEbookText] = useState<string | null>(null);
-  const [loadingText, setLoadingText] = useState(false);
 
   // Active Playback State
-  const [currentAudiobook, setCurrentAudiobook] = useState<Audiobook | null>(null);
-  const [currentChaptersList, setCurrentChaptersList] = useState<AudiobookChapter[]>([]);
+  const [currentShow, setCurrentShow] = useState<AudioShow | null>(null);
+  const [currentChaptersList, setCurrentChaptersList] = useState<AudioChapter[]>([]);
   const [activeChapterIndex, setActiveChapterIndex] = useState<number>(-1);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isLoadingAudio, setIsLoadingAudio] = useState(false);
@@ -90,7 +72,7 @@ export const BooksPage: React.FC<BooksPageProps> = ({ searchQuery = "", onSearch
   // Helper: Extract Internet Archive ID
   const getArchiveIdentifier = (iarchiveUrl: string) => {
     if (!iarchiveUrl) return null;
-    const cleanUrl = iarchiveUrl.trim().replace(/\/$/, ""); // remove trailing slash
+    const cleanUrl = iarchiveUrl.trim().replace(/\/$/, "");
     const parts = cleanUrl.split('/');
     return parts[parts.length - 1] || null;
   };
@@ -104,11 +86,11 @@ export const BooksPage: React.FC<BooksPageProps> = ({ searchQuery = "", onSearch
       setError(null);
       try {
         const endpoints = {
+          popularPodcasts: `${ARCHIVE_API_BASE}?q=mediatype:audio+AND+collection:podcasts&fl[]=identifier&fl[]=title&fl[]=creator&fl[]=description&fl[]=downloads&sort[]=downloads+desc&rows=30&output=json`,
           popularAudio: `${ARCHIVE_API_BASE}?q=collection:librivoxaudio&fl[]=identifier&fl[]=title&fl[]=creator&fl[]=description&fl[]=downloads&sort[]=downloads+desc&rows=30&output=json`,
-          trendingEbooks: `${GUTENDEX_API_BASE}/?sort=popular`,
-          mysteryEbooks: `${GUTENDEX_API_BASE}/?topic=mystery`,
-          scifiEbooks: `${GUTENDEX_API_BASE}/?topic=science%20fiction`,
-          historyEbooks: `${GUTENDEX_API_BASE}/?topic=history`
+          newsPodcasts: `${ARCHIVE_API_BASE}?q=mediatype:audio+AND+collection:podcasts+AND+(subject:news+OR+subject:politics+OR+subject:talk)&fl[]=identifier&fl[]=title&fl[]=creator&fl[]=description&fl[]=downloads&sort[]=downloads+desc&rows=30&output=json`,
+          techPodcasts: `${ARCHIVE_API_BASE}?q=mediatype:audio+AND+collection:podcasts+AND+(subject:technology+OR+subject:science+OR+subject:tech)&fl[]=identifier&fl[]=title&fl[]=creator&fl[]=description&fl[]=downloads&sort[]=downloads+desc&rows=30&output=json`,
+          comedyPodcasts: `${ARCHIVE_API_BASE}?q=mediatype:audio+AND+collection:podcasts+AND+(subject:comedy+OR+subject:humor+OR+subject:entertainment)&fl[]=identifier&fl[]=title&fl[]=creator&fl[]=description&fl[]=downloads&sort[]=downloads+desc&rows=30&output=json`
         };
 
         const fetches = Object.entries(endpoints).map(async ([key, url]) => {
@@ -128,32 +110,33 @@ export const BooksPage: React.FC<BooksPageProps> = ({ searchQuery = "", onSearch
 
         results.forEach(({ key, data }) => {
           if (!data) return;
-          if (key === 'popularAudio') {
-            const docs = data?.response?.docs || [];
-            const formatted: Audiobook[] = docs.map((doc: any) => ({
-              id: doc.identifier,
-              title: doc.title || "Unknown Title",
-              description: doc.description || "No description available.",
-              url_librivox: "",
-              url_iarchive: `https://archive.org/details/${doc.identifier}`,
-              total_time: "",
-              totaltimesecs: 0,
-              authors: [{ first_name: "", last_name: doc.creator || "Unknown Author" }]
-            }));
+          const docs = data?.response?.docs || [];
+          const isPodcast = key !== 'popularAudio';
+          const formatted: AudioShow[] = docs.map((doc: any) => ({
+            id: doc.identifier,
+            title: doc.title || "Unknown Title",
+            description: doc.description || "No description available.",
+            creator: doc.creator || (isPodcast ? "Podcast Host" : "LibriVox Volunteer"),
+            downloads: doc.downloads || 0,
+            url_iarchive: `https://archive.org/details/${doc.identifier}`,
+            isPodcast
+          }));
+
+          if (key === 'popularPodcasts') {
+            setPopularPodcasts(formatted);
+          } else if (key === 'popularAudio') {
             setPopularAudiobooks(formatted);
-          } else if (key === 'trendingEbooks') {
-            setTrendingEbooks(data.results || []);
-          } else if (key === 'mysteryEbooks') {
-            setMysteryEbooks(data.results || []);
-          } else if (key === 'scifiEbooks') {
-            setScifiEbooks(data.results || []);
-          } else if (key === 'historyEbooks') {
-            setHistoryEbooks(data.results || []);
+          } else if (key === 'newsPodcasts') {
+            setNewsPodcasts(formatted);
+          } else if (key === 'techPodcasts') {
+            setTechPodcasts(formatted);
+          } else if (key === 'comedyPodcasts') {
+            setComedyPodcasts(formatted);
           }
         });
 
       } catch (err) {
-        console.error("Error loading books catalog:", err);
+        console.error("Error loading podcasts catalog:", err);
         setError("Failed to connect to the library directory. Please try again later.");
       } finally {
         if (isMounted) setLoading(false);
@@ -169,8 +152,8 @@ export const BooksPage: React.FC<BooksPageProps> = ({ searchQuery = "", onSearch
   // Fetch Search Results when searchQuery updates
   useEffect(() => {
     if (!searchQuery.trim()) {
+      setPodcastSearchResults([]);
       setAudiobookSearchResults([]);
-      setEbookSearchResults([]);
       setSearchLoading(false);
       return;
     }
@@ -179,34 +162,43 @@ export const BooksPage: React.FC<BooksPageProps> = ({ searchQuery = "", onSearch
     const performSearch = async () => {
       setSearchLoading(true);
       try {
+        const podcastUrl = `${ARCHIVE_API_BASE}?q=mediatype:audio+AND+collection:podcasts+AND+(title:(${encodeURIComponent(searchQuery)})+OR+creator:(${encodeURIComponent(searchQuery)}))&fl[]=identifier&fl[]=title&fl[]=creator&fl[]=description&fl[]=downloads&sort[]=downloads+desc&rows=24&output=json`;
         const audioUrl = `${ARCHIVE_API_BASE}?q=collection:librivoxaudio+AND+(title:(${encodeURIComponent(searchQuery)})+OR+creator:(${encodeURIComponent(searchQuery)}))&fl[]=identifier&fl[]=title&fl[]=creator&fl[]=description&fl[]=downloads&sort[]=downloads+desc&rows=24&output=json`;
-        const ebookUrl = `${GUTENDEX_API_BASE}/?search=${encodeURIComponent(searchQuery)}`;
 
-        const [audioRes, ebookRes] = await Promise.all([
-          window.fetch(audioUrl).catch(() => null),
-          window.fetch(ebookUrl).catch(() => null)
+        const [podcastRes, audioRes] = await Promise.all([
+          window.fetch(podcastUrl).catch(() => null),
+          window.fetch(audioUrl).catch(() => null)
         ]);
 
         if (!isMounted) return;
 
-        if (audioRes && audioRes.ok) {
-          const audioData = await audioRes.json();
-          const docs = audioData?.response?.docs || [];
-          const formatted: Audiobook[] = docs.map((doc: any) => ({
+        if (podcastRes && podcastRes.ok) {
+          const podcastData = await podcastRes.json();
+          const docs = podcastData?.response?.docs || [];
+          const formatted = docs.map((doc: any) => ({
             id: doc.identifier,
             title: doc.title || "Unknown Title",
             description: doc.description || "No description available.",
-            url_librivox: "",
+            creator: doc.creator || "Podcast Host",
+            downloads: doc.downloads || 0,
             url_iarchive: `https://archive.org/details/${doc.identifier}`,
-            total_time: "",
-            totaltimesecs: 0,
-            authors: [{ first_name: "", last_name: doc.creator || "Unknown Author" }]
+            isPodcast: true
+          }));
+          setPodcastSearchResults(formatted);
+        }
+        if (audioRes && audioRes.ok) {
+          const audioData = await audioRes.json();
+          const docs = audioData?.response?.docs || [];
+          const formatted = docs.map((doc: any) => ({
+            id: doc.identifier,
+            title: doc.title || "Unknown Title",
+            description: doc.description || "LibriVox Volunteer",
+            creator: doc.creator || "Unknown Author",
+            downloads: doc.downloads || 0,
+            url_iarchive: `https://archive.org/details/${doc.identifier}`,
+            isPodcast: false
           }));
           setAudiobookSearchResults(formatted);
-        }
-        if (ebookRes && ebookRes.ok) {
-          const ebookData = await ebookRes.json();
-          setEbookSearchResults(ebookData.results || []);
         }
       } catch (err) {
         console.error("Search failed:", err);
@@ -225,11 +217,11 @@ export const BooksPage: React.FC<BooksPageProps> = ({ searchQuery = "", onSearch
     };
   }, [searchQuery]);
 
-  // Fetch Audiobook Chapters (from Archive.org metadata API)
-  const fetchChapters = async (audiobook: Audiobook) => {
+  // Fetch Podcast/Audiobook Chapters (from Archive.org metadata API)
+  const fetchChapters = async (show: AudioShow) => {
     setLoadingChapters(true);
-    setAudiobookChapters([]);
-    const archiveId = getArchiveIdentifier(audiobook.url_iarchive);
+    setShowChapters([]);
+    const archiveId = getArchiveIdentifier(show.url_iarchive);
     if (!archiveId) {
       setLoadingChapters(false);
       return;
@@ -240,15 +232,14 @@ export const BooksPage: React.FC<BooksPageProps> = ({ searchQuery = "", onSearch
       if (!res.ok) throw new Error("Metadata request failed");
       const data = await res.json();
 
-      // Filter for VBR MP3 or MP3 files
+      // Filter for MP3 files
       const mp3Files = (data.files || [])
-        .filter((f: any) => f.name.endsWith('.mp3') && (f.format === 'VBR MP3' || f.format === 'MP3'))
+        .filter((f: any) => f.name.endsWith('.mp3') && (f.format === 'VBR MP3' || f.format === 'MP3' || f.format?.includes('MP3')))
         .sort((a: any, b: any) => {
-          // Try sorting alphabetically or numerically
           return a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' });
         });
 
-      const formattedChapters: AudiobookChapter[] = mp3Files.map((file: any) => ({
+      const formattedChapters: AudioChapter[] = mp3Files.map((file: any) => ({
         name: file.name,
         title: file.title || file.name.replace(/_/g, " ").replace(".mp3", ""),
         track: file.track,
@@ -256,56 +247,22 @@ export const BooksPage: React.FC<BooksPageProps> = ({ searchQuery = "", onSearch
         url: `https://archive.org/download/${archiveId}/${file.name}`
       }));
 
-      setAudiobookChapters(formattedChapters);
+      setShowChapters(formattedChapters);
     } catch (e) {
-      console.error("Failed to load audiobook chapters:", e);
+      console.error("Failed to load episodes:", e);
     } finally {
       setLoadingChapters(false);
     }
   };
 
-  // Fetch eBook text content directly using a CORS proxy
-  const fetchEbookText = async (book: Ebook) => {
-    setLoadingText(true);
-    setEbookText(null);
-
-    // Find first available plain text or HTML content format
-    let textUrl = book.formats['text/plain; charset=utf-8'] ||
-                  book.formats['text/plain; charset=us-ascii'] ||
-                  book.formats['text/plain'] ||
-                  book.formats['text/html'] ||
-                  book.formats['text/html; charset=utf-8'];
-
-    if (!textUrl) {
-      setLoadingText(false);
-      return;
-    }
-
-    // Upgrade http to https to avoid mixed content block
-    textUrl = textUrl.replace("http://", "https://");
-
-    try {
-      // Use corsproxy.io to fetch the book content
-      const res = await window.fetch(`https://corsproxy.io/?${encodeURIComponent(textUrl)}`);
-      if (!res.ok) throw new Error("CORS proxy fetch failed");
-      const text = await res.text();
-      setEbookText(text);
-    } catch (e) {
-      console.warn("Direct fetch failed, falling back to secure Gutenberg reader redirect", e);
-      setEbookText(null); // Triggers secure page redirect layout
-    } finally {
-      setLoadingText(false);
-    }
-  };
-
-  // Trigger loading chapters on Audiobook selection
+  // Trigger loading chapters on selection
   useEffect(() => {
-    if (selectedAudiobook) {
-      fetchChapters(selectedAudiobook);
+    if (selectedShow) {
+      fetchChapters(selectedShow);
     }
-  }, [selectedAudiobook]);
+  }, [selectedShow]);
 
-  // HTML5 Audiobook streaming player effect
+  // HTML5 Audiobook/Podcast streaming player effect
   useEffect(() => {
     if (activeChapterIndex < 0 || currentChaptersList.length === 0) return;
 
@@ -339,7 +296,7 @@ export const BooksPage: React.FC<BooksPageProps> = ({ searchQuery = "", onSearch
     };
     const onTimeUpdate = () => {
       setAudioProgress(audio.currentTime);
-      setIsLoadingAudio(false); // If time is updating, it is definitely not loading
+      setIsLoadingAudio(false);
     };
     const onDurationChange = () => {
       setAudioDuration(audio.duration || 0);
@@ -355,7 +312,7 @@ export const BooksPage: React.FC<BooksPageProps> = ({ searchQuery = "", onSearch
     const onError = () => {
       setIsLoadingAudio(false);
       setIsPlaying(false);
-      setAudioError("Unable to stream this chapter. Streaming may be temporarily blocked by the host server.");
+      setAudioError("Unable to stream this track. Streaming may be temporarily blocked by the host server.");
     };
 
     audio.addEventListener('play', onPlay);
@@ -405,8 +362,8 @@ export const BooksPage: React.FC<BooksPageProps> = ({ searchQuery = "", onSearch
   }, [playbackSpeed]);
 
   // Player helper actions
-  const playChapter = (index: number, chapters: AudiobookChapter[], book: Audiobook) => {
-    setCurrentAudiobook(book);
+  const playChapter = (index: number, chapters: AudioChapter[], show: AudioShow) => {
+    setCurrentShow(show);
     setCurrentChaptersList(chapters);
     setActiveChapterIndex(index);
   };
@@ -464,7 +421,7 @@ export const BooksPage: React.FC<BooksPageProps> = ({ searchQuery = "", onSearch
   };
 
   const currentChapter = currentChaptersList[activeChapterIndex];
-  const featured = popularAudiobooks[featuredIndex];
+  const featured = popularPodcasts[featuredIndex];
 
   // Render Skeleton Catalog loader
   if (loading) {
@@ -533,30 +490,30 @@ export const BooksPage: React.FC<BooksPageProps> = ({ searchQuery = "", onSearch
               <Loader2 className="animate-spin text-red-500" size={32} />
               <p className="text-[10px] text-zinc-500 font-semibold tracking-widest uppercase">Searching Library...</p>
             </div>
-          ) : audiobookSearchResults.length === 0 && ebookSearchResults.length === 0 ? (
+          ) : podcastSearchResults.length === 0 && audiobookSearchResults.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 text-center opacity-60">
-              <BookOpen size={48} className="text-white/20 mb-4" />
+              <Mic size={48} className="text-white/20 mb-4" />
               <h3 className="text-base font-bold text-white mb-1">No Matches Found</h3>
-              <p className="text-zinc-500 text-xs max-w-sm">No books or audiobooks matched your query. Try searching for a classic title or author.</p>
+              <p className="text-zinc-500 text-xs max-w-sm">No podcasts or audiobooks matched your query. Try searching for other topics.</p>
             </div>
           ) : (
             <div className="space-y-10">
-              {audiobookSearchResults.length > 0 && (
+              {podcastSearchResults.length > 0 && (
                 <div>
-                  <h3 className="text-sm font-bold text-zinc-400 mb-4 uppercase tracking-wider">Audiobooks found ({audiobookSearchResults.length})</h3>
+                  <h3 className="text-sm font-bold text-zinc-400 mb-4 uppercase tracking-wider">Podcasts found ({podcastSearchResults.length})</h3>
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6">
-                    {audiobookSearchResults.map((book) => (
-                      <AudiobookCard key={book.id} book={book} onClick={() => setSelectedAudiobook(book)} />
+                    {podcastSearchResults.map((show) => (
+                      <AudioShowCard key={show.id} show={show} onClick={() => setSelectedShow(show)} />
                     ))}
                   </div>
                 </div>
               )}
-              {ebookSearchResults.length > 0 && (
+              {audiobookSearchResults.length > 0 && (
                 <div>
-                  <h3 className="text-sm font-bold text-zinc-400 mb-4 uppercase tracking-wider">eBooks found ({ebookSearchResults.length})</h3>
+                  <h3 className="text-sm font-bold text-zinc-400 mb-4 uppercase tracking-wider">Audiobooks found ({audiobookSearchResults.length})</h3>
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6">
-                    {ebookSearchResults.map((book) => (
-                      <EbookCard key={book.id} book={book} onClick={() => setSelectedEbook(book)} />
+                    {audiobookSearchResults.map((show) => (
+                      <AudioShowCard key={show.id} show={show} onClick={() => setSelectedShow(show)} />
                     ))}
                   </div>
                 </div>
@@ -572,7 +529,7 @@ export const BooksPage: React.FC<BooksPageProps> = ({ searchQuery = "", onSearch
             <div className="relative w-full aspect-[21/9] min-h-[380px] max-h-[500px] overflow-hidden flex items-center bg-black border-b border-white/5">
               <div className="absolute inset-0">
                 <img
-                  src="https://images.unsplash.com/photo-1513001900722-370f803f498d?w=1600&q=80"
+                  src="https://images.unsplash.com/photo-1590602847861-f357a9332bbc?w=1600&q=80"
                   alt="Backdrop"
                   className="w-full h-full object-cover opacity-20 scale-105"
                 />
@@ -584,30 +541,30 @@ export const BooksPage: React.FC<BooksPageProps> = ({ searchQuery = "", onSearch
               <div className="absolute left-4 md:left-12 bottom-8 md:bottom-12 max-w-2xl text-left z-20 space-y-4 px-4 md:px-0 animate-in fade-in slide-in-from-bottom-6 duration-700">
                 <div className="flex items-center gap-2">
                   <div className="flex items-center gap-1.5 bg-red-600 px-3 py-0.5 rounded-full border border-red-500/25 shadow-lg shadow-red-600/30">
-                    <Headphones size={11} className="text-white" />
-                    <span className="text-[9px] font-bold tracking-widest text-white uppercase">Featured Audiobook</span>
+                    <Mic size={11} className="text-white" />
+                    <span className="text-[9px] font-bold tracking-widest text-white uppercase">Featured Podcast</span>
                   </div>
                 </div>
                 <h2 className="text-xl md:text-3xl font-bold tracking-tight text-white leading-tight">{featured.title}</h2>
                 <p className="text-zinc-400 text-[10px] md:text-xs font-semibold">
-                  By {featured.authors.map(a => `${a.first_name} ${a.last_name}`).join(', ')}
+                  Host/Creator: {featured.creator}
                 </p>
                 <p className="text-zinc-350 text-xs md:text-sm line-clamp-3 leading-relaxed font-light">
-                  {featured.description ? featured.description.replace(/<[^>]*>/g, "") : "Discover public domain literary works narrated by volunteers from all over the world."}
+                  {featured.description ? featured.description.replace(/<[^>]*>/g, "") : "Discover public domain broadcasts, audio lectures, and talk shows streamed from the Internet Archive."}
                 </p>
                 <div>
                   <button
-                    onClick={() => setSelectedAudiobook(featured)}
+                    onClick={() => setSelectedShow(featured)}
                     className="px-6 py-2.5 bg-white text-black hover:bg-white/90 text-xs font-semibold rounded-xl flex items-center gap-2 transition-all hover:scale-[1.02] active:scale-95 border-none cursor-pointer shadow-md"
                   >
-                    <Play size={14} fill="currentColor" /> Listen Audiobook
+                    <Play size={14} fill="currentColor" /> Listen Show
                   </button>
                 </div>
               </div>
 
               {/* Featured slide dots */}
               <div className="absolute right-4 md:right-12 bottom-12 z-20 flex items-center gap-2">
-                {popularAudiobooks.slice(0, 5).map((_, idx) => (
+                {popularPodcasts.slice(0, 5).map((_, idx) => (
                   <button
                     key={idx}
                     onClick={() => setFeaturedIndex(idx)}
@@ -630,26 +587,26 @@ export const BooksPage: React.FC<BooksPageProps> = ({ searchQuery = "", onSearch
 
           {/* Horizontal Rows */}
           <div className="space-y-6 mt-6">
-            <AudiobookRow title="🎧 Popular Audiobooks" books={popularAudiobooks} onClick={(b) => setSelectedAudiobook(b)} />
-            <EbookRow title="📚 Trending Ebooks" books={trendingEbooks} onClick={(b) => setSelectedEbook(b)} />
-            <EbookRow title="🕵️ Mystery & Thrillers" books={mysteryEbooks} onClick={(b) => setSelectedEbook(b)} />
-            <EbookRow title="🧙 Science Fiction & Fantasy" books={scifiEbooks} onClick={(b) => setSelectedEbook(b)} />
-            <EbookRow title="🏛️ Biography & History" books={historyEbooks} onClick={(b) => setSelectedEbook(b)} />
+            <AudioShowRow title="🎙️ Popular Podcasts" shows={popularPodcasts} onClick={(b) => setSelectedShow(b)} />
+            <AudioShowRow title="🎧 Popular Audiobooks" shows={popularAudiobooks} onClick={(b) => setSelectedShow(b)} />
+            <AudioShowRow title="📰 News & Talk Podcasts" shows={newsPodcasts} onClick={(b) => setSelectedShow(b)} />
+            <AudioShowRow title="🧠 Tech & Science Podcasts" shows={techPodcasts} onClick={(b) => setSelectedShow(b)} />
+            <AudioShowRow title="🎭 Comedy & Entertainment Podcasts" shows={comedyPodcasts} onClick={(b) => setSelectedShow(b)} />
           </div>
         </>
       )}
 
-      {/* 3. Audiobook Chapter Details Modal */}
-      {selectedAudiobook && (
+      {/* 3. Audio Show Episode/Chapter Details Modal */}
+      {selectedShow && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-300">
           <div className="bg-[#0b0b0d] border border-white/10 w-full max-w-3xl rounded-3xl overflow-hidden flex flex-col max-h-[85vh] shadow-2xl text-left">
             <div className="p-6 border-b border-white/5 flex items-center justify-between">
               <div className="flex items-center gap-2 text-zinc-400 text-xs font-semibold select-none">
-                <Headphones size={14} className="text-red-500" />
-                <span>Audiobook Playlist</span>
+                {selectedShow.isPodcast ? <Mic size={14} className="text-red-500" /> : <Headphones size={14} className="text-red-500" />}
+                <span>{selectedShow.isPodcast ? "Podcast Episodes" : "Audiobook Chapters"}</span>
               </div>
               <button
-                onClick={() => setSelectedAudiobook(null)}
+                onClick={() => setSelectedShow(null)}
                 className="p-1 text-zinc-400 hover:text-white rounded-full bg-white/5 hover:bg-white/10 transition-colors border-none cursor-pointer"
               >
                 <X size={18} />
@@ -660,53 +617,50 @@ export const BooksPage: React.FC<BooksPageProps> = ({ searchQuery = "", onSearch
               {/* Left Column: Cover metadata */}
               <div className="w-full md:w-1/3 flex flex-col gap-4 text-center md:text-left select-none">
                 <div className="w-full aspect-square rounded-2xl bg-zinc-900 border border-white/5 flex flex-col items-center justify-center relative overflow-hidden shadow-md">
-                  <div className="absolute inset-0 bg-gradient-to-br from-zinc-900 to-zinc-950 text-zinc-600 p-4 flex flex-col items-center justify-center">
-                    <Headphones size={48} className="text-red-500/80 mb-3" />
+                  <div className="absolute inset-0 bg-gradient-to-br from-zinc-900 to-zinc-950 text-zinc-650 p-4 flex flex-col items-center justify-center">
+                    {selectedShow.isPodcast ? <Mic size={48} className="text-red-500/80 mb-3" /> : <Headphones size={48} className="text-red-500/80 mb-3" />}
                     <span className="text-xs font-semibold text-zinc-300 line-clamp-3 text-center leading-snug px-2">
-                      {selectedAudiobook.title}
+                      {selectedShow.title}
                     </span>
                   </div>
                 </div>
 
                 <div>
-                  <h3 className="text-sm font-bold text-white leading-tight">{selectedAudiobook.title}</h3>
+                  <h3 className="text-sm font-bold text-white leading-tight">{selectedShow.title}</h3>
                   <p className="text-[11px] text-zinc-400 font-semibold mt-1">
-                    By {selectedAudiobook.authors.map(a => `${a.first_name} ${a.last_name}`).join(', ')}
+                    By {selectedShow.creator}
                   </p>
-                  {selectedAudiobook.total_time && (
-                    <p className="text-[10px] text-zinc-500 font-medium mt-1">Duration: {selectedAudiobook.total_time}</p>
-                  )}
                 </div>
 
                 <p className="text-[11px] text-zinc-450 leading-relaxed font-light line-clamp-6">
-                  {selectedAudiobook.description ? selectedAudiobook.description.replace(/<[^>]*>/g, "") : "Volunteers read chapters of classic books in the public domain. Enjoy free listening on MovieVerse."}
+                  {selectedShow.description ? selectedShow.description.replace(/<[^>]*>/g, "") : "Listen to free podcasts and audiobooks streamed directly from the Internet Archive."}
                 </p>
               </div>
 
               {/* Right Column: Chapters List */}
               <div className="w-full md:w-2/3 flex flex-col gap-3 min-w-0">
-                <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-widest border-b border-white/5 pb-2 select-none">Chapter Index</h4>
+                <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-widest border-b border-white/5 pb-2 select-none">Episode Index</h4>
 
                 {loadingChapters ? (
                   <div className="flex-1 flex flex-col items-center justify-center py-20 gap-3">
                     <Loader2 className="animate-spin text-red-500" size={24} />
-                    <p className="text-[10px] text-zinc-500 font-semibold uppercase tracking-widest">Loading Chapter Frequencies...</p>
+                    <p className="text-[10px] text-zinc-500 font-semibold uppercase tracking-widest">Loading Episodes...</p>
                   </div>
-                ) : audiobookChapters.length === 0 ? (
+                ) : showChapters.length === 0 ? (
                   <div className="flex-1 flex flex-col items-center justify-center py-20 text-center select-none opacity-50">
                     <HelpCircle size={32} className="text-zinc-600 mb-2" />
                     <p className="text-zinc-500 text-xs">No audio tracks retrieved for this collection.</p>
                   </div>
                 ) : (
                   <div className="space-y-1.5 overflow-y-auto max-h-[45vh] pr-2 scrollbar-thin">
-                    {audiobookChapters.map((chapter, idx) => {
-                      const isCurrentPlayingBook = currentAudiobook?.id === selectedAudiobook.id;
-                      const isCurrentActive = isCurrentPlayingBook && activeChapterIndex === idx;
+                    {showChapters.map((chapter, idx) => {
+                      const isCurrentPlayingShow = currentShow?.id === selectedShow.id;
+                      const isCurrentActive = isCurrentPlayingShow && activeChapterIndex === idx;
 
                       return (
                         <div
                           key={idx}
-                          onClick={() => playChapter(idx, audiobookChapters, selectedAudiobook)}
+                          onClick={() => playChapter(idx, showChapters, selectedShow)}
                           className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all border ${isCurrentActive ? 'bg-red-600/10 border-red-500/30' : 'bg-white/[0.02] border-white/5 hover:bg-white/[0.05] hover:border-white/10'}`}
                         >
                           <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${isCurrentActive ? 'bg-red-600 text-white' : 'bg-white/5 text-zinc-400'}`}>
@@ -719,7 +673,7 @@ export const BooksPage: React.FC<BooksPageProps> = ({ searchQuery = "", onSearch
 
                           <div className="min-w-0 flex-1 text-left">
                             <h5 className={`text-xs font-semibold truncate ${isCurrentActive ? 'text-red-400' : 'text-white'}`}>{chapter.title}</h5>
-                            <p className="text-[9px] text-zinc-500 truncate mt-0.5 leading-none">Chapter {idx + 1}</p>
+                            <p className="text-[9px] text-zinc-500 truncate mt-0.5 leading-none">Episode {idx + 1}</p>
                           </div>
 
                           {chapter.length && (
@@ -736,164 +690,19 @@ export const BooksPage: React.FC<BooksPageProps> = ({ searchQuery = "", onSearch
         </div>
       )}
 
-      {/* 4. Ebook Details & Reading View Modal */}
-      {selectedEbook && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-300">
-          <div className={`bg-[#0b0b0d] border border-white/10 w-full rounded-3xl overflow-hidden flex flex-col shadow-2xl text-left transition-all ${isReadingEbook ? 'max-w-5xl h-[90vh]' : 'max-w-2xl max-h-[80vh]'}`}>
-            
-            <div className="p-6 border-b border-white/5 flex items-center justify-between select-none">
-              <div className="flex items-center gap-2 text-zinc-400 text-xs font-semibold">
-                <BookOpen size={14} className="text-red-500" />
-                <span>{isReadingEbook ? `Reading: ${selectedEbook.title}` : "eBook Overview"}</span>
-              </div>
-              <div className="flex items-center gap-3">
-                {isReadingEbook && (
-                  <button
-                    onClick={() => {
-                      setIsReadingEbook(false);
-                      setEbookText(null);
-                    }}
-                    className="text-xs font-bold text-zinc-400 hover:text-white px-3 py-1 bg-white/5 rounded-full border-none cursor-pointer"
-                  >
-                    Close Reader
-                  </button>
-                )}
-                <button
-                  onClick={() => { setSelectedEbook(null); setIsReadingEbook(false); setEbookText(null); }}
-                  className="p-1 text-zinc-400 hover:text-white rounded-full bg-white/5 hover:bg-white/10 transition-colors border-none cursor-pointer"
-                >
-                  <X size={18} />
-                </button>
-              </div>
-            </div>
-
-            {isReadingEbook ? (
-              /* Reading Pane: Embedded Direct Reader or Secure fallback iframe */
-              <div className="flex-1 flex flex-col bg-[#0d0d0f] overflow-hidden">
-                {loadingText ? (
-                  <div className="flex-1 flex flex-col items-center justify-center py-20 gap-3">
-                    <Loader2 className="animate-spin text-red-500" size={32} />
-                    <p className="text-[10px] text-zinc-500 font-semibold uppercase tracking-widest">Formatting book pages...</p>
-                  </div>
-                ) : ebookText ? (
-                  /* Native eBook Reader rendering fetched text/HTML directly inside our UI */
-                  <div className="flex-1 overflow-y-auto p-8 md:p-12 font-serif text-base leading-relaxed text-zinc-300 bg-[#0d0d0f] select-text selection:bg-red-650 selection:text-white max-h-[70vh] scrollbar-thin">
-                    <div className="max-w-2xl mx-auto space-y-4 whitespace-pre-line text-left">
-                      {ebookText.includes('<html') || ebookText.includes('<p>') ? (
-                        <div 
-                          className="prose prose-invert max-w-none prose-red prose-p:leading-relaxed prose-headings:text-white"
-                          dangerouslySetInnerHTML={{ 
-                            __html: ebookText
-                              .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
-                              .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
-                              .replace(/http:\/\/www\.gutenberg\.org/g, 'https://www.gutenberg.org') // upgrade links inside content to https
-                          }} 
-                        />
-                      ) : (
-                        ebookText
-                      )}
-                    </div>
-                  </div>
-                ) : (
-                  /* Fallback Screen: No iframe is loaded to completely prevent Mixed Content blocks! */
-                  <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-[#0d0d0f]">
-                    <div className="max-w-md space-y-4 select-none">
-                      <BookOpen size={48} className="text-red-500 mx-auto" />
-                      <h3 className="text-lg font-bold text-white">Secure Ebook Link</h3>
-                      <p className="text-zinc-400 text-xs leading-relaxed">
-                        To protect your security, Project Gutenberg books must be opened directly in a new fullscreen browser window.
-                      </p>
-                      <a
-                        href={(selectedEbook.formats['text/html'] || `https://www.gutenberg.org/ebooks/${selectedEbook.id}`).replace("http://", "https://")}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex items-center gap-2 px-6 py-3 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-xl active:scale-95 transition-all shadow-md shadow-red-600/20 border-none cursor-pointer"
-                      >
-                        Open eBook Reader <ExternalLink size={14} />
-                      </a>
-                    </div>
-                  </div>
-                )}
-              </div>
-            ) : (
-              /* Summary Details view */
-              <div className="p-6 flex flex-col md:flex-row gap-6">
-                <div className="w-full md:w-2/5 aspect-[10/15] max-h-[300px] rounded-2xl bg-zinc-900 border border-white/5 relative overflow-hidden shrink-0 select-none shadow-md">
-                  {selectedEbook.formats['image/jpeg'] ? (
-                    <img src={selectedEbook.formats['image/jpeg']} alt="" className="w-full h-full object-cover" />
-                  ) : (
-                    <div className="absolute inset-0 bg-gradient-to-br from-zinc-900 to-zinc-950 flex flex-col items-center justify-center p-3 text-center">
-                      <BookOpen size={48} className="text-red-500/80 mb-3" />
-                      <span className="text-xs font-semibold text-zinc-300">{selectedEbook.title}</span>
-                    </div>
-                  )}
-                </div>
-
-                <div className="flex-1 flex flex-col justify-between text-left">
-                  <div className="space-y-3">
-                    <h3 className="text-lg font-bold text-white leading-tight">{selectedEbook.title}</h3>
-                    <p className="text-xs text-red-400 font-semibold select-none">
-                      By {selectedEbook.authors.map(a => a.name.split(',').reverse().join(' ').trim()).join(', ')}
-                    </p>
-
-                    <div className="flex flex-wrap gap-1.5 select-none pt-1">
-                      {selectedEbook.subjects.slice(0, 3).map((sub, i) => (
-                        <span key={i} className="text-[9px] bg-white/5 border border-white/5 px-2 py-0.5 rounded text-zinc-400 truncate max-w-[200px]">
-                          {sub.split('--')[0].trim()}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="space-y-4 pt-6 select-none">
-                    <div className="flex items-center gap-6 text-[11px] text-zinc-500 font-sans font-semibold">
-                      <span>Downloads: {selectedEbook.download_count.toLocaleString()}</span>
-                      <span>Lang: {selectedEbook.languages.join(', ').toUpperCase()}</span>
-                    </div>
-
-                    <div className="flex items-center gap-3">
-                      {(selectedEbook.formats['text/html'] || selectedEbook.formats['text/html; charset=utf-8']) ? (
-                        <button
-                          onClick={() => {
-                            setIsReadingEbook(true);
-                            fetchEbookText(selectedEbook);
-                          }}
-                          className="flex-1 py-3 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-xl active:scale-95 transition-all border-none cursor-pointer flex items-center justify-center gap-2 shadow-md shadow-red-600/20"
-                        >
-                          <BookOpen size={14} /> Read eBook
-                        </button>
-                      ) : (
-                        <a
-                          href={`https://www.gutenberg.org/ebooks/${selectedEbook.id}`}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="flex-1 py-3 bg-zinc-800 hover:bg-zinc-700 text-white text-xs font-bold rounded-xl text-center active:scale-95 transition-all border-none cursor-pointer flex items-center justify-center gap-2"
-                        >
-                          Read on Gutenberg <ExternalLink size={14} />
-                        </a>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
       {/* 5. Persistent Bottom Media Player Bar */}
-      {currentAudiobook && currentChapter && (
+      {currentShow && currentChapter && (
         <div className="fixed bottom-[calc(4rem+env(safe-area-inset-bottom,0px))] md:bottom-0 left-0 right-0 z-[80] bg-zinc-950/85 backdrop-blur-2xl border-t border-white/[0.05] p-3 md:p-4 select-none px-4 md:px-12 flex flex-col md:flex-row md:items-center justify-between gap-4 animate-in slide-in-from-bottom duration-500 shadow-2xl">
           
           {/* Left Side: Metadata */}
           <div className="flex items-center gap-3 w-full md:w-1/3 min-w-0">
             <div className="w-11 h-11 bg-zinc-900 rounded-xl border border-white/5 flex items-center justify-center shadow-md relative overflow-hidden shrink-0">
-              <Headphones size={20} className="text-red-500 animate-pulse" />
+              {currentShow.isPodcast ? <Mic size={20} className="text-red-500 animate-pulse" /> : <Headphones size={20} className="text-red-500 animate-pulse" />}
             </div>
             <div className="min-w-0 flex-1 text-left">
               <h4 className="text-xs md:text-sm font-semibold text-white truncate leading-tight">{currentChapter.title}</h4>
               <p className="text-[10px] text-zinc-400 truncate mt-0.5 font-medium leading-none">
-                {currentAudiobook.title}
+                {currentShow.title}
               </p>
             </div>
           </div>
@@ -915,7 +724,7 @@ export const BooksPage: React.FC<BooksPageProps> = ({ searchQuery = "", onSearch
                 onClick={skipPrevious}
                 disabled={activeChapterIndex === 0}
                 className="p-1 text-zinc-400 hover:text-white transition-colors border-none bg-transparent cursor-pointer disabled:opacity-20"
-                title="Previous Chapter"
+                title="Previous Episode"
               >
                 <SkipBack size={16} fill="currentColor" />
               </button>
@@ -940,7 +749,7 @@ export const BooksPage: React.FC<BooksPageProps> = ({ searchQuery = "", onSearch
                 onClick={skipNext}
                 disabled={activeChapterIndex === currentChaptersList.length - 1}
                 className="p-1 text-zinc-400 hover:text-white transition-colors border-none bg-transparent cursor-pointer disabled:opacity-20"
-                title="Next Chapter"
+                title="Next Episode"
               >
                 <SkipForward size={16} fill="currentColor" />
               </button>
@@ -1013,7 +822,7 @@ export const BooksPage: React.FC<BooksPageProps> = ({ searchQuery = "", onSearch
             {/* Close Audiobook bar */}
             <button
               onClick={() => {
-                setCurrentAudiobook(null);
+                setCurrentShow(null);
                 setCurrentChaptersList([]);
                 setActiveChapterIndex(-1);
               }}
@@ -1032,13 +841,13 @@ export const BooksPage: React.FC<BooksPageProps> = ({ searchQuery = "", onSearch
 
 /* --- SUB COMPONENTS --- */
 
-/* --- Audiobook Card --- */
-interface AudiobookCardProps {
-  book: Audiobook;
+/* --- Audio Show Card --- */
+interface AudioShowCardProps {
+  show: AudioShow;
   onClick: () => void;
 }
 
-const AudiobookCard: React.FC<AudiobookCardProps> = ({ book, onClick }) => {
+const AudioShowCard: React.FC<AudioShowCardProps> = ({ show, onClick }) => {
   const { ref } = useTvFocus({
     onEnterPress: onClick
   });
@@ -1050,11 +859,15 @@ const AudiobookCard: React.FC<AudiobookCardProps> = ({ book, onClick }) => {
       className="group flex flex-col gap-2 shrink-0 w-[125px] sm:w-[145px] cursor-pointer select-none text-left"
     >
       <div className="relative w-full aspect-[10/15] rounded-2xl overflow-hidden bg-zinc-950 border border-white/5 group-hover:border-red-500/50 group-hover:shadow-[0_0_20px_rgba(239,68,68,0.25)] group-hover:scale-[1.03] transition-all duration-500 flex items-center justify-center">
-        {/* Audiobook Cover art fallback placeholder */}
+        {/* Fallback covers */}
         <div className="absolute inset-0 bg-gradient-to-br from-zinc-900 to-zinc-950 p-3 text-center flex flex-col items-center justify-center">
-          <Headphones size={28} className="text-red-500/80 mb-2 group-hover:scale-110 transition-transform duration-500" />
+          {show.isPodcast ? (
+            <Mic size={28} className="text-red-500/80 mb-2 group-hover:scale-110 transition-transform duration-500" />
+          ) : (
+            <Headphones size={28} className="text-red-500/80 mb-2 group-hover:scale-110 transition-transform duration-500" />
+          )}
           <span className="text-[10px] font-medium text-zinc-300 line-clamp-4 px-1 leading-snug">
-            {book.title}
+            {show.title}
           </span>
         </div>
 
@@ -1067,80 +880,24 @@ const AudiobookCard: React.FC<AudiobookCardProps> = ({ book, onClick }) => {
       </div>
 
       <div className="px-0.5">
-        <h4 className="text-xs md:text-sm font-medium text-zinc-200 line-clamp-1 group-hover:text-red-500 transition-colors leading-snug">{book.title}</h4>
-        <p className="text-[9px] text-zinc-500 truncate mt-0.5 font-sans font-semibold">
-          {book.authors.map(a => `${a.first_name} ${a.last_name}`).join(', ') || 'LibriVox'}
+        <h4 className="text-xs md:text-sm font-medium text-zinc-200 line-clamp-1 group-hover:text-red-500 transition-colors leading-snug">{show.title}</h4>
+        <p className="text-[9px] text-zinc-550 truncate mt-0.5 font-sans font-semibold">
+          {show.creator}
         </p>
       </div>
     </div>
   );
 };
 
-/* --- Ebook Card --- */
-interface EbookCardProps {
-  book: Ebook;
-  onClick: () => void;
-}
-
-const EbookCard: React.FC<EbookCardProps> = ({ book, onClick }) => {
-  const [logoError, setLogoError] = useState(false);
-  const { ref } = useTvFocus({
-    onEnterPress: onClick
-  });
-
-  const hasImage = book.formats['image/jpeg'] && !logoError;
-
-  return (
-    <div
-      ref={ref}
-      onClick={onClick}
-      className="group flex flex-col gap-2 shrink-0 w-[125px] sm:w-[145px] cursor-pointer select-none text-left"
-    >
-      <div className="relative w-full aspect-[10/15] rounded-2xl overflow-hidden bg-zinc-950 border border-white/5 group-hover:border-red-500/50 group-hover:shadow-[0_0_20px_rgba(239,68,68,0.25)] group-hover:scale-[1.03] transition-all duration-500 flex items-center justify-center">
-        {hasImage ? (
-          <img
-            src={book.formats['image/jpeg']}
-            alt={book.title}
-            className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-            onError={() => setLogoError(true)}
-            loading="lazy"
-          />
-        ) : (
-          <div className="absolute inset-0 bg-gradient-to-br from-zinc-900 to-zinc-950 p-3 text-center flex flex-col items-center justify-center">
-            <BookOpen size={28} className="text-red-500/80 mb-2 group-hover:scale-110 transition-transform duration-500" />
-            <span className="text-[10px] font-medium text-zinc-300 line-clamp-4 px-1 leading-snug">
-              {book.title}
-            </span>
-          </div>
-        )}
-
-        {/* Hover overlay icon */}
-        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity duration-300">
-          <div className="w-10 h-10 rounded-full bg-red-600 text-white flex items-center justify-center shadow-lg transform scale-90 group-hover:scale-100 transition-transform duration-300">
-            <Info size={16} />
-          </div>
-        </div>
-      </div>
-
-      <div className="px-0.5">
-        <h4 className="text-xs md:text-sm font-medium text-zinc-200 line-clamp-1 group-hover:text-red-500 transition-colors leading-snug">{book.title}</h4>
-        <p className="text-[9px] text-zinc-500 truncate mt-0.5 font-sans font-semibold">
-          {book.authors.map(a => a.name.split(',').reverse().join(' ').trim()).join(', ') || 'Gutenberg'}
-        </p>
-      </div>
-    </div>
-  );
-};
-
-/* --- Audiobook Row --- */
-interface AudiobookRowProps {
+/* --- Audio Show Row --- */
+interface AudioShowRowProps {
   title: string;
-  books: Audiobook[];
-  onClick: (book: Audiobook) => void;
+  shows: AudioShow[];
+  onClick: (show: AudioShow) => void;
 }
 
-const AudiobookRow: React.FC<AudiobookRowProps> = ({ title, books, onClick }) => {
-  if (books.length === 0) return null;
+const AudioShowRow: React.FC<AudioShowRowProps> = ({ title, shows, onClick }) => {
+  if (shows.length === 0) return null;
   return (
     <div className="mb-6 animate-in fade-in duration-500 text-left">
       <div className="flex items-center justify-between px-4 md:px-12 mb-3 select-none">
@@ -1150,34 +907,8 @@ const AudiobookRow: React.FC<AudiobookRowProps> = ({ title, books, onClick }) =>
         </h3>
       </div>
       <div className="flex gap-5 overflow-x-auto px-4 md:px-12 pb-4 hide-scrollbar scroll-smooth">
-        {books.map((book) => (
-          <AudiobookCard key={book.id} book={book} onClick={() => onClick(book)} />
-        ))}
-      </div>
-    </div>
-  );
-};
-
-/* --- Ebook Row --- */
-interface EbookRowProps {
-  title: string;
-  books: Ebook[];
-  onClick: (book: Ebook) => void;
-}
-
-const EbookRow: React.FC<EbookRowProps> = ({ title, books, onClick }) => {
-  if (books.length === 0) return null;
-  return (
-    <div className="mb-6 animate-in fade-in duration-500 text-left">
-      <div className="flex items-center justify-between px-4 md:px-12 mb-3 select-none">
-        <h3 className="text-base md:text-lg font-bold text-white tracking-tight flex items-center gap-2 font-sans">
-          <span className="w-1.5 h-5 bg-red-600 rounded-full inline-block"></span>
-          {title}
-        </h3>
-      </div>
-      <div className="flex gap-5 overflow-x-auto px-4 md:px-12 pb-4 hide-scrollbar scroll-smooth">
-        {books.map((book) => (
-          <EbookCard key={book.id} book={book} onClick={() => onClick(book)} />
+        {shows.map((show) => (
+          <AudioShowCard key={show.id} show={show} onClick={() => onClick(show)} />
         ))}
       </div>
     </div>
