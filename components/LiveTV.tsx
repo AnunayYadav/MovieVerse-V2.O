@@ -448,17 +448,19 @@ const LiveTVRow: React.FC<{
                     );
                 }
 
-                // Sort by deterministic viewer count/popularity
-                const getViewerCount = (name: string) => {
+                // Sort by deterministic viewer count/popularity (matching LiveTVPlayer formula)
+                const getViewerCount = (id: string) => {
+                    const timeIndex = Math.floor(new Date().getTime() / 600000);
                     let hash = 0;
-                    for (let i = 0; i < name.length; i++) {
-                        hash = (hash << 5) - hash + name.charCodeAt(i);
+                    for (let i = 0; i < id.length; i++) {
+                        hash = (hash << 5) - hash + id.charCodeAt(i);
                         hash |= 0;
                     }
-                    return Math.abs(hash) % 5000;
+                    const seedVal = Math.abs(hash + timeIndex) % 2500;
+                    return 100 + seedVal;
                 };
 
-                parsed.sort((a, b) => getViewerCount(b.name) - getViewerCount(a.name));
+                parsed.sort((a, b) => getViewerCount(b.id) - getViewerCount(a.id));
 
                 // Prioritize channels with logos within sorted list
                 const withLogos = parsed.filter(c => c.logo && c.logo.length > 0);
@@ -629,16 +631,19 @@ export const LiveTV: React.FC<LiveTVProps> = React.memo(({ userProfile, searchQu
         ]).then(([news, movies]) => {
             if (!isMounted) return;
             const combined = [...news.slice(0, 10), ...movies.slice(0, 10)];
+            const getViewerCount = (id: string) => {
+                const timeIndex = Math.floor(new Date().getTime() / 600000);
+                let hash = 0;
+                for (let i = 0; i < id.length; i++) {
+                    hash = (hash << 5) - hash + id.charCodeAt(i);
+                    hash |= 0;
+                }
+                const seedVal = Math.abs(hash + timeIndex) % 2500;
+                return 100 + seedVal;
+            };
+
             const sorted = combined
-                .map(c => {
-                    let hash = 0;
-                    for (let i = 0; i < c.name.length; i++) {
-                        hash = (hash << 5) - hash + c.name.charCodeAt(i);
-                        hash |= 0;
-                    }
-                    const score = Math.abs(hash) % 2500;
-                    return { c, score };
-                })
+                .map(c => ({ c, score: getViewerCount(c.id) }))
                 .sort((a, b) => b.score - a.score)
                 .map(item => item.c)
                 .slice(0, 10);
