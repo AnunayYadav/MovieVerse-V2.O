@@ -2,6 +2,9 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Tv, Play, Search, AlertCircle, RefreshCcw, Wifi, Globe, Loader2, Lock, ChevronDown, Check, Info, ChevronRight } from 'lucide-react';
 import { LiveChannel, UserProfile } from '../types';
 import { LiveTVPlayer } from './LiveTVPlayer';
+import { getCurrentProgram } from '../utils/epgGenerator';
+import { preloadChannelMetadata } from '../utils/channelMetadata';
+import { useStreamStatuses, StreamStatus } from '../utils/streamChecker';
 import { useTvFocus, TvFocusButton, TvFocusInput } from '../tvNavigation';
 import { ExpandedCategoryModal } from './Modals';
 
@@ -217,6 +220,20 @@ export const LiveTVCard: React.FC<LiveTVCardProps> = React.memo(({
         onFocus: handleFocus
     });
 
+    const [epg, setEpg] = useState<ReturnType<typeof getCurrentProgram>>(null);
+
+    useEffect(() => {
+        const updateEpg = () => {
+            setEpg(getCurrentProgram(channel));
+        };
+        updateEpg();
+        const interval = setInterval(updateEpg, 60000);
+        return () => clearInterval(interval);
+    }, [channel]);
+
+    const statuses = useStreamStatuses([channel.url]);
+    const status = statuses[channel.url] || 'checking';
+
     return (
         <div 
             ref={ref}
@@ -227,9 +244,24 @@ export const LiveTVCard: React.FC<LiveTVCardProps> = React.memo(({
             
             {/* Top metadata badges */}
             <div className="absolute top-2.5 left-2.5 right-2.5 flex items-center justify-between z-20">
-                <div className="flex items-center gap-1 bg-black/60 backdrop-blur-md px-2 py-0.5 rounded-full border border-white/5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-red-600 animate-pulse shadow-[0_0_8px_#dc2626]" />
-                    <span className="text-[8px] font-black tracking-widest text-red-500 uppercase">Live</span>
+                <div className="flex items-center gap-1.5 bg-black/60 backdrop-blur-md px-2 py-0.5 rounded-full border border-white/5 select-none">
+                    <span className={`w-1.5 h-1.5 rounded-full ${
+                        status === 'online' ? 'bg-green-500 shadow-[0_0_8px_#22c55e]' :
+                        status === 'slow' ? 'bg-yellow-500 shadow-[0_0_8px_#eab308]' :
+                        status === 'offline' ? 'bg-red-500 shadow-[0_0_8px_#ef4444]' :
+                        'bg-zinc-500 animate-pulse'
+                    }`} />
+                    <span className={`text-[8px] font-extrabold uppercase tracking-widest ${
+                        status === 'online' ? 'text-green-400' :
+                        status === 'slow' ? 'text-yellow-400' :
+                        status === 'offline' ? 'text-red-400' :
+                        'text-zinc-400'
+                    }`}>
+                        {status === 'online' ? 'Working' :
+                         status === 'slow' ? 'Slow' :
+                         status === 'offline' ? 'Offline' :
+                         'Checking'}
+                    </span>
                 </div>
                 {channel.country && (
                     <span className="text-[9px] font-bold uppercase tracking-wider bg-black/60 backdrop-blur-md px-2 py-0.5 rounded-full border border-white/5 text-gray-400 group-hover:text-white transition-colors">
@@ -257,10 +289,15 @@ export const LiveTVCard: React.FC<LiveTVCardProps> = React.memo(({
             </div>
 
             {/* Title Footer */}
-            <div className="p-3 bg-[#0d0d0f]/80 border-t border-white/5 z-10">
+            <div className="p-3 bg-[#0d0d0f]/80 border-t border-white/5 z-10 text-left">
                 <p className="text-xs font-bold text-gray-300 group-hover:text-white truncate leading-none transition-colors duration-300">
                     {channel.name}
                 </p>
+                {epg && (
+                    <p className="text-[10px] text-zinc-500 truncate mt-1 group-hover:text-zinc-400 transition-colors">
+                        Now: {epg.current.title}
+                    </p>
+                )}
             </div>
 
             {/* Play Button Glow Overlay */}
@@ -295,13 +332,15 @@ const LiveTVRow: React.FC<{
     categoryId: string;
     countryCode: string;
     searchQuery: string;
-    onChannelClick: (c: LiveChannel) => void;
+    hideOffline: boolean;
+    onChannelClick: (c: LiveChannel, playlist: LiveChannel[]) => void;
     onExpand?: (items: LiveChannel[]) => void;
 }> = ({
     title,
     categoryId,
     countryCode,
     searchQuery,
+    hideOffline,
     onChannelClick,
     onExpand
 }) => {
@@ -357,8 +396,11 @@ const LiveTVRow: React.FC<{
         return () => { isMounted = false; };
     }, [categoryId, countryCode]);
 
+    const statuses = useStreamStatuses(channels.map(c => c.url));
+
     const filtered = channels.filter(c => 
-        c.name.toLowerCase().includes(searchQuery.toLowerCase())
+        c.name.toLowerCase().includes(searchQuery.toLowerCase()) &&
+        (!hideOffline || statuses[c.url] !== 'offline')
     );
 
     // D-pad focused loading: if focus is near the end, load more
@@ -415,7 +457,7 @@ const LiveTVRow: React.FC<{
                             key={channel.id}
                             channel={channel}
                             index={index}
-                            onPlay={onChannelClick}
+                            onPlay={(c) => onChannelClick(c, filtered)}
                             onFocus={handleCardFocus}
                         />
                     ))
@@ -428,9 +470,50 @@ const LiveTVRow: React.FC<{
 export const LiveTV: React.FC<LiveTVProps> = ({ userProfile }) => {
     const [selectedCountry, setSelectedCountry] = useState('ALL');
     const [selectedChannel, setSelectedChannel] = useState<LiveChannel | null>(null);
+    const [activePlaylist, setActivePlaylist] = useState<LiveChannel[]>([]);
     const [searchQuery, setSearchQuery] = useState("");
     const [expandedCategory, setExpandedCategory] = useState<{ title: string; items: LiveChannel[] } | null>(null);
+    const [hideOffline, setHideOffline] = useState(false);
     
+    // Trending Channels Today
+    const [trendingChannels, setTrendingChannels] = useState<LiveChannel[]>([]);
+    const [trendingLoading, setTrendingLoading] = useState(false);
+
+    // Preload API metadata on mount
+    useEffect(() => {
+        preloadChannelMetadata();
+    }, []);
+
+    // Fetch news and movies on mount to extract top trending channels
+    useEffect(() => {
+        let isMounted = true;
+        setTrendingLoading(true);
+        Promise.all([
+            fetchAndParseM3U('https://iptv-org.github.io/iptv/categories/news.m3u').catch(() => []),
+            fetchAndParseM3U('https://iptv-org.github.io/iptv/categories/movies.m3u').catch(() => [])
+        ]).then(([news, movies]) => {
+            if (!isMounted) return;
+            const combined = [...news.slice(0, 10), ...movies.slice(0, 10)];
+            // Shuffle/sort deterministically based on watch count
+            const sorted = combined
+                .map(c => {
+                    let hash = 0;
+                    for (let i = 0; i < c.name.length; i++) {
+                        hash = (hash << 5) - hash + c.name.charCodeAt(i);
+                        hash |= 0;
+                    }
+                    const score = Math.abs(hash) % 2500;
+                    return { c, score };
+                })
+                .sort((a, b) => b.score - a.score)
+                .map(item => item.c)
+                .slice(0, 10);
+            setTrendingChannels(sorted);
+            setTrendingLoading(false);
+        });
+        return () => { isMounted = false; };
+    }, []);
+
     // Search states
     const [searchChannels, setSearchChannels] = useState<LiveChannel[]>([]);
     const [searchLoading, setSearchLoading] = useState(false);
@@ -459,10 +542,23 @@ export const LiveTV: React.FC<LiveTVProps> = ({ userProfile }) => {
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
-    // Stable channel click callback
-    const handleChannelClick = useCallback((channel: LiveChannel) => {
+    // Stable channel click callback with playlist context
+    const handleChannelPlay = useCallback((channel: LiveChannel, playlist: LiveChannel[]) => {
         setSelectedChannel(channel);
+        setActivePlaylist(playlist);
     }, []);
+
+    // Track statuses for search results and expanded modal
+    const searchStatuses = useStreamStatuses(searchChannels.map(c => c.url));
+    const filteredSearch = searchChannels.filter(c => 
+        !hideOffline || searchStatuses[c.url] !== 'offline'
+    );
+
+    const modalItems = expandedCategory?.items || [];
+    const modalStatuses = useStreamStatuses(modalItems.map(c => c.url));
+    const filteredModalItems = modalItems.filter(c => 
+        !hideOffline || modalStatuses[c.url] !== 'offline'
+    );
 
     // D-pad focused loading for search grid
     const handleSearchCardFocus = useCallback((index: number) => {
@@ -575,7 +671,9 @@ export const LiveTV: React.FC<LiveTVProps> = ({ userProfile }) => {
             {selectedChannel && (
                 <LiveTVPlayer 
                     channel={selectedChannel} 
-                    onClose={() => setSelectedChannel(null)} 
+                    playlist={activePlaylist}
+                    onClose={() => { setSelectedChannel(null); setActivePlaylist([]); }} 
+                    onChannelChange={(channel) => setSelectedChannel(channel)}
                 />
             )}
 
@@ -670,8 +768,75 @@ export const LiveTV: React.FC<LiveTVProps> = ({ userProfile }) => {
                                 className="w-full h-full bg-white/5 border border-white/5 hover:border-white/10 rounded-xl pl-9 pr-4 text-xs focus:outline-none focus:bg-white/10 focus:border-white/20 transition-all placeholder-gray-500"
                             />
                         </div>
+
+                        {/* Hide Dead Streams Toggle Button */}
+                        <TvFocusButton
+                            onClick={() => setHideOffline(!hideOffline)}
+                            className={`h-10 px-4 rounded-xl border transition-all active:scale-95 flex items-center justify-center gap-2 text-xs font-bold whitespace-nowrap ${
+                                hideOffline
+                                    ? 'bg-red-600 border-red-500 text-white shadow-lg shadow-red-600/20'
+                                    : 'bg-white/5 border-white/5 text-gray-400 hover:text-white hover:bg-white/10'
+                            }`}
+                        >
+                            <Wifi size={14} className={hideOffline ? 'animate-pulse' : ''} />
+                            <span>Hide Offline</span>
+                        </TvFocusButton>
                     </div>
                 </div>
+
+                {/* Trending Channels Row */}
+                {!searchQuery && trendingChannels.length > 0 && (
+                    <div className="mb-12 text-left px-4 md:px-12 select-none animate-in fade-in duration-500">
+                        <h3 className="text-lg font-bold text-white mb-6 tracking-tight flex items-center gap-2">
+                            <span className="w-1.5 h-5 bg-red-600 rounded-full inline-block"></span>
+                            Trending Channels Today
+                        </h3>
+                        <div className="flex gap-8 overflow-x-auto pb-4 hide-scrollbar scroll-smooth">
+                            {trendingChannels.map((channel, idx) => (
+                                <div 
+                                    key={channel.id} 
+                                    onClick={() => handleChannelPlay(channel, trendingChannels)}
+                                    className="relative flex items-center pl-10 md:pl-12 w-[240px] md:w-[280px] shrink-0 aspect-[16/10] group cursor-pointer"
+                                >
+                                    <div className="absolute left-0 bottom-0 text-[100px] md:text-[130px] font-black leading-none text-zinc-950 select-none transform translate-y-3 md:translate-y-5"
+                                            style={{ 
+                                                WebkitTextStroke: '2px rgba(255,255,255,0.06)',
+                                                zIndex: 1
+                                            }}>
+                                        {idx + 1}
+                                    </div>
+                                    <div className="relative w-full h-full rounded-xl overflow-hidden bg-zinc-900/60 backdrop-blur-md border border-white/5 group-hover:scale-105 group-hover:border-white/25 transition-all duration-300 shadow-xl flex flex-col justify-between"
+                                            style={{ zIndex: 2 }}>
+                                        <div className="absolute inset-0 bg-gradient-to-tr from-[#0b0c10] via-transparent to-white/[0.01]" />
+                                        <div className="absolute top-2.5 left-2.5 right-2.5 flex items-center justify-between z-20">
+                                            <span className="text-[8px] font-extrabold uppercase tracking-widest bg-red-600 px-2 py-0.5 rounded-full text-white shadow-md shadow-red-600/20">
+                                                Trending
+                                            </span>
+                                        </div>
+                                        <div className="flex-1 w-full flex items-center justify-center p-4 mt-2 min-h-0">
+                                            {channel.logo ? (
+                                                <img 
+                                                    src={channel.logo} 
+                                                    alt={channel.name} 
+                                                    className="max-w-full max-h-full object-contain filter drop-shadow-[0_4px_8px_rgba(0,0,0,0.5)] opacity-80 group-hover:opacity-100 transition-opacity" 
+                                                    loading="lazy" 
+                                                    onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                                                />
+                                            ) : (
+                                                <Globe className="text-zinc-700" size={38} />
+                                            )}
+                                        </div>
+                                        <div className="p-3 bg-[#0d0d0f]/80 border-t border-white/5 z-10 text-left">
+                                            <p className="text-xs font-bold text-gray-300 group-hover:text-white truncate leading-none transition-colors duration-300">
+                                                {channel.name}
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
 
                 {/* Dynamic Netflix-style Grid or Category Rows */}
                 {!searchQuery ? (
@@ -683,7 +848,8 @@ export const LiveTV: React.FC<LiveTVProps> = ({ userProfile }) => {
                                 categoryId={cat.id}
                                 countryCode={selectedCountry}
                                 searchQuery={searchQuery}
-                                onChannelClick={handleChannelClick}
+                                hideOffline={hideOffline}
+                                onChannelClick={handleChannelPlay}
                                 onExpand={(channels) => setExpandedCategory({ title: cat.name, items: channels })}
                             />
                         ))}
@@ -702,18 +868,26 @@ export const LiveTV: React.FC<LiveTVProps> = ({ userProfile }) => {
                                     <ChannelSkeleton key={i} />
                                 ))}
                             </div>
-                        ) : searchChannels.length > 0 ? (
+                        ) : filteredSearch.length > 0 ? (
                             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6">
-                                {searchChannels.slice(0, searchVisibleCount).map((channel, index) => (
+                                {filteredSearch.slice(0, searchVisibleCount).map((channel, index) => (
                                     <LiveTVCard 
                                         key={channel.id}
                                         channel={channel}
                                         index={index}
-                                        onPlay={handleChannelClick}
+                                        onPlay={(c) => handleChannelPlay(c, filteredSearch)}
                                         onFocus={handleSearchCardFocus}
                                         className="w-full"
                                     />
                                 ))}
+                            </div>
+                        ) : searchChannels.length > 0 ? (
+                            <div className="py-20 text-center text-gray-500 flex flex-col items-center justify-center animate-in fade-in max-w-md mx-auto">
+                                <AlertCircle size={36} className="text-white/20 mb-4"/>
+                                <h3 className="text-base font-bold text-white mb-1">No Active Channels</h3>
+                                <p className="text-gray-400 text-xs leading-relaxed text-center">
+                                    All matching channels are currently offline. Toggle off the "Hide Offline" filter to display them.
+                                </p>
                             </div>
                         ) : (
                             <div className="py-20 text-center text-gray-500 flex flex-col items-center justify-center animate-in fade-in max-w-md mx-auto">
@@ -741,13 +915,13 @@ export const LiveTV: React.FC<LiveTVProps> = ({ userProfile }) => {
                 onClose={() => setExpandedCategory(null)}
                 title={expandedCategory?.title || ""}
                 mode="livetv"
-                initialItems={expandedCategory?.items || []}
-                onItemClick={handleChannelClick}
+                initialItems={filteredModalItems}
+                onItemClick={(c) => handleChannelPlay(c, filteredModalItems)}
                 renderItem={(item, idx) => (
                     <LiveTVCard
                         channel={item}
                         index={idx}
-                        onPlay={handleChannelClick}
+                        onPlay={(c) => handleChannelPlay(c, filteredModalItems)}
                         className="w-full"
                     />
                 )}

@@ -182,8 +182,8 @@ function mergeBoxes(boxes: { minX: number; minY: number; maxX: number; maxY: num
       for (let j = i + 1; j < result.length; j++) {
         const a = result[i];
         const b = result[j];
-        // Increased merge distance to 55px to group all text lines in a speech bubble together
-        if (a.minX <= b.maxX + 55 && a.maxX >= b.minX - 55 && a.minY <= b.maxY + 55 && a.maxY >= b.minY - 55) {
+        // Merge distance of 32px bridges vertical columns in a bubble without spilling into panel borders/artwork
+        if (a.minX <= b.maxX + 32 && a.maxX >= b.minX - 32 && a.minY <= b.maxY + 32 && a.maxY >= b.minY - 32) {
           result[i] = {
             minX: Math.min(a.minX, b.minX),
             minY: Math.min(a.minY, b.minY),
@@ -207,15 +207,27 @@ function mergeBoxes(boxes: { minX: number; minY: number; maxX: number; maxY: num
   });
 }
 
+const ALLOWED_SHORT_WORDS = new Set([
+  '何', '嘘', '誰', '敵', '俺', '僕', '私', '力', 'ばか', 'バカ', 'だめ', 'ダメ',
+  'まて', '待て', 'しね', '死ね', '行く', 'いく', '秘密', '約束', 'ごめん', '本当',
+  'マジ', 'お願い', '頼む', 'たのむ', '無駄', 'むだ', '無理', 'むり', '勝ち', '負け',
+  '敵', '味方', '仲間', '友達', '家族', '師匠', '先生', '先輩', '後輩', '隊長'
+]);
+
 /**
  * Filter OCR output to ensure it contains genuine Japanese characters, not random noise
  */
 function isGenuineJapanese(text: string): boolean {
-  if (!text || text.length < 2) return false;
-  // Check for Japanese Hiragana, Katakana, Kanji range
+  if (!text) return false;
+  const clean = text.replace(/\s+/g, '');
   const jaRegex = /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/;
-  const matches = text.match(/[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/g);
-  return jaRegex.test(text) && (matches ? matches.length >= 2 : false);
+  const matches = clean.match(/[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/g);
+  if (!matches) return false;
+
+  // Filter out single/double stroke OCR artifacts unless they are known short manga expressions
+  if (matches.length >= 3) return true;
+  if (matches.length >= 1 && ALLOWED_SHORT_WORDS.has(clean)) return true;
+  return false;
 }
 
 /**
