@@ -1674,7 +1674,7 @@ export const AnimeCard: React.FC<AnimeCardProps> = ({ anime, apiKey, onAnimeClic
     <div
       ref={ref}
       onClick={() => onAnimeClick(anime)}
-      className="group flex flex-col gap-2 shrink-0 w-[140px] md:w-[170px] cursor-pointer select-none text-left"
+      className="group flex flex-col gap-2 shrink-0 w-[125px] sm:w-[145px] md:w-[150px] cursor-pointer select-none text-left"
     >
       {/* Vertical Poster Container */}
       <div className="relative w-full aspect-[2/3] rounded-xl overflow-hidden bg-zinc-900 border border-white/5 group-hover:border-red-500/50 group-hover:shadow-[0_0_20px_rgba(239,68,68,0.25)] group-hover:scale-[1.03] transition-all duration-500">

@@ -135,7 +135,7 @@ export const DramaPage: React.FC<DramaPageProps> = ({
     const data = await res.json();
     return (data.dramas || []).map((d: any) => ({
       title: d.title,
-      slug: d.slug,
+      slug: d.slug || (d.title ? d.title.toLowerCase().replace(/[^a-z0-9]/g, '-') : `mdl-${Math.random()}`),
       year: d.year || String(year),
       image: d.image || 'https://images.unsplash.com/photo-1574375927938-d5a98e8edd85?q=80&w=400',
       rating: d.rating,
@@ -791,6 +791,12 @@ export const DramaCard: React.FC<DramaCardProps> = ({ drama, onDramaClick, title
   const [displayTitle, setDisplayTitle] = useState<string>(drama.title);
   const [rating, setRating] = useState<number | null>(drama.rating ? parseFloat(drama.rating) : null);
 
+  useEffect(() => {
+    setImageUrl(drama.image);
+    setDisplayTitle(drama.title);
+    setRating(drama.rating ? parseFloat(drama.rating) : null);
+  }, [drama.title, drama.image, drama.rating]);
+
   // Asynchronously resolve TMDB high-res backdrop and logo
   useEffect(() => {
     let isMounted = true;
@@ -800,12 +806,16 @@ export const DramaCard: React.FC<DramaCardProps> = ({ drama, onDramaClick, title
       let mediaType = drama.mediaType || 'tv';
       let backdropPath = drama.backdrop;
 
-      if (!tmdbId && drama.slug.startsWith('tmdb-')) {
-        tmdbId = parseInt(drama.slug.replace('tmdb-', ''), 10);
+      const safeSlug = (drama.slug && drama.slug !== 'undefined') 
+        ? drama.slug 
+        : (drama.title ? drama.title.toLowerCase().replace(/[^a-z0-9]/g, '-') : `drama-${Math.random()}`);
+
+      if (!tmdbId && safeSlug.startsWith('tmdb-')) {
+        tmdbId = parseInt(safeSlug.replace('tmdb-', ''), 10);
       }
 
-      const matchCacheKey = `movieverse_drama_tmdb_match_${drama.slug}`;
-      const logoCacheKey = `movieverse_drama_logo_${drama.slug}`;
+      const matchCacheKey = `movieverse_drama_tmdb_match_${safeSlug}`;
+      const logoCacheKey = `movieverse_drama_logo_${safeSlug}`;
       
       const cachedMatch = localStorage.getItem(matchCacheKey);
       const cachedLogo = localStorage.getItem(logoCacheKey);
@@ -957,7 +967,7 @@ export const DramaCard: React.FC<DramaCardProps> = ({ drama, onDramaClick, title
     <div
       ref={ref}
       onClick={() => onDramaClick(drama)}
-      className={`group flex flex-col gap-2 shrink-0 ${widthClass || 'w-[140px] md:w-[170px]'} cursor-pointer select-none text-left`}
+      className={`group flex flex-col gap-2 shrink-0 ${widthClass || 'w-[125px] sm:w-[145px] md:w-[150px]'} cursor-pointer select-none text-left`}
     >
       {/* Vertical Poster Container */}
       <div className="relative w-full aspect-[2/3] rounded-xl overflow-hidden bg-zinc-900 border border-white/5 group-hover:border-red-500/50 group-hover:shadow-[0_0_20px_rgba(239,68,68,0.25)] group-hover:scale-[1.03] transition-all duration-500">

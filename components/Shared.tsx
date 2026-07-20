@@ -570,7 +570,7 @@ export const MovieCard = React.memo(React.forwardRef<HTMLDivElement, MovieCardPr
     return (
       <div 
         ref={combinedRef}
-        className="group flex flex-col gap-2 shrink-0 w-[140px] sm:w-[170px] cursor-pointer select-none text-left font-sans"
+        className="group flex flex-col gap-2 shrink-0 w-[125px] sm:w-[145px] md:w-[150px] cursor-pointer select-none text-left font-sans"
         onClick={() => onClick(movie)}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
