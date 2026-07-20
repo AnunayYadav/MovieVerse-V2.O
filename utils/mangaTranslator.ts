@@ -148,10 +148,10 @@ export function detectSpeechBubbles(
           // Reject if not inside a verified white speech bubble container (ratio relaxed for dense text)
           if (whiteRatio >= 0.35) {
             textClusters.push({
-              minX: Math.max(0, boxX - 6),
-              minY: Math.max(0, boxY - 6),
-              maxX: Math.min(width, boxX + boxW + 6),
-              maxY: Math.min(height, boxY + boxH + 6),
+              minX: Math.max(0, boxX - 10),
+              minY: Math.max(0, boxY - 10),
+              maxX: Math.min(width, boxX + boxW + 10),
+              maxY: Math.min(height, boxY + boxH + 10),
               darkCount
             });
           }
@@ -182,7 +182,8 @@ function mergeBoxes(boxes: { minX: number; minY: number; maxX: number; maxY: num
       for (let j = i + 1; j < result.length; j++) {
         const a = result[i];
         const b = result[j];
-        if (a.minX <= b.maxX + 15 && a.maxX >= b.minX - 15 && a.minY <= b.maxY + 15 && a.maxY >= b.minY - 15) {
+        // Increased merge distance to 55px to group all text lines in a speech bubble together
+        if (a.minX <= b.maxX + 55 && a.maxX >= b.minX - 55 && a.minY <= b.maxY + 55 && a.maxY >= b.minY - 55) {
           result[i] = {
             minX: Math.min(a.minX, b.minX),
             minY: Math.min(a.minY, b.minY),
@@ -210,11 +211,11 @@ function mergeBoxes(boxes: { minX: number; minY: number; maxX: number; maxY: num
  * Filter OCR output to ensure it contains genuine Japanese characters, not random noise
  */
 function isGenuineJapanese(text: string): boolean {
-  if (!text || text.length < 1) return false;
+  if (!text || text.length < 2) return false;
   // Check for Japanese Hiragana, Katakana, Kanji range
   const jaRegex = /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/;
   const matches = text.match(/[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/g);
-  return jaRegex.test(text) && (matches ? matches.length >= 1 : false);
+  return jaRegex.test(text) && (matches ? matches.length >= 2 : false);
 }
 
 /**
