@@ -4,6 +4,7 @@ import { useTvFocus, TvFocusButton, TvFocusInput } from '../tvNavigation';
 import { ExpandedCategoryModal } from './Modals';
 import { fetchAniListUserList } from '../services/anilistSync';
 import JSZip from 'jszip';
+import { processMangaPageOffline } from '../utils/mangaTranslator';
 
 export interface MangaDexManga {
   id: string;
@@ -491,6 +492,12 @@ export const MangaPage: React.FC<MangaPageProps> = ({
   const [charactersError, setCharactersError] = useState<string | null>(null);
   const [chapterFilter, setChapterFilter] = useState('');
   const [chapterSort, setChapterSort] = useState<'asc' | 'desc'>('desc');
+
+  // Offline Manga Translation States
+  const [isOfflineTranslateActive, setIsOfflineTranslateActive] = useState(false);
+  const [isOfflineTranslating, setIsOfflineTranslating] = useState(false);
+  const [offlineTranslationProgress, setOfflineTranslationProgress] = useState({ msg: '', percent: 0 });
+  const [translatedPageCache, setTranslatedPageCache] = useState<Record<string, string>>({});
 
   // Resolve AniList ID and load social tab details for Manga
   const [aniListMangaId, setAniListMangaId] = useState<number | null>(null);
@@ -4087,6 +4094,51 @@ export const MangaPage: React.FC<MangaPageProps> = ({
       onChapterSelect(e.target.value);
     };
 
+    const handleToggleOfflineTranslation = async () => {
+      if (isOfflineTranslateActive) {
+        setIsOfflineTranslateActive(false);
+        showToast("Offline translation disabled");
+        return;
+      }
+
+      setIsOfflineTranslateActive(true);
+      showToast("Offline translation enabled");
+
+      const rawPage = pages[activePageIdx];
+      const pageUrl = typeof rawPage === 'string' ? rawPage : rawPage?.src;
+
+      if (pageUrl && !translatedPageCache[pageUrl]) {
+        setIsOfflineTranslating(true);
+        setOfflineTranslationProgress({ msg: 'Initializing Japanese OCR...', percent: 10 });
+        try {
+          const img = new Image();
+          img.crossOrigin = 'anonymous';
+          img.src = pageUrl;
+          await new Promise((res) => {
+            img.onload = res;
+            img.onerror = () => res(null);
+          });
+
+          const result = await processMangaPageOffline(img, (msg, percent) => {
+            setOfflineTranslationProgress({ msg, percent });
+          });
+
+          if (result && result.processedCanvasDataUrl) {
+            setTranslatedPageCache(prev => ({
+              ...prev,
+              [pageUrl]: result.processedCanvasDataUrl
+            }));
+            showToast("Japanese page translated on-device!");
+          }
+        } catch (err) {
+          console.error("Offline translation failed:", err);
+          showToast("Failed to run offline OCR translation");
+        } finally {
+          setIsOfflineTranslating(false);
+        }
+      }
+    };
+
 
 
     const handleReaderScroll = (e: React.UIEvent<HTMLDivElement>) => {
@@ -4456,6 +4508,22 @@ export const MangaPage: React.FC<MangaPageProps> = ({
               <Download size={14} />
             </button>
 
+            {/* Offline Manga Translator Toggle Button */}
+            <button
+              onClick={handleToggleOfflineTranslation}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold text-xs transition-all active:scale-95 border shrink-0 ${
+                isOfflineTranslateActive
+                  ? 'bg-red-600/90 border-red-500/60 text-white shadow-[0_0_15px_rgba(239,68,68,0.4)]'
+                  : 'bg-white/5 border-white/10 text-zinc-300 hover:text-white hover:bg-white/10'
+              }`}
+              title="Translate Japanese Manga Offline On-Device"
+            >
+              <Globe size={13} className={isOfflineTranslating ? 'animate-spin text-yellow-400' : isOfflineTranslateActive ? 'text-white' : 'text-zinc-400'} />
+              <span className="hidden sm:inline">
+                {isOfflineTranslating ? 'Translating...' : isOfflineTranslateActive ? 'Offline Translated' : 'Translate (Offline)'}
+              </span>
+            </button>
+
             {/* Fullscreen button */}
             <button
               onClick={toggleFullscreen}
@@ -4484,6 +4552,17 @@ export const MangaPage: React.FC<MangaPageProps> = ({
 
     return (
       <div className={`fixed inset-0 z-[120] ${getBgClass()} flex flex-col font-sans select-none ${isReaderExiting ? 'animate-fade-out' : 'animate-fade-in'}`}>
+
+        {/* On-Device Translation Progress Banner */}
+        {isOfflineTranslating && (
+          <div className="fixed top-16 left-1/2 -translate-x-1/2 z-[200] bg-zinc-950/95 border border-red-500/50 backdrop-blur-xl px-5 py-2.5 rounded-full shadow-2xl flex items-center gap-3 animate-in fade-in slide-in-from-top-4">
+            <Loader2 className="animate-spin text-red-500" size={16} />
+            <div className="flex flex-col text-left">
+              <span className="text-[11px] font-bold text-white leading-tight">Translating Japanese Page (Offline)</span>
+              <span className="text-[9px] text-zinc-400 font-medium">{offlineTranslationProgress.msg} ({offlineTranslationProgress.percent}%)</span>
+            </div>
+          </div>
+        )}
 
         {/* Top Horizontal Floating Menu Bar */}
         <HorizontalMenuBar />
@@ -4522,7 +4601,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                         <GigaViewerPage page={page} pageNum={i + 1} />
                       ) : (
                         <img
-                          src={url}
+                          src={isOfflineTranslateActive && translatedPageCache[url] ? translatedPageCache[url] : url}
                           alt={`Page ${i + 1}`}
                           referrerPolicy="no-referrer"
                           className="w-full h-auto block pointer-events-none"
@@ -4569,7 +4648,11 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                     ) : (
                       <img
                         key={activePageIdx}
-                        src={pages[activePageIdx]}
+                        src={
+                          isOfflineTranslateActive && translatedPageCache[typeof pages[activePageIdx] === 'string' ? pages[activePageIdx] : pages[activePageIdx]?.src]
+                            ? translatedPageCache[typeof pages[activePageIdx] === 'string' ? pages[activePageIdx] : pages[activePageIdx]?.src]
+                            : pages[activePageIdx]
+                        }
                         alt={`Page ${activePageIdx + 1}`}
                         referrerPolicy="no-referrer"
                         className="max-h-full max-w-full object-contain pointer-events-none animate-fade-in duration-300"
