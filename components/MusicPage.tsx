@@ -7,6 +7,7 @@ import {
   ChevronRight, ListPlus, Radio, SlidersHorizontal
 } from 'lucide-react';
 import { useTvFocus, TvFocusButton } from '../tvNavigation';
+import { registerBackgroundAudio, setBackgroundAudioState, updateMediaSessionPosition, unregisterBackgroundAudio } from '../services/backgroundAudioService';
 import { Track, Album, Artist, Playlist } from '../types';
 import { syncMusicData, fetchMusicData } from '../services/supabase';
 
@@ -308,7 +309,10 @@ export const MusicPage: React.FC<MusicPageProps> = ({ isAuthenticated, disableEn
     const audio = new Audio();
     audioRef.current = audio;
 
-    const handleTimeUpdate = () => setCurrentTime(audio.currentTime);
+    const handleTimeUpdate = () => {
+      setCurrentTime(audio.currentTime);
+      updateMediaSessionPosition(audio.currentTime, audio.duration || 0);
+    };
     const handleDurationChange = () => setDuration(audio.duration || 0);
     const handleEnded = () => {
       if (isRepeat) {
@@ -318,17 +322,24 @@ export const MusicPage: React.FC<MusicPageProps> = ({ isAuthenticated, disableEn
         skipNext();
       }
     };
+    const handlePlay = () => setBackgroundAudioState(true);
+    const handlePause = () => setBackgroundAudioState(false);
 
     audio.addEventListener('timeupdate', handleTimeUpdate);
     audio.addEventListener('durationchange', handleDurationChange);
     audio.addEventListener('ended', handleEnded);
+    audio.addEventListener('play', handlePlay);
+    audio.addEventListener('pause', handlePause);
 
     return () => {
       audio.pause();
       audio.removeEventListener('timeupdate', handleTimeUpdate);
       audio.removeEventListener('durationchange', handleDurationChange);
       audio.removeEventListener('ended', handleEnded);
+      audio.removeEventListener('play', handlePlay);
+      audio.removeEventListener('pause', handlePause);
       if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
+      unregisterBackgroundAudio();
     };
   }, [queue, currentTrack, isShuffle, isRepeat]);
 
@@ -337,13 +348,27 @@ export const MusicPage: React.FC<MusicPageProps> = ({ isAuthenticated, disableEn
     if (!audioRef.current || !currentTrack) return;
     const wasPlaying = isPlaying;
 
+    registerBackgroundAudio(audioRef.current, {
+      title: currentTrack.title,
+      artist: currentTrack.artist,
+      album: currentTrack.album || "Music Stream",
+      artworkUrl: currentTrack.artworkUrl,
+      onPlay: togglePlay,
+      onPause: togglePlay,
+      onPrev: skipPrevious,
+      onNext: skipNext
+    });
+
     audioRef.current.src = currentTrack.previewUrl;
     audioRef.current.load();
 
     if (wasPlaying) {
-      audioRef.current.play().catch(err => {
+      audioRef.current.play().then(() => {
+        setBackgroundAudioState(true);
+      }).catch(err => {
         console.warn("Autoplay failed:", err.message);
         setIsPlaying(false);
+        setBackgroundAudioState(false);
       });
     }
 

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Play, Pause, Volume2, VolumeX, Search, Globe, Loader2, Headphones, Radio, ChevronRight, ArrowLeft, Heart, X, Sparkles, Wifi, SkipBack, SkipForward } from 'lucide-react';
 import { useTvFocus, TvFocusButton } from '../tvNavigation';
+import { registerBackgroundAudio, setBackgroundAudioState, unregisterBackgroundAudio } from '../services/backgroundAudioService';
 
 export interface RadioStation {
   changeuuid: string;
@@ -176,6 +177,24 @@ export const RadioPage: React.FC<RadioPageProps> = ({ searchQuery = "", onSearch
     };
   }, [searchQuery]);
 
+  // Skip to next station
+  const skipNext = () => {
+    if (currentPlaylist.length <= 1 || !currentStation) return;
+    const currentIndex = currentPlaylist.findIndex(s => s.stationuuid === currentStation.stationuuid);
+    if (currentIndex === -1) return;
+    const nextIndex = (currentIndex + 1) % currentPlaylist.length;
+    setCurrentStation(currentPlaylist[nextIndex]);
+  };
+
+  // Skip to previous station
+  const skipPrevious = () => {
+    if (currentPlaylist.length <= 1 || !currentStation) return;
+    const currentIndex = currentPlaylist.findIndex(s => s.stationuuid === currentStation.stationuuid);
+    if (currentIndex === -1) return;
+    const prevIndex = (currentIndex - 1 + currentPlaylist.length) % currentPlaylist.length;
+    setCurrentStation(currentPlaylist[prevIndex]);
+  };
+
   // Audio Playback Controller
   useEffect(() => {
     if (!currentStation) return;
@@ -187,12 +206,29 @@ export const RadioPage: React.FC<RadioPageProps> = ({ searchQuery = "", onSearch
     audio.volume = isMuted ? 0 : volume;
     audioRef.current = audio;
 
+    registerBackgroundAudio(audio, {
+      title: currentStation.name,
+      artist: currentStation.country || "Radio Station",
+      album: currentStation.tags ? currentStation.tags.split(',')[0] : "Live Radio",
+      artworkUrl: currentStation.favicon || undefined,
+      onPlay: () => {
+        setIsPlaying(true);
+      },
+      onPause: () => {
+        setIsPlaying(false);
+      },
+      onPrev: skipPrevious,
+      onNext: skipNext
+    });
+
     const onPlay = () => {
       setIsPlaying(true);
       setIsLoading(false);
+      setBackgroundAudioState(true);
     };
     const onPause = () => {
       setIsPlaying(false);
+      setBackgroundAudioState(false);
     };
     const onWaiting = () => {
       setIsLoading(true);
@@ -200,10 +236,12 @@ export const RadioPage: React.FC<RadioPageProps> = ({ searchQuery = "", onSearch
     const onPlaying = () => {
       setIsLoading(false);
       setIsPlaying(true);
+      setBackgroundAudioState(true);
     };
     const onError = () => {
       setIsLoading(false);
       setIsPlaying(false);
+      setBackgroundAudioState(false);
       setErrorMsg("Failed to stream this station. The server may be offline or blocking access.");
     };
 
@@ -229,6 +267,7 @@ export const RadioPage: React.FC<RadioPageProps> = ({ searchQuery = "", onSearch
       audio.removeEventListener('playing', onPlaying);
       audio.removeEventListener('error', onError);
       audioRef.current = null;
+      unregisterBackgroundAudio();
     };
   }, [currentStation]);
 
@@ -243,24 +282,6 @@ export const RadioPage: React.FC<RadioPageProps> = ({ searchQuery = "", onSearch
   const handlePlayStation = (station: RadioStation, playlist: RadioStation[] = []) => {
     setCurrentStation(station);
     setCurrentPlaylist(playlist);
-  };
-
-  // Skip to next station
-  const skipNext = () => {
-    if (currentPlaylist.length <= 1 || !currentStation) return;
-    const currentIndex = currentPlaylist.findIndex(s => s.stationuuid === currentStation.stationuuid);
-    if (currentIndex === -1) return;
-    const nextIndex = (currentIndex + 1) % currentPlaylist.length;
-    setCurrentStation(currentPlaylist[nextIndex]);
-  };
-
-  // Skip to previous station
-  const skipPrevious = () => {
-    if (currentPlaylist.length <= 1 || !currentStation) return;
-    const currentIndex = currentPlaylist.findIndex(s => s.stationuuid === currentStation.stationuuid);
-    if (currentIndex === -1) return;
-    const prevIndex = (currentIndex - 1 + currentPlaylist.length) % currentPlaylist.length;
-    setCurrentStation(currentPlaylist[prevIndex]);
   };
 
   // Toggle Play / Pause

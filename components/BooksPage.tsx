@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Play, Pause, Volume2, VolumeX, Search, Loader2, Headphones, ArrowLeft, X, Wifi, SkipBack, SkipForward, Info, HelpCircle, FastForward, RotateCcw, Mic, Music, ListMusic } from 'lucide-react';
 import { useTvFocus } from '../tvNavigation';
+import { registerBackgroundAudio, setBackgroundAudioState, updateMediaSessionPosition, unregisterBackgroundAudio } from '../services/backgroundAudioService';
 
 // Types
 export interface AudioShow {
@@ -278,16 +279,35 @@ export const PodcastsPage: React.FC<PodcastsPageProps> = ({ searchQuery = "", on
     audio.playbackRate = playbackSpeed;
     audioRef.current = audio;
 
+    registerBackgroundAudio(audio, {
+      title: activeChapter.title || "Episode",
+      artist: currentShow?.creator || "Podcast Host",
+      album: currentShow?.title || "Podcast & Audiobook",
+      onPlay: () => {
+        setIsPlaying(true);
+      },
+      onPause: () => {
+        setIsPlaying(false);
+      },
+      onPrev: skipPrevious,
+      onNext: skipNext,
+      onSeekForward: skipForward15,
+      onSeekBackward: skipBackward15
+    });
+
     const onPlay = () => {
       setIsPlaying(true);
       setIsLoadingAudio(false);
+      setBackgroundAudioState(true);
     };
     const onPlaying = () => {
       setIsPlaying(true);
       setIsLoadingAudio(false);
+      setBackgroundAudioState(true);
     };
     const onPause = () => {
       setIsPlaying(false);
+      setBackgroundAudioState(false);
     };
     const onWaiting = () => {
       setIsLoadingAudio(true);
@@ -298,6 +318,7 @@ export const PodcastsPage: React.FC<PodcastsPageProps> = ({ searchQuery = "", on
     const onTimeUpdate = () => {
       setAudioProgress(audio.currentTime);
       setIsLoadingAudio(false);
+      updateMediaSessionPosition(audio.currentTime, audio.duration || 0, playbackSpeed);
     };
     const onDurationChange = () => {
       setAudioDuration(audio.duration || 0);
@@ -308,11 +329,13 @@ export const PodcastsPage: React.FC<PodcastsPageProps> = ({ searchQuery = "", on
         setActiveChapterIndex(prev => prev + 1);
       } else {
         setIsPlaying(false);
+        setBackgroundAudioState(false);
       }
     };
     const onError = () => {
       setIsLoadingAudio(false);
       setIsPlaying(false);
+      setBackgroundAudioState(false);
       setAudioError("Unable to stream this track. Streaming may be temporarily blocked by the host server.");
     };
 
@@ -346,6 +369,7 @@ export const PodcastsPage: React.FC<PodcastsPageProps> = ({ searchQuery = "", on
       audio.removeEventListener('ended', onEnded);
       audio.removeEventListener('error', onError);
       audioRef.current = null;
+      unregisterBackgroundAudio();
     };
   }, [activeChapterIndex, currentChaptersList]);
 
