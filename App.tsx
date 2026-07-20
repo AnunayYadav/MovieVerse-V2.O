@@ -4312,15 +4312,12 @@ export default function App() {
 
     const browseOptions = [
         { id: "Categories", icon: Clapperboard, label: "Categories", action: () => { resetFilters(); setSelectedCategory("Categories"); } },
-        { id: "TV Shows", icon: Tv, label: "TV Shows", action: () => { resetFilters(); setSelectedCategory("TV Shows"); } },
         { id: "LiveTV", icon: Radio, label: "Live TV", action: () => { resetFilters(); setSelectedCategory("LiveTV"); } },
         { id: "Music", icon: Music, label: "Music", action: () => { resetFilters(); setSelectedCategory("Music"); } },
         { id: "Radio", icon: Headphones, label: "Radio", action: () => { resetFilters(); setSelectedCategory("Radio"); } },
         { id: "WatchParty", icon: Users, label: "Watch Party", action: () => { resetFilters(); setSelectedCategory("WatchParty"); } },
         { id: "Coming", icon: CalendarDays, label: "Coming Soon", action: () => { resetFilters(); setSelectedCategory("Coming"); } },
-        { id: "Awards", icon: Award, label: "Awards", action: () => { resetFilters(); setSelectedCategory("Awards"); } },
         { id: "AnimeCommunity", icon: MessageSquare, label: "Anime Forum", action: () => { resetFilters(); setSelectedCategory("AnimeCommunity"); } },
-        { id: "Family", icon: Baby, label: "Family", action: () => { resetFilters(); setSelectedCategory("Family"); } },
         { id: "Novels", icon: BookOpen, label: "Novels", action: () => { resetFilters(); setSelectedCategory("Novels"); } },
         { id: "Books", icon: BookOpen, label: "Books", action: () => { resetFilters(); setSelectedCategory("Books"); } },
         { id: "Settings", icon: Settings, label: "Settings", action: () => { setIsSettingsOpen(true); } }
@@ -4590,9 +4587,9 @@ export default function App() {
                                     </TvFocusButton>
 
                                     <div className={`absolute top-full left-1/2 -translate-x-1/2 w-[360px] h-[18px] bg-transparent z-[55] transition-opacity duration-200 ${isBrowseOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`} />
-                                    <div className={`absolute top-[calc(100%+0.5rem)] left-1/2 -translate-x-1/2 w-[360px] bg-zinc-950/98 backdrop-blur-3xl border border-white/[0.08] rounded-2xl shadow-[0_24px_50px_rgba(0,0,0,0.85)] p-4 grid grid-cols-3 gap-3 z-[60] transition-all duration-200 transform origin-top select-none ${isBrowseOpen ? 'opacity-100 scale-100 translate-y-0 pointer-events-auto' : 'opacity-0 scale-95 -translate-y-2 pointer-events-none'}`}>
+                                    <div className={`absolute top-[calc(100%+0.5rem)] left-1/2 -translate-x-1/2 w-[360px] bg-[#0a0a0f] border border-white/[0.08] rounded-2xl shadow-[0_24px_50px_rgba(0,0,0,0.85)] p-4 grid grid-cols-3 gap-3 z-[60] transition-all duration-200 transform origin-top select-none ${isBrowseOpen ? 'opacity-100 scale-100 translate-y-0 pointer-events-auto' : 'opacity-0 scale-95 -translate-y-2 pointer-events-none'}`}>
                                         {/* Popover Arrow */}
-                                        <div className="absolute -top-1 w-2.5 h-2.5 rotate-45 bg-zinc-950 border-t border-l border-white/[0.08] left-1/2 -translate-x-1/2 z-[-1]" />
+                                        <div className="absolute -top-1 w-2.5 h-2.5 rotate-45 bg-[#0a0a0f] border-t border-l border-white/[0.08] left-1/2 -translate-x-1/2 z-[-1]" />
 
                                         {browseOptions.map(opt => {
                                             const isActive = selectedCategory === opt.id ||
@@ -5799,7 +5796,7 @@ export default function App() {
             />
 
             {/* Mobile Browse Dropdown Menu */}
-            <div className={`fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom,0px))] left-1/2 -translate-x-1/2 w-[290px] z-[85] ${isTV ? 'hidden' : 'md:hidden'} bg-gradient-to-b from-[#18181b]/98 to-[#0c0c0d]/98 backdrop-blur-3xl border border-white/5 rounded-2xl shadow-[0_24px_60px_rgba(0,0,0,0.95)] p-3 grid grid-cols-3 gap-2.5 transition-all duration-300 transform origin-bottom select-none ${isBrowseOpen ? 'visible opacity-100 scale-100 translate-y-0 pointer-events-auto' : 'invisible opacity-0 scale-95 translate-y-4 pointer-events-none'}`}>
+            <div className={`fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom,0px))] left-1/2 -translate-x-1/2 w-[290px] z-[85] ${isTV ? 'hidden' : 'md:hidden'} bg-[#0a0a0f] border border-white/5 rounded-2xl shadow-[0_24px_60px_rgba(0,0,0,0.95)] p-3 grid grid-cols-3 gap-2.5 transition-all duration-300 transform origin-bottom select-none ${isBrowseOpen ? 'visible opacity-100 scale-100 translate-y-0 pointer-events-auto' : 'invisible opacity-0 scale-95 translate-y-4 pointer-events-none'}`}>
                 {browseOptions.map(opt => {
                     const isActive = selectedCategory === opt.id ||
                         (opt.id === "WatchParty" && (activeWatchPartyRoom !== null || selectedCategory === "WatchParty"));

@@ -285,14 +285,14 @@ export const BooksPage: React.FC<BooksPageProps> = ({ searchQuery = "", onSearch
     textUrl = textUrl.replace("http://", "https://");
 
     try {
-      // Use AllOrigins CORS Proxy to fetch the book content
-      const res = await window.fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(textUrl)}`);
+      // Use corsproxy.io to fetch the book content
+      const res = await window.fetch(`https://corsproxy.io/?${encodeURIComponent(textUrl)}`);
       if (!res.ok) throw new Error("CORS proxy fetch failed");
       const text = await res.text();
       setEbookText(text);
     } catch (e) {
-      console.warn("Direct fetch failed, falling back to secure Gutenberg iframe reader", e);
-      setEbookText(null); // Triggers secure iframe fallback
+      console.warn("Direct fetch failed, falling back to secure Gutenberg reader redirect", e);
+      setEbookText(null); // Triggers secure page redirect layout
     } finally {
       setLoadingText(false);
     }
@@ -795,24 +795,23 @@ export const BooksPage: React.FC<BooksPageProps> = ({ searchQuery = "", onSearch
                     </div>
                   </div>
                 ) : (
-                  /* Fallback: Secure HTTPS iframe */
-                  <div className="flex-1 flex flex-col bg-[#141416]">
-                    <div className="p-3 bg-zinc-950 flex items-center justify-between border-b border-white/5 select-none text-[11px] text-zinc-500">
-                      <span>Rendering secure frame reader.</span>
+                  /* Fallback Screen: No iframe is loaded to completely prevent Mixed Content blocks! */
+                  <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-[#0d0d0f]">
+                    <div className="max-w-md space-y-4 select-none">
+                      <BookOpen size={48} className="text-red-500 mx-auto" />
+                      <h3 className="text-lg font-bold text-white">Secure Ebook Link</h3>
+                      <p className="text-zinc-400 text-xs leading-relaxed">
+                        To protect your security, Project Gutenberg books must be opened directly in a new fullscreen browser window.
+                      </p>
                       <a
                         href={(selectedEbook.formats['text/html'] || `https://www.gutenberg.org/ebooks/${selectedEbook.id}`).replace("http://", "https://")}
                         target="_blank"
                         rel="noreferrer"
-                        className="flex items-center gap-1.5 text-red-500 hover:text-red-400 font-bold"
+                        className="inline-flex items-center gap-2 px-6 py-3 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-xl active:scale-95 transition-all shadow-md shadow-red-600/20 border-none cursor-pointer"
                       >
-                        Open in Fullscreen Tab <ExternalLink size={12} />
+                        Open eBook Reader <ExternalLink size={14} />
                       </a>
                     </div>
-                    <iframe
-                      src={(selectedEbook.formats['text/html'] || selectedEbook.formats['text/html; charset=utf-8'] || `https://www.gutenberg.org/ebooks/${selectedEbook.id}`).replace("http://", "https://")}
-                      title={selectedEbook.title}
-                      className="w-full flex-1 border-none bg-white rounded-b-2xl"
-                    />
                   </div>
                 )}
               </div>
