@@ -166,14 +166,13 @@ export const MovieSkeleton = ({ isAi = false }: { isAi?: boolean; key?: React.Ke
   }
 
   return (
-    <div className="group relative bg-white/5 rounded-xl overflow-hidden aspect-[16/9]">
-      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full animate-[shimmer_1.5s_infinite]" />
-      <div className="absolute bottom-0 left-0 w-full p-4 space-y-3">
-        <div className="h-4 bg-white/10 rounded-full w-3/4" />
-        <div className="flex justify-between">
-          <div className="h-3 bg-white/10 rounded-full w-1/3" />
-          <div className="h-3 bg-white/10 rounded-full w-1/4" />
-        </div>
+    <div className="group flex flex-col gap-2 shrink-0 w-full select-none font-sans">
+      <div className="relative w-full aspect-[2/3] rounded-xl overflow-hidden bg-zinc-900 border border-white/5">
+        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full animate-[shimmer_1.5s_infinite]" />
+      </div>
+      <div className="flex flex-col gap-1 px-0.5">
+        <div className="h-3.5 bg-white/10 rounded-full w-3/4 animate-pulse" />
+        <div className="h-2.5 bg-white/5 rounded-full w-1/2 mt-1 animate-pulse" />
       </div>
       <style>{`
         @keyframes shimmer {

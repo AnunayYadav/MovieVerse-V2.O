@@ -5313,6 +5313,10 @@ export const MangaPage: React.FC<MangaPageProps> = ({
     );
   }
 
+  if (loading) {
+    return <MangaPageSkeleton />;
+  }
+
   // Premium Details Screen active checks
   if (selectedManga) {
     return (
@@ -6542,6 +6546,44 @@ export const MangaRow: React.FC<MangaRowProps> = ({ title, items, onMangaClick, 
       <div className="flex gap-5 overflow-x-auto px-4 md:px-12 pb-4 hide-scrollbar scroll-smooth">
         {items.map((manga) => (
           <MangaCard key={manga.id} manga={manga} onMangaClick={onMangaClick} titleLanguage={titleLanguage} />
+        ))}
+      </div>
+    </div>
+  );
+};
+
+export const MangaPageSkeleton: React.FC = () => {
+  return (
+    <div className="min-h-screen bg-[#030303] pb-24 text-white font-sans text-left overflow-hidden">
+      {/* Hero Banner Skeleton */}
+      <div className="relative w-full h-[65vh] md:h-[75vh] bg-zinc-900/40 flex flex-col justify-end p-8 md:p-16 border-b border-white/5">
+        <div className="max-w-3xl space-y-4">
+          <div className="h-6 w-36 bg-white/10 rounded-full animate-pulse" />
+          <div className="h-12 w-3/4 bg-white/10 rounded-xl animate-pulse" />
+          <div className="h-4 w-full bg-white/10 rounded-lg animate-pulse" />
+          <div className="h-4 w-2/3 bg-white/10 rounded-lg animate-pulse" />
+          <div className="flex gap-3 pt-2">
+            <div className="h-10 w-28 bg-white/10 rounded-full animate-pulse" />
+            <div className="h-10 w-28 bg-white/10 rounded-full animate-pulse" />
+          </div>
+        </div>
+      </div>
+
+      {/* Rows Skeletons */}
+      <div className="max-w-7xl mx-auto px-4 md:px-6 mt-12 space-y-12">
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="space-y-4 text-left">
+            <div className="h-6 w-48 bg-white/10 rounded-md animate-pulse" />
+            <div className="flex gap-5 overflow-x-hidden pb-4">
+              {[1, 2, 3, 4, 5, 6, 7].map((j) => (
+                <div key={j} className="flex flex-col gap-2 shrink-0 w-[125px] sm:w-[145px] md:w-[150px]">
+                  <div className="w-full aspect-[2/3] bg-zinc-900 border border-white/5 rounded-xl animate-pulse" />
+                  <div className="h-3.5 bg-white/10 rounded-full w-3/4 animate-pulse" />
+                  <div className="h-2.5 bg-white/5 rounded-full w-1/2 animate-pulse" />
+                </div>
+              ))}
+            </div>
+          </div>
         ))}
       </div>
     </div>
