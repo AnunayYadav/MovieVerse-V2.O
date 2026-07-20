@@ -1,8 +1,9 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { AlertCircle, Loader2, Play, Pause, Volume2, VolumeX, Maximize, Minimize, Radio, ArrowLeft, RefreshCw, SkipBack, SkipForward, Calendar, Clock, List, ExternalLink, Tv } from 'lucide-react';
+import { AlertCircle, Loader2, Play, Pause, Volume2, VolumeX, Maximize, Minimize, Radio, ArrowLeft, RefreshCw, SkipBack, SkipForward, Calendar, Clock, List, ExternalLink, Tv, Cast } from 'lucide-react';
 import { LiveChannel } from '../types';
 import { getCurrentProgram, generateEPG } from '../utils/epgGenerator';
 import { getDynamicChannelDetails, ChannelDetails, StreamServer } from '../utils/channelMetadata';
+import { useCasting } from '../utils/castManager';
 
 interface LiveTVPlayerProps {
     channel: LiveChannel;
@@ -46,6 +47,12 @@ export const LiveTVPlayer: React.FC<LiveTVPlayerProps> = ({ channel, playlist = 
     // EPG State
     const [epg, setEpg] = useState<ReturnType<typeof getCurrentProgram>>(null);
     const [showEpgGuide, setShowEpgGuide] = useState(false);
+    const [isMinimized, setIsMinimized] = useState(false);
+    const activeProgramRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        setIsMinimized(false);
+    }, [channel]);
 
     useEffect(() => {
         const updateEpg = () => {
@@ -130,6 +137,73 @@ export const LiveTVPlayer: React.FC<LiveTVPlayerProps> = ({ channel, playlist = 
             }
         } catch (e) {
             console.error("Picture in Picture failed", e);
+        }
+    };
+
+    // Casting integrations
+    const {
+        isChromecastAvailable,
+        isCasting,
+        castingDevice,
+        isAirPlayAvailable,
+        castChannel,
+        airPlay,
+        stopCasting
+    } = useCasting(videoRef.current);
+
+    // Pause video if casting starts
+    useEffect(() => {
+        if (isCasting && isPlaying) {
+            if (videoRef.current) videoRef.current.pause();
+            setIsPlaying(false);
+        }
+    }, [isCasting, isPlaying]);
+
+    // Picture in Picture and minimization sync
+    useEffect(() => {
+        const video = videoRef.current;
+        if (!video) return;
+
+        const handleEnterPip = () => {
+            setIsPipActive(true);
+        };
+
+        const handleLeavePip = () => {
+            setIsPipActive(false);
+            setIsMinimized(currentMin => {
+                if (currentMin) {
+                    onClose();
+                }
+                return false;
+            });
+        };
+
+        video.addEventListener('enterpictureinpicture', handleEnterPip);
+        video.addEventListener('leavepictureinpicture', handleLeavePip);
+        return () => {
+            video.removeEventListener('enterpictureinpicture', handleEnterPip);
+            video.removeEventListener('leavepictureinpicture', handleLeavePip);
+        };
+    }, [onClose]);
+
+    // Scroll active show into view on guide open
+    useEffect(() => {
+        if (showEpgGuide) {
+            setTimeout(() => {
+                activeProgramRef.current?.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'center'
+                });
+            }, 300);
+        }
+    }, [showEpgGuide]);
+
+    const handleClose = () => {
+        const isPip = document.pictureInPictureElement && document.pictureInPictureElement === videoRef.current;
+        if (isPip) {
+            setIsMinimized(true);
+        } else {
+            onClose();
         }
     };
 
@@ -336,7 +410,7 @@ export const LiveTVPlayer: React.FC<LiveTVPlayerProps> = ({ channel, playlist = 
                 e.preventDefault();
                 setShowEpgGuide(prev => !prev);
             } else if (e.key === 'Escape' && !document.fullscreenElement) {
-                onClose();
+                handleClose();
             }
         };
 
@@ -361,15 +435,19 @@ export const LiveTVPlayer: React.FC<LiveTVPlayerProps> = ({ channel, playlist = 
     return (
         <div 
             ref={containerRef}
-            className="fixed inset-0 z-[100] bg-black flex flex-col animate-in fade-in duration-300 group select-none overflow-hidden"
+            className={`fixed bg-black z-[100] flex flex-col group select-none overflow-hidden transition-all duration-300 ${
+                isMinimized 
+                    ? 'left-[-9999px] top-[-9999px] w-[1px] h-[1px] opacity-0 pointer-events-none' 
+                    : 'inset-0'
+            }`}
             onMouseMove={handleMouseMove}
             onMouseLeave={handleMouseLeave}
         >
             {/* Header / Top Overlay (Cinematic Glassmorphism) */}
-            <div className={`absolute top-0 left-0 right-0 p-6 z-20 flex items-center transition-all duration-300 ${showControls ? 'translate-y-0 opacity-100 pointer-events-auto' : '-translate-y-4 opacity-0 pointer-events-none'}`}>
+            <div className={`absolute top-0 left-0 right-0 p-6 z-20 flex items-center transition-all duration-300 ${showControls && !isMinimized ? 'translate-y-0 opacity-100 pointer-events-auto' : '-translate-y-4 opacity-0 pointer-events-none'}`}>
                 <div className="flex items-center gap-4">
                     <button 
-                        onClick={onClose} 
+                        onClick={handleClose} 
                         className="bg-white/5 hover:bg-white/10 p-2.5 rounded-full text-white transition-all duration-300 border border-white/5 hover:border-white/20 active:scale-90 shadow-lg"
                         title="Back"
                     >
@@ -483,10 +561,34 @@ export const LiveTVPlayer: React.FC<LiveTVPlayerProps> = ({ channel, playlist = 
                     autoPlay
                     muted={isMuted}
                 />
+
+                {isCasting && (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center text-white z-15 bg-black/90 backdrop-blur-md p-6 text-center animate-in fade-in duration-300">
+                        <div className="bg-[#0e0e10]/60 border border-white/5 rounded-3xl p-8 max-w-[340px] w-full shadow-2xl relative overflow-hidden text-center animate-in zoom-in-95 duration-200">
+                            <div className="absolute top-0 left-0 w-full h-1 bg-red-600"></div>
+                            
+                            <div className="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center mx-auto mb-5 border border-red-500/20 animate-pulse">
+                                <Cast size={30} className="text-red-500"/>
+                            </div>
+                            
+                            <h2 className="text-base font-extrabold mb-1 tracking-tight text-white font-sans text-center">Connected to TV</h2>
+                            <p className="text-gray-400 text-[10px] leading-relaxed mb-6 px-1 font-medium text-center">
+                                Currently casting <span className="text-white font-bold">{channel.name}</span> to <span className="text-red-400 font-bold">{castingDevice || 'Chromecast Device'}</span>.
+                            </p>
+                            
+                            <button 
+                                onClick={stopCasting} 
+                                className="w-full h-10 px-4 bg-red-600 hover:bg-red-700 text-white font-bold text-[10px] uppercase tracking-wider rounded-xl transition-all active:scale-95 shadow-lg shadow-red-600/20 flex items-center justify-center gap-1.5"
+                            >
+                                Stop Casting
+                            </button>
+                        </div>
+                    </div>
+                )}
             </div>
 
             {/* Bottom Controls Overlay (Cinematic Glassmorphism) */}
-            <div className={`absolute bottom-0 left-0 right-0 z-20 bg-gradient-to-t from-black/95 via-black/60 to-transparent px-6 pb-6 pt-16 transition-all duration-300 ${showControls ? 'translate-y-0 opacity-100 pointer-events-auto' : 'translate-y-4 opacity-0 pointer-events-none'}`}>
+            <div className={`absolute bottom-0 left-0 right-0 z-20 bg-gradient-to-t from-black/95 via-black/60 to-transparent px-6 pb-6 pt-16 transition-all duration-300 ${showControls && !isMinimized ? 'translate-y-0 opacity-100 pointer-events-auto' : 'translate-y-4 opacity-0 pointer-events-none'}`}>
                 <div className="flex flex-col gap-4 w-full">
                     {/* Live Stream visual timeline tracker (EPG based) */}
                     <div className="flex flex-col gap-1.5 w-full text-left select-none">
@@ -604,6 +706,28 @@ export const LiveTVPlayer: React.FC<LiveTVPlayerProps> = ({ channel, playlist = 
                         </div>
 
                         <div className="flex items-center gap-4">
+                            {/* Google Cast / Chromecast button */}
+                            {isChromecastAvailable && (
+                                <button 
+                                    onClick={() => castChannel(servers[currentServerIndex]?.url || channel.url, channel.name, channel.logo)} 
+                                    className={`text-white hover:text-red-500 transition-all duration-300 p-2.5 hover:bg-white/10 rounded-full border border-white/5 ${isCasting ? 'bg-red-600 text-white border-red-500' : ''}`}
+                                    title={isCasting ? `Casting to ${castingDevice}` : "Cast to TV (Chromecast)"}
+                                >
+                                    <Cast size={20}/>
+                                </button>
+                            )}
+
+                            {/* AirPlay button */}
+                            {isAirPlayAvailable && (
+                                <button 
+                                    onClick={airPlay} 
+                                    className="text-white hover:text-red-500 transition-all duration-300 p-2.5 hover:bg-white/10 rounded-full border border-white/5"
+                                    title="AirPlay to Apple TV"
+                                >
+                                    <Tv size={20}/>
+                                </button>
+                            )}
+
                             {/* PiP Mode Button */}
                             {isPipSupported && (
                                 <button 
@@ -714,14 +838,26 @@ export const LiveTVPlayer: React.FC<LiveTVPlayerProps> = ({ channel, playlist = 
                             Program Timeline
                         </h4>
                         
-                        <div className="flex justify-between text-[9px] text-zinc-500 font-bold mb-1.5 px-1">
-                            <span>{new Date(Date.now() - 3600000).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</span>
-                            <span>{new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</span>
-                            <span>{new Date(Date.now() + 3600000).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</span>
-                            <span>{new Date(Date.now() + 7200000).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</span>
+                        <div className="flex justify-between text-[9px] text-zinc-500 font-bold mb-1.5 px-1 select-none">
+                            {(() => {
+                                const currentHour = new Date();
+                                currentHour.setMinutes(0, 0, 0);
+                                const h1 = new Date(currentHour.getTime() - 3600000);
+                                const h2 = currentHour;
+                                const h3 = new Date(currentHour.getTime() + 3600000);
+                                const h4 = new Date(currentHour.getTime() + 7200000);
+                                return (
+                                    <>
+                                        <span>{h1.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</span>
+                                        <span>{h2.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</span>
+                                        <span>{h3.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</span>
+                                        <span>{h4.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</span>
+                                    </>
+                                );
+                            })()}
                         </div>
                         
-                        <div className="h-6 w-full rounded-lg bg-zinc-950/60 border border-white/5 overflow-hidden flex relative">
+                        <div className="h-10 w-full rounded-lg bg-zinc-950/60 border border-white/5 overflow-hidden flex relative select-none">
                             {(() => {
                                 const schedule = generateEPG(channel);
                                 const now = new Date();
@@ -734,16 +870,22 @@ export const LiveTVPlayer: React.FC<LiveTVPlayerProps> = ({ channel, playlist = 
                                 return list.map((p, i) => {
                                     const percent = (p.duration / totalDuration) * 100;
                                     const isPlayingNow = now >= p.startTime && now < p.endTime;
+                                    const isPast = now > p.endTime;
                                     return (
                                         <div 
                                             key={i}
-                                            className={`h-full border-r border-white/10 flex flex-col justify-center px-2 transition-all relative ${
-                                                isPlayingNow ? 'bg-red-600/20 text-red-400 font-bold' : 'bg-white/[0.01] text-zinc-500'
+                                            className={`h-full border-r border-white/5 flex flex-col justify-center px-3 transition-all relative ${
+                                                isPlayingNow 
+                                                    ? 'bg-gradient-to-r from-red-600/20 to-red-600/5 text-red-400 font-extrabold border-l-2 border-red-500' 
+                                                    : isPast 
+                                                        ? 'bg-black/40 text-zinc-600 opacity-40' 
+                                                        : 'bg-white/[0.01] text-zinc-400 font-semibold'
                                             }`}
                                             style={{ width: `${percent}%` }}
                                             title={`${p.title} (${p.duration}m)`}
                                         >
-                                            <span className="text-[9px] truncate">{p.title}</span>
+                                            <span className="text-[10px] truncate block leading-tight">{p.title}</span>
+                                            <span className="text-[8px] text-zinc-500 font-normal leading-none mt-0.5">{p.duration}m</span>
                                             {isPlayingNow && (
                                                 <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-red-500" />
                                             )}
@@ -764,12 +906,16 @@ export const LiveTVPlayer: React.FC<LiveTVPlayerProps> = ({ channel, playlist = 
                         return (
                             <div 
                                 key={idx} 
-                                className={`p-3.5 rounded-xl border transition-all duration-300 flex flex-col gap-1.5 ${
+                                ref={isCurrent ? activeProgramRef : undefined}
+                                className={`p-4 rounded-xl border transition-all duration-300 flex flex-col gap-1.5 relative overflow-hidden ${
                                     isCurrent 
-                                        ? 'bg-red-600/10 border-red-500/35 shadow-lg shadow-red-600/5' 
+                                        ? 'bg-gradient-to-r from-red-600/10 to-red-600/[0.02] border-red-500/40 shadow-lg shadow-red-600/5' 
                                         : 'bg-white/[0.02] border-white/5 hover:bg-white/[0.04]'
                                 }`}
                             >
+                                {isCurrent && (
+                                    <div className="absolute top-0 bottom-0 left-0 w-1 bg-red-600 animate-[pulse_2s_infinite]"></div>
+                                )}
                                 <div className="flex items-start justify-between gap-2">
                                     <h4 className={`text-xs font-bold leading-tight ${isCurrent ? 'text-red-500' : 'text-gray-200'}`}>
                                         {program.title}
@@ -809,9 +955,9 @@ export const LiveTVPlayer: React.FC<LiveTVPlayerProps> = ({ channel, playlist = 
                                     onClick={() => {
                                         if (onChannelChange) onChannelChange(recChannel);
                                     }}
-                                    className="p-2 rounded-lg bg-white/5 hover:bg-white/10 border border-white/5 cursor-pointer transition-all flex items-center gap-2 group/rec select-none"
+                                    className="p-3.5 rounded-xl bg-white/[0.02] hover:bg-white/[0.06] border border-white/5 cursor-pointer transition-all duration-300 flex items-center gap-3 group/rec select-none hover:border-red-500/20 active:scale-95"
                                 >
-                                    <div className="w-8 h-8 bg-black/40 rounded flex items-center justify-center p-1 border border-white/5 shrink-0">
+                                    <div className="w-10 h-10 bg-black/40 rounded-xl p-1.5 border border-white/5 shrink-0 flex items-center justify-center group-hover/rec:border-white/20 transition-all shadow-inner">
                                         {recChannel.logo ? (
                                             <img src={recChannel.logo} className="max-w-full max-h-full object-contain filter drop-shadow" alt="" onError={(e) => { e.currentTarget.style.display = 'none'; }}/>
                                         ) : (
