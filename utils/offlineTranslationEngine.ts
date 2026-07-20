@@ -182,6 +182,66 @@ export function cleanJapaneseText(raw: string): string {
     .trim();
 }
 
+function isHallucinatedTranslation(text: string): boolean {
+  if (!text || text.length < 1) return true;
+  const lower = text.toLowerCase();
+
+  const badPhrases = [
+    "bibliography",
+    "measure reviews",
+    "roninininini",
+    "chico lilomako",
+    "connie eleven",
+    "hupong thorzin",
+    "unji dento",
+    "tembebe",
+    "peppe ben al",
+    "punteni",
+    "nitemimi",
+    "mankeshi",
+    "modabojinrei",
+    "shirk",
+    "lupo",
+    "invalid",
+    "quota exceeded",
+    "translation error"
+  ];
+
+  for (const phrase of badPhrases) {
+    if (lower.includes(phrase)) return true;
+  }
+
+  const words = lower.split(/\s+/);
+  if (words.length > 5) {
+    const wordCounts: Record<string, number> = {};
+    for (const w of words) {
+      if (w.length > 2) {
+        wordCounts[w] = (wordCounts[w] || 0) + 1;
+        if (wordCounts[w] >= 4) return true;
+      }
+    }
+  }
+
+  return false;
+}
+
+function decodeHtmlEntities(str: string): string {
+  if (!str) return '';
+  return str
+    .replace(/&amp;/g, '&')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&#x27;/g, "'")
+    .replace(/&ldquo;/g, '"')
+    .replace(/&rdquo;/g, '"')
+    .replace(/&lsquo;/g, "'")
+    .replace(/&raquo;/g, '"')
+    .replace(/&laquo;/g, '"')
+    .replace(/&rsquo;/g, "'")
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>');
+}
+
 /**
  * High-accuracy translation using Free Online NMT API with local dictionary fallback
  */
@@ -209,13 +269,13 @@ export async function translateJapaneseText(rawText: string): Promise<Translatio
         const data = await res.json();
         let translatedText = data.responseData?.translatedText;
         if (translatedText && typeof translatedText === 'string') {
-          translatedText = translatedText.replace(/&#39;/g, "'").replace(/&quot;/g, '"').trim();
+          translatedText = decodeHtmlEntities(translatedText).trim();
           // Verify it's English text, not returned raw Japanese or error string
           if (
             translatedText &&
             !/[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/.test(translatedText) &&
             translatedText.toLowerCase() !== clean.toLowerCase() &&
-            !translatedText.includes("INVALID")
+            !isHallucinatedTranslation(translatedText)
           ) {
             return {
               translatedText: capitalizeFirstLetter(translatedText),

@@ -70,7 +70,7 @@ export function detectSpeechBubbles(
   const lightPixels = new Uint8Array(gridW * gridH);
   const darkTextPixels = new Uint8Array(gridW * gridH);
 
-  // 1. Analyze brightness & dark text stroke density
+  // 1. Analyze brightness & dark text stroke density (tuned to handle off-white/grey pages)
   for (let gy = 0; gy < gridH; gy++) {
     for (let gx = 0; gx < gridW; gx++) {
       const px = gx * step;
@@ -83,8 +83,8 @@ export function detectSpeechBubbles(
       const lum = 0.299 * r + 0.587 * g + 0.114 * b;
 
       const gridIdx = gy * gridW + gx;
-      if (lum > 220) lightPixels[gridIdx] = 1;      // Speech bubble interior
-      if (lum < 70) darkTextPixels[gridIdx] = 1;     // Dark text stroke candidate
+      if (lum > 190) lightPixels[gridIdx] = 1;      // Speech bubble interior (allow off-white/light-grey)
+      if (lum < 95) darkTextPixels[gridIdx] = 1;     // Dark text stroke candidate
     }
   }
 
@@ -123,18 +123,38 @@ export function detectSpeechBubbles(
         const boxX = minGx * step;
         const boxY = minGy * step;
 
-        // Verify size limits for valid speech bubble text (supports tall vertical manga bubbles)
+        // Verify size limits for valid speech bubble text (slightly relaxed for flexibility)
         const isMinSize = boxW >= width * 0.015 && boxH >= height * 0.015;
-        const isMaxSize = boxW <= width * 0.60 && boxH <= height * 0.70;
+        const isMaxSize = boxW <= width * 0.50 && boxH <= height * 0.60;
 
         if (isMinSize && isMaxSize && darkCount >= 2) {
-          textClusters.push({
-            minX: Math.max(0, boxX - 16),
-            minY: Math.max(0, boxY - 16),
-            maxX: Math.min(width, boxX + boxW + 16),
-            maxY: Math.min(height, boxY + boxH + 16),
-            darkCount
-          });
+          // CRITICAL: Verify that the interior of the box is predominantly white/light (speech bubble interior)
+          let whiteCount = 0;
+          let totalPoints = 0;
+
+          for (let gy = Math.floor(boxY / step); gy <= Math.floor((boxY + boxH) / step); gy++) {
+            for (let gx = Math.floor(boxX / step); gx <= Math.floor((boxX + boxW) / step); gx++) {
+              if (gx >= 0 && gx < gridW && gy >= 0 && gy < gridH) {
+                totalPoints++;
+                if (lightPixels[gy * gridW + gx] === 1) {
+                  whiteCount++;
+                }
+              }
+            }
+          }
+
+          const whiteRatio = totalPoints > 0 ? whiteCount / totalPoints : 0;
+
+          // Reject if not inside a verified white speech bubble container (ratio relaxed for dense text)
+          if (whiteRatio >= 0.35) {
+            textClusters.push({
+              minX: Math.max(0, boxX - 6),
+              minY: Math.max(0, boxY - 6),
+              maxX: Math.min(width, boxX + boxW + 6),
+              maxY: Math.min(height, boxY + boxH + 6),
+              darkCount
+            });
+          }
         }
       }
     }
@@ -313,48 +333,67 @@ export function renderTypesetMangaCanvas(
 
     ctx.save();
 
-    // 1. Calculate speech bubble oval bounds
+    // 1. Calculate speech bubble center & text layout
     const centerX = b.x + b.width / 2;
     const centerY = b.y + b.height / 2;
-    const radiusX = Math.max(10, b.width / 2 + 2);
-    const radiusY = Math.max(10, b.height / 2 + 2);
+    const formattedText = b.translatedEnglishText.toUpperCase();
 
-    // 2. Inpaint interior with pure bubble white fill (NO rectangular borders/stickers)
+    // Dynamically fit font size and wrap text within the detected bounding box limits
+    let fontSize = Math.max(12, Math.min(22, Math.floor(b.height / 4)));
+    let lines: string[] = [];
+    let lineHeight = fontSize * 1.15;
+    let totalHeight = 0;
+    let maxMeasuredWidth = 0;
+
+    while (fontSize >= 9) {
+      ctx.font = `700 ${fontSize}px "Bangers", "Comic Sans MS", "Changa", sans-serif`;
+      const words = formattedText.split(' ');
+      lines = [];
+      let currentLine = '';
+      const maxLineWidth = Math.max(50, b.width - 8);
+
+      for (const word of words) {
+        const testLine = currentLine ? `${currentLine} ${word}` : word;
+        const metrics = ctx.measureText(testLine);
+        if (metrics.width > maxLineWidth && currentLine) {
+          lines.push(currentLine);
+          currentLine = word;
+        } else {
+          currentLine = testLine;
+        }
+      }
+      if (currentLine) lines.push(currentLine);
+
+      lineHeight = fontSize * 1.15;
+      totalHeight = lines.length * lineHeight;
+      maxMeasuredWidth = 0;
+      for (const line of lines) {
+        const w = ctx.measureText(line).width;
+        if (w > maxMeasuredWidth) maxMeasuredWidth = w;
+      }
+
+      // Check if it fits within the box boundaries
+      if (totalHeight <= b.height - 4 && maxMeasuredWidth <= b.width - 4) {
+        break;
+      }
+      fontSize--;
+    }
+
+    // Ellipse radii to fully cover the original text box (no Japanese peeking) and fit English text (no spilling)
+    const radiusX = Math.max(b.width / 2 + 4, maxMeasuredWidth / 2 + 8);
+    const radiusY = Math.max(b.height / 2 + 4, totalHeight / 2 + 6);
+
+    // 2. Render white bubble background centered exactly on the text box
     ctx.fillStyle = '#ffffff';
     ctx.beginPath();
     ctx.ellipse(centerX, centerY, radiusX, radiusY, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // 3. Render uppercase Manga Lettering
+    // 3. Render uppercase Manga Lettering centered exactly on the text box
     ctx.fillStyle = '#000000';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
 
-    // Format text into uppercase for official manga lettering feel
-    const formattedText = b.translatedEnglishText.toUpperCase();
-
-    let fontSize = Math.max(11, Math.min(20, Math.floor(radiusY / 2.8)));
-    ctx.font = `700 ${fontSize}px "Bangers", "Comic Sans MS", "Changa", sans-serif`;
-
-    const words = formattedText.split(' ');
-    const lines: string[] = [];
-    let currentLine = '';
-    const maxLineWidth = radiusX * 1.65;
-
-    for (const word of words) {
-      const testLine = currentLine ? `${currentLine} ${word}` : word;
-      const metrics = ctx.measureText(testLine);
-      if (metrics.width > maxLineWidth && currentLine) {
-        lines.push(currentLine);
-        currentLine = word;
-      } else {
-        currentLine = testLine;
-      }
-    }
-    if (currentLine) lines.push(currentLine);
-
-    const lineHeight = fontSize * 1.25;
-    const totalHeight = lines.length * lineHeight;
     let startY = centerY - totalHeight / 2 + lineHeight / 2;
 
     for (const line of lines) {
