@@ -792,13 +792,14 @@ export const PodcastsPage: React.FC<PodcastsPageProps> = ({ searchQuery = "", on
             </div>
 
             {/* Top Bar Header */}
-            <div className="relative z-10 px-6 py-4 flex items-center justify-between border-b border-white/10 bg-black/40 backdrop-blur-md shrink-0">
+            <div className="relative z-10 px-6 py-4 flex items-center justify-between border-b border-white/10 bg-black/60 backdrop-blur-md shrink-0">
               <button
                 onClick={() => setIsFullScreenPlayerOpen(false)}
-                className="p-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-zinc-300 hover:text-white flex items-center gap-1.5 text-xs font-semibold cursor-pointer transition-all"
+                className="px-4 py-2 rounded-2xl bg-purple-600/30 hover:bg-purple-600 border border-purple-500/40 hover:border-purple-500 text-white font-bold text-xs flex items-center gap-2 transition-all active:scale-95 shadow-lg shadow-purple-900/30 cursor-pointer group"
+                title="Shrink Player to Mini-bar"
               >
-                <ChevronDown size={18} />
-                <span className="hidden sm:inline">Minimize</span>
+                <ChevronDown size={20} className="text-purple-300 group-hover:text-white group-hover:translate-y-0.5 transition-transform" />
+                <span>Minimize Player</span>
               </button>
 
               <div className="text-center min-w-0 px-4">
