@@ -123,11 +123,10 @@ export const PodcastsPage: React.FC<PodcastsPageProps> = ({ searchQuery = "", on
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Podcast Detail Modal State
+  // Podcast Detail View State
   const [selectedShow, setSelectedShow] = useState<PodcastShow | null>(null);
   const [showEpisodes, setShowEpisodes] = useState<PodcastEpisode[]>([]);
   const [loadingEpisodes, setLoadingEpisodes] = useState(false);
-  const [episodeSearchFilter, setEpisodeSearchFilter] = useState("");
   const [copiedEmail, setCopiedEmail] = useState(false);
 
   // Active Playback State
@@ -617,17 +616,485 @@ export const PodcastsPage: React.FC<PodcastsPageProps> = ({ searchQuery = "", on
     setTimeout(() => setCopiedEmail(false), 2000);
   };
 
-  const filteredEpisodes = showEpisodes.filter(ep => 
-    !episodeSearchFilter || 
-    ep.title.toLowerCase().includes(episodeSearchFilter.toLowerCase()) ||
-    ep.description.toLowerCase().includes(episodeSearchFilter.toLowerCase())
-  );
-
   const activeEpisode = activeEpisodeIndex >= 0 ? episodesQueue[activeEpisodeIndex] : null;
+
+  // Render Persistent Player Bar Helper
+  const renderFloatingPlayerBar = () => {
+    if (!activeEpisode) return null;
+    return (
+      <>
+        {/* Persistent Floating Mini Player */}
+        <div className="fixed bottom-0 inset-x-0 z-40 bg-zinc-950/95 backdrop-blur-xl border-t border-white/10 px-4 py-3 shadow-[0_-10px_30px_rgba(0,0,0,0.8)] animate-in slide-in-from-bottom duration-300 text-left">
+          <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-3">
+            
+            {/* Left: Artwork + Titles (Clickable to open Expandable Full Screen Player) */}
+            <div 
+              onClick={() => setIsFullScreenPlayerOpen(true)}
+              className="flex items-center gap-3 w-full md:w-1/4 shrink-0 min-w-0 cursor-pointer group hover:opacity-90 transition-all"
+            >
+              <div className="relative w-12 h-12 rounded-xl overflow-hidden bg-zinc-900 border border-white/10 shrink-0 group-hover:border-purple-500/50 transition-colors">
+                <img
+                  src={activeEpisode.artworkUrl || currentShow?.artworkUrl}
+                  alt=""
+                  className="w-full h-full object-cover"
+                />
+                {isLoadingAudio && (
+                  <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                    <Loader2 className="animate-spin text-purple-400" size={16} />
+                  </div>
+                )}
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-1">
+                  <h4 className="text-xs font-bold text-white truncate group-hover:text-purple-300 transition-colors">{activeEpisode.title}</h4>
+                  <Maximize2 size={11} className="text-zinc-500 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 ml-1" />
+                </div>
+                <p className="text-[10px] text-zinc-400 truncate">{currentShow?.title || "Podcast Episode"}</p>
+              </div>
+            </div>
+
+            {/* Center: Play Controls & Progress Bar */}
+            <div className="flex flex-col items-center w-full md:w-2/4 space-y-1.5">
+              
+              {/* Playback Buttons */}
+              <div className="flex items-center gap-4">
+                <button
+                  onClick={skipPrevious}
+                  disabled={activeEpisodeIndex <= 0}
+                  className="text-zinc-400 hover:text-white disabled:opacity-30 cursor-pointer transition-colors"
+                  title="Previous Episode"
+                >
+                  <SkipBack size={18} />
+                </button>
+
+                <button
+                  onClick={skipBackward15}
+                  className="text-zinc-400 hover:text-white cursor-pointer transition-colors"
+                  title="Rewind 15s"
+                >
+                  <RotateCcw size={16} />
+                </button>
+
+                <button
+                  onClick={handleTogglePlay}
+                  className="w-10 h-10 rounded-full bg-purple-600 hover:bg-purple-500 text-white flex items-center justify-center shadow-lg shadow-purple-600/40 transition-transform active:scale-95 cursor-pointer"
+                >
+                  {isLoadingAudio ? (
+                    <Loader2 className="animate-spin" size={18} />
+                  ) : isPlaying ? (
+                    <Pause size={18} fill="currentColor" />
+                  ) : (
+                    <Play size={18} fill="currentColor" className="ml-0.5" />
+                  )}
+                </button>
+
+                <button
+                  onClick={skipForward15}
+                  className="text-zinc-400 hover:text-white cursor-pointer transition-colors"
+                  title="Forward 15s"
+                >
+                  <FastForward size={18} />
+                </button>
+
+                <button
+                  onClick={skipNext}
+                  disabled={activeEpisodeIndex >= episodesQueue.length - 1}
+                  className="text-zinc-400 hover:text-white disabled:opacity-30 cursor-pointer transition-colors"
+                  title="Next Episode"
+                >
+                  <SkipForward size={18} />
+                </button>
+              </div>
+
+              {/* Progress Slider Bar & Timestamps */}
+              <div className="flex items-center gap-2 w-full text-[10px] font-mono text-zinc-400">
+                <span className="w-10 text-right">{formatTime(audioProgress)}</span>
+                <input
+                  type="range"
+                  min={0}
+                  max={audioDuration || 100}
+                  value={audioProgress}
+                  onChange={(e) => handleSeek(parseFloat(e.target.value))}
+                  className="flex-1 h-1 bg-zinc-800 accent-purple-500 rounded-lg cursor-pointer"
+                />
+                <span className="w-10 text-left">{formatTime(audioDuration)}</span>
+              </div>
+            </div>
+
+            {/* Right: Volume, Speed, Fullscreen & Queue Toggle */}
+            <div className="flex items-center justify-end gap-2.5 w-full md:w-1/4 shrink-0">
+              
+              {/* Speed Button */}
+              <button
+                onClick={cycleSpeed}
+                className="px-2 py-1 rounded-md bg-zinc-900 border border-white/10 text-[10px] font-mono font-bold text-purple-400 hover:border-purple-500 transition-colors cursor-pointer"
+              >
+                {playbackSpeed}x
+              </button>
+
+              {/* Volume & Mute */}
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={() => setIsMuted(!isMuted)}
+                  className="text-zinc-400 hover:text-white cursor-pointer"
+                >
+                  {isMuted || volume === 0 ? <VolumeX size={16} /> : <Volume2 size={16} />}
+                </button>
+                <input
+                  type="range"
+                  min={0}
+                  max={1}
+                  step={0.05}
+                  value={isMuted ? 0 : volume}
+                  onChange={(e) => {
+                    setVolume(parseFloat(e.target.value));
+                    if (isMuted) setIsMuted(false);
+                  }}
+                  className="w-16 h-1 bg-zinc-800 accent-purple-500 rounded-lg cursor-pointer"
+                />
+              </div>
+
+              {/* Expand Fullscreen Button */}
+              <button
+                onClick={() => setIsFullScreenPlayerOpen(true)}
+                className="p-2 rounded-xl bg-zinc-900 border border-white/10 text-zinc-400 hover:text-white transition-colors cursor-pointer"
+                title="Expand Fullscreen Player"
+              >
+                <Maximize2 size={15} />
+              </button>
+
+              {/* Queue Drawer Button */}
+              <button
+                onClick={() => setIsQueueDrawerOpen(!isQueueDrawerOpen)}
+                className={`p-2 rounded-xl border transition-colors cursor-pointer ${
+                  isQueueDrawerOpen ? 'bg-purple-600 border-purple-500 text-white' : 'bg-zinc-900 border-white/10 text-zinc-400 hover:text-white'
+                }`}
+                title="Episode Queue"
+              >
+                <ListMusic size={15} />
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Expandable Fullscreen Player Overlay */}
+        {isFullScreenPlayerOpen && (
+          <div className="fixed inset-0 z-50 bg-[#07070a] text-white flex flex-col justify-between overflow-y-auto animate-in slide-in-from-bottom duration-300 select-none">
+            
+            {/* Glowing Ambient Background Artwork */}
+            <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
+              <img
+                src={activeEpisode.artworkUrl || currentShow?.artworkUrl}
+                alt=""
+                className="w-full h-full object-cover blur-3xl opacity-20 scale-125 transition-all duration-700"
+              />
+              <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-[#07070a]/90 to-[#07070a]" />
+            </div>
+
+            {/* Top Bar Header */}
+            <div className="relative z-10 px-6 py-4 flex items-center justify-between border-b border-white/10 bg-black/40 backdrop-blur-md shrink-0">
+              <button
+                onClick={() => setIsFullScreenPlayerOpen(false)}
+                className="p-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-zinc-300 hover:text-white flex items-center gap-1.5 text-xs font-semibold cursor-pointer transition-all"
+              >
+                <ChevronDown size={18} />
+                <span className="hidden sm:inline">Minimize</span>
+              </button>
+
+              <div className="text-center min-w-0 px-4">
+                <span className="text-[10px] font-bold tracking-widest text-purple-400 uppercase flex items-center justify-center gap-1">
+                  <Radio size={12} className="animate-pulse" /> Playing Podcast Episode
+                </span>
+                <p className="text-xs text-zinc-400 truncate max-w-xs md:max-w-md font-medium">
+                  {currentShow?.title || "Podcast Player"}
+                </p>
+              </div>
+
+              <button
+                onClick={() => setIsQueueDrawerOpen(!isQueueDrawerOpen)}
+                className={`p-2 px-3 rounded-xl border text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-all ${
+                  isQueueDrawerOpen ? 'bg-purple-600 border-purple-500 text-white' : 'bg-white/5 hover:bg-white/10 border-white/10 text-zinc-300'
+                }`}
+              >
+                <ListMusic size={15} />
+                <span className="hidden sm:inline">Queue ({episodesQueue.length})</span>
+              </button>
+            </div>
+
+            {/* Main Full-Screen Player Deck, Description & Queue Layout */}
+            <div className="relative z-10 max-w-7xl mx-auto w-full px-6 py-8 flex-1 flex flex-col space-y-10 my-auto text-left">
+              
+              {/* Top Section: Left Audio Player Deck, Right Full Description & Queue */}
+              <div className="flex flex-col lg:flex-row items-center lg:items-start justify-between gap-8 lg:gap-12 w-full">
+                
+                {/* Left Column: Main Player Deck */}
+                <div className="flex flex-col items-center w-full lg:w-1/2 max-w-md space-y-6 mx-auto lg:mx-0 shrink-0">
+                  
+                  {/* Album Artwork */}
+                  <div className="relative w-64 h-64 sm:w-72 sm:h-72 md:w-80 md:h-80 rounded-3xl overflow-hidden border border-white/15 shadow-[0_20px_50px_rgba(0,0,0,0.8)] shrink-0 bg-zinc-900 group">
+                    <img
+                      src={activeEpisode.artworkUrl || currentShow?.artworkUrl}
+                      alt={activeEpisode.title}
+                      className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                    />
+                    {isLoadingAudio && (
+                      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center gap-2">
+                        <Loader2 className="animate-spin text-purple-400" size={32} />
+                        <span className="text-xs font-mono text-purple-200">Loading audio stream...</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Title & Metadata */}
+                  <div className="w-full text-center space-y-2">
+                    <div className="flex flex-wrap items-center justify-center gap-2">
+                      {currentShow?.categories[0] && (
+                        <span className="px-2.5 py-0.5 rounded-full bg-purple-600/20 border border-purple-500/30 text-purple-300 text-[10px] font-bold uppercase tracking-wider">
+                          {currentShow.categories[0]}
+                        </span>
+                      )}
+                      {activeEpisode.publishDate && (
+                        <span className="px-2.5 py-0.5 rounded-full bg-white/5 border border-white/10 text-zinc-400 text-[10px] font-mono flex items-center gap-1">
+                          <Calendar size={10} /> {activeEpisode.publishDate}
+                        </span>
+                      )}
+                    </div>
+
+                    <h2 className="text-base sm:text-lg md:text-xl font-black text-white leading-tight tracking-tight line-clamp-2">
+                      {activeEpisode.title}
+                    </h2>
+                    <p className="text-xs sm:text-sm text-purple-400 font-medium line-clamp-1">
+                      {currentShow?.title} {currentShow?.author ? `• by ${currentShow.author}` : ''}
+                    </p>
+                  </div>
+
+                  {/* Scrubber / Progress Bar */}
+                  <div className="w-full space-y-1">
+                    <input
+                      type="range"
+                      min={0}
+                      max={audioDuration || 100}
+                      value={audioProgress}
+                      onChange={(e) => handleSeek(parseFloat(e.target.value))}
+                      className="w-full h-1.5 bg-zinc-800 accent-purple-500 rounded-lg cursor-pointer transition-all"
+                    />
+                    <div className="flex items-center justify-between text-xs font-mono text-zinc-400">
+                      <span>{formatTime(audioProgress)}</span>
+                      <span>{formatTime(audioDuration)}</span>
+                    </div>
+                  </div>
+
+                  {/* Full Control Deck Buttons */}
+                  <div className="w-full flex items-center justify-between gap-3 pt-1">
+                    
+                    {/* Speed Button */}
+                    <button
+                      onClick={cycleSpeed}
+                      className="px-2.5 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-mono font-bold text-purple-400 hover:border-purple-500/50 transition-all cursor-pointer"
+                      title="Playback Speed"
+                    >
+                      {playbackSpeed}x
+                    </button>
+
+                    {/* Rewind 15s */}
+                    <button
+                      onClick={skipBackward15}
+                      className="p-2.5 rounded-full bg-white/5 hover:bg-white/10 text-zinc-300 hover:text-white transition-all cursor-pointer"
+                      title="Rewind 15s"
+                    >
+                      <RotateCcw size={18} />
+                    </button>
+
+                    {/* Previous Episode */}
+                    <button
+                      onClick={skipPrevious}
+                      disabled={activeEpisodeIndex <= 0}
+                      className="p-2 rounded-full text-zinc-300 hover:text-white disabled:opacity-20 transition-all cursor-pointer"
+                      title="Previous Episode"
+                    >
+                      <SkipBack size={20} />
+                    </button>
+
+                    {/* Big Central Play/Pause Button */}
+                    <button
+                      onClick={handleTogglePlay}
+                      className="w-14 h-14 rounded-full bg-purple-600 hover:bg-purple-500 text-white flex items-center justify-center shadow-[0_0_30px_rgba(168,85,247,0.5)] transition-all transform hover:scale-105 active:scale-95 cursor-pointer shrink-0"
+                    >
+                      {isLoadingAudio ? (
+                        <Loader2 className="animate-spin" size={24} />
+                      ) : isPlaying ? (
+                        <Pause size={24} fill="currentColor" />
+                      ) : (
+                        <Play size={24} fill="currentColor" className="ml-1" />
+                      )}
+                    </button>
+
+                    {/* Next Episode */}
+                    <button
+                      onClick={skipNext}
+                      disabled={activeEpisodeIndex >= episodesQueue.length - 1}
+                      className="p-2 rounded-full text-zinc-300 hover:text-white disabled:opacity-20 transition-all cursor-pointer"
+                      title="Next Episode"
+                    >
+                      <SkipForward size={20} />
+                    </button>
+
+                    {/* Forward 15s */}
+                    <button
+                      onClick={skipForward15}
+                      className="p-2.5 rounded-full bg-white/5 hover:bg-white/10 text-zinc-300 hover:text-white transition-all cursor-pointer"
+                      title="Forward 15s"
+                    >
+                      <FastForward size={18} />
+                    </button>
+
+                    {/* Mute & Volume */}
+                    <button
+                      onClick={() => setIsMuted(!isMuted)}
+                      className="p-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-zinc-300 hover:text-white transition-all cursor-pointer"
+                      title="Mute / Unmute"
+                    >
+                      {isMuted || volume === 0 ? <VolumeX size={18} /> : <Volume2 size={18} />}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Right Column: Full Episode Overview & Episodes Queue */}
+                <div className="flex-1 w-full space-y-6 text-left">
+                  
+                  {/* Full Episode Description */}
+                  <div className="space-y-2.5 border-b border-white/10 pb-5">
+                    <h3 className="text-sm font-bold text-purple-400 uppercase tracking-wider flex items-center gap-2">
+                      <Info size={16} /> Episode Overview & Notes
+                    </h3>
+                    <div className="text-xs md:text-sm text-zinc-300 font-light leading-relaxed max-h-44 overflow-y-auto pr-2 hide-scrollbar whitespace-pre-wrap">
+                      {activeEpisode.description || "No detailed overview available for this episode."}
+                    </div>
+                  </div>
+
+                  {/* Episodes Queue List */}
+                  <div className="space-y-3">
+                    <h3 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                      <ListMusic size={16} className="text-purple-400" /> Queue / Up Next ({episodesQueue.length})
+                    </h3>
+
+                    <div className="space-y-2 max-h-56 overflow-y-auto pr-1 hide-scrollbar">
+                      {episodesQueue.map((ep, idx) => {
+                        const isSelectedEp = activeEpisodeIndex === idx;
+                        const formattedDur = formatEpisodeDuration(ep.duration);
+                        return (
+                          <div
+                            key={ep.id || idx}
+                            onClick={() => setActiveEpisodeIndex(idx)}
+                            className={`flex items-center justify-between gap-3 p-3 rounded-2xl border transition-all cursor-pointer ${
+                              isSelectedEp
+                                ? 'bg-purple-950/60 border-purple-500/50 text-white shadow-md'
+                                : 'bg-white/5 hover:bg-white/10 border-white/5 text-zinc-300 hover:text-white'
+                            }`}
+                          >
+                            <div className="flex items-center gap-3 min-w-0">
+                              <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                                isSelectedEp ? 'bg-purple-600 text-white' : 'bg-zinc-800 text-zinc-400'
+                              }`}>
+                                {isSelectedEp && isPlaying ? <Pause size={14} fill="currentColor" /> : <Play size={14} fill="currentColor" className="ml-0.5" />}
+                              </div>
+                              <div className="min-w-0">
+                                <h5 className={`text-xs font-bold truncate ${isSelectedEp ? 'text-purple-300' : 'text-white'}`}>{ep.title}</h5>
+                                <div className="flex items-center gap-3 text-[10px] text-zinc-400 font-mono mt-0.5">
+                                  {ep.publishDate && <span>{ep.publishDate}</span>}
+                                  {formattedDur && <span>{formattedDur}</span>}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Bottom Section: Recommended Shows (Clean Horizontal Row, No Outer Box!) */}
+              <div className="space-y-4 pt-4 border-t border-white/10 text-left">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-base font-bold text-white tracking-tight flex items-center gap-2">
+                    <Sparkles size={18} className="text-purple-400" /> Recommended Shows
+                  </h3>
+                </div>
+
+                <div className="flex gap-5 overflow-x-auto pb-4 hide-scrollbar scroll-smooth">
+                  {popularPodcasts
+                    .filter(s => s.id !== currentShow?.id)
+                    .slice(0, 10)
+                    .map(show => (
+                      <div
+                        key={show.id}
+                        onClick={() => {
+                          setSelectedShow(show);
+                          setIsFullScreenPlayerOpen(false);
+                        }}
+                        className="group flex flex-col gap-2 shrink-0 w-[140px] sm:w-[160px] cursor-pointer select-none text-left"
+                      >
+                        <div className="relative w-full aspect-square rounded-2xl overflow-hidden bg-zinc-900 border border-white/10 group-hover:border-purple-500/60 group-hover:shadow-[0_0_20px_rgba(168,85,247,0.3)] group-hover:scale-[1.03] transition-all duration-300">
+                          <img src={show.artworkUrl} alt={show.title} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                          <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                            <div className="w-10 h-10 rounded-full bg-purple-600 text-white flex items-center justify-center shadow-lg">
+                              <Play size={16} fill="currentColor" className="ml-0.5" />
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex flex-col px-1 space-y-0.5">
+                          <h4 className="text-xs font-semibold text-zinc-200 line-clamp-1 group-hover:text-purple-400 transition-colors">{show.title}</h4>
+                          <p className="text-[10px] text-zinc-500 line-clamp-1 font-light">{show.author}</p>
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* EPISODE QUEUE DRAWER */}
+        {isQueueDrawerOpen && (
+          <div className="fixed bottom-20 right-4 z-50 w-80 max-h-96 bg-zinc-950/95 border border-white/10 rounded-2xl p-4 shadow-2xl backdrop-blur-xl flex flex-col text-left animate-in slide-in-from-bottom-5 duration-200">
+            <div className="flex items-center justify-between border-b border-white/10 pb-2 mb-3">
+              <h4 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
+                <ListMusic size={14} className="text-purple-400" /> Up Next ({episodesQueue.length})
+              </h4>
+              <button onClick={() => setIsQueueDrawerOpen(false)} className="text-zinc-400 hover:text-white cursor-pointer">
+                <X size={14} />
+              </button>
+            </div>
+
+            <div className="space-y-1.5 overflow-y-auto max-h-72 hide-scrollbar pr-1">
+              {episodesQueue.map((ep, idx) => (
+                <div
+                  key={ep.id || idx}
+                  onClick={() => setActiveEpisodeIndex(idx)}
+                  className={`p-2 rounded-xl text-xs flex items-center justify-between gap-2 cursor-pointer transition-colors ${
+                    activeEpisodeIndex === idx
+                      ? 'bg-purple-900/40 border border-purple-500/30 text-purple-300 font-semibold'
+                      : 'bg-zinc-900/60 hover:bg-zinc-850 text-zinc-300'
+                  }`}
+                >
+                  <div className="truncate min-w-0">
+                    <p className="truncate font-medium">{ep.title}</p>
+                    <p className="text-[9px] text-zinc-500 font-mono">{ep.publishDate}</p>
+                  </div>
+                  {activeEpisodeIndex === idx && <Play size={12} fill="currentColor" className="text-purple-400 shrink-0" />}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </>
+    );
+  };
 
   if (loading) {
     return (
-      <div className="space-y-10 pt-24 pb-10 px-4 md:px-12 select-none bg-[#030303] min-h-screen text-left">
+      <div className="space-y-10 pt-24 md:pt-28 pb-10 px-4 md:px-12 select-none bg-[#030303] min-h-screen text-left">
         <div className="flex items-center justify-between border-b border-white/5 pb-6">
           <div className="h-7 w-48 bg-zinc-850 rounded-lg animate-pulse"></div>
           <div className="h-9 w-64 bg-zinc-850 rounded-full animate-pulse"></div>
@@ -653,8 +1120,28 @@ export const PodcastsPage: React.FC<PodcastsPageProps> = ({ searchQuery = "", on
     );
   }
 
+  // Render Full Podcast Details Page if a show is selected!
+  if (selectedShow) {
+    return (
+      <>
+        <PodcastDetailPage
+          show={selectedShow}
+          onBack={() => setSelectedShow(null)}
+          showEpisodes={showEpisodes}
+          loadingEpisodes={loadingEpisodes}
+          onPlayEpisode={playEpisode}
+          activeEpisode={activeEpisode}
+          isPlaying={isPlaying}
+          copiedEmail={copiedEmail}
+          onCopyEmail={handleCopyEmail}
+        />
+        {renderFloatingPlayerBar()}
+      </>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-[#030303] text-white pb-36 pt-20 md:pt-24 relative select-none animate-in fade-in duration-500">
+    <div className="min-h-screen bg-[#030303] text-white pb-36 pt-24 md:pt-28 relative select-none animate-in fade-in duration-500">
       
       {/* 1. Top Header Bar & Store Picker */}
       <div className="relative px-4 md:px-12 max-w-7xl mx-auto text-left space-y-4">
@@ -864,615 +1351,274 @@ export const PodcastsPage: React.FC<PodcastsPageProps> = ({ searchQuery = "", on
         </div>
       )}
 
-      {/* 4. PODCAST DETAILS & EPISODE DRAWER MODAL */}
-      {selectedShow && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 md:p-6 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
-          <div className="bg-zinc-950 border border-white/10 w-full max-w-3xl max-h-[85vh] rounded-2xl overflow-hidden shadow-2xl flex flex-col relative text-left">
+      {/* Floating Audio Player */}
+      {renderFloatingPlayerBar()}
+    </div>
+  );
+};
+
+/* --- PODCAST DETAIL PAGE COMPONENT --- */
+
+interface PodcastDetailPageProps {
+  show: PodcastShow;
+  onBack: () => void;
+  showEpisodes: PodcastEpisode[];
+  loadingEpisodes: boolean;
+  onPlayEpisode: (index: number, queue: PodcastEpisode[], show: PodcastShow) => void;
+  activeEpisode: PodcastEpisode | null;
+  isPlaying: boolean;
+  copiedEmail: boolean;
+  onCopyEmail: (email: string) => void;
+}
+
+const PodcastDetailPage: React.FC<PodcastDetailPageProps> = ({
+  show,
+  onBack,
+  showEpisodes,
+  loadingEpisodes,
+  onPlayEpisode,
+  activeEpisode,
+  isPlaying,
+  copiedEmail,
+  onCopyEmail
+}) => {
+  const [filterQuery, setFilterQuery] = useState("");
+
+  const filtered = showEpisodes.filter(ep => 
+    !filterQuery || 
+    ep.title.toLowerCase().includes(filterQuery.toLowerCase()) ||
+    ep.description.toLowerCase().includes(filterQuery.toLowerCase())
+  );
+
+  return (
+    <div className="min-h-screen bg-[#030303] text-white pb-36 pt-24 md:pt-28 relative select-none animate-in fade-in duration-500 text-left">
+      
+      {/* Hero Header Section */}
+      <div className="relative w-full aspect-[21/9] min-h-[380px] max-h-[480px] overflow-hidden flex items-center bg-black border-b border-white/5 mx-auto max-w-7xl rounded-3xl mt-2">
+        
+        {/* Ambient Artwork Background */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <img
+            src={show.artworkUrl}
+            alt=""
+            className="w-full h-full object-cover blur-3xl opacity-25 scale-125"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-[#030303] via-[#030303]/80 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-r from-[#030303] via-[#030303]/60 to-transparent" />
+        </div>
+
+        {/* Hero Content */}
+        <div className="absolute inset-x-0 bottom-0 p-6 md:p-10 z-20 flex flex-col md:flex-row items-center md:items-end justify-between gap-6">
+          <div className="flex flex-col md:flex-row items-center md:items-start gap-6 w-full">
             
-            {/* Modal Header Bar */}
-            <div className="flex items-center justify-between px-5 py-4 border-b border-white/10 bg-zinc-900/60 shrink-0">
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="w-10 h-10 rounded-xl overflow-hidden border border-white/10 shrink-0 bg-zinc-900">
-                  <img src={selectedShow.artworkUrl} alt={selectedShow.title} className="w-full h-full object-cover" />
-                </div>
-                <div className="min-w-0">
-                  <h3 className="text-sm md:text-base font-bold text-white line-clamp-1">{selectedShow.title}</h3>
-                  <p className="text-xs text-zinc-400 line-clamp-1">by {selectedShow.author}</p>
-                </div>
-              </div>
-              <button
-                onClick={() => setSelectedShow(null)}
-                className="w-8 h-8 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-white/10 text-zinc-400 hover:text-white flex items-center justify-center transition-colors cursor-pointer shrink-0 ml-3"
-              >
-                <X size={16} />
-              </button>
+            {/* Artwork */}
+            <div className="relative w-36 h-36 md:w-48 md:h-48 rounded-2xl overflow-hidden border border-white/10 shadow-2xl shrink-0 bg-zinc-900">
+              <img src={show.artworkUrl} alt={show.title} className="w-full h-full object-cover" />
             </div>
 
-            {/* Modal Scrollable Body */}
-            <div className="p-5 overflow-y-auto space-y-5 hide-scrollbar flex-1">
+            {/* Podcast Main Info */}
+            <div className="flex-1 space-y-3 text-center md:text-left min-w-0">
               
-              {/* Podcast Overview Card */}
-              <div className="flex flex-col sm:flex-row gap-4 items-start bg-zinc-900/50 p-4 rounded-xl border border-white/5">
-                <img
-                  src={selectedShow.artworkUrl}
-                  alt={selectedShow.title}
-                  className="w-24 h-24 md:w-28 md:h-28 rounded-xl object-cover border border-white/10 shadow-md shrink-0"
-                />
-                
-                <div className="flex-1 space-y-2.5 min-w-0">
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    {selectedShow.categories.map((c, i) => (
-                      <span key={i} className="px-2 py-0.5 rounded bg-purple-950/60 border border-purple-500/20 text-purple-300 text-[10px] font-medium">
-                        {c}
-                      </span>
-                    ))}
-                    {selectedShow.isActive !== undefined && (
-                      <span className={`px-2 py-0.5 rounded text-[10px] font-semibold flex items-center gap-1 border ${
-                        selectedShow.isActive
-                          ? 'bg-emerald-950/60 border-emerald-500/20 text-emerald-400'
-                          : 'bg-zinc-800 border-white/5 text-zinc-400'
-                      }`}>
-                        <Zap size={10} /> {selectedShow.isActive ? `Active • ${selectedShow.episodeFrequency || 'Weekly'}` : 'Inactive'}
-                      </span>
-                    )}
-                  </div>
+              {/* Top Row: Back Button & Badges */}
+              <div className="flex flex-wrap items-center justify-center md:justify-start gap-2">
+                <button
+                  onClick={onBack}
+                  className="px-3.5 py-1.5 bg-white/10 hover:bg-white/20 text-white text-xs font-semibold rounded-full flex items-center gap-1.5 transition-all cursor-pointer border border-white/10 backdrop-blur-md"
+                >
+                  <ArrowLeft size={13} /> Back to Directory
+                </button>
 
-                  {selectedShow.description && (
-                    <p className="text-xs text-zinc-300 leading-relaxed line-clamp-3 font-light">
-                      {selectedShow.description}
-                    </p>
-                  )}
+                {show.categories.map((c, i) => (
+                  <span key={i} className="px-2.5 py-1 rounded-full bg-purple-950/60 border border-purple-500/30 text-purple-300 text-[10px] font-bold uppercase tracking-wider">
+                    {c}
+                  </span>
+                ))}
 
-                  {/* Compact metadata & contacts row */}
-                  <div className="flex flex-wrap items-center gap-2 pt-1">
-                    {selectedShow.ownerEmail && (
-                      <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-purple-950/40 border border-purple-500/20 text-[11px]">
-                        <Mail size={12} className="text-purple-400 shrink-0" />
-                        <span className="text-zinc-300 font-mono text-[11px] truncate max-w-[180px]">{selectedShow.ownerEmail}</span>
-                        <button
-                          onClick={() => handleCopyEmail(selectedShow.ownerEmail!)}
-                          className="px-1.5 py-0.5 rounded bg-purple-600 hover:bg-purple-500 text-[10px] font-semibold text-white transition-colors ml-1 cursor-pointer flex items-center gap-1"
-                        >
-                          {copiedEmail ? <Check size={10} /> : <Copy size={10} />}
-                        </button>
-                      </div>
-                    )}
-
-                    {selectedShow.ownerName && (
-                      <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-zinc-900 border border-white/5 text-[11px] text-zinc-400">
-                        <User size={12} className="text-zinc-500 shrink-0" />
-                        <span className="truncate">Publisher: <strong className="text-zinc-200">{selectedShow.ownerName}</strong></span>
-                      </div>
-                    )}
-
-                    {selectedShow.websiteUrl && (
-                      <a
-                        href={selectedShow.websiteUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-white/5 text-[11px] text-zinc-300 hover:text-purple-300 transition-colors"
-                      >
-                        <Globe size={12} className="text-zinc-400 shrink-0" />
-                        <span>Website</span>
-                        <ExternalLink size={10} />
-                      </a>
-                    )}
-
-                    {selectedShow.applePodcastsUrl && (
-                      <a
-                        href={selectedShow.applePodcastsUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-white/5 text-[11px] text-zinc-300 hover:text-purple-300 transition-colors"
-                      >
-                        <Headphones size={12} className="text-zinc-400 shrink-0" />
-                        <span>Apple Podcasts</span>
-                        <ExternalLink size={10} />
-                      </a>
-                    )}
-                  </div>
-                </div>
+                {show.isActive !== undefined && (
+                  <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 border ${
+                    show.isActive
+                      ? 'bg-emerald-950/60 border-emerald-500/30 text-emerald-400'
+                      : 'bg-zinc-850 border-white/10 text-zinc-400'
+                  }`}>
+                    <Zap size={10} /> {show.isActive ? `Active • ${show.episodeFrequency || 'Weekly'}` : 'Inactive'}
+                  </span>
+                )}
               </div>
 
-              {/* Episodes Section */}
-              <div className="space-y-3">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-                  <h4 className="text-xs font-bold text-zinc-300 uppercase tracking-wider flex items-center gap-2">
-                    <ListMusic size={14} className="text-purple-400" />
-                    Episodes ({showEpisodes.length})
-                  </h4>
+              {/* Title & Host */}
+              <h1 className="text-2xl md:text-4xl lg:text-5xl font-black text-white tracking-tight leading-tight">
+                {show.title}
+              </h1>
+              <p className="text-xs md:text-sm text-zinc-400 font-medium">
+                Hosted by <strong className="text-white">{show.author}</strong>
+              </p>
 
-                  {/* Filter Episodes Search input */}
-                  <div className="relative w-full sm:w-56">
-                    <input
-                      type="text"
-                      placeholder="Filter episodes..."
-                      value={episodeSearchFilter}
-                      onChange={(e) => setEpisodeSearchFilter(e.target.value)}
-                      className="w-full bg-zinc-900 border border-white/10 rounded-lg py-1 px-2.5 pl-7 text-xs focus:outline-none focus:border-purple-500/50 text-white placeholder-zinc-500"
-                    />
-                    <Search size={12} className="absolute left-2 top-1/2 -translate-y-1/2 text-zinc-500" />
-                  </div>
-                </div>
+              {/* Description */}
+              {show.description && (
+                <p className="text-xs md:text-sm text-zinc-300/90 font-light leading-relaxed line-clamp-3 max-w-3xl">
+                  {show.description}
+                </p>
+              )}
 
-                {loadingEpisodes ? (
-                  <div className="flex flex-col items-center justify-center py-12 gap-2">
-                    <Loader2 className="animate-spin text-purple-500" size={20} />
-                    <p className="text-xs text-zinc-500 font-mono">Fetching RSS episode feed...</p>
+              {/* Action Pills Row */}
+              <div className="flex flex-wrap items-center justify-center md:justify-start gap-2 pt-2">
+                {show.ownerEmail && (
+                  <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-purple-950/40 border border-purple-500/20 text-xs">
+                    <Mail size={13} className="text-purple-400 shrink-0" />
+                    <span className="text-zinc-300 font-mono text-xs truncate max-w-[200px]">{show.ownerEmail}</span>
+                    <button
+                      onClick={() => onCopyEmail(show.ownerEmail!)}
+                      className="px-2 py-0.5 rounded-md bg-purple-600 hover:bg-purple-500 text-[10px] font-bold text-white transition-colors ml-1 cursor-pointer flex items-center gap-1"
+                    >
+                      {copiedEmail ? <Check size={11} /> : <Copy size={11} />}
+                    </button>
                   </div>
-                ) : filteredEpisodes.length === 0 ? (
-                  <div className="text-center py-8 text-zinc-500 text-xs bg-zinc-900/30 rounded-xl border border-white/5">
-                    No episodes found matching "{episodeSearchFilter}".
-                  </div>
-                ) : (
-                  <div className="space-y-2 max-h-[320px] overflow-y-auto pr-1 hide-scrollbar">
-                    {filteredEpisodes.map((ep, idx) => {
-                      const isCurrentEp = activeEpisode?.audioUrl === ep.audioUrl && isPlaying;
-                      const formattedDur = formatEpisodeDuration(ep.duration);
+                )}
 
-                      return (
-                        <div
-                          key={ep.id || idx}
-                          onClick={() => playEpisode(idx, showEpisodes, selectedShow)}
-                          className={`group flex items-center justify-between gap-3 p-3 rounded-xl border transition-all cursor-pointer ${
-                            isCurrentEp
-                              ? 'bg-purple-950/50 border-purple-500/40 shadow-sm'
-                              : 'bg-zinc-900/60 hover:bg-zinc-850 border-white/5'
-                          }`}
-                        >
-                          <div className="flex items-center gap-3 flex-1 min-w-0">
-                            <button
-                              className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-transform group-hover:scale-105 ${
-                                isCurrentEp
-                                  ? 'bg-purple-600 text-white shadow-md shadow-purple-600/30'
-                                  : 'bg-zinc-800 text-zinc-300 group-hover:bg-purple-600 group-hover:text-white'
-                              }`}
-                            >
-                              {isCurrentEp ? <Pause size={14} fill="currentColor" /> : <Play size={14} fill="currentColor" className="ml-0.5" />}
-                            </button>
-
-                            <div className="space-y-0.5 min-w-0">
-                              <h5 className={`text-xs font-semibold line-clamp-1 ${isCurrentEp ? 'text-purple-300' : 'text-white group-hover:text-purple-300'}`}>
-                                {ep.title}
-                              </h5>
-                              <p className="text-[11px] text-zinc-400 line-clamp-1 leading-normal font-light">
-                                {ep.description}
-                              </p>
-                              <div className="flex items-center gap-3 text-[10px] text-zinc-500 font-mono pt-0.5">
-                                {ep.publishDate && (
-                                  <span className="flex items-center gap-1">
-                                    <Calendar size={11} className="text-zinc-500 shrink-0" />
-                                    <span>{ep.publishDate}</span>
-                                  </span>
-                                )}
-                                {formattedDur && (
-                                  <span className="flex items-center gap-1">
-                                    <Clock size={11} className="text-zinc-500 shrink-0" />
-                                    <span>{formattedDur}</span>
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
+                {show.ownerName && (
+                  <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-zinc-900/80 border border-white/10 text-xs text-zinc-400">
+                    <User size={13} className="text-zinc-400 shrink-0" />
+                    <span className="truncate">Publisher: <strong className="text-zinc-200">{show.ownerName}</strong></span>
                   </div>
+                )}
+
+                {show.websiteUrl && (
+                  <a
+                    href={show.websiteUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-zinc-900/80 hover:bg-zinc-800 border border-white/10 text-xs text-zinc-300 hover:text-purple-300 transition-colors"
+                  >
+                    <Globe size={13} className="text-zinc-400 shrink-0" />
+                    <span>Official Website</span>
+                    <ExternalLink size={11} />
+                  </a>
+                )}
+
+                {show.applePodcastsUrl && (
+                  <a
+                    href={show.applePodcastsUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-zinc-900/80 hover:bg-zinc-800 border border-white/10 text-xs text-zinc-300 hover:text-purple-300 transition-colors"
+                  >
+                    <Headphones size={13} className="text-zinc-400 shrink-0" />
+                    <span>Apple Podcasts</span>
+                    <ExternalLink size={11} />
+                  </a>
                 )}
               </div>
             </div>
           </div>
         </div>
-      )}
+      </div>
 
-      {/* 5. PERSISTENT FLOATING AUDIO PLAYER BAR */}
-      {activeEpisode && (
-        <div className="fixed bottom-0 inset-x-0 z-40 bg-zinc-950/95 backdrop-blur-xl border-t border-white/10 px-4 py-3 shadow-[0_-10px_30px_rgba(0,0,0,0.8)] animate-in slide-in-from-bottom duration-300 text-left">
-          <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-3">
-            
-            {/* Left: Artwork + Titles (Clickable to open Expandable Full Screen Player) */}
-            <div 
-              onClick={() => setIsFullScreenPlayerOpen(true)}
-              className="flex items-center gap-3 w-full md:w-1/4 shrink-0 min-w-0 cursor-pointer group hover:opacity-90 transition-all"
-            >
-              <div className="relative w-12 h-12 rounded-xl overflow-hidden bg-zinc-900 border border-white/10 shrink-0 group-hover:border-purple-500/50 transition-colors">
-                <img
-                  src={activeEpisode.artworkUrl || currentShow?.artworkUrl}
-                  alt=""
-                  className="w-full h-full object-cover"
-                />
-                {isLoadingAudio && (
-                  <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
-                    <Loader2 className="animate-spin text-purple-400" size={16} />
-                  </div>
-                )}
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-1">
-                  <h4 className="text-xs font-bold text-white truncate group-hover:text-purple-300 transition-colors">{activeEpisode.title}</h4>
-                  <Maximize2 size={11} className="text-zinc-500 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 ml-1" />
-                </div>
-                <p className="text-[10px] text-zinc-400 truncate">{currentShow?.title || "Podcast Episode"}</p>
-              </div>
-            </div>
-
-            {/* Center: Play Controls & Progress Bar */}
-            <div className="flex flex-col items-center w-full md:w-2/4 space-y-1.5">
-              
-              {/* Playback Buttons */}
-              <div className="flex items-center gap-4">
-                <button
-                  onClick={skipPrevious}
-                  disabled={activeEpisodeIndex <= 0}
-                  className="text-zinc-400 hover:text-white disabled:opacity-30 cursor-pointer transition-colors"
-                  title="Previous Episode"
-                >
-                  <SkipBack size={18} />
-                </button>
-
-                <button
-                  onClick={skipBackward15}
-                  className="text-zinc-400 hover:text-white cursor-pointer transition-colors"
-                  title="Rewind 15s"
-                >
-                  <RotateCcw size={16} />
-                </button>
-
-                <button
-                  onClick={handleTogglePlay}
-                  className="w-10 h-10 rounded-full bg-purple-600 hover:bg-purple-500 text-white flex items-center justify-center shadow-lg shadow-purple-600/40 transition-transform active:scale-95 cursor-pointer"
-                >
-                  {isLoadingAudio ? (
-                    <Loader2 className="animate-spin" size={18} />
-                  ) : isPlaying ? (
-                    <Pause size={18} fill="currentColor" />
-                  ) : (
-                    <Play size={18} fill="currentColor" className="ml-0.5" />
-                  )}
-                </button>
-
-                <button
-                  onClick={skipForward15}
-                  className="text-zinc-400 hover:text-white cursor-pointer transition-colors"
-                  title="Forward 15s"
-                >
-                  <FastForward size={18} />
-                </button>
-
-                <button
-                  onClick={skipNext}
-                  disabled={activeEpisodeIndex >= episodesQueue.length - 1}
-                  className="text-zinc-400 hover:text-white disabled:opacity-30 cursor-pointer transition-colors"
-                  title="Next Episode"
-                >
-                  <SkipForward size={18} />
-                </button>
-              </div>
-
-              {/* Progress Slider Bar & Timestamps */}
-              <div className="flex items-center gap-2 w-full text-[10px] font-mono text-zinc-400">
-                <span className="w-10 text-right">{formatTime(audioProgress)}</span>
-                <input
-                  type="range"
-                  min={0}
-                  max={audioDuration || 100}
-                  value={audioProgress}
-                  onChange={(e) => handleSeek(parseFloat(e.target.value))}
-                  className="flex-1 h-1 bg-zinc-800 accent-purple-500 rounded-lg cursor-pointer"
-                />
-                <span className="w-10 text-left">{formatTime(audioDuration)}</span>
-              </div>
-            </div>
-
-            {/* Right: Volume, Speed, Fullscreen & Queue Toggle */}
-            <div className="flex items-center justify-end gap-2.5 w-full md:w-1/4 shrink-0">
-              
-              {/* Speed Button */}
-              <button
-                onClick={cycleSpeed}
-                className="px-2 py-1 rounded-md bg-zinc-900 border border-white/10 text-[10px] font-mono font-bold text-purple-400 hover:border-purple-500 transition-colors cursor-pointer"
-              >
-                {playbackSpeed}x
-              </button>
-
-              {/* Volume & Mute */}
-              <div className="flex items-center gap-1.5">
-                <button
-                  onClick={() => setIsMuted(!isMuted)}
-                  className="text-zinc-400 hover:text-white cursor-pointer"
-                >
-                  {isMuted || volume === 0 ? <VolumeX size={16} /> : <Volume2 size={16} />}
-                </button>
-                <input
-                  type="range"
-                  min={0}
-                  max={1}
-                  step={0.05}
-                  value={isMuted ? 0 : volume}
-                  onChange={(e) => {
-                    setVolume(parseFloat(e.target.value));
-                    if (isMuted) setIsMuted(false);
-                  }}
-                  className="w-16 h-1 bg-zinc-800 accent-purple-500 rounded-lg cursor-pointer"
-                />
-              </div>
-
-              {/* Expand Fullscreen Button */}
-              <button
-                onClick={() => setIsFullScreenPlayerOpen(true)}
-                className="p-2 rounded-xl bg-zinc-900 border border-white/10 text-zinc-400 hover:text-white transition-colors cursor-pointer"
-                title="Expand Fullscreen Player"
-              >
-                <Maximize2 size={15} />
-              </button>
-
-              {/* Queue Drawer Button */}
-              <button
-                onClick={() => setIsQueueDrawerOpen(!isQueueDrawerOpen)}
-                className={`p-2 rounded-xl border transition-colors cursor-pointer ${
-                  isQueueDrawerOpen ? 'bg-purple-600 border-purple-500 text-white' : 'bg-zinc-900 border-white/10 text-zinc-400 hover:text-white'
-                }`}
-                title="Episode Queue"
-              >
-                <ListMusic size={15} />
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* 6. EXPANDABLE FULL SCREEN AUDIO PLAYER MODAL */}
-      {isFullScreenPlayerOpen && activeEpisode && (
-        <div className="fixed inset-0 z-50 bg-[#07070a] text-white flex flex-col justify-between overflow-y-auto animate-in slide-in-from-bottom duration-300 select-none">
-          
-          {/* Glowing Ambient Background Artwork */}
-          <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
-            <img
-              src={activeEpisode.artworkUrl || currentShow?.artworkUrl}
-              alt=""
-              className="w-full h-full object-cover blur-3xl opacity-20 scale-125 transition-all duration-700"
-            />
-            <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-[#07070a]/90 to-[#07070a]" />
-          </div>
-
-          {/* Top Bar Header */}
-          <div className="relative z-10 px-6 py-4 flex items-center justify-between border-b border-white/10 bg-black/40 backdrop-blur-md shrink-0">
-            <button
-              onClick={() => setIsFullScreenPlayerOpen(false)}
-              className="p-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-zinc-300 hover:text-white flex items-center gap-1.5 text-xs font-semibold cursor-pointer transition-all"
-            >
-              <ChevronDown size={18} />
-              <span className="hidden sm:inline">Minimize</span>
-            </button>
-
-            <div className="text-center min-w-0 px-4">
-              <span className="text-[10px] font-bold tracking-widest text-purple-400 uppercase flex items-center justify-center gap-1">
-                <Radio size={12} className="animate-pulse" /> Playing Podcast Episode
-              </span>
-              <p className="text-xs text-zinc-400 truncate max-w-xs md:max-w-md font-medium">
-                {currentShow?.title || "Podcast Player"}
+      {/* Episodes List Container */}
+      <div className="max-w-7xl mx-auto px-4 md:px-12 pt-8 space-y-6">
+        
+        {/* Episodes Filter Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/10 pb-4">
+          <div className="flex items-center gap-3">
+            <span className="p-2 rounded-xl bg-purple-600/20 text-purple-400 border border-purple-500/20">
+              <ListMusic size={18} />
+            </span>
+            <div>
+              <h3 className="text-lg md:text-xl font-bold text-white tracking-tight">
+                All Episodes ({showEpisodes.length})
+              </h3>
+              <p className="text-xs text-zinc-400 font-light">
+                Select any episode to stream audio live
               </p>
             </div>
-
-            <button
-              onClick={() => setIsQueueDrawerOpen(!isQueueDrawerOpen)}
-              className={`p-2 px-3 rounded-xl border text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-all ${
-                isQueueDrawerOpen ? 'bg-purple-600 border-purple-500 text-white' : 'bg-white/5 hover:bg-white/10 border-white/10 text-zinc-300'
-              }`}
-            >
-              <ListMusic size={15} />
-              <span className="hidden sm:inline">Queue ({episodesQueue.length})</span>
-            </button>
           </div>
 
-          {/* Main Full-Screen Player Deck & Recommendations Layout */}
-          <div className="relative z-10 max-w-6xl mx-auto w-full px-6 py-8 flex-1 flex flex-col lg:flex-row items-center lg:items-start justify-center gap-8 lg:gap-12 text-left my-auto">
-            
-            {/* Left Column: Artwork & Main Player Deck */}
-            <div className="flex flex-col items-center w-full max-w-md space-y-6">
-              
-              {/* Album Artwork */}
-              <div className="relative w-64 h-64 sm:w-72 sm:h-72 md:w-80 md:h-80 rounded-3xl overflow-hidden border border-white/15 shadow-[0_20px_50px_rgba(0,0,0,0.8)] shrink-0 bg-zinc-900 group">
-                <img
-                  src={activeEpisode.artworkUrl || currentShow?.artworkUrl}
-                  alt={activeEpisode.title}
-                  className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                />
-                {isLoadingAudio && (
-                  <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center gap-2">
-                    <Loader2 className="animate-spin text-purple-400" size={32} />
-                    <span className="text-xs font-mono text-purple-200">Loading audio stream...</span>
-                  </div>
-                )}
-              </div>
-
-              {/* Title & Metadata */}
-              <div className="w-full text-center space-y-2">
-                <div className="flex flex-wrap items-center justify-center gap-2">
-                  {currentShow?.categories[0] && (
-                    <span className="px-2.5 py-0.5 rounded-full bg-purple-600/20 border border-purple-500/30 text-purple-300 text-[10px] font-bold uppercase tracking-wider">
-                      {currentShow.categories[0]}
-                    </span>
-                  )}
-                  {activeEpisode.publishDate && (
-                    <span className="px-2.5 py-0.5 rounded-full bg-white/5 border border-white/10 text-zinc-400 text-[10px] font-mono flex items-center gap-1">
-                      <Calendar size={10} /> {activeEpisode.publishDate}
-                    </span>
-                  )}
-                </div>
-
-                <h2 className="text-base sm:text-lg md:text-xl font-black text-white leading-tight tracking-tight line-clamp-2">
-                  {activeEpisode.title}
-                </h2>
-                <p className="text-xs sm:text-sm text-purple-400 font-medium line-clamp-1">
-                  {currentShow?.title} {currentShow?.author ? `• by ${currentShow.author}` : ''}
-                </p>
-
-                {activeEpisode.description && (
-                  <p className="text-xs text-zinc-400 font-light line-clamp-2 leading-relaxed pt-1">
-                    {activeEpisode.description}
-                  </p>
-                )}
-              </div>
-
-              {/* Scrubber / Progress Bar */}
-              <div className="w-full space-y-1">
-                <input
-                  type="range"
-                  min={0}
-                  max={audioDuration || 100}
-                  value={audioProgress}
-                  onChange={(e) => handleSeek(parseFloat(e.target.value))}
-                  className="w-full h-1.5 bg-zinc-800 accent-purple-500 rounded-lg cursor-pointer transition-all"
-                />
-                <div className="flex items-center justify-between text-xs font-mono text-zinc-400">
-                  <span>{formatTime(audioProgress)}</span>
-                  <span>{formatTime(audioDuration)}</span>
-                </div>
-              </div>
-
-              {/* Full Control Deck Buttons */}
-              <div className="w-full flex items-center justify-between gap-3 pt-1">
-                
-                {/* Speed Button */}
-                <button
-                  onClick={cycleSpeed}
-                  className="px-2.5 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-mono font-bold text-purple-400 hover:border-purple-500/50 transition-all cursor-pointer"
-                  title="Playback Speed"
-                >
-                  {playbackSpeed}x
-                </button>
-
-                {/* Rewind 15s */}
-                <button
-                  onClick={skipBackward15}
-                  className="p-2.5 rounded-full bg-white/5 hover:bg-white/10 text-zinc-300 hover:text-white transition-all cursor-pointer"
-                  title="Rewind 15s"
-                >
-                  <RotateCcw size={18} />
-                </button>
-
-                {/* Previous Episode */}
-                <button
-                  onClick={skipPrevious}
-                  disabled={activeEpisodeIndex <= 0}
-                  className="p-2 rounded-full text-zinc-300 hover:text-white disabled:opacity-20 transition-all cursor-pointer"
-                  title="Previous Episode"
-                >
-                  <SkipBack size={20} />
-                </button>
-
-                {/* Big Central Play/Pause Button */}
-                <button
-                  onClick={handleTogglePlay}
-                  className="w-14 h-14 rounded-full bg-purple-600 hover:bg-purple-500 text-white flex items-center justify-center shadow-[0_0_30px_rgba(168,85,247,0.5)] transition-all transform hover:scale-105 active:scale-95 cursor-pointer shrink-0"
-                >
-                  {isLoadingAudio ? (
-                    <Loader2 className="animate-spin" size={24} />
-                  ) : isPlaying ? (
-                    <Pause size={24} fill="currentColor" />
-                  ) : (
-                    <Play size={24} fill="currentColor" className="ml-1" />
-                  )}
-                </button>
-
-                {/* Next Episode */}
-                <button
-                  onClick={skipNext}
-                  disabled={activeEpisodeIndex >= episodesQueue.length - 1}
-                  className="p-2 rounded-full text-zinc-300 hover:text-white disabled:opacity-20 transition-all cursor-pointer"
-                  title="Next Episode"
-                >
-                  <SkipForward size={20} />
-                </button>
-
-                {/* Forward 15s */}
-                <button
-                  onClick={skipForward15}
-                  className="p-2.5 rounded-full bg-white/5 hover:bg-white/10 text-zinc-300 hover:text-white transition-all cursor-pointer"
-                  title="Forward 15s"
-                >
-                  <FastForward size={18} />
-                </button>
-
-                {/* Mute & Volume */}
-                <button
-                  onClick={() => setIsMuted(!isMuted)}
-                  className="p-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-zinc-300 hover:text-white transition-all cursor-pointer"
-                  title="Mute / Unmute"
-                >
-                  {isMuted || volume === 0 ? <VolumeX size={18} /> : <Volume2 size={18} />}
-                </button>
-              </div>
-            </div>
-
-            {/* Right Column: Recommended Podcasts Panel */}
-            <div className="w-full lg:w-80 space-y-4 bg-zinc-900/40 p-5 rounded-3xl border border-white/10 backdrop-blur-md shrink-0">
-              <h3 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
-                <Sparkles size={15} className="text-purple-400" /> Recommended Shows
-              </h3>
-              
-              <div className="space-y-2.5 max-h-[380px] overflow-y-auto pr-1 hide-scrollbar">
-                {popularPodcasts
-                  .filter(s => s.id !== currentShow?.id)
-                  .slice(0, 7)
-                  .map(show => (
-                    <div
-                      key={show.id}
-                      onClick={() => {
-                        setSelectedShow(show);
-                        setIsFullScreenPlayerOpen(false);
-                      }}
-                      className="flex items-center gap-3 p-2.5 rounded-2xl bg-zinc-900/60 hover:bg-zinc-850 border border-white/5 hover:border-purple-500/40 cursor-pointer transition-all group"
-                    >
-                      <img src={show.artworkUrl} alt={show.title} className="w-11 h-11 rounded-xl object-cover border border-white/10 shrink-0" />
-                      <div className="min-w-0 flex-1">
-                        <h4 className="text-xs font-bold text-white truncate group-hover:text-purple-300 transition-colors">{show.title}</h4>
-                        <p className="text-[10px] text-zinc-400 truncate">{show.author}</p>
-                        <span className="text-[9px] text-purple-400 font-medium">{show.categories[0] || 'Podcast'}</span>
-                      </div>
-                      <ChevronRight size={14} className="text-zinc-500 group-hover:text-white shrink-0" />
-                    </div>
-                  ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* 7. EPISODE QUEUE DRAWER MODAL */}
-      {isQueueDrawerOpen && (
-        <div className="fixed bottom-20 right-4 z-50 w-80 max-h-96 bg-zinc-950/95 border border-white/10 rounded-2xl p-4 shadow-2xl backdrop-blur-xl flex flex-col text-left animate-in slide-in-from-bottom-5 duration-200">
-          <div className="flex items-center justify-between border-b border-white/10 pb-2 mb-3">
-            <h4 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
-              <ListMusic size={14} className="text-purple-400" /> Up Next ({episodesQueue.length})
-            </h4>
-            <button onClick={() => setIsQueueDrawerOpen(false)} className="text-zinc-400 hover:text-white cursor-pointer">
-              <X size={14} />
-            </button>
-          </div>
-
-          <div className="space-y-1.5 overflow-y-auto max-h-72 hide-scrollbar pr-1">
-            {episodesQueue.map((ep, idx) => (
-              <div
-                key={ep.id || idx}
-                onClick={() => setActiveEpisodeIndex(idx)}
-                className={`p-2 rounded-xl text-xs flex items-center justify-between gap-2 cursor-pointer transition-colors ${
-                  activeEpisodeIndex === idx
-                    ? 'bg-purple-900/40 border border-purple-500/30 text-purple-300 font-semibold'
-                    : 'bg-zinc-900/60 hover:bg-zinc-850 text-zinc-300'
-                }`}
+          {/* Episode Filter Input */}
+          <div className="relative w-full sm:w-72">
+            <input
+              type="text"
+              placeholder="Search episodes..."
+              value={filterQuery}
+              onChange={(e) => setFilterQuery(e.target.value)}
+              className="w-full bg-zinc-900 border border-white/10 rounded-xl py-2 px-3 pl-9 text-xs focus:outline-none focus:border-purple-500 text-white placeholder-zinc-500"
+            />
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" />
+            {filterQuery && (
+              <button
+                onClick={() => setFilterQuery("")}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-white"
               >
-                <div className="truncate min-w-0">
-                  <p className="truncate font-medium">{ep.title}</p>
-                  <p className="text-[9px] text-zinc-500 font-mono">{ep.publishDate}</p>
-                </div>
-                {activeEpisodeIndex === idx && <Play size={12} fill="currentColor" className="text-purple-400 shrink-0" />}
-              </div>
-            ))}
+                <X size={13} />
+              </button>
+            )}
           </div>
         </div>
-      )}
+
+        {/* Loading Episodes State */}
+        {loadingEpisodes ? (
+          <div className="flex flex-col items-center justify-center py-24 gap-3">
+            <Loader2 className="animate-spin text-purple-500" size={32} />
+            <p className="text-xs text-zinc-500 font-mono">Fetching RSS episode feed & parsing audio...</p>
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="text-center py-20 text-zinc-500 text-xs bg-zinc-900/30 rounded-2xl border border-white/5">
+            No episodes found matching "{filterQuery}".
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {filtered.map((ep, idx) => {
+              const isCurrentEp = activeEpisode?.audioUrl === ep.audioUrl && isPlaying;
+              const formattedDur = formatEpisodeDuration(ep.duration);
+
+              return (
+                <div
+                  key={ep.id || idx}
+                  onClick={() => onPlayEpisode(idx, showEpisodes, show)}
+                  className={`group flex items-start justify-between gap-4 p-4 rounded-2xl border transition-all cursor-pointer ${
+                    isCurrentEp
+                      ? 'bg-purple-950/60 border-purple-500/50 shadow-lg shadow-purple-950/40'
+                      : 'bg-zinc-900/60 hover:bg-zinc-850 border-white/5 hover:border-white/15'
+                  }`}
+                >
+                  <div className="flex items-start gap-4 flex-1 min-w-0">
+                    <button
+                      className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 mt-0.5 transition-transform group-hover:scale-105 ${
+                        isCurrentEp
+                          ? 'bg-purple-600 text-white shadow-md shadow-purple-600/40'
+                          : 'bg-zinc-800 text-zinc-300 group-hover:bg-purple-600 group-hover:text-white'
+                      }`}
+                    >
+                      {isCurrentEp ? <Pause size={18} fill="currentColor" /> : <Play size={18} fill="currentColor" className="ml-0.5" />}
+                    </button>
+
+                    <div className="space-y-1.5 min-w-0">
+                      <h4 className={`text-sm md:text-base font-bold line-clamp-1 ${isCurrentEp ? 'text-purple-300' : 'text-white group-hover:text-purple-300'}`}>
+                        {ep.title}
+                      </h4>
+                      <p className="text-xs text-zinc-400 line-clamp-2 leading-relaxed font-light">
+                        {ep.description}
+                      </p>
+                      <div className="flex items-center gap-4 text-xs text-zinc-500 font-mono pt-1">
+                        {ep.publishDate && (
+                          <span className="flex items-center gap-1.5">
+                            <Calendar size={12} className="text-zinc-500 shrink-0" />
+                            <span>{ep.publishDate}</span>
+                          </span>
+                        )}
+                        {formattedDur && (
+                          <span className="flex items-center gap-1.5">
+                            <Clock size={12} className="text-zinc-500 shrink-0" />
+                            <span>{formattedDur}</span>
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
     </div>
   );
 };
