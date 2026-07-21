@@ -356,7 +356,30 @@ export const MusicPage: React.FC<MusicPageProps> = ({ isAuthenticated, disableEn
       onPlay: togglePlay,
       onPause: togglePlay,
       onPrev: skipPrevious,
-      onNext: skipNext
+      onNext: skipNext,
+      onSeekForward: () => {
+        if (audioRef.current) {
+          const target = Math.min(audioRef.current.duration || 0, audioRef.current.currentTime + 10);
+          audioRef.current.currentTime = target;
+          setCurrentTime(target);
+          updateMediaSessionPosition(target, audioRef.current.duration || 0);
+        }
+      },
+      onSeekBackward: () => {
+        if (audioRef.current) {
+          const target = Math.max(0, audioRef.current.currentTime - 10);
+          audioRef.current.currentTime = target;
+          setCurrentTime(target);
+          updateMediaSessionPosition(target, audioRef.current.duration || 0);
+        }
+      },
+      onSeekTo: (seekTime: number) => {
+        if (audioRef.current) {
+          audioRef.current.currentTime = seekTime;
+          setCurrentTime(seekTime);
+          updateMediaSessionPosition(seekTime, audioRef.current.duration || 0);
+        }
+      }
     });
 
     audioRef.current.src = currentTrack.previewUrl;

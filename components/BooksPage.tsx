@@ -457,15 +457,28 @@ export const PodcastsPage: React.FC<PodcastsPageProps> = ({ searchQuery = "", on
 
     registerBackgroundAudio(audio, {
       title: currentEpisode.title || "Podcast Episode",
-      artist: currentShow?.author || "Podcast Host",
-      album: currentShow?.title || "Podcast Directory",
+      artist: currentShow?.author ? `${currentShow.author} • Podcast` : "Podcast Host",
+      album: currentShow?.title || "MovieVerse Podcasts",
       artworkUrl: currentEpisode.artworkUrl || currentShow?.artworkUrl,
-      onPlay: () => setIsPlaying(true),
-      onPause: () => setIsPlaying(false),
+      onPlay: () => {
+        setIsPlaying(true);
+        if (audioRef.current) audioRef.current.play().catch(() => {});
+      },
+      onPause: () => {
+        setIsPlaying(false);
+        if (audioRef.current) audioRef.current.pause();
+      },
       onPrev: skipPrevious,
       onNext: skipNext,
       onSeekForward: skipForward15,
-      onSeekBackward: skipBackward15
+      onSeekBackward: skipBackward15,
+      onSeekTo: (seekTime: number) => {
+        if (audioRef.current) {
+          audioRef.current.currentTime = seekTime;
+          setAudioProgress(seekTime);
+          updateMediaSessionPosition(seekTime, audioRef.current.duration || 0, playbackSpeed);
+        }
+      }
     });
 
     const onPlay = () => {
@@ -485,6 +498,15 @@ export const PodcastsPage: React.FC<PodcastsPageProps> = ({ searchQuery = "", on
       updateMediaSessionPosition(audio.currentTime, audio.duration || 0, playbackSpeed);
     };
     const onDurationChange = () => setAudioDuration(audio.duration || 0);
+    const onStalled = () => {
+      if (audioRef.current && isPlaying) {
+        setTimeout(() => {
+          if (audioRef.current && isPlaying) {
+            audioRef.current.play().catch(() => {});
+          }
+        }, 1500);
+      }
+    };
     const onEnded = () => {
       if (activeEpisodeIndex < episodesQueue.length - 1) {
         setActiveEpisodeIndex(prev => prev + 1);
@@ -506,6 +528,7 @@ export const PodcastsPage: React.FC<PodcastsPageProps> = ({ searchQuery = "", on
     audio.addEventListener('canplay', onCanPlay);
     audio.addEventListener('timeupdate', onTimeUpdate);
     audio.addEventListener('durationchange', onDurationChange);
+    audio.addEventListener('stalled', onStalled);
     audio.addEventListener('ended', onEnded);
     audio.addEventListener('error', onError);
 
@@ -525,6 +548,7 @@ export const PodcastsPage: React.FC<PodcastsPageProps> = ({ searchQuery = "", on
       audio.removeEventListener('canplay', onCanPlay);
       audio.removeEventListener('timeupdate', onTimeUpdate);
       audio.removeEventListener('durationchange', onDurationChange);
+      audio.removeEventListener('stalled', onStalled);
       audio.removeEventListener('ended', onEnded);
       audio.removeEventListener('error', onError);
       audioRef.current = null;
@@ -624,157 +648,188 @@ export const PodcastsPage: React.FC<PodcastsPageProps> = ({ searchQuery = "", on
     return (
       <>
         {/* Persistent Floating Mini Player */}
-        <div className="fixed bottom-0 inset-x-0 z-40 bg-zinc-950/95 backdrop-blur-xl border-t border-white/10 px-4 py-3 shadow-[0_-10px_30px_rgba(0,0,0,0.8)] animate-in slide-in-from-bottom duration-300 text-left">
-          <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-3">
-            
-            {/* Left: Artwork + Titles (Clickable to open Expandable Full Screen Player) */}
-            <div 
-              onClick={() => setIsFullScreenPlayerOpen(true)}
-              className="flex items-center gap-3 w-full md:w-1/4 shrink-0 min-w-0 cursor-pointer group hover:opacity-90 transition-all"
-            >
-              <div className="relative w-12 h-12 rounded-xl overflow-hidden bg-zinc-900 border border-white/10 shrink-0 group-hover:border-purple-500/50 transition-colors">
-                <img
-                  src={activeEpisode.artworkUrl || currentShow?.artworkUrl}
-                  alt=""
-                  className="w-full h-full object-cover"
-                />
-                {isLoadingAudio && (
-                  <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
-                    <Loader2 className="animate-spin text-purple-400" size={16} />
-                  </div>
-                )}
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-1">
-                  <h4 className="text-xs font-bold text-white truncate group-hover:text-purple-300 transition-colors">{activeEpisode.title}</h4>
-                  <Maximize2 size={11} className="text-zinc-500 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 ml-1" />
+        <div className="fixed bottom-[calc(4rem+env(safe-area-inset-bottom,0px))] md:bottom-0 left-0 right-0 z-[80] bg-zinc-950/85 backdrop-blur-2xl border-t border-white/[0.05] p-3 md:p-4 select-none px-4 md:px-12 flex items-center justify-between gap-4 animate-in slide-in-from-bottom duration-500 shadow-2xl">
+          
+          {/* Left: Artwork + Titles (Clickable to open Expandable Full Screen Player) */}
+          <div 
+            onClick={() => setIsFullScreenPlayerOpen(true)}
+            className="flex items-center gap-3 w-[65%] md:w-1/4 shrink-0 min-w-0 cursor-pointer group hover:opacity-90 transition-all"
+          >
+            <div className="relative w-11 h-11 md:w-12 md:h-12 rounded-xl overflow-hidden bg-zinc-900 border border-white/10 shrink-0 group-hover:border-purple-500/50 transition-colors">
+              <img
+                src={activeEpisode.artworkUrl || currentShow?.artworkUrl}
+                alt=""
+                className="w-full h-full object-cover"
+              />
+              {isLoadingAudio && (
+                <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                  <Loader2 className="animate-spin text-purple-400" size={16} />
                 </div>
-                <p className="text-[10px] text-zinc-400 truncate">{currentShow?.title || "Podcast Episode"}</p>
-              </div>
+              )}
             </div>
-
-            {/* Center: Play Controls & Progress Bar */}
-            <div className="flex flex-col items-center w-full md:w-2/4 space-y-1.5">
-              
-              {/* Playback Buttons */}
-              <div className="flex items-center gap-4">
-                <button
-                  onClick={skipPrevious}
-                  disabled={activeEpisodeIndex <= 0}
-                  className="text-zinc-400 hover:text-white disabled:opacity-30 cursor-pointer transition-colors"
-                  title="Previous Episode"
-                >
-                  <SkipBack size={18} />
-                </button>
-
-                <button
-                  onClick={skipBackward15}
-                  className="text-zinc-400 hover:text-white cursor-pointer transition-colors"
-                  title="Rewind 15s"
-                >
-                  <RotateCcw size={16} />
-                </button>
-
-                <button
-                  onClick={handleTogglePlay}
-                  className="w-10 h-10 rounded-full bg-purple-600 hover:bg-purple-500 text-white flex items-center justify-center shadow-lg shadow-purple-600/40 transition-transform active:scale-95 cursor-pointer"
-                >
-                  {isLoadingAudio ? (
-                    <Loader2 className="animate-spin" size={18} />
-                  ) : isPlaying ? (
-                    <Pause size={18} fill="currentColor" />
-                  ) : (
-                    <Play size={18} fill="currentColor" className="ml-0.5" />
-                  )}
-                </button>
-
-                <button
-                  onClick={skipForward15}
-                  className="text-zinc-400 hover:text-white cursor-pointer transition-colors"
-                  title="Forward 15s"
-                >
-                  <FastForward size={18} />
-                </button>
-
-                <button
-                  onClick={skipNext}
-                  disabled={activeEpisodeIndex >= episodesQueue.length - 1}
-                  className="text-zinc-400 hover:text-white disabled:opacity-30 cursor-pointer transition-colors"
-                  title="Next Episode"
-                >
-                  <SkipForward size={18} />
-                </button>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-1">
+                <h4 className="text-xs md:text-sm font-bold text-white truncate group-hover:text-purple-300 transition-colors">{activeEpisode.title}</h4>
+                <Maximize2 size={11} className="text-zinc-500 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 ml-1" />
               </div>
-
-              {/* Progress Slider Bar & Timestamps */}
-              <div className="flex items-center gap-2 w-full text-[10px] font-mono text-zinc-400">
-                <span className="w-10 text-right">{formatTime(audioProgress)}</span>
-                <input
-                  type="range"
-                  min={0}
-                  max={audioDuration || 100}
-                  value={audioProgress}
-                  onChange={(e) => handleSeek(parseFloat(e.target.value))}
-                  className="flex-1 h-1 bg-zinc-800 accent-purple-500 rounded-lg cursor-pointer"
-                />
-                <span className="w-10 text-left">{formatTime(audioDuration)}</span>
-              </div>
-            </div>
-
-            {/* Right: Volume, Speed, Fullscreen & Queue Toggle */}
-            <div className="flex items-center justify-end gap-2.5 w-full md:w-1/4 shrink-0">
-              
-              {/* Speed Button */}
-              <button
-                onClick={cycleSpeed}
-                className="px-2 py-1 rounded-md bg-zinc-900 border border-white/10 text-[10px] font-mono font-bold text-purple-400 hover:border-purple-500 transition-colors cursor-pointer"
-              >
-                {playbackSpeed}x
-              </button>
-
-              {/* Volume & Mute */}
-              <div className="flex items-center gap-1.5">
-                <button
-                  onClick={() => setIsMuted(!isMuted)}
-                  className="text-zinc-400 hover:text-white cursor-pointer"
-                >
-                  {isMuted || volume === 0 ? <VolumeX size={16} /> : <Volume2 size={16} />}
-                </button>
-                <input
-                  type="range"
-                  min={0}
-                  max={1}
-                  step={0.05}
-                  value={isMuted ? 0 : volume}
-                  onChange={(e) => {
-                    setVolume(parseFloat(e.target.value));
-                    if (isMuted) setIsMuted(false);
-                  }}
-                  className="w-16 h-1 bg-zinc-800 accent-purple-500 rounded-lg cursor-pointer"
-                />
-              </div>
-
-              {/* Expand Fullscreen Button */}
-              <button
-                onClick={() => setIsFullScreenPlayerOpen(true)}
-                className="p-2 rounded-xl bg-zinc-900 border border-white/10 text-zinc-400 hover:text-white transition-colors cursor-pointer"
-                title="Expand Fullscreen Player"
-              >
-                <Maximize2 size={15} />
-              </button>
-
-              {/* Queue Drawer Button */}
-              <button
-                onClick={() => setIsQueueDrawerOpen(!isQueueDrawerOpen)}
-                className={`p-2 rounded-xl border transition-colors cursor-pointer ${
-                  isQueueDrawerOpen ? 'bg-purple-600 border-purple-500 text-white' : 'bg-zinc-900 border-white/10 text-zinc-400 hover:text-white'
-                }`}
-                title="Episode Queue"
-              >
-                <ListMusic size={15} />
-              </button>
+              <p className="text-[10px] text-zinc-400 truncate">{currentShow?.title || "Podcast Episode"}</p>
             </div>
           </div>
+
+          {/* Center: Play Controls & Progress Bar (Desktop Only) */}
+          <div className="hidden md:flex flex-col items-center w-2/4 space-y-1.5 max-w-xl">
+            
+            {/* Playback Buttons */}
+            <div className="flex items-center gap-4">
+              <button
+                onClick={skipPrevious}
+                disabled={activeEpisodeIndex <= 0}
+                className="text-zinc-400 hover:text-white disabled:opacity-30 cursor-pointer transition-colors border-none bg-transparent"
+                title="Previous Episode"
+              >
+                <SkipBack size={18} />
+              </button>
+
+              <button
+                onClick={skipBackward15}
+                className="text-zinc-400 hover:text-white cursor-pointer transition-colors border-none bg-transparent"
+                title="Rewind 15s"
+              >
+                <RotateCcw size={16} />
+              </button>
+
+              <button
+                onClick={handleTogglePlay}
+                className="w-9 h-9 rounded-full bg-purple-600 hover:bg-purple-500 text-white flex items-center justify-center shadow-lg shadow-purple-600/40 transition-transform active:scale-95 cursor-pointer border-none"
+              >
+                {isLoadingAudio ? (
+                  <Loader2 className="animate-spin" size={16} />
+                ) : isPlaying ? (
+                  <Pause size={16} fill="currentColor" />
+                ) : (
+                  <Play size={16} fill="currentColor" className="ml-0.5" />
+                )}
+              </button>
+
+              <button
+                onClick={skipForward15}
+                className="text-zinc-400 hover:text-white cursor-pointer transition-colors border-none bg-transparent"
+                title="Forward 15s"
+              >
+                <FastForward size={16} />
+              </button>
+
+              <button
+                onClick={skipNext}
+                disabled={activeEpisodeIndex >= episodesQueue.length - 1}
+                className="text-zinc-400 hover:text-white disabled:opacity-30 cursor-pointer transition-colors border-none bg-transparent"
+                title="Next Episode"
+              >
+                <SkipForward size={18} />
+              </button>
+            </div>
+
+            {/* Progress Slider Bar & Timestamps */}
+            <div className="flex items-center gap-2 w-full text-[10px] font-mono text-zinc-400">
+              <span className="w-10 text-right">{formatTime(audioProgress)}</span>
+              <input
+                type="range"
+                min={0}
+                max={audioDuration || 100}
+                value={audioProgress}
+                onChange={(e) => handleSeek(parseFloat(e.target.value))}
+                className="flex-1 h-1 bg-zinc-800 accent-purple-500 rounded-lg cursor-pointer"
+              />
+              <span className="w-10 text-left">{formatTime(audioDuration)}</span>
+            </div>
+          </div>
+
+          {/* Right: Volume, Speed, Fullscreen & Queue Toggle (Desktop Only) */}
+          <div className="hidden md:flex items-center justify-end gap-2.5 w-1/4 shrink-0">
+            
+            {/* Speed Button */}
+            <button
+              onClick={cycleSpeed}
+              className="px-2 py-1 rounded-md bg-zinc-900 border border-white/10 text-[10px] font-mono font-bold text-purple-400 hover:border-purple-500 transition-colors cursor-pointer"
+            >
+              {playbackSpeed}x
+            </button>
+
+            {/* Volume & Mute */}
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={() => setIsMuted(!isMuted)}
+                className="text-zinc-400 hover:text-white cursor-pointer border-none bg-transparent"
+              >
+                {isMuted || volume === 0 ? <VolumeX size={16} /> : <Volume2 size={16} />}
+              </button>
+              <input
+                type="range"
+                min={0}
+                max={1}
+                step={0.05}
+                value={isMuted ? 0 : volume}
+                onChange={(e) => {
+                  setVolume(parseFloat(e.target.value));
+                  if (isMuted) setIsMuted(false);
+                }}
+                className="w-16 h-1 bg-zinc-800 accent-purple-500 rounded-lg cursor-pointer"
+              />
+            </div>
+
+            {/* Expand Fullscreen Button */}
+            <button
+              onClick={() => setIsFullScreenPlayerOpen(true)}
+              className="p-2 rounded-xl bg-zinc-900 border border-white/10 text-zinc-400 hover:text-white transition-colors cursor-pointer"
+              title="Expand Fullscreen Player"
+            >
+              <Maximize2 size={15} />
+            </button>
+
+            {/* Queue Drawer Button */}
+            <button
+              onClick={() => setIsQueueDrawerOpen(!isQueueDrawerOpen)}
+              className={`p-2 rounded-xl border transition-colors cursor-pointer ${
+                isQueueDrawerOpen ? 'bg-purple-600 border-purple-500 text-white' : 'bg-zinc-900 border-white/10 text-zinc-400 hover:text-white'
+              }`}
+              title="Episode Queue"
+            >
+              <ListMusic size={15} />
+            </button>
+          </div>
+
+          {/* Mobile Only Control Section (Clean Single Line Controls) */}
+          <div className="flex md:hidden items-center gap-2.5 shrink-0">
+            <button
+              onClick={handleTogglePlay}
+              className="w-9 h-9 rounded-full bg-purple-600 text-white flex items-center justify-center border-none cursor-pointer hover:scale-105 active:scale-95 transition-transform"
+            >
+              {isLoadingAudio ? (
+                <Loader2 className="animate-spin" size={14} />
+              ) : isPlaying ? (
+                <Pause size={14} fill="currentColor" />
+              ) : (
+                <Play size={14} fill="currentColor" className="ml-0.5" />
+              )}
+            </button>
+
+            <button
+              onClick={skipNext}
+              disabled={activeEpisodeIndex >= episodesQueue.length - 1}
+              className="text-zinc-400 hover:text-white disabled:opacity-30 border-none bg-transparent cursor-pointer p-1"
+            >
+              <SkipForward size={16} fill="currentColor" />
+            </button>
+
+            <button
+              onClick={() => setIsFullScreenPlayerOpen(true)}
+              className="text-zinc-400 hover:text-white border-none bg-transparent cursor-pointer p-1"
+              title="Expand Player"
+            >
+              <Maximize2 size={15} />
+            </button>
+          </div>
+
         </div>
 
         {/* Expandable Fullscreen Player Overlay */}

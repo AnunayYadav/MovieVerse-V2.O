@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   Play, Pause, Volume2, VolumeX, Search, Globe, Loader2, Headphones, Radio, 
   ChevronRight, ArrowLeft, Heart, X, Sparkles, Wifi, SkipBack, SkipForward, 
-  Flame, Cpu, Newspaper, Briefcase, Music, Mic, Award
+  Flame, Cpu, Newspaper, Briefcase, Music, Mic, Award, Maximize2, ChevronDown
 } from 'lucide-react';
 import { useTvFocus } from '../tvNavigation';
 import { 
@@ -81,6 +81,7 @@ export const RadioPage: React.FC<RadioPageProps> = ({ searchQuery = "", onSearch
   const [volume, setVolume] = useState(0.8);
   const [isMuted, setIsMuted] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [isPlayerExpanded, setIsPlayerExpanded] = useState(false);
 
   // General Loading & Error States
   const [loading, setLoading] = useState(true);
@@ -231,14 +232,16 @@ export const RadioPage: React.FC<RadioPageProps> = ({ searchQuery = "", onSearch
 
     registerBackgroundAudio(audio, {
       title: currentStation.name,
-      artist: currentStation.country || "Radio Station",
-      album: currentStation.tags ? currentStation.tags.split(',')[0] : "Live Radio",
-      artworkUrl: currentStation.favicon || undefined,
+      artist: currentStation.country ? `${currentStation.country} • Live Stream` : "Live Radio Station",
+      album: currentStation.tags ? currentStation.tags.split(',').slice(0, 2).join(', ') : "Radio FM / Digital",
+      artworkUrl: currentStation.favicon || "https://images.unsplash.com/photo-1590602847861-f357a9332bbc?w=600&auto=format&fit=crop&q=80",
       onPlay: () => {
         setIsPlaying(true);
+        if (audioRef.current) audioRef.current.play().catch(() => {});
       },
       onPause: () => {
         setIsPlaying(false);
+        if (audioRef.current) audioRef.current.pause();
       },
       onPrev: skipPrevious,
       onNext: skipNext
@@ -261,6 +264,15 @@ export const RadioPage: React.FC<RadioPageProps> = ({ searchQuery = "", onSearch
       setIsPlaying(true);
       setBackgroundAudioState(true);
     };
+    const onStalled = () => {
+      if (audioRef.current && isPlaying) {
+        setTimeout(() => {
+          if (audioRef.current && isPlaying) {
+            audioRef.current.play().catch(() => {});
+          }
+        }, 1500);
+      }
+    };
     const onError = () => {
       setIsLoading(false);
       setIsPlaying(false);
@@ -272,6 +284,7 @@ export const RadioPage: React.FC<RadioPageProps> = ({ searchQuery = "", onSearch
     audio.addEventListener('pause', onPause);
     audio.addEventListener('waiting', onWaiting);
     audio.addEventListener('playing', onPlaying);
+    audio.addEventListener('stalled', onStalled);
     audio.addEventListener('error', onError);
 
     audio.play().catch(err => {
@@ -288,6 +301,7 @@ export const RadioPage: React.FC<RadioPageProps> = ({ searchQuery = "", onSearch
       audio.removeEventListener('pause', onPause);
       audio.removeEventListener('waiting', onWaiting);
       audio.removeEventListener('playing', onPlaying);
+      audio.removeEventListener('stalled', onStalled);
       audio.removeEventListener('error', onError);
       audioRef.current = null;
       unregisterBackgroundAudio();
@@ -336,12 +350,16 @@ export const RadioPage: React.FC<RadioPageProps> = ({ searchQuery = "", onSearch
   const renderPlayerBar = () => {
     if (!currentStation) return null;
     return (
-      <div className="fixed bottom-0 inset-x-0 z-40 bg-zinc-950/95 backdrop-blur-xl border-t border-white/10 px-4 py-3 shadow-[0_-10px_30px_rgba(0,0,0,0.8)] animate-in slide-in-from-bottom duration-300 text-left">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-3">
+      <>
+        {/* Persistent Floating Mini Player */}
+        <div className="fixed bottom-[calc(4rem+env(safe-area-inset-bottom,0px))] md:bottom-0 left-0 right-0 z-[80] bg-zinc-950/85 backdrop-blur-2xl border-t border-white/[0.05] p-3 md:p-4 select-none px-4 md:px-12 flex items-center justify-between gap-4 animate-in slide-in-from-bottom duration-500 shadow-2xl">
           
-          {/* Left: Station Details */}
-          <div className="flex items-center gap-3 w-full md:w-1/3 min-w-0">
-            <div className="w-12 h-12 rounded-xl overflow-hidden bg-zinc-900 border border-white/10 shrink-0 flex items-center justify-center relative">
+          {/* Left: Station Details (Clickable to Expand) */}
+          <div 
+            onClick={() => setIsPlayerExpanded(true)}
+            className="flex items-center gap-3 w-[65%] md:w-1/3 shrink-0 min-w-0 cursor-pointer group hover:opacity-90 transition-all"
+          >
+            <div className="w-11 h-11 md:w-12 md:h-12 rounded-xl overflow-hidden bg-zinc-900 border border-white/10 shrink-0 flex items-center justify-center relative group-hover:border-red-500/50 transition-colors">
               {currentStation.favicon ? (
                 <img src={currentStation.favicon} alt="" className="w-full h-full object-cover" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
               ) : (
@@ -349,8 +367,8 @@ export const RadioPage: React.FC<RadioPageProps> = ({ searchQuery = "", onSearch
               )}
             </div>
             <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2">
-                <h4 className="text-xs font-bold text-white truncate leading-tight">{currentStation.name}</h4>
+              <div className="flex items-center gap-1.5">
+                <h4 className="text-xs md:text-sm font-bold text-white truncate leading-tight group-hover:text-red-400 transition-colors">{currentStation.name}</h4>
                 <div className="flex items-center gap-1 bg-red-600/20 px-1.5 py-0.5 rounded border border-red-500/30 text-[8px] font-bold text-red-400 shrink-0">
                   <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-ping"></span>
                   LIVE
@@ -363,12 +381,12 @@ export const RadioPage: React.FC<RadioPageProps> = ({ searchQuery = "", onSearch
             </div>
           </div>
 
-          {/* Center: Controls */}
-          <div className="flex items-center gap-4 justify-center w-full md:w-1/3">
+          {/* Center: Controls (Desktop Only) */}
+          <div className="hidden md:flex items-center gap-4 justify-center w-1/3">
             <button
               onClick={skipPrevious}
               disabled={currentPlaylist.length <= 1}
-              className="text-zinc-400 hover:text-white disabled:opacity-30 cursor-pointer transition-colors"
+              className="text-zinc-400 hover:text-white disabled:opacity-30 cursor-pointer transition-colors border-none bg-transparent"
               title="Previous Station"
             >
               <SkipBack size={18} />
@@ -377,28 +395,28 @@ export const RadioPage: React.FC<RadioPageProps> = ({ searchQuery = "", onSearch
             <button
               onClick={togglePlay}
               disabled={isLoading}
-              className="w-10 h-10 rounded-full bg-red-600 hover:bg-red-500 text-white flex items-center justify-center shadow-lg shadow-red-600/40 transition-transform active:scale-95 cursor-pointer disabled:opacity-50"
+              className="w-9 h-9 rounded-full bg-red-600 hover:bg-red-500 text-white flex items-center justify-center shadow-lg shadow-red-600/40 transition-transform active:scale-95 cursor-pointer disabled:opacity-50 border-none"
             >
               {isLoading ? (
-                <Loader2 size={18} className="animate-spin text-white" />
+                <Loader2 size={16} className="animate-spin text-white" />
               ) : isPlaying ? (
-                <Pause size={18} fill="currentColor" />
+                <Pause size={16} fill="currentColor" />
               ) : (
-                <Play size={18} fill="currentColor" className="ml-0.5" />
+                <Play size={16} fill="currentColor" className="ml-0.5" />
               )}
             </button>
 
             <button
               onClick={skipNext}
               disabled={currentPlaylist.length <= 1}
-              className="text-zinc-400 hover:text-white disabled:opacity-30 cursor-pointer transition-colors"
+              className="text-zinc-400 hover:text-white disabled:opacity-30 cursor-pointer transition-colors border-none bg-transparent"
               title="Next Station"
             >
               <SkipForward size={18} />
             </button>
 
             {isPlaying && !isLoading && (
-              <div className="hidden md:flex items-end gap-[3px] h-4 select-none">
+              <div className="flex items-end gap-[3px] h-4 select-none">
                 <div className="w-[3px] bg-red-500 rounded-full animate-[liveWave_0.8s_ease-in-out_infinite]"></div>
                 <div className="w-[3px] bg-red-500 rounded-full animate-[liveWave_0.5s_ease-in-out_0.2s_infinite]"></div>
                 <div className="w-[3px] bg-red-500 rounded-full animate-[liveWave_0.7s_ease-in-out_0.4s_infinite]"></div>
@@ -407,11 +425,11 @@ export const RadioPage: React.FC<RadioPageProps> = ({ searchQuery = "", onSearch
             )}
           </div>
 
-          {/* Right: Audio Volume Control */}
-          <div className="flex items-center justify-end gap-3 w-full md:w-1/3">
+          {/* Right: Audio Volume Control (Desktop Only) */}
+          <div className="hidden md:flex items-center justify-end gap-3 w-1/3">
             <button
               onClick={() => setIsMuted(!isMuted)}
-              className="text-zinc-400 hover:text-white transition-colors cursor-pointer"
+              className="text-zinc-400 hover:text-white transition-colors cursor-pointer border-none bg-transparent"
             >
               {isMuted || volume === 0 ? <VolumeX size={18} /> : <Volume2 size={18} />}
             </button>
@@ -425,18 +443,230 @@ export const RadioPage: React.FC<RadioPageProps> = ({ searchQuery = "", onSearch
                 setVolume(parseFloat(e.target.value));
                 if (isMuted) setIsMuted(false);
               }}
-              className="hidden sm:inline w-20 md:w-24 accent-red-500 h-1 bg-zinc-800 rounded-lg cursor-pointer"
+              className="w-20 md:w-24 accent-red-500 h-1 bg-zinc-800 rounded-lg cursor-pointer"
             />
             <button
+              onClick={() => setIsPlayerExpanded(true)}
+              className="text-zinc-400 hover:text-white transition-colors border-none bg-transparent cursor-pointer p-1"
+              title="Expand Player"
+            >
+              <Maximize2 size={15} />
+            </button>
+            <button
               onClick={() => setCurrentStation(null)}
-              className="text-zinc-400 hover:text-white transition-colors cursor-pointer ml-2"
+              className="text-zinc-400 hover:text-white transition-colors cursor-pointer border-none bg-transparent p-1"
               title="Close Stream"
             >
               <X size={16} />
             </button>
           </div>
+
+          {/* Mobile Only Control Section (Clean Single-Line Controls) */}
+          <div className="flex md:hidden items-center gap-2.5 shrink-0">
+            <button
+              onClick={togglePlay}
+              disabled={isLoading}
+              className="w-9 h-9 rounded-full bg-red-600 text-white flex items-center justify-center border-none cursor-pointer hover:scale-105 active:scale-95 transition-transform"
+            >
+              {isLoading ? (
+                <Loader2 size={14} className="animate-spin text-white" />
+              ) : isPlaying ? (
+                <Pause size={14} fill="currentColor" />
+              ) : (
+                <Play size={14} fill="currentColor" className="ml-0.5" />
+              )}
+            </button>
+
+            <button
+              onClick={skipNext}
+              disabled={currentPlaylist.length <= 1}
+              className="text-zinc-400 hover:text-white disabled:opacity-30 border-none bg-transparent cursor-pointer p-1"
+            >
+              <SkipForward size={16} fill="currentColor" />
+            </button>
+
+            <button
+              onClick={() => setIsPlayerExpanded(true)}
+              className="text-zinc-400 hover:text-white border-none bg-transparent cursor-pointer p-1"
+              title="Expand Player"
+            >
+              <Maximize2 size={15} />
+            </button>
+
+            <button
+              onClick={() => setCurrentStation(null)}
+              className="text-zinc-400 hover:text-white border-none bg-transparent cursor-pointer p-1"
+              title="Close Stream"
+            >
+              <X size={15} />
+            </button>
+          </div>
+
         </div>
-      </div>
+
+        {/* Fullscreen Expandable Radio Player View */}
+        {isPlayerExpanded && (
+          <div className="fixed inset-0 z-[100] bg-[#07070a] text-white flex flex-col justify-between overflow-y-auto animate-in slide-in-from-bottom duration-300 select-none p-6 md:p-12 text-left">
+            {/* Glowing Ambient Background Artwork */}
+            <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
+              {currentStation.favicon ? (
+                <img
+                  src={currentStation.favicon}
+                  alt=""
+                  className="w-full h-full object-cover blur-3xl opacity-20 scale-125 transition-all duration-700"
+                />
+              ) : (
+                <div className="w-full h-full bg-gradient-to-tr from-red-950/40 via-zinc-950 to-black blur-2xl" />
+              )}
+              <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-[#07070a]/90 to-[#07070a]" />
+            </div>
+
+            {/* Top Bar Header */}
+            <div className="relative z-10 flex items-center justify-between border-b border-white/10 pb-4 shrink-0">
+              <button
+                onClick={() => setIsPlayerExpanded(false)}
+                className="px-4 py-2 rounded-2xl bg-red-600/30 hover:bg-red-600 border border-red-500/40 hover:border-red-500 text-white font-bold text-xs flex items-center gap-2 transition-all active:scale-95 shadow-lg cursor-pointer group"
+              >
+                <ChevronDown size={18} className="text-red-300 group-hover:text-white group-hover:translate-y-0.5 transition-transform" />
+                <span>Minimize Player</span>
+              </button>
+
+              <div className="text-center min-w-0 px-4">
+                <span className="text-[10px] font-bold tracking-widest text-red-400 uppercase flex items-center justify-center gap-1">
+                  <Radio size={12} className="animate-pulse" /> Live Radio Broadcast
+                </span>
+                <p className="text-xs text-zinc-400 truncate max-w-xs md:max-w-md font-medium">
+                  {currentStation.name}
+                </p>
+              </div>
+
+              <button
+                onClick={() => {
+                  setIsPlayerExpanded(false);
+                  setCurrentStation(null);
+                }}
+                className="p-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-zinc-300 hover:text-white cursor-pointer"
+                title="Stop Stream"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Main Center Content */}
+            <div className="relative z-10 max-w-xl mx-auto w-full flex-1 flex flex-col items-center justify-center space-y-8 my-auto text-center py-6">
+              
+              {/* Station Artwork */}
+              <div className="relative w-56 h-56 sm:w-64 sm:h-64 rounded-3xl overflow-hidden border border-white/15 shadow-[0_20px_50px_rgba(239,68,68,0.25)] shrink-0 bg-zinc-900 flex items-center justify-center">
+                {currentStation.favicon ? (
+                  <img src={currentStation.favicon} alt="" className="w-full h-full object-cover" />
+                ) : (
+                  <Radio size={56} className="text-red-500 animate-pulse" />
+                )}
+                {isLoading && (
+                  <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center gap-2">
+                    <Loader2 className="animate-spin text-red-400" size={32} />
+                    <span className="text-xs font-mono text-red-200">Connecting stream...</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Station Info & Badges */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-center gap-2">
+                  <div className="flex items-center gap-1.5 bg-red-600 px-3 py-1 rounded-full border border-red-500/30 shadow-md">
+                    <span className="w-2 h-2 rounded-full bg-white animate-ping" />
+                    <span className="text-[10px] font-bold tracking-widest text-white uppercase">LIVE STREAM</span>
+                  </div>
+                  {currentStation.country && (
+                    <span className="px-2.5 py-1 rounded-full bg-white/10 text-zinc-300 text-[10px] font-bold uppercase tracking-wider border border-white/10">
+                      {currentStation.country}
+                    </span>
+                  )}
+                </div>
+
+                <h2 className="text-xl sm:text-2xl font-black text-white leading-tight tracking-tight">
+                  {currentStation.name}
+                </h2>
+                
+                {currentStation.tags && (
+                  <p className="text-xs text-zinc-400 font-medium">
+                    {formatTags(currentStation.tags)}
+                  </p>
+                )}
+              </div>
+
+              {/* Animated Live Wave */}
+              {isPlaying && !isLoading && (
+                <div className="flex items-end justify-center gap-1.5 h-8">
+                  <div className="w-1 bg-red-500 rounded-full animate-[liveWave_0.8s_ease-in-out_infinite] h-8"></div>
+                  <div className="w-1 bg-red-500 rounded-full animate-[liveWave_0.5s_ease-in-out_0.2s_infinite] h-8"></div>
+                  <div className="w-1 bg-red-500 rounded-full animate-[liveWave_0.7s_ease-in-out_0.4s_infinite] h-8"></div>
+                  <div className="w-1 bg-red-500 rounded-full animate-[liveWave_0.6s_ease-in-out_0.1s_infinite] h-8"></div>
+                  <div className="w-1 bg-red-500 rounded-full animate-[liveWave_0.9s_ease-in-out_0.3s_infinite] h-8"></div>
+                </div>
+              )}
+
+              {/* Controls Deck */}
+              <div className="flex items-center gap-6 pt-2">
+                <button
+                  onClick={skipPrevious}
+                  disabled={currentPlaylist.length <= 1}
+                  className="p-3 rounded-full bg-white/5 hover:bg-white/10 text-zinc-300 hover:text-white disabled:opacity-20 cursor-pointer border-none transition-all"
+                  title="Previous Station"
+                >
+                  <SkipBack size={22} />
+                </button>
+
+                <button
+                  onClick={togglePlay}
+                  disabled={isLoading}
+                  className="w-16 h-16 rounded-full bg-red-600 hover:bg-red-500 text-white flex items-center justify-center shadow-[0_0_30px_rgba(239,68,68,0.5)] transition-transform active:scale-95 cursor-pointer disabled:opacity-50 border-none"
+                >
+                  {isLoading ? (
+                    <Loader2 size={26} className="animate-spin text-white" />
+                  ) : isPlaying ? (
+                    <Pause size={26} fill="currentColor" />
+                  ) : (
+                    <Play size={26} fill="currentColor" className="ml-1" />
+                  )}
+                </button>
+
+                <button
+                  onClick={skipNext}
+                  disabled={currentPlaylist.length <= 1}
+                  className="p-3 rounded-full bg-white/5 hover:bg-white/10 text-zinc-300 hover:text-white disabled:opacity-20 cursor-pointer border-none transition-all"
+                  title="Next Station"
+                >
+                  <SkipForward size={22} />
+                </button>
+              </div>
+
+              {/* Volume Slider Deck */}
+              <div className="flex items-center justify-center gap-3 w-full max-w-xs pt-4 border-t border-white/10">
+                <button
+                  onClick={() => setIsMuted(!isMuted)}
+                  className="text-zinc-400 hover:text-white border-none bg-transparent cursor-pointer"
+                >
+                  {isMuted || volume === 0 ? <VolumeX size={18} /> : <Volume2 size={18} />}
+                </button>
+                <input
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.05"
+                  value={isMuted ? 0 : volume}
+                  onChange={(e) => {
+                    setVolume(parseFloat(e.target.value));
+                    if (isMuted) setIsMuted(false);
+                  }}
+                  className="w-48 accent-red-500 h-1 bg-zinc-800 rounded-lg cursor-pointer"
+                />
+              </div>
+
+            </div>
+          </div>
+        )}
+      </>
     );
   };
 
