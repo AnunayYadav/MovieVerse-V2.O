@@ -1392,123 +1392,124 @@ const PodcastDetailPage: React.FC<PodcastDetailPageProps> = ({
   );
 
   return (
-    <div className="min-h-screen bg-[#030303] text-white pb-36 pt-24 md:pt-28 relative select-none animate-in fade-in duration-500 text-left">
+    <div className="min-h-screen bg-[#030303] text-white pb-36 pt-20 md:pt-24 relative select-none animate-in fade-in duration-500 text-left">
       
-      {/* Hero Header Section */}
-      <div className="relative w-full aspect-[21/9] min-h-[380px] max-h-[480px] overflow-hidden flex items-center bg-black border-b border-white/5 mx-auto max-w-7xl rounded-3xl mt-2">
+      {/* 1. Top Left Back Button */}
+      <div className="max-w-7xl mx-auto px-4 md:px-12 mb-6">
+        <button
+          onClick={onBack}
+          className="inline-flex items-center gap-2 text-zinc-400 hover:text-white font-semibold text-xs transition-colors cursor-pointer group"
+        >
+          <ArrowLeft size={16} className="group-hover:-translate-x-0.5 transition-transform" />
+          <span>Back to Directory</span>
+        </button>
+      </div>
+
+      {/* 2. Hero Header Section (Clean Unboxed Layout) */}
+      <div className="relative w-full max-w-7xl mx-auto px-4 md:px-12 mb-10">
         
-        {/* Ambient Artwork Background */}
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        {/* Ambient Blur Background */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none -z-10 rounded-3xl opacity-30">
           <img
             src={show.artworkUrl}
             alt=""
-            className="w-full h-full object-cover blur-3xl opacity-25 scale-125"
+            className="w-full h-full object-cover blur-3xl scale-125"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-[#030303] via-[#030303]/80 to-transparent" />
-          <div className="absolute inset-0 bg-gradient-to-r from-[#030303] via-[#030303]/60 to-transparent" />
         </div>
 
-        {/* Hero Content */}
-        <div className="absolute inset-x-0 bottom-0 p-6 md:p-10 z-20 flex flex-col md:flex-row items-center md:items-end justify-between gap-6">
-          <div className="flex flex-col md:flex-row items-center md:items-start gap-6 w-full">
+        <div className="relative flex flex-col md:flex-row items-center md:items-start gap-8">
+          
+          {/* Podcast Artwork */}
+          <div className="relative w-44 h-44 sm:w-52 sm:h-52 md:w-64 md:h-64 rounded-2xl overflow-hidden border border-white/10 shadow-2xl shrink-0 bg-zinc-900">
+            <img src={show.artworkUrl} alt={show.title} className="w-full h-full object-cover" />
+          </div>
+
+          {/* Podcast Info */}
+          <div className="flex-1 space-y-4 text-center md:text-left min-w-0">
             
-            {/* Artwork */}
-            <div className="relative w-36 h-36 md:w-48 md:h-48 rounded-2xl overflow-hidden border border-white/10 shadow-2xl shrink-0 bg-zinc-900">
-              <img src={show.artworkUrl} alt={show.title} className="w-full h-full object-cover" />
+            {/* Category & Status Tags */}
+            <div className="flex flex-wrap items-center justify-center md:justify-start gap-2">
+              {show.categories.map((c, i) => (
+                <span key={i} className="px-3 py-1 rounded-full bg-purple-950/60 border border-purple-500/30 text-purple-300 text-xs font-bold uppercase tracking-wider">
+                  {c}
+                </span>
+              ))}
+              {show.isActive !== undefined && (
+                <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider flex items-center gap-1 border ${
+                  show.isActive
+                    ? 'bg-emerald-950/60 border-emerald-500/30 text-emerald-400'
+                    : 'bg-zinc-900 border-white/10 text-zinc-400'
+                }`}>
+                  <Zap size={12} /> {show.isActive ? `Active • ${show.episodeFrequency || 'Weekly'}` : 'Inactive'}
+                </span>
+              )}
             </div>
 
-            {/* Podcast Main Info */}
-            <div className="flex-1 space-y-3 text-center md:text-left min-w-0">
-              
-              {/* Top Row: Back Button & Badges */}
-              <div className="flex flex-wrap items-center justify-center md:justify-start gap-2">
-                <button
-                  onClick={onBack}
-                  className="px-3.5 py-1.5 bg-white/10 hover:bg-white/20 text-white text-xs font-semibold rounded-full flex items-center gap-1.5 transition-all cursor-pointer border border-white/10 backdrop-blur-md"
-                >
-                  <ArrowLeft size={13} /> Back to Directory
-                </button>
-
-                {show.categories.map((c, i) => (
-                  <span key={i} className="px-2.5 py-1 rounded-full bg-purple-950/60 border border-purple-500/30 text-purple-300 text-[10px] font-bold uppercase tracking-wider">
-                    {c}
-                  </span>
-                ))}
-
-                {show.isActive !== undefined && (
-                  <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 border ${
-                    show.isActive
-                      ? 'bg-emerald-950/60 border-emerald-500/30 text-emerald-400'
-                      : 'bg-zinc-850 border-white/10 text-zinc-400'
-                  }`}>
-                    <Zap size={10} /> {show.isActive ? `Active • ${show.episodeFrequency || 'Weekly'}` : 'Inactive'}
-                  </span>
-                )}
-              </div>
-
-              {/* Title & Host */}
-              <h1 className="text-2xl md:text-4xl lg:text-5xl font-black text-white tracking-tight leading-tight">
+            {/* Title & Host */}
+            <div>
+              <h1 className="text-3xl md:text-5xl font-black text-white tracking-tight leading-tight">
                 {show.title}
               </h1>
-              <p className="text-xs md:text-sm text-zinc-400 font-medium">
+              <p className="text-sm md:text-base text-zinc-400 font-medium mt-1">
                 Hosted by <strong className="text-white">{show.author}</strong>
               </p>
+            </div>
 
-              {/* Description */}
-              {show.description && (
-                <p className="text-xs md:text-sm text-zinc-300/90 font-light leading-relaxed line-clamp-3 max-w-3xl">
-                  {show.description}
-                </p>
+            {/* Overview / Description */}
+            {show.description && (
+              <p className="text-xs md:text-sm text-zinc-300 font-light leading-relaxed max-w-3xl">
+                {show.description}
+              </p>
+            )}
+
+            {/* Links & Contact Info */}
+            <div className="flex flex-wrap items-center justify-center md:justify-start gap-2.5 pt-2">
+              {show.ownerEmail && (
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-purple-950/40 border border-purple-500/20 text-xs">
+                  <Mail size={13} className="text-purple-400 shrink-0" />
+                  <span className="text-zinc-300 font-mono text-xs truncate max-w-[200px]">{show.ownerEmail}</span>
+                  <button
+                    onClick={() => onCopyEmail(show.ownerEmail!)}
+                    className="px-2 py-0.5 rounded-md bg-purple-600 hover:bg-purple-500 text-[10px] font-bold text-white transition-colors ml-1 cursor-pointer flex items-center gap-1"
+                  >
+                    {copiedEmail ? <Check size={11} /> : <Copy size={11} />}
+                  </button>
+                </div>
               )}
 
-              {/* Action Pills Row */}
-              <div className="flex flex-wrap items-center justify-center md:justify-start gap-2 pt-2">
-                {show.ownerEmail && (
-                  <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-purple-950/40 border border-purple-500/20 text-xs">
-                    <Mail size={13} className="text-purple-400 shrink-0" />
-                    <span className="text-zinc-300 font-mono text-xs truncate max-w-[200px]">{show.ownerEmail}</span>
-                    <button
-                      onClick={() => onCopyEmail(show.ownerEmail!)}
-                      className="px-2 py-0.5 rounded-md bg-purple-600 hover:bg-purple-500 text-[10px] font-bold text-white transition-colors ml-1 cursor-pointer flex items-center gap-1"
-                    >
-                      {copiedEmail ? <Check size={11} /> : <Copy size={11} />}
-                    </button>
-                  </div>
-                )}
+              {show.ownerName && (
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-zinc-900 border border-white/10 text-xs text-zinc-400">
+                  <User size={13} className="text-zinc-400 shrink-0" />
+                  <span>Publisher: <strong className="text-zinc-200">{show.ownerName}</strong></span>
+                </div>
+              )}
 
-                {show.ownerName && (
-                  <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-zinc-900/80 border border-white/10 text-xs text-zinc-400">
-                    <User size={13} className="text-zinc-400 shrink-0" />
-                    <span className="truncate">Publisher: <strong className="text-zinc-200">{show.ownerName}</strong></span>
-                  </div>
-                )}
+              {show.websiteUrl && (
+                <a
+                  href={show.websiteUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-white/10 text-xs text-zinc-300 hover:text-purple-300 transition-colors"
+                >
+                  <Globe size={13} className="text-zinc-400 shrink-0" />
+                  <span>Website</span>
+                  <ExternalLink size={11} />
+                </a>
+              )}
 
-                {show.websiteUrl && (
-                  <a
-                    href={show.websiteUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-zinc-900/80 hover:bg-zinc-800 border border-white/10 text-xs text-zinc-300 hover:text-purple-300 transition-colors"
-                  >
-                    <Globe size={13} className="text-zinc-400 shrink-0" />
-                    <span>Official Website</span>
-                    <ExternalLink size={11} />
-                  </a>
-                )}
-
-                {show.applePodcastsUrl && (
-                  <a
-                    href={show.applePodcastsUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-zinc-900/80 hover:bg-zinc-800 border border-white/10 text-xs text-zinc-300 hover:text-purple-300 transition-colors"
-                  >
-                    <Headphones size={13} className="text-zinc-400 shrink-0" />
-                    <span>Apple Podcasts</span>
-                    <ExternalLink size={11} />
-                  </a>
-                )}
-              </div>
+              {show.applePodcastsUrl && (
+                <a
+                  href={show.applePodcastsUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-white/10 text-xs text-zinc-300 hover:text-purple-300 transition-colors"
+                >
+                  <Headphones size={13} className="text-zinc-400 shrink-0" />
+                  <span>Apple Podcasts</span>
+                  <ExternalLink size={11} />
+                </a>
+              )}
             </div>
           </div>
         </div>
@@ -1569,6 +1570,7 @@ const PodcastDetailPage: React.FC<PodcastDetailPageProps> = ({
             {filtered.map((ep, idx) => {
               const isCurrentEp = activeEpisode?.audioUrl === ep.audioUrl && isPlaying;
               const formattedDur = formatEpisodeDuration(ep.duration);
+              const epNumDisplay = ep.episodeNumber ? `EP ${ep.episodeNumber}` : `EP ${showEpisodes.length - idx}`;
 
               return (
                 <div
@@ -1591,13 +1593,20 @@ const PodcastDetailPage: React.FC<PodcastDetailPageProps> = ({
                       {isCurrentEp ? <Pause size={18} fill="currentColor" /> : <Play size={18} fill="currentColor" className="ml-0.5" />}
                     </button>
 
-                    <div className="space-y-1.5 min-w-0">
-                      <h4 className={`text-sm md:text-base font-bold line-clamp-1 ${isCurrentEp ? 'text-purple-300' : 'text-white group-hover:text-purple-300'}`}>
-                        {ep.title}
-                      </h4>
+                    <div className="space-y-1.5 min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="px-2 py-0.5 rounded bg-purple-950/70 border border-purple-500/30 text-purple-300 text-[10px] font-extrabold font-mono shrink-0">
+                          {epNumDisplay}
+                        </span>
+                        <h4 className={`text-sm md:text-base font-bold line-clamp-1 ${isCurrentEp ? 'text-purple-300' : 'text-white group-hover:text-purple-300'}`}>
+                          {ep.title}
+                        </h4>
+                      </div>
+
                       <p className="text-xs text-zinc-400 line-clamp-2 leading-relaxed font-light">
                         {ep.description}
                       </p>
+
                       <div className="flex items-center gap-4 text-xs text-zinc-500 font-mono pt-1">
                         {ep.publishDate && (
                           <span className="flex items-center gap-1.5">
