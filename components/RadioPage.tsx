@@ -1,7 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Play, Pause, Volume2, VolumeX, Search, Globe, Loader2, Headphones, Radio, ChevronRight, ArrowLeft, Heart, X, Sparkles, Wifi, SkipBack, SkipForward } from 'lucide-react';
-import { useTvFocus, TvFocusButton } from '../tvNavigation';
-import { registerBackgroundAudio, setBackgroundAudioState, unregisterBackgroundAudio } from '../services/backgroundAudioService';
+import { 
+  Play, Pause, Volume2, VolumeX, Search, Globe, Loader2, Headphones, Radio, 
+  ChevronRight, ArrowLeft, Heart, X, Sparkles, Wifi, SkipBack, SkipForward, 
+  Flame, Cpu, Newspaper, Briefcase, Music, Mic, Award
+} from 'lucide-react';
+import { useTvFocus } from '../tvNavigation';
+import { 
+  registerBackgroundAudio, 
+  setBackgroundAudioState, 
+  unregisterBackgroundAudio 
+} from '../services/backgroundAudioService';
 
 export interface RadioStation {
   changeuuid: string;
@@ -28,18 +36,18 @@ interface RadioPageProps {
 const RADIO_API_BASE = "https://de1.api.radio-browser.info/json";
 
 const POPULAR_COUNTRIES = [
-  { name: "India", code: "IN", flag: "🇮🇳", bg: "from-orange-600/30 to-emerald-600/30", image: "https://images.unsplash.com/photo-1524492412937-b28074a5d7da?w=500&q=80" },
-  { name: "United States", code: "US", flag: "🇺🇸", bg: "from-blue-600/30 to-red-600/30", image: "https://images.unsplash.com/photo-1501594907352-04cda38ebc29?w=500&q=80" },
-  { name: "United Kingdom", code: "GB", flag: "🇬🇧", bg: "from-blue-800/30 to-red-700/30", image: "https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=500&q=80" },
-  { name: "France", code: "FR", flag: "🇫🇷", bg: "from-blue-900/30 to-red-800/30", image: "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?w=500&q=80" },
-  { name: "Germany", code: "DE", flag: "🇩🇪", bg: "from-yellow-600/20 to-zinc-800/40", image: "https://images.unsplash.com/photo-1467269204594-9661b134dd2b?w=500&q=80" },
-  { name: "Spain", code: "ES", flag: "🇪🇸", bg: "from-red-600/30 to-yellow-600/30", image: "https://images.unsplash.com/photo-1509840841025-9088ba78a826?w=500&q=80" },
-  { name: "Japan", code: "JP", flag: "🇯🇵", bg: "from-red-500/20 to-zinc-900/40", image: "https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?w=500&q=80" },
-  { name: "Brazil", code: "BR", flag: "🇧🇷", bg: "from-green-600/30 to-yellow-600/30", image: "https://images.unsplash.com/photo-1483728642387-6c3bdd6c93e5?w=500&q=80" },
-  { name: "Canada", code: "CA", flag: "🇨🇦", bg: "from-red-600/30 to-zinc-800/40", image: "https://images.unsplash.com/photo-1507608869274-d3177c8bb4c7?w=500&q=80" },
-  { name: "Australia", code: "AU", flag: "🇦🇺", bg: "from-blue-900/30 to-zinc-900/30", image: "https://images.unsplash.com/photo-1523482580672-f109ba8cb9be?w=500&q=80" },
-  { name: "Italy", code: "IT", flag: "🇮🇹", bg: "from-green-600/30 to-red-600/30", image: "https://images.unsplash.com/photo-1498503182468-3b51cbb6cb24?w=500&q=80" },
-  { name: "South Korea", code: "KR", flag: "🇰🇷", bg: "from-blue-500/30 to-red-500/30", image: "https://images.unsplash.com/photo-1518084224482-6221160bc00a?w=500&q=80" }
+  { name: "India", code: "IN", bg: "from-orange-600/30 to-emerald-600/30", image: "https://images.unsplash.com/photo-1524492412937-b28074a5d7da?w=500&q=80" },
+  { name: "United States", code: "US", bg: "from-blue-600/30 to-red-600/30", image: "https://images.unsplash.com/photo-1501594907352-04cda38ebc29?w=500&q=80" },
+  { name: "United Kingdom", code: "GB", bg: "from-blue-800/30 to-red-700/30", image: "https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=500&q=80" },
+  { name: "France", code: "FR", bg: "from-blue-900/30 to-red-800/30", image: "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?w=500&q=80" },
+  { name: "Germany", code: "DE", bg: "from-yellow-600/20 to-zinc-800/40", image: "https://images.unsplash.com/photo-1467269204594-9661b134dd2b?w=500&q=80" },
+  { name: "Spain", code: "ES", bg: "from-red-600/30 to-yellow-600/30", image: "https://images.unsplash.com/photo-1509840841025-9088ba78a826?w=500&q=80" },
+  { name: "Japan", code: "JP", bg: "from-red-500/20 to-zinc-900/40", image: "https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?w=500&q=80" },
+  { name: "Brazil", code: "BR", bg: "from-green-600/30 to-yellow-600/30", image: "https://images.unsplash.com/photo-1483728642387-6c3bdd6c93e5?w=500&q=80" },
+  { name: "Canada", code: "CA", bg: "from-red-600/30 to-zinc-800/40", image: "https://images.unsplash.com/photo-1507608869274-d3177c8bb4c7?w=500&q=80" },
+  { name: "Australia", code: "AU", bg: "from-blue-900/30 to-zinc-900/30", image: "https://images.unsplash.com/photo-1523482580672-f109ba8cb9be?w=500&q=80" },
+  { name: "Italy", code: "IT", bg: "from-green-600/30 to-red-600/30", image: "https://images.unsplash.com/photo-1498503182468-3b51cbb6cb24?w=500&q=80" },
+  { name: "South Korea", code: "KR", bg: "from-blue-500/30 to-red-500/30", image: "https://images.unsplash.com/photo-1518084224482-6221160bc00a?w=500&q=80" }
 ];
 
 export const RadioPage: React.FC<RadioPageProps> = ({ searchQuery = "", onSearchClear }) => {
@@ -52,6 +60,11 @@ export const RadioPage: React.FC<RadioPageProps> = ({ searchQuery = "", onSearch
   const [lofi, setLofi] = useState<RadioStation[]>([]);
   const [podcasts, setPodcasts] = useState<RadioStation[]>([]);
   const [regional, setRegional] = useState<RadioStation[]>([]);
+  const [pop, setPop] = useState<RadioStation[]>([]);
+  const [jazz, setJazz] = useState<RadioStation[]>([]);
+  const [classical, setClassical] = useState<RadioStation[]>([]);
+  const [dance, setDance] = useState<RadioStation[]>([]);
+  const [retro, setRetro] = useState<RadioStation[]>([]);
 
   // Selected Country Page state
   const [selectedCountry, setSelectedCountry] = useState<typeof POPULAR_COUNTRIES[0] | null>(null);
@@ -96,7 +109,12 @@ export const RadioPage: React.FC<RadioPageProps> = ({ searchQuery = "", onSearch
           news: `${RADIO_API_BASE}/stations/search?tag=news&order=clickcount&reverse=true&limit=30&hidebroken=true`,
           lofi: `${RADIO_API_BASE}/stations/search?tag=lofi&order=clickcount&reverse=true&limit=30&hidebroken=true`,
           podcasts: `${RADIO_API_BASE}/stations/search?tag=podcast&order=clickcount&reverse=true&limit=30&hidebroken=true`,
-          regional: `${RADIO_API_BASE}/stations/search?tag=regional&order=clickcount&reverse=true&limit=30&hidebroken=true`
+          regional: `${RADIO_API_BASE}/stations/search?tag=regional&order=clickcount&reverse=true&limit=30&hidebroken=true`,
+          pop: `${RADIO_API_BASE}/stations/search?tag=pop&order=clickcount&reverse=true&limit=30&hidebroken=true`,
+          jazz: `${RADIO_API_BASE}/stations/search?tag=jazz&order=clickcount&reverse=true&limit=30&hidebroken=true`,
+          classical: `${RADIO_API_BASE}/stations/search?tag=classical&order=clickcount&reverse=true&limit=30&hidebroken=true`,
+          dance: `${RADIO_API_BASE}/stations/search?tag=dance&order=clickcount&reverse=true&limit=30&hidebroken=true`,
+          retro: `${RADIO_API_BASE}/stations/search?tag=80s&order=clickcount&reverse=true&limit=30&hidebroken=true`
         };
 
         const fetches = Object.entries(endpoints).map(async ([key, url]) => {
@@ -124,6 +142,11 @@ export const RadioPage: React.FC<RadioPageProps> = ({ searchQuery = "", onSearch
           else if (key === 'lofi') setLofi(data);
           else if (key === 'podcasts') setPodcasts(data);
           else if (key === 'regional') setRegional(data);
+          else if (key === 'pop') setPop(data);
+          else if (key === 'jazz') setJazz(data);
+          else if (key === 'classical') setClassical(data);
+          else if (key === 'dance') setDance(data);
+          else if (key === 'retro') setRetro(data);
         });
 
       } catch (err: any) {
@@ -313,103 +336,105 @@ export const RadioPage: React.FC<RadioPageProps> = ({ searchQuery = "", onSearch
   const renderPlayerBar = () => {
     if (!currentStation) return null;
     return (
-      <div className="fixed bottom-[calc(4rem+env(safe-area-inset-bottom,0px))] md:bottom-0 left-0 right-0 z-[80] bg-zinc-950/85 backdrop-blur-2xl border-t border-white/[0.05] p-3 md:p-4 select-none px-4 md:px-12 flex items-center justify-between gap-4 animate-in slide-in-from-bottom duration-500 shadow-2xl">
-        {/* Left: Station Details */}
-        <div className="flex items-center gap-3 w-[60%] md:w-1/3 min-w-0">
-          <div className="w-11 h-11 md:w-14 md:h-14 bg-zinc-900 rounded-2xl p-1 border border-white/5 flex items-center justify-center shadow-md relative overflow-hidden shrink-0">
-            {currentStation.favicon ? (
-              <img src={currentStation.favicon} alt="" className="max-w-[90%] max-h-[90%] object-contain rounded" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
-            ) : (
-              <Radio size={20} className="text-red-500 animate-pulse" />
-            )}
-          </div>
-          <div className="min-w-0 flex-1 text-left">
-            <div className="flex items-center gap-2">
-              <h4 className="text-xs md:text-sm font-semibold text-white truncate leading-tight">{currentStation.name}</h4>
-              <div className="flex items-center gap-1 bg-red-600/20 px-1.5 py-0.2 rounded border border-red-500/20 text-[7px] font-bold text-red-500 select-none uppercase tracking-wide shrink-0">
-                <span className="w-1 h-1 rounded-full bg-red-500 animate-ping"></span>
-                LIVE
+      <div className="fixed bottom-0 inset-x-0 z-40 bg-zinc-950/95 backdrop-blur-xl border-t border-white/10 px-4 py-3 shadow-[0_-10px_30px_rgba(0,0,0,0.8)] animate-in slide-in-from-bottom duration-300 text-left">
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-3">
+          
+          {/* Left: Station Details */}
+          <div className="flex items-center gap-3 w-full md:w-1/3 min-w-0">
+            <div className="w-12 h-12 rounded-xl overflow-hidden bg-zinc-900 border border-white/10 shrink-0 flex items-center justify-center relative">
+              {currentStation.favicon ? (
+                <img src={currentStation.favicon} alt="" className="w-full h-full object-cover" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+              ) : (
+                <Radio size={20} className="text-red-500 animate-pulse" />
+              )}
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2">
+                <h4 className="text-xs font-bold text-white truncate leading-tight">{currentStation.name}</h4>
+                <div className="flex items-center gap-1 bg-red-600/20 px-1.5 py-0.5 rounded border border-red-500/30 text-[8px] font-bold text-red-400 shrink-0">
+                  <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-ping"></span>
+                  LIVE
+                </div>
               </div>
+              <p className="text-[10px] text-zinc-400 truncate mt-0.5 font-medium">
+                {currentStation.country ? `${currentStation.country}` : 'Global'}
+                {currentStation.tags ? ` • ${formatTags(currentStation.tags)}` : ''}
+              </p>
             </div>
-            <p className="text-[10px] text-zinc-400 truncate mt-0.5 leading-none font-medium">
-              {currentStation.country ? `${currentStation.country}` : 'Global'}
-              {currentStation.tags ? ` • ${formatTags(currentStation.tags)}` : ''}
-            </p>
           </div>
-        </div>
 
-        {/* Center: Controls & Buffer visualizer */}
-        <div className="flex items-center gap-4 md:gap-6 justify-center w-1/3">
-          <button
-            onClick={skipPrevious}
-            disabled={currentPlaylist.length <= 1}
-            className="p-2 text-zinc-400 hover:text-white transition-colors border-none bg-transparent cursor-pointer disabled:opacity-30 disabled:hover:text-zinc-400"
-            title="Previous Station"
-          >
-            <SkipBack size={16} fill="currentColor" />
-          </button>
+          {/* Center: Controls */}
+          <div className="flex items-center gap-4 justify-center w-full md:w-1/3">
+            <button
+              onClick={skipPrevious}
+              disabled={currentPlaylist.length <= 1}
+              className="text-zinc-400 hover:text-white disabled:opacity-30 cursor-pointer transition-colors"
+              title="Previous Station"
+            >
+              <SkipBack size={18} />
+            </button>
 
-          <button
-            onClick={togglePlay}
-            disabled={isLoading}
-            className="w-10 h-10 rounded-full bg-white hover:scale-105 active:scale-95 text-black flex items-center justify-center transition-all shadow-md border-none cursor-pointer disabled:opacity-50"
-          >
-            {isLoading ? (
-              <Loader2 size={16} className="animate-spin text-black" />
-            ) : isPlaying ? (
-              <Pause size={16} fill="currentColor" />
-            ) : (
-              <Play size={16} fill="currentColor" className="ml-0.5" />
+            <button
+              onClick={togglePlay}
+              disabled={isLoading}
+              className="w-10 h-10 rounded-full bg-red-600 hover:bg-red-500 text-white flex items-center justify-center shadow-lg shadow-red-600/40 transition-transform active:scale-95 cursor-pointer disabled:opacity-50"
+            >
+              {isLoading ? (
+                <Loader2 size={18} className="animate-spin text-white" />
+              ) : isPlaying ? (
+                <Pause size={18} fill="currentColor" />
+              ) : (
+                <Play size={18} fill="currentColor" className="ml-0.5" />
+              )}
+            </button>
+
+            <button
+              onClick={skipNext}
+              disabled={currentPlaylist.length <= 1}
+              className="text-zinc-400 hover:text-white disabled:opacity-30 cursor-pointer transition-colors"
+              title="Next Station"
+            >
+              <SkipForward size={18} />
+            </button>
+
+            {isPlaying && !isLoading && (
+              <div className="hidden md:flex items-end gap-[3px] h-4 select-none">
+                <div className="w-[3px] bg-red-500 rounded-full animate-[liveWave_0.8s_ease-in-out_infinite]"></div>
+                <div className="w-[3px] bg-red-500 rounded-full animate-[liveWave_0.5s_ease-in-out_0.2s_infinite]"></div>
+                <div className="w-[3px] bg-red-500 rounded-full animate-[liveWave_0.7s_ease-in-out_0.4s_infinite]"></div>
+                <div className="w-[3px] bg-red-500 rounded-full animate-[liveWave_0.6s_ease-in-out_0.1s_infinite]"></div>
+              </div>
             )}
-          </button>
+          </div>
 
-          <button
-            onClick={skipNext}
-            disabled={currentPlaylist.length <= 1}
-            className="p-2 text-zinc-400 hover:text-white transition-colors border-none bg-transparent cursor-pointer disabled:opacity-30 disabled:hover:text-zinc-400"
-            title="Next Station"
-          >
-            <SkipForward size={16} fill="currentColor" />
-          </button>
-
-          {/* Bouncing Audio Bars when Playing */}
-          {isPlaying && !isLoading && (
-            <div className="hidden md:flex items-end gap-[3px] h-4 select-none">
-              <div className="w-[3px] bg-red-600 rounded-full animate-[liveWave_0.8s_ease-in-out_infinite]"></div>
-              <div className="w-[3px] bg-red-600 rounded-full animate-[liveWave_0.5s_ease-in-out_0.2s_infinite]"></div>
-              <div className="w-[3px] bg-red-600 rounded-full animate-[liveWave_0.7s_ease-in-out_0.4s_infinite]"></div>
-              <div className="w-[3px] bg-red-600 rounded-full animate-[liveWave_0.6s_ease-in-out_0.1s_infinite]"></div>
-            </div>
-          )}
-        </div>
-
-        {/* Right: Audio Volume Control */}
-        <div className="flex items-center justify-end gap-3 w-1/3">
-          <button
-            onClick={() => setIsMuted(!isMuted)}
-            className="p-2 text-zinc-400 hover:text-white transition-colors border-none bg-transparent cursor-pointer"
-          >
-            {isMuted || volume === 0 ? <VolumeX size={18} /> : <Volume2 size={18} />}
-          </button>
-          <input
-            type="range"
-            min="0"
-            max="1"
-            step="0.05"
-            value={isMuted ? 0 : volume}
-            onChange={(e) => {
-              setVolume(parseFloat(e.target.value));
-              if (isMuted) setIsMuted(false);
-            }}
-            className="hidden sm:inline w-20 md:w-28 accent-white h-[3px] bg-zinc-800 rounded-full cursor-pointer hover:bg-zinc-700 transition-colors"
-          />
-          <button
-            onClick={() => setCurrentStation(null)}
-            className="p-2 text-zinc-400 hover:text-white transition-colors border-none bg-transparent cursor-pointer ml-2"
-            title="Close Stream"
-          >
-            <X size={16} />
-          </button>
+          {/* Right: Audio Volume Control */}
+          <div className="flex items-center justify-end gap-3 w-full md:w-1/3">
+            <button
+              onClick={() => setIsMuted(!isMuted)}
+              className="text-zinc-400 hover:text-white transition-colors cursor-pointer"
+            >
+              {isMuted || volume === 0 ? <VolumeX size={18} /> : <Volume2 size={18} />}
+            </button>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.05"
+              value={isMuted ? 0 : volume}
+              onChange={(e) => {
+                setVolume(parseFloat(e.target.value));
+                if (isMuted) setIsMuted(false);
+              }}
+              className="hidden sm:inline w-20 md:w-24 accent-red-500 h-1 bg-zinc-800 rounded-lg cursor-pointer"
+            />
+            <button
+              onClick={() => setCurrentStation(null)}
+              className="text-zinc-400 hover:text-white transition-colors cursor-pointer ml-2"
+              title="Close Stream"
+            >
+              <X size={16} />
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -421,7 +446,7 @@ export const RadioPage: React.FC<RadioPageProps> = ({ searchQuery = "", onSearch
   // Render Skeleton Loader
   if (loading) {
     return (
-      <div className="space-y-12 py-10 px-4 md:px-12 select-none bg-[#030303] min-h-screen">
+      <div className="space-y-10 pt-24 pb-10 px-4 md:px-12 select-none bg-[#030303] min-h-screen text-left">
         <div className="w-full h-[35vh] bg-zinc-900/50 rounded-3xl animate-pulse flex items-end p-8 border border-white/5">
           <div className="space-y-4 max-w-xl">
             <div className="h-4 w-28 bg-zinc-800 rounded"></div>
@@ -453,13 +478,13 @@ export const RadioPage: React.FC<RadioPageProps> = ({ searchQuery = "", onSearch
   // Render Error State
   if (error) {
     return (
-      <div className="flex flex-col items-center justify-center py-24 text-center max-w-md mx-auto px-4 min-h-screen bg-[#030303] text-white">
+      <div className="flex flex-col items-center justify-center pt-24 py-24 text-center max-w-md mx-auto px-4 min-h-screen bg-[#030303] text-white">
         <Wifi size={48} className="text-red-500 mb-4 animate-pulse" />
         <h3 className="text-lg font-bold text-white mb-2">Connection Problem</h3>
         <p className="text-zinc-500 text-xs leading-relaxed mb-6">{error}</p>
         <button
           onClick={() => window.location.reload()}
-          className="flex items-center gap-2 px-6 py-2.5 bg-white/10 hover:bg-white/20 text-white text-xs font-semibold uppercase tracking-wider rounded-xl transition-all active:scale-95 border border-white/5"
+          className="flex items-center gap-2 px-6 py-2.5 bg-white/10 hover:bg-white/20 text-white text-xs font-semibold uppercase tracking-wider rounded-xl transition-all active:scale-95 border border-white/5 cursor-pointer"
         >
           Retry Connection
         </button>
@@ -484,7 +509,7 @@ export const RadioPage: React.FC<RadioPageProps> = ({ searchQuery = "", onSearch
   }
 
   return (
-    <div className="min-h-screen bg-[#030303] text-white pb-36 relative select-none">
+    <div className="min-h-screen bg-[#030303] text-white pb-36 pt-20 md:pt-24 relative select-none animate-in fade-in duration-500">
       <style>{`
         @keyframes liveWave {
           0%, 100% {
@@ -495,17 +520,18 @@ export const RadioPage: React.FC<RadioPageProps> = ({ searchQuery = "", onSearch
           }
         }
       `}</style>
+
       {/* 1. Search Results Layout */}
       {searchQuery ? (
         <div className="px-4 md:px-12 max-w-7xl mx-auto text-left pt-6 animate-in fade-in duration-500">
           <div className="flex items-center justify-between mb-8 border-b border-white/5 pb-4">
-            <h2 className="text-lg font-bold text-white flex items-center gap-2">
+            <h2 className="text-base font-semibold text-white flex items-center gap-2">
               <Search size={18} className="text-red-500" />
               <span>Search Results for "{searchQuery}"</span>
             </h2>
             <button
               onClick={() => { if (onSearchClear) onSearchClear(); }}
-              className="text-xs font-semibold text-red-500 hover:text-red-400 bg-red-600/10 px-3.5 py-1.5 rounded-full flex items-center gap-1.5 active:scale-95 transition-all border border-red-500/10"
+              className="text-xs font-semibold text-red-400 hover:text-red-300 bg-red-600/10 px-3.5 py-1.5 rounded-full flex items-center gap-1.5 active:scale-95 transition-all border border-red-500/20 cursor-pointer"
             >
               <ArrowLeft size={13} /> Back to Catalog
             </button>
@@ -514,13 +540,13 @@ export const RadioPage: React.FC<RadioPageProps> = ({ searchQuery = "", onSearch
           {searchLoading ? (
             <div className="flex flex-col items-center justify-center py-24 gap-3">
               <Loader2 className="animate-spin text-red-500" size={32} />
-              <p className="text-[10px] text-zinc-500 font-semibold tracking-widest uppercase">Searching directory...</p>
+              <p className="text-xs text-zinc-500 font-semibold tracking-widest uppercase">Searching directory...</p>
             </div>
           ) : searchResults.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 text-center opacity-60">
               <Radio size={48} className="text-white/20 mb-4" />
               <h3 className="text-base font-bold text-white mb-1">No Stations Found</h3>
-              <p className="text-zinc-500 text-xs max-w-sm">No radio stations matched your query. Try adjusting your spelling or searching by tag (e.g. "jazz", "country").</p>
+              <p className="text-zinc-500 text-xs max-w-sm">No radio stations matched your query. Try adjusting your spelling or searching by tag (e.g. "jazz", "rock").</p>
             </div>
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6">
@@ -535,7 +561,7 @@ export const RadioPage: React.FC<RadioPageProps> = ({ searchQuery = "", onSearch
         <>
           {/* Spotlight Hero Banner */}
           {featured && (
-            <div className="relative w-full aspect-[21/9] min-h-[380px] max-h-[500px] overflow-hidden flex items-center bg-black select-none border-b border-white/5">
+            <div className="relative w-full aspect-[21/9] min-h-[360px] max-h-[460px] overflow-hidden flex items-center bg-black select-none border-b border-white/5 mx-auto max-w-7xl rounded-3xl mt-2">
               <div className="absolute inset-0">
                 <img
                   src="https://images.unsplash.com/photo-1590608897129-79da98d15969?w=1600&q=80"
@@ -547,7 +573,7 @@ export const RadioPage: React.FC<RadioPageProps> = ({ searchQuery = "", onSearch
               </div>
 
               {/* Spotlight Content */}
-              <div className="absolute left-4 md:left-12 bottom-8 md:bottom-12 max-w-2xl text-left z-20 space-y-4 px-4 md:px-0 animate-in fade-in slide-in-from-bottom-6 duration-700">
+              <div className="absolute left-6 md:left-12 bottom-8 md:bottom-12 max-w-2xl text-left z-20 space-y-4 px-4 md:px-0 animate-in fade-in slide-in-from-bottom-6 duration-700">
                 <div className="flex items-center gap-2">
                   <div className="flex items-center gap-1.5 bg-red-600 px-3 py-0.5 rounded-full border border-red-500/25 shadow-[0_0_12px_#dc2626]/40">
                     <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
@@ -561,10 +587,9 @@ export const RadioPage: React.FC<RadioPageProps> = ({ searchQuery = "", onSearch
                 </div>
 
                 <div className="flex items-center gap-4">
-                  <div className="w-14 h-14 bg-zinc-900 rounded-2xl p-1.5 border border-white/10 flex items-center justify-center shadow-2xl relative overflow-hidden shrink-0">
-                    <div className="absolute inset-0 bg-gradient-to-b from-white/[0.04] to-transparent" />
+                  <div className="w-14 h-14 bg-zinc-900 rounded-2xl border border-white/10 flex items-center justify-center shadow-2xl relative overflow-hidden shrink-0">
                     {featured.favicon ? (
-                      <img src={featured.favicon} className="max-w-[90%] max-h-[90%] object-contain rounded" alt="" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                      <img src={featured.favicon} className="w-full h-full object-cover" alt="" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
                     ) : (
                       <Radio size={24} className="text-red-500" />
                     )}
@@ -573,13 +598,13 @@ export const RadioPage: React.FC<RadioPageProps> = ({ searchQuery = "", onSearch
                 </div>
 
                 <p className="text-zinc-300 text-xs md:text-sm max-w-md leading-relaxed font-light">
-                  {featured.tags ? `Discover various genres including ${formatTags(featured.tags).toLowerCase() || 'broadcasting'}.` : "Enjoy live music, talk, news and streams from across the globe."} Live and free, without any API keys.
+                  {featured.tags ? `Discover genres including ${formatTags(featured.tags).toLowerCase() || 'broadcasting'}.` : "Enjoy live music, talk, news and streams from across the globe."} Live and free audio radio frequencies.
                 </p>
 
                 <div className="flex items-center gap-3">
                   <button
                     onClick={() => handlePlayStation(featured, popular)}
-                    className="px-6 py-2.5 text-xs font-semibold rounded-xl flex items-center gap-2.5 transition-all hover:scale-[1.02] active:scale-95 shadow-lg bg-white text-black hover:bg-white/90 border-none cursor-pointer"
+                    className="px-6 py-2.5 text-xs font-semibold rounded-xl flex items-center gap-2.5 transition-all hover:scale-[1.02] active:scale-95 shadow-lg bg-red-600 text-white hover:bg-red-500 border-none cursor-pointer"
                   >
                     <Play size={14} fill="currentColor" /> Listen Live
                   </button>
@@ -587,7 +612,7 @@ export const RadioPage: React.FC<RadioPageProps> = ({ searchQuery = "", onSearch
               </div>
 
               {/* Slider indicators */}
-              <div className="absolute right-4 md:right-12 bottom-12 z-20 flex items-center gap-2">
+              <div className="absolute right-6 md:right-12 bottom-12 z-20 flex items-center gap-2">
                 {popular.slice(0, 5).map((_, idx) => (
                   <button
                     key={idx}
@@ -602,42 +627,29 @@ export const RadioPage: React.FC<RadioPageProps> = ({ searchQuery = "", onSearch
           {/* Error Message from Buffering/Loading */}
           {errorMsg && (
             <div className="px-4 md:px-12 max-w-7xl mx-auto mt-6">
-              <div className="p-4 rounded-xl bg-red-950/20 border border-red-500/20 text-red-400 text-xs flex items-center justify-between">
+              <div className="p-4 rounded-xl bg-red-950/40 border border-red-500/30 text-red-300 text-xs flex items-center justify-between">
                 <span>{errorMsg}</span>
-                <button onClick={() => setErrorMsg(null)} className="text-zinc-400 hover:text-white"><X size={14} /></button>
+                <button onClick={() => setErrorMsg(null)} className="text-zinc-400 hover:text-white cursor-pointer"><X size={14} /></button>
               </div>
             </div>
           )}
 
-          {/* Category Rows */}
-          <div className="space-y-1 mt-6">
-            <RadioRow title="🔥 Popular Stations" stations={popular} onPlay={handlePlayStation} activeStationId={currentStation?.stationuuid} isPlaying={isPlaying} />
-            <RadioRow
-              title={
-                <span className="flex items-center gap-2">
-                  <img
-                    src="https://flagcdn.com/w40/in.png"
-                    alt=""
-                    className="w-5.5 h-4 object-cover rounded-[2px] shadow-sm border border-white/5 inline-block align-middle"
-                  />
-                  <span>Trending in India</span>
-                </span>
-              }
-              stations={trendingIndia}
-              onPlay={handlePlayStation}
-              activeStationId={currentStation?.stationuuid}
-              isPlaying={isPlaying}
-            />
-            <RadioRow title="🎸 Rock" stations={rock} onPlay={handlePlayStation} activeStationId={currentStation?.stationuuid} isPlaying={isPlaying} />
-            <RadioRow title="🎙️ Podcasts" stations={podcasts} onPlay={handlePlayStation} activeStationId={currentStation?.stationuuid} isPlaying={isPlaying} />
-            <RadioRow title="🎤 Bollywood" stations={bollywood} onPlay={handlePlayStation} activeStationId={currentStation?.stationuuid} isPlaying={isPlaying} />
+          {/* Expanded Category Rows */}
+          <div className="space-y-2 mt-6">
+            <RadioRow title="Popular Global Stations" icon={<Flame size={18} className="text-amber-400" />} stations={popular} onPlay={handlePlayStation} activeStationId={currentStation?.stationuuid} isPlaying={isPlaying} />
+            <RadioRow title="Trending in India" icon={<Globe size={18} className="text-orange-400" />} stations={trendingIndia} onPlay={handlePlayStation} activeStationId={currentStation?.stationuuid} isPlaying={isPlaying} />
+            <RadioRow title="Bollywood & Hindi Classics" icon={<Sparkles size={18} className="text-pink-400" />} stations={bollywood} onPlay={handlePlayStation} activeStationId={currentStation?.stationuuid} isPlaying={isPlaying} />
+            <RadioRow title="Pop & Top 40 Hits" icon={<Music size={18} className="text-purple-400" />} stations={pop} onPlay={handlePlayStation} activeStationId={currentStation?.stationuuid} isPlaying={isPlaying} />
+            <RadioRow title="Rock & Heavy Metal" icon={<Music size={18} className="text-red-400" />} stations={rock} onPlay={handlePlayStation} activeStationId={currentStation?.stationuuid} isPlaying={isPlaying} />
+            <RadioRow title="Jazz, Blues & Soul" icon={<Music size={18} className="text-indigo-400" />} stations={jazz} onPlay={handlePlayStation} activeStationId={currentStation?.stationuuid} isPlaying={isPlaying} />
+            <RadioRow title="Podcasts & Live Broadcasts" icon={<Mic size={18} className="text-cyan-400" />} stations={podcasts} onPlay={handlePlayStation} activeStationId={currentStation?.stationuuid} isPlaying={isPlaying} />
             
-            {/* 🗺️ Browse by Country Row */}
+            {/* Browse by Country Row */}
             <div className="mb-8 text-left animate-in fade-in duration-500">
               <div className="flex items-center justify-between px-4 md:px-12 mb-4">
-                <h3 className="text-base md:text-lg font-bold text-white tracking-tight flex items-center gap-2 select-none font-sans">
-                  <span className="w-1.5 h-5 bg-red-600 rounded-full inline-block"></span>
-                  🗺️ Browse by Country
+                <h3 className="text-base md:text-lg font-bold text-white tracking-tight flex items-center gap-2.5 select-none font-sans">
+                  <Globe size={18} className="text-purple-400" />
+                  Browse Radio by Country
                 </h3>
               </div>
               <div className="flex gap-5 overflow-x-auto px-4 md:px-12 pb-4 hide-scrollbar scroll-smooth">
@@ -647,9 +659,12 @@ export const RadioPage: React.FC<RadioPageProps> = ({ searchQuery = "", onSearch
               </div>
             </div>
 
-            <RadioRow title="📰 News Radio" stations={news} onPlay={handlePlayStation} activeStationId={currentStation?.stationuuid} isPlaying={isPlaying} />
-            <RadioRow title="🌐 Regional" stations={regional} onPlay={handlePlayStation} activeStationId={currentStation?.stationuuid} isPlaying={isPlaying} />
-            <RadioRow title="🎧 Lo-fi" stations={lofi} onPlay={handlePlayStation} activeStationId={currentStation?.stationuuid} isPlaying={isPlaying} />
+            <RadioRow title="Electronic & Dance (EDM)" icon={<Flame size={18} className="text-emerald-400" />} stations={dance} onPlay={handlePlayStation} activeStationId={currentStation?.stationuuid} isPlaying={isPlaying} />
+            <RadioRow title="News, Sports & Talk Radio" icon={<Newspaper size={18} className="text-blue-400" />} stations={news} onPlay={handlePlayStation} activeStationId={currentStation?.stationuuid} isPlaying={isPlaying} />
+            <RadioRow title="Classical & Orchestral" icon={<Award size={18} className="text-amber-500" />} stations={classical} onPlay={handlePlayStation} activeStationId={currentStation?.stationuuid} isPlaying={isPlaying} />
+            <RadioRow title="Retro 80s & Golden Oldies" icon={<Sparkles size={18} className="text-yellow-400" />} stations={retro} onPlay={handlePlayStation} activeStationId={currentStation?.stationuuid} isPlaying={isPlaying} />
+            <RadioRow title="Regional Frequencies" icon={<Radio size={18} className="text-teal-400" />} stations={regional} onPlay={handlePlayStation} activeStationId={currentStation?.stationuuid} isPlaying={isPlaying} />
+            <RadioRow title="Lo-Fi & Ambient Chill" icon={<Headphones size={18} className="text-indigo-400" />} stations={lofi} onPlay={handlePlayStation} activeStationId={currentStation?.stationuuid} isPlaying={isPlaying} />
           </div>
         </>
       )}
@@ -683,9 +698,9 @@ const RadioCard: React.FC<RadioCardProps> = ({ station, onPlay, activeStationId,
     <div
       ref={ref}
       onClick={() => onPlay(station)}
-      className="group flex flex-col gap-2 shrink-0 w-[125px] sm:w-[145px] md:w-[150px] cursor-pointer select-none text-left"
+      className="group flex flex-col gap-2 shrink-0 w-[130px] sm:w-[150px] md:w-[160px] cursor-pointer select-none text-left"
     >
-      <div className="relative w-full aspect-square rounded-2xl overflow-hidden bg-zinc-900 border border-white/5 group-hover:border-red-500/50 group-hover:shadow-[0_0_20px_rgba(239,68,68,0.25)] group-hover:scale-[1.03] transition-all duration-500 flex items-center justify-center">
+      <div className="relative w-full aspect-square rounded-2xl overflow-hidden bg-zinc-900 border border-white/10 group-hover:border-red-500/60 group-hover:shadow-[0_0_20px_rgba(239,68,68,0.3)] group-hover:scale-[1.03] transition-all duration-300 flex items-center justify-center">
         {showFallback ? (
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-br from-zinc-900 to-zinc-950 text-zinc-400 p-3 text-center">
             <Headphones size={28} className="text-red-500/80 mb-2 group-hover:scale-110 transition-transform" />
@@ -698,14 +713,14 @@ const RadioCard: React.FC<RadioCardProps> = ({ station, onPlay, activeStationId,
             src={station.favicon}
             alt={station.name}
             loading="lazy"
-            className="w-full h-full object-contain p-3 transition-transform duration-700 group-hover:scale-105"
+            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
             onError={() => setImgError(true)}
           />
         )}
 
         {/* Hover / Active Overlay */}
         <div className={`absolute inset-0 bg-black/60 flex items-center justify-center transition-opacity duration-300 ${isCurrentActive ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
-          <div className="w-10 h-10 rounded-full bg-red-600 text-white flex items-center justify-center shadow-lg transform scale-90 group-hover:scale-100 transition-transform duration-350">
+          <div className="w-10 h-10 rounded-full bg-red-600 text-white flex items-center justify-center shadow-lg transform scale-90 group-hover:scale-100 transition-transform">
             {isCurrentActive && isPlaying ? (
               <Pause size={16} fill="currentColor" />
             ) : (
@@ -714,22 +729,21 @@ const RadioCard: React.FC<RadioCardProps> = ({ station, onPlay, activeStationId,
           </div>
         </div>
 
-        {/* Live Indicator on Card */}
-        <div className="absolute top-2 right-2 bg-black/75 backdrop-blur-md px-1.5 py-0.5 rounded text-[7px] font-bold text-zinc-300 border border-white/5">
+        {/* Tag badge */}
+        <div className="absolute top-2 right-2 bg-black/80 backdrop-blur-md px-1.5 py-0.5 rounded text-[8px] font-bold text-zinc-300 border border-white/10">
           {station.language ? station.language.split(',')[0].toUpperCase().substring(0, 5) : 'LIVE'}
         </div>
       </div>
 
-      {/* Details below cover */}
-      <div className="flex flex-col px-1">
-        <h4 className="text-xs md:text-sm font-medium text-zinc-200 line-clamp-1 group-hover:text-red-500 transition-colors duration-300 leading-snug">
+      <div className="flex flex-col px-1 space-y-0.5">
+        <h4 className="text-xs font-semibold text-zinc-200 line-clamp-1 group-hover:text-red-500 transition-colors">
           {station.name}
         </h4>
-        <div className="flex items-center justify-between mt-0.5 text-[9px] text-zinc-500 font-semibold font-sans">
+        <div className="flex items-center justify-between text-[10px] text-zinc-500 font-medium font-sans">
           <span className="truncate max-w-[70%]">{station.country || 'Global'}</span>
           {station.clickcount > 0 && (
-            <span className="text-[8px] px-1 py-0.2 rounded bg-white/5 text-zinc-400">
-              {station.clickcount >= 1000 ? `${(station.clickcount / 1000).toFixed(1)}k` : station.clickcount} click
+            <span className="text-[9px] px-1.5 py-0.2 rounded bg-white/5 text-zinc-400">
+              {station.clickcount >= 1000 ? `${(station.clickcount / 1000).toFixed(1)}k` : station.clickcount}
             </span>
           )}
         </div>
@@ -741,21 +755,22 @@ const RadioCard: React.FC<RadioCardProps> = ({ station, onPlay, activeStationId,
 /* --- Row Component --- */
 
 interface RadioRowProps {
-  title: React.ReactNode;
+  title: string;
+  icon?: React.ReactNode;
   stations: RadioStation[];
   onPlay: (station: RadioStation, playlist: RadioStation[]) => void;
   activeStationId?: string;
   isPlaying: boolean;
 }
 
-const RadioRow: React.FC<RadioRowProps> = ({ title, stations, onPlay, activeStationId, isPlaying }) => {
+const RadioRow: React.FC<RadioRowProps> = ({ title, icon, stations, onPlay, activeStationId, isPlaying }) => {
   if (stations.length === 0) return null;
 
   return (
     <div className="mb-8 animate-in fade-in duration-500 text-left">
       <div className="flex items-center justify-between px-4 md:px-12 mb-4">
-        <h3 className="text-base md:text-lg font-bold text-white tracking-tight flex items-center gap-2 select-none font-sans">
-          <span className="w-1.5 h-5 bg-red-600 rounded-full inline-block"></span>
+        <h3 className="text-base md:text-lg font-bold text-white tracking-tight flex items-center gap-2.5 select-none font-sans">
+          {icon ? icon : <span className="w-1.5 h-5 bg-red-600 rounded-full inline-block"></span>}
           {title}
         </h3>
       </div>
@@ -786,23 +801,19 @@ const CountryCard: React.FC<CountryCardProps> = ({ country, onClick }) => {
       onClick={onClick}
       className="group flex flex-col gap-2 shrink-0 w-[150px] sm:w-[180px] md:w-[200px] cursor-pointer select-none text-left"
     >
-      <div className="relative w-full aspect-[16/10] rounded-2xl overflow-hidden bg-zinc-900 border border-white/5 group-hover:border-red-500/50 group-hover:shadow-[0_0_20px_rgba(239,68,68,0.25)] group-hover:scale-[1.03] transition-all duration-500 flex items-center justify-center">
+      <div className="relative w-full aspect-[16/10] rounded-2xl overflow-hidden bg-zinc-900 border border-white/10 group-hover:border-red-500/60 group-hover:shadow-[0_0_20px_rgba(239,68,68,0.3)] group-hover:scale-[1.03] transition-all duration-300 flex items-center justify-center">
         <img
           src={country.image}
           alt={country.name}
           loading="lazy"
-          className="w-full h-full object-cover opacity-50 group-hover:opacity-75 transition-opacity duration-550"
+          className="w-full h-full object-cover opacity-50 group-hover:opacity-75 transition-opacity duration-500"
         />
         <div className={`absolute inset-0 bg-gradient-to-t ${country.bg} via-black/40 to-black/10`} />
 
-        {/* Name and Flag overlay */}
-        <div className="absolute inset-x-0 bottom-0 p-2.5 bg-black/55 backdrop-blur-md border-t border-white/5 flex items-center gap-2">
-          <img
-            src={`https://flagcdn.com/w40/${country.code.toLowerCase()}.png`}
-            alt=""
-            className="w-5.5 h-4 object-cover rounded-[2px] shadow-sm border border-white/5"
-          />
+        {/* Name and Code overlay */}
+        <div className="absolute inset-x-0 bottom-0 p-2.5 bg-black/60 backdrop-blur-md border-t border-white/5 flex items-center justify-between gap-2">
           <span className="text-[10px] sm:text-xs font-semibold text-white truncate">{country.name}</span>
+          <span className="text-[9px] font-bold text-red-400 bg-red-600/20 px-1.5 py-0.5 rounded border border-red-500/20 uppercase">{country.code}</span>
         </div>
       </div>
     </div>
@@ -920,7 +931,7 @@ const CountryRadioPage: React.FC<CountryRadioPageProps> = ({ country, onBack, on
 
   if (loading) {
     return (
-      <div className="space-y-12 py-10 px-4 md:px-12 select-none bg-[#030303] min-h-screen">
+      <div className="space-y-10 pt-24 pb-10 px-4 md:px-12 select-none bg-[#030303] min-h-screen text-left">
         <div className="flex items-center justify-between border-b border-white/5 pb-6">
           <div className="h-6 w-32 bg-zinc-850 rounded animate-pulse"></div>
           <div className="h-9 w-64 bg-zinc-850 rounded-full animate-pulse"></div>
@@ -946,9 +957,9 @@ const CountryRadioPage: React.FC<CountryRadioPageProps> = ({ country, onBack, on
   }
 
   return (
-    <div className="min-h-screen bg-[#030303] text-white pb-36 relative select-none animate-in fade-in duration-500">
+    <div className="min-h-screen bg-[#030303] text-white pb-36 pt-20 md:pt-24 relative select-none animate-in fade-in duration-500">
       {/* Country Hero / Header with Back Button and Search Bar */}
-      <div className="relative w-full aspect-[21/9] min-h-[350px] max-h-[440px] overflow-hidden flex items-center bg-black border-b border-white/5">
+      <div className="relative w-full aspect-[21/9] min-h-[350px] max-h-[440px] overflow-hidden flex items-center bg-black border-b border-white/5 mx-auto max-w-7xl rounded-3xl">
         <div className="absolute inset-0">
           <img
             src={country.image}
@@ -969,11 +980,7 @@ const CountryRadioPage: React.FC<CountryRadioPageProps> = ({ country, onBack, on
               <ArrowLeft size={13} /> Back to Directory
             </button>
             <div className="flex items-center gap-3">
-              <img
-                src={`https://flagcdn.com/w80/${country.code.toLowerCase()}.png`}
-                alt=""
-                className="w-10 h-7 object-cover rounded-md shadow-md border border-white/10 shrink-0"
-              />
+              <span className="text-xs font-bold text-red-400 bg-red-600/20 px-2.5 py-1 rounded border border-red-500/20 uppercase tracking-wider">{country.code}</span>
               <h1 className="text-2xl md:text-4xl font-bold tracking-tight text-white leading-tight">
                 Live from {country.name}
               </h1>
@@ -1022,13 +1029,13 @@ const CountryRadioPage: React.FC<CountryRadioPageProps> = ({ country, onBack, on
           {searchLoading ? (
             <div className="flex flex-col items-center justify-center py-24 gap-3">
               <Loader2 className="animate-spin text-red-500" size={24} />
-              <p className="text-[10px] text-zinc-500 font-semibold tracking-widest uppercase">Searching...</p>
+              <p className="text-xs text-zinc-500 font-semibold tracking-widest uppercase">Searching...</p>
             </div>
           ) : searchResults.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 text-center opacity-60">
               <Radio size={40} className="text-white/20 mb-3" />
               <h4 className="text-sm font-bold text-white mb-0.5">No Stations Found</h4>
-              <p className="text-zinc-500 text-[11px]">No local frequencies matched "{searchQuery}".</p>
+              <p className="text-zinc-500 text-xs">No local frequencies matched "{searchQuery}".</p>
             </div>
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6">
@@ -1045,12 +1052,12 @@ const CountryRadioPage: React.FC<CountryRadioPageProps> = ({ country, onBack, on
           )}
         </div>
       ) : (
-        <div className="space-y-1 mt-6">
-          <RadioRow title={`🔥 Top Clicked in ${country.name}`} stations={top} onPlay={onPlayStation} activeStationId={currentStation?.stationuuid} isPlaying={isPlaying} />
-          <RadioRow title="🎵 Music & Entertainment" stations={music} onPlay={onPlayStation} activeStationId={currentStation?.stationuuid} isPlaying={isPlaying} />
-          <RadioRow title="📰 News, Sports & Talk" stations={news} onPlay={onPlayStation} activeStationId={currentStation?.stationuuid} isPlaying={isPlaying} />
-          <RadioRow title="📻 Pop Hits" stations={pop} onPlay={onPlayStation} activeStationId={currentStation?.stationuuid} isPlaying={isPlaying} />
-          <RadioRow title="🎧 Chillout & Ambient" stations={chill} onPlay={onPlayStation} activeStationId={currentStation?.stationuuid} isPlaying={isPlaying} />
+        <div className="space-y-2 mt-6">
+          <RadioRow title={`Top Clicked in ${country.name}`} icon={<Flame size={18} className="text-amber-400" />} stations={top} onPlay={onPlayStation} activeStationId={currentStation?.stationuuid} isPlaying={isPlaying} />
+          <RadioRow title="Music & Entertainment" icon={<Music size={18} className="text-purple-400" />} stations={music} onPlay={onPlayStation} activeStationId={currentStation?.stationuuid} isPlaying={isPlaying} />
+          <RadioRow title="News, Sports & Talk" icon={<Newspaper size={18} className="text-blue-400" />} stations={news} onPlay={onPlayStation} activeStationId={currentStation?.stationuuid} isPlaying={isPlaying} />
+          <RadioRow title="Pop Hits" icon={<Sparkles size={18} className="text-pink-400" />} stations={pop} onPlay={onPlayStation} activeStationId={currentStation?.stationuuid} isPlaying={isPlaying} />
+          <RadioRow title="Chillout & Ambient" icon={<Headphones size={18} className="text-indigo-400" />} stations={chill} onPlay={onPlayStation} activeStationId={currentStation?.stationuuid} isPlaying={isPlaying} />
         </div>
       )}
     </div>
