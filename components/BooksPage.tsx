@@ -3,7 +3,8 @@ import {
   Play, Pause, Volume2, VolumeX, Search, Loader2, Headphones, ArrowLeft, X, Wifi, 
   SkipBack, SkipForward, Info, RotateCcw, FastForward, ListMusic, Globe, Calendar, 
   Mail, User, ExternalLink, Sparkles, Radio, Check, ChevronRight, Clock, Heart, 
-  Rss, Award, Zap, Layers, RefreshCw, Mic
+  Rss, Award, Zap, Layers, RefreshCw, Mic, Flame, Cpu, Newspaper, Briefcase, Copy,
+  Maximize2, ChevronDown, SlidersHorizontal, Star, TrendingUp
 } from 'lucide-react';
 import { useTvFocus } from '../tvNavigation';
 import { 
@@ -53,19 +54,67 @@ interface PodcastsPageProps {
 const ITUNES_API_BASE = "https://itunes.apple.com/search";
 
 const POPULAR_COUNTRIES = [
-  { name: "United States", code: "us", flag: "🇺🇸" },
-  { name: "India", code: "in", flag: "🇮🇳" },
-  { name: "United Kingdom", code: "gb", flag: "🇬🇧" },
-  { name: "Canada", code: "ca", flag: "🇨🇦" },
-  { name: "Australia", code: "au", flag: "🇦🇺" },
-  { name: "Germany", code: "de", flag: "🇩🇪" },
-  { name: "Japan", code: "jp", flag: "🇯🇵" },
-  { name: "France", code: "fr", flag: "🇫🇷" }
+  { name: "United States", code: "us" },
+  { name: "India", code: "in" },
+  { name: "United Kingdom", code: "gb" },
+  { name: "Canada", code: "ca" },
+  { name: "Australia", code: "au" },
+  { name: "Germany", code: "de" },
+  { name: "Japan", code: "jp" },
+  { name: "France", code: "fr" }
 ];
+
+const PODCAST_GENRES = [
+  { id: "all", label: "All Feeds", icon: Sparkles },
+  { id: "trending", label: "Trending Now", icon: Flame },
+  { id: "tech", label: "Tech & AI", icon: Cpu },
+  { id: "news", label: "News & Politics", icon: Newspaper },
+  { id: "business", label: "Business & Finance", icon: Briefcase },
+  { id: "crime", label: "True Crime", icon: Search },
+  { id: "science", label: "Science & Mind", icon: Sparkles },
+  { id: "comedy", label: "Comedy & Stories", icon: Radio },
+  { id: "health", label: "Health & Fitness", icon: Heart },
+  { id: "society", label: "Society & Culture", icon: Globe },
+  { id: "history", label: "History & Docs", icon: Award },
+];
+
+// Helper: Format raw episode duration into minutes/hours string
+const formatEpisodeDuration = (dur?: string | null): string | null => {
+  if (!dur) return null;
+  const trimmed = String(dur).trim();
+  if (!trimmed) return null;
+
+  if (trimmed.includes(':')) {
+    const parts = trimmed.split(':').map(p => parseInt(p, 10));
+    if (parts.length === 3 && !parts.some(isNaN)) {
+      const [h, m] = parts;
+      if (h > 0) return `${h}h ${m}m`;
+      return `${m} min`;
+    }
+    if (parts.length === 2 && !parts.some(isNaN)) {
+      const [m] = parts;
+      return `${m} min`;
+    }
+    return trimmed;
+  }
+
+  const totalSeconds = parseInt(trimmed, 10);
+  if (!isNaN(totalSeconds) && totalSeconds > 0) {
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    if (hours > 0) {
+      return `${hours}h ${minutes}m`;
+    }
+    return `${minutes} min`;
+  }
+
+  return trimmed;
+};
 
 export const PodcastsPage: React.FC<PodcastsPageProps> = ({ searchQuery = "", onSearchClear }) => {
   // Store / Country state
   const [selectedCountry, setSelectedCountry] = useState(POPULAR_COUNTRIES[0]);
+  const [selectedGenre, setSelectedGenre] = useState<string>("all");
 
   // Catalog States
   const [popularPodcasts, setPopularPodcasts] = useState<PodcastShow[]>([]);
@@ -75,6 +124,9 @@ export const PodcastsPage: React.FC<PodcastsPageProps> = ({ searchQuery = "", on
   const [crimePodcasts, setCrimePodcasts] = useState<PodcastShow[]>([]);
   const [sciencePodcasts, setSciencePodcasts] = useState<PodcastShow[]>([]);
   const [comedyPodcasts, setComedyPodcasts] = useState<PodcastShow[]>([]);
+  const [healthPodcasts, setHealthPodcasts] = useState<PodcastShow[]>([]);
+  const [societyPodcasts, setSocietyPodcasts] = useState<PodcastShow[]>([]);
+  const [historyPodcasts, setHistoryPodcasts] = useState<PodcastShow[]>([]);
   const [indiaPodcasts, setIndiaPodcasts] = useState<PodcastShow[]>([]);
 
   // Search Results States
@@ -105,6 +157,7 @@ export const PodcastsPage: React.FC<PodcastsPageProps> = ({ searchQuery = "", on
   const [playbackSpeed, setPlaybackSpeed] = useState(1.0);
   const [audioError, setAudioError] = useState<string | null>(null);
   const [isQueueDrawerOpen, setIsQueueDrawerOpen] = useState(false);
+  const [isFullScreenPlayerOpen, setIsFullScreenPlayerOpen] = useState(false);
 
   // Ref for audio element
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -146,6 +199,9 @@ export const PodcastsPage: React.FC<PodcastsPageProps> = ({ searchQuery = "", on
           crime: `${ITUNES_API_BASE}?media=podcast&entity=podcast&country=${cCode}&term=true+crime&limit=24`,
           science: `${ITUNES_API_BASE}?media=podcast&entity=podcast&country=${cCode}&term=science&limit=24`,
           comedy: `${ITUNES_API_BASE}?media=podcast&entity=podcast&country=${cCode}&term=comedy&limit=24`,
+          health: `${ITUNES_API_BASE}?media=podcast&entity=podcast&country=${cCode}&term=health+fitness&limit=24`,
+          society: `${ITUNES_API_BASE}?media=podcast&entity=podcast&country=${cCode}&term=society+culture&limit=24`,
+          history: `${ITUNES_API_BASE}?media=podcast&entity=podcast&country=${cCode}&term=history&limit=24`,
           india: `${ITUNES_API_BASE}?media=podcast&entity=podcast&term=bollywood+hindi+india&limit=24`
         };
 
@@ -173,6 +229,9 @@ export const PodcastsPage: React.FC<PodcastsPageProps> = ({ searchQuery = "", on
           else if (key === 'crime') setCrimePodcasts(data);
           else if (key === 'science') setSciencePodcasts(data);
           else if (key === 'comedy') setComedyPodcasts(data);
+          else if (key === 'health') setHealthPodcasts(data);
+          else if (key === 'society') setSocietyPodcasts(data);
+          else if (key === 'history') setHistoryPodcasts(data);
           else if (key === 'india') setIndiaPodcasts(data);
         });
 
@@ -224,7 +283,7 @@ export const PodcastsPage: React.FC<PodcastsPageProps> = ({ searchQuery = "", on
     };
   }, [searchQuery, selectedCountry.code]);
 
-  // 3. RSS Feed & Contact Email Extractor (DOMParser XML + CORS Proxy fallback)
+  // 3. RSS Feed & Contact Email Extractor
   const parseRssFeedAndEpisodes = async (show: PodcastShow) => {
     setLoadingEpisodes(true);
     setShowEpisodes([]);
@@ -237,12 +296,10 @@ export const PodcastsPage: React.FC<PodcastsPageProps> = ({ searchQuery = "", on
     let xmlText = "";
 
     try {
-      // Step A: Attempt direct fetch first
       const directRes = await window.fetch(show.feedUrl, { headers: { 'Accept': 'application/rss+xml, application/xml, text/xml' } }).catch(() => null);
       if (directRes && directRes.ok) {
         xmlText = await directRes.text();
       } else {
-        // Step B: Fallback to CORS proxy (allorigins.win)
         const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(show.feedUrl)}`;
         const proxyRes = await window.fetch(proxyUrl);
         if (proxyRes.ok) {
@@ -255,7 +312,6 @@ export const PodcastsPage: React.FC<PodcastsPageProps> = ({ searchQuery = "", on
       const parser = new DOMParser();
       const xmlDoc = parser.parseFromString(xmlText, "text/xml");
 
-      // Extract Owner Email and Name (<itunes:owner>)
       let ownerEmail: string | null = null;
       let ownerName: string | null = null;
       const ownerNode = xmlDoc.getElementsByTagName("itunes:owner")[0] || xmlDoc.getElementsByTagName("owner")[0];
@@ -266,39 +322,33 @@ export const PodcastsPage: React.FC<PodcastsPageProps> = ({ searchQuery = "", on
         if (nameNode) ownerName = nameNode.textContent?.trim() || null;
       }
 
-      // Fallback owner email search across full document text if tag missing
       if (!ownerEmail) {
         const emailMatch = xmlText.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
         if (emailMatch) ownerEmail = emailMatch[0];
       }
 
-      // Extract Website URL (<channel><link>)
       let websiteUrl: string | null = null;
       const channelLink = xmlDoc.querySelector("channel > link");
       if (channelLink) {
         websiteUrl = channelLink.textContent?.trim() || null;
       }
 
-      // Extract Channel Description (<channel><description>)
       let channelDesc: string | null = null;
       const descNode = xmlDoc.querySelector("channel > description") || xmlDoc.querySelector("channel > itunes\\:summary");
       if (descNode) {
         channelDesc = descNode.textContent?.replace(/<[^>]*>?/gm, '').trim() || null;
       }
 
-      // Extract Episodes (<item>)
       const itemNodes = Array.from(xmlDoc.getElementsByTagName("item"));
       const parsedEpisodes: PodcastEpisode[] = [];
       const datesList: Date[] = [];
 
       itemNodes.forEach((node, index) => {
         const title = node.getElementsByTagName("title")[0]?.textContent?.trim() || `Episode ${index + 1}`;
-        
-        // Enclosure URL
         const enclosure = node.getElementsByTagName("enclosure")[0] || node.getElementsByTagName("media:content")[0];
         const audioUrl = enclosure?.getAttribute("url") || "";
 
-        if (!audioUrl) return; // Skip items without playable audio
+        if (!audioUrl) return;
 
         const pubDateText = node.getElementsByTagName("pubDate")[0]?.textContent?.trim();
         let formattedPubDate: string | null = null;
@@ -333,7 +383,6 @@ export const PodcastsPage: React.FC<PodcastsPageProps> = ({ searchQuery = "", on
         });
       });
 
-      // Calculate Publishing Frequency & Active Status
       let episodeFrequency = "Weekly";
       let isActive = true;
       let lastEpisodeDate: string | null = null;
@@ -362,7 +411,6 @@ export const PodcastsPage: React.FC<PodcastsPageProps> = ({ searchQuery = "", on
         }
       }
 
-      // Update selected show with extracted enrichment metadata
       setSelectedShow(prev => prev ? ({
         ...prev,
         ownerEmail: ownerEmail || prev.ownerEmail || null,
@@ -378,7 +426,6 @@ export const PodcastsPage: React.FC<PodcastsPageProps> = ({ searchQuery = "", on
 
     } catch (err) {
       console.warn("RSS parsing failed or blocked, falling back:", err);
-      // Fallback episode listing if RSS parsing fails
       setShowEpisodes([{
         id: `${show.id}-ep-1`,
         title: `${show.title} - Sample Stream`,
@@ -581,9 +628,28 @@ export const PodcastsPage: React.FC<PodcastsPageProps> = ({ searchQuery = "", on
 
   const activeEpisode = activeEpisodeIndex >= 0 ? episodesQueue[activeEpisodeIndex] : null;
 
+  // Active Genre List Helper
+  const getActiveGenrePodcasts = (): PodcastShow[] => {
+    switch (selectedGenre) {
+      case "trending": return popularPodcasts;
+      case "tech": return techPodcasts;
+      case "news": return newsPodcasts;
+      case "business": return businessPodcasts;
+      case "crime": return crimePodcasts;
+      case "science": return sciencePodcasts;
+      case "comedy": return comedyPodcasts;
+      case "health": return healthPodcasts;
+      case "society": return societyPodcasts;
+      case "history": return historyPodcasts;
+      default: return popularPodcasts;
+    }
+  };
+
+  const featuredShow = popularPodcasts[0] || techPodcasts[0];
+
   if (loading) {
     return (
-      <div className="space-y-12 py-10 px-4 md:px-12 select-none bg-[#030303] min-h-screen text-left">
+      <div className="space-y-10 pt-24 pb-10 px-4 md:px-12 select-none bg-[#030303] min-h-screen text-left">
         <div className="flex items-center justify-between border-b border-white/5 pb-6">
           <div className="h-7 w-48 bg-zinc-850 rounded-lg animate-pulse"></div>
           <div className="h-9 w-64 bg-zinc-850 rounded-full animate-pulse"></div>
@@ -610,15 +676,15 @@ export const PodcastsPage: React.FC<PodcastsPageProps> = ({ searchQuery = "", on
   }
 
   return (
-    <div className="min-h-screen bg-[#030303] text-white pb-36 relative select-none animate-in fade-in duration-500">
+    <div className="min-h-screen bg-[#030303] text-white pb-36 pt-20 md:pt-24 relative select-none animate-in fade-in duration-500">
       
-      {/* 1. Header / Country Store Selector & Search Results */}
-      <div className="relative pt-6 px-4 md:px-12 max-w-7xl mx-auto text-left">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-white/10 pb-6">
+      {/* 1. Top Header Bar & Store Picker */}
+      <div className="relative px-4 md:px-12 max-w-7xl mx-auto text-left space-y-4">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-white/10 pb-4">
           <div>
             <div className="flex items-center gap-2.5">
-              <span className="p-2 rounded-xl bg-purple-600/20 text-purple-400 border border-purple-500/20">
-                <Mic size={22} />
+              <span className="p-2 rounded-xl bg-purple-600/20 text-purple-400 border border-purple-500/20 shadow-md">
+                <Mic size={20} />
               </span>
               <h1 className="text-2xl md:text-3xl font-black text-white tracking-tight font-sans">
                 Podcast Directory & Player
@@ -630,30 +696,52 @@ export const PodcastsPage: React.FC<PodcastsPageProps> = ({ searchQuery = "", on
           </div>
 
           {/* Store Country Picker */}
-          <div className="flex items-center gap-2 overflow-x-auto pb-2 md:pb-0 hide-scrollbar">
-            <span className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider shrink-0 flex items-center gap-1">
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-2 md:pb-0 hide-scrollbar">
+            <span className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider shrink-0 flex items-center gap-1 mr-1">
               <Globe size={13} /> Store:
             </span>
             {POPULAR_COUNTRIES.map((c) => (
               <button
                 key={c.code}
                 onClick={() => setSelectedCountry(c)}
-                className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all duration-300 flex items-center gap-1.5 shrink-0 ${
+                className={`px-2.5 py-1 rounded-lg text-xs font-medium border transition-all duration-200 flex items-center gap-1.5 shrink-0 cursor-pointer ${
                   selectedCountry.code === c.code
-                    ? 'bg-purple-600 border-purple-500 text-white shadow-lg shadow-purple-600/30'
+                    ? 'bg-purple-600 border-purple-500 text-white shadow-md shadow-purple-600/30'
                     : 'bg-zinc-900/80 border-white/10 text-zinc-400 hover:text-white hover:border-white/20'
                 }`}
               >
-                <span>{c.flag}</span>
+                <span className="font-bold text-[10px] uppercase opacity-80">{c.code}</span>
                 <span>{c.name}</span>
               </button>
             ))}
           </div>
         </div>
 
+        {/* 2. Production Level Category Genre Filter Tabs */}
+        <div className="flex items-center gap-2 overflow-x-auto py-2 hide-scrollbar">
+          {PODCAST_GENRES.map((g) => {
+            const IconComp = g.icon;
+            const isActive = selectedGenre === g.id;
+            return (
+              <button
+                key={g.id}
+                onClick={() => setSelectedGenre(g.id)}
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold border transition-all duration-200 flex items-center gap-2 shrink-0 cursor-pointer ${
+                  isActive
+                    ? 'bg-purple-600 border-purple-500 text-white shadow-lg shadow-purple-600/30'
+                    : 'bg-zinc-900/60 border-white/5 text-zinc-400 hover:text-white hover:bg-zinc-850 hover:border-white/15'
+                }`}
+              >
+                <IconComp size={14} className={isActive ? 'text-white' : 'text-purple-400'} />
+                <span>{g.label}</span>
+              </button>
+            );
+          })}
+        </div>
+
         {/* Global Error Notice */}
         {error && (
-          <div className="my-6 p-4 rounded-2xl bg-red-950/40 border border-red-500/30 text-red-300 text-xs flex items-center justify-between">
+          <div className="my-4 p-4 rounded-2xl bg-red-950/40 border border-red-500/30 text-red-300 text-xs flex items-center justify-between">
             <span>{error}</span>
             <button onClick={() => window.location.reload()} className="px-3 py-1 rounded-lg bg-red-800 text-white font-semibold hover:bg-red-700">
               Retry
@@ -662,13 +750,76 @@ export const PodcastsPage: React.FC<PodcastsPageProps> = ({ searchQuery = "", on
         )}
       </div>
 
-      {/* 2. Main Content / Search Results */}
+      {/* 3. FEATURED HERO BANNER SHOWCASE (When All Feeds selected) */}
+      {selectedGenre === "all" && !searchQuery && featuredShow && (
+        <div className="px-4 md:px-12 max-w-7xl mx-auto my-6 text-left">
+          <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-purple-950/70 via-zinc-950 to-zinc-950 border border-purple-500/20 p-6 md:p-8 flex flex-col md:flex-row items-center gap-6 md:gap-8 shadow-2xl">
+            
+            {/* Ambient Background Glow */}
+            <div className="absolute top-0 right-0 w-96 h-96 bg-purple-600/10 rounded-full blur-3xl pointer-events-none" />
+
+            {/* Artwork */}
+            <div className="relative w-36 h-36 md:w-44 md:h-44 rounded-2xl overflow-hidden border border-white/10 shadow-2xl shrink-0 group">
+              <img src={featuredShow.artworkUrl} alt={featuredShow.title} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                <button
+                  onClick={() => setSelectedShow(featuredShow)}
+                  className="w-12 h-12 rounded-full bg-purple-600 text-white flex items-center justify-center shadow-lg transform scale-90 group-hover:scale-100 transition-transform cursor-pointer"
+                >
+                  <Play size={20} fill="currentColor" className="ml-0.5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Featured Details */}
+            <div className="flex-1 space-y-3 min-w-0 text-center md:text-left">
+              <div className="flex flex-wrap items-center justify-center md:justify-start gap-2">
+                <span className="px-3 py-0.5 rounded-full bg-purple-600/30 border border-purple-500/40 text-purple-300 text-[10px] font-extrabold uppercase tracking-widest flex items-center gap-1">
+                  <Star size={10} className="text-amber-400" /> Featured Show
+                </span>
+                <span className="px-2.5 py-0.5 rounded-full bg-white/5 border border-white/10 text-zinc-400 text-[10px] font-medium">
+                  {featuredShow.categories[0] || 'Podcast'}
+                </span>
+              </div>
+
+              <h2 className="text-xl md:text-3xl font-black text-white tracking-tight line-clamp-1">
+                {featuredShow.title}
+              </h2>
+              <p className="text-xs md:text-sm text-zinc-400 font-medium">
+                Hosted by <strong className="text-white">{featuredShow.author}</strong>
+              </p>
+
+              <div className="flex items-center justify-center md:justify-start gap-3 pt-1">
+                <button
+                  onClick={() => setSelectedShow(featuredShow)}
+                  className="px-5 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs flex items-center gap-2 shadow-lg shadow-purple-600/40 transition-transform active:scale-95 cursor-pointer"
+                >
+                  <Play size={14} fill="currentColor" /> Listen & Episodes
+                </button>
+
+                {featuredShow.applePodcastsUrl && (
+                  <a
+                    href={featuredShow.applePodcastsUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-zinc-300 hover:text-white font-semibold text-xs flex items-center gap-1.5 transition-colors"
+                  >
+                    <Headphones size={14} /> Apple Directory <ExternalLink size={12} />
+                  </a>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 4. Search Results or Genre Filtered View */}
       {searchQuery ? (
-        <div className="px-4 md:px-12 max-w-7xl mx-auto text-left pt-8 animate-in fade-in duration-300">
+        <div className="px-4 md:px-12 max-w-7xl mx-auto text-left pt-6 animate-in fade-in duration-300">
           <div className="flex items-center justify-between mb-8 border-b border-white/5 pb-4">
             <h2 className="text-base font-semibold text-zinc-300 flex items-center gap-2">
               <Search size={16} className="text-purple-400" />
-              Podcast Search Results for "{searchQuery}" ({selectedCountry.flag} Store)
+              Podcast Search Results for "{searchQuery}" ({selectedCountry.code.toUpperCase()} Store)
             </h2>
           </div>
 
@@ -696,133 +847,151 @@ export const PodcastsPage: React.FC<PodcastsPageProps> = ({ searchQuery = "", on
             </div>
           )}
         </div>
+      ) : selectedGenre !== "all" ? (
+        /* Single Genre Filtered Grid View */
+        <div className="px-4 md:px-12 max-w-7xl mx-auto text-left pt-6 animate-in fade-in duration-300 space-y-6">
+          <div className="flex items-center justify-between border-b border-white/10 pb-4">
+            <h2 className="text-lg font-bold text-white flex items-center gap-2">
+              <Sparkles size={18} className="text-purple-400" />
+              {PODCAST_GENRES.find(g => g.id === selectedGenre)?.label || 'Filtered'} Podcasts ({selectedCountry.code.toUpperCase()} Store)
+            </h2>
+            <span className="text-xs text-zinc-500 font-mono">{getActiveGenrePodcasts().length} Shows</span>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6">
+            {getActiveGenrePodcasts().map((show) => (
+              <PodcastCard
+                key={show.id}
+                show={show}
+                onClick={() => setSelectedShow(show)}
+                isPlaying={isPlaying && currentShow?.id === show.id}
+              />
+            ))}
+          </div>
+        </div>
       ) : (
-        /* Category Rows */
+        /* Full Production Multi-Category Rows */
         <div className="space-y-4 mt-6">
-          <PodcastRow title="🔥 Top & Popular Podcasts" shows={popularPodcasts} onSelect={setSelectedShow} activeShowId={currentShow?.id} isPlaying={isPlaying} />
-          <PodcastRow title="💻 Tech, AI & Digital Culture" shows={techPodcasts} onSelect={setSelectedShow} activeShowId={currentShow?.id} isPlaying={isPlaying} />
-          <PodcastRow title="📰 News, Politics & Global Talk" shows={newsPodcasts} onSelect={setSelectedShow} activeShowId={currentShow?.id} isPlaying={isPlaying} />
-          <PodcastRow title="💼 Business, Startups & Growth" shows={businessPodcasts} onSelect={setSelectedShow} activeShowId={currentShow?.id} isPlaying={isPlaying} />
-          <PodcastRow title="🔍 True Crime, Investigations & Mysteries" shows={crimePodcasts} onSelect={setSelectedShow} activeShowId={currentShow?.id} isPlaying={isPlaying} />
-          <PodcastRow title="🧠 Science, Philosophy & Mindset" shows={sciencePodcasts} onSelect={setSelectedShow} activeShowId={currentShow?.id} isPlaying={isPlaying} />
-          <PodcastRow title="🎭 Comedy, Entertainment & Stories" shows={comedyPodcasts} onSelect={setSelectedShow} activeShowId={currentShow?.id} isPlaying={isPlaying} />
+          <PodcastRow title="Top & Trending Podcasts" icon={<Flame size={18} className="text-amber-400" />} shows={popularPodcasts} onSelect={setSelectedShow} activeShowId={currentShow?.id} isPlaying={isPlaying} />
+          <PodcastRow title="Tech, AI & Innovation" icon={<Cpu size={18} className="text-purple-400" />} shows={techPodcasts} onSelect={setSelectedShow} activeShowId={currentShow?.id} isPlaying={isPlaying} />
+          <PodcastRow title="News, Politics & Global Talk" icon={<Newspaper size={18} className="text-blue-400" />} shows={newsPodcasts} onSelect={setSelectedShow} activeShowId={currentShow?.id} isPlaying={isPlaying} />
+          <PodcastRow title="Business, Finance & Startups" icon={<Briefcase size={18} className="text-emerald-400" />} shows={businessPodcasts} onSelect={setSelectedShow} activeShowId={currentShow?.id} isPlaying={isPlaying} />
+          <PodcastRow title="True Crime & Mysteries" icon={<Search size={18} className="text-rose-400" />} shows={crimePodcasts} onSelect={setSelectedShow} activeShowId={currentShow?.id} isPlaying={isPlaying} />
+          <PodcastRow title="Science, Mind & Philosophy" icon={<Sparkles size={18} className="text-indigo-400" />} shows={sciencePodcasts} onSelect={setSelectedShow} activeShowId={currentShow?.id} isPlaying={isPlaying} />
+          <PodcastRow title="Comedy, Pop & Stories" icon={<Radio size={18} className="text-amber-400" />} shows={comedyPodcasts} onSelect={setSelectedShow} activeShowId={currentShow?.id} isPlaying={isPlaying} />
+          <PodcastRow title="Health & Fitness" icon={<Heart size={18} className="text-rose-400" />} shows={healthPodcasts} onSelect={setSelectedShow} activeShowId={currentShow?.id} isPlaying={isPlaying} />
+          <PodcastRow title="Society & Global Culture" icon={<Globe size={18} className="text-cyan-400" />} shows={societyPodcasts} onSelect={setSelectedShow} activeShowId={currentShow?.id} isPlaying={isPlaying} />
+          <PodcastRow title="History & Documentaries" icon={<Award size={18} className="text-amber-500" />} shows={historyPodcasts} onSelect={setSelectedShow} activeShowId={currentShow?.id} isPlaying={isPlaying} />
           {indiaPodcasts.length > 0 && (
-            <PodcastRow title="🇮🇳 Featured Indian & South Asian Shows" shows={indiaPodcasts} onSelect={setSelectedShow} activeShowId={currentShow?.id} isPlaying={isPlaying} />
+            <PodcastRow title="Featured Indian & South Asian Shows" icon={<Globe size={18} className="text-orange-400" />} shows={indiaPodcasts} onSelect={setSelectedShow} activeShowId={currentShow?.id} isPlaying={isPlaying} />
           )}
         </div>
       )}
 
-      {/* 3. PODCAST DETAILS & EPISODE DRAWER MODAL */}
+      {/* 5. PODCAST DETAILS & EPISODE DRAWER MODAL */}
       {selectedShow && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 md:p-8 bg-black/85 backdrop-blur-md animate-in fade-in duration-300">
-          <div className="bg-zinc-950 border border-white/10 w-full max-w-4xl max-h-[90vh] rounded-3xl overflow-hidden shadow-2xl flex flex-col relative text-left">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 md:p-6 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="bg-zinc-950 border border-white/10 w-full max-w-3xl max-h-[85vh] rounded-2xl overflow-hidden shadow-2xl flex flex-col relative text-left">
             
             {/* Modal Header Bar */}
-            <div className="flex items-center justify-between p-4 md:p-6 border-b border-white/10 bg-zinc-900/60 shrink-0">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-xl overflow-hidden border border-white/10 shrink-0 bg-zinc-900">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-white/10 bg-zinc-900/60 shrink-0">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-10 h-10 rounded-xl overflow-hidden border border-white/10 shrink-0 bg-zinc-900">
                   <img src={selectedShow.artworkUrl} alt={selectedShow.title} className="w-full h-full object-cover" />
                 </div>
-                <div>
-                  <h3 className="text-base md:text-lg font-bold text-white line-clamp-1">{selectedShow.title}</h3>
+                <div className="min-w-0">
+                  <h3 className="text-sm md:text-base font-bold text-white line-clamp-1">{selectedShow.title}</h3>
                   <p className="text-xs text-zinc-400 line-clamp-1">by {selectedShow.author}</p>
                 </div>
               </div>
               <button
                 onClick={() => setSelectedShow(null)}
-                className="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 text-zinc-400 hover:text-white flex items-center justify-center transition-colors cursor-pointer"
+                className="w-8 h-8 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-white/10 text-zinc-400 hover:text-white flex items-center justify-center transition-colors cursor-pointer shrink-0 ml-3"
               >
-                <X size={18} />
+                <X size={16} />
               </button>
             </div>
 
             {/* Modal Scrollable Body */}
-            <div className="p-4 md:p-6 overflow-y-auto space-y-6 hide-scrollbar flex-1">
+            <div className="p-5 overflow-y-auto space-y-5 hide-scrollbar flex-1">
               
-              {/* Header Info & Contacts Grid */}
-              <div className="flex flex-col md:flex-row gap-6 items-start">
+              {/* Podcast Overview Card */}
+              <div className="flex flex-col sm:flex-row gap-4 items-start bg-zinc-900/50 p-4 rounded-xl border border-white/5">
                 <img
                   src={selectedShow.artworkUrl}
                   alt={selectedShow.title}
-                  className="w-32 h-32 md:w-40 md:h-40 rounded-2xl object-cover border border-white/10 shadow-xl shrink-0"
+                  className="w-24 h-24 md:w-28 md:h-28 rounded-xl object-cover border border-white/10 shadow-md shrink-0"
                 />
                 
-                <div className="flex-1 space-y-3">
-                  <div className="flex flex-wrap items-center gap-2">
+                <div className="flex-1 space-y-2.5 min-w-0">
+                  <div className="flex flex-wrap items-center gap-1.5">
                     {selectedShow.categories.map((c, i) => (
-                      <span key={i} className="px-2.5 py-0.5 rounded-md bg-purple-950/60 border border-purple-500/30 text-purple-300 text-[10px] font-semibold">
+                      <span key={i} className="px-2 py-0.5 rounded bg-purple-950/60 border border-purple-500/20 text-purple-300 text-[10px] font-medium">
                         {c}
                       </span>
                     ))}
                     {selectedShow.isActive !== undefined && (
-                      <span className={`px-2.5 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 border ${
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-semibold flex items-center gap-1 border ${
                         selectedShow.isActive
-                          ? 'bg-emerald-950/60 border-emerald-500/30 text-emerald-400'
-                          : 'bg-zinc-850 border-white/10 text-zinc-400'
+                          ? 'bg-emerald-950/60 border-emerald-500/20 text-emerald-400'
+                          : 'bg-zinc-800 border-white/5 text-zinc-400'
                       }`}>
                         <Zap size={10} /> {selectedShow.isActive ? `Active • ${selectedShow.episodeFrequency || 'Weekly'}` : 'Inactive'}
                       </span>
                     )}
                   </div>
 
-                  <p className="text-xs text-zinc-300 leading-relaxed font-light line-clamp-3">
-                    {selectedShow.description || "No description provided for this podcast."}
-                  </p>
+                  {selectedShow.description && (
+                    <p className="text-xs text-zinc-300 leading-relaxed line-clamp-3 font-light">
+                      {selectedShow.description}
+                    </p>
+                  )}
 
-                  {/* Extracted Contact & Directory Details Grid */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-2 border-t border-white/5">
-                    
-                    {/* Host Contact Email */}
+                  {/* Compact metadata & contacts row */}
+                  <div className="flex flex-wrap items-center gap-2 pt-1">
                     {selectedShow.ownerEmail && (
-                      <div className="flex items-center justify-between p-2.5 rounded-xl bg-purple-950/30 border border-purple-500/20 text-xs">
-                        <div className="flex items-center gap-2 truncate">
-                          <Mail size={14} className="text-purple-400 shrink-0" />
-                          <span className="text-zinc-300 font-mono truncate">{selectedShow.ownerEmail}</span>
-                        </div>
+                      <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-purple-950/40 border border-purple-500/20 text-[11px]">
+                        <Mail size={12} className="text-purple-400 shrink-0" />
+                        <span className="text-zinc-300 font-mono text-[11px] truncate max-w-[180px]">{selectedShow.ownerEmail}</span>
                         <button
                           onClick={() => handleCopyEmail(selectedShow.ownerEmail!)}
-                          className="px-2 py-1 rounded bg-purple-600 hover:bg-purple-500 text-[10px] font-bold text-white transition-colors shrink-0 ml-2"
+                          className="px-1.5 py-0.5 rounded bg-purple-600 hover:bg-purple-500 text-[10px] font-semibold text-white transition-colors ml-1 cursor-pointer flex items-center gap-1"
                         >
-                          {copiedEmail ? <Check size={12} /> : "Copy Email"}
+                          {copiedEmail ? <Check size={10} /> : <Copy size={10} />}
                         </button>
                       </div>
                     )}
 
-                    {/* Owner Name */}
                     {selectedShow.ownerName && (
-                      <div className="flex items-center gap-2 p-2.5 rounded-xl bg-zinc-900 border border-white/5 text-xs text-zinc-300">
-                        <User size={14} className="text-zinc-400 shrink-0" />
-                        <span className="truncate">Publisher: <strong className="text-white">{selectedShow.ownerName}</strong></span>
+                      <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-zinc-900 border border-white/5 text-[11px] text-zinc-400">
+                        <User size={12} className="text-zinc-500 shrink-0" />
+                        <span className="truncate">Publisher: <strong className="text-zinc-200">{selectedShow.ownerName}</strong></span>
                       </div>
                     )}
 
-                    {/* Official Website */}
                     {selectedShow.websiteUrl && (
                       <a
                         href={selectedShow.websiteUrl}
                         target="_blank"
                         rel="noreferrer"
-                        className="flex items-center justify-between p-2.5 rounded-xl bg-zinc-900 hover:bg-zinc-850 border border-white/5 text-xs text-purple-400 transition-colors"
+                        className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-white/5 text-[11px] text-zinc-300 hover:text-purple-300 transition-colors"
                       >
-                        <span className="flex items-center gap-2 truncate text-zinc-300">
-                          <Globe size={14} className="text-zinc-400 shrink-0" /> Official Website
-                        </span>
-                        <ExternalLink size={12} />
+                        <Globe size={12} className="text-zinc-400 shrink-0" />
+                        <span>Website</span>
+                        <ExternalLink size={10} />
                       </a>
                     )}
 
-                    {/* Apple Podcasts Link */}
                     {selectedShow.applePodcastsUrl && (
                       <a
                         href={selectedShow.applePodcastsUrl}
                         target="_blank"
                         rel="noreferrer"
-                        className="flex items-center justify-between p-2.5 rounded-xl bg-zinc-900 hover:bg-zinc-850 border border-white/5 text-xs text-purple-400 transition-colors"
+                        className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-white/5 text-[11px] text-zinc-300 hover:text-purple-300 transition-colors"
                       >
-                        <span className="flex items-center gap-2 truncate text-zinc-300">
-                          <Headphones size={14} className="text-zinc-400 shrink-0" /> Open on Apple Podcasts
-                        </span>
-                        <ExternalLink size={12} />
+                        <Headphones size={12} className="text-zinc-400 shrink-0" />
+                        <span>Apple Podcasts</span>
+                        <ExternalLink size={10} />
                       </a>
                     )}
                   </div>
@@ -830,71 +999,82 @@ export const PodcastsPage: React.FC<PodcastsPageProps> = ({ searchQuery = "", on
               </div>
 
               {/* Episodes Section */}
-              <div className="pt-4 border-t border-white/10 space-y-4">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                  <h4 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
-                    <ListMusic size={16} className="text-purple-400" />
+              <div className="space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                  <h4 className="text-xs font-bold text-zinc-300 uppercase tracking-wider flex items-center gap-2">
+                    <ListMusic size={14} className="text-purple-400" />
                     Episodes ({showEpisodes.length})
                   </h4>
 
                   {/* Filter Episodes Search input */}
-                  <div className="relative w-full sm:w-64">
+                  <div className="relative w-full sm:w-56">
                     <input
                       type="text"
                       placeholder="Filter episodes..."
                       value={episodeSearchFilter}
                       onChange={(e) => setEpisodeSearchFilter(e.target.value)}
-                      className="w-full bg-zinc-900 border border-white/10 rounded-xl py-1.5 px-3 pl-8 text-xs focus:outline-none focus:border-purple-500 text-white placeholder-zinc-500"
+                      className="w-full bg-zinc-900 border border-white/10 rounded-lg py-1 px-2.5 pl-7 text-xs focus:outline-none focus:border-purple-500/50 text-white placeholder-zinc-500"
                     />
-                    <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-500" />
+                    <Search size={12} className="absolute left-2 top-1/2 -translate-y-1/2 text-zinc-500" />
                   </div>
                 </div>
 
                 {loadingEpisodes ? (
-                  <div className="flex flex-col items-center justify-center py-16 gap-2">
-                    <Loader2 className="animate-spin text-purple-500" size={24} />
-                    <p className="text-xs text-zinc-500 font-mono">Parsing RSS XML & extract audio links...</p>
+                  <div className="flex flex-col items-center justify-center py-12 gap-2">
+                    <Loader2 className="animate-spin text-purple-500" size={20} />
+                    <p className="text-xs text-zinc-500 font-mono">Fetching RSS episode feed...</p>
                   </div>
                 ) : filteredEpisodes.length === 0 ? (
-                  <div className="text-center py-12 text-zinc-500 text-xs">
+                  <div className="text-center py-8 text-zinc-500 text-xs bg-zinc-900/30 rounded-xl border border-white/5">
                     No episodes found matching "{episodeSearchFilter}".
                   </div>
                 ) : (
-                  <div className="space-y-2 max-h-[350px] overflow-y-auto pr-1 hide-scrollbar">
+                  <div className="space-y-2 max-h-[320px] overflow-y-auto pr-1 hide-scrollbar">
                     {filteredEpisodes.map((ep, idx) => {
                       const isCurrentEp = activeEpisode?.audioUrl === ep.audioUrl && isPlaying;
+                      const formattedDur = formatEpisodeDuration(ep.duration);
 
                       return (
                         <div
                           key={ep.id || idx}
                           onClick={() => playEpisode(idx, showEpisodes, selectedShow)}
-                          className={`group flex items-start justify-between gap-3 p-3.5 rounded-2xl border transition-all cursor-pointer ${
+                          className={`group flex items-center justify-between gap-3 p-3 rounded-xl border transition-all cursor-pointer ${
                             isCurrentEp
-                              ? 'bg-purple-950/50 border-purple-500/40 shadow-lg shadow-purple-950/30'
+                              ? 'bg-purple-950/50 border-purple-500/40 shadow-sm'
                               : 'bg-zinc-900/60 hover:bg-zinc-850 border-white/5'
                           }`}
                         >
-                          <div className="flex items-start gap-3 flex-1 min-w-0">
+                          <div className="flex items-center gap-3 flex-1 min-w-0">
                             <button
-                              className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 mt-0.5 transition-transform group-hover:scale-105 ${
+                              className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-transform group-hover:scale-105 ${
                                 isCurrentEp
-                                  ? 'bg-purple-600 text-white shadow-md shadow-purple-600/40'
+                                  ? 'bg-purple-600 text-white shadow-md shadow-purple-600/30'
                                   : 'bg-zinc-800 text-zinc-300 group-hover:bg-purple-600 group-hover:text-white'
                               }`}
                             >
-                              {isCurrentEp ? <Pause size={16} fill="currentColor" /> : <Play size={16} fill="currentColor" className="ml-0.5" />}
+                              {isCurrentEp ? <Pause size={14} fill="currentColor" /> : <Play size={14} fill="currentColor" className="ml-0.5" />}
                             </button>
 
-                            <div className="space-y-1 min-w-0">
+                            <div className="space-y-0.5 min-w-0">
                               <h5 className={`text-xs font-semibold line-clamp-1 ${isCurrentEp ? 'text-purple-300' : 'text-white group-hover:text-purple-300'}`}>
                                 {ep.title}
                               </h5>
-                              <p className="text-[11px] text-zinc-400 line-clamp-2 leading-relaxed font-light">
+                              <p className="text-[11px] text-zinc-400 line-clamp-1 leading-normal font-light">
                                 {ep.description}
                               </p>
-                              <div className="flex items-center gap-3 text-[10px] text-zinc-500 font-mono">
-                                {ep.publishDate && <span>📅 {ep.publishDate}</span>}
-                                {ep.duration && <span>⏱️ {ep.duration}</span>}
+                              <div className="flex items-center gap-3 text-[10px] text-zinc-500 font-mono pt-0.5">
+                                {ep.publishDate && (
+                                  <span className="flex items-center gap-1">
+                                    <Calendar size={11} className="text-zinc-500 shrink-0" />
+                                    <span>{ep.publishDate}</span>
+                                  </span>
+                                )}
+                                {formattedDur && (
+                                  <span className="flex items-center gap-1">
+                                    <Clock size={11} className="text-zinc-500 shrink-0" />
+                                    <span>{formattedDur}</span>
+                                  </span>
+                                )}
                               </div>
                             </div>
                           </div>
@@ -909,14 +1089,17 @@ export const PodcastsPage: React.FC<PodcastsPageProps> = ({ searchQuery = "", on
         </div>
       )}
 
-      {/* 4. PERSISTENT FLOATING AUDIO PLAYER BAR */}
+      {/* 6. PERSISTENT FLOATING AUDIO PLAYER BAR */}
       {activeEpisode && (
         <div className="fixed bottom-0 inset-x-0 z-40 bg-zinc-950/95 backdrop-blur-xl border-t border-white/10 px-4 py-3 shadow-[0_-10px_30px_rgba(0,0,0,0.8)] animate-in slide-in-from-bottom duration-300 text-left">
           <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-3">
             
-            {/* Left: Artwork + Titles */}
-            <div className="flex items-center gap-3 w-full md:w-1/4 shrink-0 min-w-0">
-              <div className="relative w-12 h-12 rounded-xl overflow-hidden bg-zinc-900 border border-white/10 shrink-0">
+            {/* Left: Artwork + Titles (Clickable to open Expandable Full Screen Player) */}
+            <div 
+              onClick={() => setIsFullScreenPlayerOpen(true)}
+              className="flex items-center gap-3 w-full md:w-1/4 shrink-0 min-w-0 cursor-pointer group hover:opacity-90 transition-all"
+            >
+              <div className="relative w-12 h-12 rounded-xl overflow-hidden bg-zinc-900 border border-white/10 shrink-0 group-hover:border-purple-500/50 transition-colors">
                 <img
                   src={activeEpisode.artworkUrl || currentShow?.artworkUrl}
                   alt=""
@@ -929,7 +1112,10 @@ export const PodcastsPage: React.FC<PodcastsPageProps> = ({ searchQuery = "", on
                 )}
               </div>
               <div className="min-w-0 flex-1">
-                <h4 className="text-xs font-bold text-white truncate">{activeEpisode.title}</h4>
+                <div className="flex items-center gap-1">
+                  <h4 className="text-xs font-bold text-white truncate group-hover:text-purple-300 transition-colors">{activeEpisode.title}</h4>
+                  <Maximize2 size={11} className="text-zinc-500 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 ml-1" />
+                </div>
                 <p className="text-[10px] text-zinc-400 truncate">{currentShow?.title || "Podcast Episode"}</p>
               </div>
             </div>
@@ -1002,13 +1188,13 @@ export const PodcastsPage: React.FC<PodcastsPageProps> = ({ searchQuery = "", on
               </div>
             </div>
 
-            {/* Right: Volume & Speed & Queue Toggle */}
-            <div className="flex items-center justify-end gap-3 w-full md:w-1/4 shrink-0">
+            {/* Right: Volume, Speed, Fullscreen & Queue Toggle */}
+            <div className="flex items-center justify-end gap-2.5 w-full md:w-1/4 shrink-0">
               
               {/* Speed Button */}
               <button
                 onClick={cycleSpeed}
-                className="px-2 py-1 rounded-md bg-zinc-900 border border-white/10 text-[10px] font-mono font-bold text-purple-400 hover:border-purple-500 transition-colors"
+                className="px-2 py-1 rounded-md bg-zinc-900 border border-white/10 text-[10px] font-mono font-bold text-purple-400 hover:border-purple-500 transition-colors cursor-pointer"
               >
                 {playbackSpeed}x
               </button>
@@ -1035,29 +1221,257 @@ export const PodcastsPage: React.FC<PodcastsPageProps> = ({ searchQuery = "", on
                 />
               </div>
 
+              {/* Expand Fullscreen Button */}
+              <button
+                onClick={() => setIsFullScreenPlayerOpen(true)}
+                className="p-2 rounded-xl bg-zinc-900 border border-white/10 text-zinc-400 hover:text-white transition-colors cursor-pointer"
+                title="Expand Fullscreen Player"
+              >
+                <Maximize2 size={15} />
+              </button>
+
               {/* Queue Drawer Button */}
               <button
                 onClick={() => setIsQueueDrawerOpen(!isQueueDrawerOpen)}
-                className={`p-2 rounded-xl border transition-colors ${
+                className={`p-2 rounded-xl border transition-colors cursor-pointer ${
                   isQueueDrawerOpen ? 'bg-purple-600 border-purple-500 text-white' : 'bg-zinc-900 border-white/10 text-zinc-400 hover:text-white'
                 }`}
                 title="Episode Queue"
               >
-                <ListMusic size={16} />
+                <ListMusic size={15} />
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* 5. EPISODE QUEUE DRAWER MODAL */}
+      {/* 7. EXPANDABLE FULL SCREEN AUDIO PLAYER MODAL */}
+      {isFullScreenPlayerOpen && activeEpisode && (
+        <div className="fixed inset-0 z-50 bg-[#07070a] text-white flex flex-col justify-between overflow-y-auto animate-in slide-in-from-bottom duration-300 select-none">
+          
+          {/* Glowing Ambient Background Artwork */}
+          <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
+            <img
+              src={activeEpisode.artworkUrl || currentShow?.artworkUrl}
+              alt=""
+              className="w-full h-full object-cover blur-3xl opacity-20 scale-125 transition-all duration-700"
+            />
+            <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-[#07070a]/90 to-[#07070a]" />
+          </div>
+
+          {/* Top Bar Header */}
+          <div className="relative z-10 px-6 py-4 flex items-center justify-between border-b border-white/10 bg-black/40 backdrop-blur-md shrink-0">
+            <button
+              onClick={() => setIsFullScreenPlayerOpen(false)}
+              className="p-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-zinc-300 hover:text-white flex items-center gap-1.5 text-xs font-semibold cursor-pointer transition-all"
+            >
+              <ChevronDown size={18} />
+              <span className="hidden sm:inline">Minimize</span>
+            </button>
+
+            <div className="text-center min-w-0 px-4">
+              <span className="text-[10px] font-bold tracking-widest text-purple-400 uppercase flex items-center justify-center gap-1">
+                <Radio size={12} className="animate-pulse" /> Playing Podcast Episode
+              </span>
+              <p className="text-xs text-zinc-400 truncate max-w-xs md:max-w-md font-medium">
+                {currentShow?.title || "Podcast Player"}
+              </p>
+            </div>
+
+            <button
+              onClick={() => setIsQueueDrawerOpen(!isQueueDrawerOpen)}
+              className={`p-2 px-3 rounded-xl border text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-all ${
+                isQueueDrawerOpen ? 'bg-purple-600 border-purple-500 text-white' : 'bg-white/5 hover:bg-white/10 border-white/10 text-zinc-300'
+              }`}
+            >
+              <ListMusic size={15} />
+              <span className="hidden sm:inline">Queue ({episodesQueue.length})</span>
+            </button>
+          </div>
+
+          {/* Main Full-Screen Player Deck & Recommendations Layout */}
+          <div className="relative z-10 max-w-6xl mx-auto w-full px-6 py-8 flex-1 flex flex-col lg:flex-row items-center lg:items-start justify-center gap-8 lg:gap-12 text-left my-auto">
+            
+            {/* Left Column: Artwork & Main Player Deck */}
+            <div className="flex flex-col items-center w-full max-w-md space-y-6">
+              
+              {/* Album Artwork */}
+              <div className="relative w-64 h-64 sm:w-72 sm:h-72 md:w-80 md:h-80 rounded-3xl overflow-hidden border border-white/15 shadow-[0_20px_50px_rgba(0,0,0,0.8)] shrink-0 bg-zinc-900 group">
+                <img
+                  src={activeEpisode.artworkUrl || currentShow?.artworkUrl}
+                  alt={activeEpisode.title}
+                  className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                />
+                {isLoadingAudio && (
+                  <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center gap-2">
+                    <Loader2 className="animate-spin text-purple-400" size={32} />
+                    <span className="text-xs font-mono text-purple-200">Loading audio stream...</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Title & Metadata */}
+              <div className="w-full text-center space-y-2">
+                <div className="flex flex-wrap items-center justify-center gap-2">
+                  {currentShow?.categories[0] && (
+                    <span className="px-2.5 py-0.5 rounded-full bg-purple-600/20 border border-purple-500/30 text-purple-300 text-[10px] font-bold uppercase tracking-wider">
+                      {currentShow.categories[0]}
+                    </span>
+                  )}
+                  {activeEpisode.publishDate && (
+                    <span className="px-2.5 py-0.5 rounded-full bg-white/5 border border-white/10 text-zinc-400 text-[10px] font-mono flex items-center gap-1">
+                      <Calendar size={10} /> {activeEpisode.publishDate}
+                    </span>
+                  )}
+                </div>
+
+                <h2 className="text-base sm:text-lg md:text-xl font-black text-white leading-tight tracking-tight line-clamp-2">
+                  {activeEpisode.title}
+                </h2>
+                <p className="text-xs sm:text-sm text-purple-400 font-medium line-clamp-1">
+                  {currentShow?.title} {currentShow?.author ? `• by ${currentShow.author}` : ''}
+                </p>
+
+                {activeEpisode.description && (
+                  <p className="text-xs text-zinc-400 font-light line-clamp-2 leading-relaxed pt-1">
+                    {activeEpisode.description}
+                  </p>
+                )}
+              </div>
+
+              {/* Scrubber / Progress Bar */}
+              <div className="w-full space-y-1">
+                <input
+                  type="range"
+                  min={0}
+                  max={audioDuration || 100}
+                  value={audioProgress}
+                  onChange={(e) => handleSeek(parseFloat(e.target.value))}
+                  className="w-full h-1.5 bg-zinc-800 accent-purple-500 rounded-lg cursor-pointer transition-all"
+                />
+                <div className="flex items-center justify-between text-xs font-mono text-zinc-400">
+                  <span>{formatTime(audioProgress)}</span>
+                  <span>{formatTime(audioDuration)}</span>
+                </div>
+              </div>
+
+              {/* Full Control Deck Buttons */}
+              <div className="w-full flex items-center justify-between gap-3 pt-1">
+                
+                {/* Speed Button */}
+                <button
+                  onClick={cycleSpeed}
+                  className="px-2.5 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-mono font-bold text-purple-400 hover:border-purple-500/50 transition-all cursor-pointer"
+                  title="Playback Speed"
+                >
+                  {playbackSpeed}x
+                </button>
+
+                {/* Rewind 15s */}
+                <button
+                  onClick={skipBackward15}
+                  className="p-2.5 rounded-full bg-white/5 hover:bg-white/10 text-zinc-300 hover:text-white transition-all cursor-pointer"
+                  title="Rewind 15s"
+                >
+                  <RotateCcw size={18} />
+                </button>
+
+                {/* Previous Episode */}
+                <button
+                  onClick={skipPrevious}
+                  disabled={activeEpisodeIndex <= 0}
+                  className="p-2 rounded-full text-zinc-300 hover:text-white disabled:opacity-20 transition-all cursor-pointer"
+                  title="Previous Episode"
+                >
+                  <SkipBack size={20} />
+                </button>
+
+                {/* Big Central Play/Pause Button */}
+                <button
+                  onClick={handleTogglePlay}
+                  className="w-14 h-14 rounded-full bg-purple-600 hover:bg-purple-500 text-white flex items-center justify-center shadow-[0_0_30px_rgba(168,85,247,0.5)] transition-all transform hover:scale-105 active:scale-95 cursor-pointer shrink-0"
+                >
+                  {isLoadingAudio ? (
+                    <Loader2 className="animate-spin" size={24} />
+                  ) : isPlaying ? (
+                    <Pause size={24} fill="currentColor" />
+                  ) : (
+                    <Play size={24} fill="currentColor" className="ml-1" />
+                  )}
+                </button>
+
+                {/* Next Episode */}
+                <button
+                  onClick={skipNext}
+                  disabled={activeEpisodeIndex >= episodesQueue.length - 1}
+                  className="p-2 rounded-full text-zinc-300 hover:text-white disabled:opacity-20 transition-all cursor-pointer"
+                  title="Next Episode"
+                >
+                  <SkipForward size={20} />
+                </button>
+
+                {/* Forward 15s */}
+                <button
+                  onClick={skipForward15}
+                  className="p-2.5 rounded-full bg-white/5 hover:bg-white/10 text-zinc-300 hover:text-white transition-all cursor-pointer"
+                  title="Forward 15s"
+                >
+                  <FastForward size={18} />
+                </button>
+
+                {/* Mute & Volume */}
+                <button
+                  onClick={() => setIsMuted(!isMuted)}
+                  className="p-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-zinc-300 hover:text-white transition-all cursor-pointer"
+                  title="Mute / Unmute"
+                >
+                  {isMuted || volume === 0 ? <VolumeX size={18} /> : <Volume2 size={18} />}
+                </button>
+              </div>
+            </div>
+
+            {/* Right Column: Recommended Podcasts Panel */}
+            <div className="w-full lg:w-80 space-y-4 bg-zinc-900/40 p-5 rounded-3xl border border-white/10 backdrop-blur-md shrink-0">
+              <h3 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                <Sparkles size={15} className="text-purple-400" /> Recommended Shows
+              </h3>
+              
+              <div className="space-y-2.5 max-h-[380px] overflow-y-auto pr-1 hide-scrollbar">
+                {popularPodcasts
+                  .filter(s => s.id !== currentShow?.id)
+                  .slice(0, 7)
+                  .map(show => (
+                    <div
+                      key={show.id}
+                      onClick={() => {
+                        setSelectedShow(show);
+                        setIsFullScreenPlayerOpen(false);
+                      }}
+                      className="flex items-center gap-3 p-2.5 rounded-2xl bg-zinc-900/60 hover:bg-zinc-850 border border-white/5 hover:border-purple-500/40 cursor-pointer transition-all group"
+                    >
+                      <img src={show.artworkUrl} alt={show.title} className="w-11 h-11 rounded-xl object-cover border border-white/10 shrink-0" />
+                      <div className="min-w-0 flex-1">
+                        <h4 className="text-xs font-bold text-white truncate group-hover:text-purple-300 transition-colors">{show.title}</h4>
+                        <p className="text-[10px] text-zinc-400 truncate">{show.author}</p>
+                        <span className="text-[9px] text-purple-400 font-medium">{show.categories[0] || 'Podcast'}</span>
+                      </div>
+                      <ChevronRight size={14} className="text-zinc-500 group-hover:text-white shrink-0" />
+                    </div>
+                  ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 8. EPISODE QUEUE DRAWER MODAL */}
       {isQueueDrawerOpen && (
         <div className="fixed bottom-20 right-4 z-50 w-80 max-h-96 bg-zinc-950/95 border border-white/10 rounded-2xl p-4 shadow-2xl backdrop-blur-xl flex flex-col text-left animate-in slide-in-from-bottom-5 duration-200">
           <div className="flex items-center justify-between border-b border-white/10 pb-2 mb-3">
             <h4 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
               <ListMusic size={14} className="text-purple-400" /> Up Next ({episodesQueue.length})
             </h4>
-            <button onClick={() => setIsQueueDrawerOpen(false)} className="text-zinc-400 hover:text-white">
+            <button onClick={() => setIsQueueDrawerOpen(false)} className="text-zinc-400 hover:text-white cursor-pointer">
               <X size={14} />
             </button>
           </div>
@@ -1139,20 +1553,21 @@ const PodcastCard: React.FC<PodcastCardProps> = ({ show, onClick, isPlaying }) =
 /* --- PODCAST ROW COMPONENT --- */
 interface PodcastRowProps {
   title: string;
+  icon?: React.ReactNode;
   shows: PodcastShow[];
   onSelect: (show: PodcastShow) => void;
   activeShowId?: string;
   isPlaying: boolean;
 }
 
-const PodcastRow: React.FC<PodcastRowProps> = ({ title, shows, onSelect, activeShowId, isPlaying }) => {
+const PodcastRow: React.FC<PodcastRowProps> = ({ title, icon, shows, onSelect, activeShowId, isPlaying }) => {
   if (!shows || shows.length === 0) return null;
 
   return (
     <div className="mb-8 animate-in fade-in duration-500 text-left">
       <div className="flex items-center justify-between px-4 md:px-12 mb-4">
-        <h3 className="text-base md:text-lg font-bold text-white tracking-tight flex items-center gap-2 font-sans">
-          <span className="w-1.5 h-5 bg-purple-600 rounded-full inline-block"></span>
+        <h3 className="text-base md:text-lg font-bold text-white tracking-tight flex items-center gap-2.5 font-sans">
+          {icon ? icon : <span className="w-1.5 h-5 bg-purple-600 rounded-full inline-block"></span>}
           {title}
         </h3>
       </div>
