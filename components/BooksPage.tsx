@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   Play, Pause, Volume2, VolumeX, Search, Loader2, Headphones, ArrowLeft, X, Wifi, 
   SkipBack, SkipForward, Info, RotateCcw, FastForward, ListMusic, Globe, Calendar, 
-  Mail, User, ExternalLink, Sparkles, Radio, Check, ChevronRight, Clock, Heart, 
+  Mail, User, ExternalLink, Sparkles, Radio, Check, ChevronRight, ChevronLeft, Clock, Heart, 
   Rss, Award, Zap, Layers, RefreshCw, Mic, Flame, Cpu, Newspaper, Briefcase, Copy,
   Maximize2, ChevronDown, SlidersHorizontal, Star, TrendingUp
 } from 'lucide-react';
@@ -64,20 +64,6 @@ const POPULAR_COUNTRIES = [
   { name: "France", code: "fr" }
 ];
 
-const PODCAST_GENRES = [
-  { id: "all", label: "All Feeds", icon: Sparkles },
-  { id: "trending", label: "Trending Now", icon: Flame },
-  { id: "tech", label: "Tech & AI", icon: Cpu },
-  { id: "news", label: "News & Politics", icon: Newspaper },
-  { id: "business", label: "Business & Finance", icon: Briefcase },
-  { id: "crime", label: "True Crime", icon: Search },
-  { id: "science", label: "Science & Mind", icon: Sparkles },
-  { id: "comedy", label: "Comedy & Stories", icon: Radio },
-  { id: "health", label: "Health & Fitness", icon: Heart },
-  { id: "society", label: "Society & Culture", icon: Globe },
-  { id: "history", label: "History & Docs", icon: Award },
-];
-
 // Helper: Format raw episode duration into minutes/hours string
 const formatEpisodeDuration = (dur?: string | null): string | null => {
   if (!dur) return null;
@@ -114,7 +100,7 @@ const formatEpisodeDuration = (dur?: string | null): string | null => {
 export const PodcastsPage: React.FC<PodcastsPageProps> = ({ searchQuery = "", onSearchClear }) => {
   // Store / Country state
   const [selectedCountry, setSelectedCountry] = useState(POPULAR_COUNTRIES[0]);
-  const [selectedGenre, setSelectedGenre] = useState<string>("all");
+  const [heroIndex, setHeroIndex] = useState(0);
 
   // Catalog States
   const [popularPodcasts, setPopularPodcasts] = useState<PodcastShow[]>([]);
@@ -248,6 +234,17 @@ export const PodcastsPage: React.FC<PodcastsPageProps> = ({ searchQuery = "", on
       isMounted = false;
     };
   }, [selectedCountry.code]);
+
+  // Hero Carousel Auto Advance
+  const heroPodcasts = popularPodcasts.slice(0, 5);
+
+  useEffect(() => {
+    if (heroPodcasts.length <= 1) return;
+    const interval = setInterval(() => {
+      setHeroIndex((prev) => (prev + 1) % heroPodcasts.length);
+    }, 6000);
+    return () => clearInterval(interval);
+  }, [heroPodcasts.length]);
 
   // 2. Perform Real-time iTunes Podcast Search
   useEffect(() => {
@@ -628,25 +625,6 @@ export const PodcastsPage: React.FC<PodcastsPageProps> = ({ searchQuery = "", on
 
   const activeEpisode = activeEpisodeIndex >= 0 ? episodesQueue[activeEpisodeIndex] : null;
 
-  // Active Genre List Helper
-  const getActiveGenrePodcasts = (): PodcastShow[] => {
-    switch (selectedGenre) {
-      case "trending": return popularPodcasts;
-      case "tech": return techPodcasts;
-      case "news": return newsPodcasts;
-      case "business": return businessPodcasts;
-      case "crime": return crimePodcasts;
-      case "science": return sciencePodcasts;
-      case "comedy": return comedyPodcasts;
-      case "health": return healthPodcasts;
-      case "society": return societyPodcasts;
-      case "history": return historyPodcasts;
-      default: return popularPodcasts;
-    }
-  };
-
-  const featuredShow = popularPodcasts[0] || techPodcasts[0];
-
   if (loading) {
     return (
       <div className="space-y-10 pt-24 pb-10 px-4 md:px-12 select-none bg-[#030303] min-h-screen text-left">
@@ -717,28 +695,6 @@ export const PodcastsPage: React.FC<PodcastsPageProps> = ({ searchQuery = "", on
           </div>
         </div>
 
-        {/* 2. Production Level Category Genre Filter Tabs */}
-        <div className="flex items-center gap-2 overflow-x-auto py-2 hide-scrollbar">
-          {PODCAST_GENRES.map((g) => {
-            const IconComp = g.icon;
-            const isActive = selectedGenre === g.id;
-            return (
-              <button
-                key={g.id}
-                onClick={() => setSelectedGenre(g.id)}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold border transition-all duration-200 flex items-center gap-2 shrink-0 cursor-pointer ${
-                  isActive
-                    ? 'bg-purple-600 border-purple-500 text-white shadow-lg shadow-purple-600/30'
-                    : 'bg-zinc-900/60 border-white/5 text-zinc-400 hover:text-white hover:bg-zinc-850 hover:border-white/15'
-                }`}
-              >
-                <IconComp size={14} className={isActive ? 'text-white' : 'text-purple-400'} />
-                <span>{g.label}</span>
-              </button>
-            );
-          })}
-        </div>
-
         {/* Global Error Notice */}
         {error && (
           <div className="my-4 p-4 rounded-2xl bg-red-950/40 border border-red-500/30 text-red-300 text-xs flex items-center justify-between">
@@ -750,20 +706,31 @@ export const PodcastsPage: React.FC<PodcastsPageProps> = ({ searchQuery = "", on
         )}
       </div>
 
-      {/* 3. FEATURED HERO BANNER SHOWCASE (When All Feeds selected) */}
-      {selectedGenre === "all" && !searchQuery && featuredShow && (
+      {/* 2. HERO HEADER CAROUSEL (Sliding Featured Spotlight) */}
+      {!searchQuery && heroPodcasts.length > 0 && (
         <div className="px-4 md:px-12 max-w-7xl mx-auto my-6 text-left">
-          <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-purple-950/70 via-zinc-950 to-zinc-950 border border-purple-500/20 p-6 md:p-8 flex flex-col md:flex-row items-center gap-6 md:gap-8 shadow-2xl">
+          <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-purple-950/80 via-zinc-950 to-zinc-950 border border-purple-500/20 p-6 md:p-8 flex flex-col md:flex-row items-center gap-6 md:gap-8 shadow-2xl transition-all duration-500">
             
-            {/* Ambient Background Glow */}
-            <div className="absolute top-0 right-0 w-96 h-96 bg-purple-600/10 rounded-full blur-3xl pointer-events-none" />
+            {/* Ambient Blurred Background */}
+            <div className="absolute inset-0 overflow-hidden pointer-events-none">
+              <img
+                src={heroPodcasts[heroIndex].artworkUrl}
+                alt=""
+                className="w-full h-full object-cover blur-3xl opacity-20 scale-125 transition-all duration-700"
+              />
+              <div className="absolute inset-0 bg-gradient-to-r from-purple-950/90 via-zinc-950/90 to-zinc-950" />
+            </div>
 
             {/* Artwork */}
-            <div className="relative w-36 h-36 md:w-44 md:h-44 rounded-2xl overflow-hidden border border-white/10 shadow-2xl shrink-0 group">
-              <img src={featuredShow.artworkUrl} alt={featuredShow.title} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+            <div className="relative w-40 h-40 md:w-48 md:h-48 rounded-2xl overflow-hidden border border-white/10 shadow-2xl shrink-0 group">
+              <img
+                src={heroPodcasts[heroIndex].artworkUrl}
+                alt={heroPodcasts[heroIndex].title}
+                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+              />
               <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                 <button
-                  onClick={() => setSelectedShow(featuredShow)}
+                  onClick={() => setSelectedShow(heroPodcasts[heroIndex])}
                   className="w-12 h-12 rounded-full bg-purple-600 text-white flex items-center justify-center shadow-lg transform scale-90 group-hover:scale-100 transition-transform cursor-pointer"
                 >
                   <Play size={20} fill="currentColor" className="ml-0.5" />
@@ -771,35 +738,35 @@ export const PodcastsPage: React.FC<PodcastsPageProps> = ({ searchQuery = "", on
               </div>
             </div>
 
-            {/* Featured Details */}
-            <div className="flex-1 space-y-3 min-w-0 text-center md:text-left">
+            {/* Details */}
+            <div className="flex-1 space-y-3 min-w-0 text-center md:text-left relative z-10">
               <div className="flex flex-wrap items-center justify-center md:justify-start gap-2">
                 <span className="px-3 py-0.5 rounded-full bg-purple-600/30 border border-purple-500/40 text-purple-300 text-[10px] font-extrabold uppercase tracking-widest flex items-center gap-1">
-                  <Star size={10} className="text-amber-400" /> Featured Show
+                  <Star size={10} className="text-amber-400" /> Featured Spotlight #{heroIndex + 1}
                 </span>
                 <span className="px-2.5 py-0.5 rounded-full bg-white/5 border border-white/10 text-zinc-400 text-[10px] font-medium">
-                  {featuredShow.categories[0] || 'Podcast'}
+                  {heroPodcasts[heroIndex].categories[0] || 'Podcast'}
                 </span>
               </div>
 
               <h2 className="text-xl md:text-3xl font-black text-white tracking-tight line-clamp-1">
-                {featuredShow.title}
+                {heroPodcasts[heroIndex].title}
               </h2>
               <p className="text-xs md:text-sm text-zinc-400 font-medium">
-                Hosted by <strong className="text-white">{featuredShow.author}</strong>
+                Hosted by <strong className="text-white">{heroPodcasts[heroIndex].author}</strong>
               </p>
 
               <div className="flex items-center justify-center md:justify-start gap-3 pt-1">
                 <button
-                  onClick={() => setSelectedShow(featuredShow)}
+                  onClick={() => setSelectedShow(heroPodcasts[heroIndex])}
                   className="px-5 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs flex items-center gap-2 shadow-lg shadow-purple-600/40 transition-transform active:scale-95 cursor-pointer"
                 >
                   <Play size={14} fill="currentColor" /> Listen & Episodes
                 </button>
 
-                {featuredShow.applePodcastsUrl && (
+                {heroPodcasts[heroIndex].applePodcastsUrl && (
                   <a
-                    href={featuredShow.applePodcastsUrl}
+                    href={heroPodcasts[heroIndex].applePodcastsUrl}
                     target="_blank"
                     rel="noreferrer"
                     className="px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-zinc-300 hover:text-white font-semibold text-xs flex items-center gap-1.5 transition-colors"
@@ -809,11 +776,42 @@ export const PodcastsPage: React.FC<PodcastsPageProps> = ({ searchQuery = "", on
                 )}
               </div>
             </div>
+
+            {/* Carousel Navigation Indicators & Controls */}
+            <div className="absolute right-6 bottom-6 z-20 flex items-center gap-3">
+              <button
+                onClick={() => setHeroIndex(prev => (prev - 1 + heroPodcasts.length) % heroPodcasts.length)}
+                className="p-1.5 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-zinc-300 hover:text-white transition-all cursor-pointer"
+                title="Previous Featured"
+              >
+                <ChevronLeft size={16} />
+              </button>
+
+              <div className="flex items-center gap-1.5">
+                {heroPodcasts.map((_, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => setHeroIndex(idx)}
+                    className={`h-2 rounded-full transition-all duration-300 border-none cursor-pointer ${
+                      heroIndex === idx ? 'bg-purple-500 w-6' : 'bg-white/20 hover:bg-white/40 w-2'
+                    }`}
+                  />
+                ))}
+              </div>
+
+              <button
+                onClick={() => setHeroIndex(prev => (prev + 1) % heroPodcasts.length)}
+                className="p-1.5 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-zinc-300 hover:text-white transition-all cursor-pointer"
+                title="Next Featured"
+              >
+                <ChevronRight size={16} />
+              </button>
+            </div>
           </div>
         </div>
       )}
 
-      {/* 4. Search Results or Genre Filtered View */}
+      {/* 3. Search Results or Horizontal Category Rows */}
       {searchQuery ? (
         <div className="px-4 md:px-12 max-w-7xl mx-auto text-left pt-6 animate-in fade-in duration-300">
           <div className="flex items-center justify-between mb-8 border-b border-white/5 pb-4">
@@ -847,30 +845,8 @@ export const PodcastsPage: React.FC<PodcastsPageProps> = ({ searchQuery = "", on
             </div>
           )}
         </div>
-      ) : selectedGenre !== "all" ? (
-        /* Single Genre Filtered Grid View */
-        <div className="px-4 md:px-12 max-w-7xl mx-auto text-left pt-6 animate-in fade-in duration-300 space-y-6">
-          <div className="flex items-center justify-between border-b border-white/10 pb-4">
-            <h2 className="text-lg font-bold text-white flex items-center gap-2">
-              <Sparkles size={18} className="text-purple-400" />
-              {PODCAST_GENRES.find(g => g.id === selectedGenre)?.label || 'Filtered'} Podcasts ({selectedCountry.code.toUpperCase()} Store)
-            </h2>
-            <span className="text-xs text-zinc-500 font-mono">{getActiveGenrePodcasts().length} Shows</span>
-          </div>
-
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6">
-            {getActiveGenrePodcasts().map((show) => (
-              <PodcastCard
-                key={show.id}
-                show={show}
-                onClick={() => setSelectedShow(show)}
-                isPlaying={isPlaying && currentShow?.id === show.id}
-              />
-            ))}
-          </div>
-        </div>
       ) : (
-        /* Full Production Multi-Category Rows */
+        /* Full Production Multi-Category Horizontal Rows */
         <div className="space-y-4 mt-6">
           <PodcastRow title="Top & Trending Podcasts" icon={<Flame size={18} className="text-amber-400" />} shows={popularPodcasts} onSelect={setSelectedShow} activeShowId={currentShow?.id} isPlaying={isPlaying} />
           <PodcastRow title="Tech, AI & Innovation" icon={<Cpu size={18} className="text-purple-400" />} shows={techPodcasts} onSelect={setSelectedShow} activeShowId={currentShow?.id} isPlaying={isPlaying} />
@@ -888,7 +864,7 @@ export const PodcastsPage: React.FC<PodcastsPageProps> = ({ searchQuery = "", on
         </div>
       )}
 
-      {/* 5. PODCAST DETAILS & EPISODE DRAWER MODAL */}
+      {/* 4. PODCAST DETAILS & EPISODE DRAWER MODAL */}
       {selectedShow && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 md:p-6 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
           <div className="bg-zinc-950 border border-white/10 w-full max-w-3xl max-h-[85vh] rounded-2xl overflow-hidden shadow-2xl flex flex-col relative text-left">
@@ -1089,7 +1065,7 @@ export const PodcastsPage: React.FC<PodcastsPageProps> = ({ searchQuery = "", on
         </div>
       )}
 
-      {/* 6. PERSISTENT FLOATING AUDIO PLAYER BAR */}
+      {/* 5. PERSISTENT FLOATING AUDIO PLAYER BAR */}
       {activeEpisode && (
         <div className="fixed bottom-0 inset-x-0 z-40 bg-zinc-950/95 backdrop-blur-xl border-t border-white/10 px-4 py-3 shadow-[0_-10px_30px_rgba(0,0,0,0.8)] animate-in slide-in-from-bottom duration-300 text-left">
           <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-3">
@@ -1160,7 +1136,7 @@ export const PodcastsPage: React.FC<PodcastsPageProps> = ({ searchQuery = "", on
                   className="text-zinc-400 hover:text-white cursor-pointer transition-colors"
                   title="Forward 15s"
                 >
-                  <FastForward size={16} />
+                  <FastForward size={18} />
                 </button>
 
                 <button
@@ -1245,7 +1221,7 @@ export const PodcastsPage: React.FC<PodcastsPageProps> = ({ searchQuery = "", on
         </div>
       )}
 
-      {/* 7. EXPANDABLE FULL SCREEN AUDIO PLAYER MODAL */}
+      {/* 6. EXPANDABLE FULL SCREEN AUDIO PLAYER MODAL */}
       {isFullScreenPlayerOpen && activeEpisode && (
         <div className="fixed inset-0 z-50 bg-[#07070a] text-white flex flex-col justify-between overflow-y-auto animate-in slide-in-from-bottom duration-300 select-none">
           
@@ -1464,7 +1440,7 @@ export const PodcastsPage: React.FC<PodcastsPageProps> = ({ searchQuery = "", on
         </div>
       )}
 
-      {/* 8. EPISODE QUEUE DRAWER MODAL */}
+      {/* 7. EPISODE QUEUE DRAWER MODAL */}
       {isQueueDrawerOpen && (
         <div className="fixed bottom-20 right-4 z-50 w-80 max-h-96 bg-zinc-950/95 border border-white/10 rounded-2xl p-4 shadow-2xl backdrop-blur-xl flex flex-col text-left animate-in slide-in-from-bottom-5 duration-200">
           <div className="flex items-center justify-between border-b border-white/10 pb-2 mb-3">
