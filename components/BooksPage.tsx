@@ -779,7 +779,7 @@ export const PodcastsPage: React.FC<PodcastsPageProps> = ({ searchQuery = "", on
 
         {/* Expandable Fullscreen Player Overlay */}
         {isFullScreenPlayerOpen && (
-          <div className="fixed inset-0 z-50 bg-[#07070a] text-white flex flex-col justify-between overflow-y-auto animate-in slide-in-from-bottom duration-300 select-none">
+          <div className="fixed inset-0 z-[100] bg-[#07070a] text-white flex flex-col justify-between overflow-y-auto animate-in slide-in-from-bottom duration-300 select-none">
             
             {/* Glowing Ambient Background Artwork */}
             <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
