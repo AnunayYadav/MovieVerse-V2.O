@@ -2463,7 +2463,6 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                 title={displayData.title || displayData.name}
                                 forceProgress={movie.last_watched_data && movie.last_watched_data.current_time && movie.last_watched_data.current_time > 0 && (!isTv || (movie.last_watched_data.season === playParams.season && movie.last_watched_data.episode === playParams.episode)) ? (movie.last_watched_data.current_time) : 0}
                                 providerId={selectedProviderId}
-                                onProviderChange={handleProviderChange}
                                 onEpisodeChange={(season, episode) => {
                                     setPlayParams({ season, episode });
                                     onPlayStateChangeRef.current?.(true, season, episode);
