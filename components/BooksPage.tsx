@@ -1747,17 +1747,8 @@ interface PodcastRowProps {
   isPlaying: boolean;
 }
 
-const PodcastRow: React.FC<PodcastRowProps> = ({ title, icon, shows, onSelect, activeShowId, isPlaying, onLoadMore }) => {
+const PodcastRow: React.FC<PodcastRowProps> = ({ title, icon, shows, onSelect, activeShowId, isPlaying }) => {
   if (!shows || shows.length === 0) return null;
-
-  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
-    const target = e.currentTarget;
-    if (target.scrollLeft + target.clientWidth >= target.scrollWidth - 300) {
-      if (onLoadMore) {
-        onLoadMore();
-      }
-    }
-  };
 
   return (
     <div className="mb-8 animate-in fade-in duration-500 text-left">
@@ -1767,10 +1758,7 @@ const PodcastRow: React.FC<PodcastRowProps> = ({ title, icon, shows, onSelect, a
           {title}
         </h3>
       </div>
-      <div
-        onScroll={handleScroll}
-        className="flex gap-5 overflow-x-auto px-4 md:px-12 pb-4 hide-scrollbar scroll-smooth"
-      >
+      <div className="flex gap-5 overflow-x-auto px-4 md:px-12 pb-4 hide-scrollbar scroll-smooth">
         {shows.map((show) => (
           <PodcastCard
             key={show.id}

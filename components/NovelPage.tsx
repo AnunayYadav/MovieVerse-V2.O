@@ -193,15 +193,6 @@ const NovelRow = ({
 }) => {
   const rowRef = useRef<HTMLDivElement>(null);
 
-  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
-    const target = e.currentTarget;
-    if (target.scrollLeft + target.clientWidth >= target.scrollWidth - 300) {
-      if (onExpand) {
-        onExpand();
-      }
-    }
-  };
-
   const scrollLeft = () => {
     if (rowRef.current) {
       rowRef.current.scrollBy({ left: -600, behavior: 'smooth' });
@@ -254,8 +245,7 @@ const NovelRow = ({
 
       <div
         ref={rowRef}
-        onScroll={handleScroll}
-        className="flex gap-4 overflow-x-auto hide-scrollbar scroll-smooth py-2 -mx-4 px-4 md:-mx-12 md:px-12"
+        className="flex gap-4 sm:gap-5 overflow-x-auto no-scrollbar scroll-smooth py-2"
       >
         {novels.map(novel => (
           <NovelCard
@@ -607,6 +597,85 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
   useEffect(() => {
     fetchAniListFeed();
   }, [fetchAniListFeed]);
+
+  // ── Endless Vertical Page Scroll (Genre Rows) ──────────────
+  const [genrePageIndex, setGenrePageIndex] = useState(0);
+  const [loadingMoreGenreRows, setLoadingMoreGenreRows] = useState(false);
+  const EXTRA_GENRES = useMemo(() => [
+    'Supernatural', 'Mystery', 'Slice of Life', 'Drama', 'Psychological',
+    'Adventure', 'Comedy', 'Isekai', 'Harem', 'Horror', 'Sports', 'Tragedy', 'Historical'
+  ], []);
+
+  const loadMoreGenreRows = useCallback(async () => {
+    if (loadingMoreGenreRows || genrePageIndex >= EXTRA_GENRES.length) return;
+    setLoadingMoreGenreRows(true);
+    const nextGenre = EXTRA_GENRES[genrePageIndex];
+
+    try {
+      const query = `
+        query ($genre: String ${!includeNsfw ? ', $isAdult: Boolean' : ''}) {
+          Page (page: 1, perPage: 12) {
+            media (type: MANGA, format: NOVEL, genre: $genre, ${!includeNsfw ? 'isAdult: $isAdult,' : ''} sort: TRENDING_DESC) {
+              id title { romaji english userPreferred }
+              coverImage { extraLarge large } bannerImage description genres averageScore status startDate { year }
+              staff (perPage: 3) { edges { role node { name { full } } } }
+            }
+          }
+        }
+      `;
+      const variables: any = { genre: nextGenre };
+      if (!includeNsfw) variables.isAdult = false;
+
+      const res = await fetch('https://graphql.anilist.co', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify({ query, variables })
+      });
+
+      if (res.ok) {
+        const json = await res.json();
+        const mapAniListNovel = (item: any): Novel => {
+          const title = item.title.english || item.title.romaji || item.title.userPreferred;
+          return {
+            id: title.toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-'),
+            aniListId: item.id,
+            title: title,
+            image: item.coverImage.extraLarge || item.coverImage.large,
+            author: 'Light Novel Author',
+            description: cleanDescription(item.description),
+            genres: item.genres || [],
+            rating: item.averageScore ? item.averageScore / 10 : null,
+            bannerImage: item.bannerImage,
+            status: item.status?.toLowerCase() || 'ongoing',
+            year: item.startDate?.year || null,
+            contentRating: 'safe'
+          };
+        };
+
+        const novels = (json.data?.Page?.media || []).map(mapAniListNovel);
+        if (novels.length > 0) {
+          setGenreRows(prev => [...prev, { title: `${nextGenre} Light Novels`, novels }]);
+        }
+      }
+    } catch (e) {
+      console.error('Failed to load more novel genre rows:', e);
+    } finally {
+      setLoadingMoreGenreRows(false);
+      setGenrePageIndex(prev => prev + 1);
+    }
+  }, [genrePageIndex, loadingMoreGenreRows, includeNsfw, EXTRA_GENRES]);
+
+  useEffect(() => {
+    if (searchQuery || selectedNovel) return;
+    const handleWindowScroll = () => {
+      if (window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 900) {
+        loadMoreGenreRows();
+      }
+    };
+
+    window.addEventListener('scroll', handleWindowScroll);
+    return () => window.removeEventListener('scroll', handleWindowScroll);
+  }, [searchQuery, selectedNovel, loadMoreGenreRows]);
 
   // Auto scroll Hero banner slideshow (every 6 seconds)
   useEffect(() => {

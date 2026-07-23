@@ -6534,15 +6534,6 @@ export interface MangaRowProps {
 export const MangaRow: React.FC<MangaRowProps> = ({ title, items, onMangaClick, titleLanguage, onExpand }) => {
   if (items.length === 0) return null;
 
-  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
-    const target = e.currentTarget;
-    if (target.scrollLeft + target.clientWidth >= target.scrollWidth - 300) {
-      if (onExpand) {
-        onExpand();
-      }
-    }
-  };
-
   return (
     <div className="mb-10 animate-in fade-in duration-500 text-left font-sans">
       <div className="flex items-center justify-between px-4 md:px-12 mb-4">
@@ -6560,10 +6551,7 @@ export const MangaRow: React.FC<MangaRowProps> = ({ title, items, onMangaClick, 
           </button>
         )}
       </div>
-      <div
-        onScroll={handleScroll}
-        className="flex gap-5 overflow-x-auto px-4 md:px-12 pb-4 hide-scrollbar scroll-smooth"
-      >
+      <div className="flex gap-5 overflow-x-auto px-4 md:px-12 pb-4 hide-scrollbar scroll-smooth">
         {items.map((manga) => (
           <MangaCard key={manga.id} manga={manga} onMangaClick={onMangaClick} titleLanguage={titleLanguage} />
         ))}
