@@ -5,14 +5,7 @@ import { TvFocusButton } from '../tvNavigation';
 import { pause, resume } from '@noriginmedia/norigin-spatial-navigation';
 import { TMDB_BASE_URL, TMDB_IMAGE_BASE } from './Shared';
 import { Provider, PROVIDERS, getSubtitleCode, getAudioCode, getFilteredProviders } from './Providers';
-import jarvisSourcesData from './SourceUrls.json';
 
-interface JarvisServer {
-  server: string;
-  url: string;
-  enabled: boolean;
-  type: string;
-}
 
 
 interface SubtitleCue {
@@ -349,15 +342,8 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   const [selectedVideasyServer, setSelectedVideasyServer] = useState('Hydrogen');
   const [useMegaplayBackup, setUseMegaplayBackup] = useState(false);
 
-  // Jarvis sub-server states
-  const [selectedJarvisServer, setSelectedJarvisServer] = useState<string>(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('movieverse_preferred_jarvis_server');
-      if (saved) return saved;
-    }
-    return isAnime ? 'HiAnime' : 'TwoEmbed';
-  });
-  const [isJarvisModalOpen, setIsJarvisModalOpen] = useState(false);
+  // Server Selector Modal state
+  const [isServerModalOpen, setIsServerModalOpen] = useState(false);
   const [iframeLoading, setIframeLoading] = useState(true);
 
   const ServerIcon = ({ size = 16 }: { size?: number }) => (
@@ -425,46 +411,46 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
 
   const [serverStatuses, setServerStatuses] = useState<Record<string, 'online' | 'offline' | 'checking'>>({});
 
-  const getJarvisServers = useCallback((): JarvisServer[] => {
-    if (!jarvisSourcesData || !jarvisSourcesData.sources) return [];
-    
-    const whitelist = [
-      'twoembed', 'vidsrcto', 'xpass', 'moviesapi', 'vidlink', 'hexasu', 'embedmaster', 
-      'cinemaos', 'vidplus', 'vidnest', 'vidfast', 'rivestream', 'vidsrcxyz', 'vidsrc', 
-      'zoechip', 'nepu', 'embedsu', 'morph', 'primewire', 'tomapi', 'videasy', 
-      'multiembed', 'kisskh', 'allmovieland', 'vidsrcvip', 'vidrock',
-      'hianime', 'anizone', 'tokyoinsider', 'kuudere', 'anikage', 'anineko', 
-      'animeowl', 'animepahe', 'anixl', 'animekai'
-    ];
-
-    return (jarvisSourcesData.sources as JarvisServer[]).filter((s: JarvisServer) => {
-      if (!s.enabled) return false;
-      
-      const nameLower = s.server.toLowerCase();
-      const isEmbed = whitelist.some(w => nameLower.includes(w));
-      if (!isEmbed) return false;
-
-      if (isAnime) {
-        return s.type === 'anime' || s.type === 'all';
-      } else {
-        return s.type === 'movie' || s.type === 'all' || s.type === 'asian';
-      }
-    });
-  }, [isAnime]);
-
-  // Self-correcting selection for Jarvis
-  useEffect(() => {
-    if (selectedProviderId === 'jarvis') {
-      const available = getJarvisServers();
-      if (available.length > 0) {
-        const found = available.find(s => s.server === selectedJarvisServer);
-        if (!found) {
-          setSelectedJarvisServer(available[0].server);
-        }
-      }
+  const probeServerStatus = useCallback(async (prov: Provider) => {
+    if (prov.id === selectedProviderId && (isPlaying || playerCurrentTime > 0)) {
+      setServerStatuses(prev => ({ ...prev, [prov.id]: 'online' }));
+      return;
     }
-  }, [selectedProviderId, isAnime, selectedJarvisServer, getJarvisServers]);
+    setServerStatuses(prev => ({ ...prev, [prov.id]: 'checking' }));
+    try {
+      const isTvShow = mediaType === 'tv' || (isAnime && mediaType !== 'movie');
+      const url = isTvShow
+        ? prov.getTvUrl(tmdbId, currentSeason, currentEpisode, activeColor, 0, isAnime, anilistId, animeLanguage, audioLanguage, subtitleLanguage)
+        : prov.getMovieUrl(tmdbId, activeColor, 0, isAnime, anilistId, animeLanguage, audioLanguage, subtitleLanguage);
 
+      if (!url || !url.startsWith('http')) {
+        setServerStatuses(prev => ({ ...prev, [prov.id]: 'offline' }));
+        return;
+      }
+
+      const startTime = performance.now();
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 2500);
+      await fetch(url, { method: 'HEAD', mode: 'no-cors', signal: controller.signal });
+      clearTimeout(timeoutId);
+      const latency = Math.round(performance.now() - startTime);
+
+      setServerStatuses(prev => ({ ...prev, [prov.id]: 'online' }));
+      setAutoProbeBadges(prev => ({ ...prev, [prov.id]: { status: 'playing', latency, label: prov.name } }));
+    } catch (e) {
+      setServerStatuses(prev => ({ ...prev, [prov.id]: 'offline' }));
+      setAutoProbeBadges(prev => ({ ...prev, [prov.id]: { status: 'failed', label: prov.name } }));
+    }
+  }, [tmdbId, mediaType, currentSeason, currentEpisode, activeColor, isAnime, anilistId, animeLanguage, audioLanguage, subtitleLanguage, selectedProviderId, isPlaying, playerCurrentTime]);
+
+  useEffect(() => {
+    if (!isServerModalOpen) return;
+    const filtered = getFilteredProviders(isAnime, isWatchParty, isAnimeDirect);
+    filtered.forEach((prov) => {
+      if (serverStatuses[prov.id] && serverStatuses[prov.id] !== 'checking') return;
+      probeServerStatus(prov);
+    });
+  }, [isServerModalOpen, isAnime, isWatchParty, isAnimeDirect, probeServerStatus]);
 
   useEffect(() => {
     if (providerId) {
@@ -485,7 +471,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     setIsAutoProbing(true);
     setAutoProbeStatus('Testing real video playback across candidate streaming servers...');
 
-    const candidateIds = ['cinesrc', 'vidfast', 'videasy_adfree', 'cinemaos', 'vidsuper', 'zxcstream', 'peachify', 'jarvis'];
+    const candidateIds = ['cinesrc', 'vidfast', 'videasy_adfree', 'cinemaos', 'vidsuper', 'zxcstream', 'peachify', '2embed'];
     const initialBadges: Record<string, { status: 'testing' | 'playing' | 'failed', latency?: number, label: string }> = {
       cinesrc: { status: 'testing', label: 'CineSrc' },
       vidfast: { status: 'testing', label: 'VidFast' },
@@ -494,7 +480,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
       vidsuper: { status: 'testing', label: 'VidSuper' },
       zxcstream: { status: 'testing', label: 'ZXCStream' },
       peachify: { status: 'testing', label: 'Peachify' },
-      jarvis: { status: 'testing', label: 'Jarvis' },
+      '2embed': { status: 'testing', label: '2Embed' },
     };
     setAutoProbeBadges(initialBadges);
 
@@ -2367,117 +2353,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   const lastAudioLanguageRef = useRef<string>(audioLanguage);
   const lastSubtitleLanguageRef = useRef<string>(subtitleLanguage);
 
-  const getJarvisServerUrl = (serverName: string, baseUrl: string, tmdbId: number, mediaType: 'movie' | 'tv', season: number, episode: number) => {
-    const isTv = mediaType === 'tv';
-    const nameLower = serverName.toLowerCase();
-    
-    if (nameLower.includes('twoembed') || nameLower.includes('2embed')) {
-      return isTv 
-        ? `https://www.2embed.cc/embed/tv/${tmdbId}/${season}/${episode}`
-        : `https://www.2embed.cc/embed/movie/${tmdbId}`;
-    }
-    
-    if (nameLower.includes('vidsrcto') || nameLower.includes('vidsrc.cc') || nameLower.includes('vidsrc')) {
-      const cleanBase = baseUrl.replace(/\/$/, '');
-      if (cleanBase.includes('vidsrc.xyz') || cleanBase.includes('vidsrc.me') || cleanBase.includes('vidsrc-embed.su')) {
-        return isTv
-          ? `${cleanBase}/embed/tv/${tmdbId}/${season}/${episode}`
-          : `${cleanBase}/embed/movie/${tmdbId}`;
-      }
-      return isTv
-        ? `${cleanBase}/embed/tv/${tmdbId}/${season}/${episode}`
-        : `${cleanBase}/embed/movie/${tmdbId}`;
-    }
-
-    if (nameLower.includes('vidlink')) {
-      const cleanBase = baseUrl.replace(/\/$/, '');
-      return isTv
-        ? `${cleanBase}/embed/tv/${tmdbId}/${season}/${episode}`
-        : `${cleanBase}/embed/movie/${tmdbId}`;
-    }
-
-    if (nameLower.includes('embedsu') || nameLower.includes('embed.su')) {
-      const cleanBase = baseUrl.replace(/\/$/, '');
-      return isTv
-        ? `${cleanBase}/embed/tv/${tmdbId}/${season}/${episode}`
-        : `${cleanBase}/embed/movie/${tmdbId}`;
-    }
-
-    if (nameLower.includes('multiembed')) {
-      const cleanBase = baseUrl.replace(/\/$/, '');
-      return isTv
-        ? `${cleanBase}/direct/?video_id=${tmdbId}&tmdb=1&s=${season}&e=${episode}`
-        : `${cleanBase}/direct/?video_id=${tmdbId}&tmdb=1`;
-    }
-
-    if (nameLower.includes('cinemaos')) {
-      return isTv
-        ? `https://cinemaos.tech/player/${tmdbId}/${season}/${episode}`
-        : `https://cinemaos.tech/player/${tmdbId}`;
-    }
-
-    if (nameLower.includes('xpass')) {
-      return isTv
-        ? `https://play.xpass.top/e/tv/${tmdbId}/${season}/${episode}`
-        : `https://play.xpass.top/e/movie/${tmdbId}`;
-    }
-
-    if (nameLower.includes('kisskh')) {
-      return isTv
-        ? `https://kisskh.ovh/embed/tv/${tmdbId}/${season}/${episode}`
-        : `https://kisskh.ovh/embed/movie/${tmdbId}`;
-    }
-
-    if (nameLower.includes('videasy')) {
-      const cleanBase = baseUrl.replace(/\/$/, '').replace('api.videasy.net', 'player.videasy.net');
-      return isTv
-        ? `${cleanBase}/tv/${tmdbId}/${season}/${episode}?nextEpisode=true&autoplayNextEpisode=true&episodeSelector=true&overlay=false&color=EF4444&autoplay=true`
-        : `${cleanBase}/movie/${tmdbId}?overlay=false&color=EF4444&autoplay=true`;
-    }
-
-    if (nameLower.includes('vidplus')) {
-      const cleanBase = baseUrl.replace(/\/$/, '');
-      return isTv
-        ? `${cleanBase}/embed/tv/${tmdbId}/${season}/${episode}`
-        : `${cleanBase}/embed/movie/${tmdbId}`;
-    }
-
-    if (nameLower.includes('moviesapi')) {
-      const cleanBase = baseUrl.replace(/\/$/, '');
-      return isTv
-        ? `${cleanBase}/embed/tv/${tmdbId}/${season}/${episode}`
-        : `${cleanBase}/embed/movie/${tmdbId}`;
-    }
-
-    if (nameLower.includes('vidnest')) {
-      const cleanBase = baseUrl.replace(/\/$/, '').replace('backend.vidnest.fun', 'vidnest.fun');
-      return isTv
-        ? `${cleanBase}/tv/${tmdbId}/${season}/${episode}`
-        : `${cleanBase}/movie/${tmdbId}`;
-    }
-
-    const cleanBase = baseUrl.replace(/\/$/, '');
-    
-    if (cleanBase.includes('player/') || cleanBase.includes('player.php')) {
-      return isTv
-        ? `${cleanBase}/${tmdbId}/${season}/${episode}`
-        : `${cleanBase}/${tmdbId}`;
-    }
-
-    if (cleanBase.includes('embed')) {
-      return isTv
-        ? `${cleanBase}/tv/${tmdbId}/${season}/${episode}`
-        : `${cleanBase}/movie/${tmdbId}`;
-    }
-
-    return isTv
-      ? `${cleanBase}/tv/${tmdbId}/${season}/${episode}`
-      : `${cleanBase}/movie/${tmdbId}`;
-  };
-
-  const getEmbedUrlForProvider = (providerId: string, progress: number = 0, overrideJarvisServer?: string) => {
-    // Normalize progress: ignore initial progress <= 5s to avoid URL parameter churn (e.g., &startAt=0 vs &startAt=1)
-    const effectiveProgress = (progress && progress > 5) ? progress : 0;
+  const getEmbedUrlForProvider = (providerId: string, progress: number = 0) => {
     const isTvShow = mediaType === 'tv' || (isAnime && mediaType !== 'movie');
     if (providerId === 'megaplay') {
       const domain = useMegaplayBackup ? 'https://megaplay.buzz' : 'https://animeplay.cfd';
@@ -2486,25 +2362,10 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
         ? `${domain}/stream/ani/${anilistId || tmdbId}/${currentEpisode}/${lang}`
         : `${domain}/stream/ani/${anilistId || tmdbId}/1/${lang}`;
     }
-    if (providerId === 'jarvis') {
-      const available = getJarvisServers();
-      const activeServer = overrideJarvisServer || selectedJarvisServer;
-      const serverConfig = available.find(s => s.server === activeServer) || available[0];
-      if (serverConfig) {
-        return getJarvisServerUrl(
-          serverConfig.server,
-          serverConfig.url,
-          tmdbId,
-          isTvShow ? 'tv' : 'movie',
-          currentSeason,
-          currentEpisode
-        );
-      }
-    }
     const provider = PROVIDERS.find(p => p.id === providerId) || PROVIDERS[0];
     let url = isTvShow
-      ? provider.getTvUrl(tmdbId, currentSeason, currentEpisode, activeColor, effectiveProgress, isAnime, anilistId, animeLanguage, audioLanguage, subtitleLanguage)
-      : provider.getMovieUrl(tmdbId, activeColor, effectiveProgress, isAnime, anilistId, animeLanguage, audioLanguage, subtitleLanguage);
+      ? provider.getTvUrl(tmdbId, currentSeason, currentEpisode, activeColor, progress, isAnime, anilistId, animeLanguage, audioLanguage, subtitleLanguage)
+      : provider.getMovieUrl(tmdbId, activeColor, progress, isAnime, anilistId, animeLanguage, audioLanguage, subtitleLanguage);
 
     if (providerId === 'anikai' && title) {
       url += `&title=${encodeURIComponent(title)}`;
@@ -2551,9 +2412,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
       shouldUpdateUrl = true;
       lastAnimeLanguageRef.current = animeLanguage;
     } else if (lastAnilistIdRef.current !== anilistId) {
-      if (['anikai', 'vidnest', 'vidnest_animepahe', 'megaplay'].includes(selectedProviderId)) {
-        shouldUpdateUrl = true;
-      }
+      shouldUpdateUrl = true;
       lastAnilistIdRef.current = anilistId;
     } else if (lastAudioLanguageRef.current !== audioLanguage) {
       shouldUpdateUrl = true;
@@ -2606,24 +2465,21 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     }
 
     if (shouldUpdateUrl) {
-      const rawProgress = currentProgressRef.current;
-      const startProgress = (rawProgress && rawProgress > 5) ? rawProgress : 0;
+      const startProgress = currentProgressRef.current;
       let newUrl = '';
       if (selectedProviderId === 'videasy_adfree' && fallbackToNativeVideasy) {
         newUrl = isTvShow
           ? `https://player.videasy.net/tv/${tmdbId}/${currentSeason}/${currentEpisode}?nextEpisode=true&autoplayNextEpisode=true&episodeSelector=true&overlay=false&color=${activeColor.replace('#', '')}&autoplay=true${startProgress && startProgress > 0 ? `&progress=${Math.floor(startProgress)}` : ''}`
           : `https://player.videasy.net/movie/${tmdbId}?overlay=false&color=${activeColor.replace('#', '')}&autoplay=true${startProgress && startProgress > 0 ? `&progress=${Math.floor(startProgress)}` : ''}`;
-      } else if (selectedProviderId !== 'auto') {
+      } else {
         newUrl = getEmbedUrlForProvider(selectedProviderId, startProgress);
       }
 
-      if (newUrl && newUrl !== embedUrl) {
-        if (isIframeCustomControls) {
-          setIsBuffering(true);
-        }
-        setIframeLoading(true);
-        setEmbedUrl(newUrl);
+      if (isIframeCustomControls) {
+        setIsBuffering(true);
       }
+      setIframeLoading(true);
+      setEmbedUrl(newUrl);
     }
   }, [tmdbId, mediaType, isAnime, title, currentSeason, currentEpisode, activeColor, selectedProviderId, forceProgress, isWatchParty, anilistId, animeLanguage, audioLanguage, subtitleLanguage, fallbackToNativeVideasy, useCustomControls, useMegaplayBackup]);
 
@@ -2656,29 +2512,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     }
   };
 
-  useEffect(() => {
-    if (!isJarvisModalOpen) return;
-    const available = getJarvisServers();
-    
-    available.forEach(async (srv) => {
-      if (serverStatuses[srv.server]) return;
-      
-      setServerStatuses(prev => ({ ...prev, [srv.server]: 'checking' }));
-      
-      const testUrl = getEmbedUrlForProvider('jarvis', 0, srv.server);
-      
-      if (!testUrl || !testUrl.startsWith('http')) {
-        setServerStatuses(prev => ({ ...prev, [srv.server]: 'offline' }));
-        return;
-      }
-      
-      const isOnline = await checkServerStatus(testUrl);
-      setServerStatuses(prev => ({ 
-        ...prev, 
-        [srv.server]: isOnline ? 'online' : 'offline' 
-      }));
-    });
-  }, [isJarvisModalOpen, getJarvisServers]);
+
 
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
@@ -3714,33 +3548,6 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                                       </button>
                                     );
                                   })}
-
-                                 {selectedProviderId === 'jarvis' && (
-                                   getJarvisServers().map((srv) => {
-                                     const isActive = selectedJarvisServer === srv.server;
-                                     return (
-                                       <button
-                                         key={srv.server}
-                                         onClick={() => {
-                                           setSelectedJarvisServer(srv.server);
-                                           if (typeof window !== 'undefined') {
-                                             localStorage.setItem('movieverse_preferred_jarvis_server', srv.server);
-                                           }
-                                           setIframeLoading(true);
-                                           const newUrl = getEmbedUrlForProvider('jarvis', 0, srv.server);
-                                           setEmbedUrl(newUrl);
-                                           setSettingsView('main');
-                                         }}
-                                         className={`w-full py-2.5 px-3 rounded-xl text-xs flex items-center justify-between transition-all hover:bg-white/5 ${
-                                           isActive ? 'text-red-500 bg-white/5 font-extrabold' : 'text-zinc-400 hover:text-white'
-                                         }`}
-                                       >
-                                         <span>{srv.server}</span>
-                                         {isActive && <Check size={12} className="text-red-500" />}
-                                       </button>
-                                     );
-                                   })
-                                 )}
                                 </div>
                               )}
                             </div>
@@ -3923,7 +3730,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                                 </button>
 
                                 {/* Server Row (Conditional) */}
-                                {(((selectedProviderId.startsWith('encdec') || selectedProviderId === 'cinepro_core') && encDecServers.length > 0) || selectedProviderId === 'megaplay' || selectedProviderId === 'jarvis') && (
+                                {(((selectedProviderId.startsWith('encdec') || selectedProviderId === 'cinepro_core') && encDecServers.length > 0) || selectedProviderId === 'megaplay') && (
                                   <button
                                     onClick={() => setSettingsView('servers')}
                                     className="w-full py-2 px-3 rounded-xl text-xs text-zinc-300 hover:text-white hover:bg-white/5 flex items-center justify-between transition-all"
@@ -4987,31 +4794,30 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
             <ArrowLeft size={30} strokeWidth={1.5} />
           </button>
 
-          {selectedProviderId === 'jarvis' && (
-            <div className="relative pointer-events-auto mr-4">
-              <button 
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setIsJarvisModalOpen(true);
-                }}
-                className="flex items-center gap-2 px-3 py-1.5 bg-black hover:bg-zinc-900/80 text-white font-medium text-xs rounded-lg transition-all border border-zinc-800 active:scale-95 shadow-xl cursor-pointer"
-              >
-                <ServerIcon size={14} />
-                <span className="text-white text-[13px] font-medium leading-none">Select a server</span>
-              </button>
-            </div>
-          )}
+          <div className="relative pointer-events-auto mr-4">
+            <button 
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsServerModalOpen(true);
+              }}
+              className="flex items-center gap-2 px-3.5 py-1.5 bg-black/80 hover:bg-zinc-900/90 text-white font-semibold text-xs rounded-xl transition-all border border-white/15 active:scale-95 shadow-xl cursor-pointer backdrop-blur-md"
+              title="Select Server / Provider"
+            >
+              <ServerIcon size={14} />
+              <span className="text-white text-[12px] font-bold leading-none">Servers</span>
+            </button>
+          </div>
         </div>
 
-        {/* Jarvis Server Selector Modal */}
-        {isJarvisModalOpen && (
+        {/* Server Selector Modal for Application Providers */}
+        {isServerModalOpen && (
           <div 
             className="fixed inset-0 bg-black/80 backdrop-blur-md z-[100] flex flex-col items-center justify-center p-4 animate-in fade-in duration-200"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Centered Close Button above the container */}
             <button 
-              onClick={() => setIsJarvisModalOpen(false)}
+              onClick={() => setIsServerModalOpen(false)}
               className="flex items-center gap-1.5 px-4 py-1.5 bg-[#0c0c0e] hover:bg-zinc-900 text-white rounded-full border border-zinc-800 text-xs font-semibold tracking-wide transition-all active:scale-95 mb-4 cursor-pointer"
             >
               <X size={14} className="text-zinc-400" />
@@ -5019,66 +4825,85 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
             </button>
 
             {/* Modal Container */}
-            <div className="bg-[#09090b] border border-white/10 rounded-2xl p-5 w-full max-w-xl max-h-[60vh] flex flex-col shadow-2xl overflow-hidden">
-              {/* Scrollable grid of servers */}
-              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2 overflow-y-auto pr-1 custom-scrollbar pb-1">
-                {getJarvisServers().map((srv) => {
-                  const isActive = selectedJarvisServer === srv.server;
-                  const { flagUrl, langLabel } = getServerDetails(srv.server);
+            <div className="bg-[#09090b] border border-white/10 rounded-2xl p-5 w-full max-w-xl max-h-[70vh] flex flex-col shadow-2xl overflow-hidden">
+              <div className="flex items-center justify-between pb-3 mb-3 border-b border-white/10">
+                <div>
+                  <h3 className="text-sm font-extrabold text-white uppercase tracking-wider">Select Streaming Server</h3>
+                  <p className="text-[11px] text-zinc-400">Choose a provider server. Live working status and latency indicator displayed below.</p>
+                </div>
+              </div>
+
+              {/* Scrollable grid of providers */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5 overflow-y-auto pr-1 custom-scrollbar pb-1">
+                {getFilteredProviders(isAnime, isWatchParty, isAnimeDirect).map((prov) => {
+                  const isActive = selectedProviderId === prov.id;
+                  const { flagUrl, langLabel } = getServerDetails(prov.name);
+                  const probeBadge = autoProbeBadges[prov.id];
+                  const rawStatus = serverStatuses[prov.id] || probeBadge?.status;
                   
+                  let statusLabel = 'Testing...';
+                  let statusClass = 'bg-amber-500 animate-pulse';
+                  let borderClass = 'border-zinc-800/80';
+                  
+                  if (isActive && (isPlaying || playerCurrentTime > 0)) {
+                    statusLabel = 'Playing';
+                    statusClass = 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.7)] animate-pulse';
+                    borderClass = 'border-emerald-500/50';
+                  } else if (rawStatus === 'online' || rawStatus === 'playing') {
+                    statusLabel = probeBadge?.latency ? `${probeBadge.latency}ms` : 'Working';
+                    statusClass = 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]';
+                    borderClass = 'border-emerald-500/30';
+                  } else if (rawStatus === 'offline' || rawStatus === 'failed') {
+                    statusLabel = 'Failed / No Movie';
+                    statusClass = 'bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.5)]';
+                    borderClass = 'border-rose-500/30';
+                  }
+
                   return (
                     <button
-                      key={srv.server}
+                      key={prov.id}
                       onClick={() => {
-                        setSelectedJarvisServer(srv.server);
-                        setIsJarvisModalOpen(false);
+                        setSelectedProviderId(prov.id);
+                        if (onProviderChange) {
+                          onProviderChange(prov.id);
+                        }
                         if (typeof window !== 'undefined') {
-                          localStorage.setItem('movieverse_preferred_jarvis_server', srv.server);
+                          const key = isAnime ? 'movieverse_preferred_provider_anime' : 'movieverse_preferred_provider';
+                          localStorage.setItem(key, prov.id);
                         }
                         setIframeLoading(true);
-                        const newUrl = getEmbedUrlForProvider('jarvis', 0, srv.server);
+                        setIsServerModalOpen(false);
+                        const newUrl = getEmbedUrlForProvider(prov.id, currentProgressRef.current);
                         setEmbedUrl(newUrl);
                       }}
-                      className={`relative rounded-xl p-2 flex flex-col items-center justify-center gap-1.5 transition-all border active:scale-95 cursor-pointer h-16 ${
+                      className={`relative rounded-xl p-3 flex flex-col items-start justify-between gap-2 transition-all border active:scale-95 cursor-pointer min-h-[72px] ${
                         isActive 
-                          ? 'bg-white text-zinc-950 border-white shadow-lg shadow-white/5' 
-                          : 'bg-[#121214]/40 hover:bg-[#161619] text-zinc-300 border-zinc-800/80 hover:border-zinc-700'
+                          ? 'bg-red-600/20 text-white border-red-500 shadow-lg shadow-red-600/10 font-bold' 
+                          : `bg-[#121214]/60 hover:bg-[#161619] text-zinc-300 ${borderClass} hover:border-zinc-600`
                       }`}
                     >
-                      {/* Status Dot */}
-                      {serverStatuses[srv.server] && (
-                        <span 
-                          className={`absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full border border-black/10 ${
-                            serverStatuses[srv.server] === 'online' 
-                              ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' 
-                              : serverStatuses[srv.server] === 'offline' 
-                                ? 'bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.5)]' 
-                                : 'bg-amber-500 animate-pulse'
-                          }`}
-                          title={
-                            serverStatuses[srv.server] === 'online' 
-                              ? 'Server Online' 
-                              : serverStatuses[srv.server] === 'offline' 
-                                ? 'Server Offline / Down' 
-                                : 'Pinging Server...'
-                          }
-                        />
-                      )}
-
-                      <div className="relative leading-none flex items-center justify-center">
-                        <img 
-                          src={flagUrl} 
-                          alt={langLabel}
-                          className="w-7 h-5 rounded-sm object-cover border border-white/10 shadow-sm select-none pointer-events-none" 
-                        />
-                        {isActive && (
-                          <div className="absolute -bottom-1 -right-1 bg-black text-white rounded-full w-3.5 h-3.5 flex items-center justify-center border border-white/20 shadow-md">
-                            <Check size={8} strokeWidth={4} />
-                          </div>
-                        )}
+                      {/* Header inside card: Flag/Icon + Active Check + Status indicator */}
+                      <div className="flex items-center justify-between w-full">
+                        <div className="flex items-center gap-1.5">
+                          <img 
+                            src={flagUrl} 
+                            alt={langLabel}
+                            className="w-5 h-3.5 rounded-sm object-cover border border-white/10 shadow-sm select-none pointer-events-none" 
+                          />
+                          {isActive && (
+                            <div className="bg-red-600 text-white rounded-full w-3.5 h-3.5 flex items-center justify-center border border-white/20 shadow-md">
+                              <Check size={8} strokeWidth={4} />
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1 bg-black/40 px-1.5 py-0.5 rounded-full border border-white/5">
+                          <span className={`w-1.5 h-1.5 rounded-full ${statusClass}`} />
+                          <span className="text-[9px] font-mono font-medium text-zinc-300">{statusLabel}</span>
+                        </div>
                       </div>
-                      <span className="text-[10px] font-bold tracking-wide truncate max-w-full text-center">
-                        {srv.server}
+
+                      <span className="text-[11px] font-bold tracking-wide truncate max-w-full text-left">
+                        {prov.name}
                       </span>
                     </button>
                   );
@@ -5215,40 +5040,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                   </div>
                 )}
 
-                {selectedProviderId === 'jarvis' && (
-                  <div className="border-t border-white/5 pt-4 mt-2">
-                    <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block mb-2 px-1">
-                      Select Jarvis Server
-                    </span>
-                    <div className="grid grid-cols-2 gap-2 max-h-[165px] overflow-y-auto pr-1 custom-scrollbar pb-1">
-                      {getJarvisServers().map((srv) => {
-                        const isActive = selectedJarvisServer === srv.server;
-                        return (
-                          <button
-                            key={srv.server}
-                            onClick={() => {
-                              setSelectedJarvisServer(srv.server);
-                              if (typeof window !== 'undefined') {
-                                localStorage.setItem('movieverse_preferred_jarvis_server', srv.server);
-                              }
-                              setIframeLoading(true);
-                              const newUrl = getEmbedUrlForProvider('jarvis', 0, srv.server);
-                              setEmbedUrl(newUrl);
-                              setIsDrawerOpen(false);
-                            }}
-                            className={`py-2 px-3 rounded-xl text-xs font-bold transition-all border text-center active:scale-[0.98] ${
-                              isActive 
-                                ? 'bg-red-600/20 text-red-500 border-red-500/30 font-extrabold shadow-[0_0_15px_rgba(239,68,68,0.15)]' 
-                                : 'bg-white/5 text-zinc-300 border-white/5 hover:border-white/10 hover:bg-white/10'
-                            }`}
-                          >
-                            {srv.server}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
+
               </div>
             )}
 

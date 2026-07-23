@@ -201,8 +201,8 @@ export const PROVIDERS: Provider[] = [
     supportsPostMessage: true
   },
   {
-    id: 'jarvis',
-    name: 'Jarvis',
+    id: '2embed',
+    name: '2Embed',
     getMovieUrl: (tmdbId) => `https://www.2embed.cc/embed/movie/${tmdbId}`,
     getTvUrl: (tmdbId, season, episode) => `https://www.2embed.cc/embed/tv/${tmdbId}/${season}/${episode}`,
     supportsPostMessage: false
