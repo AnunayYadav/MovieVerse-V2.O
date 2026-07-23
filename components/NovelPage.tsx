@@ -3,7 +3,8 @@ import {
   Search, BookOpen, ChevronLeft, ChevronRight, RefreshCcw, Loader2, AlertCircle, 
   Settings, Heart, Bookmark, ArrowLeft, Sun, Moon, Type, AlignLeft, List, Sparkles, 
   Star, TrendingUp, Compass, Play, Info, Users, Link, Award, X, ChevronDown, Check, 
-  Maximize, Minimize, Server, Zap, Flame, Shield, Globe, LayoutList, Calendar
+  Maximize, Minimize, Server, Zap, Flame, Shield, Globe, LayoutList, Calendar,
+  Volume2, VolumeX, Pause, SkipForward, SkipBack, Headphones
 } from 'lucide-react';
 import { useTvFocus, TvFocusButton } from '../tvNavigation';
 import { ExpandedCategoryModal } from './Modals';
@@ -311,9 +312,115 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
   const [showSettingsDrawer, setShowSettingsDrawer] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
+  // ── Text-To-Speech (TTS) Engine & State ─────────────────────────────
+  const [isTTSSupported, setIsTTSSupported] = useState(false);
+  const [isTTSPlaying, setIsTTSPlaying] = useState(false);
+  const [isTTSPaused, setIsTTSPaused] = useState(false);
+  const [ttsRate, setTTSRate] = useState(1);
+  const [ttsCurrentParagraphIndex, setTTSCurrentParagraphIndex] = useState<number>(-1);
+  const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
+  const [selectedVoiceURI, setSelectedVoiceURI] = useState<string>('');
+  const [showTTSBar, setShowTTSBar] = useState(false);
+
   const readerContainerRef = useRef<HTMLDivElement>(null);
   const readerBodyRef = useRef<HTMLDivElement>(null);
   const readerScrollContainerRef = useRef<HTMLDivElement>(null);
+
+  // Detect TTS Browser Support & Voices
+  useEffect(() => {
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      setIsTTSSupported(true);
+      const updateVoices = () => {
+        const voices = window.speechSynthesis.getVoices().filter(v => v.lang.startsWith('en'));
+        setAvailableVoices(voices);
+        if (voices.length > 0 && !selectedVoiceURI) {
+          const defaultVoice = voices.find(v => v.default || v.name.includes('Google') || v.name.includes('Natural') || v.name.includes('Samantha') || v.name.includes('Guy')) || voices[0];
+          setSelectedVoiceURI(defaultVoice.voiceURI);
+        }
+      };
+      updateVoices();
+      window.speechSynthesis.onvoiceschanged = updateVoices;
+    }
+  }, []);
+
+  const stopTTS = useCallback(() => {
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+    }
+    setIsTTSPlaying(false);
+    setIsTTSPaused(false);
+    setTTSCurrentParagraphIndex(-1);
+  }, []);
+
+  useEffect(() => {
+    stopTTS();
+  }, [activeChapter?.id, stopTTS]);
+
+  const readParagraph = useCallback((index: number, paragraphs: string[]) => {
+    if (typeof window === 'undefined' || !('speechSynthesis' in window) || index < 0 || index >= paragraphs.length) {
+      setIsTTSPlaying(false);
+      setIsTTSPaused(false);
+      setTTSCurrentParagraphIndex(-1);
+      return;
+    }
+
+    window.speechSynthesis.cancel();
+
+    const textToRead = paragraphs[index];
+    if (!textToRead || !textToRead.trim()) {
+      readParagraph(index + 1, paragraphs);
+      return;
+    }
+
+    const utterance = new SpeechSynthesisUtterance(textToRead);
+    utterance.rate = ttsRate;
+    
+    if (selectedVoiceURI) {
+      const voice = availableVoices.find(v => v.voiceURI === selectedVoiceURI);
+      if (voice) utterance.voice = voice;
+    }
+
+    utterance.onend = () => {
+      if (index + 1 < paragraphs.length) {
+        setTTSCurrentParagraphIndex(index + 1);
+        readParagraph(index + 1, paragraphs);
+      } else {
+        setIsTTSPlaying(false);
+        setIsTTSPaused(false);
+        setTTSCurrentParagraphIndex(-1);
+      }
+    };
+
+    utterance.onerror = () => {
+      setIsTTSPlaying(false);
+      setIsTTSPaused(false);
+    };
+
+    setTTSCurrentParagraphIndex(index);
+    setIsTTSPlaying(true);
+    setIsTTSPaused(false);
+    window.speechSynthesis.speak(utterance);
+
+    const pEl = document.getElementById(`novel-p-${index}`);
+    if (pEl) {
+      pEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, [ttsRate, selectedVoiceURI, availableVoices]);
+
+  const toggleTTSPlayPause = () => {
+    if (!isTTSSupported || !chapterContent || chapterContent.paragraphs.length === 0) return;
+
+    if (isTTSPlaying && !isTTSPaused) {
+      window.speechSynthesis.pause();
+      setIsTTSPaused(true);
+    } else if (isTTSPaused) {
+      window.speechSynthesis.resume();
+      setIsTTSPaused(false);
+    } else {
+      const startIndex = ttsCurrentParagraphIndex >= 0 ? ttsCurrentParagraphIndex : 0;
+      readParagraph(startIndex, chapterContent.paragraphs);
+    }
+  };
 
   // Load local storage preferences
   useEffect(() => {
@@ -488,6 +595,8 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
   };
 
   // ── Automatic Best Server Resolution Logic ────────────────────────────
+  const FAST_CANDIDATES = ['lightnovelworld', 'ranobes', 'allnovel', 'wuxiaworld', 'royalroad', 'scribblehub'] as const;
+
   const findBestServer = async (novelTitle: string, explicitProviders?: { provider: string; id: string }[], aniListMeta?: any) => {
     const startTime = Date.now();
 
@@ -498,33 +607,34 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
       return { provider: match.provider as any, id: match.id };
     }
 
-    const simplifiedTitle = novelTitle.split(/[:\-]/)[0].trim();
-    const queryVariants = Array.from(new Set([
-      novelTitle,
-      aniListMeta?.alternativeTitles?.romaji,
-      aniListMeta?.alternativeTitles?.english,
-      simplifiedTitle,
-      cleanNovelTitle(novelTitle)
-    ])).filter(Boolean) as string[];
+    const queryVariants = generateUniversalSearchVariants(novelTitle, aniListMeta);
 
-    const pingPromises = CANDIDATE_PROVIDERS.map(async (prov) => {
+    // Parallel Search across candidates & query variants with 1.8s timeout
+    const pingPromises = FAST_CANDIDATES.map(async (prov) => {
       const provStart = Date.now();
-      for (const queryTerm of queryVariants) {
-        try {
+      try {
+        const queryPromises = queryVariants.map(async (queryTerm) => {
           const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 4000);
-          const res = await fetch(`/api/manga?action=search&provider=${prov}&query=${encodeURIComponent(queryTerm)}`, {
-            signal: controller.signal
-          });
-          clearTimeout(timeoutId);
-          if (res.ok) {
-            const data = await res.json();
-            if (Array.isArray(data) && data.length > 0) {
-              return { provider: prov, data, queryUsed: queryTerm, pingMs: Date.now() - provStart };
+          const timeoutId = setTimeout(() => controller.abort(), 1800);
+          try {
+            const res = await fetch(`/api/manga?action=search&provider=${prov}&query=${encodeURIComponent(queryTerm)}`, {
+              signal: controller.signal
+            });
+            clearTimeout(timeoutId);
+            if (res.ok) {
+              const data = await res.json();
+              if (Array.isArray(data) && data.length > 0) {
+                return { provider: prov, data, queryUsed: queryTerm, pingMs: Date.now() - provStart };
+              }
             }
-          }
-        } catch {}
-      }
+          } catch {}
+          return null;
+        });
+
+        const queryResults = await Promise.all(queryPromises);
+        const firstValid = queryResults.find(r => r !== null);
+        return firstValid || null;
+      } catch {}
       return null;
     });
 
@@ -560,29 +670,52 @@ function cleanNovelTitle(title: string): string {
     .trim();
 }
 
-function calculateTitleSimilarity(a: string, b: string): number {
-  const cleanA = cleanNovelTitle(a);
-  const cleanB = cleanNovelTitle(b);
+function calculateTitleSimilarity(candidateTitle: string, targetTitle: string): number {
+  const cleanCand = cleanNovelTitle(candidateTitle);
+  const cleanTarget = cleanNovelTitle(targetTitle);
 
-  if (cleanA === cleanB) return 1.0;
+  if (cleanCand === cleanTarget) return 1.0;
 
-  const tokensA = new Set(cleanA.split(' ').filter(w => w.length > 1));
-  const tokensB = new Set(cleanB.split(' ').filter(w => w.length > 1));
+  const tokensCand = cleanCand.split(' ').filter(w => w.length > 1);
+  const tokensTarget = cleanTarget.split(' ').filter(w => w.length > 1);
 
-  if (tokensA.size === 0 || tokensB.size === 0) return 0;
+  if (tokensCand.length === 0 || tokensTarget.length === 0) return 0;
+
+  const setCand = new Set(tokensCand);
+  const setTarget = new Set(tokensTarget);
 
   let intersection = 0;
-  tokensA.forEach(t => {
-    if (tokensB.has(t)) intersection++;
+  setCand.forEach(t => {
+    if (setTarget.has(t)) intersection++;
   });
 
-  const jaccard = intersection / Math.max(tokensA.size, tokensB.size);
+  const jaccard = intersection / Math.max(setCand.size, setTarget.size);
 
-  const isSpinOffA = /\b(ss|side story|extra|spin[- ]?off|short stories|year 2|volume)\b/i.test(a);
-  const isSpinOffB = /\b(ss|side story|extra|spin[- ]?off|short stories|year 2|volume)\b/i.test(b);
+  // Subtitle/Edition specificity matching (e.g. "Petite Devil Kohai", "Year 2", "Progressive", "Ex")
+  const getSubtitles = (t: string) => t.split(/[:\-—~|]/).slice(1).join(' ').toLowerCase();
+  const subCand = getSubtitles(candidateTitle);
+  const subTarget = getSubtitles(targetTitle);
 
   let score = jaccard;
-  if (isSpinOffA !== isSpinOffB) {
+
+  if (subTarget && subCand) {
+    const subTargetWords = subTarget.split(/\s+/).filter(w => w.length > 2);
+    const subCandWords = new Set(subCand.split(/\s+/).filter(w => w.length > 2));
+    let subMatches = 0;
+    subTargetWords.forEach(w => {
+      if (subCandWords.has(w)) subMatches++;
+    });
+    if (subTargetWords.length > 0) {
+      const subRatio = subMatches / subTargetWords.length;
+      score = score * 0.5 + subRatio * 0.5;
+    }
+  }
+
+  // Spin-off / Edition mismatch penalty (e.g. SAO vs SAO Progressive, Re:Zero vs Re:Zero Ex)
+  const isSpecialEditionA = /\b(ss|side story|extra|spin[- ]?off|short stories|year 2|progressive|ex|tanpenshuu|anthology|if|vol\.\s*\d+|volume\s*\d+)\b/i.test(candidateTitle);
+  const isSpecialEditionB = /\b(ss|side story|extra|spin[- ]?off|short stories|year 2|progressive|ex|tanpenshuu|anthology|if|vol\.\s*\d+|volume\s*\d+)\b/i.test(targetTitle);
+
+  if (isSpecialEditionA !== isSpecialEditionB) {
     score *= 0.6;
   }
 
@@ -671,6 +804,43 @@ const findBestMatchId = (searchData: any[], aniListMeta: any, originalTitle: str
     }
   }, [searchQuery]);
 
+  // ── Universal Algorithmic Title Normalizer & Search Generator ──────────
+  function parseUrlSlugToSearchTitle(urlId: string): string {
+    if (!urlId) return '';
+    return urlId
+      .replace(/--/g, ': ')
+      .replace(/^-+|-+$/g, '')
+      .replace(/-/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  function generateUniversalSearchVariants(rawTitle: string, aniListMeta?: any): string[] {
+    if (!rawTitle) return [];
+    
+    const variants = new Set<string>();
+
+    const trimmed = rawTitle.trim();
+    if (trimmed) variants.add(trimmed);
+
+    if (aniListMeta?.alternativeTitles?.romaji) variants.add(aniListMeta.alternativeTitles.romaji);
+    if (aniListMeta?.alternativeTitles?.english) variants.add(aniListMeta.alternativeTitles.english);
+
+    const urlTitle = parseUrlSlugToSearchTitle(rawTitle);
+    if (urlTitle) variants.add(urlTitle);
+
+    const mainTitle = trimmed.split(/[:\-—~|]/)[0].trim();
+    if (mainTitle && mainTitle.length > 2) variants.add(mainTitle);
+
+    const alphaNumeric = trimmed.replace(/[^a-zA-Z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+    if (alphaNumeric && alphaNumeric !== trimmed) variants.add(alphaNumeric);
+
+    const bracketStripped = cleanNovelTitle(trimmed);
+    if (bracketStripped) variants.add(bracketStripped);
+
+    return Array.from(variants);
+  }
+
   // Handle direct URL loading & browser back/forward navigation for /novel/:id
   useEffect(() => {
     const handleUrlNavigation = () => {
@@ -679,9 +849,10 @@ const findBestMatchId = (searchData: any[], aniListMeta: any, originalTitle: str
         const parts = path.split('/').filter(Boolean);
         const novelId = parts[1];
         if (novelId && (!selectedNovel || selectedNovel.id !== novelId)) {
+          const formattedTitle = parseUrlSlugToSearchTitle(novelId);
           const tempNovel: Novel = {
             id: novelId,
-            title: novelId.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+            title: formattedTitle.replace(/\b\w/g, l => l.toUpperCase()),
             image: '',
             author: 'Light Novel'
           };
@@ -715,51 +886,54 @@ const findBestMatchId = (searchData: any[], aniListMeta: any, originalTitle: str
       }
     `;
 
-    try {
-      const res = await fetch('https://graphql.anilist.co', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-        body: JSON.stringify({ query, variables: isNumericId ? { id: isNumericId } : { search: novelTitle } })
-      });
-      if (!res.ok) return null;
-      const json = await res.json();
-      const media = json.data?.Media;
-      if (!media) return null;
+    const searchTerms = generateUniversalSearchVariants(novelTitle);
 
-      return {
-        bannerImage: media.bannerImage,
-        status: media.status,
-        startDateYear: media.startDate?.year,
-        rating: media.averageScore ? media.averageScore / 10 : null,
-        alternativeTitles: {
-          english: media.title?.english,
-          romaji: media.title?.romaji,
-          native: media.title?.native
-        },
-        characters: media.characters?.edges?.map((e: any) => ({
-          role: e.role,
-          name: e.node?.name?.full || 'Unknown',
-          image: e.node?.image?.large || ''
-        })) || [],
-        relations: media.relations?.edges?.map((e: any) => ({
-          id: e.node?.id,
-          title: e.node?.title?.userPreferred || 'Unknown',
-          type: e.node?.type,
-          format: e.node?.format,
-          image: e.node?.coverImage?.large || '',
-          relationType: e.relationType
-        })) || [],
-        recommendations: media.recommendations?.edges?.map((e: any) => ({
-          id: e.node?.mediaRecommendation?.id,
-          title: e.node?.mediaRecommendation?.title?.userPreferred || 'Unknown',
-          type: e.node?.mediaRecommendation?.type,
-          format: e.node?.mediaRecommendation?.format,
-          image: e.node?.mediaRecommendation?.coverImage?.large || ''
-        })) || []
-      };
-    } catch {
-      return null;
+    for (const searchTerm of searchTerms) {
+      try {
+        const res = await fetch('https://graphql.anilist.co', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+          body: JSON.stringify({ query, variables: isNumericId ? { id: isNumericId } : { search: searchTerm } })
+        });
+        if (!res.ok) continue;
+        const json = await res.json();
+        const media = json.data?.Media;
+        if (media) {
+          return {
+            bannerImage: media.bannerImage,
+            status: media.status,
+            startDateYear: media.startDate?.year,
+            rating: media.averageScore ? media.averageScore / 10 : null,
+            alternativeTitles: {
+              english: media.title?.english,
+              romaji: media.title?.romaji,
+              native: media.title?.native
+            },
+            characters: media.characters?.edges?.map((e: any) => ({
+              role: e.role,
+              name: e.node?.name?.full || 'Unknown',
+              image: e.node?.image?.large || ''
+            })) || [],
+            relations: media.relations?.edges?.map((e: any) => ({
+              id: e.node?.id,
+              title: e.node?.title?.userPreferred || 'Unknown',
+              type: e.node?.type,
+              format: e.node?.format,
+              image: e.node?.coverImage?.large || '',
+              relationType: e.relationType
+            })) || [],
+            recommendations: media.recommendations?.edges?.map((e: any) => ({
+              id: e.node?.mediaRecommendation?.id,
+              title: e.node?.mediaRecommendation?.title?.userPreferred || 'Unknown',
+              type: e.node?.mediaRecommendation?.type,
+              format: e.node?.mediaRecommendation?.format,
+              image: e.node?.mediaRecommendation?.coverImage?.large || ''
+            })) || []
+          };
+        }
+      } catch {}
     }
+    return null;
   };
 
   // Novel selection & chapter fetching logic
@@ -2065,18 +2239,31 @@ const findBestMatchId = (searchData: any[], aniListMeta: any, originalTitle: str
                     <h2 className="text-xl md:text-2xl font-extrabold tracking-tight mb-8 border-b pb-4 opacity-90 border-black/5 dark:border-white/5">
                       {chapterContent.title}
                     </h2>
-                    {chapterContent.paragraphs.map((p, idx) => (
-                      <p
-                        key={idx}
-                        className="novel-p opacity-95 transition-all duration-300"
-                        style={{
-                          textIndent: '1.5rem',
-                          marginBottom: paragraphSpacing === 'compact' ? '0.4rem' : paragraphSpacing === 'loose' ? '1.4rem' : '0.8rem'
-                        }}
-                      >
-                        {p}
-                      </p>
-                    ))}
+                    {chapterContent.paragraphs.map((p, idx) => {
+                      const isBeingRead = ttsCurrentParagraphIndex === idx;
+                      return (
+                        <p
+                          key={idx}
+                          id={`novel-p-${idx}`}
+                          onClick={() => {
+                            if (showTTSBar) {
+                              readParagraph(idx, chapterContent.paragraphs);
+                            }
+                          }}
+                          className={`novel-p transition-all duration-300 ${
+                            isBeingRead
+                              ? 'bg-red-500/15 border-l-4 border-red-500 pl-3 py-1 rounded-r-xl font-medium shadow-md text-red-400 scale-[1.01]'
+                              : 'opacity-95 hover:opacity-100'
+                          } ${showTTSBar ? 'cursor-pointer hover:bg-white/5 rounded-lg' : ''}`}
+                          style={{
+                            textIndent: isBeingRead ? '0' : '1.5rem',
+                            marginBottom: paragraphSpacing === 'compact' ? '0.4rem' : paragraphSpacing === 'loose' ? '1.4rem' : '0.8rem'
+                          }}
+                        >
+                          {p}
+                        </p>
+                      );
+                    })}
 
                     <div className="flex items-center justify-between gap-4 mt-12 pt-8 border-t border-black/5 dark:border-white/5 pb-16">
                       <button
@@ -2100,6 +2287,138 @@ const findBestMatchId = (searchData: any[], aniListMeta: any, originalTitle: str
               </div>
             </div>
           </div>
+
+          {/* ── FLOATING TEXT-TO-SPEECH (TTS) AUDIO CONTROLLER DECK ────────────────── */}
+          {showTTSBar && isTTSSupported && (
+            <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[200] w-[92%] max-w-xl bg-[#141416]/95 backdrop-blur-xl border border-white/15 text-white rounded-3xl shadow-2xl p-3 sm:p-4 animate-in slide-in-from-bottom duration-300">
+              <div className="flex flex-col gap-2.5">
+                
+                {/* Top Title Bar */}
+                <div className="flex items-center justify-between px-1">
+                  <div className="flex items-center gap-2 overflow-hidden">
+                    <div className="p-1.5 rounded-xl bg-red-600/20 text-red-500 border border-red-500/30 shrink-0">
+                      <Headphones size={15} className={isTTSPlaying && !isTTSPaused ? 'animate-pulse' : ''} />
+                    </div>
+                    <div className="flex flex-col min-w-0">
+                      <span className="text-[11px] font-bold text-zinc-300 truncate">
+                        {activeChapter?.title || 'Novel Reader TTS'}
+                      </span>
+                      <span className="text-[9px] text-zinc-400 font-mono">
+                        {ttsCurrentParagraphIndex >= 0 && chapterContent
+                          ? `Paragraph ${ttsCurrentParagraphIndex + 1} / ${chapterContent.paragraphs.length}`
+                          : 'Ready to listen'}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    {/* Speed Selector */}
+                    <div className="flex items-center gap-0.5 bg-white/5 p-1 rounded-xl border border-white/10">
+                      {[0.75, 1, 1.25, 1.5, 2].map((rate) => (
+                        <button
+                          key={rate}
+                          onClick={() => {
+                            setTTSRate(rate);
+                            if (isTTSPlaying && ttsCurrentParagraphIndex >= 0 && chapterContent) {
+                              readParagraph(ttsCurrentParagraphIndex, chapterContent.paragraphs);
+                            }
+                          }}
+                          className={`px-1.5 py-0.5 text-[9px] font-bold rounded-lg transition-all ${
+                            ttsRate === rate ? 'bg-red-600 text-white shadow-sm' : 'text-zinc-400 hover:text-white'
+                          }`}
+                        >
+                          {rate}x
+                        </button>
+                      ))}
+                    </div>
+
+                    <button
+                      onClick={() => {
+                        stopTTS();
+                        setShowTTSBar(false);
+                      }}
+                      className="p-1.5 rounded-xl text-zinc-400 hover:text-white hover:bg-white/10 transition-all"
+                      title="Close TTS"
+                    >
+                      <X size={15} />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Main Controls Row */}
+                <div className="flex items-center justify-between gap-3 pt-1 border-t border-white/10">
+                  
+                  {/* Voice Selector */}
+                  {availableVoices.length > 0 && (
+                    <div className="relative flex-1 min-w-[120px] max-w-[180px]">
+                      <select
+                        value={selectedVoiceURI}
+                        onChange={(e) => setSelectedVoiceURI(e.target.value)}
+                        className="w-full bg-white/5 border border-white/10 text-white text-[10px] font-medium rounded-xl py-1.5 px-2.5 outline-none cursor-pointer hover:bg-white/10 transition-all truncate"
+                      >
+                        {availableVoices.map((v) => (
+                          <option key={v.voiceURI} value={v.voiceURI} className="bg-zinc-900 text-white">
+                            {v.name.replace(/Google|Microsoft|Apple/g, '').trim()} ({v.lang})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
+                  {/* Playback Controls */}
+                  <div className="flex items-center gap-2">
+                    {/* Skip Prev Paragraph */}
+                    <button
+                      onClick={() => {
+                        if (chapterContent && ttsCurrentParagraphIndex > 0) {
+                          const nextIdx = ttsCurrentParagraphIndex - 1;
+                          readParagraph(nextIdx, chapterContent.paragraphs);
+                        }
+                      }}
+                      disabled={!chapterContent || ttsCurrentParagraphIndex <= 0}
+                      className="p-2 rounded-xl bg-white/5 hover:bg-white/10 disabled:opacity-30 text-zinc-300 hover:text-white transition-all active:scale-95"
+                      title="Previous Paragraph"
+                    >
+                      <SkipBack size={14} />
+                    </button>
+
+                    {/* Main Play/Pause Button */}
+                    <button
+                      onClick={toggleTTSPlayPause}
+                      className="p-3 rounded-2xl bg-red-600 hover:bg-red-500 text-white shadow-lg shadow-red-600/30 transition-all active:scale-95 flex items-center justify-center"
+                      title={isTTSPlaying && !isTTSPaused ? 'Pause Reading' : 'Play Reading'}
+                    >
+                      {isTTSPlaying && !isTTSPaused ? <Pause size={18} /> : <Play size={18} className="ml-0.5" />}
+                    </button>
+
+                    {/* Skip Next Paragraph */}
+                    <button
+                      onClick={() => {
+                        if (chapterContent && ttsCurrentParagraphIndex < chapterContent.paragraphs.length - 1) {
+                          const nextIdx = ttsCurrentParagraphIndex + 1;
+                          readParagraph(nextIdx, chapterContent.paragraphs);
+                        }
+                      }}
+                      disabled={!chapterContent || ttsCurrentParagraphIndex >= chapterContent.paragraphs.length - 1}
+                      className="p-2 rounded-xl bg-white/5 hover:bg-white/10 disabled:opacity-30 text-zinc-300 hover:text-white transition-all active:scale-95"
+                      title="Next Paragraph"
+                    >
+                      <SkipForward size={14} />
+                    </button>
+                  </div>
+
+                  {/* Stop Button */}
+                  <button
+                    onClick={stopTTS}
+                    className="px-2.5 py-1.5 rounded-xl bg-white/5 hover:bg-red-600/20 hover:text-red-400 border border-white/10 text-[10px] font-bold text-zinc-400 transition-all"
+                  >
+                    Stop
+                  </button>
+
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
