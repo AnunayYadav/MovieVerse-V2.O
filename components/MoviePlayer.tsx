@@ -280,18 +280,18 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   }, []);
 
   const [selectedProviderId, setSelectedProviderId] = useState(() => {
-    const defaultProvider = isAnime ? 'vidnest_animepahe' : (isWatchParty ? 'vidfast' : 'zxcstream');
+    const defaultProvider = 'auto';
     if (typeof window !== 'undefined') {
       const key = isAnime ? 'movieverse_preferred_provider_anime' : 'movieverse_preferred_provider';
       let preferred = localStorage.getItem(key);
       if (!preferred || preferred === 'auto_select') {
         preferred = defaultProvider;
       }
-      if (!isAnime && (preferred === 'vidnest_animepahe' || preferred === 'anikai')) {
-        preferred = 'zxcstream';
+      if (!isAnime && (preferred === 'vidnest_animepahe' || preferred === 'anikai' || preferred === 'megaplay')) {
+        preferred = 'auto';
       }
       if (preferred === 'encdec_animekai') {
-        preferred = 'zxcstream';
+        preferred = 'auto';
       }
       if (isWatchParty) {
         const prov = PROVIDERS.find(p => p.id === preferred);
@@ -299,9 +299,9 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
           return 'vidfast'; // Fallback default for Watch Party
         }
       }
-      return preferred;
+      return providerId || preferred;
     }
-    return defaultProvider;
+    return providerId || defaultProvider;
   });
 
   const [anilistId, setAnilistId] = useState<number | null>(null);
@@ -3957,10 +3957,6 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                                         if (onProviderChange) {
                                           onProviderChange(prov.id);
                                         }
-                                        if (typeof window !== 'undefined') {
-                                          const key = isAnime ? 'movieverse_preferred_provider_anime' : 'movieverse_preferred_provider';
-                                          localStorage.setItem(key, prov.id);
-                                        }
                                         setSettingsView('main');
                                       }}
                                       className={`w-full py-2.5 px-3 rounded-xl text-xs flex items-center justify-between transition-all hover:bg-white/5 ${
@@ -4837,55 +4833,58 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
         {/* Server Selector Modal for Application Providers */}
         {isServerModalOpen && (
           <div 
-            className="fixed inset-0 bg-black/80 backdrop-blur-md z-[100] flex flex-col items-center justify-center p-4 animate-in fade-in duration-200"
-            onClick={(e) => e.stopPropagation()}
+            className="fixed inset-0 bg-black/80 backdrop-blur-md z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200"
+            onClick={() => setIsServerModalOpen(false)}
           >
-            {/* Centered Close Button above the container */}
-            <button 
-              onClick={() => setIsServerModalOpen(false)}
-              className="flex items-center gap-1.5 px-4 py-1.5 bg-[#0c0c0e] hover:bg-zinc-900 text-white rounded-full border border-zinc-800 text-xs font-semibold tracking-wide transition-all active:scale-95 mb-4 cursor-pointer"
-            >
-              <X size={14} className="text-zinc-400" />
-              <span>Close</span>
-            </button>
-
             {/* Modal Container */}
-            <div className="bg-[#09090b] border border-white/10 rounded-2xl p-5 w-full max-w-xl max-h-[70vh] flex flex-col shadow-2xl overflow-hidden">
+            <div 
+              className="bg-[#0b0b0e]/95 backdrop-blur-2xl border border-white/10 rounded-2xl p-4 sm:p-5 w-full max-w-xl max-h-[80vh] flex flex-col shadow-[0_25px_60px_rgba(0,0,0,0.9)] overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Modal Header with embedded close button */}
               <div className="flex items-center justify-between pb-3 mb-3 border-b border-white/10">
-                <div>
-                  <h3 className="text-sm font-extrabold text-white uppercase tracking-wider">Select Streaming Server</h3>
-                  <p className="text-[11px] text-zinc-400">Choose a provider server. Live working status and latency indicator displayed below.</p>
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.8)]" />
+                  <div>
+                    <h3 className="text-xs sm:text-sm font-bold text-white uppercase tracking-wider">Select Streaming Server</h3>
+                    <p className="text-[11px] text-zinc-400">Live parallel server health & response speed</p>
+                  </div>
                 </div>
+                <button 
+                  onClick={() => setIsServerModalOpen(false)}
+                  className="w-7 h-7 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-zinc-400 hover:text-white flex items-center justify-center transition-all active:scale-95 cursor-pointer"
+                  title="Close"
+                >
+                  <X size={14} />
+                </button>
               </div>
 
-              {/* Scrollable grid of providers */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5 overflow-y-auto pr-1 custom-scrollbar pb-1">
+              {/* Scrollable Grid of Provider Cards */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 overflow-y-auto pr-1 custom-scrollbar pb-1">
                 {getFilteredProviders(isAnime, isWatchParty, isAnimeDirect).map((prov) => {
                   const isActive = selectedProviderId === prov.id;
                   const { flagUrl, langLabel } = getServerDetails(prov.name);
                   const probeBadge = autoProbeBadges[prov.id];
                   const rawStatus = serverStatuses[prov.id] || probeBadge?.status;
+                  const isVerifiedOrPlaying = verifiedPlaybackServers[prov.id] || (isActive && (isPlaying || playerCurrentTime > 0));
+                  const isWorking = isVerifiedOrPlaying || rawStatus === 'online' || rawStatus === 'playing';
+                  const isFailed = rawStatus === 'offline' || rawStatus === 'failed';
                   
-                  let statusLabel = 'Checking...';
-                  let statusClass = 'bg-amber-400 animate-pulse';
+                  let statusLabel = 'Testing';
+                  let dotClass = 'bg-amber-400 animate-pulse';
                   let textClass = 'text-amber-300';
-                  let borderClass = 'border-zinc-800/80';
+                  let borderClass = 'border-white/5';
                   
-                  if (verifiedPlaybackServers[prov.id] || (isActive && (isPlaying || playerCurrentTime > 0))) {
-                    statusLabel = 'Verified Playback';
-                    statusClass = 'bg-cyan-400 shadow-[0_0_10px_rgba(34,211,238,0.9)] animate-pulse';
-                    textClass = 'text-cyan-300 font-bold';
-                    borderClass = 'border-cyan-500/50 bg-cyan-950/20';
-                  } else if (rawStatus === 'online' || rawStatus === 'playing') {
+                  if (isWorking) {
                     statusLabel = probeBadge?.latency ? `${probeBadge.latency}ms` : 'Online';
-                    statusClass = 'bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.6)]';
-                    textClass = 'text-emerald-300';
-                    borderClass = 'border-emerald-500/30';
-                  } else if (rawStatus === 'offline' || rawStatus === 'failed') {
-                    statusLabel = 'Failed / Down';
-                    statusClass = 'bg-rose-500 shadow-[0_0_6px_rgba(244,63,94,0.6)]';
+                    dotClass = 'bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.8)]';
+                    textClass = 'text-emerald-400 font-semibold';
+                    borderClass = 'border-emerald-500/20';
+                  } else if (isFailed) {
+                    statusLabel = 'Offline';
+                    dotClass = 'bg-rose-500';
                     textClass = 'text-rose-400';
-                    borderClass = 'border-rose-500/30 opacity-70';
+                    borderClass = 'border-rose-500/20 opacity-60';
                   }
 
                   return (
@@ -4896,44 +4895,41 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                         if (onProviderChange) {
                           onProviderChange(prov.id);
                         }
-                        if (typeof window !== 'undefined') {
-                          const key = isAnime ? 'movieverse_preferred_provider_anime' : 'movieverse_preferred_provider';
-                          localStorage.setItem(key, prov.id);
-                        }
                         setIframeLoading(true);
                         setIsServerModalOpen(false);
                         const newUrl = getEmbedUrlForProvider(prov.id, currentProgressRef.current);
                         setEmbedUrl(newUrl);
                       }}
-                      className={`relative rounded-xl p-3 flex flex-col items-start justify-between gap-2 transition-all border active:scale-95 cursor-pointer min-h-[72px] ${
+                      className={`group relative rounded-xl p-2.5 flex items-center justify-between gap-2 transition-all border active:scale-95 cursor-pointer min-h-[44px] ${
                         isActive 
-                          ? 'bg-red-600/20 text-white border-red-500 shadow-lg shadow-red-600/10 font-bold' 
-                          : `bg-[#121214]/60 hover:bg-[#161619] text-zinc-300 ${borderClass} hover:border-zinc-600`
+                          ? 'bg-red-500/15 border-red-500 text-white shadow-[0_0_12px_rgba(239,68,68,0.2)] font-bold' 
+                          : `bg-zinc-900/60 hover:bg-zinc-800/80 text-zinc-200 ${borderClass} hover:border-white/20`
                       }`}
                     >
-                      {/* Header inside card: Flag/Icon + Active Check + Status indicator */}
-                      <div className="flex items-center justify-between w-full">
-                        <div className="flex items-center gap-1.5">
-                          <img 
-                            src={flagUrl} 
-                            alt={langLabel}
-                            className="w-5 h-3.5 rounded-sm object-cover border border-white/10 shadow-sm select-none pointer-events-none" 
-                          />
-                          {isActive && (
-                            <div className="bg-red-600 text-white rounded-full w-3.5 h-3.5 flex items-center justify-center border border-white/20 shadow-md">
-                              <Check size={8} strokeWidth={4} />
-                            </div>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-1 bg-black/50 px-2 py-0.5 rounded-full border border-white/5">
-                          <span className={`w-1.5 h-1.5 rounded-full ${statusClass}`} />
+                      {/* Flag + Provider Name */}
+                      <div className="flex items-center gap-2 min-w-0">
+                        <img 
+                          src={flagUrl} 
+                          alt={langLabel}
+                          className="w-4.5 h-3 rounded-xs object-cover border border-white/10 shadow-xs shrink-0 select-none pointer-events-none" 
+                        />
+                        <span className="text-xs font-semibold tracking-wide truncate text-left">
+                          {prov.name}
+                        </span>
+                      </div>
+
+                      {/* Active Indicator + Status Badge */}
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        {isActive && (
+                          <div className="w-3.5 h-3.5 rounded-full bg-red-600 text-white flex items-center justify-center border border-white/20 shadow-sm">
+                            <Check size={8} strokeWidth={3.5} />
+                          </div>
+                        )}
+                        <div className="flex items-center gap-1 bg-black/60 px-1.5 py-0.5 rounded-full border border-white/5">
+                          <span className={`w-1.5 h-1.5 rounded-full ${dotClass}`} />
                           <span className={`text-[9px] font-mono ${textClass}`}>{statusLabel}</span>
                         </div>
                       </div>
-
-                      <span className="text-[11px] font-bold tracking-wide truncate max-w-full text-left">
-                        {prov.name}
-                      </span>
                     </button>
                   );
                 })}
@@ -5021,10 +5017,6 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                         setSelectedProviderId(prov.id);
                         if (onProviderChange) {
                           onProviderChange(prov.id);
-                        }
-                        if (typeof window !== 'undefined') {
-                          const key = isAnime ? 'movieverse_preferred_provider_anime' : 'movieverse_preferred_provider';
-                          localStorage.setItem(key, prov.id);
                         }
                         setIsDrawerOpen(false);
                       }}

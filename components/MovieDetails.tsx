@@ -502,20 +502,18 @@ export const MoviePage: React.FC<MoviePageProps> = ({
     const [selectedCastProviderId, setSelectedCastProviderId] = useState(() => {
         if (typeof window !== 'undefined') {
             const key = isAnime ? 'movieverse_preferred_provider_anime' : 'movieverse_preferred_provider';
-            const defaultProvider = isAnime ? 'vidnest_animepahe' : 'zxcstream';
-            return localStorage.getItem(key) || defaultProvider;
+            return localStorage.getItem(key) || 'auto';
         }
-        return isAnime ? 'vidnest_animepahe' : 'zxcstream';
+        return 'auto';
     });
     const dropdownRef = useRef<HTMLDivElement>(null);
 
     const [selectedProviderId, setSelectedProviderId] = useState(() => {
         if (typeof window !== 'undefined') {
             const key = isAnime ? 'movieverse_preferred_provider_anime' : 'movieverse_preferred_provider';
-            const defaultProvider = isAnime ? 'vidnest_animepahe' : 'zxcstream';
-            return localStorage.getItem(key) || defaultProvider;
+            return localStorage.getItem(key) || 'auto';
         }
-        return isAnime ? 'vidnest_animepahe' : 'zxcstream';
+        return 'auto';
     });
     const [isProviderDropdownOpen, setIsProviderDropdownOpen] = useState(false);
     const [isMobileProviderDropdownOpen, setIsMobileProviderDropdownOpen] = useState(false);
@@ -542,8 +540,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
 
     useEffect(() => {
         const key = isAnime ? 'movieverse_preferred_provider_anime' : 'movieverse_preferred_provider';
-        const defaultProvider = isAnime ? 'vidnest_animepahe' : 'zxcstream';
-        const preferred = localStorage.getItem(key) || defaultProvider;
+        const preferred = localStorage.getItem(key) || 'auto';
         setSelectedProviderId(preferred);
         setSelectedCastProviderId(preferred);
     }, [isAnime]);

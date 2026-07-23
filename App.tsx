@@ -1729,7 +1729,7 @@ export default function App() {
     const [watchPartyPlayerState, setWatchPartyPlayerState] = useState<'play' | 'pause'>('play');
     const [watchPartyProviderId, setWatchPartyProviderId] = useState(() => {
         if (typeof window !== 'undefined') {
-            const preferred = localStorage.getItem('movieverse_preferred_provider') || 'zxcstream';
+            const preferred = localStorage.getItem('movieverse_preferred_provider') || 'auto';
             const prov = PROVIDERS.find(p => p.id === preferred);
             if (prov && prov.supportsPostMessage) {
                 return preferred;
@@ -1835,7 +1835,7 @@ export default function App() {
             const parts = path.split('/');
             // parts[0] is always '' (before leading /), so parts[1] is the first segment
 
-            // Reset all sub-filters to clean state before parsing path
+            // Reset all sub-filters and item states to clean state before parsing path
             setCurrentCollection(null);
             setTmdbCollectionId(null);
             setActiveKeyword(null);
@@ -1844,6 +1844,18 @@ export default function App() {
             setSelectedMangaId(null);
             setActiveMangaChapterId(null);
             setSelectedDramaSlug(null);
+            setSelectedMovie(null);
+            setSelectedPersonId(null);
+            setSelectedPersonName(null);
+            setIsPersonAniListStaff(false);
+            setSelectedStudioId(null);
+            setSelectedStudioName(null);
+            setSelectedCharacterId(null);
+            setActiveWatchPartyRoom(null);
+            setIsWatching(false);
+            setShowDetailsCast(false);
+            setShowDetailsCrew(false);
+            setActiveDetailsTab("overview");
 
             let searchQueryToSelect = "";
             let category = selectedCategoryRef.current || "All";
@@ -2126,12 +2138,11 @@ export default function App() {
         } catch (error) {
             console.error("Error in syncStateFromPath:", error);
         } finally {
-            // Keep isSyncingPath active across the full React batch to prevent
+            // Keep isSyncingPath active across the full React commit cycle to prevent
             // the state→URL effect from firing before all state updates settle.
-            // setTimeout(0) runs after the current React commit phase.
             setTimeout(() => {
                 isSyncingPath.current = false;
-            }, 0);
+            }, 100);
         }
     }, [apiKey]);
 
@@ -2630,6 +2641,20 @@ export default function App() {
         setActiveCountry(null);
         setIsSidebarOpen(false);
         setIsNavigatingBack(false);
+        setSelectedMovie(null);
+        setIsWatching(false);
+        setSelectedPersonId(null);
+        setSelectedPersonName(null);
+        setIsPersonAniListStaff(false);
+        setSelectedStudioId(null);
+        setSelectedStudioName(null);
+        setSelectedCharacterId(null);
+        setSelectedMangaId(null);
+        setActiveMangaChapterId(null);
+        setSelectedDramaSlug(null);
+        setActiveWatchPartyRoom(null);
+        setActiveOtt(null);
+        setActiveProvider(null);
     };
 
     const resetToHome = () => {
@@ -3119,7 +3144,7 @@ export default function App() {
             setWatchPartyForceProgress(undefined);
             setWatchPartyGuestTime(0);
             setWatchPartyPlayerState('play');
-            const preferred = localStorage.getItem('movieverse_preferred_provider') || 'zxcstream';
+            const preferred = localStorage.getItem('movieverse_preferred_provider') || 'auto';
             const prov = PROVIDERS.find(p => p.id === preferred);
             setWatchPartyProviderId(prov && prov.supportsPostMessage ? preferred : 'vidfast');
             setSelectedMovie(null); // Close Details modal
@@ -3167,7 +3192,7 @@ export default function App() {
                 setWatchPartyForceProgress(undefined);
             }
             setWatchPartyPlayerState(room.is_playing === false ? 'pause' : 'play');
-            const preferred = localStorage.getItem('movieverse_preferred_provider') || 'zxcstream';
+            const preferred = localStorage.getItem('movieverse_preferred_provider') || 'auto';
             const prov = PROVIDERS.find(p => p.id === preferred);
             setWatchPartyProviderId(prov && prov.supportsPostMessage ? preferred : 'vidfast');
 
