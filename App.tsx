@@ -1877,6 +1877,10 @@ export default function App() {
                 category = "Anime";
             } else if (path === '/manga' || path === '/browse/manga') {
                 category = "Manga";
+            } else if (path === '/novels' || path === '/browse/novels' || path === '/novel') {
+                category = "Novels";
+            } else if (path.startsWith('/novel/') || path.startsWith('/novels/')) {
+                category = "Novels";
             } else if (path === '/live-tv') {
                 category = "LiveTV";
             } else if (path === '/radio' || path === '/browse/radio') {
@@ -2212,6 +2216,13 @@ export default function App() {
                 }
             } else {
                 newPath = '/manga';
+            }
+
+        } else if (selectedCategory === 'Novels') {
+            if (!window.location.pathname.startsWith('/novel')) {
+                newPath = '/novels';
+            } else {
+                newPath = window.location.pathname;
             }
 
         } else if (selectedCategory === 'Dramas') {

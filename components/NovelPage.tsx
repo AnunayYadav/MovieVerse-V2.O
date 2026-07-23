@@ -279,8 +279,8 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
 
   // Reader UI settings
   const [fontSize, setFontSize] = useState(18);
-  const [fontFamily, setFontFamily] = useState('Lora, serif');
-  const [theme, setTheme] = useState<'dark' | 'light' | 'amoled' | 'sepia' | 'paper' | 'grey' | 'custom'>('dark');
+  const [fontFamily, setFontFamily] = useState('Lora, Georgia, serif');
+  const [theme, setTheme] = useState<'dark' | 'light' | 'amoled' | 'sepia' | 'paper' | 'grey' | 'custom'>('grey');
   const [readingMode] = useState<'infinite'>('infinite');
   const [textAlign, setTextAlign] = useState<'left' | 'center' | 'justify'>('justify');
   const [lineHeight, setLineHeight] = useState<number>(1.8);
@@ -596,6 +596,36 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
     }
   }, [searchQuery]);
 
+  // Handle direct URL loading & browser back/forward navigation for /novel/:id
+  useEffect(() => {
+    const handleUrlNavigation = () => {
+      const path = window.location.pathname;
+      if (path.startsWith('/novel/') || path.startsWith('/novels/')) {
+        const parts = path.split('/').filter(Boolean);
+        const novelId = parts[1];
+        if (novelId && (!selectedNovel || selectedNovel.id !== novelId)) {
+          const tempNovel: Novel = {
+            id: novelId,
+            title: novelId.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+            image: '',
+            author: 'Light Novel'
+          };
+          handleNovelSelect(tempNovel);
+        }
+      } else if (path === '/novels' || path === '/browse/novels') {
+        if (selectedNovel) {
+          setSelectedNovel(null);
+          setNovelDetails(null);
+          setActiveChapter(null);
+        }
+      }
+    };
+
+    handleUrlNavigation();
+    window.addEventListener('popstate', handleUrlNavigation);
+    return () => window.removeEventListener('popstate', handleUrlNavigation);
+  }, []);
+
   // Fetch detailed AniList metadata
   const fetchAniListMetadata = async (novelTitle: string, isNumericId?: number): Promise<any> => {
     const query = `
@@ -655,6 +685,10 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
   // Novel selection & chapter fetching logic
   const handleNovelSelect = async (novel: Novel) => {
     setSelectedNovel(novel);
+
+    if (!window.location.pathname.includes(`/novel/${novel.id}`)) {
+      window.history.pushState(null, '', `/novel/${novel.id}`);
+    }
 
     const initialDetails: NovelDetails = {
       ...novel,
@@ -774,6 +808,13 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
     setChapterLoading(true);
     setError(null);
 
+    if (selectedNovel) {
+      const newPath = `/novel/${selectedNovel.id}/chapter/${encodeURIComponent(chapter.id)}`;
+      if (window.location.pathname !== newPath) {
+        window.history.pushState(null, '', newPath);
+      }
+    }
+
     let activeProv = readingSource === 'auto' ? (activeServerInfo.name.match(/Auto \(([^)]+)\)/)?.[1] || 'ranobes') : readingSource;
 
     try {
@@ -877,7 +918,11 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
             <div className="absolute inset-0 bg-gradient-to-t from-[#030303] via-[#030303]/60 to-transparent" />
 
             <button
-              onClick={() => { setSelectedNovel(null); setNovelDetails(null); }}
+              onClick={() => {
+                window.history.pushState(null, '', '/novels');
+                setSelectedNovel(null);
+                setNovelDetails(null);
+              }}
               className="absolute top-4 left-4 md:left-12 flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/[0.03] hover:bg-white/[0.07] border border-white/[0.04] text-xs font-normal text-zinc-300 hover:text-white transition-all active:scale-95 z-30"
             >
               <ArrowLeft size={14} /> Back to Novels
@@ -1545,7 +1590,13 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
           >
             <div className="flex items-center gap-2">
               <button
-                onClick={() => { setActiveChapter(null); setChapterContent(null); }}
+                onClick={() => {
+                  if (selectedNovel) {
+                    window.history.pushState(null, '', `/novel/${selectedNovel.id}`);
+                  }
+                  setActiveChapter(null);
+                  setChapterContent(null);
+                }}
                 className="p-2 text-zinc-400 hover:text-white rounded-lg bg-black/10 dark:bg-white/5 transition-colors"
                 title="Back to Novel Details"
               >
@@ -1621,73 +1672,290 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
           {/* Settings Drawer */}
           {showSettingsDrawer && (
             <div className="fixed inset-0 z-[250] flex justify-end">
-              <div onClick={() => setShowSettingsDrawer(false)} className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
-              <div className="relative w-80 max-w-[90%] h-full flex flex-col z-10 shadow-2xl bg-zinc-950/95 border-l border-white/10 text-white p-5 space-y-5 overflow-y-auto animate-in slide-in-from-right duration-300">
-                <div className="flex items-center justify-between border-b border-white/10 pb-3">
-                  <h3 className="font-bold text-xs uppercase tracking-wider text-red-500">Reader Settings</h3>
-                  <button onClick={() => setShowSettingsDrawer(false)} className="p-1 rounded-full hover:bg-white/10"><X size={16} /></button>
-                </div>
-
-                <div className="space-y-2">
-                  <span className="text-[10px] uppercase font-bold tracking-wider text-zinc-400">Theme</span>
-                  <div className="grid grid-cols-5 gap-1.5">
-                    {[
-                      { name: 'Light', id: 'light', bg: '#fafafa', text: '#27272a' },
-                      { name: 'Sepia', id: 'sepia', bg: '#ebdcb9', text: '#433422' },
-                      { name: 'Paper', id: 'paper', bg: '#faf7f0', text: '#1c2d3d' },
-                      { name: 'Grey', id: 'grey', bg: '#27272a', text: '#f4f4f5' },
-                      { name: 'AMOLED', id: 'amoled', bg: '#000000', text: '#e4e4e7' }
-                    ].map(item => (
-                      <button
-                        key={item.id}
-                        onClick={() => { setTheme(item.id as any); localStorage.setItem('novel_theme', item.id); }}
-                        style={{ backgroundColor: item.bg, color: item.text }}
-                        className={`h-9 rounded-xl border flex justify-center items-center font-extrabold text-[9px] ${
-                          theme === item.id ? 'border-red-500 scale-105 ring-1 ring-red-500' : 'border-white/10'
-                        }`}
-                      >
-                        {item.name[0]}
-                      </button>
-                    ))}
+              <div onClick={() => setShowSettingsDrawer(false)} className="absolute inset-0 bg-black/70 backdrop-blur-md animate-in fade-in duration-200" />
+              <div className="relative w-[380px] max-w-[95%] h-full flex flex-col z-10 shadow-2xl bg-[#09090b]/98 border-l border-white/10 text-white overflow-y-auto animate-in slide-in-from-right duration-300">
+                
+                {/* Header */}
+                <div className="sticky top-0 z-20 bg-[#09090b]/90 backdrop-blur-md px-5 py-4 border-b border-white/10 flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <div className="p-2 rounded-xl bg-red-600/10 text-red-500 border border-red-500/20">
+                      <Settings size={16} />
+                    </div>
+                    <div>
+                      <h3 className="font-extrabold text-sm text-white tracking-wide uppercase">Reader Customizer</h3>
+                      <p className="text-[10px] text-zinc-400 font-medium">Fine-tune typography & theme</p>
+                    </div>
                   </div>
+                  <button
+                    onClick={() => setShowSettingsDrawer(false)}
+                    className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white transition-all border border-white/5 active:scale-95"
+                  >
+                    <X size={16} />
+                  </button>
                 </div>
 
-                <div className="space-y-2">
-                  <span className="text-[10px] uppercase font-bold tracking-wider text-zinc-400">Font Family</span>
-                  <div className="grid grid-cols-3 bg-white/5 p-1 rounded-xl border border-white/5 text-[10px] font-semibold text-center">
-                    {[
-                      { label: 'Serif', value: 'Lora, serif' },
-                      { label: 'Sans', value: 'Inter, sans-serif' },
-                      { label: 'Mono', value: 'Fira Code, monospace' }
-                    ].map(item => (
-                      <button
-                        key={item.value}
-                        onClick={() => { setFontFamily(item.value); localStorage.setItem('novel_font_family', item.value); }}
-                        className={`py-1.5 rounded-lg transition-all ${fontFamily === item.value ? 'bg-red-600 text-white' : 'text-zinc-400 hover:text-white'}`}
-                      >
-                        {item.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
+                <div className="p-5 space-y-6">
 
-                <div className="space-y-2">
-                  <span className="text-[10px] uppercase font-bold tracking-wider text-zinc-400">Font Size</span>
-                  <div className="flex items-center justify-between bg-white/5 border border-white/10 rounded-xl p-1 text-xs">
-                    <button
-                      onClick={() => { const next = Math.max(12, fontSize - 1); setFontSize(next); localStorage.setItem('novel_font_size', next.toString()); }}
-                      className="px-4 py-1.5 hover:bg-white/5 rounded-lg font-bold text-zinc-400 hover:text-white"
+                  {/* ── LIVE SAMPLE PREVIEW BOX ──────────────────────── */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] uppercase font-bold tracking-widest text-zinc-400 flex items-center gap-1.5">
+                        <Sparkles size={12} className="text-red-500" /> Live Sample Preview
+                      </span>
+                      <span className="text-[9px] font-mono text-zinc-500">{fontSize}px • {theme.toUpperCase()}</span>
+                    </div>
+
+                    <div
+                      className="w-full p-4 rounded-2xl border shadow-inner transition-all duration-300 relative overflow-hidden"
+                      style={{
+                        backgroundColor: getThemeStyles().bg,
+                        color: getThemeStyles().text,
+                        borderColor: 'rgba(255, 255, 255, 0.15)',
+                        fontFamily: fontFamily,
+                        fontSize: `${Math.min(fontSize, 20)}px`,
+                        lineHeight: lineHeight,
+                        textAlign: textAlign,
+                      }}
                     >
-                      A-
-                    </button>
-                    <span className="font-bold">{fontSize}px</span>
-                    <button
-                      onClick={() => { const next = Math.min(32, fontSize + 1); setFontSize(next); localStorage.setItem('novel_font_size', next.toString()); }}
-                      className="px-4 py-1.5 hover:bg-white/5 rounded-lg font-bold text-zinc-400 hover:text-white"
-                    >
-                      A+
-                    </button>
+                      <p className="font-bold text-xs mb-1.5 opacity-90 border-b pb-1 border-current/10">
+                        Sample Chapter Preview
+                      </p>
+                      <p className="opacity-85 text-xs leading-relaxed">
+                        "The world isn't fair, but that's what makes it interesting. Everyone is equal at birth, but then differences appear..."
+                      </p>
+                    </div>
                   </div>
+
+                  {/* ── 1. THEME SELECTION ────────────────────────────── */}
+                  <div className="space-y-2.5">
+                    <span className="text-[10px] uppercase font-bold tracking-widest text-zinc-400">Color Theme</span>
+                    <div className="grid grid-cols-5 gap-2">
+                      {[
+                        { name: 'Light', id: 'light', bg: '#fafafa', text: '#27272a' },
+                        { name: 'Sepia', id: 'sepia', bg: '#f7f1e3', text: '#433422' },
+                        { name: 'Paper', id: 'paper', bg: '#f4ebd0', text: '#5c4322' },
+                        { name: 'Grey', id: 'grey', bg: '#27272a', text: '#f4f4f5' },
+                        { name: 'AMOLED', id: 'amoled', bg: '#000000', text: '#e4e4e7' }
+                      ].map((item) => {
+                        const isActive = theme === item.id;
+                        return (
+                          <button
+                            key={item.id}
+                            onClick={() => {
+                              setTheme(item.id as any);
+                              localStorage.setItem('novel_theme', item.id);
+                            }}
+                            className={`relative flex flex-col items-center justify-between p-2 rounded-2xl border transition-all duration-200 ${
+                              isActive
+                                ? 'border-red-500 ring-2 ring-red-500/50 scale-105 shadow-lg shadow-red-500/20'
+                                : 'border-white/10 hover:border-white/20 opacity-80 hover:opacity-100'
+                            }`}
+                            style={{ backgroundColor: item.bg, color: item.text }}
+                          >
+                            <span className="font-black text-xs">Aa</span>
+                            <span className="text-[9px] font-bold mt-1 tracking-tight truncate max-w-full">{item.name}</span>
+                            {isActive && (
+                              <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-600 text-white rounded-full flex items-center justify-center text-[9px] shadow">
+                                <Check size={10} />
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* ── 2. FONT FAMILY SELECTION ──────────────────────── */}
+                  <div className="space-y-2.5">
+                    <span className="text-[10px] uppercase font-bold tracking-widest text-zinc-400">Typography Font</span>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 bg-white/5 p-1.5 rounded-2xl border border-white/10">
+                      {[
+                        { label: 'Serif (Lora)', value: 'Lora, Georgia, serif', sample: 'Aa' },
+                        { label: 'Sans (Inter)', value: 'Inter, system-ui, sans-serif', sample: 'Aa' },
+                        { label: 'Mono (Fira)', value: 'Fira Code, monospace', sample: 'Aa' },
+                        { label: 'Georgia', value: 'Georgia, Cambria, serif', sample: 'Aa' },
+                        { label: 'Merriweather', value: 'Merriweather, Georgia, serif', sample: 'Aa' },
+                        { label: 'OpenDyslexic', value: 'OpenDyslexic, sans-serif', sample: 'Aa' }
+                      ].map((font) => {
+                        const isActive = fontFamily === font.value;
+                        return (
+                          <button
+                            key={font.value}
+                            onClick={() => {
+                              setFontFamily(font.value);
+                              localStorage.setItem('novel_font_family', font.value);
+                            }}
+                            className={`py-2 px-2.5 rounded-xl text-xs font-semibold transition-all flex flex-col items-center gap-0.5 ${
+                              isActive
+                                ? 'bg-red-600 text-white shadow-md shadow-red-600/30 font-bold scale-[1.02]'
+                                : 'text-zinc-400 hover:text-white hover:bg-white/5'
+                            }`}
+                            style={{ fontFamily: font.value }}
+                          >
+                            <span className="text-sm">{font.sample}</span>
+                            <span className="text-[10px] truncate max-w-full">{font.label}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* ── 3. FONT SIZE SLIDER & CONTROLS ────────────────── */}
+                  <div className="space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] uppercase font-bold tracking-widest text-zinc-400">Font Size</span>
+                      <span className="px-2.5 py-0.5 rounded-md bg-red-600/10 border border-red-500/20 text-red-400 font-mono text-xs font-bold">
+                        {fontSize}px
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-3 bg-white/5 border border-white/10 rounded-2xl p-2">
+                      <button
+                        onClick={() => {
+                          const next = Math.max(12, fontSize - 1);
+                          setFontSize(next);
+                          localStorage.setItem('novel_font_size', next.toString());
+                        }}
+                        className="px-3.5 py-2 bg-white/5 hover:bg-white/10 active:scale-95 rounded-xl font-bold text-xs text-zinc-300 hover:text-white transition-all"
+                      >
+                        A-
+                      </button>
+
+                      <input
+                        type="range"
+                        min="12"
+                        max="32"
+                        value={fontSize}
+                        onChange={(e) => {
+                          const next = parseInt(e.target.value);
+                          setFontSize(next);
+                          localStorage.setItem('novel_font_size', next.toString());
+                        }}
+                        className="flex-1 accent-red-600 cursor-pointer h-1.5 bg-zinc-800 rounded-lg"
+                      />
+
+                      <button
+                        onClick={() => {
+                          const next = Math.min(32, fontSize + 1);
+                          setFontSize(next);
+                          localStorage.setItem('novel_font_size', next.toString());
+                        }}
+                        className="px-3.5 py-2 bg-white/5 hover:bg-white/10 active:scale-95 rounded-xl font-bold text-xs text-zinc-300 hover:text-white transition-all"
+                      >
+                        A+
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* ── 4. LINE HEIGHT & SPACING ─────────────────────── */}
+                  <div className="space-y-2.5">
+                    <span className="text-[10px] uppercase font-bold tracking-widest text-zinc-400">Line Spacing</span>
+                    <div className="grid grid-cols-3 gap-2 bg-white/5 p-1.5 rounded-2xl border border-white/10">
+                      {[
+                        { label: 'Compact', val: 1.5 },
+                        { label: 'Normal', val: 1.8 },
+                        { label: 'Relaxed', val: 2.1 }
+                      ].map((lh) => {
+                        const isActive = lineHeight === lh.val;
+                        return (
+                          <button
+                            key={lh.val}
+                            onClick={() => {
+                              setLineHeight(lh.val);
+                              localStorage.setItem('novel_line_height', lh.val.toString());
+                            }}
+                            className={`py-2 rounded-xl text-xs font-bold transition-all ${
+                              isActive
+                                ? 'bg-red-600 text-white shadow-md shadow-red-600/30'
+                                : 'text-zinc-400 hover:text-white hover:bg-white/5'
+                            }`}
+                          >
+                            {lh.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* ── 5. TEXT ALIGNMENT ────────────────────────────── */}
+                  <div className="space-y-2.5">
+                    <span className="text-[10px] uppercase font-bold tracking-widest text-zinc-400">Text Alignment</span>
+                    <div className="grid grid-cols-3 gap-2 bg-white/5 p-1.5 rounded-2xl border border-white/10">
+                      {[
+                        { id: 'left', label: 'Left', icon: AlignLeft },
+                        { id: 'justify', label: 'Justify', icon: Type },
+                        { id: 'center', label: 'Center', icon: List }
+                      ].map((align) => {
+                        const Icon = align.icon;
+                        const isActive = textAlign === align.id;
+                        return (
+                          <button
+                            key={align.id}
+                            onClick={() => setTextAlign(align.id as any)}
+                            className={`py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                              isActive
+                                ? 'bg-red-600 text-white shadow-md shadow-red-600/30'
+                                : 'text-zinc-400 hover:text-white hover:bg-white/5'
+                            }`}
+                          >
+                            <Icon size={14} />
+                            <span>{align.label}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* ── 6. READER CONTAINER WIDTH ─────────────────────── */}
+                  <div className="space-y-2.5">
+                    <span className="text-[10px] uppercase font-bold tracking-widest text-zinc-400">Page Margin Width</span>
+                    <div className="grid grid-cols-3 gap-2 bg-white/5 p-1.5 rounded-2xl border border-white/10">
+                      {[
+                        { id: 'narrow', label: 'Narrow' },
+                        { id: 'medium', label: 'Medium' },
+                        { id: 'wide', label: 'Wide' }
+                      ].map((w) => {
+                        const isActive = readerWidth === w.id;
+                        return (
+                          <button
+                            key={w.id}
+                            onClick={() => {
+                              setReaderWidth(w.id as any);
+                              localStorage.setItem('novel_reader_width', w.id);
+                            }}
+                            className={`py-2 rounded-xl text-xs font-bold transition-all ${
+                              isActive
+                                ? 'bg-red-600 text-white shadow-md shadow-red-600/30'
+                                : 'text-zinc-400 hover:text-white hover:bg-white/5'
+                            }`}
+                          >
+                            {w.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Reset Defaults Button */}
+                  <button
+                    onClick={() => {
+                      setFontSize(18);
+                      setFontFamily('Lora, Georgia, serif');
+                      setTheme('grey');
+                      setLineHeight(1.8);
+                      setTextAlign('justify');
+                      setReaderWidth('medium');
+                      localStorage.setItem('novel_font_size', '18');
+                      localStorage.setItem('novel_font_family', 'Lora, Georgia, serif');
+                      localStorage.setItem('novel_theme', 'grey');
+                      localStorage.setItem('novel_line_height', '1.8');
+                      localStorage.setItem('novel_reader_width', 'medium');
+                    }}
+                    className="w-full py-2.5 bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white rounded-2xl text-xs font-bold border border-white/10 transition-all flex items-center justify-center gap-2 active:scale-98"
+                  >
+                    <RefreshCcw size={13} /> Reset to Defaults
+                  </button>
+
                 </div>
               </div>
             </div>
@@ -1705,7 +1973,7 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
                 style={{
                   fontSize: `${fontSize}px`,
                   fontFamily: fontFamily,
-                  textAlign: 'justify',
+                  textAlign: textAlign,
                   lineHeight: lineHeight,
                   padding: '0 16px',
                 }}
