@@ -488,7 +488,7 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
   };
 
   // ── Automatic Best Server Resolution Logic ────────────────────────────
-  const findBestServer = async (novelTitle: string, explicitProviders?: { provider: string; id: string }[]) => {
+  const findBestServer = async (novelTitle: string, explicitProviders?: { provider: string; id: string }[], aniListMeta?: any) => {
     const startTime = Date.now();
 
     if (explicitProviders && explicitProviders.length > 0) {
@@ -498,22 +498,33 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
       return { provider: match.provider as any, id: match.id };
     }
 
+    const simplifiedTitle = novelTitle.split(/[:\-]/)[0].trim();
+    const queryVariants = Array.from(new Set([
+      novelTitle,
+      aniListMeta?.alternativeTitles?.romaji,
+      aniListMeta?.alternativeTitles?.english,
+      simplifiedTitle,
+      cleanNovelTitle(novelTitle)
+    ])).filter(Boolean) as string[];
+
     const pingPromises = CANDIDATE_PROVIDERS.map(async (prov) => {
       const provStart = Date.now();
-      try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 4000);
-        const res = await fetch(`/api/manga?action=search&provider=${prov}&query=${encodeURIComponent(novelTitle)}`, {
-          signal: controller.signal
-        });
-        clearTimeout(timeoutId);
-        if (res.ok) {
-          const data = await res.json();
-          if (Array.isArray(data) && data.length > 0) {
-            return { provider: prov, data, pingMs: Date.now() - provStart };
+      for (const queryTerm of queryVariants) {
+        try {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 4000);
+          const res = await fetch(`/api/manga?action=search&provider=${prov}&query=${encodeURIComponent(queryTerm)}`, {
+            signal: controller.signal
+          });
+          clearTimeout(timeoutId);
+          if (res.ok) {
+            const data = await res.json();
+            if (Array.isArray(data) && data.length > 0) {
+              return { provider: prov, data, queryUsed: queryTerm, pingMs: Date.now() - provStart };
+            }
           }
-        }
-      } catch {}
+        } catch {}
+      }
       return null;
     });
 
@@ -523,7 +534,7 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
     if (validResults.length > 0) {
       validResults.sort((a, b) => a.pingMs - b.pingMs);
       const best = validResults[0];
-      const matchedId = findBestMatchId(best.data, null, novelTitle) ||
+      const matchedId = findBestMatchId(best.data, aniListMeta, novelTitle) ||
         novelTitle.toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-');
 
       setActiveServerInfo({ name: `Auto (${best.provider})`, pingMs: best.pingMs, isAuto: true });
@@ -720,6 +731,11 @@ const findBestMatchId = (searchData: any[], aniListMeta: any, originalTitle: str
         status: media.status,
         startDateYear: media.startDate?.year,
         rating: media.averageScore ? media.averageScore / 10 : null,
+        alternativeTitles: {
+          english: media.title?.english,
+          romaji: media.title?.romaji,
+          native: media.title?.native
+        },
         characters: media.characters?.edges?.map((e: any) => ({
           role: e.role,
           name: e.node?.name?.full || 'Unknown',
@@ -769,25 +785,22 @@ const findBestMatchId = (searchData: any[], aniListMeta: any, originalTitle: str
     const isNumeric = novel.aniListId || (/^\d+$/.test(novel.id) ? parseInt(novel.id) : undefined);
 
     try {
+      const aniListMeta = await fetchAniListMetadata(novel.title, isNumeric);
+
       let activeProvider = readingSource;
       let targetId = novel.id;
 
       if (readingSource === 'auto') {
-        const resolved = await findBestServer(novel.title, novel.providers);
+        const resolved = await findBestServer(novel.title, novel.providers, aniListMeta);
         activeProvider = resolved.provider as any;
         targetId = resolved.id;
       } else {
         setActiveServerInfo({ name: NOVEL_SERVERS.find(s => s.id === readingSource)?.name || readingSource, isAuto: false });
       }
 
-      const [aniListMeta, providerData] = await Promise.all([
-        fetchAniListMetadata(novel.title, isNumeric),
-        (async () => {
-          const res = await fetch(`/api/manga?action=info&provider=${activeProvider}&id=${encodeURIComponent(targetId)}`);
-          if (!res.ok) throw new Error(`Failed to fetch chapters from ${activeProvider}`);
-          return await res.json();
-        })()
-      ]);
+      const res = await fetch(`/api/manga?action=info&provider=${activeProvider}&id=${encodeURIComponent(targetId)}`);
+      if (!res.ok) throw new Error(`Failed to fetch chapters from ${activeProvider}`);
+      const providerData = await res.json();
 
       setNovelDetails(prev => {
         if (!prev) return null;
