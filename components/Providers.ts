@@ -212,20 +212,23 @@ export const PROVIDERS: Provider[] = [
 export const getFilteredProviders = (isAnime: boolean, isWatchParty: boolean = false, isAnimeDirect: boolean = false) => {
   let list = PROVIDERS.filter(p => {
     if (isWatchParty && !p.supportsPostMessage) return false;
-    if (isAnimeDirect) {
-      return p.id === 'megaplay' || p.id === 'anikai' || p.id === 'vidnest_animepahe' || p.id === 'vidnest';
-    }
-    if (!isAnime) {
+    if (!isAnime && !isAnimeDirect) {
       return p.id !== 'vidnest_animepahe' && p.id !== 'anikai' && p.id !== 'megaplay';
     }
     return true;
   });
 
-  if (isAnime) {
+  if (isAnime || isAnimeDirect) {
     list = [...list].sort((a, b) => {
-      const aPriority = a.id === 'megaplay' ? 2 : (a.id === 'anikai' ? 1 : 0);
-      const bPriority = b.id === 'megaplay' ? 2 : (b.id === 'anikai' ? 1 : 0);
-      return bPriority - aPriority;
+      const getPriority = (id: string) => {
+        if (id === 'auto') return 100;
+        if (id === 'megaplay') return 90;
+        if (id === 'anikai') return 80;
+        if (id === 'vidnest_animepahe') return 70;
+        if (id === 'vidnest') return 60;
+        return 0;
+      };
+      return getPriority(b.id) - getPriority(a.id);
     });
   }
 

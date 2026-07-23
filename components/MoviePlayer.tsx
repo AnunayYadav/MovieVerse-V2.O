@@ -483,17 +483,15 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     setIsAutoProbing(true);
     setAutoProbeStatus('Testing real video playback across candidate streaming servers...');
 
-    const candidateIds = ['cinesrc', 'vidfast', 'videasy_adfree', 'cinemaos', 'vidsuper', 'zxcstream', 'peachify', '2embed'];
-    const initialBadges: Record<string, { status: 'testing' | 'playing' | 'failed', latency?: number, label: string }> = {
-      cinesrc: { status: 'testing', label: 'CineSrc' },
-      vidfast: { status: 'testing', label: 'VidFast' },
-      videasy_adfree: { status: 'testing', label: 'VidEasy' },
-      cinemaos: { status: 'testing', label: 'CinemaOS' },
-      vidsuper: { status: 'testing', label: 'VidSuper' },
-      zxcstream: { status: 'testing', label: 'ZXCStream' },
-      peachify: { status: 'testing', label: 'Peachify' },
-      '2embed': { status: 'testing', label: '2Embed' },
-    };
+    const candidateIds = getFilteredProviders(isAnime, isWatchParty, isAnimeDirect)
+      .filter(p => p.id !== 'auto')
+      .map(p => p.id);
+
+    const initialBadges: Record<string, { status: 'testing' | 'playing' | 'failed', latency?: number, label: string }> = {};
+    candidateIds.forEach(id => {
+      const prov = PROVIDERS.find(p => p.id === id);
+      initialBadges[id] = { status: 'testing', label: prov?.name || id };
+    });
     setAutoProbeBadges(initialBadges);
 
     // 1. Probe Native Direct HLS Scraper (Highest Priority)
@@ -601,7 +599,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     setSelectedProviderId(fallbackId);
     setAutoProbeStatus('Selected default server: CineSrc');
     setTimeout(() => setIsAutoProbing(false), 800);
-  }, [tmdbId, mediaType, currentSeason, currentEpisode, activeColor]);
+  }, [tmdbId, mediaType, currentSeason, currentEpisode, activeColor, isAnime, isWatchParty, isAnimeDirect, verifiedPlaybackServers]);
 
   // Trigger auto server probe whenever selectedProviderId === 'auto'
   useEffect(() => {
@@ -4868,22 +4866,26 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                   const probeBadge = autoProbeBadges[prov.id];
                   const rawStatus = serverStatuses[prov.id] || probeBadge?.status;
                   
-                  let statusLabel = 'Testing...';
-                  let statusClass = 'bg-amber-500 animate-pulse';
+                  let statusLabel = 'Checking...';
+                  let statusClass = 'bg-amber-400 animate-pulse';
+                  let textClass = 'text-amber-300';
                   let borderClass = 'border-zinc-800/80';
                   
                   if (verifiedPlaybackServers[prov.id] || (isActive && (isPlaying || playerCurrentTime > 0))) {
-                    statusLabel = 'Playback Verified';
-                    statusClass = 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)] animate-pulse';
-                    borderClass = 'border-emerald-500/60 font-bold';
+                    statusLabel = 'Verified Playback';
+                    statusClass = 'bg-cyan-400 shadow-[0_0_10px_rgba(34,211,238,0.9)] animate-pulse';
+                    textClass = 'text-cyan-300 font-bold';
+                    borderClass = 'border-cyan-500/50 bg-cyan-950/20';
                   } else if (rawStatus === 'online' || rawStatus === 'playing') {
-                    statusLabel = probeBadge?.latency ? `${probeBadge.latency}ms` : 'Working';
-                    statusClass = 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]';
+                    statusLabel = probeBadge?.latency ? `${probeBadge.latency}ms` : 'Online';
+                    statusClass = 'bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.6)]';
+                    textClass = 'text-emerald-300';
                     borderClass = 'border-emerald-500/30';
                   } else if (rawStatus === 'offline' || rawStatus === 'failed') {
-                    statusLabel = 'Failed / No Movie';
-                    statusClass = 'bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.5)]';
-                    borderClass = 'border-rose-500/30';
+                    statusLabel = 'Failed / Down';
+                    statusClass = 'bg-rose-500 shadow-[0_0_6px_rgba(244,63,94,0.6)]';
+                    textClass = 'text-rose-400';
+                    borderClass = 'border-rose-500/30 opacity-70';
                   }
 
                   return (
@@ -4923,9 +4925,9 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                             </div>
                           )}
                         </div>
-                        <div className="flex items-center gap-1 bg-black/40 px-1.5 py-0.5 rounded-full border border-white/5">
+                        <div className="flex items-center gap-1 bg-black/50 px-2 py-0.5 rounded-full border border-white/5">
                           <span className={`w-1.5 h-1.5 rounded-full ${statusClass}`} />
-                          <span className="text-[9px] font-mono font-medium text-zinc-300">{statusLabel}</span>
+                          <span className={`text-[9px] font-mono ${textClass}`}>{statusLabel}</span>
                         </div>
                       </div>
 
