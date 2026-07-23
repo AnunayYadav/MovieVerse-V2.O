@@ -1253,6 +1253,123 @@ async function scrapeLightNovelWorldChapter(chapterId: string) {
   };
 }
 
+const GENERIC_BASE_MAP: Record<string, string> = {
+  novelfull: 'https://novelfull.com',
+  freewebnovel: 'https://freewebnovel.com',
+  novelbin: 'https://novelbin.me',
+  novelsonline: 'https://novelsonline.net'
+};
+
+async function scrapeGenericNovelSearch(query: string, providerKey: string) {
+  const baseUrl = GENERIC_BASE_MAP[providerKey] || 'https://freewebnovel.com';
+  const url = `${baseUrl}/search?keyword=${encodeURIComponent(query)}`;
+  try {
+    const html = await novelFetch(url);
+    const $ = cheerio.load(html);
+    const results: any[] = [];
+
+    $('.list-novel .row, .col-novel-main .row, .search-novel .row, .novel-item').each((_, el) => {
+      const a = $(el).find('h3.novel-title a, .novel-title a').first();
+      const href = a.attr('href') || '';
+      const title = a.text().trim();
+      const img = $(el).find('img').attr('src') || '';
+      const author = $(el).find('.author, .author-link').text().trim() || 'Novel Author';
+
+      if (title && href) {
+        const id = href.replace(/^https?:\/\/[^\/]+/, '').replace(/^\//, '').replace(/\/$/, '');
+        results.push({
+          id,
+          title,
+          image: img.startsWith('http') ? img : `${baseUrl}${img}`,
+          author,
+          description: `Provider: ${providerKey}`
+        });
+      }
+    });
+
+    if (results.length > 0) return results;
+  } catch (err: any) {
+    console.warn(`scrapeGenericNovelSearch failed for ${providerKey}:`, err.message);
+  }
+
+  return await scrapeWuxiaWorldSearch(query);
+}
+
+async function scrapeGenericNovelInfo(novelId: string, providerKey: string) {
+  const baseUrl = GENERIC_BASE_MAP[providerKey] || 'https://freewebnovel.com';
+  const url = `${baseUrl}/${novelId}`;
+  try {
+    const html = await novelFetch(url);
+    const $ = cheerio.load(html);
+
+    const title = $('h3.title, .novel-title, h1').first().text().trim() || novelId;
+    const author = $('.author a, .info-author a').first().text().trim() || 'Unknown';
+    const description = $('.desc-text, .summary, .description').text().trim() || '';
+    const image = $('.book img, .cover img').attr('src') || '';
+
+    const chapters: any[] = [];
+    $('ul.list-chapter li a, .chapter-list a').each((_, el) => {
+      const href = $(el).attr('href') || '';
+      const cTitle = $(el).text().trim();
+      const cleanId = href.replace(/^https?:\/\/[^\/]+/, '').replace(/^\//, '');
+      if (cleanId) {
+        chapters.push({
+          id: cleanId,
+          title: cTitle || 'Chapter',
+          url: href.startsWith('http') ? href : `${baseUrl}/${cleanId}`
+        });
+      }
+    });
+
+    if (chapters.length > 0) {
+      return {
+        id: novelId,
+        title,
+        image: image.startsWith('http') ? image : `${baseUrl}${image}`,
+        author,
+        description,
+        chapters
+      };
+    }
+  } catch (err: any) {
+    console.warn(`scrapeGenericNovelInfo failed for ${providerKey}:`, err.message);
+  }
+
+  return await scrapeWuxiaWorldInfo(novelId);
+}
+
+async function scrapeGenericNovelChapter(chapterId: string, providerKey: string) {
+  const baseUrl = GENERIC_BASE_MAP[providerKey] || 'https://freewebnovel.com';
+  const url = `${baseUrl}/${chapterId}`;
+  try {
+    const html = await novelFetch(url);
+    const $ = cheerio.load(html);
+
+    const title = $('.chapter-title, h2, h1').first().text().trim() || 'Chapter';
+    const paragraphs: string[] = [];
+
+    $('#chr-content p, #chapter-content p, .chapter-c p, .content p').each((_, el) => {
+      const text = $(el).text().trim();
+      if (text) {
+        paragraphs.push(text);
+      }
+    });
+
+    if (paragraphs.length > 0) {
+      return {
+        title,
+        paragraphs,
+        nextChapterId: null,
+        prevChapterId: null
+      };
+    }
+  } catch (err: any) {
+    console.warn(`scrapeGenericNovelChapter failed for ${providerKey}:`, err.message);
+  }
+
+  return await scrapeWuxiaWorldChapter(chapterId);
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Set CORS headers to allow cross-origin requests
   res.setHeader('Access-Control-Allow-Credentials', 'true');
@@ -1318,7 +1435,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const providerKey = typeof providerQuery === 'string' ? providerQuery.toLowerCase() : 'mangapill';
 
   try {
-    if (['novelfull', 'ranobes', 'wuxiaworld', 'royalroad', 'scribblehub', 'lightnovelworld', 'allnovel', 'gigaviewer', 'kadocomi', 'weloma'].includes(providerKey)) {
+    if (['novelfull', 'freewebnovel', 'novelbin', 'novelsonline', 'ranobes', 'wuxiaworld', 'royalroad', 'scribblehub', 'lightnovelworld', 'allnovel', 'gigaviewer', 'kadocomi', 'weloma'].includes(providerKey)) {
       if (action === 'resolve-best-gigaviewer') {
         if (!query || typeof query !== 'string') {
           return res.status(400).json({ error: 'Query parameter is required' });
@@ -1340,6 +1457,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           results = await scrapeLightNovelWorldSearch(query);
         } else if (providerKey === 'allnovel') {
           results = await scrapeAllNovelSearch(query);
+        } else if (['novelfull', 'freewebnovel', 'novelbin', 'novelsonline'].includes(providerKey)) {
+          results = await scrapeGenericNovelSearch(query, providerKey);
         } else if (providerKey === 'gigaviewer') {
           const host = typeof req.query.host === 'string' ? req.query.host : 'shonenjumpplus.com';
           results = await scrapeGigaViewerSearch(query, host);
@@ -1366,6 +1485,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           data = await scrapeLightNovelWorldInfo(id);
         } else if (providerKey === 'allnovel') {
           data = await scrapeAllNovelInfo(id);
+        } else if (['novelfull', 'freewebnovel', 'novelbin', 'novelsonline'].includes(providerKey)) {
+          data = await scrapeGenericNovelInfo(id, providerKey);
         } else if (providerKey === 'gigaviewer') {
           data = await scrapeGigaViewerInfo(id);
         } else if (providerKey === 'kadocomi') {
@@ -1391,6 +1512,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           data = await scrapeLightNovelWorldChapter(id);
         } else if (providerKey === 'allnovel') {
           data = await scrapeAllNovelChapter(id);
+        } else if (['novelfull', 'freewebnovel', 'novelbin', 'novelsonline'].includes(providerKey)) {
+          data = await scrapeGenericNovelChapter(id, providerKey);
         } else if (providerKey === 'gigaviewer') {
           data = await scrapeGigaViewerPages(id);
         } else if (providerKey === 'kadocomi') {

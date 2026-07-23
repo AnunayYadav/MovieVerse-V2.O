@@ -70,14 +70,30 @@ interface NovelPageProps {
 
 const NOVEL_SERVERS = [
   { id: 'auto', name: '⚡ Auto (Best Server)' },
-  { id: 'ranobes', name: 'Ranobes' },
   { id: 'lightnovelworld', name: 'LightNovelWorld' },
+  { id: 'ranobes', name: 'Ranobes' },
   { id: 'allnovel', name: 'AllNovel' },
+  { id: 'novelfull', name: 'NovelFull' },
+  { id: 'freewebnovel', name: 'FreeWebNovel' },
+  { id: 'novelbin', name: 'NovelBin' },
+  { id: 'novelsonline', name: 'NovelsOnline' },
+  { id: 'wuxiaworld', name: 'WuxiaWorld' },
   { id: 'royalroad', name: 'RoyalRoad' },
   { id: 'scribblehub', name: 'ScribbleHub' },
 ];
 
-const CANDIDATE_PROVIDERS = ['ranobes', 'lightnovelworld', 'allnovel', 'royalroad', 'scribblehub'] as const;
+const CANDIDATE_PROVIDERS = [
+  'lightnovelworld',
+  'ranobes',
+  'allnovel',
+  'novelfull',
+  'freewebnovel',
+  'novelbin',
+  'novelsonline',
+  'wuxiaworld',
+  'royalroad',
+  'scribblehub'
+] as const;
 
 function cleanDescription(desc?: string | null): string {
   if (!desc) return '';
@@ -519,26 +535,74 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
     return { provider: 'ranobes' as const, id: fallbackId };
   };
 
-  const findBestMatchId = (searchData: any[], aniListMeta: any, originalTitle: string): string => {
-    if (!searchData || searchData.length === 0) return '';
-    const targets = [
-      originalTitle.toLowerCase(),
-      aniListMeta?.alternativeTitles?.english?.toLowerCase(),
-      aniListMeta?.alternativeTitles?.romaji?.toLowerCase(),
-    ].filter(Boolean);
+function cleanNovelTitle(title: string): string {
+  if (!title) return '';
+  return title
+    .toLowerCase()
+    .replace(/\((light novel|ln|web novel|wn|novel|official|mtl|uncensored|v\d+|vol\.\s*\d+)\)/gi, '')
+    .replace(/\[(light novel|ln|web novel|wn|novel|official|mtl|uncensored|v\d+|vol\.\s*\d+)\]/gi, '')
+    .replace(/\b(light novel|ln|web novel|wn)\b/gi, '')
+    .replace(/volume\s*\d+/gi, '')
+    .replace(/vol\.\s*\d+/gi, '')
+    .replace(/[^a-z0-9\s]/gi, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
 
-    for (const target of targets) {
-      const exactMatch = searchData.find(x => x.title.toLowerCase() === target);
-      if (exactMatch) return exactMatch.id;
+function calculateTitleSimilarity(a: string, b: string): number {
+  const cleanA = cleanNovelTitle(a);
+  const cleanB = cleanNovelTitle(b);
+
+  if (cleanA === cleanB) return 1.0;
+
+  const tokensA = new Set(cleanA.split(' ').filter(w => w.length > 1));
+  const tokensB = new Set(cleanB.split(' ').filter(w => w.length > 1));
+
+  if (tokensA.size === 0 || tokensB.size === 0) return 0;
+
+  let intersection = 0;
+  tokensA.forEach(t => {
+    if (tokensB.has(t)) intersection++;
+  });
+
+  const jaccard = intersection / Math.max(tokensA.size, tokensB.size);
+
+  const isSpinOffA = /\b(ss|side story|extra|spin[- ]?off|short stories|year 2|volume)\b/i.test(a);
+  const isSpinOffB = /\b(ss|side story|extra|spin[- ]?off|short stories|year 2|volume)\b/i.test(b);
+
+  let score = jaccard;
+  if (isSpinOffA !== isSpinOffB) {
+    score *= 0.6;
+  }
+
+  return score;
+}
+
+const findBestMatchId = (searchData: any[], aniListMeta: any, originalTitle: string): string => {
+  if (!searchData || searchData.length === 0) return '';
+
+  const queryTargets = [
+    originalTitle,
+    aniListMeta?.alternativeTitles?.english,
+    aniListMeta?.alternativeTitles?.romaji,
+    aniListMeta?.alternativeTitles?.native
+  ].filter(Boolean) as string[];
+
+  let bestMatchId = searchData[0].id;
+  let highestScore = 0;
+
+  for (const candidate of searchData) {
+    for (const target of queryTargets) {
+      const score = calculateTitleSimilarity(candidate.title, target);
+      if (score > highestScore) {
+        highestScore = score;
+        bestMatchId = candidate.id;
+      }
     }
-    for (const target of targets) {
-      const includesMatch = searchData.find(x =>
-        x.title.toLowerCase().includes(target) || target.includes(x.title.toLowerCase())
-      );
-      if (includesMatch) return includesMatch.id;
-    }
-    return searchData[0].id;
-  };
+  }
+
+  return highestScore >= 0.3 ? bestMatchId : searchData[0].id;
+};
 
   // Search logic
   const handleSearch = async (query: string) => {
