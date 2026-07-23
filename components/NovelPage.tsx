@@ -602,42 +602,23 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
     localStorage.setItem('novel_bookmarks', JSON.stringify(updated));
   };
 
-  // ── Automatic 2-Tier Exhaustive Best Server Resolution Logic ──────────
-  const TIER1_PROVIDERS = ['freewebnovel', 'lightnovelworld', 'novelfull', 'novelbuddy', 'royalroad'] as const;
-  const TIER2_PROVIDERS = ['wtrlab', 'ranobes', 'allnovel', 'novelbin', 'novelsonline', 'novelcool', 'novelhall', 'wuxiaworld', 'scribblehub'] as const;
-
-  const queryProvidersParallel = async (providers: readonly string[], queryVariants: string[], timeoutMs: number) => {
-    const promises = providers.map(async (prov) => {
-      const provStart = Date.now();
-      try {
-        const queryPromises = queryVariants.map(async (queryTerm) => {
-          const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-          try {
-            const res = await fetch(`/api/manga?action=search&provider=${prov}&query=${encodeURIComponent(queryTerm)}`, {
-              signal: controller.signal
-            });
-            clearTimeout(timeoutId);
-            if (res.ok) {
-              const data = await res.json();
-              if (Array.isArray(data) && data.length > 0) {
-                return { provider: prov, data, queryUsed: queryTerm, pingMs: Date.now() - provStart };
-              }
-            }
-          } catch {}
-          return null;
-        });
-
-        const queryResults = await Promise.all(queryPromises);
-        const firstValid = queryResults.find(r => r !== null);
-        return firstValid || null;
-      } catch {}
-      return null;
-    });
-
-    const results = await Promise.all(promises);
-    return results.filter((r): r is NonNullable<typeof r> => r !== null);
-  };
+  // ── Automatic Best Server Resolution Logic (Highest Chapters & Latest Episodes) ──
+  const CANDIDATE_SERVERS = [
+    'freewebnovel',
+    'lightnovelworld',
+    'novelfull',
+    'novelbuddy',
+    'royalroad',
+    'allnovel',
+    'ranobes',
+    'wuxiaworld',
+    'scribblehub',
+    'novelbin',
+    'novelsonline',
+    'novelcool',
+    'novelhall',
+    'wtrlab'
+  ] as const;
 
   const findBestServer = async (novelTitle: string, explicitProviders?: { provider: string; id: string }[], aniListMeta?: any) => {
     const startTime = Date.now();
@@ -651,22 +632,79 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
 
     const queryVariants = generateUniversalSearchVariants(novelTitle, aniListMeta);
 
-    // Tier 1: Fast Parallel Search across top engines (1.8s timeout)
-    let validResults = await queryProvidersParallel(TIER1_PROVIDERS, queryVariants, 1800);
+    // Parallel Server Probe across candidates with 1.8s timeout
+    const candidatePromises = CANDIDATE_SERVERS.map(async (prov) => {
+      const provStart = Date.now();
+      try {
+        for (const queryTerm of queryVariants) {
+          const searchController = new AbortController();
+          const searchTimeoutId = setTimeout(() => searchController.abort(), 1800);
+          try {
+            const searchRes = await fetch(`/api/manga?action=search&provider=${prov}&query=${encodeURIComponent(queryTerm)}`, {
+              signal: searchController.signal
+            });
+            clearTimeout(searchTimeoutId);
 
-    // Tier 2: Exhaustive Fallback Search across ALL remaining 9 providers if Tier 1 returned nothing
-    if (validResults.length === 0) {
-      validResults = await queryProvidersParallel(TIER2_PROVIDERS, queryVariants, 2500);
-    }
+            if (searchRes.ok) {
+              const searchData = await searchRes.json();
+              if (Array.isArray(searchData) && searchData.length > 0) {
+                const matchedId = findBestMatchId(searchData, aniListMeta, novelTitle) || searchData[0].id;
+                
+                // Fetch info to determine total chapter count & latest chapter availability
+                const infoController = new AbortController();
+                const infoTimeoutId = setTimeout(() => infoController.abort(), 1800);
+                try {
+                  const infoRes = await fetch(`/api/manga?action=info&provider=${prov}&id=${encodeURIComponent(matchedId)}`, {
+                    signal: infoController.signal
+                  });
+                  clearTimeout(infoTimeoutId);
+
+                  if (infoRes.ok) {
+                    const infoData = await infoRes.json();
+                    const chapters = infoData?.chapters || [];
+                    if (chapters.length > 0) {
+                      return {
+                        provider: prov,
+                        id: matchedId,
+                        chapterCount: chapters.length,
+                        latestTitle: chapters[chapters.length - 1]?.title || '',
+                        pingMs: Date.now() - provStart
+                      };
+                    }
+                  }
+                } catch {}
+
+                // Fallback: If info probe timed out, use search match
+                return {
+                  provider: prov,
+                  id: matchedId,
+                  chapterCount: 1,
+                  latestTitle: '',
+                  pingMs: Date.now() - provStart
+                };
+              }
+            }
+          } catch {}
+        }
+      } catch {}
+      return null;
+    });
+
+    const results = await Promise.all(candidatePromises);
+    const validResults = results.filter((r): r is NonNullable<typeof r> => r !== null);
 
     if (validResults.length > 0) {
-      validResults.sort((a, b) => a.pingMs - b.pingMs);
-      const best = validResults[0];
-      const matchedId = findBestMatchId(best.data, aniListMeta, novelTitle) ||
-        novelTitle.toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-');
+      // Sort by: 1) Highest Chapter Count (Most complete/latest provider), 2) Speed (pingMs)
+      validResults.sort((a, b) => {
+        if (b.chapterCount !== a.chapterCount) {
+          return b.chapterCount - a.chapterCount;
+        }
+        return a.pingMs - b.pingMs;
+      });
 
+      const best = validResults[0];
       setActiveServerInfo({ name: `Auto (${best.provider})`, pingMs: best.pingMs, isAuto: true });
-      return { provider: best.provider, id: matchedId };
+      return { provider: best.provider, id: best.id };
     }
 
     const fallbackId = (aniListMeta?.alternativeTitles?.romaji || novelTitle).toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-');

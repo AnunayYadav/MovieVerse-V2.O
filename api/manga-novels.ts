@@ -1312,15 +1312,21 @@ async function scrapeGenericNovelInfo(novelId: string, providerKey: string) {
     const image = $('.book img, .cover img').attr('src') || '';
 
     const chapters: any[] = [];
-    $('ul.list-chapter li a, .chapter-list a').each((_, el) => {
-      const href = $(el).attr('href') || '';
-      const cTitle = $(el).text().trim();
+    $('ul.list-chapter li, .chapter-list li, .ul-list1 li, .list-chapter a').each((_, el) => {
+      const a = $(el).is('a') ? $(el) : $(el).find('a').first();
+      const href = a.attr('href') || '';
+      const cTitle = a.text().trim();
       const cleanId = href.replace(/^https?:\/\/[^\/]+/, '').replace(/^\//, '');
-      if (cleanId) {
+
+      const dateText = $(el).find('.date, .time, span.right, .chapter-date').text().trim() ||
+                       $(el).siblings('.date, .time').text().trim();
+
+      if (cleanId && cTitle) {
         chapters.push({
           id: cleanId,
           title: cTitle || 'Chapter',
-          url: href.startsWith('http') ? href : `${baseUrl}/${cleanId}`
+          url: href.startsWith('http') ? href : `${baseUrl}/${cleanId}`,
+          date: dateText || null
         });
       }
     });
@@ -1352,12 +1358,21 @@ async function scrapeGenericNovelChapter(chapterId: string, providerKey: string)
     const title = $('.chapter-title, h2, h1').first().text().trim() || 'Chapter';
     const paragraphs: string[] = [];
 
-    $('#chr-content p, #chapter-content p, .chapter-c p, .content p').each((_, el) => {
+    $('#chr-content p, #chapter-content p, .chapter-c p, .content p, .txt p, #txt p, .read-content p, article p').each((_, el) => {
       const text = $(el).text().trim();
-      if (text) {
+      if (text && text.length > 5 && !text.includes('googletag') && !text.includes('pubads')) {
         paragraphs.push(text);
       }
     });
+
+    if (paragraphs.length === 0) {
+      $('p').each((_, el) => {
+        const text = $(el).text().trim();
+        if (text && text.length > 15 && !text.includes('googletag')) {
+          paragraphs.push(text);
+        }
+      });
+    }
 
     if (paragraphs.length > 0) {
       return {
