@@ -304,8 +304,42 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     return providerId || defaultProvider;
   });
 
+  const [resolvedTmdbId, setResolvedTmdbId] = useState<number | null>(() => {
+    if (!isAnime && !isAnimeDirect) return tmdbId;
+    const cached = localStorage.getItem(`movieverse_anilist_tmdb_match_${tmdbId}`);
+    return cached ? parseInt(cached, 10) : null;
+  });
+
+  useEffect(() => {
+    if ((isAnime || isAnimeDirect) && !resolvedTmdbId && title) {
+      const cleanTitle = title.replace(/\s*\(?(Dub|Sub|TV|Movie|uncensored|censored|season\s*\d+|part\s*\d+)\)?\s*$/i, '').trim();
+      if (!cleanTitle) return;
+      const type = (mediaType === 'movie' || mediaType === 'tv') ? mediaType : 'tv';
+      const apiKeyVal = apiKey || '8410c59800e478546b1420ed6731e07a';
+      
+      fetch(`https://api.themoviedb.org/3/search/${type}?api_key=${apiKeyVal}&query=${encodeURIComponent(cleanTitle)}`)
+        .then(res => res.json())
+        .then(data => {
+          const match = data?.results?.[0];
+          if (match?.id) {
+            setResolvedTmdbId(match.id);
+            localStorage.setItem(`movieverse_anilist_tmdb_match_${tmdbId}`, String(match.id));
+          }
+        })
+        .catch(() => {});
+    }
+  }, [isAnime, isAnimeDirect, resolvedTmdbId, title, tmdbId, mediaType, apiKey]);
+
   const [anilistId, setAnilistId] = useState<number | null>(null);
   const [anilistLoading, setAnilistLoading] = useState(false);
+
+  const getEffectiveTmdbId = useCallback((provId: string) => {
+    const isNativeAnime = provId === 'megaplay' || provId === 'anikai' || provId === 'vidnest_animepahe' || provId === 'vidnest';
+    if (isNativeAnime) {
+      return anilistId || tmdbId;
+    }
+    return resolvedTmdbId || tmdbId;
+  }, [anilistId, tmdbId, resolvedTmdbId]);
 
   // Anime season map: AniList entries representing each season
   interface AnimeSeasonEntry {
@@ -431,9 +465,10 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     setServerStatuses(prev => ({ ...prev, [prov.id]: 'checking' }));
     try {
       const isTvShow = mediaType === 'tv' || (isAnime && mediaType !== 'movie');
+      const targetId = getEffectiveTmdbId(prov.id);
       const url = isTvShow
-        ? prov.getTvUrl(tmdbId, currentSeason, currentEpisode, activeColor, 0, isAnime, anilistId, animeLanguage, audioLanguage, subtitleLanguage)
-        : prov.getMovieUrl(tmdbId, activeColor, 0, isAnime, anilistId, animeLanguage, audioLanguage, subtitleLanguage);
+        ? prov.getTvUrl(targetId, currentSeason, currentEpisode, activeColor, 0, isAnime, anilistId, animeLanguage, audioLanguage, subtitleLanguage)
+        : prov.getMovieUrl(targetId, activeColor, 0, isAnime, anilistId, animeLanguage, audioLanguage, subtitleLanguage);
 
       if (!url || !url.startsWith('http')) {
         setServerStatuses(prev => ({ ...prev, [prov.id]: 'offline' }));
@@ -497,9 +532,10 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     // 1. Probe Native Direct HLS Scraper (Highest Priority)
     const probeDirectHLS = async (): Promise<string | null> => {
       try {
+        const targetId = resolvedTmdbId || tmdbId;
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 1800);
-        const res = await fetch(`/api/stream?tmdbId=${tmdbId}&mediaType=${mediaType || 'movie'}&season=${currentSeason || 1}&episode=${currentEpisode || 1}`, { signal: controller.signal });
+        const res = await fetch(`/api/stream?tmdbId=${targetId}&mediaType=${mediaType || 'movie'}&season=${currentSeason || 1}&episode=${currentEpisode || 1}`, { signal: controller.signal });
         clearTimeout(timeoutId);
 
         if (res.ok) {
@@ -562,9 +598,10 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
       const probePromises = candidateIds.map(id => {
         const prov = PROVIDERS.find(p => p.id === id);
         if (!prov) return Promise.resolve({ id, latency: 9999, ok: false });
+        const targetId = getEffectiveTmdbId(id);
         const getUrl = () => mediaType === 'tv'
-          ? prov.getTvUrl(tmdbId, currentSeason || 1, currentEpisode || 1, activeColor || 'EF4444')
-          : prov.getMovieUrl(tmdbId, activeColor || 'EF4444');
+          ? prov.getTvUrl(targetId, currentSeason || 1, currentEpisode || 1, activeColor || 'EF4444')
+          : prov.getMovieUrl(targetId, activeColor || 'EF4444');
         return probeEmbedLatency(id, getUrl);
       });
 
@@ -2388,9 +2425,10 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
         : `${domain}/stream/ani/${anilistId || tmdbId}/1/${lang}`;
     }
     const provider = PROVIDERS.find(p => p.id === providerId) || PROVIDERS[0];
+    const targetTmdbId = getEffectiveTmdbId(providerId);
     let url = isTvShow
-      ? provider.getTvUrl(tmdbId, currentSeason, currentEpisode, activeColor, progress, isAnime, anilistId, animeLanguage, audioLanguage, subtitleLanguage)
-      : provider.getMovieUrl(tmdbId, activeColor, progress, isAnime, anilistId, animeLanguage, audioLanguage, subtitleLanguage);
+      ? provider.getTvUrl(targetTmdbId, currentSeason, currentEpisode, activeColor, progress, isAnime, anilistId, animeLanguage, audioLanguage, subtitleLanguage)
+      : provider.getMovieUrl(targetTmdbId, activeColor, progress, isAnime, anilistId, animeLanguage, audioLanguage, subtitleLanguage);
 
     if (providerId === 'anikai' && title) {
       url += `&title=${encodeURIComponent(title)}`;

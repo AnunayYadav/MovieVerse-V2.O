@@ -2257,7 +2257,7 @@ export default function App() {
         }
 
         const isPushing = window.location.pathname !== newPath;
-        if (isPushing) {
+        if (isPushing && !isNavigatingBack && !isSyncingPath.current) {
             lastPushedPathRef.current = newPath;
             const newIdx = (window.history.state?.idx || 0) + 1;
             history.pushState({ idx: newIdx }, '', newPath);
@@ -5614,6 +5614,12 @@ export default function App() {
                     key={selectedMovie.id}
                     movie={watched.find(m => m.id === selectedMovie.id) || selectedMovie}
                     onClose={() => {
+                        setSelectedMovie(null);
+                        setActiveDetailsTab("overview");
+                        setShowDetailsCast(false);
+                        setShowDetailsCrew(false);
+                        setIsWatching(false);
+
                         const startIdx = movieDetailsStartIdxRef.current;
                         const currentIdx = window.history.state?.idx;
                         const canGoBack = window.history.state && typeof currentIdx === 'number' && currentIdx > 0;
@@ -5626,12 +5632,6 @@ export default function App() {
                         }
                         if (canGoBack) {
                             window.history.back();
-                        } else {
-                            setSelectedMovie(null);
-                            setActiveDetailsTab("overview");
-                            setShowDetailsCast(false);
-                            setShowDetailsCrew(false);
-                            setIsWatching(false);
                         }
                     }}
                     apiKey={apiKey}
@@ -5689,13 +5689,12 @@ export default function App() {
                 personName={selectedPersonName}
                 isAniListStaff={isPersonAniListStaff}
                 onClose={() => {
+                    setSelectedPersonId(null);
+                    setSelectedPersonName(null);
+                    setIsPersonAniListStaff(false);
                     const canGoBack = window.history.state && typeof window.history.state.idx === 'number' && window.history.state.idx > 0;
                     if (canGoBack) {
                         window.history.back();
-                    } else {
-                        setSelectedPersonId(null);
-                        setSelectedPersonName(null);
-                        setIsPersonAniListStaff(false);
                     }
                 }}
                 apiKey={apiKey} 
@@ -5707,11 +5706,10 @@ export default function App() {
                     key={selectedCharacterId}
                     characterId={selectedCharacterId}
                     onClose={() => {
+                        setSelectedCharacterId(null);
                         const canGoBack = window.history.state && typeof window.history.state.idx === 'number' && window.history.state.idx > 0;
                         if (canGoBack) {
                             window.history.back();
-                        } else {
-                            setSelectedCharacterId(null);
                         }
                     }}
                     apiKey={apiKey}
@@ -5730,12 +5728,11 @@ export default function App() {
                     studioId={selectedStudioId}
                     studioName={selectedStudioName}
                     onClose={() => {
+                        setSelectedStudioId(null);
+                        setSelectedStudioName(null);
                         const canGoBack = window.history.state && typeof window.history.state.idx === 'number' && window.history.state.idx > 0;
                         if (canGoBack) {
                             window.history.back();
-                        } else {
-                            setSelectedStudioId(null);
-                            setSelectedStudioName(null);
                         }
                     }}
                     apiKey={apiKey}
