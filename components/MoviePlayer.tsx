@@ -342,9 +342,20 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   const [selectedVideasyServer, setSelectedVideasyServer] = useState('Hydrogen');
   const [useMegaplayBackup, setUseMegaplayBackup] = useState(false);
 
-  // Server Selector Modal state
+  // Server Selector Modal & Verified Playback states
+  const [verifiedPlaybackServers, setVerifiedPlaybackServers] = useState<Record<string, boolean>>({});
   const [isServerModalOpen, setIsServerModalOpen] = useState(false);
   const [iframeLoading, setIframeLoading] = useState(true);
+
+  // Automatically mark provider as watchprogress-verified when playback/progress starts
+  useEffect(() => {
+    if ((playerCurrentTime > 0 || isPlaying) && selectedProviderId) {
+      setVerifiedPlaybackServers(prev => {
+        if (prev[selectedProviderId]) return prev;
+        return { ...prev, [selectedProviderId]: true };
+      });
+    }
+  }, [playerCurrentTime, isPlaying, selectedProviderId]);
 
   const ServerIcon = ({ size = 16 }: { size?: number }) => (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-white">
@@ -412,8 +423,9 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   const [serverStatuses, setServerStatuses] = useState<Record<string, 'online' | 'offline' | 'checking'>>({});
 
   const probeServerStatus = useCallback(async (prov: Provider) => {
-    if (prov.id === selectedProviderId && (isPlaying || playerCurrentTime > 0)) {
+    if (verifiedPlaybackServers[prov.id] || (prov.id === selectedProviderId && (isPlaying || playerCurrentTime > 0))) {
       setServerStatuses(prev => ({ ...prev, [prov.id]: 'online' }));
+      setAutoProbeBadges(prev => ({ ...prev, [prov.id]: { status: 'playing', label: prov.name } }));
       return;
     }
     setServerStatuses(prev => ({ ...prev, [prov.id]: 'checking' }));
@@ -441,7 +453,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
       setServerStatuses(prev => ({ ...prev, [prov.id]: 'offline' }));
       setAutoProbeBadges(prev => ({ ...prev, [prov.id]: { status: 'failed', label: prov.name } }));
     }
-  }, [tmdbId, mediaType, currentSeason, currentEpisode, activeColor, isAnime, anilistId, animeLanguage, audioLanguage, subtitleLanguage, selectedProviderId, isPlaying, playerCurrentTime]);
+  }, [tmdbId, mediaType, currentSeason, currentEpisode, activeColor, isAnime, anilistId, animeLanguage, audioLanguage, subtitleLanguage, selectedProviderId, isPlaying, playerCurrentTime, verifiedPlaybackServers]);
 
   useEffect(() => {
     if (!isServerModalOpen) return;
@@ -450,7 +462,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
       if (serverStatuses[prov.id] && serverStatuses[prov.id] !== 'checking') return;
       probeServerStatus(prov);
     });
-  }, [isServerModalOpen, isAnime, isWatchParty, isAnimeDirect, probeServerStatus]);
+  }, [isServerModalOpen, isAnime, isWatchParty, isAnimeDirect, probeServerStatus, serverStatuses]);
 
   useEffect(() => {
     if (providerId) {
@@ -484,7 +496,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     };
     setAutoProbeBadges(initialBadges);
 
-    // 1. Probe Native Direct HLS Scraper
+    // 1. Probe Native Direct HLS Scraper (Highest Priority)
     const probeDirectHLS = async (): Promise<string | null> => {
       try {
         const controller = new AbortController();
@@ -522,6 +534,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     };
 
     try {
+      // 1. Priority 1: Direct HLS Stream
       const hlsWinner = await probeDirectHLS();
       if (hlsWinner && candidateIds.includes(hlsWinner)) {
         setAutoProbeBadges(prev => ({
@@ -534,6 +547,20 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
         return;
       }
 
+      // 2. Priority 2: Previously Verified WatchProgress Server
+      const verifiedWinner = candidateIds.find(id => verifiedPlaybackServers[id]);
+      if (verifiedWinner) {
+        setAutoProbeBadges(prev => ({
+          ...prev,
+          [verifiedWinner]: { status: 'playing', latency: 90, label: PROVIDERS.find(p => p.id === verifiedWinner)?.name || verifiedWinner }
+        }));
+        setAutoProbeStatus(`Selected verified watchprogress server: ${PROVIDERS.find(p => p.id === verifiedWinner)?.name || verifiedWinner}`);
+        setSelectedProviderId(verifiedWinner);
+        setTimeout(() => setIsAutoProbing(false), 600);
+        return;
+      }
+
+      // 3. Priority 3: Embed Server Latency & Probe Response
       const probePromises = candidateIds.map(id => {
         const prov = PROVIDERS.find(p => p.id === id);
         if (!prov) return Promise.resolve({ id, latency: 9999, ok: false });
@@ -4845,10 +4872,10 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                   let statusClass = 'bg-amber-500 animate-pulse';
                   let borderClass = 'border-zinc-800/80';
                   
-                  if (isActive && (isPlaying || playerCurrentTime > 0)) {
-                    statusLabel = 'Playing';
-                    statusClass = 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.7)] animate-pulse';
-                    borderClass = 'border-emerald-500/50';
+                  if (verifiedPlaybackServers[prov.id] || (isActive && (isPlaying || playerCurrentTime > 0))) {
+                    statusLabel = 'Playback Verified';
+                    statusClass = 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)] animate-pulse';
+                    borderClass = 'border-emerald-500/60 font-bold';
                   } else if (rawStatus === 'online' || rawStatus === 'playing') {
                     statusLabel = probeBadge?.latency ? `${probeBadge.latency}ms` : 'Working';
                     statusClass = 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]';
