@@ -193,6 +193,15 @@ const NovelRow = ({
 }) => {
   const rowRef = useRef<HTMLDivElement>(null);
 
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const target = e.currentTarget;
+    if (target.scrollLeft + target.clientWidth >= target.scrollWidth - 300) {
+      if (onExpand) {
+        onExpand();
+      }
+    }
+  };
+
   const scrollLeft = () => {
     if (rowRef.current) {
       rowRef.current.scrollBy({ left: -600, behavior: 'smooth' });
@@ -245,6 +254,7 @@ const NovelRow = ({
 
       <div
         ref={rowRef}
+        onScroll={handleScroll}
         className="flex gap-4 overflow-x-auto hide-scrollbar scroll-smooth py-2 -mx-4 px-4 md:-mx-12 md:px-12"
       >
         {novels.map(novel => (

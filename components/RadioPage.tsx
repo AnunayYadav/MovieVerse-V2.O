@@ -991,10 +991,20 @@ interface RadioRowProps {
   onPlay: (station: RadioStation, playlist: RadioStation[]) => void;
   activeStationId?: string;
   isPlaying: boolean;
+  onLoadMore?: () => void;
 }
 
-const RadioRow: React.FC<RadioRowProps> = ({ title, icon, stations, onPlay, activeStationId, isPlaying }) => {
+const RadioRow: React.FC<RadioRowProps> = ({ title, icon, stations, onPlay, activeStationId, isPlaying, onLoadMore }) => {
   if (stations.length === 0) return null;
+
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const target = e.currentTarget;
+    if (target.scrollLeft + target.clientWidth >= target.scrollWidth - 300) {
+      if (onLoadMore) {
+        onLoadMore();
+      }
+    }
+  };
 
   return (
     <div className="mb-8 animate-in fade-in duration-500 text-left">
@@ -1004,7 +1014,10 @@ const RadioRow: React.FC<RadioRowProps> = ({ title, icon, stations, onPlay, acti
           {title}
         </h3>
       </div>
-      <div className="flex gap-5 overflow-x-auto px-4 md:px-12 pb-4 hide-scrollbar scroll-smooth">
+      <div
+        onScroll={handleScroll}
+        className="flex gap-5 overflow-x-auto px-4 md:px-12 pb-4 hide-scrollbar scroll-smooth"
+      >
         {stations.map((station) => (
           <RadioCard key={station.stationuuid} station={station} onPlay={(s) => onPlay(s, stations)} activeStationId={activeStationId} isPlaying={isPlaying} />
         ))}
