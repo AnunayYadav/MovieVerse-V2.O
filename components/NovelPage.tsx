@@ -185,7 +185,7 @@ const NovelRow = ({
   return (
     <div className="space-y-3 py-2 px-4 md:px-12 select-none group/row">
       <div className="flex items-center justify-between">
-        <h3 className="text-lg md:text-xl font-black text-white tracking-tight flex items-center gap-2.5 text-left">
+        <h3 className="text-lg md:text-xl font-bold text-white tracking-tight flex items-center gap-2.5 text-left">
           <span className="w-2.5 h-6 rounded-full bg-red-600"></span>
           <span>{title}</span>
         </h3>
@@ -864,7 +864,7 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
       
       {/* ── DETAILS SCREEN (Exact Match to MangaPage Details UI) ─────── */}
       {selectedNovel && novelDetails && !activeChapter && (
-        <div className="min-h-screen bg-[#030303] text-white pb-16 relative font-sans animate-in fade-in duration-300">
+        <div className="min-h-screen bg-[#030303] text-white pt-16 md:pt-16 pb-16 relative font-sans animate-in fade-in duration-300">
           
           {/* Backdrop Hero Banner */}
           <div className="relative w-full h-[14vh] md:h-[18vh] overflow-hidden select-none">
@@ -1046,7 +1046,11 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
                             className="px-3 py-1.5 bg-[#111] hover:bg-zinc-800 text-xs font-medium border border-white/5 rounded-lg flex items-center gap-2 text-zinc-200"
                           >
                             <Server size={12} className="text-red-500" />
-                            <span>{NOVEL_SERVERS.find(s => s.id === readingSource)?.name || 'Auto'}</span>
+                            <span>
+                              {readingSource === 'auto'
+                                ? (activeServerInfo.name ? `⚡ ${activeServerInfo.name}` : '⚡ Auto (Best Server)')
+                                : (NOVEL_SERVERS.find(s => s.id === readingSource)?.name || readingSource)}
+                            </span>
                             <ChevronDown size={12} className="text-zinc-500" />
                           </button>
 
@@ -1394,7 +1398,7 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
               {/* Catalog Section Header & Automatic Best Server Selector */}
               <div className="flex items-center justify-between px-4 md:px-12 py-4 border-b border-white/5 mb-6 select-none">
                 <div className="flex items-center gap-3">
-                  <h2 className="text-xl md:text-2xl font-black text-white tracking-tight flex items-center gap-2.5 text-left">
+                  <h2 className="text-xl md:text-2xl font-bold text-white tracking-tight flex items-center gap-2.5 text-left">
                     <span className="w-2.5 h-6 rounded-full bg-red-600" />
                     Novel Catalog
                   </h2>
@@ -1408,7 +1412,11 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
                   >
                     <div className="flex items-center gap-2">
                       <Server size={14} className="text-red-500" />
-                      <span>{NOVEL_SERVERS.find(s => s.id === readingSource)?.name || 'Auto (Best Server)'}</span>
+                      <span>
+                        {readingSource === 'auto'
+                          ? (activeServerInfo.name ? `⚡ ${activeServerInfo.name}` : '⚡ Auto (Best Server)')
+                          : (NOVEL_SERVERS.find(s => s.id === readingSource)?.name || readingSource)}
+                      </span>
                     </div>
                     <ChevronDown size={12} className="text-zinc-500 group-hover:text-white transition-colors" />
                   </button>
@@ -1686,9 +1694,9 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
           )}
 
           {/* Reader Main Content */}
-          <div ref={readerScrollContainerRef} className="flex-1 w-full flex justify-center relative overflow-y-auto py-20 px-4">
+          <div ref={readerScrollContainerRef} className="flex-1 w-full flex justify-center relative overflow-y-auto pt-20 pb-20 px-4">
             <div
-              className="relative w-full h-full flex items-center justify-center"
+              className="relative w-full flex flex-col items-center justify-start"
               style={{ maxWidth: readerWidth === 'narrow' ? '580px' : readerWidth === 'wide' ? '1050px' : '800px' }}
             >
               <div
