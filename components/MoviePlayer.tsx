@@ -719,9 +719,9 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   const [fallbackToIframe, setFallbackToIframe] = useState(false);
   const isCineSrcCustom = selectedProviderId === 'cinesrc';
   const isVidFastCustom = selectedProviderId === 'vidfast';
-  const isCinemaOSCustom = selectedProviderId === 'cinemaos';
-  const isXPassCustom = selectedProviderId === 'xpass';
-  const isIframeCustomControls = isCineSrcCustom || isVidFastCustom || isCinemaOSCustom || isXPassCustom;
+  const isCinemaOSCustom = false;
+  const isXPassCustom = false;
+  const isIframeCustomControls = isCineSrcCustom || isVidFastCustom;
   const useCustomControls = (selectedProviderId.startsWith('encdec') || isIframeCustomControls) && !fallbackToIframe;
   const isPlayingRef = useRef(false);
   const isSeekingRef = useRef(false);

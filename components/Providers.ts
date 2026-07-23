@@ -161,7 +161,7 @@ export const PROVIDERS: Provider[] = [
       const startAt = progress && progress > 0 ? `&startTime=${Math.floor(progress)}` : '';
       return `https://cinemaos.tech/player/${tmdbId}/${season}/${episode}?theme=${cleanColor}&autoPlay=true&nextButton=true&autoNext=true&title=false&poster=false${startAt}`;
     },
-    supportsPostMessage: true
+    supportsPostMessage: false
   },
   {
     id: 'zxcstream',
@@ -183,7 +183,7 @@ export const PROVIDERS: Provider[] = [
     name: 'XPass',
     getMovieUrl: (tmdbId) => `https://play.xpass.top/e/movie/${tmdbId}`,
     getTvUrl: (tmdbId, season, episode) => `https://play.xpass.top/e/tv/${tmdbId}/${season}/${episode}`,
-    supportsPostMessage: true
+    supportsPostMessage: false
   },
   {
     id: '2embed',
