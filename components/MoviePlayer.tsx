@@ -2476,6 +2476,8 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   };
 
   const getEmbedUrlForProvider = (providerId: string, progress: number = 0, overrideJarvisServer?: string) => {
+    // Normalize progress: ignore initial progress <= 5s to avoid URL parameter churn (e.g., &startAt=0 vs &startAt=1)
+    const effectiveProgress = (progress && progress > 5) ? progress : 0;
     const isTvShow = mediaType === 'tv' || (isAnime && mediaType !== 'movie');
     if (providerId === 'megaplay') {
       const domain = useMegaplayBackup ? 'https://megaplay.buzz' : 'https://animeplay.cfd';
@@ -2501,8 +2503,8 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     }
     const provider = PROVIDERS.find(p => p.id === providerId) || PROVIDERS[0];
     let url = isTvShow
-      ? provider.getTvUrl(tmdbId, currentSeason, currentEpisode, activeColor, progress, isAnime, anilistId, animeLanguage, audioLanguage, subtitleLanguage)
-      : provider.getMovieUrl(tmdbId, activeColor, progress, isAnime, anilistId, animeLanguage, audioLanguage, subtitleLanguage);
+      ? provider.getTvUrl(tmdbId, currentSeason, currentEpisode, activeColor, effectiveProgress, isAnime, anilistId, animeLanguage, audioLanguage, subtitleLanguage)
+      : provider.getMovieUrl(tmdbId, activeColor, effectiveProgress, isAnime, anilistId, animeLanguage, audioLanguage, subtitleLanguage);
 
     if (providerId === 'anikai' && title) {
       url += `&title=${encodeURIComponent(title)}`;
@@ -2549,7 +2551,9 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
       shouldUpdateUrl = true;
       lastAnimeLanguageRef.current = animeLanguage;
     } else if (lastAnilistIdRef.current !== anilistId) {
-      shouldUpdateUrl = true;
+      if (['anikai', 'vidnest', 'vidnest_animepahe', 'megaplay'].includes(selectedProviderId)) {
+        shouldUpdateUrl = true;
+      }
       lastAnilistIdRef.current = anilistId;
     } else if (lastAudioLanguageRef.current !== audioLanguage) {
       shouldUpdateUrl = true;
@@ -2602,21 +2606,24 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     }
 
     if (shouldUpdateUrl) {
-      const startProgress = currentProgressRef.current;
+      const rawProgress = currentProgressRef.current;
+      const startProgress = (rawProgress && rawProgress > 5) ? rawProgress : 0;
       let newUrl = '';
       if (selectedProviderId === 'videasy_adfree' && fallbackToNativeVideasy) {
         newUrl = isTvShow
           ? `https://player.videasy.net/tv/${tmdbId}/${currentSeason}/${currentEpisode}?nextEpisode=true&autoplayNextEpisode=true&episodeSelector=true&overlay=false&color=${activeColor.replace('#', '')}&autoplay=true${startProgress && startProgress > 0 ? `&progress=${Math.floor(startProgress)}` : ''}`
           : `https://player.videasy.net/movie/${tmdbId}?overlay=false&color=${activeColor.replace('#', '')}&autoplay=true${startProgress && startProgress > 0 ? `&progress=${Math.floor(startProgress)}` : ''}`;
-      } else {
+      } else if (selectedProviderId !== 'auto') {
         newUrl = getEmbedUrlForProvider(selectedProviderId, startProgress);
       }
 
-      if (isIframeCustomControls) {
-        setIsBuffering(true);
+      if (newUrl && newUrl !== embedUrl) {
+        if (isIframeCustomControls) {
+          setIsBuffering(true);
+        }
+        setIframeLoading(true);
+        setEmbedUrl(newUrl);
       }
-      setIframeLoading(true);
-      setEmbedUrl(newUrl);
     }
   }, [tmdbId, mediaType, isAnime, title, currentSeason, currentEpisode, activeColor, selectedProviderId, forceProgress, isWatchParty, anilistId, animeLanguage, audioLanguage, subtitleLanguage, fallbackToNativeVideasy, useCustomControls, useMegaplayBackup]);
 
