@@ -1197,57 +1197,16 @@ export const PodcastsPage: React.FC<PodcastsPageProps> = ({ searchQuery = "", on
   }
 
   return (
-    <div className="min-h-screen bg-[#030303] text-white pb-36 pt-24 md:pt-28 relative select-none animate-in fade-in duration-500">
-      
-      {/* 1. Top Header Bar & Store Picker */}
-      <div className="relative px-4 md:px-12 max-w-7xl mx-auto text-left space-y-4">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-white/10 pb-4">
-          <div>
-            <div className="flex items-center gap-2.5">
-              <span className="p-2 rounded-xl bg-purple-600/20 text-purple-400 border border-purple-500/20 shadow-md">
-                <Mic size={20} />
-              </span>
-              <h1 className="text-2xl md:text-3xl font-black text-white tracking-tight font-sans">
-                Podcast Directory & Player
-              </h1>
-            </div>
-            <p className="text-zinc-400 text-xs md:text-sm mt-1 font-light">
-              Explore thousands of verified Apple & RSS podcasts, host emails, and full audio episodes.
-            </p>
-          </div>
-
-          {/* Store Country Picker */}
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-2 md:pb-0 hide-scrollbar">
-            <span className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider shrink-0 flex items-center gap-1 mr-1">
-              <Globe size={13} /> Store:
-            </span>
-            {POPULAR_COUNTRIES.map((c) => (
-              <button
-                key={c.code}
-                onClick={() => setSelectedCountry(c)}
-                className={`px-2.5 py-1 rounded-lg text-xs font-medium border transition-all duration-200 flex items-center gap-1.5 shrink-0 cursor-pointer ${
-                  selectedCountry.code === c.code
-                    ? 'bg-purple-600 border-purple-500 text-white shadow-md shadow-purple-600/30'
-                    : 'bg-zinc-900/80 border-white/10 text-zinc-400 hover:text-white hover:border-white/20'
-                }`}
-              >
-                <span className="font-bold text-[10px] uppercase opacity-80">{c.code}</span>
-                <span>{c.name}</span>
-              </button>
-            ))}
-          </div>
+    <div className="min-h-screen bg-[#030303] text-white pb-36 pt-16 md:pt-20 relative select-none animate-in fade-in duration-500">
+      {/* Global Error Notice */}
+      {error && (
+        <div className="relative px-4 md:px-12 max-w-7xl mx-auto my-4 p-4 rounded-2xl bg-red-950/40 border border-red-500/30 text-red-300 text-xs flex items-center justify-between">
+          <span>{error}</span>
+          <button onClick={() => window.location.reload()} className="px-3 py-1 rounded-lg bg-red-800 text-white font-semibold hover:bg-red-700">
+            Retry
+          </button>
         </div>
-
-        {/* Global Error Notice */}
-        {error && (
-          <div className="my-4 p-4 rounded-2xl bg-red-950/40 border border-red-500/30 text-red-300 text-xs flex items-center justify-between">
-            <span>{error}</span>
-            <button onClick={() => window.location.reload()} className="px-3 py-1 rounded-lg bg-red-800 text-white font-semibold hover:bg-red-700">
-              Retry
-            </button>
-          </div>
-        )}
-      </div>
+      )}
 
       {/* 2. HERO HEADER CAROUSEL (Sliding Featured Spotlight - Matches Manga Page UI) */}
       {!searchQuery && heroPodcasts.length > 0 && (
