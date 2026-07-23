@@ -70,7 +70,7 @@ interface NovelPageProps {
 }
 
 const NOVEL_SERVERS = [
-  { id: 'auto', name: '⚡ Auto (Best Server)' },
+  { id: 'auto', name: 'Auto (Best Server)' },
   { id: 'lightnovelworld', name: 'LightNovelWorld' },
   { id: 'ranobes', name: 'Ranobes' },
   { id: 'allnovel', name: 'AllNovel' },
