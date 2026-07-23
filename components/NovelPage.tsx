@@ -78,6 +78,10 @@ const NOVEL_SERVERS = [
   { id: 'freewebnovel', name: 'FreeWebNovel' },
   { id: 'novelbin', name: 'NovelBin' },
   { id: 'novelsonline', name: 'NovelsOnline' },
+  { id: 'novelbuddy', name: 'NovelBuddy' },
+  { id: 'novelcool', name: 'NovelCool' },
+  { id: 'novelhall', name: 'NovelHall' },
+  { id: 'wtrlab', name: 'WTR-LAB MTL' },
   { id: 'wuxiaworld', name: 'WuxiaWorld' },
   { id: 'royalroad', name: 'RoyalRoad' },
   { id: 'scribblehub', name: 'ScribbleHub' },
@@ -91,6 +95,10 @@ const CANDIDATE_PROVIDERS = [
   'freewebnovel',
   'novelbin',
   'novelsonline',
+  'novelbuddy',
+  'novelcool',
+  'novelhall',
+  'wtrlab',
   'wuxiaworld',
   'royalroad',
   'scribblehub'
@@ -594,28 +602,17 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
     localStorage.setItem('novel_bookmarks', JSON.stringify(updated));
   };
 
-  // ── Automatic Best Server Resolution Logic ────────────────────────────
-  const FAST_CANDIDATES = ['lightnovelworld', 'ranobes', 'allnovel', 'wuxiaworld', 'royalroad', 'scribblehub'] as const;
+  // ── Automatic 2-Tier Exhaustive Best Server Resolution Logic ──────────
+  const TIER1_PROVIDERS = ['freewebnovel', 'wtrlab', 'novelbuddy', 'novelfull', 'lightnovelworld'] as const;
+  const TIER2_PROVIDERS = ['ranobes', 'allnovel', 'novelbin', 'novelsonline', 'novelcool', 'novelhall', 'wuxiaworld', 'royalroad', 'scribblehub'] as const;
 
-  const findBestServer = async (novelTitle: string, explicitProviders?: { provider: string; id: string }[], aniListMeta?: any) => {
-    const startTime = Date.now();
-
-    if (explicitProviders && explicitProviders.length > 0) {
-      const match = explicitProviders[0];
-      const ping = Math.floor(Math.random() * 50 + 45);
-      setActiveServerInfo({ name: `Auto (${match.provider})`, pingMs: ping, isAuto: true });
-      return { provider: match.provider as any, id: match.id };
-    }
-
-    const queryVariants = generateUniversalSearchVariants(novelTitle, aniListMeta);
-
-    // Parallel Search across candidates & query variants with 1.8s timeout
-    const pingPromises = FAST_CANDIDATES.map(async (prov) => {
+  const queryProvidersParallel = async (providers: readonly string[], queryVariants: string[], timeoutMs: number) => {
+    const promises = providers.map(async (prov) => {
       const provStart = Date.now();
       try {
         const queryPromises = queryVariants.map(async (queryTerm) => {
           const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 1800);
+          const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
           try {
             const res = await fetch(`/api/manga?action=search&provider=${prov}&query=${encodeURIComponent(queryTerm)}`, {
               signal: controller.signal
@@ -638,8 +635,29 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
       return null;
     });
 
-    const results = await Promise.all(pingPromises);
-    const validResults = results.filter((r): r is NonNullable<typeof r> => r !== null);
+    const results = await Promise.all(promises);
+    return results.filter((r): r is NonNullable<typeof r> => r !== null);
+  };
+
+  const findBestServer = async (novelTitle: string, explicitProviders?: { provider: string; id: string }[], aniListMeta?: any) => {
+    const startTime = Date.now();
+
+    if (explicitProviders && explicitProviders.length > 0) {
+      const match = explicitProviders[0];
+      const ping = Math.floor(Math.random() * 50 + 45);
+      setActiveServerInfo({ name: `Auto (${match.provider})`, pingMs: ping, isAuto: true });
+      return { provider: match.provider as any, id: match.id };
+    }
+
+    const queryVariants = generateUniversalSearchVariants(novelTitle, aniListMeta);
+
+    // Tier 1: Fast Parallel Search across top engines (1.8s timeout)
+    let validResults = await queryProvidersParallel(TIER1_PROVIDERS, queryVariants, 1800);
+
+    // Tier 2: Exhaustive Fallback Search across ALL remaining 9 providers if Tier 1 returned nothing
+    if (validResults.length === 0) {
+      validResults = await queryProvidersParallel(TIER2_PROVIDERS, queryVariants, 2500);
+    }
 
     if (validResults.length > 0) {
       validResults.sort((a, b) => a.pingMs - b.pingMs);
@@ -652,8 +670,8 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
     }
 
     const fallbackId = (aniListMeta?.alternativeTitles?.romaji || novelTitle).toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-');
-    setActiveServerInfo({ name: 'Auto (LightNovelWorld)', pingMs: Date.now() - startTime, isAuto: true });
-    return { provider: 'lightnovelworld' as const, id: fallbackId };
+    setActiveServerInfo({ name: 'Auto (FreeWebNovel)', pingMs: Date.now() - startTime, isAuto: true });
+    return { provider: 'freewebnovel' as const, id: fallbackId };
   };
 
 function cleanNovelTitle(title: string): string {
@@ -871,6 +889,13 @@ const findBestMatchId = (searchData: any[], aniListMeta: any, originalTitle: str
     window.addEventListener('popstate', handleUrlNavigation);
     return () => window.removeEventListener('popstate', handleUrlNavigation);
   }, []);
+
+  // Automatically scroll window to top whenever a novel details page or chapter is opened
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+    }
+  }, [selectedNovel?.id, activeChapter?.id]);
 
   // Fetch detailed AniList metadata
   const fetchAniListMetadata = async (novelTitle: string, isNumericId?: number): Promise<any> => {
@@ -1178,17 +1203,18 @@ const findBestMatchId = (searchData: any[], aniListMeta: any, originalTitle: str
       
       {/* ── DETAILS SCREEN (Exact Match to MangaPage Details UI) ─────── */}
       {selectedNovel && novelDetails && !activeChapter && (
-        <div className="min-h-screen bg-[#030303] text-white pt-16 md:pt-16 pb-16 relative font-sans animate-in fade-in duration-300">
+        <div className="min-h-screen bg-[#030303] text-white pt-16 pb-16 relative font-sans animate-in fade-in duration-300">
           
           {/* Backdrop Hero Banner */}
-          <div className="relative w-full h-[14vh] md:h-[18vh] overflow-hidden select-none">
+          <div className="relative w-full h-[28vh] md:h-[36vh] overflow-hidden select-none -mt-16">
             <img
               src={novelDetails.bannerImage || novelDetails.image}
               alt={novelDetails.title}
               referrerPolicy="no-referrer"
-              className="w-full h-full object-cover opacity-30 blur-md scale-105"
+              className="w-full h-full object-cover opacity-40 blur-md scale-105"
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-[#030303] via-[#030303]/60 to-transparent" />
+            <div className="absolute inset-0 bg-gradient-to-b from-black/80 via-transparent to-[#030303]" />
+            <div className="absolute inset-0 bg-gradient-to-t from-[#030303] via-[#030303]/40 to-transparent" />
 
             <button
               onClick={() => {
@@ -1196,7 +1222,7 @@ const findBestMatchId = (searchData: any[], aniListMeta: any, originalTitle: str
                 setSelectedNovel(null);
                 setNovelDetails(null);
               }}
-              className="absolute top-4 left-4 md:left-12 flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/[0.03] hover:bg-white/[0.07] border border-white/[0.04] text-xs font-normal text-zinc-300 hover:text-white transition-all active:scale-95 z-30"
+              className="absolute top-20 left-4 md:left-12 flex items-center gap-2 px-4 py-2 rounded-full bg-black/60 hover:bg-black/80 backdrop-blur-md border border-white/10 text-xs font-medium text-zinc-200 hover:text-white transition-all active:scale-95 z-30 shadow-lg"
             >
               <ArrowLeft size={14} /> Back to Novels
             </button>

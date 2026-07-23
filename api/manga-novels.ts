@@ -1257,7 +1257,11 @@ const GENERIC_BASE_MAP: Record<string, string> = {
   novelfull: 'https://novelfull.com',
   freewebnovel: 'https://freewebnovel.com',
   novelbin: 'https://novelbin.me',
-  novelsonline: 'https://novelsonline.net'
+  novelsonline: 'https://novelsonline.net',
+  novelbuddy: 'https://novelbuddy.com',
+  novelcool: 'https://www.novelcool.com',
+  novelhall: 'https://www.novelhall.com',
+  wtrlab: 'https://wtr-lab.com/en'
 };
 
 async function scrapeGenericNovelSearch(query: string, providerKey: string) {
