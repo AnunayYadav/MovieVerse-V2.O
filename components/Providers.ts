@@ -36,6 +36,13 @@ export const getSubtitleCode = (sub: string, format: 'name' | 'iso') => {
 
 export const PROVIDERS: Provider[] = [
   {
+    id: 'auto',
+    name: 'Auto (Fastest Server)',
+    getMovieUrl: (tmdbId, color, progress) => '',
+    getTvUrl: (tmdbId, season, episode, color, progress) => '',
+    supportsPostMessage: true
+  },
+  {
     id: 'videasy_adfree',
     name: 'VidEasy',
     getMovieUrl: (tmdbId, color, progress) => {
