@@ -2282,10 +2282,10 @@ const findBestMatchId = (searchData: any[], aniListMeta: any, originalTitle: str
                     <Loader2 className="animate-spin text-red-600" size={32} />
                     <p className="text-xs text-zinc-500">Streaming novel text lines...</p>
                   </div>
-                ) : chapterContent ? (
+                ) : chapterContent && Array.isArray(chapterContent.paragraphs) && chapterContent.paragraphs.length > 0 ? (
                   <div className="pr-1">
                     <h2 className="text-xl md:text-2xl font-extrabold tracking-tight mb-8 border-b pb-4 opacity-90 border-black/5 dark:border-white/5">
-                      {chapterContent.title}
+                      {chapterContent.title || 'Chapter Content'}
                     </h2>
                     {chapterContent.paragraphs.map((p, idx) => {
                       const isBeingRead = ttsCurrentParagraphIndex === idx;
@@ -2324,12 +2324,18 @@ const findBestMatchId = (searchData: any[], aniListMeta: any, originalTitle: str
 
                       <button
                         onClick={handleNextChapter}
-                        disabled={activeChapterIndex >= (novelDetails?.chapters.length || 0) - 1}
+                        disabled={activeChapterIndex >= (novelDetails?.chapters?.length || 0) - 1}
                         className="bg-red-600 hover:bg-red-700 text-white py-2 px-6 rounded-2xl flex items-center justify-center gap-1.5 transition-all text-xs font-bold shadow-lg shadow-red-600/25 active:scale-95 disabled:opacity-30"
                       >
                         Next Chapter <ChevronRight size={16} />
                       </button>
                     </div>
+                  </div>
+                ) : chapterContent ? (
+                  <div className="flex flex-col items-center justify-center py-28 text-center opacity-70">
+                    <AlertCircle size={32} className="text-red-500 mb-3" />
+                    <p className="text-sm font-semibold">Chapter text is empty from this server.</p>
+                    <p className="text-xs text-zinc-400 mt-1 max-w-sm">Please select another server from the Source dropdown above.</p>
                   </div>
                 ) : null}
               </div>
