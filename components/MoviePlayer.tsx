@@ -2871,56 +2871,6 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                     }
                 }
 
-                // Handle VidSuper events
-                if (event.origin.includes('vidsuper.net') || (parsed && (parsed.type === 'timeupdate' || parsed.type === 'play' || parsed.type === 'pause' || parsed.type === 'ended') && parsed.progress !== undefined)) {
-                    const vsType = parsed.type;
-                    const vsProgress = Number(parsed.progress);
-                    const vsDuration = Number(parsed.duration);
-                    const vsSeason = parsed.season ? Number(parsed.season) : undefined;
-                    const vsEpisode = parsed.episode ? Number(parsed.episode) : undefined;
-
-                    if (vsType === 'play' || vsType === 'playing') {
-                        setIsPlaying(true);
-                        setIsBuffering(false);
-                    } else if (vsType === 'pause') {
-                        setIsPlaying(false);
-                    } else if (vsType === 'timeupdate') {
-                        if (!isSeekingRef.current) {
-                            if (!isNaN(vsProgress)) {
-                                setPlayerCurrentTime(vsProgress);
-                                currentProgressRef.current = vsProgress;
-                            }
-                            if (!isNaN(vsDuration) && vsDuration > 0) {
-                                setPlayerDuration(vsDuration);
-                            }
-                        }
-                        if (onProgress && !isNaN(vsProgress)) {
-                            onProgress({
-                                currentTime: vsProgress,
-                                duration: !isNaN(vsDuration) ? vsDuration : 0,
-                                event: 'time',
-                                season: vsSeason || currentSeason,
-                                episode: vsEpisode || currentEpisode
-                            });
-                        }
-                    } else if (vsType === 'ended') {
-                        setIsPlaying(false);
-                        if (onProgress) {
-                            onProgress({
-                                currentTime: vsDuration || playerDuration,
-                                duration: vsDuration || playerDuration,
-                                event: 'complete',
-                                season: vsSeason || currentSeason,
-                                episode: vsEpisode || currentEpisode
-                            });
-                        }
-                        if (isAutoplayEnabled && hasNextEpisode) {
-                            playNextEpisode();
-                        }
-                    }
-                    return;
-                }
-
                 // Handle Vidify events explicitly
                 if (event.origin === 'https://player.vidify.top' || parsed.type === 'WATCH_PROGRESS') {
                     const type = parsed.type;
