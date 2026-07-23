@@ -603,8 +603,8 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
   };
 
   // ── Automatic 2-Tier Exhaustive Best Server Resolution Logic ──────────
-  const TIER1_PROVIDERS = ['freewebnovel', 'wtrlab', 'novelbuddy', 'novelfull', 'lightnovelworld'] as const;
-  const TIER2_PROVIDERS = ['ranobes', 'allnovel', 'novelbin', 'novelsonline', 'novelcool', 'novelhall', 'wuxiaworld', 'royalroad', 'scribblehub'] as const;
+  const TIER1_PROVIDERS = ['freewebnovel', 'lightnovelworld', 'novelfull', 'novelbuddy', 'royalroad'] as const;
+  const TIER2_PROVIDERS = ['wtrlab', 'ranobes', 'allnovel', 'novelbin', 'novelsonline', 'novelcool', 'novelhall', 'wuxiaworld', 'scribblehub'] as const;
 
   const queryProvidersParallel = async (providers: readonly string[], queryVariants: string[], timeoutMs: number) => {
     const promises = providers.map(async (prov) => {
@@ -1119,6 +1119,9 @@ const findBestMatchId = (searchData: any[], aniListMeta: any, originalTitle: str
       const res = await fetch(`/api/manga?action=pages&provider=${activeProv}&id=${encodeURIComponent(chapter.id)}`);
       if (!res.ok) throw new Error('Failed to load chapter content');
       const data = await res.json();
+      if (!data || !data.paragraphs || !Array.isArray(data.paragraphs) || data.paragraphs.length === 0) {
+        throw new Error(`Chapter text is empty from ${activeProv}`);
+      }
       setChapterContent(data);
 
       if (readerScrollContainerRef.current) {
