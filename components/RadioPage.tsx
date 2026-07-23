@@ -789,65 +789,69 @@ export const RadioPage: React.FC<RadioPageProps> = ({ searchQuery = "", onSearch
       ) : (
         /* 2. Main Catalog View */
         <>
-          {/* Spotlight Hero Banner */}
+          {/* Spotlight Hero Banner (Matches Manga & Novel Page UI) */}
           {featured && (
-            <div className="relative w-full aspect-[21/9] min-h-[360px] max-h-[460px] overflow-hidden flex items-center bg-black select-none border-b border-white/5 mx-auto max-w-7xl rounded-3xl mt-2">
+            <div className="relative w-full h-[65vh] md:h-[75vh] overflow-hidden group mb-10 border-b border-white/5 select-none font-sans">
               <div className="absolute inset-0">
                 <img
-                  src="https://images.unsplash.com/photo-1590608897129-79da98d15969?w=1600&q=80"
-                  alt="Radio Backdrop"
-                  className="w-full h-full object-cover opacity-20 scale-105 transition-transform duration-[6000ms] ease-out"
+                  src={featured.favicon || "https://images.unsplash.com/photo-1590608897129-79da98d15969?w=1600&q=80"}
+                  alt={featured.name}
+                  className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105 opacity-85"
+                  onError={(e) => { e.currentTarget.src = "https://images.unsplash.com/photo-1590608897129-79da98d15969?w=1600&q=80"; }}
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-[#030303] via-[#030303]/60 to-transparent z-10" />
-                <div className="absolute inset-0 bg-gradient-to-r from-[#030303] via-[#030303]/40 to-transparent z-10" />
+                <div className="absolute inset-0 bg-gradient-to-t from-[#030303] via-[#030303]/60 to-transparent" />
+                <div className="absolute inset-0 bg-gradient-to-r from-[#030303] via-[#030303]/40 to-transparent" />
               </div>
 
-              {/* Spotlight Content */}
-              <div className="absolute left-6 md:left-12 bottom-8 md:bottom-12 max-w-2xl text-left z-20 space-y-4 px-4 md:px-0 animate-in fade-in slide-in-from-bottom-6 duration-700">
-                <div className="flex items-center gap-2">
-                  <div className="flex items-center gap-1.5 bg-red-600 px-3 py-0.5 rounded-full border border-red-500/25 shadow-[0_0_12px_#dc2626]/40">
-                    <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
-                    <span className="text-[9px] font-bold tracking-widest text-white uppercase">Featured Station</span>
-                  </div>
+              <div className="absolute bottom-0 left-0 w-full p-6 md:p-12 z-20 flex flex-col items-start gap-3.5 md:max-w-4xl animate-in slide-in-from-bottom-8 duration-700">
+                <span className="px-3 py-1 rounded-full text-[9px] font-bold uppercase tracking-widest bg-red-600 text-white shadow-lg shadow-red-600/30 flex items-center gap-1.5">
+                  <Sparkles size={11} fill="currentColor" /> Spotlight Radio Broadcast
+                </span>
+
+                <h1 className="text-3xl md:text-5xl font-bold text-white leading-tight tracking-tight drop-shadow-2xl text-left">
+                  {featured.name}
+                </h1>
+
+                <div className="flex flex-wrap items-center gap-3.5 text-xs font-bold text-gray-300">
+                  <span className="text-red-500 font-extrabold flex items-center gap-1 text-sm bg-red-500/10 px-2 py-0.5 rounded border border-red-500/20 uppercase">
+                    LIVE STREAM
+                  </span>
                   {featured.country && (
-                    <span className="text-[9px] bg-white/10 text-white/90 border border-white/5 px-2 py-0.5 rounded uppercase font-bold tracking-wider">
-                      {featured.country}
-                    </span>
+                    <>
+                      <span>•</span>
+                      <span>{featured.country}</span>
+                    </>
+                  )}
+                  {featured.tags && (
+                    <>
+                      <span>•</span>
+                      <span className="px-2 py-0.5 rounded bg-white/10 text-white text-[9px] tracking-wider font-extrabold uppercase">
+                        {formatTags(featured.tags)}
+                      </span>
+                    </>
                   )}
                 </div>
 
-                <div className="flex items-center gap-4">
-                  <div className="w-14 h-14 bg-zinc-900 rounded-2xl border border-white/10 flex items-center justify-center shadow-2xl relative overflow-hidden shrink-0">
-                    {featured.favicon ? (
-                      <img src={featured.favicon} className="w-full h-full object-cover" alt="" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
-                    ) : (
-                      <Radio size={24} className="text-red-500" />
-                    )}
-                  </div>
-                  <h2 className="text-xl md:text-3xl font-bold tracking-tight text-white">{featured.name}</h2>
-                </div>
-
-                <p className="text-zinc-300 text-xs md:text-sm max-w-md leading-relaxed font-light">
-                  {featured.tags ? `Discover genres including ${formatTags(featured.tags).toLowerCase() || 'broadcasting'}.` : "Enjoy live music, talk, news and streams from across the globe."} Live and free audio radio frequencies.
+                <p className="text-gray-300 text-xs md:text-sm line-clamp-3 max-w-2xl leading-relaxed text-left font-medium drop-shadow-md">
+                  {featured.tags ? `Live stream broadcasting genres including ${formatTags(featured.tags).toLowerCase()}.` : "Enjoy high-quality live radio broadcasts, music, news, and streams from across the globe."}
                 </p>
 
-                <div className="flex items-center gap-3">
+                <div className="flex flex-row items-center gap-3 w-full sm:w-auto mt-2">
                   <button
                     onClick={() => handlePlayStation(featured, popular)}
-                    className="px-6 py-2.5 text-xs font-semibold rounded-xl flex items-center gap-2.5 transition-all hover:scale-[1.02] active:scale-95 shadow-lg bg-red-600 text-white hover:bg-red-500 border-none cursor-pointer"
+                    className="flex-1 sm:flex-none px-6 py-2.5 text-sm sm:text-base rounded-md font-bold flex items-center justify-center gap-2.5 transition-all hover:scale-[1.02] active:scale-95 shadow-md bg-white text-black hover:bg-white/90 cursor-pointer"
                   >
-                    <Play size={14} fill="currentColor" /> Listen Live
+                    <Play size={18} fill="currentColor" /> Listen Live
                   </button>
                 </div>
               </div>
 
-              {/* Slider indicators */}
-              <div className="absolute right-6 md:right-12 bottom-12 z-20 flex items-center gap-2">
-                {popular.slice(0, 5).map((_, idx) => (
+              <div className="absolute right-6 bottom-12 z-30 flex flex-col gap-2">
+                {[...Array(Math.min(popular.length, 5))].map((_, i) => (
                   <button
-                    key={idx}
-                    onClick={() => setFeaturedIndex(idx)}
-                    className={`w-2 h-2 rounded-full transition-all duration-300 border-none cursor-pointer ${featuredIndex === idx ? 'bg-red-600 w-6' : 'bg-white/30 hover:bg-white/50'}`}
+                    key={i}
+                    onClick={() => setFeaturedIndex(i)}
+                    className={`w-2 h-2 rounded-full transition-all duration-300 border-none cursor-pointer ${featuredIndex === i ? 'bg-red-600 h-6' : 'bg-white/30 hover:bg-white/60'}`}
                   />
                 ))}
               </div>

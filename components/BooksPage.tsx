@@ -54,14 +54,14 @@ interface PodcastsPageProps {
 const ITUNES_API_BASE = "https://itunes.apple.com/search";
 
 const POPULAR_COUNTRIES = [
-  { name: "United States", code: "us" },
-  { name: "India", code: "in" },
-  { name: "United Kingdom", code: "gb" },
-  { name: "Canada", code: "ca" },
-  { name: "Australia", code: "au" },
-  { name: "Germany", code: "de" },
-  { name: "Japan", code: "jp" },
-  { name: "France", code: "fr" }
+  { name: "United States", code: "us", bg: "from-blue-600/30 to-red-600/30", image: "https://images.unsplash.com/photo-1501594907352-04cda38ebc29?w=500&q=80" },
+  { name: "India", code: "in", bg: "from-orange-600/30 to-emerald-600/30", image: "https://images.unsplash.com/photo-1524492412937-b28074a5d7da?w=500&q=80" },
+  { name: "United Kingdom", code: "gb", bg: "from-blue-800/30 to-red-700/30", image: "https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=500&q=80" },
+  { name: "Canada", code: "ca", bg: "from-red-600/30 to-zinc-800/40", image: "https://images.unsplash.com/photo-1507608869274-d3177c8bb4c7?w=500&q=80" },
+  { name: "Australia", code: "au", bg: "from-blue-900/30 to-zinc-900/30", image: "https://images.unsplash.com/photo-1523482580672-f109ba8cb9be?w=500&q=80" },
+  { name: "Germany", code: "de", bg: "from-yellow-600/20 to-zinc-800/40", image: "https://images.unsplash.com/photo-1467269204594-9661b134dd2b?w=500&q=80" },
+  { name: "Japan", code: "jp", bg: "from-red-500/20 to-zinc-900/40", image: "https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?w=500&q=80" },
+  { name: "France", code: "fr", bg: "from-blue-900/30 to-red-800/30", image: "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?w=500&q=80" }
 ];
 
 // Helper: Format raw episode duration into minutes/hours string
@@ -1249,107 +1249,58 @@ export const PodcastsPage: React.FC<PodcastsPageProps> = ({ searchQuery = "", on
         )}
       </div>
 
-      {/* 2. HERO HEADER CAROUSEL (Sliding Featured Spotlight) */}
+      {/* 2. HERO HEADER CAROUSEL (Sliding Featured Spotlight - Matches Manga Page UI) */}
       {!searchQuery && heroPodcasts.length > 0 && (
-        <div className="px-4 md:px-12 max-w-7xl mx-auto my-6 text-left">
-          <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-purple-950/80 via-zinc-950 to-zinc-950 border border-purple-500/20 p-6 md:p-8 flex flex-col md:flex-row items-center gap-6 md:gap-8 shadow-2xl transition-all duration-500">
-            
-            {/* Ambient Blurred Background */}
-            <div className="absolute inset-0 overflow-hidden pointer-events-none">
-              <img
-                src={heroPodcasts[heroIndex].artworkUrl}
-                alt=""
-                className="w-full h-full object-cover blur-3xl opacity-20 scale-125 transition-all duration-700"
-              />
-              <div className="absolute inset-0 bg-gradient-to-r from-purple-950/90 via-zinc-950/90 to-zinc-950" />
+        <div className="relative w-full h-[65vh] md:h-[75vh] overflow-hidden group mb-10 border-b border-white/5 select-none font-sans">
+          <div className="absolute inset-0">
+            <img
+              src={heroPodcasts[heroIndex].artworkUrl}
+              alt={heroPodcasts[heroIndex].title}
+              className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105 opacity-85"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-[#030303] via-[#030303]/60 to-transparent" />
+            <div className="absolute inset-0 bg-gradient-to-r from-[#030303] via-[#030303]/40 to-transparent" />
+          </div>
+
+          <div className="absolute bottom-0 left-0 w-full p-6 md:p-12 z-20 flex flex-col items-start gap-3.5 md:max-w-4xl animate-in slide-in-from-bottom-8 duration-700">
+            <span className="px-3 py-1 rounded-full text-[9px] font-bold uppercase tracking-widest bg-red-600 text-white shadow-lg shadow-red-600/30 flex items-center gap-1.5">
+              <Sparkles size={11} fill="currentColor" /> Spotlight Podcast Show
+            </span>
+
+            <h1 className="text-3xl md:text-5xl font-bold text-white leading-tight tracking-tight drop-shadow-2xl text-left">
+              {heroPodcasts[heroIndex].title}
+            </h1>
+
+            <div className="flex flex-wrap items-center gap-3.5 text-xs font-bold text-gray-300">
+              <span className="text-red-500 font-extrabold flex items-center gap-1 text-sm bg-red-500/10 px-2 py-0.5 rounded border border-red-500/20 uppercase">
+                {heroPodcasts[heroIndex].categories[0] || 'Podcast'}
+              </span>
+              <span>•</span>
+              <span>Hosted by {heroPodcasts[heroIndex].author}</span>
             </div>
 
-            {/* Artwork */}
-            <div className="relative w-40 h-40 md:w-48 md:h-48 rounded-2xl overflow-hidden border border-white/10 shadow-2xl shrink-0 group">
-              <img
-                src={heroPodcasts[heroIndex].artworkUrl}
-                alt={heroPodcasts[heroIndex].title}
-                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-              />
-              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                <button
-                  onClick={() => setSelectedShow(heroPodcasts[heroIndex])}
-                  className="w-12 h-12 rounded-full bg-purple-600 text-white flex items-center justify-center shadow-lg transform scale-90 group-hover:scale-100 transition-transform cursor-pointer"
-                >
-                  <Play size={20} fill="currentColor" className="ml-0.5" />
-                </button>
-              </div>
-            </div>
+            <p className="text-gray-300 text-xs md:text-sm line-clamp-3 max-w-2xl leading-relaxed text-left font-medium drop-shadow-md">
+              {heroPodcasts[heroIndex].description || 'Listen to top trending podcast episodes, interviews, and stories.'}
+            </p>
 
-            {/* Details */}
-            <div className="flex-1 space-y-3 min-w-0 text-center md:text-left relative z-10">
-              <div className="flex flex-wrap items-center justify-center md:justify-start gap-2">
-                <span className="px-3 py-0.5 rounded-full bg-purple-600/30 border border-purple-500/40 text-purple-300 text-[10px] font-extrabold uppercase tracking-widest flex items-center gap-1">
-                  <Star size={10} className="text-amber-400" /> Featured Spotlight #{heroIndex + 1}
-                </span>
-                <span className="px-2.5 py-0.5 rounded-full bg-white/5 border border-white/10 text-zinc-400 text-[10px] font-medium">
-                  {heroPodcasts[heroIndex].categories[0] || 'Podcast'}
-                </span>
-              </div>
-
-              <h2 className="text-xl md:text-3xl font-black text-white tracking-tight line-clamp-1">
-                {heroPodcasts[heroIndex].title}
-              </h2>
-              <p className="text-xs md:text-sm text-zinc-400 font-medium">
-                Hosted by <strong className="text-white">{heroPodcasts[heroIndex].author}</strong>
-              </p>
-
-              <div className="flex items-center justify-center md:justify-start gap-3 pt-1">
-                <button
-                  onClick={() => setSelectedShow(heroPodcasts[heroIndex])}
-                  className="px-5 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs flex items-center gap-2 shadow-lg shadow-purple-600/40 transition-transform active:scale-95 cursor-pointer"
-                >
-                  <Play size={14} fill="currentColor" /> Listen & Episodes
-                </button>
-
-                {heroPodcasts[heroIndex].applePodcastsUrl && (
-                  <a
-                    href={heroPodcasts[heroIndex].applePodcastsUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-zinc-300 hover:text-white font-semibold text-xs flex items-center gap-1.5 transition-colors"
-                  >
-                    <Headphones size={14} /> Apple Directory <ExternalLink size={12} />
-                  </a>
-                )}
-              </div>
-            </div>
-
-            {/* Carousel Navigation Indicators & Controls */}
-            <div className="absolute right-6 bottom-6 z-20 flex items-center gap-3">
+            <div className="flex flex-row items-center gap-3 w-full sm:w-auto mt-2">
               <button
-                onClick={() => setHeroIndex(prev => (prev - 1 + heroPodcasts.length) % heroPodcasts.length)}
-                className="p-1.5 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-zinc-300 hover:text-white transition-all cursor-pointer"
-                title="Previous Featured"
+                onClick={() => setSelectedShow(heroPodcasts[heroIndex])}
+                className="flex-1 sm:flex-none px-6 py-2.5 text-sm sm:text-base rounded-md font-bold flex items-center justify-center gap-2.5 transition-all hover:scale-[1.02] active:scale-95 shadow-md bg-white text-black hover:bg-white/90 cursor-pointer"
               >
-                <ChevronLeft size={16} />
-              </button>
-
-              <div className="flex items-center gap-1.5">
-                {heroPodcasts.map((_, idx) => (
-                  <button
-                    key={idx}
-                    onClick={() => setHeroIndex(idx)}
-                    className={`h-2 rounded-full transition-all duration-300 border-none cursor-pointer ${
-                      heroIndex === idx ? 'bg-purple-500 w-6' : 'bg-white/20 hover:bg-white/40 w-2'
-                    }`}
-                  />
-                ))}
-              </div>
-
-              <button
-                onClick={() => setHeroIndex(prev => (prev + 1) % heroPodcasts.length)}
-                className="p-1.5 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-zinc-300 hover:text-white transition-all cursor-pointer"
-                title="Next Featured"
-              >
-                <ChevronRight size={16} />
+                <Play size={18} fill="currentColor" /> Listen Now
               </button>
             </div>
+          </div>
+
+          <div className="absolute right-6 bottom-12 z-30 flex flex-col gap-2">
+            {[...Array(Math.min(heroPodcasts.length, 5))].map((_, i) => (
+              <button
+                key={i}
+                onClick={() => setHeroIndex(i)}
+                className={`w-2 h-2 rounded-full transition-all duration-300 border-none cursor-pointer ${heroIndex === i ? 'bg-red-600 h-6' : 'bg-white/30 hover:bg-white/60'}`}
+              />
+            ))}
           </div>
         </div>
       )}
@@ -1391,6 +1342,26 @@ export const PodcastsPage: React.FC<PodcastsPageProps> = ({ searchQuery = "", on
       ) : (
         /* Full Production Multi-Category Horizontal Rows */
         <div className="space-y-4 mt-6">
+          {/* Horizontal Country Cards Category Row */}
+          <div className="mb-8 animate-in fade-in duration-500 text-left font-sans">
+            <div className="flex items-center justify-between px-4 md:px-12 mb-4">
+              <h3 className="text-base md:text-lg font-bold text-white tracking-tight flex items-center gap-2.5 select-none">
+                <Globe size={18} className="text-red-500" />
+                <span>Explore Podcasts By Region & Country</span>
+              </h3>
+            </div>
+            <div className="flex gap-5 overflow-x-auto px-4 md:px-12 pb-4 hide-scrollbar scroll-smooth">
+              {POPULAR_COUNTRIES.map((c) => (
+                <CountryCard
+                  key={c.code}
+                  country={c}
+                  isSelected={selectedCountry.code === c.code}
+                  onClick={() => setSelectedCountry(c)}
+                />
+              ))}
+            </div>
+          </div>
+
           <PodcastRow title="Top & Trending Podcasts" icon={<Flame size={18} className="text-amber-400" />} shows={popularPodcasts} onSelect={setSelectedShow} activeShowId={currentShow?.id} isPlaying={isPlaying} />
           <PodcastRow title="Tech, AI & Innovation" icon={<Cpu size={18} className="text-purple-400" />} shows={techPodcasts} onSelect={setSelectedShow} activeShowId={currentShow?.id} isPlaying={isPlaying} />
           <PodcastRow title="News, Politics & Global Talk" icon={<Newspaper size={18} className="text-blue-400" />} shows={newsPodcasts} onSelect={setSelectedShow} activeShowId={currentShow?.id} isPlaying={isPlaying} />
@@ -1683,6 +1654,44 @@ const PodcastDetailPage: React.FC<PodcastDetailPageProps> = ({
             })}
           </div>
         )}
+      </div>
+    </div>
+  );
+};
+
+/* --- COUNTRY CARD COMPONENT --- */
+interface CountryCardProps {
+  country: typeof POPULAR_COUNTRIES[0];
+  onClick: () => void;
+  isSelected: boolean;
+}
+
+const CountryCard: React.FC<CountryCardProps> = ({ country, onClick, isSelected }) => {
+  const { ref } = useTvFocus({ onEnterPress: onClick });
+
+  return (
+    <div
+      ref={ref}
+      onClick={onClick}
+      className="group flex flex-col gap-2 shrink-0 w-[150px] sm:w-[180px] md:w-[200px] cursor-pointer select-none text-left"
+    >
+      <div className={`relative w-full aspect-[16/10] rounded-2xl overflow-hidden bg-zinc-900 border transition-all duration-300 flex items-center justify-center ${
+        isSelected ? 'border-red-500 shadow-[0_0_20px_rgba(239,68,68,0.4)] scale-[1.03]' : 'border-white/10 group-hover:border-red-500/60 group-hover:shadow-[0_0_20px_rgba(239,68,68,0.3)] group-hover:scale-[1.03]'
+      }`}>
+        <img
+          src={country.image}
+          alt={country.name}
+          loading="lazy"
+          className="w-full h-full object-cover opacity-50 group-hover:opacity-75 transition-opacity duration-500"
+        />
+        <div className={`absolute inset-0 bg-gradient-to-t ${country.bg} via-black/40 to-black/10`} />
+
+        <div className="absolute inset-x-0 bottom-0 p-2.5 bg-black/60 backdrop-blur-md border-t border-white/5 flex items-center justify-between gap-2">
+          <span className="text-[10px] sm:text-xs font-semibold text-white truncate">{country.name}</span>
+          <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border uppercase ${
+            isSelected ? 'bg-red-600 text-white border-red-500' : 'text-red-400 bg-red-600/20 border-red-500/20'
+          }`}>{country.code}</span>
+        </div>
       </div>
     </div>
   );
