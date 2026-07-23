@@ -651,9 +651,9 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
       return { provider: best.provider, id: matchedId };
     }
 
-    const fallbackId = novelTitle.toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-');
-    setActiveServerInfo({ name: 'Auto (Ranobes)', pingMs: Date.now() - startTime, isAuto: true });
-    return { provider: 'ranobes' as const, id: fallbackId };
+    const fallbackId = (aniListMeta?.alternativeTitles?.romaji || novelTitle).toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-');
+    setActiveServerInfo({ name: 'Auto (LightNovelWorld)', pingMs: Date.now() - startTime, isAuto: true });
+    return { provider: 'lightnovelworld' as const, id: fallbackId };
   };
 
 function cleanNovelTitle(title: string): string {
@@ -972,16 +972,38 @@ const findBestMatchId = (searchData: any[], aniListMeta: any, originalTitle: str
         setActiveServerInfo({ name: NOVEL_SERVERS.find(s => s.id === readingSource)?.name || readingSource, isAuto: false });
       }
 
-      const res = await fetch(`/api/manga?action=info&provider=${activeProvider}&id=${encodeURIComponent(targetId)}`);
-      if (!res.ok) throw new Error(`Failed to fetch chapters from ${activeProvider}`);
-      const providerData = await res.json();
+      let res = await fetch(`/api/manga?action=info&provider=${activeProvider}&id=${encodeURIComponent(targetId)}`);
+      let providerData = res.ok ? await res.json() : null;
+
+      // Automatic Multi-Provider Failover: If activeProvider returned 0 chapters, automatically failover to LightNovelWorld!
+      if (!providerData || !providerData.chapters || providerData.chapters.length === 0) {
+        const fallbackQuery = aniListMeta?.alternativeTitles?.romaji || aniListMeta?.alternativeTitles?.english || novel.title;
+        try {
+          const fallbackSearchRes = await fetch(`/api/manga?action=search&provider=lightnovelworld&query=${encodeURIComponent(fallbackQuery)}`);
+          if (fallbackSearchRes.ok) {
+            const searchItems = await fallbackSearchRes.json();
+            if (Array.isArray(searchItems) && searchItems.length > 0) {
+              const bestId = findBestMatchId(searchItems, aniListMeta, novel.title);
+              const lnwRes = await fetch(`/api/manga?action=info&provider=lightnovelworld&id=${encodeURIComponent(bestId)}`);
+              if (lnwRes.ok) {
+                const lnwData = await lnwRes.json();
+                if (lnwData && lnwData.chapters && lnwData.chapters.length > 0) {
+                  providerData = lnwData;
+                  activeProvider = 'lightnovelworld' as any;
+                  setActiveServerInfo({ name: 'Auto (LightNovelWorld)', isAuto: true });
+                }
+              }
+            }
+          }
+        } catch {}
+      }
 
       setNovelDetails(prev => {
         if (!prev) return null;
         return {
           ...prev,
           ...(aniListMeta || {}),
-          chapters: providerData.chapters || [],
+          chapters: providerData?.chapters || [],
           title: prev.title || novel.title,
           image: prev.image || novel.image,
           description: prev.description || novel.description,
