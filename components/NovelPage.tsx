@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { 
-  Search, BookOpen, ChevronLeft, ChevronRight, RefreshCcw, Loader2, AlertCircle, 
+  Search, BookOpen, ChevronLeft, ChevronRight, RefreshCcw, Loader2, AlertCircle, AlertTriangle,
   Settings, Heart, Bookmark, ArrowLeft, Sun, Moon, Type, AlignLeft, List, Sparkles, 
   Star, TrendingUp, Compass, Play, Info, Users, Link, Award, X, ChevronDown, Check, 
   Maximize, Minimize, Server, Zap, Flame, Shield, Globe, LayoutList, Calendar,
@@ -464,56 +464,68 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
     }
   }, []);
 
+  // NSFW / Adult Content Toggle State (persisted in localStorage)
+  const [includeNsfw, setIncludeNsfw] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('movieverse_include_nsfw') === 'true';
+    }
+    return false;
+  });
+
+  useEffect(() => {
+    localStorage.setItem('movieverse_include_nsfw', includeNsfw.toString());
+  }, [includeNsfw]);
+
   // Fetch AniList Light Novel Feed (Trending, Popular, Top Rated, Genre Rows)
   const fetchAniListFeed = useCallback(async () => {
     setFeedLoading(true);
     try {
       const query = `
-        query ($page: Int, $perPage: Int) {
+        query ($page: Int, $perPage: Int ${!includeNsfw ? ', $isAdult: Boolean' : ''}) {
           trending: Page (page: $page, perPage: $perPage) {
-            media (type: MANGA, format: NOVEL, sort: TRENDING_DESC) {
+            media (type: MANGA, format: NOVEL, ${!includeNsfw ? 'isAdult: $isAdult,' : ''} sort: TRENDING_DESC) {
               id title { romaji english userPreferred }
               coverImage { extraLarge large } bannerImage description genres averageScore status startDate { year }
               staff (perPage: 3) { edges { role node { name { full } } } }
             }
           }
           popular: Page (page: $page, perPage: $perPage) {
-            media (type: MANGA, format: NOVEL, sort: POPULARITY_DESC) {
+            media (type: MANGA, format: NOVEL, ${!includeNsfw ? 'isAdult: $isAdult,' : ''} sort: POPULARITY_DESC) {
               id title { romaji english userPreferred }
               coverImage { extraLarge large } bannerImage description genres averageScore status startDate { year }
               staff (perPage: 3) { edges { role node { name { full } } } }
             }
           }
           topRated: Page (page: $page, perPage: $perPage) {
-            media (type: MANGA, format: NOVEL, sort: SCORE_DESC) {
+            media (type: MANGA, format: NOVEL, ${!includeNsfw ? 'isAdult: $isAdult,' : ''} sort: SCORE_DESC) {
               id title { romaji english userPreferred }
               coverImage { extraLarge large } bannerImage description genres averageScore status startDate { year }
               staff (perPage: 3) { edges { role node { name { full } } } }
             }
           }
           fantasy: Page (page: 1, perPage: 12) {
-            media (type: MANGA, format: NOVEL, genre: "Fantasy", sort: TRENDING_DESC) {
+            media (type: MANGA, format: NOVEL, genre: "Fantasy", ${!includeNsfw ? 'isAdult: $isAdult,' : ''} sort: TRENDING_DESC) {
               id title { romaji english userPreferred }
               coverImage { extraLarge large } bannerImage description genres averageScore status startDate { year }
               staff (perPage: 3) { edges { role node { name { full } } } }
             }
           }
           action: Page (page: 1, perPage: 12) {
-            media (type: MANGA, format: NOVEL, genre: "Action", sort: TRENDING_DESC) {
+            media (type: MANGA, format: NOVEL, genre: "Action", ${!includeNsfw ? 'isAdult: $isAdult,' : ''} sort: TRENDING_DESC) {
               id title { romaji english userPreferred }
               coverImage { extraLarge large } bannerImage description genres averageScore status startDate { year }
               staff (perPage: 3) { edges { role node { name { full } } } }
             }
           }
           romance: Page (page: 1, perPage: 12) {
-            media (type: MANGA, format: NOVEL, genre: "Romance", sort: TRENDING_DESC) {
+            media (type: MANGA, format: NOVEL, genre: "Romance", ${!includeNsfw ? 'isAdult: $isAdult,' : ''} sort: TRENDING_DESC) {
               id title { romaji english userPreferred }
               coverImage { extraLarge large } bannerImage description genres averageScore status startDate { year }
               staff (perPage: 3) { edges { role node { name { full } } } }
             }
           }
           scifi: Page (page: 1, perPage: 12) {
-            media (type: MANGA, format: NOVEL, genre: "Sci-Fi", sort: TRENDING_DESC) {
+            media (type: MANGA, format: NOVEL, genre: "Sci-Fi", ${!includeNsfw ? 'isAdult: $isAdult,' : ''} sort: TRENDING_DESC) {
               id title { romaji english userPreferred }
               coverImage { extraLarge large } bannerImage description genres averageScore status startDate { year }
               staff (perPage: 3) { edges { role node { name { full } } } }
@@ -522,10 +534,15 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
         }
       `;
 
+      const variables: any = { page: 1, perPage: 12 };
+      if (!includeNsfw) {
+        variables.isAdult = false;
+      }
+
       const response = await fetch('https://graphql.anilist.co', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-        body: JSON.stringify({ query, variables: { page: 1, perPage: 12 } })
+        body: JSON.stringify({ query, variables })
       });
 
       if (!response.ok) throw new Error('AniList feed failed');
@@ -575,7 +592,7 @@ export function NovelPage({ searchQuery = '', onSearchClear }: NovelPageProps) {
     } finally {
       setFeedLoading(false);
     }
-  }, []);
+  }, [includeNsfw]);
 
   useEffect(() => {
     fetchAniListFeed();
@@ -1789,8 +1806,24 @@ const findBestMatchId = (searchData: any[], aniListMeta: any, originalTitle: str
                   </h2>
                 </div>
 
-                {/* Server Selector Dropdown */}
-                <div className="relative group shrink-0">
+                <div className="flex items-center gap-3">
+                  {/* NSFW Content Toggle Button */}
+                  <button
+                    onClick={() => setIncludeNsfw(prev => !prev)}
+                    className={`flex items-center gap-2 px-4 py-2 border rounded-full text-xs font-bold transition-all active:scale-95 shadow-lg backdrop-blur-md ${
+                      includeNsfw
+                        ? 'bg-red-600/20 border-red-500/50 text-red-400 shadow-red-600/20'
+                        : 'bg-white/5 border-white/10 text-zinc-400 hover:text-white'
+                    }`}
+                    title="Toggle Explicit/NSFW content"
+                  >
+                    <AlertTriangle size={14} className={includeNsfw ? 'text-red-400 animate-pulse' : 'text-zinc-500'} />
+                    <span>NSFW Content</span>
+                    <span className={`w-2 h-2 rounded-full ${includeNsfw ? 'bg-red-500' : 'bg-zinc-600'}`} />
+                  </button>
+
+                  {/* Server Selector Dropdown */}
+                  <div className="relative group shrink-0">
                   <button
                     onClick={() => setIsServerDropdownOpen(!isServerDropdownOpen)}
                     className="flex items-center gap-2.5 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/15 hover:border-white/25 rounded-full text-xs font-bold text-gray-200 transition-all active:scale-95 min-w-[170px] justify-between shadow-lg backdrop-blur-md"
@@ -1832,6 +1865,7 @@ const findBestMatchId = (searchData: any[], aniListMeta: any, originalTitle: str
                   )}
                 </div>
               </div>
+            </div>
 
               {/* Horizontal Category Rails */}
               {bookmarks.length > 0 && (
