@@ -27,6 +27,8 @@ interface BrandConfig {
     name: string;
     bg: string;
     border: string;
+    invertLogo?: boolean;
+    pattern?: string;
 }
 
 const DISNEY_BRANDS: BrandConfig[] = [
@@ -36,6 +38,7 @@ const DISNEY_BRANDS: BrandConfig[] = [
         name: 'Walt Disney Pictures',
         bg: 'from-[#081a42] via-[#0c265e] to-[#040b1e]',
         border: 'hover:border-blue-400 hover:shadow-[0_0_25px_rgba(59,130,246,0.5)]',
+        invertLogo: true
     },
     {
         id: 'pixar',
@@ -43,6 +46,7 @@ const DISNEY_BRANDS: BrandConfig[] = [
         name: 'Pixar',
         bg: 'from-[#0277bd] via-[#0288d1] to-[#014e82]',
         border: 'hover:border-sky-300 hover:shadow-[0_0_25px_rgba(56,189,248,0.5)]',
+        invertLogo: true
     },
     {
         id: 'marvel',
@@ -50,6 +54,7 @@ const DISNEY_BRANDS: BrandConfig[] = [
         name: 'Marvel Studios',
         bg: 'from-[#880d0d] via-[#5c0606] to-[#1a0202]',
         border: 'hover:border-red-500 hover:shadow-[0_0_25px_rgba(239,68,68,0.6)]',
+        invertLogo: false
     },
     {
         id: 'starwars',
@@ -57,6 +62,8 @@ const DISNEY_BRANDS: BrandConfig[] = [
         name: 'Lucasfilm',
         bg: 'from-[#141622] via-[#0c0e18] to-[#040509]',
         border: 'hover:border-yellow-400 hover:shadow-[0_0_25px_rgba(250,204,21,0.5)]',
+        pattern: 'stars',
+        invertLogo: true
     },
     {
         id: 'natgeo',
@@ -64,6 +71,7 @@ const DISNEY_BRANDS: BrandConfig[] = [
         name: 'National Geographic',
         bg: 'from-[#002747] via-[#001c34] to-[#000e1b]',
         border: 'hover:border-amber-400 hover:shadow-[0_0_25px_rgba(245,158,11,0.5)]',
+        invertLogo: true
     },
     {
         id: '20th',
@@ -71,6 +79,7 @@ const DISNEY_BRANDS: BrandConfig[] = [
         name: '20th Century Studios',
         bg: 'from-[#422904] via-[#291902] to-[#0e0901]',
         border: 'hover:border-amber-300 hover:shadow-[0_0_25px_rgba(245,158,11,0.5)]',
+        invertLogo: true
     }
 ];
 
@@ -135,24 +144,29 @@ const ProviderBrandCards: React.FC<{ providerId: number; apiKey?: string; onStud
                         <div
                             key={brand.id}
                             onClick={() => onStudioClick && onStudioClick(brand.companyId, studioName)}
-                            className={`group relative aspect-[16/9] rounded-xl md:rounded-2xl overflow-hidden cursor-pointer border border-white/20 bg-gradient-to-br ${brand.bg} shadow-lg hover:shadow-2xl hover:scale-105 transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] flex items-center justify-center p-3 ${brand.border}`}
+                            className={`group relative aspect-[16/9] rounded-xl md:rounded-2xl overflow-hidden cursor-pointer border border-white/20 bg-gradient-to-br ${brand.bg} shadow-lg hover:shadow-2xl hover:scale-105 transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] flex items-center justify-center p-4 ${brand.border}`}
                         >
+                            {/* Starfield overlay for Star Wars */}
+                            {brand.pattern === 'stars' && (
+                                <div className="absolute inset-0 bg-[radial-gradient(#fff_1.2px,transparent_1.2px)] [background-size:10px_10px] opacity-40 group-hover:opacity-70 transition-opacity pointer-events-none" />
+                            )}
+                            
                             {/* Metallic sheen */}
                             <div className="absolute inset-0 bg-gradient-to-tr from-white/0 via-white/5 to-white/20 opacity-40 group-hover:opacity-90 transition-opacity duration-500 pointer-events-none" />
                             
                             {/* Inset Border Highlight */}
                             <div className="absolute inset-0 ring-1 ring-inset ring-white/15 rounded-xl md:rounded-2xl pointer-events-none group-hover:ring-white/40 transition-all" />
 
-                            {/* White logo card container so TMDB dark company logo PNGs stand out crystal clear */}
-                            <div className="relative z-10 w-full h-full rounded-lg sm:rounded-xl bg-white/95 backdrop-blur-md p-2 flex items-center justify-center shadow-md group-hover:scale-105 transition-transform duration-300">
+                            {/* Transparent Logo directly over the colorful gradient card backdrop */}
+                            <div className="relative z-10 w-full h-full flex items-center justify-center transform group-hover:scale-110 transition-transform duration-300">
                                 {logoUrl ? (
                                     <img 
                                         src={logoUrl}
                                         alt={studioName}
-                                        className="max-h-full max-w-full object-contain filter drop-shadow-sm"
+                                        className={`max-h-[65%] max-w-[80%] object-contain filter drop-shadow-[0_4px_12px_rgba(0,0,0,0.8)] ${brand.invertLogo ? 'brightness-0 invert' : ''}`}
                                     />
                                 ) : (
-                                    <span className="text-xs font-extrabold text-zinc-900 uppercase tracking-wider text-center line-clamp-1 font-sans">
+                                    <span className="text-xs font-extrabold text-white uppercase tracking-wider text-center line-clamp-1 font-sans drop-shadow-md">
                                         {studioName}
                                     </span>
                                 )}
