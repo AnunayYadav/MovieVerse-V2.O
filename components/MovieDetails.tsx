@@ -3982,7 +3982,12 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                 <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1.5"><Building2 size={12}/> Production</p>
                                                 <div className="grid grid-cols-1 gap-2 max-h-40 overflow-y-auto pr-1 custom-scrollbar">
                                                     {displayData.production_companies.map((company) => (
-                                                        <div key={company.id} className="flex items-center gap-3 p-1.5 rounded-lg hover:bg-white/5 transition-colors group/prod">
+                                                        <div 
+                                                            key={company.id} 
+                                                            onClick={() => onStudioClick(company.id, company.name)}
+                                                            className="flex items-center gap-3 p-1.5 rounded-lg hover:bg-white/5 transition-colors group/prod cursor-pointer"
+                                                            title={`View ${company.name} Studios`}
+                                                        >
                                                             <div className="w-8 h-8 bg-white/90 rounded-md p-1 flex items-center justify-center shrink-0 shadow-sm group-hover/prod:bg-white transition-colors">
                                                                 {company.logo_path ? (
                                                                     <img src={`${TMDB_IMAGE_BASE}${company.logo_path}`} alt={company.name} className="max-w-full max-h-full object-contain"/>
@@ -3991,7 +3996,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                                 )}
                                                             </div>
                                                             <div className="min-w-0">
-                                                                <p className="text-xs font-bold text-white truncate leading-none mb-1">{company.name}</p>
+                                                                <p className="text-xs font-bold text-white group-hover/prod:text-red-500 transition-colors truncate leading-none mb-1">{company.name}</p>
                                                                 <p className="text-[9px] text-gray-500 uppercase font-medium">{company.origin_country || 'Global'}</p>
                                                             </div>
                                                         </div>

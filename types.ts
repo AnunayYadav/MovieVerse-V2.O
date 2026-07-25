@@ -84,6 +84,19 @@ export interface ProductionCompany {
     origin_country: string;
 }
 
+export interface ProductionCompanyDetails {
+    id: number;
+    name: string;
+    description?: string;
+    headquarters?: string;
+    homepage?: string;
+    logo_path?: string | null;
+    origin_country?: string;
+    parent_company?: { id: number; name: string; logo_path?: string | null } | null;
+    favourites?: number;
+    isAnimationStudio?: boolean;
+}
+
 export interface SpokenLanguage {
     english_name: string;
     iso_639_1: string;

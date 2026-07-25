@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { UserCircle, X, ListPlus, Plus, Check, Loader2, Film, AlertCircle, BrainCircuit, Search, Star, RefreshCcw, Bell, CheckCheck, Inbox, Heart, PaintBucket, Upload, Facebook, Instagram, Twitter, Globe, Scale, DollarSign, Clock, Trophy, ChevronRight, ChevronDown, Calendar, ArrowUp, ArrowDown, TrendingUp, History, ArrowLeft, MoreHorizontal, Dice5, Shield, ExternalLink } from 'lucide-react';
-import { UserProfile, Movie, GENRES_LIST, PersonDetails, AppNotification, MovieDetails } from '../types';
+import { UserCircle, X, ListPlus, Plus, Check, Loader2, Film, AlertCircle, BrainCircuit, Search, Star, RefreshCcw, Bell, CheckCheck, Inbox, Heart, PaintBucket, Upload, Facebook, Instagram, Twitter, Globe, Scale, DollarSign, Clock, Trophy, ChevronRight, ChevronDown, Calendar, ArrowUp, ArrowDown, TrendingUp, History, ArrowLeft, MoreHorizontal, Dice5, Shield, ExternalLink, Building2 } from 'lucide-react';
+import { UserProfile, Movie, GENRES_LIST, PersonDetails, AppNotification, MovieDetails, ProductionCompanyDetails } from '../types';
 import { TMDB_BASE_URL, TMDB_IMAGE_BASE, TMDB_BACKDROP_BASE, formatCurrency, MovieSkeleton, ImageLightbox, tvFetch } from './Shared';
 import { generateSmartRecommendations } from '../services/gemini';
 import { getNotifications, markNotificationsRead } from '../services/supabase';
@@ -1899,25 +1899,33 @@ export const CharacterPage: React.FC<CharacterPageProps> = ({
 };
 
 interface StudioPageProps {
-    studioId: number | null;
-    studioName: string | null;
+    studioId?: number | null;
+    studioName?: string | null;
     onClose: () => void;
     apiKey: string;
     onMovieClick: (m: Movie) => void;
 }
 
-export const StudioPage: React.FC<StudioPageProps> = ({
-    studioId,
-    studioName,
-    onClose,
-    apiKey,
-    onMovieClick
-}) => {
+export const StudioPage: React.FC<StudioPageProps> = ({ studioId, studioName, onClose, apiKey, onMovieClick }) => {
     const [details, setDetails] = useState<any | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [isClosing, setIsClosing] = useState(false);
-    const [matchingAnimeId, setMatchingAnimeId] = useState<number | null>(null);
+    const [isTimelineDescending, setIsTimelineDescending] = useState(false);
+    const [mergedCredits, setMergedCredits] = useState<any[]>([]);
+
+    const [popularLimit, setPopularLimit] = useState(15);
+    const [loadingPopular, setLoadingPopular] = useState(false);
+    const [timelineLimit, setTimelineLimit] = useState(15);
+    const [loadingTimeline, setLoadingTimeline] = useState(false);
+    const [topRatedLimit, setTopRatedLimit] = useState(15);
+    const [loadingTopRated, setLoadingTopRated] = useState(false);
+    const [moviesLimit, setMoviesLimit] = useState(15);
+    const [loadingMovies, setLoadingMovies] = useState(false);
+    const [tvLimit, setTvLimit] = useState(15);
+    const [loadingTv, setLoadingTv] = useState(false);
+    const [upcomingLimit, setUpcomingLimit] = useState(15);
+    const [loadingUpcoming, setLoadingUpcoming] = useState(false);
 
     const handleClose = () => {
         setIsClosing(true);
@@ -1925,235 +1933,174 @@ export const StudioPage: React.FC<StudioPageProps> = ({
     };
 
     useEffect(() => {
-        if (details?.name) {
-            document.title = `${details.name} - Studio Profile - MovieVerse AI`;
+        if (studioId || studioName) {
+            setIsClosing(false);
+            setPopularLimit(15);
+            setTimelineLimit(15);
+            setTopRatedLimit(15);
+            setMoviesLimit(15);
+            setTvLimit(15);
+            setUpcomingLimit(15);
+            setIsTimelineDescending(false);
+            setError(null);
         }
-    }, [details]);
-
-    useEffect(() => {
-        if (!studioId && !studioName) return;
-        setLoading(true);
-        setError(null);
-        setIsClosing(false);
-
-        const query = `
-            query ($id: Int, $search: String) {
-                Studio(id: $id, search: $search) {
-                    id
-                    name
-                    isAnimationStudio
-                    favourites
-                    media(sort: POPULARITY_DESC, page: 1, perPage: 24) {
-                        nodes {
-                            id
-                            title {
-                                english
-                                romaji
-                                userPreferred
-                            }
-                            coverImage {
-                                large
-                            }
-                            format
-                            startDate {
-                                year
-                            }
-                            bannerImage
-                        }
-                    }
-                }
-            }
-        `;
-
-        fetch('https://graphql.anilist.co', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-            body: JSON.stringify({ query, variables: { id: studioId, search: studioName } })
-        })
-        .then(res => {
-            if (!res.ok) throw new Error("Failed to fetch studio details");
-            return res.json();
-        })
-        .then(json => {
-            const studio = json?.data?.Studio;
-            if (studio) {
-                setDetails(studio);
-            } else {
-                throw new Error("Studio not found");
-            }
-            setLoading(false);
-        })
-        .catch(err => {
-            console.error("Error fetching studio details:", err);
-            setError(err.message || "Failed to load studio details");
-            setLoading(false);
-        });
     }, [studioId, studioName]);
 
-    const handleAnimeClick = async (mediaNode: any) => {
-        if (!mediaNode || !apiKey) return;
-        const mediaId = mediaNode.id;
-        const title = mediaNode.title?.english || mediaNode.title?.userPreferred || mediaNode.title?.romaji;
-        if (!title) return;
+    const handleLoadMorePopular = useCallback(() => {
+        if (loadingPopular) return;
+        setLoadingPopular(true);
+        setTimeout(() => { setPopularLimit(prev => prev + 15); setLoadingPopular(false); }, 500);
+    }, [loadingPopular]);
 
-        const matchCacheKey = `movieverse_anilist_tmdb_match_${mediaId}`;
-        const cachedMatch = localStorage.getItem(matchCacheKey);
-        if (cachedMatch) {
+    const handleLoadMoreTimeline = useCallback(() => {
+        if (loadingTimeline) return;
+        setLoadingTimeline(true);
+        setTimeout(() => { setTimelineLimit(prev => prev + 15); setLoadingTimeline(false); }, 550);
+    }, [loadingTimeline]);
+
+    const handleLoadMoreTopRated = useCallback(() => {
+        if (loadingTopRated) return;
+        setLoadingTopRated(true);
+        setTimeout(() => { setTopRatedLimit(prev => prev + 15); setLoadingTopRated(false); }, 500);
+    }, [loadingTopRated]);
+
+    const handleLoadMoreMovies = useCallback(() => {
+        if (loadingMovies) return;
+        setLoadingMovies(true);
+        setTimeout(() => { setMoviesLimit(prev => prev + 15); setLoadingMovies(false); }, 500);
+    }, [loadingMovies]);
+
+    const handleLoadMoreTv = useCallback(() => {
+        if (loadingTv) return;
+        setLoadingTv(true);
+        setTimeout(() => { setTvLimit(prev => prev + 15); setLoadingTv(false); }, 500);
+    }, [loadingTv]);
+
+    const handleLoadMoreUpcoming = useCallback(() => {
+        if (loadingUpcoming) return;
+        setLoadingUpcoming(true);
+        setTimeout(() => { setUpcomingLimit(prev => prev + 15); setLoadingUpcoming(false); }, 500);
+    }, [loadingUpcoming]);
+
+    useEffect(() => {
+        if (!apiKey || (!studioId && !studioName)) return;
+        setLoading(true);
+        setError(null);
+
+        const fetchStudioAndWorks = async () => {
             try {
-                const parsed = JSON.parse(cachedMatch);
-                if (parsed && parsed.id && parsed.mediaType) {
-                    handleClose();
-                    onMovieClick({
-                        id: parsed.id,
-                        media_type: parsed.mediaType,
-                        title: title,
-                        name: title,
-                        backdrop_path: parsed.backdropPath,
-                        initial_season: parsed.initial_season
-                    } as any);
-                    return;
-                }
-            } catch (_) {}
-        }
+                let resolvedCompanyId: number | null = studioId && studioId > 0 ? studioId : null;
 
-        setMatchingAnimeId(mediaId);
-        const cleanTitle = title.replace(/\s*\(?(Dub|Sub|TV|Movie|uncensored|censored|season\s*\d+|part\s*\d+)\)?\s*$/i, '').trim();
-
-        // 1. Try TV search
-        try {
-            const res = await fetch(`${TMDB_BASE_URL}/search/tv?api_key=${apiKey}&query=${encodeURIComponent(cleanTitle)}`);
-            const data = await res.json();
-            let match = data.results?.find((item: any) => 
-                item.genre_ids?.includes(16) && item.original_language === 'ja'
-            ) || data.results?.find((item: any) => 
-                item.genre_ids?.includes(16)
-            ) || data.results?.[0];
-
-            if (match) {
-                let resolvedSeason = 1;
-                try {
-                    const detailRes = await fetch(`${TMDB_BASE_URL}/tv/${match.id}?api_key=${apiKey}`);
-                    const detailData = await detailRes.json();
-                    if (detailData && detailData.seasons) {
-                        const mockAnime = {
-                            title: mediaNode.title,
-                            seasonYear: mediaNode.startDate?.year,
-                            episodes: null
-                        };
-                        
-                        const tmdbSeasons = detailData.seasons;
-                        const activeSeasons = tmdbSeasons.filter((s: any) => s.season_number > 0);
-                        if (activeSeasons.length > 1) {
-                            const titles = [
-                                mockAnime.title.english,
-                                mockAnime.title.romaji,
-                                mockAnime.title.userPreferred
-                            ].filter((t): t is string => typeof t === 'string' && t.length > 0);
-
-                            let parsedSeasonFromTitle: number | null = null;
-                            for (const tVal of titles) {
-                                const t = tVal.toLowerCase();
-                                const match1 = t.match(/\b(?:season|part)\s*(\d+)\b/i);
-                                if (match1 && match1[1]) {
-                                    parsedSeasonFromTitle = parseInt(match1[1], 10);
-                                    break;
-                                }
-                                const match2 = t.match(/\b(\d+)(?:st|nd|rd|th)\s*(?:season|part)\b/i);
-                                if (match2 && match2[1]) {
-                                    parsedSeasonFromTitle = parseInt(match2[1], 10);
-                                    break;
-                                }
-                                if (/\bseason\s+ii\b/i.test(t) || /\bii\b/i.test(t)) {
-                                    parsedSeasonFromTitle = 2;
-                                    break;
-                                }
-                                if (/\bseason\s+iii\b/i.test(t) || /\biii\b/i.test(t)) {
-                                    parsedSeasonFromTitle = 3;
-                                    break;
-                                }
-                            }
-
-                            if (parsedSeasonFromTitle !== null) {
-                                const sMatch = activeSeasons.find((s: any) => s.season_number === parsedSeasonFromTitle);
-                                if (sMatch) resolvedSeason = sMatch.season_number;
-                            } else if (mockAnime.seasonYear) {
-                                const matchedByYear = activeSeasons.filter((s: any) => {
-                                    if (!s.air_date) return false;
-                                    const tmdbYear = new Date(s.air_date).getFullYear();
-                                    return tmdbYear === mockAnime.seasonYear;
-                                });
-                                if (matchedByYear.length > 0) {
-                                    resolvedSeason = matchedByYear[0].season_number;
-                                }
-                            }
-                        } else if (activeSeasons.length === 1) {
-                            resolvedSeason = activeSeasons[0].season_number;
-                        }
+                if (!resolvedCompanyId && studioName) {
+                    const searchRes = await fetch(`${TMDB_BASE_URL}/search/company?api_key=${apiKey}&query=${encodeURIComponent(studioName)}`);
+                    if (searchRes.ok) {
+                        const searchData = await searchRes.json();
+                        if (searchData.results && searchData.results.length > 0) resolvedCompanyId = searchData.results[0].id;
                     }
-                } catch (e) {
-                    console.error("TV details fetch failed for studio media season matching:", e);
                 }
 
-                const backdropPath = mediaNode.bannerImage || match.backdrop_path;
+                let companyDetails: any = null;
+                let companyMovies: any[] = [];
 
-                localStorage.setItem(matchCacheKey, JSON.stringify({
-                    id: match.id,
-                    mediaType: 'tv',
-                    backdropPath,
-                    initial_season: resolvedSeason
-                }));
+                if (resolvedCompanyId) {
+                    const detRes = await fetch(`${TMDB_BASE_URL}/company/${resolvedCompanyId}?api_key=${apiKey}`);
+                    if (detRes.ok) companyDetails = await detRes.json();
 
-                onMovieClick({
-                    id: match.id,
-                    media_type: 'tv',
-                    title: title,
-                    name: title,
-                    backdrop_path: backdropPath,
-                    initial_season: resolvedSeason
-                } as any);
-                setMatchingAnimeId(null);
-                handleClose();
-                return;
+                    const pagesToFetch = [1, 2, 3];
+                    const moviePromises = pagesToFetch.map(p =>
+                        fetch(`${TMDB_BASE_URL}/discover/movie?api_key=${apiKey}&with_companies=${resolvedCompanyId}&sort_by=popularity.desc&page=${p}`)
+                            .then(r => r.ok ? r.json() : { results: [] })
+                            .then(d => (d.results || []).map((m: any) => ({ ...m, media_type: 'movie' })))
+                            .catch(() => [])
+                    );
+
+                    const tvPromises = [1, 2].map(p =>
+                        fetch(`${TMDB_BASE_URL}/discover/tv?api_key=${apiKey}&with_companies=${resolvedCompanyId}&sort_by=popularity.desc&page=${p}`)
+                            .then(r => r.ok ? r.json() : { results: [] })
+                            .then(d => (d.results || []).map((m: any) => ({ ...m, media_type: 'tv' })))
+                            .catch(() => [])
+                    );
+
+                    const results = await Promise.all([...moviePromises, ...tvPromises]);
+                    const combined = results.flat();
+                    const seen = new Set<number>();
+                    combined.forEach(m => {
+                        if (m.id && !seen.has(m.id)) {
+                            seen.add(m.id);
+                            companyMovies.push(m);
+                        }
+                    });
+                }
+
+                if ((!companyDetails || companyMovies.length === 0) && studioName) {
+                    const query = `query ($search: String) { Studio(search: $search) { id name favourites isAnimationStudio media(sort: POPULARITY_DESC, perPage: 40) { nodes { id title { english romaji userPreferred } coverImage { large extraLarge } bannerImage format startDate { year month day } popularity averageScore } } } }`;
+                    try {
+                        const aniRes = await fetch('https://graphql.anilist.co', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query, variables: { search: studioName } }) });
+                        const aniJson = await aniRes.json();
+                        const aniStudio = aniJson?.data?.Studio;
+                        if (aniStudio) {
+                            if (!companyDetails) companyDetails = { id: aniStudio.id, name: aniStudio.name, favourites: aniStudio.favourites, isAnimationStudio: aniStudio.isAnimationStudio };
+                            if (companyMovies.length === 0 && aniStudio.media?.nodes) {
+                                companyMovies = aniStudio.media.nodes.map((node: any) => ({
+                                    id: node.id,
+                                    title: node.title?.english || node.title?.userPreferred || node.title?.romaji,
+                                    name: node.title?.english || node.title?.userPreferred || node.title?.romaji,
+                                    poster_path: node.coverImage?.large || node.coverImage?.extraLarge,
+                                    backdrop_path: node.bannerImage || node.coverImage?.extraLarge,
+                                    release_date: node.startDate?.year ? `${node.startDate.year}-${String(node.startDate.month || 1).padStart(2, '0')}-${String(node.startDate.day || 1).padStart(2, '0')}` : '',
+                                    first_air_date: node.startDate?.year ? `${node.startDate.year}-${String(node.startDate.month || 1).padStart(2, '0')}-${String(node.startDate.day || 1).padStart(2, '0')}` : '',
+                                    vote_average: node.averageScore ? node.averageScore / 10 : 0,
+                                    vote_count: node.popularity || 0,
+                                    popularity: node.popularity || 0,
+                                    media_type: node.format === 'MOVIE' ? 'movie' : 'tv',
+                                    isAnimeDirect: true
+                                }));
+                            }
+                        }
+                    } catch (_) {}
+                }
+
+                if (!companyDetails && !studioName) throw new Error("Studio details not found.");
+                setDetails(companyDetails || { id: resolvedCompanyId || 0, name: studioName || "Production Studio" });
+                setMergedCredits(companyMovies);
+                setLoading(false);
+            } catch (err: any) {
+                console.error("Studio fetch error:", err);
+                setError(err.message || "Failed to load studio details.");
+                setLoading(false);
             }
-        } catch (e) {
-            console.error("TV search failed for studio media:", e);
-        }
+        };
+        fetchStudioAndWorks();
+    }, [studioId, studioName, apiKey]);
 
-        // 2. Try Movie search
-        try {
-            const res = await fetch(`${TMDB_BASE_URL}/search/movie?api_key=${apiKey}&query=${encodeURIComponent(cleanTitle)}`);
-            const data = await res.json();
-            let match = data.results?.find((item: any) => 
-                item.genre_ids?.includes(16) && item.original_language === 'ja'
-            ) || data.results?.find((item: any) => 
-                item.genre_ids?.includes(16)
-            ) || data.results?.[0];
+    useEffect(() => {
+        if (details?.name) document.title = `${details.name} - MovieVerse AI`;
+    }, [details]);
 
-            if (match) {
-                const backdropPath = mediaNode.bannerImage || match.backdrop_path;
+    const categories = useMemo(() => {
+        const sortedByPop = [...mergedCredits].sort((a, b) => (b.popularity || 0) - (a.popularity || 0));
+        const todayStr = new Date().toISOString().split('T')[0];
+        const upcoming = mergedCredits.filter(m => {
+            const dateStr = m.release_date || m.first_air_date;
+            return dateStr ? dateStr > todayStr : false;
+        }).sort((a, b) => (a.release_date || a.first_air_date || '9999').localeCompare(b.release_date || b.first_air_date || '9999'));
+        const timeline = [...mergedCredits].filter(m => m.release_date || m.first_air_date).sort((a, b) => {
+            const dA = a.release_date || a.first_air_date || '0000';
+            const dB = b.release_date || b.first_air_date || '0000';
+            return isTimelineDescending ? dB.localeCompare(dA) : dA.localeCompare(dB);
+        });
+        const topRated = [...mergedCredits].filter(m => (m.vote_average || 0) > 0).sort((a, b) => (b.vote_average || 0) - (a.vote_average || 0));
+        return { popular: sortedByPop, upcoming, timeline, topRated, featureMovies: sortedByPop.filter(m => m.media_type !== 'tv'), tvShows: sortedByPop.filter(m => m.media_type === 'tv') };
+    }, [mergedCredits, isTimelineDescending]);
 
-                localStorage.setItem(matchCacheKey, JSON.stringify({
-                    id: match.id,
-                    mediaType: 'movie',
-                    backdropPath
-                }));
+    const heroBackdrop = useMemo(() => {
+        if (!mergedCredits || mergedCredits.length === 0) return null;
+        return mergedCredits.filter(m => m.backdrop_path).sort((a, b) => (b.popularity || 0) - (a.popularity || 0))[0]?.backdrop_path || null;
+    }, [mergedCredits]);
 
-                onMovieClick({
-                    id: match.id,
-                    media_type: 'movie',
-                    title: title,
-                    name: title,
-                    backdrop_path: backdropPath
-                } as any);
-                setMatchingAnimeId(null);
-                handleClose();
-                return;
-            }
-        } catch (e) {
-            console.error("Movie search failed for studio media:", e);
-        }
-
-        setMatchingAnimeId(null);
+    const SocialLink = ({ url, icon: Icon, color }: { url?: string, icon: any, color: string }) => {
+        if (!url) return null;
+        return <a href={url} target="_blank" rel="noopener noreferrer" className={`p-2.5 rounded-full bg-black/40 hover:bg-white/10 transition-all hover:scale-105 active:scale-95 text-white border border-white/10 flex items-center justify-center shadow-md ${color}`}><Icon size={16}/></a>;
     };
 
     if (!studioId && !studioName) return null;
@@ -2163,7 +2110,7 @@ export const StudioPage: React.FC<StudioPageProps> = ({
             {loading ? (
                 <div className="h-screen flex items-center justify-center flex-col gap-4">
                     <div className="w-20 h-20 rounded-full border-4 border-white/5 border-t-red-600 animate-spin"></div>
-                    <p className="text-gray-500 text-sm animate-pulse uppercase tracking-wider font-bold">Loading Studio Profile...</p>
+                    <p className="text-gray-500 text-sm animate-pulse uppercase tracking-wider font-bold">Loading Studio Details...</p>
                 </div>
             ) : error ? (
                 <div className="h-screen flex flex-col items-center justify-center text-center p-6 text-zinc-400 gap-2">
@@ -2174,80 +2121,41 @@ export const StudioPage: React.FC<StudioPageProps> = ({
                 </div>
             ) : details ? (
                 <div className="w-full flex flex-col pb-20">
-                    {/* Top Header */}
-                    <div className="max-w-7xl mx-auto px-6 md:px-12 py-6 border-b border-white/5 flex items-center justify-between w-full">
-                        <button onClick={handleClose} className="flex items-center gap-2 text-zinc-400 hover:text-white transition-all text-xs font-bold uppercase tracking-wider active:scale-95 bg-white/5 hover:bg-white/10 px-4 py-2 rounded-lg border border-white/5"><ArrowLeft size={14}/> Back</button>
-                        <span className="text-zinc-500 text-xs font-black uppercase tracking-wider">Studio Profile</span>
-                    </div>
-
-                    <div className="max-w-7xl mx-auto px-6 md:px-12 py-10 flex flex-col w-full text-left font-sans">
-                        {/* Header Details */}
-                        <div className="mb-10 bg-[#121214]/60 border border-white/5 rounded-2xl p-8 flex flex-col md:flex-row md:items-center justify-between gap-6 shadow-lg">
-                            <div>
-                                <h1 className="text-3xl font-extrabold text-white tracking-tight">{details.name}</h1>
-                                <div className="flex items-center gap-3 mt-3">
-                                    {details.isAnimationStudio && (
-                                        <span className="px-3 py-1 bg-red-600/10 border border-red-500/20 text-red-400 text-[10px] font-extrabold uppercase rounded-full tracking-wider">
-                                            Animation Studio
-                                        </span>
-                                    )}
-                                </div>
+                    <div className="relative w-full h-[35vh] sm:h-[45vh] md:h-[50vh] overflow-hidden bg-[#0c0c0e]">
+                        {heroBackdrop ? <img src={heroBackdrop.startsWith('http') ? heroBackdrop : `${TMDB_BACKDROP_BASE}${heroBackdrop}`} className="w-full h-full object-cover opacity-35 filter blur-[2px]" alt="" /> : <div className="w-full h-full bg-gradient-to-br from-red-950/20 to-zinc-950" />}
+                        <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0a] via-black/40 to-transparent" />
+                        <button onClick={handleClose} className="absolute top-6 left-6 z-[120] bg-black/40 hover:bg-white/10 backdrop-blur-md px-4 py-2 rounded-full text-white/80 hover:text-white flex items-center gap-2 border border-white/5 text-sm font-bold active:scale-95 transition-all shadow-xl"><ArrowLeft size={18}/> Back</button>
+                        <div className="absolute bottom-6 left-6 md:left-12 flex flex-col md:flex-row items-center md:items-end gap-6 z-10 w-[calc(100%-3rem)] md:w-[calc(100%-6rem)]">
+                            <div className="w-28 h-28 md:w-36 md:h-36 rounded-2xl overflow-hidden border-4 border-white/10 shadow-2xl bg-white p-2.5 shrink-0 flex items-center justify-center">
+                                {details.logo_path ? <img src={`${TMDB_IMAGE_BASE}${details.logo_path}`} alt={details.name} className="max-w-full max-h-full object-contain" /> : <Building2 size={48} className="text-zinc-800" />}
                             </div>
-                            {details.favourites !== undefined && (
-                                <div className="flex items-center gap-3 shrink-0">
-                                    <div className="px-4 py-2 bg-white/[0.02] border border-white/5 rounded-xl text-center">
-                                        <span className="text-zinc-500 text-[9px] uppercase tracking-widest block font-bold">AniList Favorites</span>
-                                        <span className="text-white text-lg font-black">{details.favourites.toLocaleString()}</span>
+                            <div className="text-center md:text-left flex-1 min-w-0">
+                                <p className="text-red-500 text-xs font-black tracking-[0.25em] uppercase mb-1.5">{details.origin_country ? `Studio (${details.origin_country})` : "Production Studio"}</p>
+                                <h2 className="text-2xl md:text-4xl lg:text-5xl font-black text-white leading-tight drop-shadow-md mb-3">{details.name}</h2>
+                                <div className="flex justify-center md:justify-start gap-3">{details.homepage && <SocialLink url={details.homepage} icon={Globe} color="hover:text-emerald-400 hover:border-emerald-400/30"/>}</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="max-w-7xl mx-auto px-6 md:px-12 py-10 w-full">
+                        <div className="flex flex-col lg:flex-row gap-10">
+                            <div className="w-full lg:w-80 shrink-0 space-y-6">
+                                <div className="bg-[#121214]/60 border border-white/5 p-6 rounded-2xl shadow-xl backdrop-blur-md text-left">
+                                    <h3 className="text-xs font-black text-white uppercase tracking-[0.2em] mb-4 border-b border-white/5 pb-2">Studio Info</h3>
+                                    <div className="space-y-4">
+                                        {details.headquarters && <div><span className="text-white/40 block text-[9px] uppercase font-bold tracking-wider mb-1">Headquarters</span><span className="text-zinc-200 font-semibold text-sm leading-relaxed">{details.headquarters}</span></div>}
+                                        {details.origin_country && <div><span className="text-white/40 block text-[9px] uppercase font-bold tracking-wider mb-1">Country of Origin</span><span className="text-zinc-200 font-semibold text-sm">{details.origin_country}</span></div>}
+                                        <div><span className="text-white/40 block text-[9px] uppercase font-bold tracking-wider mb-1">Total Produced Works</span><span className="text-zinc-200 font-semibold text-sm">{mergedCredits.length} Titles</span></div>
                                     </div>
                                 </div>
-                            )}
-                        </div>
-
-                        {/* Works Grid */}
-                        <div className="space-y-6">
-                            <h3 className="text-lg font-bold uppercase tracking-widest text-zinc-400 border-b border-white/5 pb-3 flex items-center gap-2">
-                                <Film size={18} className="text-red-500" />
-                                <span>Produced Works ({details.media?.nodes?.length || 0})</span>
-                            </h3>
-                            {details.media?.nodes?.length > 0 ? (
-                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-6">
-                                    {details.media.nodes.map((node: any) => {
-                                        const mediaTitle = node.title?.userPreferred || node.title?.english || node.title?.romaji;
-                                        const isMatching = matchingAnimeId === node.id;
-                                        return (
-                                            <div 
-                                                key={node.id} 
-                                                onClick={() => {
-                                                    if (!isMatching) handleAnimeClick(node);
-                                                }}
-                                                className="group relative aspect-[2/3] rounded-xl overflow-hidden cursor-pointer bg-zinc-900 border border-white/5 hover:border-red-500/50 hover:scale-[1.02] transition-all duration-300 shadow-lg"
-                                            >
-                                                <img src={node.coverImage?.large} alt={mediaTitle} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" loading="lazy" />
-                                                {isMatching && (
-                                                    <div className="absolute inset-0 bg-black/60 flex items-center justify-center backdrop-blur-sm z-30">
-                                                        <Loader2 className="animate-spin text-red-600" size={20} />
-                                                    </div>
-                                                )}
-                                                <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/45 to-transparent pointer-events-none" />
-                                                <div className="absolute inset-0 p-3 flex flex-col justify-end text-left pointer-events-none">
-                                                    <h5 className="text-[11px] font-bold text-white line-clamp-2 leading-tight group-hover:text-red-500 transition-colors mb-1">{mediaTitle}</h5>
-                                                    <div className="flex items-center gap-1.5 opacity-60 text-[9px] font-bold text-zinc-300">
-                                                        <span>{node.format}</span>
-                                                        {node.startDate?.year && (
-                                                            <>
-                                                                <span>•</span>
-                                                                <span>{node.startDate.year}</span>
-                                                            </>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            ) : (
-                                <p className="text-zinc-500 text-xs italic">No works found for this studio.</p>
-                            )}
+                            </div>
+                            <div className="flex-1 min-w-0 space-y-4">
+                                <HorizontalScrollRow title="Popular Hits & Blockbusters" movies={categories.popular} limit={popularLimit} loadingMore={loadingPopular} onLoadMore={handleLoadMorePopular} onMovieClick={onMovieClick} />
+                                <TimelineScrollRow title="Production Timeline" movies={categories.timeline} limit={timelineLimit} loadingMore={loadingTimeline} isDescending={isTimelineDescending} onToggle={() => setIsTimelineDescending(prev => !prev)} onLoadMore={handleLoadMoreTimeline} onMovieClick={onMovieClick} />
+                                <HorizontalScrollRow title="Top Rated Productions" movies={categories.topRated} limit={topRatedLimit} loadingMore={loadingTopRated} onLoadMore={handleLoadMoreTopRated} onMovieClick={onMovieClick} />
+                                <HorizontalScrollRow title="Feature Films" movies={categories.featureMovies} limit={moviesLimit} loadingMore={loadingMovies} onLoadMore={handleLoadMoreMovies} onMovieClick={onMovieClick} />
+                                <HorizontalScrollRow title="TV & Web Series" movies={categories.tvShows} limit={tvLimit} loadingMore={loadingTv} onLoadMore={handleLoadMoreTv} onMovieClick={onMovieClick} />
+                                <HorizontalScrollRow title="Upcoming & Recent Releases" movies={categories.upcoming} limit={upcomingLimit} loadingMore={loadingUpcoming} onLoadMore={handleLoadMoreUpcoming} onMovieClick={onMovieClick} />
+                            </div>
                         </div>
                     </div>
                 </div>

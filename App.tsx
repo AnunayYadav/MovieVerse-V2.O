@@ -5642,7 +5642,6 @@ export default function App() {
                         setIsPersonAniListStaff(!!isAniList);
                     }}
                     onStudioClick={(id, name) => {
-                        setSelectedMovie(null);
                         setSelectedStudioId(id);
                         setSelectedStudioName(name);
                     }}
