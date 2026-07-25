@@ -27,96 +27,98 @@ const DISNEY_BRANDS = [
         companyId: 2,
         name: 'Walt Disney Pictures',
         title: 'Disney',
+        logoUrl: 'https://upload.wikimedia.org/wikipedia/commons/a/a4/Disney_wordmark.svg',
         bg: 'from-[#0b1941] via-[#092257] to-[#04091a]',
         border: 'hover:border-blue-300/80 hover:shadow-blue-500/25',
-        svg: (
-            <div className="flex flex-col items-center justify-center text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)] font-sans">
-                <span className="text-xl md:text-2xl font-black tracking-wider italic font-serif">Disney</span>
-            </div>
-        )
     },
     {
         id: 'pixar',
         companyId: 3,
         name: 'Pixar',
         title: 'Pixar',
+        logoUrl: 'https://upload.wikimedia.org/wikipedia/commons/3/3d/Pixar_logo.svg',
         bg: 'from-[#0284c7] via-[#0369a1] to-[#0c4a6e]',
         border: 'hover:border-sky-300/80 hover:shadow-sky-500/25',
-        svg: (
-            <div className="flex items-center justify-center font-black tracking-[0.25em] text-white text-lg md:text-xl drop-shadow-[0_2px_10px_rgba(0,0,0,0.8)] font-sans">
-                PIXAR
-            </div>
-        )
     },
     {
         id: 'marvel',
         companyId: 420,
         name: 'Marvel Studios',
         title: 'Marvel',
+        logoUrl: 'https://upload.wikimedia.org/wikipedia/commons/b/b9/Marvel_Logo.svg',
         bg: 'from-[#800a0a] via-[#500505] to-[#1a0202]',
         border: 'hover:border-red-500/80 hover:shadow-red-500/30',
-        svg: (
-            <div className="bg-[#e50914] px-3 py-1 rounded-sm border border-white/20 shadow-md">
-                <span className="font-black italic tracking-tighter text-white text-base md:text-lg font-sans uppercase">
-                    MARVEL
-                </span>
-            </div>
-        )
     },
     {
         id: 'starwars',
         companyId: 1,
         name: 'Lucasfilm',
         title: 'Star Wars',
+        logoUrl: 'https://upload.wikimedia.org/wikipedia/commons/6/6c/Star_Wars_Logo.svg',
         bg: 'from-[#14161d] via-[#0b0d12] to-[#000000]',
         border: 'hover:border-yellow-400/80 hover:shadow-yellow-500/25',
         pattern: 'stars',
-        svg: (
-            <div className="flex flex-col items-center leading-none text-yellow-400 font-black tracking-widest text-[10px] md:text-xs font-sans drop-shadow-[0_0_12px_rgba(250,204,21,0.5)] uppercase border-y border-yellow-400/60 py-1 px-2">
-                <span>STAR</span>
-                <span>WARS</span>
-            </div>
-        )
     },
     {
         id: 'natgeo',
         companyId: 7521,
         name: 'National Geographic',
         title: 'Nat Geo',
+        logoUrl: 'https://upload.wikimedia.org/wikipedia/commons/6/6a/National_Geographic_Logo.svg',
         bg: 'from-[#002244] via-[#001730] to-[#000b18]',
         border: 'hover:border-amber-400/80 hover:shadow-amber-500/25',
-        svg: (
-            <div className="flex items-center gap-2">
-                <div className="w-3.5 h-5 border-2 border-amber-400 bg-transparent shrink-0"></div>
-                <div className="flex flex-col text-left leading-tight text-white font-bold text-[8px] md:text-[9px] tracking-wider uppercase font-sans">
-                    <span>NATIONAL</span>
-                    <span>GEOGRAPHIC</span>
-                </div>
-            </div>
-        )
     },
     {
         id: '20th',
         companyId: 25,
         name: '20th Century Studios',
         title: '20th Century',
+        logoUrl: 'https://upload.wikimedia.org/wikipedia/commons/c/c5/20th_Century_Studios_logo.svg',
         bg: 'from-[#3b2108] via-[#221303] to-[#0a0501]',
         border: 'hover:border-amber-300/80 hover:shadow-amber-600/25',
-        svg: (
-            <div className="flex flex-col items-center leading-tight text-amber-200 font-black tracking-wider text-[9px] md:text-[10px] font-sans drop-shadow-md uppercase text-center">
-                <span className="text-xs md:text-sm text-amber-400">20TH</span>
-                <span>CENTURY</span>
-                <span className="text-[7px] text-zinc-400">STUDIOS</span>
-            </div>
-        )
     }
 ];
 
-const ProviderBrandCards: React.FC<{ providerId: number; onStudioClick?: (id: number, name: string) => void }> = ({ providerId, onStudioClick }) => {
+const ProviderBrandCards: React.FC<{ providerId: number; apiKey?: string; onStudioClick?: (id: number, name: string) => void }> = ({ providerId, apiKey, onStudioClick }) => {
+    const [companyLogos, setCompanyLogos] = useState<Record<number, string>>({});
+
     let brands: typeof DISNEY_BRANDS = [];
     if (providerId === 337) { // Disney+
         brands = DISNEY_BRANDS;
     }
+
+    useEffect(() => {
+        if (!apiKey || brands.length === 0) return;
+        let isMounted = true;
+
+        const fetchCompanyLogos = async () => {
+            const logos: Record<number, string> = {};
+            await Promise.all(
+                brands.map(async (b) => {
+                    try {
+                        const res = await fetch(`${TMDB_BASE_URL}/company/${b.companyId}?api_key=${apiKey}`);
+                        if (res.ok) {
+                            const data = await res.json();
+                            if (data.logo_path) {
+                                logos[b.companyId] = `${TMDB_IMAGE_BASE}${data.logo_path}`;
+                            }
+                        }
+                    } catch (e) {
+                        // ignore
+                    }
+                })
+            );
+            if (isMounted) {
+                setCompanyLogos(logos);
+            }
+        };
+
+        fetchCompanyLogos();
+
+        return () => {
+            isMounted = false;
+        };
+    }, [apiKey, providerId]);
 
     if (brands.length === 0) return null;
 
@@ -128,24 +130,38 @@ const ProviderBrandCards: React.FC<{ providerId: number; onStudioClick?: (id: nu
                 </h4>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3 sm:gap-4">
-                {brands.map((brand) => (
-                    <div
-                        key={brand.id}
-                        onClick={() => onStudioClick && onStudioClick(brand.companyId, brand.name)}
-                        className={`group relative aspect-[16/9] rounded-xl md:rounded-2xl overflow-hidden cursor-pointer border border-white/15 bg-gradient-to-br ${brand.bg} shadow-lg hover:shadow-2xl hover:scale-105 transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] flex items-center justify-center p-3 ${brand.border}`}
-                    >
-                        {brand.pattern === 'stars' && (
-                            <div className="absolute inset-0 bg-[radial-gradient(#fff_1px,transparent_1px)] [background-size:10px_10px] opacity-30 group-hover:opacity-60 transition-opacity pointer-events-none" />
-                        )}
-                        <div className="absolute inset-0 bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
-                        <div className="absolute inset-0 bg-gradient-to-tr from-white/0 via-white/10 to-white/20 opacity-30 group-hover:opacity-80 transition-opacity duration-500 pointer-events-none" />
-                        <div className="absolute inset-0 ring-1 ring-inset ring-white/10 rounded-xl md:rounded-2xl pointer-events-none group-hover:ring-white/30 transition-all" />
+                {brands.map((brand) => {
+                    const activeLogo = companyLogos[brand.companyId] || brand.logoUrl;
+                    return (
+                        <div
+                            key={brand.id}
+                            onClick={() => onStudioClick && onStudioClick(brand.companyId, brand.name)}
+                            className={`group relative aspect-[16/9] rounded-xl md:rounded-2xl overflow-hidden cursor-pointer border border-white/15 bg-gradient-to-br ${brand.bg} shadow-lg hover:shadow-2xl hover:scale-105 transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] flex items-center justify-center p-4 ${brand.border}`}
+                        >
+                            {brand.pattern === 'stars' && (
+                                <div className="absolute inset-0 bg-[radial-gradient(#fff_1px,transparent_1px)] [background-size:10px_10px] opacity-30 group-hover:opacity-60 transition-opacity pointer-events-none" />
+                            )}
+                            <div className="absolute inset-0 bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
+                            <div className="absolute inset-0 bg-gradient-to-tr from-white/0 via-white/10 to-white/20 opacity-30 group-hover:opacity-80 transition-opacity duration-500 pointer-events-none" />
+                            <div className="absolute inset-0 ring-1 ring-inset ring-white/10 rounded-xl md:rounded-2xl pointer-events-none group-hover:ring-white/30 transition-all" />
 
-                        <div className="relative z-10 w-full flex items-center justify-center transform group-hover:scale-110 transition-transform duration-300">
-                            {brand.svg}
+                            <div className="relative z-10 w-full h-full flex items-center justify-center">
+                                <img 
+                                    src={activeLogo}
+                                    alt={brand.name}
+                                    className="max-h-[70%] max-w-[85%] object-contain filter drop-shadow-[0_4px_12px_rgba(0,0,0,0.8)] group-hover:scale-110 transition-transform duration-300"
+                                    crossOrigin="anonymous"
+                                    referrerPolicy="no-referrer"
+                                    onError={(e: any) => {
+                                        if (e.currentTarget.src !== brand.logoUrl) {
+                                            e.currentTarget.src = brand.logoUrl;
+                                        }
+                                    }}
+                                />
+                            </div>
                         </div>
-                    </div>
-                ))}
+                    );
+                })}
             </div>
         </div>
     );
@@ -1057,7 +1073,7 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ apiKey, onMovieClick, 
                         <div className="max-w-7xl mx-auto px-4 md:px-8 pb-28 md:pb-16 pt-8">
 
                             {/* Brand Studios Row (Disney+ / Max / Paramount style studio tiles) */}
-                            <ProviderBrandCards providerId={activeOtt} onStudioClick={onStudioClick} />
+                            <ProviderBrandCards providerId={activeOtt} apiKey={apiKey} onStudioClick={onStudioClick} />
 
                             {/* Horizontal scrollable subcategories */}
                             {loadingSubcategories ? (
