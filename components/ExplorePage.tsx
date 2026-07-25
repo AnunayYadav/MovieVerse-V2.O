@@ -28,8 +28,9 @@ const DISNEY_BRANDS = [
         name: 'Walt Disney Pictures',
         title: 'Disney',
         logoUrl: 'https://upload.wikimedia.org/wikipedia/commons/a/a4/Disney_wordmark.svg',
-        bg: 'from-[#0b1941] via-[#092257] to-[#04091a]',
-        border: 'hover:border-blue-300/80 hover:shadow-blue-500/25',
+        bg: 'from-[#081a42] via-[#0c265e] to-[#040b1e]',
+        border: 'hover:border-blue-400 hover:shadow-[0_0_25px_rgba(59,130,246,0.5)]',
+        invertLogo: true
     },
     {
         id: 'pixar',
@@ -37,8 +38,9 @@ const DISNEY_BRANDS = [
         name: 'Pixar',
         title: 'Pixar',
         logoUrl: 'https://upload.wikimedia.org/wikipedia/commons/3/3d/Pixar_logo.svg',
-        bg: 'from-[#0284c7] via-[#0369a1] to-[#0c4a6e]',
-        border: 'hover:border-sky-300/80 hover:shadow-sky-500/25',
+        bg: 'from-[#0277bd] via-[#0288d1] to-[#014e82]',
+        border: 'hover:border-sky-300 hover:shadow-[0_0_25px_rgba(56,189,248,0.5)]',
+        invertLogo: true
     },
     {
         id: 'marvel',
@@ -46,8 +48,9 @@ const DISNEY_BRANDS = [
         name: 'Marvel Studios',
         title: 'Marvel',
         logoUrl: 'https://upload.wikimedia.org/wikipedia/commons/b/b9/Marvel_Logo.svg',
-        bg: 'from-[#800a0a] via-[#500505] to-[#1a0202]',
-        border: 'hover:border-red-500/80 hover:shadow-red-500/30',
+        bg: 'from-[#880d0d] via-[#5c0606] to-[#1a0202]',
+        border: 'hover:border-red-500 hover:shadow-[0_0_25px_rgba(239,68,68,0.6)]',
+        invertLogo: false
     },
     {
         id: 'starwars',
@@ -55,9 +58,10 @@ const DISNEY_BRANDS = [
         name: 'Lucasfilm',
         title: 'Star Wars',
         logoUrl: 'https://upload.wikimedia.org/wikipedia/commons/6/6c/Star_Wars_Logo.svg',
-        bg: 'from-[#14161d] via-[#0b0d12] to-[#000000]',
-        border: 'hover:border-yellow-400/80 hover:shadow-yellow-500/25',
+        bg: 'from-[#141622] via-[#0c0e18] to-[#040509]',
+        border: 'hover:border-yellow-400 hover:shadow-[0_0_25px_rgba(250,204,21,0.5)]',
         pattern: 'stars',
+        invertLogo: true
     },
     {
         id: 'natgeo',
@@ -65,8 +69,9 @@ const DISNEY_BRANDS = [
         name: 'National Geographic',
         title: 'Nat Geo',
         logoUrl: 'https://upload.wikimedia.org/wikipedia/commons/6/6a/National_Geographic_Logo.svg',
-        bg: 'from-[#002244] via-[#001730] to-[#000b18]',
-        border: 'hover:border-amber-400/80 hover:shadow-amber-500/25',
+        bg: 'from-[#002747] via-[#001c34] to-[#000e1b]',
+        border: 'hover:border-amber-400 hover:shadow-[0_0_25px_rgba(245,158,11,0.5)]',
+        invertLogo: true
     },
     {
         id: '20th',
@@ -74,8 +79,9 @@ const DISNEY_BRANDS = [
         name: '20th Century Studios',
         title: '20th Century',
         logoUrl: 'https://upload.wikimedia.org/wikipedia/commons/c/c5/20th_Century_Studios_logo.svg',
-        bg: 'from-[#3b2108] via-[#221303] to-[#0a0501]',
-        border: 'hover:border-amber-300/80 hover:shadow-amber-600/25',
+        bg: 'from-[#422904] via-[#291902] to-[#0e0901]',
+        border: 'hover:border-amber-300 hover:shadow-[0_0_25px_rgba(245,158,11,0.5)]',
+        invertLogo: true
     }
 ];
 
@@ -104,7 +110,7 @@ const ProviderBrandCards: React.FC<{ providerId: number; apiKey?: string; onStud
                             }
                         }
                     } catch (e) {
-                        // ignore
+                        // ignore fallback to Wikimedia logoUrl
                     }
                 })
             );
@@ -124,32 +130,36 @@ const ProviderBrandCards: React.FC<{ providerId: number; apiKey?: string; onStud
 
     return (
         <div className="mb-10 select-none">
-            <div className="flex items-center justify-between mb-3 px-1">
-                <h4 className="text-xs md:text-sm font-bold uppercase tracking-wider text-white/60">
+            <div className="flex items-center justify-between mb-3.5 px-1">
+                <h4 className="text-xs md:text-sm font-bold uppercase tracking-wider text-white/70">
                     Studio Collections
                 </h4>
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3 sm:gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3.5 sm:gap-4">
                 {brands.map((brand) => {
                     const activeLogo = companyLogos[brand.companyId] || brand.logoUrl;
                     return (
                         <div
                             key={brand.id}
                             onClick={() => onStudioClick && onStudioClick(brand.companyId, brand.name)}
-                            className={`group relative aspect-[16/9] rounded-xl md:rounded-2xl overflow-hidden cursor-pointer border border-white/15 bg-gradient-to-br ${brand.bg} shadow-lg hover:shadow-2xl hover:scale-105 transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] flex items-center justify-center p-4 ${brand.border}`}
+                            className={`group relative aspect-[16/9] rounded-xl md:rounded-2xl overflow-hidden cursor-pointer border border-white/20 bg-gradient-to-br ${brand.bg} shadow-lg hover:shadow-2xl hover:scale-105 transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] flex items-center justify-center p-4 ${brand.border}`}
                         >
+                            {/* Starfield overlay for Star Wars */}
                             {brand.pattern === 'stars' && (
-                                <div className="absolute inset-0 bg-[radial-gradient(#fff_1px,transparent_1px)] [background-size:10px_10px] opacity-30 group-hover:opacity-60 transition-opacity pointer-events-none" />
+                                <div className="absolute inset-0 bg-[radial-gradient(#fff_1.2px,transparent_1.2px)] [background-size:10px_10px] opacity-40 group-hover:opacity-70 transition-opacity pointer-events-none" />
                             )}
-                            <div className="absolute inset-0 bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
-                            <div className="absolute inset-0 bg-gradient-to-tr from-white/0 via-white/10 to-white/20 opacity-30 group-hover:opacity-80 transition-opacity duration-500 pointer-events-none" />
-                            <div className="absolute inset-0 ring-1 ring-inset ring-white/10 rounded-xl md:rounded-2xl pointer-events-none group-hover:ring-white/30 transition-all" />
+                            
+                            {/* Subtle Radial Glow */}
+                            <div className="absolute inset-0 bg-gradient-to-tr from-white/0 via-white/5 to-white/20 opacity-40 group-hover:opacity-90 transition-opacity duration-500 pointer-events-none" />
+                            
+                            {/* Inset Border Highlight */}
+                            <div className="absolute inset-0 ring-1 ring-inset ring-white/15 rounded-xl md:rounded-2xl pointer-events-none group-hover:ring-white/40 transition-all" />
 
                             <div className="relative z-10 w-full h-full flex items-center justify-center">
                                 <img 
                                     src={activeLogo}
                                     alt={brand.name}
-                                    className="max-h-[70%] max-w-[85%] object-contain filter drop-shadow-[0_4px_12px_rgba(0,0,0,0.8)] group-hover:scale-110 transition-transform duration-300"
+                                    className={`max-h-[65%] max-w-[80%] object-contain filter drop-shadow-[0_4px_12px_rgba(0,0,0,0.9)] group-hover:scale-110 transition-transform duration-300 ${brand.invertLogo ? 'brightness-0 invert' : ''}`}
                                     crossOrigin="anonymous"
                                     referrerPolicy="no-referrer"
                                     onError={(e: any) => {
