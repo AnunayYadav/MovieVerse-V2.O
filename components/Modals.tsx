@@ -50,9 +50,9 @@ export const FullCreditsModal: React.FC<FullCreditsModalProps> = ({ isOpen, onCl
 
 // PERSON MOVIE CARD & SCROLL ROW HELPERS
 const ActorMovieCard = ({ movie, onClick }: { movie: Movie; onClick: () => void; key?: React.Key }) => {
-    const backdropUrl = movie.backdrop_path 
-      ? `${TMDB_IMAGE_BASE}${movie.backdrop_path}`
-      : (movie.poster_path ? `${TMDB_IMAGE_BASE}${movie.poster_path}` : `https://placehold.co/600x338/111/444?text=${encodeURIComponent(movie.title || movie.name || "Movie")}`);
+    const posterUrl = movie.poster_path 
+      ? (movie.poster_path.startsWith('http') ? movie.poster_path : `${TMDB_IMAGE_BASE}${movie.poster_path}`)
+      : (movie.backdrop_path ? `${TMDB_IMAGE_BASE}${movie.backdrop_path}` : `https://placehold.co/320x480/111/444?text=${encodeURIComponent(movie.title || movie.name || "Movie")}`);
     
     const year = (movie.release_date || movie.first_air_date || "").split('-')[0];
     const rating = movie.vote_average;
@@ -60,37 +60,36 @@ const ActorMovieCard = ({ movie, onClick }: { movie: Movie; onClick: () => void;
     return (
         <div 
             onClick={onClick}
-            className="shrink-0 w-44 sm:w-52 md:w-60 aspect-[16/9] rounded-xl overflow-hidden bg-white/5 border border-white/5 cursor-pointer shadow-lg hover:scale-[1.03] hover:border-white/20 transition-all duration-500 group relative text-left"
+            className="shrink-0 w-[125px] sm:w-[145px] md:w-[150px] aspect-[2/3] rounded-xl overflow-hidden bg-white/5 border border-white/5 cursor-pointer shadow-lg hover:scale-[1.03] hover:border-red-500/50 hover:shadow-[0_0_20px_rgba(239,68,68,0.25)] transition-all duration-500 group relative text-left select-none"
         >
             <img 
-                src={backdropUrl} 
+                src={posterUrl} 
                 alt={movie.title || movie.name} 
-                className="w-full h-full object-cover opacity-85 group-hover:scale-105 group-hover:opacity-100 transition-all duration-700 ease-out" 
+                className="w-full h-full object-cover opacity-90 group-hover:scale-105 group-hover:opacity-100 transition-all duration-700 ease-out" 
                 loading="lazy" 
             />
             {/* Gradient Overlay */}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/35 to-transparent opacity-90 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/40 to-transparent opacity-90 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
             
             {/* Content overlay */}
-            <div className="absolute inset-0 p-3 flex flex-col justify-end text-left select-none pointer-events-none">
-                <h4 className="text-xs md:text-sm font-bold text-white line-clamp-1 group-hover:text-red-500 transition-colors duration-300 drop-shadow-md">
+            <div className="absolute inset-0 p-2.5 flex flex-col justify-end text-left select-none pointer-events-none">
+                <h4 className="text-xs font-bold text-white line-clamp-2 leading-tight group-hover:text-red-500 transition-colors duration-300 drop-shadow-md">
                     {movie.title || movie.name}
                 </h4>
-                <div className="flex items-center justify-between mt-1 text-[10px] text-gray-400 opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-y-1 group-hover:translate-y-0">
+                <div className="flex items-center justify-between mt-1 text-[10px] text-gray-400 font-medium">
                     <span>{year || 'TBA'}</span>
                     {rating > 0 && (
-                        <div className="flex items-center gap-1 text-yellow-500 font-bold">
+                        <div className="flex items-center gap-0.5 text-yellow-500 font-bold">
                             <Star size={10} fill="currentColor"/> {rating.toFixed(1)}
                         </div>
                     )}
                 </div>
-                {/* Character Played or Job if present */}
                 {(movie as any).character ? (
-                    <p className="text-[9px] text-red-400 font-semibold truncate mt-0.5 opacity-80 group-hover:opacity-100 transition-opacity">
+                    <p className="text-[9px] text-red-400 font-semibold truncate mt-0.5 opacity-90">
                         as {(movie as any).character}
                     </p>
                 ) : (movie as any).job ? (
-                    <p className="text-[9px] text-amber-500 font-semibold truncate mt-0.5 opacity-80 group-hover:opacity-100 transition-opacity">
+                    <p className="text-[9px] text-amber-500 font-semibold truncate mt-0.5 opacity-90">
                         {(movie as any).job}
                     </p>
                 ) : null}
@@ -100,9 +99,9 @@ const ActorMovieCard = ({ movie, onClick }: { movie: Movie; onClick: () => void;
 };
 
 const TimelineMovieCard = ({ movie, onClick }: { movie: Movie; onClick: () => void; key?: React.Key }) => {
-    const backdropUrl = movie.backdrop_path 
-      ? `${TMDB_IMAGE_BASE}${movie.backdrop_path}`
-      : (movie.poster_path ? `${TMDB_IMAGE_BASE}${movie.poster_path}` : `https://placehold.co/600x338/111/444?text=${encodeURIComponent(movie.title || movie.name || "Movie")}`);
+    const posterUrl = movie.poster_path 
+      ? (movie.poster_path.startsWith('http') ? movie.poster_path : `${TMDB_IMAGE_BASE}${movie.poster_path}`)
+      : (movie.backdrop_path ? `${TMDB_IMAGE_BASE}${movie.backdrop_path}` : `https://placehold.co/320x480/111/444?text=${encodeURIComponent(movie.title || movie.name || "Movie")}`);
     
     const year = (movie.release_date || movie.first_air_date || "").split('-')[0] || 'TBA';
     const rating = movie.vote_average;
@@ -110,31 +109,31 @@ const TimelineMovieCard = ({ movie, onClick }: { movie: Movie; onClick: () => vo
     return (
         <div className="flex flex-col items-center shrink-0">
             {/* Timeline node */}
-            <div className="relative mb-4 flex flex-col items-center">
-                <span className="bg-red-600/10 border border-red-500/30 text-red-500 font-extrabold text-[9px] px-2.5 py-0.5 rounded-full mb-2 shadow relative z-10 backdrop-blur-md">
+            <div className="relative mb-3 flex flex-col items-center">
+                <span className="bg-red-600/10 border border-red-500/30 text-red-500 font-extrabold text-[9px] px-2.5 py-0.5 rounded-full mb-1.5 shadow relative z-10 backdrop-blur-md">
                     {year}
                 </span>
                 <div className="w-2.5 h-2.5 rounded-full bg-red-600 ring-4 ring-red-500/20 z-10" />
             </div>
 
-            {/* Landscape card */}
+            {/* Vertical poster card */}
             <div 
                 onClick={onClick}
-                className="w-44 sm:w-52 md:w-60 aspect-[16/9] rounded-xl overflow-hidden bg-white/5 border border-white/5 cursor-pointer shadow-lg hover:scale-[1.03] hover:border-white/20 transition-all duration-500 group relative text-left"
+                className="w-[125px] sm:w-[145px] md:w-[150px] aspect-[2/3] rounded-xl overflow-hidden bg-white/5 border border-white/5 cursor-pointer shadow-lg hover:scale-[1.03] hover:border-red-500/50 hover:shadow-[0_0_20px_rgba(239,68,68,0.25)] transition-all duration-500 group relative text-left select-none"
             >
                 <img 
-                    src={backdropUrl} 
+                    src={posterUrl} 
                     alt={movie.title || movie.name} 
-                    className="w-full h-full object-cover opacity-85 group-hover:scale-105 group-hover:opacity-100 transition-all duration-700 ease-out" 
+                    className="w-full h-full object-cover opacity-90 group-hover:scale-105 group-hover:opacity-100 transition-all duration-700 ease-out" 
                     loading="lazy" 
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/35 to-transparent opacity-90 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/40 to-transparent opacity-90 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
                 
-                <div className="absolute inset-0 p-3 flex flex-col justify-end select-none pointer-events-none">
-                    <h4 className="text-xs md:text-sm font-bold text-white line-clamp-1 group-hover:text-red-500 transition-colors duration-300 drop-shadow-md">
+                <div className="absolute inset-0 p-2.5 flex flex-col justify-end select-none pointer-events-none">
+                    <h4 className="text-xs font-bold text-white line-clamp-2 leading-tight group-hover:text-red-500 transition-colors duration-300 drop-shadow-md">
                         {movie.title || movie.name}
                     </h4>
-                    <div className="flex items-center justify-between mt-1 text-[10px] text-gray-400 opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-y-1 group-hover:translate-y-0">
+                    <div className="flex items-center justify-between mt-1 text-[10px] text-gray-400 font-medium">
                         <span>{rating > 0 ? `⭐ ${rating.toFixed(1)}` : 'NR'}</span>
                     </div>
                 </div>
@@ -191,14 +190,14 @@ const HorizontalScrollRow = ({
                 ))}
                 {loadingMore && (
                     <>
-                        <div className="shrink-0 w-44 sm:w-52 md:w-60 aspect-[16/9] bg-white/5 border border-white/5 rounded-xl overflow-hidden relative animate-pulse flex items-end p-3">
+                        <div className="shrink-0 w-[125px] sm:w-[145px] md:w-[150px] aspect-[2/3] bg-white/5 border border-white/5 rounded-xl overflow-hidden relative animate-pulse flex items-end p-3">
                             <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full animate-[shimmer_1.5s_infinite]" />
                             <div className="space-y-2 w-3/4">
                                 <div className="h-3 bg-white/10 rounded w-full" />
                                 <div className="h-2 bg-white/10 rounded w-1/2" />
                             </div>
                         </div>
-                        <div className="shrink-0 w-44 sm:w-52 md:w-60 aspect-[16/9] bg-white/5 border border-white/5 rounded-xl overflow-hidden relative animate-pulse flex items-end p-3">
+                        <div className="shrink-0 w-[125px] sm:w-[145px] md:w-[150px] aspect-[2/3] bg-white/5 border border-white/5 rounded-xl overflow-hidden relative animate-pulse flex items-end p-3">
                             <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full animate-[shimmer_1.5s_infinite]" />
                             <div className="space-y-2 w-3/4">
                                 <div className="h-3 bg-white/10 rounded w-full" />
@@ -252,11 +251,11 @@ const TimelineScrollRow = ({
                     <span className="w-1 h-5 bg-red-600 rounded-full" />
                     {title}
                 </h3>
-                <button 
+                <button
                     onClick={onToggle}
-                    className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white transition-all border border-white/5 active:scale-95 flex items-center justify-center shadow-md"
-                    title={isDescending ? "Sort Oldest First" : "Sort Newest First"}
+                    className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold text-gray-300 transition-all active:scale-95"
                 >
+                    <span>{isDescending ? "Newest First" : "Oldest First"}</span>
                     {isDescending ? <ArrowDown size={15} className="text-red-500" /> : <ArrowUp size={15} className="text-red-500" />}
                 </button>
             </div>
@@ -277,8 +276,8 @@ const TimelineScrollRow = ({
                     ))}
                     {loadingMore && (
                         <>
-                            <div className="shrink-0 w-44 sm:w-52 md:w-60 aspect-[16/9] bg-white/5 border border-white/5 rounded-xl animate-pulse mt-[42px]" />
-                            <div className="shrink-0 w-44 sm:w-52 md:w-60 aspect-[16/9] bg-white/5 border border-white/5 rounded-xl animate-pulse mt-[42px]" />
+                            <div className="shrink-0 w-[125px] sm:w-[145px] md:w-[150px] aspect-[2/3] bg-white/5 border border-white/5 rounded-xl animate-pulse mt-[42px]" />
+                            <div className="shrink-0 w-[125px] sm:w-[145px] md:w-[150px] aspect-[2/3] bg-white/5 border border-white/5 rounded-xl animate-pulse mt-[42px]" />
                         </>
                     )}
                 </div>
@@ -1418,7 +1417,7 @@ export const ExpandedCategoryModal: React.FC<ExpandedCategoryModalProps> = ({
 
                         {loadingMore && mode === 'movie' && (
                             [...Array(5)].map((_, i) => (
-                                <div key={`loadmore-skeleton-${i}`} className="w-full shrink-0 aspect-[16/9] bg-zinc-900/45 rounded-xl animate-pulse border border-white/5 flex items-center justify-center">
+                                <div key={`loadmore-skeleton-${i}`} className="w-full shrink-0 aspect-[2/3] bg-zinc-900/45 rounded-xl animate-pulse border border-white/5 flex items-center justify-center">
                                     <Loader2 className="animate-spin text-red-600" size={24} />
                                 </div>
                             ))

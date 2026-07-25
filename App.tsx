@@ -5519,9 +5519,9 @@ export default function App() {
                                                         <div className="h-5 w-40 bg-zinc-800 rounded-full"></div>
                                                     </div>
                                                     <div className="flex gap-5 overflow-hidden px-4 md:px-12">
-                                                        {[...Array(6)].map((_, i) => (
-                                                            <div key={i} className="w-[220px] md:w-[260px] shrink-0 aspect-[16/9] bg-zinc-900 border border-white/5 rounded-xl"></div>
-                                                        ))}
+                                                         {[...Array(6)].map((_, i) => (
+                                                             <div key={i} className="w-[125px] sm:w-[145px] md:w-[150px] shrink-0 aspect-[2/3] bg-zinc-900 border border-white/5 rounded-xl"></div>
+                                                         ))}
                                                     </div>
                                                 </div>
                                             </div>
@@ -5751,6 +5751,10 @@ export default function App() {
                     initialOtt={activeOtt}
                     initialProvider={activeProvider}
                     onClose={() => { setActiveOtt(null); setActiveProvider(null); }}
+                    onStudioClick={(id, name) => {
+                        setSelectedStudioId(id);
+                        setSelectedStudioName(name);
+                    }}
                 />
             )}
             <ComparisonModal isOpen={isComparisonOpen} onClose={() => setIsComparisonOpen(false)} baseMovie={comparisonBaseMovie} apiKey={apiKey} />

@@ -18,7 +18,138 @@ interface ExplorePageProps {
     initialOtt?: number | null;
     initialProvider?: any | null;
     onClose?: () => void;
+    onStudioClick?: (id: number, name: string) => void;
 }
+
+const DISNEY_BRANDS = [
+    {
+        id: 'disney',
+        companyId: 2,
+        name: 'Walt Disney Pictures',
+        title: 'Disney',
+        bg: 'from-[#0b1941] via-[#092257] to-[#04091a]',
+        border: 'hover:border-blue-300/80 hover:shadow-blue-500/25',
+        svg: (
+            <div className="flex flex-col items-center justify-center text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)] font-sans">
+                <span className="text-xl md:text-2xl font-black tracking-wider italic font-serif">Disney</span>
+            </div>
+        )
+    },
+    {
+        id: 'pixar',
+        companyId: 3,
+        name: 'Pixar',
+        title: 'Pixar',
+        bg: 'from-[#0284c7] via-[#0369a1] to-[#0c4a6e]',
+        border: 'hover:border-sky-300/80 hover:shadow-sky-500/25',
+        svg: (
+            <div className="flex items-center justify-center font-black tracking-[0.25em] text-white text-lg md:text-xl drop-shadow-[0_2px_10px_rgba(0,0,0,0.8)] font-sans">
+                PIXAR
+            </div>
+        )
+    },
+    {
+        id: 'marvel',
+        companyId: 420,
+        name: 'Marvel Studios',
+        title: 'Marvel',
+        bg: 'from-[#800a0a] via-[#500505] to-[#1a0202]',
+        border: 'hover:border-red-500/80 hover:shadow-red-500/30',
+        svg: (
+            <div className="bg-[#e50914] px-3 py-1 rounded-sm border border-white/20 shadow-md">
+                <span className="font-black italic tracking-tighter text-white text-base md:text-lg font-sans uppercase">
+                    MARVEL
+                </span>
+            </div>
+        )
+    },
+    {
+        id: 'starwars',
+        companyId: 1,
+        name: 'Lucasfilm',
+        title: 'Star Wars',
+        bg: 'from-[#14161d] via-[#0b0d12] to-[#000000]',
+        border: 'hover:border-yellow-400/80 hover:shadow-yellow-500/25',
+        pattern: 'stars',
+        svg: (
+            <div className="flex flex-col items-center leading-none text-yellow-400 font-black tracking-widest text-[10px] md:text-xs font-sans drop-shadow-[0_0_12px_rgba(250,204,21,0.5)] uppercase border-y border-yellow-400/60 py-1 px-2">
+                <span>STAR</span>
+                <span>WARS</span>
+            </div>
+        )
+    },
+    {
+        id: 'natgeo',
+        companyId: 7521,
+        name: 'National Geographic',
+        title: 'Nat Geo',
+        bg: 'from-[#002244] via-[#001730] to-[#000b18]',
+        border: 'hover:border-amber-400/80 hover:shadow-amber-500/25',
+        svg: (
+            <div className="flex items-center gap-2">
+                <div className="w-3.5 h-5 border-2 border-amber-400 bg-transparent shrink-0"></div>
+                <div className="flex flex-col text-left leading-tight text-white font-bold text-[8px] md:text-[9px] tracking-wider uppercase font-sans">
+                    <span>NATIONAL</span>
+                    <span>GEOGRAPHIC</span>
+                </div>
+            </div>
+        )
+    },
+    {
+        id: '20th',
+        companyId: 25,
+        name: '20th Century Studios',
+        title: '20th Century',
+        bg: 'from-[#3b2108] via-[#221303] to-[#0a0501]',
+        border: 'hover:border-amber-300/80 hover:shadow-amber-600/25',
+        svg: (
+            <div className="flex flex-col items-center leading-tight text-amber-200 font-black tracking-wider text-[9px] md:text-[10px] font-sans drop-shadow-md uppercase text-center">
+                <span className="text-xs md:text-sm text-amber-400">20TH</span>
+                <span>CENTURY</span>
+                <span className="text-[7px] text-zinc-400">STUDIOS</span>
+            </div>
+        )
+    }
+];
+
+const ProviderBrandCards: React.FC<{ providerId: number; onStudioClick?: (id: number, name: string) => void }> = ({ providerId, onStudioClick }) => {
+    let brands: typeof DISNEY_BRANDS = [];
+    if (providerId === 337) { // Disney+
+        brands = DISNEY_BRANDS;
+    }
+
+    if (brands.length === 0) return null;
+
+    return (
+        <div className="mb-10 select-none">
+            <div className="flex items-center justify-between mb-3 px-1">
+                <h4 className="text-xs md:text-sm font-bold uppercase tracking-wider text-white/60">
+                    Studio Collections
+                </h4>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3 sm:gap-4">
+                {brands.map((brand) => (
+                    <div
+                        key={brand.id}
+                        onClick={() => onStudioClick && onStudioClick(brand.companyId, brand.name)}
+                        className={`group relative aspect-[16/9] rounded-xl md:rounded-2xl overflow-hidden cursor-pointer border border-white/15 bg-gradient-to-br ${brand.bg} shadow-lg hover:shadow-2xl hover:scale-105 transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] flex items-center justify-center p-3 ${brand.border}`}
+                    >
+                        {brand.pattern === 'stars' && (
+                            <div className="absolute inset-0 bg-[radial-gradient(#fff_1px,transparent_1px)] [background-size:10px_10px] opacity-30 group-hover:opacity-60 transition-opacity pointer-events-none" />
+                        )}
+                        <div className="absolute inset-0 bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
+                        <div className="absolute inset-0 bg-gradient-to-tr from-white/0 via-white/10 to-white/20 opacity-30 group-hover:opacity-80 transition-opacity duration-500 pointer-events-none" />
+                        <div className="absolute inset-0 ring-1 ring-inset ring-white/10 rounded-xl md:rounded-2xl pointer-events-none group-hover:ring-white/30 transition-all" />
+
+                        <div className="relative z-10 w-full flex items-center justify-center transform group-hover:scale-110 transition-transform duration-300">
+                            {brand.svg}
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+};
 
 const REGION_NAMES: Record<string, string> = {
     'US': 'U.S.',
@@ -212,17 +343,13 @@ const SubcategoryRow: React.FC<SubcategoryRowProps> = ({ title, items, onMovieCl
             </div>
             <div className="flex gap-4 overflow-x-auto pb-4 pt-1 hide-scrollbar -mx-4 px-4 md:-mx-8 md:px-8">
                 {items.map((movie) => (
-                    <div 
+                    <MovieCard 
                         key={movie.id} 
-                        className="shrink-0 w-[180px] sm:w-[220px] md:w-[260px]"
-                    >
-                        <MovieCard 
-                            movie={movie} 
-                            onClick={onMovieClick} 
-                            isWatched={false} 
-                            onToggleWatched={() => {}} 
-                        />
-                    </div>
+                        movie={movie} 
+                        onClick={onMovieClick} 
+                        isWatched={false} 
+                        onToggleWatched={() => {}} 
+                    />
                 ))}
             </div>
         </div>
@@ -252,7 +379,7 @@ const TrendingMovieItem = ({ movie, idx, onMovieClick }: { movie: Movie, idx: nu
     );
 };
 
-export const ExplorePage: React.FC<ExplorePageProps> = ({ apiKey, onMovieClick, userProfile, appRegion = "US", searchQuery, setSearchQuery, initialOtt = null, initialProvider = null, onClose }) => {
+export const ExplorePage: React.FC<ExplorePageProps> = ({ apiKey, onMovieClick, userProfile, appRegion = "US", searchQuery, setSearchQuery, initialOtt = null, initialProvider = null, onClose, onStudioClick }) => {
     const [exploreRegion, setExploreRegion] = useState("Global");
     const [isRegionDropdownOpen, setIsRegionDropdownOpen] = useState(false);
     const [topMovies, setTopMovies] = useState<Movie[]>([]);
@@ -929,6 +1056,9 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ apiKey, onMovieClick, 
 
                         <div className="max-w-7xl mx-auto px-4 md:px-8 pb-28 md:pb-16 pt-8">
 
+                            {/* Brand Studios Row (Disney+ / Max / Paramount style studio tiles) */}
+                            <ProviderBrandCards providerId={activeOtt} onStudioClick={onStudioClick} />
+
                             {/* Horizontal scrollable subcategories */}
                             {loadingSubcategories ? (
                                 <div className="space-y-12 mb-12">
@@ -937,7 +1067,7 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ apiKey, onMovieClick, 
                                             <div className="h-5 bg-white/10 rounded w-48 mb-4 animate-pulse"></div>
                                             <div className="flex gap-4 overflow-x-auto pb-4 hide-scrollbar">
                                                 {[...Array(6)].map((_, i) => (
-                                                    <div key={i} className="shrink-0 w-[180px] sm:w-[220px] md:w-[260px] aspect-[16/9] bg-white/5 rounded-xl border border-white/5 animate-pulse"></div>
+                                                    <div key={i} className="shrink-0 w-[125px] sm:w-[145px] md:w-[150px] aspect-[2/3] bg-white/5 rounded-xl border border-white/5 animate-pulse"></div>
                                                 ))}
                                             </div>
                                         </div>
