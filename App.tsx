@@ -4540,11 +4540,13 @@ export default function App() {
 
             {!(activeWatchPartyRoom && watchPartyMovie) && selectedCategory !== "Multiverse" && (
                 <nav className={`fixed top-0 left-0 right-0 z-[60] h-16 flex items-center justify-center px-4 md:px-6 transition-all duration-500 ${
-                        selectedCategory === "Music"
-                            ? 'bg-zinc-950/40 backdrop-blur-xl border-b border-white/5'
-                            : (hasHeroBanner && !isScrolled)
-                                ? 'bg-gradient-to-b from-black/85 via-black/25 to-transparent border-transparent backdrop-blur-none'
-                                : 'bg-black/90 backdrop-blur-xl border-b border-white/5'
+                        selectedMovie
+                            ? 'bg-black/90 backdrop-blur-xl border-b border-white/5 shadow-2xl'
+                            : selectedCategory === "Music"
+                                ? 'bg-zinc-950/40 backdrop-blur-xl border-b border-white/5'
+                                : (hasHeroBanner && !isScrolled)
+                                    ? 'bg-gradient-to-b from-black/85 via-black/25 to-transparent border-transparent backdrop-blur-none'
+                                    : 'bg-black/90 backdrop-blur-xl border-b border-white/5'
                     }`}>
                     <div className="flex items-center justify-between w-full max-w-7xl">
                         <div className="hidden md:flex items-center gap-4 md:gap-8">

@@ -2503,10 +2503,10 @@ export const MoviePage: React.FC<MoviePageProps> = ({
     };
 
     return (
-        <div className={`fixed inset-0 z-[50] bg-[#0a0a0a] overflow-y-auto custom-scrollbar ${isClosing ? 'animate-fade-out' : 'animate-fade-in'}`}>
+        <div className={`fixed top-16 inset-x-0 bottom-0 z-[50] bg-[#0a0a0a] overflow-y-auto custom-scrollbar ${isClosing ? 'animate-fade-out' : 'animate-fade-in'}`}>
             <div className="relative w-full min-h-screen flex flex-col">
                 {!showPlayer && (
-                    <TvFocusButton onClick={handleClose} className="fixed top-20 left-4 md:left-8 z-[60] bg-black/60 hover:bg-white/10 backdrop-blur-md px-4 py-2 rounded-full text-white/80 hover:text-white transition-all hover:scale-105 active:scale-95 border border-white/10 flex items-center gap-2 group shadow-xl">
+                    <TvFocusButton onClick={handleClose} className="absolute top-4 left-4 md:left-8 z-[40] bg-black/60 hover:bg-white/10 backdrop-blur-md px-4 py-2 rounded-full text-white/80 hover:text-white transition-all hover:scale-105 active:scale-95 border border-white/10 flex items-center gap-2 group shadow-xl">
                         <ArrowLeft size={20} /><span className="hidden md:inline font-bold text-sm">Back</span>
                     </TvFocusButton>
                 )}
@@ -2516,7 +2516,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                 ) : showPlayer ? (
                     <div className="fixed inset-0 z-[150] bg-black animate-in fade-in duration-300 select-none">
                         <Suspense fallback={<div className="w-full h-full flex items-center justify-center bg-black"><Loader2 className="animate-spin text-red-600" size={32}/></div>}>
-                            <MoviePlayer 
+                             <MoviePlayer 
                                 tmdbId={displayData.id} 
                                 onClose={() => {
                                     if (isCasting) {
@@ -2535,6 +2535,10 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                 title={displayData.title || displayData.name}
                                 forceProgress={movie.last_watched_data && movie.last_watched_data.current_time && movie.last_watched_data.current_time > 0 && (!isTv || (movie.last_watched_data.season === playParams.season && movie.last_watched_data.episode === playParams.episode)) ? (movie.last_watched_data.current_time) : 0}
                                 providerId={selectedProviderId}
+                                episodes={episodes}
+                                details={displayData}
+                                onToggleWatchlist={() => onToggleWatchlist(movie)}
+                                isWatchlisted={isWatchlisted}
                                 onEpisodeChange={(season, episode) => {
                                     setPlayParams({ season, episode });
                                     onPlayStateChangeRef.current?.(true, season, episode);
