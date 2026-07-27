@@ -685,26 +685,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     }, 'https://cinesrc.st');
   }, []);
 
-  const sendCinemaOSCommand = useCallback((command: string, params?: Record<string, any>) => {
-    if (!iframeRef.current?.contentWindow) return;
-    try {
-      const win = iframeRef.current.contentWindow;
-      const data = { command, ...params };
-      win.postMessage(data, 'https://cinemaos.tech');
-    } catch (e) {
-      console.warn("Failed to send postMessage command to CinemaOS iframe", e);
-    }
-  }, []);
 
-  const sendXPassCommand = useCallback((action: string, extra?: Record<string, any>) => {
-    if (!iframeRef.current?.contentWindow) return;
-    try {
-      const win = iframeRef.current.contentWindow;
-      win.postMessage({ type: 'player.action', action, ...extra }, 'https://play.xpass.top');
-    } catch (e) {
-      console.warn("Failed to send postMessage command to XPass iframe", e);
-    }
-  }, []);
 
   const isTV = typeof window !== 'undefined' && (
     /Android TV|GoogleTV|AFT|Tizen|Web0S|SmartTV/i.test(navigator.userAgent) || 
@@ -719,8 +700,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   const [fallbackToIframe, setFallbackToIframe] = useState(false);
   const isCineSrcCustom = selectedProviderId === 'cinesrc';
   const isVidFastCustom = selectedProviderId === 'vidfast';
-  const isCinemaOSCustom = false;
-  const isXPassCustom = false;
+
   const isIframeCustomControls = isCineSrcCustom || isVidFastCustom;
   const useCustomControls = (selectedProviderId.startsWith('encdec') || isIframeCustomControls) && !fallbackToIframe;
   const isPlayingRef = useRef(false);
@@ -1543,7 +1523,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   }, [currentSeason, currentEpisode, onEpisodeChange]);
 
   useEffect(() => {
-    if (!isAutoplayEnabled || !hasNextEpisode || (!selectedProviderId.startsWith('encdec') && selectedProviderId !== 'cinepro_core' && selectedProviderId !== 'cinemaos')) return;
+    if (!isAutoplayEnabled || !hasNextEpisode || (!selectedProviderId.startsWith('encdec') && selectedProviderId !== 'cinepro_core')) return;
     
     if (playerDuration > 0 && playerCurrentTime >= playerDuration - 20 && !showNextCountdown) {
       setShowNextCountdown(true);
@@ -1993,18 +1973,6 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
       setIsPlaying(next);
       return;
     }
-    if (isCinemaOSCustom) {
-      const next = !isPlaying;
-      sendCinemaOSCommand(next ? 'play' : 'pause');
-      setIsPlaying(next);
-      return;
-    }
-    if (isXPassCustom) {
-      const next = !isPlaying;
-      sendXPassCommand(next ? 'play' : 'pause');
-      setIsPlaying(next);
-      return;
-    }
     if (useCustomControls) {
       const video = videoRef.current;
       if (video) {
@@ -2016,7 +1984,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     const next = !isPlaying;
     sendPlayerCommand(next ? 'play' : 'pause');
     setIsPlaying(next);
-  }, [isPlaying, sendPlayerCommand, useCustomControls, isCineSrcCustom, sendCineSrcCommand, isVidFastCustom, isCinemaOSCustom, sendCinemaOSCommand, isXPassCustom, sendXPassCommand]);
+  }, [isPlaying, sendPlayerCommand, useCustomControls, isCineSrcCustom, sendCineSrcCommand, isVidFastCustom]);
 
   const seekTo = useCallback((time: number) => {
     if (isCineSrcCustom) {
@@ -2029,16 +1997,6 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
       setPlayerCurrentTime(time);
       return;
     }
-    if (isCinemaOSCustom) {
-      sendCinemaOSCommand('seek', { time: Math.floor(time) });
-      setPlayerCurrentTime(time);
-      return;
-    }
-    if (isXPassCustom) {
-      sendXPassCommand('seek', { position: Math.floor(time) });
-      setPlayerCurrentTime(time);
-      return;
-    }
     if (useCustomControls) {
       const video = videoRef.current;
       if (video) video.currentTime = time;
@@ -2047,7 +2005,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     }
     sendPlayerCommand('seek', { time: Math.floor(time) });
     setPlayerCurrentTime(time);
-  }, [sendPlayerCommand, useCustomControls, isCineSrcCustom, sendCineSrcCommand, isVidFastCustom, isCinemaOSCustom, sendCinemaOSCommand, isXPassCustom, sendXPassCommand]);
+  }, [sendPlayerCommand, useCustomControls, isCineSrcCustom, sendCineSrcCommand, isVidFastCustom]);
 
   const changeVolume = useCallback((level: number) => {
     const clamped = Math.max(0, Math.min(1, level));
@@ -2065,25 +2023,6 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
       setPlayerVolume(clamped);
       if (clamped > 0 && playerMuted) {
         sendPlayerCommand('mute', { muted: false });
-        setPlayerMuted(false);
-      }
-      return;
-    }
-    if (isCinemaOSCustom) {
-      sendCinemaOSCommand('volume', { level: clamped });
-      setPlayerVolume(clamped);
-      if (clamped > 0 && playerMuted) {
-        sendCinemaOSCommand('mute', { muted: false });
-        setPlayerMuted(false);
-      }
-      return;
-    }
-    if (isXPassCustom) {
-      const volPercent = Math.round(clamped * 100);
-      sendXPassCommand('setVolume', { volume: volPercent });
-      setPlayerVolume(clamped);
-      if (clamped > 0 && playerMuted) {
-        sendXPassCommand('setMute', { muted: false });
         setPlayerMuted(false);
       }
       return;
@@ -2106,7 +2045,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
       sendPlayerCommand('mute', { muted: false });
       setPlayerMuted(false);
     }
-  }, [sendPlayerCommand, playerMuted, useCustomControls, isCineSrcCustom, sendCineSrcCommand, isVidFastCustom, isCinemaOSCustom, sendCinemaOSCommand, isXPassCustom, sendXPassCommand]);
+  }, [sendPlayerCommand, playerMuted, useCustomControls, isCineSrcCustom, sendCineSrcCommand, isVidFastCustom]);
 
   const toggleMuteState = useCallback(() => {
     if (isCineSrcCustom) {
@@ -2120,17 +2059,6 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
       setPlayerMuted(!playerMuted);
       return;
     }
-    if (isCinemaOSCustom) {
-      sendCinemaOSCommand('mute', { muted: !playerMuted });
-      setPlayerMuted(!playerMuted);
-      return;
-    }
-    if (isXPassCustom) {
-      const nextMuted = !playerMuted;
-      sendXPassCommand('setMute', { muted: nextMuted });
-      setPlayerMuted(nextMuted);
-      return;
-    }
     if (useCustomControls) {
       const video = videoRef.current;
       if (video) {
@@ -2141,7 +2069,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     }
     sendPlayerCommand('mute', { muted: !playerMuted });
     setPlayerMuted(!playerMuted);
-  }, [sendPlayerCommand, playerMuted, useCustomControls, isCineSrcCustom, sendCineSrcCommand, isVidFastCustom, isCinemaOSCustom, sendCinemaOSCommand, isXPassCustom, sendXPassCommand]);
+  }, [sendPlayerCommand, playerMuted, useCustomControls, isCineSrcCustom, sendCineSrcCommand, isVidFastCustom]);
 
   const skipForward = useCallback(() => {
     const nextTime = playerDuration > 0 ? Math.min(playerDuration, playerCurrentTime + 10) : playerCurrentTime + 10;
@@ -2149,10 +2077,6 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
       sendCineSrcCommand('seek', [nextTime]);
     } else if (isVidFastCustom) {
       sendPlayerCommand('seek', { time: Math.floor(nextTime) });
-    } else if (isCinemaOSCustom) {
-      sendCinemaOSCommand('seek', { time: Math.floor(nextTime) });
-    } else if (isXPassCustom) {
-      sendXPassCommand('seek', { position: Math.floor(nextTime) });
     } else if (useCustomControls) {
       const video = videoRef.current;
       if (video) {
@@ -2163,7 +2087,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     }
     setPlayerCurrentTime(nextTime);
     showOverlayFeedback('10s >', 'forward');
-  }, [playerDuration, playerCurrentTime, sendPlayerCommand, useCustomControls, isCineSrcCustom, sendCineSrcCommand, isVidFastCustom, isCinemaOSCustom, sendCinemaOSCommand, isXPassCustom, sendXPassCommand]);
+  }, [playerDuration, playerCurrentTime, sendPlayerCommand, useCustomControls, isCineSrcCustom, sendCineSrcCommand, isVidFastCustom]);
 
   const skipBackward = useCallback(() => {
     const nextTime = Math.max(0, playerCurrentTime - 10);
@@ -2171,10 +2095,6 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
       sendCineSrcCommand('seek', [nextTime]);
     } else if (isVidFastCustom) {
       sendPlayerCommand('seek', { time: Math.floor(nextTime) });
-    } else if (isCinemaOSCustom) {
-      sendCinemaOSCommand('seek', { time: Math.floor(nextTime) });
-    } else if (isXPassCustom) {
-      sendXPassCommand('seek', { position: Math.floor(nextTime) });
     } else if (useCustomControls) {
       const video = videoRef.current;
       if (video) {
@@ -2185,7 +2105,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
     }
     setPlayerCurrentTime(nextTime);
     showOverlayFeedback('< 10s', 'rewind');
-  }, [playerCurrentTime, sendPlayerCommand, useCustomControls, isCineSrcCustom, sendCineSrcCommand, isVidFastCustom, isCinemaOSCustom, sendCinemaOSCommand, isXPassCustom, sendXPassCommand]);
+  }, [playerCurrentTime, sendPlayerCommand, useCustomControls, isCineSrcCustom, sendCineSrcCommand, isVidFastCustom]);
 
   const toggleFullscreen = useCallback(() => {
     const container = containerRef.current;
@@ -2329,21 +2249,6 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
         return;
       }
       
-      if (selectedProviderId === 'cinemaos') {
-        win.postMessage({
-          command: cmd
-        }, 'https://cinemaos.tech');
-        return;
-      }
-
-      if (selectedProviderId === 'xpass') {
-        win.postMessage({
-          type: 'player.action',
-          action: cmd
-        }, 'https://play.xpass.top');
-        return;
-      }
-      
       // Send multiple formats of play/pause commands to ensure wide compatibility
       win.postMessage(JSON.stringify({ type: cmd }), '*');
       win.postMessage({ type: cmd }, '*');
@@ -2371,13 +2276,8 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
       setIsPlaying(true);
       setShowControls(true);
       if (selectedProviderId !== 'cinesrc') {
-        if (selectedProviderId === 'cinemaos') {
-          setTimeout(() => sendCinemaOSCommand('getStatus'), 500);
-          setTimeout(() => sendCinemaOSCommand('getStatus'), 1500);
-        } else {
-          setTimeout(() => sendPlayerCommand('getStatus'), 500);
-          setTimeout(() => sendPlayerCommand('getStatus'), 1500);
-        }
+        setTimeout(() => sendPlayerCommand('getStatus'), 500);
+        setTimeout(() => sendPlayerCommand('getStatus'), 1500);
       }
     }
   };
@@ -2739,82 +2639,12 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
                     return;
                 }
 
-                // Handle XPass events
-                if (event.origin === 'https://play.xpass.top' || parsed.type === 'player.event') {
-                    if (parsed.type === 'player.event' && parsed.event) {
-                        const { name, position, duration, volume, muted } = parsed.event;
-                        switch (name) {
-                            case 'ready':
-                                setIsBuffering(false);
-                                break;
-                            case 'position':
-                                if (!isSeekingRef.current) {
-                                    if (position !== undefined) {
-                                        setPlayerCurrentTime(Number(position));
-                                        currentProgressRef.current = Number(position);
-                                    }
-                                    if (duration !== undefined && Number(duration) > 0) {
-                                        setPlayerDuration(Number(duration));
-                                    }
-                                }
-                                if (onProgress && position !== undefined) {
-                                    onProgress({
-                                        currentTime: Number(position),
-                                        duration: duration !== undefined ? Number(duration) : 0,
-                                        event: 'time',
-                                        season: currentSeason,
-                                        episode: currentEpisode
-                                    });
-                                }
-                                break;
-                            case 'play':
-                                setIsPlaying(true);
-                                setIsBuffering(false);
-                                break;
-                            case 'pause':
-                                setIsPlaying(false);
-                                break;
-                            case 'seek':
-                                setIsBuffering(false);
-                                if (position !== undefined) {
-                                    setPlayerCurrentTime(Number(position));
-                                    currentProgressRef.current = Number(position);
-                                }
-                                break;
-                            case 'volume':
-                                if (volume !== undefined) setPlayerVolume(Number(volume) / 100);
-                                if (muted !== undefined) setPlayerMuted(muted);
-                                break;
-                            case 'end':
-                                setIsPlaying(false);
-                                if (onProgress) {
-                                    onProgress({
-                                        currentTime: playerDuration,
-                                        duration: playerDuration,
-                                        event: 'complete',
-                                        season: currentSeason,
-                                        episode: currentEpisode
-                                    });
-                                }
-                                if (isAutoplayEnabled && hasNextEpisode) {
-                                    playNextEpisode();
-                                }
-                                break;
-                        }
-                    }
-                    if (event.origin === 'https://play.xpass.top') return;
-                }
-
-                // Handle Peachify, VidFast & CinemaOS PLAYER_EVENTs / MEDIA_DATAs
-                if (event.origin === 'https://peachify.pro' || event.origin === 'https://vidfast.vc' || event.origin.includes('cinemaos.tech') || parsed.type === 'PLAYER_EVENT' || parsed.type === 'MEDIA_DATA') {
+                // Handle Peachify & VidFast PLAYER_EVENTs / MEDIA_DATAs
+                if (event.origin === 'https://peachify.pro' || event.origin === 'https://vidfast.vc' || parsed.type === 'PLAYER_EVENT' || parsed.type === 'MEDIA_DATA') {
                     const type = parsed.type;
                     const rawData = parsed.data;
                     if (type === 'MEDIA_DATA' && rawData) {
-                        if (event.origin.includes('cinemaos.tech')) {
-                            localStorage.setItem('cinemaosProgress', JSON.stringify(rawData));
-                        } else {
-                            localStorage.setItem('peachifyProgress', JSON.stringify(rawData));
-                        }
+                        localStorage.setItem('peachifyProgress', JSON.stringify(rawData));
                         return;
                     }
                     

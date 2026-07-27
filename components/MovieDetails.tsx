@@ -2718,7 +2718,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                 <p className="text-gray-300 leading-relaxed text-base font-light">{displayData.overview || "No overview available."}</p>
                                             </div>
                                              {displayData.external_ids && (
-                                                <div className="flex gap-3 mb-10">
+                                                <div className="flex gap-3 mb-8">
                                                     {displayData.external_ids.imdb_id && <SocialLink url={`https://www.imdb.com/title/${details.external_ids.imdb_id}`} icon={Film} hoverColor="hover:text-yellow-500 hover:border-yellow-500/30"/>}
                                                     {displayData.external_ids.instagram_id && <SocialLink url={`https://instagram.com/${displayData.external_ids.instagram_id}`} icon={Instagram} hoverColor="hover:text-pink-500 hover:border-pink-500/30"/>}
                                                     {displayData.external_ids.twitter_id && <SocialLink url={`https://twitter.com/${displayData.external_ids.twitter_id}`} icon={Twitter} hoverColor="hover:text-sky-400 hover:border-sky-400/30"/>}
@@ -2726,6 +2726,69 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                     {displayData.homepage && <SocialLink url={displayData.homepage} icon={Globe} hoverColor="hover:text-emerald-400 hover:border-emerald-400/30"/>}
                                                 </div>
                                             )}
+
+                                            {/* Integrated Horizontal Popularity Meter */}
+                                            {displayData.vote_count > 0 && (
+                                                <div className="p-4 sm:p-5 bg-white/[0.03] hover:bg-white/[0.05] rounded-2xl border border-white/10 backdrop-blur-md mb-8 transition-all duration-300 shadow-xl group">
+                                                    <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
+                                                        <div className="flex items-center gap-2.5">
+                                                            <div className="p-2 rounded-xl bg-red-500/10 text-red-500 border border-red-500/20">
+                                                                <TrendingUp size={16} />
+                                                            </div>
+                                                            <div>
+                                                                <h4 className="text-xs font-bold text-white uppercase tracking-wider">Popularity & Rating</h4>
+                                                                <p className="text-[10px] text-zinc-400 font-medium">Based on {displayData.vote_count.toLocaleString()} audience votes</p>
+                                                            </div>
+                                                        </div>
+                                                        <div className="flex items-center gap-3">
+                                                            <span className="text-xl sm:text-2xl font-black text-white tracking-tight">{Math.round(Math.min(100, Math.max(0, (displayData.vote_average || 0) * 10)))}%</span>
+                                                            <span className="text-xs font-bold px-2.5 py-1 rounded-md bg-red-500/20 text-red-400 border border-red-500/30">
+                                                                {(displayData.vote_average || 0).toFixed(1)} / 10
+                                                            </span>
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="w-full bg-white/10 h-3 rounded-full overflow-hidden relative shadow-inner p-0.5 border border-white/5">
+                                                        <div 
+                                                            className="h-full bg-gradient-to-r from-red-600 via-rose-500 to-amber-400 rounded-full transition-all duration-1000 ease-out shadow-[0_0_12px_rgba(239,68,68,0.5)]"
+                                                            style={{ width: `${Math.round(Math.min(100, Math.max(0, (displayData.vote_average || 0) * 10)))}%` }}
+                                                        />
+                                                    </div>
+
+                                                    <div className="flex flex-wrap items-center justify-between text-[11px] text-zinc-400 font-medium mt-3 pt-2.5 border-t border-white/5 gap-2">
+                                                        <span>Positive Sentiment: <strong className="text-zinc-200">{Math.round(((displayData.vote_average || 0) / 10) * displayData.vote_count).toLocaleString()}</strong> votes</span>
+                                                        {displayData.popularity ? <span>Popularity Index: <strong className="text-zinc-200">{Math.round(displayData.popularity).toLocaleString()}</strong></span> : null}
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {/* Movie & Genre Tags */}
+                                            {((displayData.genres && displayData.genres.length > 0) || (displayData.keywords?.keywords || displayData.keywords?.results || (displayData as any).tags)) && (
+                                                <div className="mb-10">
+                                                    <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+                                                        <Tag size={13} className="text-red-500" /> Movie Genres & Tags
+                                                    </h4>
+                                                    <div className="flex flex-wrap gap-2">
+                                                        {displayData.genres?.map((genre: any) => (
+                                                            <span key={genre.id || genre.name} className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-red-600/15 text-red-300 border border-red-500/30 shadow-sm backdrop-blur-md">
+                                                                {genre.name}
+                                                            </span>
+                                                        ))}
+                                                        {(displayData.keywords?.keywords || displayData.keywords?.results || (displayData as any).tags || [])
+                                                            .slice(0, 16)
+                                                            .map((tag: any, idx: number) => {
+                                                                const tagName = typeof tag === 'string' ? tag : tag.name;
+                                                                if (!tagName) return null;
+                                                                return (
+                                                                    <span key={idx} className="px-3 py-1.5 rounded-xl text-xs font-medium bg-white/5 hover:bg-white/10 text-zinc-300 border border-white/10 transition-colors">
+                                                                        #{tagName}
+                                                                    </span>
+                                                                );
+                                                            })}
+                                                    </div>
+                                                </div>
+                                            )}
+
                                             <div className="mb-10">
                                                 <h3 className="text-xl font-bold text-white mb-6">Top Cast</h3>
                                                 <div className="flex overflow-x-auto gap-6 pb-4 hide-scrollbar">
@@ -2748,13 +2811,6 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                     <TvFocusButton onClick={() => setShowFullCrew(true)} className="flex flex-col items-center justify-center shrink-0 w-20 h-20 rounded-full bg-white/5 hover:bg-white/10 border border-transparent transition-all group"><ChevronRight size={20} className="text-gray-400 group-hover:text-white mb-1"/><span className="text-[10px] font-bold text-gray-400 group-hover:text-white">View All</span></TvFocusButton>
                                                 </div>
                                             </div>
-
-                                            {!isTV && (
-                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-12">
-                                                    {displayData.vote_count > 0 && <PopularityMeter score={displayData.vote_average} count={displayData.vote_count} />}
-                                                    {displayData.genres && displayData.genres.length > 0 && <VibeChart genres={displayData.genres} />}
-                                                </div>
-                                            )}
                                         </div>
                                     )}
                                     {activeTab === 'characters' && (

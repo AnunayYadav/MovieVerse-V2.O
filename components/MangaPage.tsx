@@ -4413,7 +4413,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
                 <ChevronLeft size={15} />
               </button>
             )}
-            <div className="flex items-center gap-2 px-3 py-1.5 bg-white/10 border border-white/10 rounded-xl font-bold text-white max-w-[140px] sm:max-w-[240px] truncate">
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-white/10 border-none rounded-xl font-bold text-white max-w-[140px] sm:max-w-[240px] truncate">
               <BookOpen size={14} className="text-red-500 shrink-0" />
               <span className="truncate">{selectedManga ? getMangaTitle(selectedManga) : 'Loading...'}</span>
             </div>
@@ -4425,7 +4425,7 @@ export const MangaPage: React.FC<MangaPageProps> = ({
             onChange={onChapterSelect}
             options={menuChapterOptions}
             icon={<LayoutList size={14} className="text-red-500 shrink-0" />}
-            className="px-3 py-1.5 bg-white/10 hover:bg-white/15 border border-white/10 rounded-xl font-semibold text-xs transition-colors"
+            className="px-3 py-1.5 bg-white/10 hover:bg-white/15 border-none rounded-xl font-semibold text-xs transition-colors"
             containerClassName="w-40 sm:w-56"
             dropdownClassName="w-56 max-h-60"
             menuAlign="center"

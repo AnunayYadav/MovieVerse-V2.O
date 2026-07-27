@@ -149,18 +149,10 @@ export const PROVIDERS: Provider[] = [
     supportsPostMessage: false
   },
   {
-    id: 'cinemaos',
-    name: 'CinemaOS',
-    getMovieUrl: (tmdbId, color, progress) => {
-      const cleanColor = color ? color.replace('#', '') : 'EF4444';
-      const startAt = progress && progress > 0 ? `&startTime=${Math.floor(progress)}` : '';
-      return `https://cinemaos.tech/player/${tmdbId}?theme=${cleanColor}&autoPlay=true&title=false&poster=false${startAt}`;
-    },
-    getTvUrl: (tmdbId, season, episode, color, progress) => {
-      const cleanColor = color ? color.replace('#', '') : 'EF4444';
-      const startAt = progress && progress > 0 ? `&startTime=${Math.floor(progress)}` : '';
-      return `https://cinemaos.tech/player/${tmdbId}/${season}/${episode}?theme=${cleanColor}&autoPlay=true&nextButton=true&autoNext=true&title=false&poster=false${startAt}`;
-    },
+    id: 'vaplayer',
+    name: 'VaPlayer',
+    getMovieUrl: (tmdbId) => `https://vaplayer.ru/embed/movie/${tmdbId}`,
+    getTvUrl: (tmdbId, season, episode) => `https://vaplayer.ru/embed/tv/${tmdbId}/${season}/${episode}`,
     supportsPostMessage: false
   },
   {
@@ -178,13 +170,7 @@ export const PROVIDERS: Provider[] = [
     },
     supportsPostMessage: true
   },
-  {
-    id: 'xpass',
-    name: 'XPass',
-    getMovieUrl: (tmdbId) => `https://play.xpass.top/e/movie/${tmdbId}`,
-    getTvUrl: (tmdbId, season, episode) => `https://play.xpass.top/e/tv/${tmdbId}/${season}/${episode}`,
-    supportsPostMessage: false
-  },
+
   {
     id: '2embed',
     name: '2Embed',

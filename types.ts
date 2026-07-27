@@ -42,6 +42,7 @@ export interface Movie {
       updated_at?: number;
   };
   isAnimeDirect?: boolean;
+  tags?: Array<string | Keyword | { name: string }>;
 }
 
 export interface Genre {
@@ -164,6 +165,7 @@ export interface MovieDetails extends Movie {
   averageScore?: number;
   duration?: number;
   isAnimeDirect?: boolean;
+  tags?: Array<string | Keyword | { name: string }>;
 }
 
 export interface Review {
