@@ -5,6 +5,7 @@ import { TvFocusButton } from '../tvNavigation';
 import { pause, resume } from '@noriginmedia/norigin-spatial-navigation';
 import { TMDB_BASE_URL, TMDB_IMAGE_BASE } from './Shared';
 import { Provider, PROVIDERS, getSubtitleCode, getAudioCode, getFilteredProviders } from './Providers';
+import { HayaseStreamer } from './HayaseStreamer';
 
 
 
@@ -3114,7 +3115,18 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
           </div>
         )}
 
-        {(selectedProviderId === 'cinepro_core' || selectedProviderId.startsWith('encdec')) && !fallbackToIframe ? (
+        {selectedProviderId === 'hayase_torrent' ? (
+          <div className="w-full h-full absolute inset-0 bg-slate-950 z-20 flex items-center justify-center p-2 md:p-6 overflow-y-auto">
+            <HayaseStreamer 
+              title={displayTitle}
+              tmdbId={tmdbId}
+              imdbId={details?.external_ids?.imdb_id}
+              season={currentSeason}
+              episode={currentEpisode}
+              isAnime={isAnime}
+            />
+          </div>
+        ) : (selectedProviderId === 'cinepro_core' || selectedProviderId.startsWith('encdec')) && !fallbackToIframe ? (
             <div className="w-full h-full absolute inset-0 bg-zinc-950 z-0 flex items-center justify-center">
               {anivexaLoading && !anivexaStreamUrl && (
                 <div className="absolute inset-0 flex items-center justify-center bg-black z-30 animate-in fade-in duration-250">

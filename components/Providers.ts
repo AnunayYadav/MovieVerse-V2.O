@@ -36,6 +36,13 @@ export const getSubtitleCode = (sub: string, format: 'name' | 'iso') => {
 
 export const PROVIDERS: Provider[] = [
   {
+    id: 'hayase_torrent',
+    name: '⚡ Hayase Torrent Engine',
+    getMovieUrl: (tmdbId) => `hayase://movie/${tmdbId}`,
+    getTvUrl: (tmdbId, season, episode) => `hayase://tv/${tmdbId}/${season}/${episode}`,
+    supportsPostMessage: false
+  },
+  {
     id: 'auto',
     name: 'Auto (Fastest Server)',
     getMovieUrl: (tmdbId, color, progress, isAnime, anilistId, animeLanguage = 'sub') => {

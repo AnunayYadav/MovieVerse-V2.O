@@ -27,7 +27,6 @@ import { BookOpen, Drama, Music, Headphones, Mic } from 'lucide-react';
 import { useTvFocus, TvFocusButton, TvFocusInput } from './tvNavigation';
 import AppTV from './components/AppTV';
 import { syncWatchlistToAniList } from './services/anilistSync';
-import { HayaseStreamer } from './components/HayaseStreamer';
 
 const fetch = tvFetch;
 
@@ -1381,7 +1380,6 @@ export default function App() {
     const [loadingSuggestions, setLoadingSuggestions] = useState(false);
     const [searchHistory, setSearchHistory] = useState<string[]>([]);
     const [selectedCategory, setSelectedCategory] = useState("All");
-    const [isHayaseOpen, setIsHayaseOpen] = useState(false);
 
     useEffect(() => {
         if (!searchInput.trim() || searchInput.trim().length < 2) {
@@ -5732,24 +5730,6 @@ export default function App() {
             />
             <SettingsPage isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} apiKey={apiKey} setApiKey={(k) => saveSettings(k)} maturityRating={maturityRating} setMaturityRating={setMaturityRating} profile={userProfile} onUpdateProfile={setUserProfile} onLogout={handleLogout} searchHistory={searchHistory} setSearchHistory={(h) => { setSearchHistory(h); localStorage.setItem('movieverse_search_history', JSON.stringify(h)); }} watchedMovies={watched} setWatchedMovies={(m) => { setWatched(m); localStorage.setItem('movieverse_watched', JSON.stringify(m)); }} watchlist={watchlist} setWatchlist={(w) => { setWatchlist(w); localStorage.setItem('movieverse_watchlist', JSON.stringify(w)); }} favorites={favorites} setFavorites={(f) => { setFavorites(f); localStorage.setItem('movieverse_favorites', JSON.stringify(f)); }} onSelectMovie={setSelectedMovie} />
             <NotificationModal isOpen={isNotificationOpen} onClose={() => setIsNotificationOpen(false)} onUpdate={checkUnreadNotifications} userProfile={userProfile} />
-
-            {/* Hayase Streamer Modal Overlay */}
-            {isHayaseOpen && (
-                <div className="fixed inset-0 z-[200] bg-black/95 p-4 md:p-8 flex items-center justify-center overflow-y-auto backdrop-blur-2xl animate-in fade-in duration-300">
-                    <HayaseStreamer onClose={() => setIsHayaseOpen(false)} />
-                </div>
-            )}
-
-            {/* Floating Hayase Launcher Button */}
-            <button
-                onClick={() => setIsHayaseOpen(true)}
-                className="fixed bottom-20 right-4 z-[90] md:bottom-6 md:right-6 px-4 py-2.5 rounded-full bg-gradient-to-r from-cyan-500 via-blue-600 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-white font-extrabold text-xs shadow-xl shadow-cyan-500/25 border border-cyan-400/30 flex items-center gap-2 transition-all duration-300 hover:scale-105 active:scale-95 group cursor-pointer"
-                title="Launch Hayase In-Browser Torrent Streamer"
-            >
-                <Zap className="w-4 h-4 text-cyan-300 animate-pulse group-hover:rotate-12 transition-transform" />
-                <span className="tracking-wide">Hayase Streamer</span>
-            </button>
-
 
             {/* Join Watch Party Modal */}
             <div className={`fixed inset-0 z-[120] flex items-center justify-center p-4 transition-all duration-300 ${isWatchPartyJoinOpen ? 'visible opacity-100 pointer-events-auto bg-black/80 backdrop-blur-xl' : 'invisible opacity-0 pointer-events-none bg-black/0 backdrop-blur-none'}`}>

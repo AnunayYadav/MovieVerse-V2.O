@@ -62,16 +62,93 @@ const SAMPLE_TORRENTS: SampleTorrent[] = [
   }
 ];
 
-export const HayaseStreamer: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
-  const [magnetInput, setMagnetInput] = useState<string>(SAMPLE_TORRENTS[0].magnet);
+interface HayaseStreamerProps {
+  onClose?: () => void;
+  title?: string;
+  tmdbId?: number;
+  imdbId?: string;
+  season?: number;
+  episode?: number;
+  isAnime?: boolean;
+  initialMagnet?: string;
+}
+
+export const HayaseStreamer: React.FC<HayaseStreamerProps> = ({ 
+  onClose, 
+  title, 
+  tmdbId, 
+  imdbId, 
+  season = 1, 
+  episode = 1, 
+  isAnime, 
+  initialMagnet 
+}) => {
+  const [magnetInput, setMagnetInput] = useState<string>(initialMagnet || SAMPLE_TORRENTS[0].magnet);
+  const [autoFetchedTorrents, setAutoFetchedTorrents] = useState<Array<{ name: string; magnet: string; seeds?: number }>>([]);
+  const [isSearchingTorrents, setIsSearchingTorrents] = useState<boolean>(false);
   
   // Engine & Cloud Settings
-  const [engineMode, setEngineMode] = useState<'webtorrent' | 'proxy' | 'local' | 'torbox' | 'seedr'>('webtorrent');
+  const [engineMode, setEngineMode] = useState<'webtorrent' | 'proxy' | 'local' | 'torbox' | 'seedr'>('proxy');
   const [hayaseProxyUrl, setHayaseProxyUrl] = useState<string>(() => localStorage.getItem('hayase_proxy_url') || 'https://movieverse-v2-o.onrender.com');
   const [torboxApiKey, setTorboxApiKey] = useState<string>(() => localStorage.getItem('torbox_api_key') || '');
   const [seedrApiKey, setSeedrApiKey] = useState<string>(() => localStorage.getItem('seedr_api_key') || '');
   const [showSettingsModal, setShowSettingsModal] = useState<boolean>(false);
   const [isResolvingCloud, setIsResolvingCloud] = useState<boolean>(false);
+
+  // Auto-resolve torrent by IMDB/Title when mounted inside MoviePlayer
+  useEffect(() => {
+    let isMounted = true;
+
+    const autoFetchTorrent = async () => {
+      if (initialMagnet) {
+        setMagnetInput(initialMagnet);
+        return;
+      }
+
+      if (!imdbId && !title) return;
+
+      setIsSearchingTorrents(true);
+      setStatusText(`Searching P2P torrent swarm for ${title || imdbId}...`);
+
+      try {
+        let streamUrl = '';
+        if (imdbId) {
+          const type = (season && episode && season > 0) ? 'series' : 'movie';
+          const query = type === 'series' ? `${imdbId}:${season}:${episode}` : imdbId;
+          const res = await fetch(`https://torrentio.strem.fun/stream/${type}/${query}.json`);
+          if (res.ok) {
+            const data = await res.json();
+            if (data && data.streams && data.streams.length > 0) {
+              const parsedTorrents = data.streams.map((s: any) => {
+                const infoHash = s.infoHash;
+                const magnet = `magnet:?xt=urn:btih:${infoHash}&dn=${encodeURIComponent(s.title || title || 'Video')}`;
+                return {
+                  name: s.title ? s.title.split('\n')[0] : 'High Quality Torrent Stream',
+                  magnet,
+                  seeds: 50
+                };
+              });
+
+              if (isMounted && parsedTorrents.length > 0) {
+                setAutoFetchedTorrents(parsedTorrents);
+                setMagnetInput(parsedTorrents[0].magnet);
+                setStatusText(`Auto-selected top torrent for ${title || 'Video'}`);
+                return;
+              }
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('Auto Torrent Search Notice:', e);
+      } finally {
+        if (isMounted) setIsSearchingTorrents(false);
+      }
+    };
+
+    autoFetchTorrent();
+
+    return () => { isMounted = false; };
+  }, [imdbId, title, season, episode, initialMagnet]);
 
   // Torrent State
   const [isDownloading, setIsDownloading] = useState(false);
@@ -731,6 +808,34 @@ export const HayaseStreamer: React.FC<{ onClose?: () => void }> = ({ onClose }) 
                 <Play className="w-4 h-4 fill-current" /> Stream Now
               </button>
             </div>
+
+            {/* Auto-Fetched Swarm Torrents for current Movie/TV Show */}
+            {autoFetchedTorrents.length > 0 && (
+              <div className="pt-2 border-t border-slate-800/80">
+                <span className="text-[11px] font-semibold text-cyan-400 block mb-1.5 flex items-center gap-1">
+                  <Zap className="w-3.5 h-3.5 text-cyan-400" /> Auto-Discovered Torrents for {title || 'Video'}:
+                </span>
+                <div className="flex flex-col gap-1.5 max-h-32 overflow-y-auto">
+                  {autoFetchedTorrents.map((t, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => {
+                        setMagnetInput(t.magnet);
+                        handleStartStream(t.magnet);
+                      }}
+                      className={`p-2 rounded-lg text-left text-xs transition border flex items-center justify-between ${
+                        magnetInput === t.magnet
+                          ? 'bg-cyan-500/20 border-cyan-500/50 text-cyan-200'
+                          : 'bg-slate-900 border-slate-800 text-slate-300 hover:bg-slate-800'
+                      }`}
+                    >
+                      <span className="truncate flex-1 font-medium">{t.name}</span>
+                      <span className="text-[10px] text-cyan-400 ml-2 font-mono">Stream ↗</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Sample Preset Torrents */}
             <div className="pt-2 border-t border-slate-800/80">
