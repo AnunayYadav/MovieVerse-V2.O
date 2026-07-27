@@ -1959,6 +1959,39 @@ export const MoviePage: React.FC<MoviePageProps> = ({
     }, [movie.id, selectedSeason, apiKey, activeTab, details, showPlayer]);
 
     useEffect(() => {
+        if (!episodes || episodes.length === 0 || !details) return;
+        const targetDateStr = details.first_air_date || (details.startDate?.year ? `${details.startDate.year}-${String(details.startDate.month || 1).padStart(2, '0')}-${String(details.startDate.day || 1).padStart(2, '0')}` : null);
+        if (!targetDateStr) return;
+
+        const targetTime = new Date(targetDateStr).getTime();
+        if (isNaN(targetTime)) return;
+
+        let matchedEpNumber: number | null = null;
+        let minDiff = Infinity;
+
+        for (const ep of episodes) {
+            if (!ep.air_date) continue;
+            const epTime = new Date(ep.air_date).getTime();
+            if (isNaN(epTime)) continue;
+            const diff = Math.abs(epTime - targetTime);
+            if (diff < minDiff) {
+                minDiff = diff;
+                matchedEpNumber = ep.episode_number;
+            }
+        }
+
+        if (matchedEpNumber && minDiff <= 180 * 24 * 3600 * 1000) {
+            const epNum = matchedEpNumber;
+            setTimeout(() => {
+                const el = document.getElementById(`episode-card-${epNum}`);
+                if (el) {
+                    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            }, 350);
+        }
+    }, [episodes, details]);
+
+    useEffect(() => {
         if (!timelineContainerRef.current || !activeTimelineItemRef.current || hasCenteredTimeline.current === movie.id) return;
         const observer = new IntersectionObserver((entries) => {
             if (entries[0].isIntersecting) {
@@ -2087,6 +2120,47 @@ export const MoviePage: React.FC<MoviePageProps> = ({
         if (activeSeasons.length === 0) return 1;
         if (activeSeasons.length === 1) return activeSeasons[0].season_number;
 
+        const startDateObj = anime?.startDate;
+        const targetYear = anime?.seasonYear || startDateObj?.year || anime?.year;
+
+        // 1. HIGHEST PRIORITY: Exact / Closest Air Date or Season Year matching
+        if (startDateObj?.year && startDateObj?.month && startDateObj?.day) {
+            const targetDate = new Date(startDateObj.year, startDateObj.month - 1, startDateObj.day).getTime();
+            if (!isNaN(targetDate)) {
+                let closestSeason: any = null;
+                let minDiff = Infinity;
+
+                for (const s of activeSeasons) {
+                    if (!s.air_date) continue;
+                    const sDate = new Date(s.air_date).getTime();
+                    if (isNaN(sDate)) continue;
+                    
+                    const diff = Math.abs(sDate - targetDate);
+                    if (diff < minDiff) {
+                        minDiff = diff;
+                        closestSeason = s;
+                    }
+                }
+
+                // If closest season air_date is within ~1 year (365 days), use it!
+                if (closestSeason && minDiff <= 365 * 24 * 3600 * 1000) {
+                    return closestSeason.season_number;
+                }
+            }
+        }
+
+        if (targetYear) {
+            const matchedByYear = activeSeasons.filter(s => {
+                if (!s.air_date) return false;
+                const tmdbYear = new Date(s.air_date).getFullYear();
+                return tmdbYear === targetYear;
+            });
+            if (matchedByYear.length > 0) {
+                return matchedByYear[0].season_number;
+            }
+        }
+
+        // 2. SECOND PRIORITY: Try matching season names in title (e.g. "Thousand-Year Blood War")
         const titles = [
           typeof anime?.title === 'string' ? anime.title : null,
           anime?.title?.english,
@@ -2094,7 +2168,6 @@ export const MoviePage: React.FC<MoviePageProps> = ({
           anime?.title?.userPreferred
         ].filter((t: any): t is string => typeof t === 'string' && t.length > 0);
 
-        // 1. Try matching season names in title (e.g. "Thousand-Year Blood War" in "BLEACH: Thousand-Year Blood War")
         for (const s of activeSeasons) {
             if (!s.name) continue;
             const sName = s.name.toLowerCase().trim();
@@ -2107,7 +2180,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
             }
         }
 
-        // 2. Try parsing season/part numbers from title (e.g. "Season 2", "Part 3")
+        // 3. THIRD PRIORITY: Try parsing season/part numbers from title (e.g. "Season 2", "Part 3")
         let parsedSeasonFromTitle: number | null = null;
         for (const title of titles) {
           const t = title.toLowerCase();
@@ -2121,14 +2194,6 @@ export const MoviePage: React.FC<MoviePageProps> = ({
             parsedSeasonFromTitle = parseInt(match2[1], 10);
             break;
           }
-          if (/\bseason\s+ii\b/i.test(t) || /\bii\b/i.test(t)) {
-            parsedSeasonFromTitle = 2;
-            break;
-          }
-          if (/\bseason\s+iii\b/i.test(t) || /\biii\b/i.test(t)) {
-            parsedSeasonFromTitle = 3;
-            break;
-          }
         }
 
         if (parsedSeasonFromTitle !== null) {
@@ -2136,20 +2201,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
           if (match) return match.season_number;
         }
 
-        // 3. Try matching by Air Date / Season Year
-        const targetYear = anime.seasonYear || anime.startDate?.year || anime.year;
-        if (targetYear) {
-          const matchedByYear = activeSeasons.filter(s => {
-            if (!s.air_date) return false;
-            const tmdbYear = new Date(s.air_date).getFullYear();
-            return tmdbYear === targetYear;
-          });
-          if (matchedByYear.length > 0) {
-            return matchedByYear[0].season_number;
-          }
-        }
-
-        return 1;
+        return activeSeasons[0].season_number;
     };
 
     const handleRelationClick = async (relationNode: any) => {
@@ -2289,7 +2341,6 @@ export const MoviePage: React.FC<MoviePageProps> = ({
         { id: 'reviews', label: 'Reviews' },
         { id: 'media', label: 'Media' },
         ...(isAnime ? [{ id: 'social', label: 'Social' }] : []),
-        ...(isAnime ? [{ id: 'news', label: 'News' }] : []),
         ...(isTv ? [{ id: 'seasons', label: 'Seasons' }] : []),
         ...(isAnime ? [{ id: 'characters', label: 'Characters' }] : []),
         ...(isAnime && animeThemes && (animeThemes.openings.length > 0 || animeThemes.endings.length > 0) ? [{ id: 'themes', label: 'Theme Songs' }] : []),
@@ -3827,6 +3878,7 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                                                             return (
                                                                 <div 
                                                                     key={episode.id}
+                                                                    id={`episode-card-${episode.episode_number}`}
                                                                     onClick={() => {
                                                                         if (isExclusive) {
                                                                             setPlayParams({ season: selectedSeason, episode: episode.episode_number });
