@@ -5450,45 +5450,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
       {/* Main Layout Container */}
       <div className="max-w-7xl mx-auto w-full p-4 sm:p-6 md:p-8 flex flex-col lg:flex-row gap-6">
         
-        {/* LEFT COLUMN: LIST OF EPISODES (Only for TV Shows & Anime) */}
-        {isTvShow && (
-          <div className="w-full lg:w-72 xl:w-80 shrink-0 flex flex-col">
-            <div className="flex items-center justify-between mb-2.5 px-1">
-              <h3 className="text-xs font-bold tracking-wider text-zinc-400 uppercase">
-                List of Episodes
-              </h3>
-              <span className="text-[10px] text-zinc-500 font-semibold">{episodeList.length} Total</span>
-            </div>
-            <div className="bg-[#121214] border border-white/5 rounded-2xl p-2 max-h-[580px] overflow-y-auto custom-scrollbar space-y-1 shadow-xl">
-              {episodeList.map((ep: any, idx: number) => {
-                const epNum = ep.episode_number || ep.number || (idx + 1);
-                const epTitle = ep.name || ep.title || `Episode ${epNum}`;
-                const isActive = epNum === currentEpisode;
-                return (
-                  <button
-                    key={`ep-${epNum}-${idx}`}
-                    onClick={() => handleEpisodeClick(epNum)}
-                    className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs transition-all text-left group ${
-                      isActive
-                        ? 'bg-red-600/15 text-red-500 border border-red-500/30 font-bold'
-                        : 'bg-white/5 hover:bg-white/10 text-zinc-300 border border-transparent font-medium'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2.5 min-w-0 pr-2">
-                      <span className={`text-[11px] font-mono shrink-0 ${isActive ? 'text-red-500 font-bold' : 'text-zinc-500'}`}>
-                        {String(epNum).padStart(2, '0')}
-                      </span>
-                      <span className="truncate">{epTitle}</span>
-                    </div>
-                    {isActive && <Play size={12} fill="currentColor" className="text-red-500 shrink-0" />}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        {/* RIGHT / MAIN STREAMING CONTENT PANEL */}
+        {/* LEFT / MAIN STREAMING CONTENT PANEL */}
         <div className="flex-1 flex flex-col min-w-0">
           
           {/* Video Player Frame Container */}
@@ -5745,6 +5707,45 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
           )}
 
         </div>
+
+        {/* RIGHT COLUMN: LIST OF EPISODES (Only for TV Shows & Anime) */}
+        {isTvShow && (
+          <div className="w-full lg:w-72 xl:w-80 shrink-0 flex flex-col">
+            <div className="flex items-center justify-between mb-3 px-1">
+              <h3 className="text-xs font-bold tracking-wider text-zinc-300 uppercase flex items-center gap-2">
+                <span>Episodes</span>
+              </h3>
+              <span className="text-[10px] text-zinc-500 font-semibold bg-white/5 px-2 py-0.5 rounded-full">{episodeList.length} Total</span>
+            </div>
+            <div className="bg-[#0c0c0e]/80 rounded-2xl p-1.5 max-h-[640px] overflow-y-auto custom-scrollbar space-y-0.5 border border-white/5 shadow-2xl">
+              {episodeList.map((ep: any, idx: number) => {
+                const epNum = ep.episode_number || ep.number || (idx + 1);
+                const epTitle = ep.name || ep.title || `Episode ${epNum}`;
+                const isActive = epNum === currentEpisode;
+                return (
+                  <button
+                    key={`ep-${epNum}-${idx}`}
+                    onClick={() => handleEpisodeClick(epNum)}
+                    className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs transition-all text-left group ${
+                      isActive
+                        ? 'bg-red-600/15 text-red-400 font-bold border-l-2 border-red-500 shadow-sm'
+                        : 'text-zinc-400 hover:text-white hover:bg-white/5 font-medium'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0 pr-2">
+                      <span className={`text-[11px] font-mono shrink-0 ${isActive ? 'text-red-400 font-bold' : 'text-zinc-500 group-hover:text-zinc-300'}`}>
+                        {String(epNum).padStart(2, '0')}
+                      </span>
+                      <span className="truncate">{epTitle}</span>
+                    </div>
+                    {isActive && <Play size={11} fill="currentColor" className="text-red-500 shrink-0 animate-pulse" />}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
       </div>
     </div>
   );
