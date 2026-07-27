@@ -26,7 +26,7 @@ export async function resolveHayaseProxyStream(magnetUri: string, customProxyUrl
   streamUrl: string;
   fileName: string;
 } | null> {
-  const proxyBase = (customProxyUrl || localStorage.getItem('hayase_proxy_url') || 'http://localhost:4000').replace(/\/$/, '');
+  const proxyBase = (customProxyUrl || localStorage.getItem('hayase_proxy_url') || 'https://movieverse-v2-o.onrender.com').replace(/\/$/, '');
   const encodedMagnet = encodeURIComponent(magnetUri);
 
   // Ping proxy

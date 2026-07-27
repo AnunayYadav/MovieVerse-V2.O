@@ -67,7 +67,7 @@ export const HayaseStreamer: React.FC<{ onClose?: () => void }> = ({ onClose }) 
   
   // Engine & Cloud Settings
   const [engineMode, setEngineMode] = useState<'webtorrent' | 'proxy' | 'local' | 'torbox' | 'seedr'>('webtorrent');
-  const [hayaseProxyUrl, setHayaseProxyUrl] = useState<string>(() => localStorage.getItem('hayase_proxy_url') || 'http://localhost:4000');
+  const [hayaseProxyUrl, setHayaseProxyUrl] = useState<string>(() => localStorage.getItem('hayase_proxy_url') || 'https://movieverse-v2-o.onrender.com');
   const [torboxApiKey, setTorboxApiKey] = useState<string>(() => localStorage.getItem('torbox_api_key') || '');
   const [seedrApiKey, setSeedrApiKey] = useState<string>(() => localStorage.getItem('seedr_api_key') || '');
   const [showSettingsModal, setShowSettingsModal] = useState<boolean>(false);
@@ -151,17 +151,19 @@ export const HayaseStreamer: React.FC<{ onClose?: () => void }> = ({ onClose }) 
 
     setIsResolvingCloud(true);
     setIsDownloading(true);
-    setStatusText("Connecting to Hayase Cloud Torrent Proxy...");
+    setStatusText("Connecting to Hayase Render Proxy (Waking up server ~15s if asleep)...");
 
     try {
       const res = await resolveHayaseProxyStream(targetMagnet, hayaseProxyUrl);
       if (res && res.streamUrl && videoRef.current) {
         videoRef.current.removeAttribute('poster');
         videoRef.current.src = res.streamUrl;
+        
         videoRef.current.play().then(() => {
           setStatusText(`Playing Nyaa Torrent via Hayase Proxy: ${res.fileName}`);
-        }).catch(() => {
-          setStatusText(`Ready via Hayase Proxy: ${res.fileName} — Click Play`);
+        }).catch((err) => {
+          console.warn('Proxy Autoplay Notice:', err);
+          setStatusText(`Proxy Stream Ready — Click Play`);
         });
 
         setTorrentInfo({
