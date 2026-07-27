@@ -271,6 +271,7 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
   const [episodes, setEpisodes] = useState<any[]>(initialEpisodes || []);
   const [episodesLoading, setEpisodesLoading] = useState(false);
   const [isSeasonDropdownOpen, setIsSeasonDropdownOpen] = useState(false);
+  const [isSidebarSeasonOpen, setIsSidebarSeasonOpen] = useState(false);
 
   // Watch View Toggles & Functions
   const [autoPlayState, setAutoPlayState] = useState(true);
@@ -5683,29 +5684,84 @@ export const MoviePlayer: React.FC<MoviePlayerProps> = ({
 
         </div>
 
-        {/* RIGHT COLUMN: LIST OF EPISODES (Only for TV Shows & Anime) */}
+        {/* RIGHT COLUMN: LIST OF EPISODES & SEASONS (Only for TV Shows & Anime) */}
         {isTvShow && (
           <div className="w-full lg:w-72 xl:w-80 shrink-0 flex flex-col">
+            {/* Header Bar */}
             <div className="flex items-center justify-between mb-3 px-1">
               <h3 className="text-xs font-bold tracking-wider text-zinc-300 uppercase flex items-center gap-2">
                 <span>Episodes</span>
                 {isAnime && animeSeasonMap.length > 0 && (
                   <button
-                    onClick={() => setUseTmdbMode(!useTmdbMode)}
+                    onClick={() => {
+                      setUseTmdbMode(!useTmdbMode);
+                      setIsSidebarSeasonOpen(false);
+                    }}
                     className={`text-[9px] font-medium px-2 py-0.5 rounded-full border transition-all cursor-pointer ${
                       useTmdbMode 
                         ? 'bg-red-600/20 text-red-400 border-red-500/20' 
                         : 'bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white border-white/5'
                     }`}
-                    title={useTmdbMode ? "Switch to AniList Episodes" : "Switch to TMDB Episodes"}
+                    title={useTmdbMode ? "Switch to AniList Seasons" : "Switch to TMDB Seasons"}
                   >
-                    {useTmdbMode ? 'TMDB Seasons' : 'AniList Seasons'}
+                    {useTmdbMode ? 'TMDB View' : 'AniList View'}
                   </button>
                 )}
               </h3>
               <span className="text-[10px] text-zinc-500 font-semibold bg-white/5 px-2 py-0.5 rounded-full">{episodeList.length} Total</span>
             </div>
-            <div className="bg-[#0c0c0e]/80 rounded-2xl p-1.5 max-h-[640px] overflow-y-auto custom-scrollbar space-y-0.5 border border-white/5 shadow-2xl">
+
+            {/* Season Selector Dropdown */}
+            {seasons.length > 0 && (
+              <div className="relative mb-3">
+                <button
+                  onClick={() => setIsSidebarSeasonOpen(!isSidebarSeasonOpen)}
+                  className="w-full flex items-center justify-between px-3 py-2 bg-[#0c0c0e]/80 hover:bg-[#121216] border border-white/5 rounded-xl text-xs font-medium text-white transition-all shadow-md cursor-pointer"
+                >
+                  <div className="flex items-center gap-2 min-w-0 pr-2">
+                    <span className="text-red-500 text-[10px] font-bold uppercase tracking-wider shrink-0">
+                      {useTmdbMode ? 'TMDB' : 'AniList'}
+                    </span>
+                    <span className="truncate">
+                      {seasons.find(s => s.season_number === currentSeason)?.name || `Season ${currentSeason}`}
+                    </span>
+                  </div>
+                  <ChevronDown size={14} className={`text-zinc-400 shrink-0 transition-transform ${isSidebarSeasonOpen ? 'rotate-180 text-white' : ''}`} />
+                </button>
+
+                {isSidebarSeasonOpen && (
+                  <div className="absolute left-0 right-0 top-full mt-1 bg-[#121216] border border-white/10 rounded-xl shadow-2xl p-1 z-50 max-h-56 overflow-y-auto custom-scrollbar animate-in fade-in duration-150">
+                    {seasons.map((s) => {
+                      const isSelected = s.season_number === currentSeason;
+                      return (
+                        <button
+                          key={s.id || s.season_number}
+                          onClick={() => {
+                            setCurrentSeason(s.season_number);
+                            if (onEpisodeChange) {
+                              onEpisodeChange(s.season_number, 1);
+                            }
+                            setCurrentEpisode(1);
+                            setIsSidebarSeasonOpen(false);
+                          }}
+                          className={`w-full text-left px-3 py-2 text-xs font-medium rounded-lg transition-colors flex items-center justify-between ${
+                            isSelected ? 'bg-red-600 text-white shadow-sm' : 'text-zinc-300 hover:bg-white/5 hover:text-white'
+                          }`}
+                        >
+                          <span className="truncate pr-2">{s.name}</span>
+                          {s.episode_count !== undefined && s.episode_count !== null && (
+                            <span className="text-[10px] opacity-60 shrink-0">{s.episode_count} Ep</span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Episodes List Container */}
+            <div className="bg-[#0c0c0e]/80 rounded-2xl p-1.5 max-h-[580px] overflow-y-auto custom-scrollbar space-y-0.5 border border-white/5 shadow-2xl">
               {episodeList.map((ep: any, idx: number) => {
                 const epNum = ep.episode_number || ep.number || (idx + 1);
                 const epTitle = ep.name || ep.title || `Episode ${epNum}`;
