@@ -1,11 +1,10 @@
 /**
- * Hayase Torrent Proxy Backend (100% Free Node.js Server for Render / Railway / VPS)
- * Allows deployed web apps (Vercel/Netlify) to stream ANY Nyaa or TCP/UDP Torrent.
+ * Hayase Torrent Proxy Backend (CommonJS Version)
  */
 
-import express from 'express';
-import cors from 'cors';
-import torrentStream from 'torrent-stream';
+const express = require('express');
+const cors = require('cors');
+const torrentStream = require('torrent-stream');
 
 const app = express();
 app.use(cors());
