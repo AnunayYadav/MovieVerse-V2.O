@@ -1777,6 +1777,46 @@ export const MoviePage: React.FC<MoviePageProps> = ({
                     setDetails(mappedDetails);
                     setAniListId(media.id);
                     setAniListMedia(media);
+
+                    // Match with TMDB TV Show to get full TMDB Seasons structure and auto-select matched season
+                    if (apiKey) {
+                        const titleToSearch = (media.title.english || media.title.userPreferred || media.title.romaji || '')
+                            .replace(/\s*\(?(Dub|Sub|TV|Movie|uncensored|censored|season\s*\d+|part\s*\d+)\)?\s*$/i, '').trim();
+
+                        fetch(`${TMDB_BASE_URL}/search/tv?api_key=${apiKey}&query=${encodeURIComponent(titleToSearch)}`)
+                            .then(res => res.json())
+                            .then(searchData => {
+                                const tmdbMatch = searchData.results?.find((item: any) => item.genre_ids?.includes(16) && item.original_language === 'ja')
+                                    || searchData.results?.find((item: any) => item.genre_ids?.includes(16))
+                                    || searchData.results?.[0];
+
+                                if (tmdbMatch && tmdbMatch.id) {
+                                    fetch(`${TMDB_BASE_URL}/tv/${tmdbMatch.id}?api_key=${apiKey}`)
+                                        .then(res => res.json())
+                                        .then(tvData => {
+                                            if (tvData && tvData.seasons && tvData.seasons.length > 0) {
+                                                const activeSeasons = tvData.seasons.filter((s: any) => s.season_number > 0);
+                                                const matchedSeasonNumber = matchLocalSeason({ title: media.title, seasonYear: media.seasonYear }, tvData.seasons);
+
+                                                setDetails((prev: any) => {
+                                                    if (!prev) return prev;
+                                                    return {
+                                                        ...prev,
+                                                        tmdbShowId: tvData.id,
+                                                        number_of_seasons: activeSeasons.length,
+                                                        seasons: activeSeasons,
+                                                    };
+                                                });
+                                                if (!movie.last_watched_data?.season && !(movie as any).initial_season) {
+                                                    setSelectedSeason(matchedSeasonNumber);
+                                                }
+                                            }
+                                        })
+                                        .catch(err => console.error("TMDB TV detail fetch failed for anime:", err));
+                                }
+                            })
+                            .catch(err => console.error("TMDB TV search failed for anime:", err));
+                    }
                 }
                 setLoading(false);
             })
@@ -1840,12 +1880,9 @@ export const MoviePage: React.FC<MoviePageProps> = ({
     useEffect(() => {
         const isTvShow = movie.media_type === 'tv' || !!(details && details.first_air_date);
         if (!isTvShow || !movie.id || (activeTab !== 'seasons' && !showPlayer)) return;
-        if ((movie as any).isAnimeDirect && !details) {
-            setEpisodesLoading(true);
-            return;
-        }
         
-        const currentKey = `${movie.id}-${selectedSeason}`;
+        const targetTvId = details?.tmdbShowId || (!((movie as any).isAnimeDirect) ? movie.id : null);
+        const currentKey = `${movie.id}-${targetTvId || 'no-tmdb'}-${selectedSeason}`;
         if (lastFetchedEpisodesRef.current === currentKey) {
             return;
         }
@@ -1854,94 +1891,66 @@ export const MoviePage: React.FC<MoviePageProps> = ({
         let isMounted = true;
         setEpisodesLoading(true);
 
-        if ((movie as any).isAnimeDirect && details) {
-            const fetchConsumetFallback = () => {
-                fetch(`/api/anime?action=episodes&anilistId=${details.id}`)
-                    .then(res => res.json())
-                    .then(data => {
-                        if (isMounted) {
-                            const fetchedEpisodes = (data.episodes || []).map((ep: any) => ({
-                                episode_number: ep.number,
-                                name: ep.title || `Episode ${ep.number}`,
-                                overview: ep.description || '',
-                                still_path: ep.image || null,
-                                air_date: ep.airdate || '',
-                                id: ep.id
-                            }));
-                            if (fetchedEpisodes.length > 0) {
-                                setEpisodes(fetchedEpisodes);
-                                setDetails((prev: any) => {
-                                    if (!prev || !prev.seasons) return prev;
-                                    return {
-                                        ...prev,
-                                        number_of_episodes: fetchedEpisodes.length,
-                                        seasons: prev.seasons.map((s: any) => ({
-                                            ...s,
-                                            episode_count: fetchedEpisodes.length
-                                        }))
-                                    };
-                                });
-                            }
-                        }
-                    })
-                    .catch(err => {
-                        console.error("Error fetching Consumet fallback episodes", err);
-                    })
-                    .finally(() => {
-                        if (isMounted) setEpisodesLoading(false);
-                    });
-            };
-
-            if ((details as any).idMal) {
-                fetch(`/api/anime?action=mal-episodes&malId=${(details as any).idMal}`)
-                    .then(res => res.json())
-                    .then(data => {
-                        if (isMounted) {
-                            const fetchedEpisodes = data.episodes || [];
-                            if (fetchedEpisodes.length > 0) {
-                                setEpisodes(fetchedEpisodes);
-                                setDetails((prev: any) => {
-                                    if (!prev || !prev.seasons) return prev;
-                                    return {
-                                        ...prev,
-                                        number_of_episodes: fetchedEpisodes.length,
-                                        seasons: prev.seasons.map((s: any) => ({
-                                            ...s,
-                                            episode_count: fetchedEpisodes.length
-                                        }))
-                                    };
-                                });
-                                setEpisodesLoading(false);
-                            } else {
-                                fetchConsumetFallback();
-                            }
-                        }
-                    })
-                    .catch(err => {
-                        console.error("Error fetching MAL anime episodes", err);
-                        fetchConsumetFallback();
-                    });
-            } else {
-                fetchConsumetFallback();
+        const fetchConsumetFallback = () => {
+            if (!details) {
+                if (isMounted) setEpisodesLoading(false);
+                return;
             }
-        } else if (!((movie as any).isAnimeDirect) && apiKey) {
-            fetch(`${TMDB_BASE_URL}/tv/${movie.id}/season/${selectedSeason}?api_key=${apiKey}`)
+            fetch(`/api/anime?action=episodes&anilistId=${details.id}`)
+                .then(res => res.json())
+                .then(data => {
+                    if (isMounted) {
+                        const fetchedEpisodes = (data.episodes || []).map((ep: any) => ({
+                            episode_number: ep.number,
+                            name: ep.title || `Episode ${ep.number}`,
+                            overview: ep.description || '',
+                            still_path: ep.image || null,
+                            air_date: ep.airdate || '',
+                            id: ep.id
+                        }));
+                        if (fetchedEpisodes.length > 0) {
+                            setEpisodes(fetchedEpisodes);
+                        }
+                    }
+                })
+                .catch(err => console.error("Error fetching Consumet fallback episodes", err))
+                .finally(() => {
+                    if (isMounted) setEpisodesLoading(false);
+                });
+        };
+
+        if (targetTvId && apiKey) {
+            fetch(`${TMDB_BASE_URL}/tv/${targetTvId}/season/${selectedSeason}?api_key=${apiKey}`)
                 .then(res => {
-                    if (!res.ok) throw new Error();
+                    if (!res.ok) throw new Error("Failed to fetch TMDB season");
                     return res.json();
                 })
                 .then(data => {
                     if (isMounted) {
-                        setEpisodes(data.episodes || []);
+                        if (data.episodes && data.episodes.length > 0) {
+                            setEpisodes(data.episodes);
+                            setEpisodesLoading(false);
+                        } else if ((movie as any).isAnimeDirect) {
+                            fetchConsumetFallback();
+                        } else {
+                            setEpisodes([]);
+                            setEpisodesLoading(false);
+                        }
                     }
                 })
                 .catch(err => {
-                    console.error("Error fetching season details", err);
-                    if (isMounted) setEpisodes([]);
-                })
-                .finally(() => { 
-                    if (isMounted) setEpisodesLoading(false); 
+                    console.error("TMDB episode fetch error:", err);
+                    if (isMounted) {
+                        if ((movie as any).isAnimeDirect) {
+                            fetchConsumetFallback();
+                        } else {
+                            setEpisodes([]);
+                            setEpisodesLoading(false);
+                        }
+                    }
                 });
+        } else if ((movie as any).isAnimeDirect && details) {
+            fetchConsumetFallback();
         } else {
             setEpisodesLoading(false);
         }

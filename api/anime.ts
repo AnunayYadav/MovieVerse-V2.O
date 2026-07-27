@@ -83,7 +83,7 @@ async function fetchKitsuEpisodes(kitsuAnimeId: string): Promise<any[]> {
     const allEpisodes = [...firstPageData];
     const offsets: number[] = [];
     for (let offset = limit; offset < totalCount; offset += limit) {
-      if (offset >= 500) break; // Cap at 500 episodes to prevent excessive network requests
+      if (offset >= 2500) break; // Cap at 2500 episodes for long-running series
       offsets.push(offset);
     }
 
